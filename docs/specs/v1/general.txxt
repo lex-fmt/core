@@ -1,10 +1,10 @@
 The txxt language
 
-    txxt is a lightweight plain text lanuage designed to be a general idea format, that scales down to a single line up to full scientific publishing.
+    txxt is a lightweight plain text language designed to be a general idea format, that scales down to a single line up to full scientific publishing.
 
     txxt aims to deliver rich functionality, being more expressive than HTML or markdown, while remaining human readable and writable in its raw form, without the need for specialized software.
 
-    The core philosophy of txxt is to prioritize human readability and writability, ensuring that documents remain accessible and easy to understand in their raw text form. In order to do this txxt leverages long ago stablised conventions from publishing, some of which are a few centuries old, and builds on them to create a modern, versatile format.
+    The core philosophy of txxt is to prioritize human readability and writability, ensuring that documents remain accessible and easy to understand in their raw text form. In order to do this, txxt leverages long ago stabilized conventions from publishing, some of which are a few centuries old, and builds on them to create a modern, versatile format.
 
     Structure is denoted through indentation.
 
@@ -12,36 +12,39 @@ The txxt language
 
     txxt documents are utf-8 encoded plain text files with the file extension .txxt.
 
-    blank lines are any line that has zero or more non visible characters (spaces, tabs) and no other content.
+    Blank lines are any line that has zero or more non-visible characters (spaces, tabs) and no other content.
 
-    The langauge makes no assumptions about column width, line length, or page size. These are considered presentation details that are outside the scope of the language.
+    The language makes no assumptions about column width, line length, or page size. These are considered presentation details that are outside the scope of the language.
 
-    The core syntax for the language is multi-line, that is, the same line contents in different grouppings can vary meaning. 
+    The core syntax for the language is multi-line. That is, the same line contents in different groupings can vary in meaning. 
      
 2. Indentation
     
-    An indentation step is represented by spaces multiple of tab stops, which is 4 by default. Tabs are not recommended, but if used count as 4 spaces.
+    An indentation step is represented by spaces in multiples of tab stops, which is 4 by default. Tabs are not recommended, but if used, count as 4 spaces.
 
-    Since txxt aims to be flexible and forgiven, lines that have space remainders, as in 10 spaces, which convert to 2 tabs spaces, hence two indentation tokens + 2 spaces + text span will be parsed with no error and only two indentation level tokens will be generated. The empty whitespaces will be considered part of the text.
+    Since txxt aims to be flexible and forgiving, lines that have space remainders (as in 10 spaces, which converts to 2 tab stops with 2 spaces remaining) will be parsed with no error. Only two indentation level tokens will be generated, and the remaining whitespaces will be considered part of the text.
 
 
 3. Elements
 
-    1. Lists: 
-        Lists are collections of at least two ListItems. 
-        ListItems can mix different decorations styles (remember, they are not content, but formatting). The list style is defined by the style of the first list item
+    1. Lists
 
-    2. Sessiosn: 
+        Lists are collections of at least two list items.
 
-        Sessions contain a SessionTitle line, followed by at least one blank line, then at least one child content, which must be indented relative to the session title.
+        List items can mix different decoration styles (remember, they are not content, but formatting). The list style is defined by the style of the first list item.
 
-        Sessions can be arbitrarely nested , with the only requirement ist that is must have at least one item as it's content (aside from the title)
-        
+    2. Sessions
+
+        Sessions contain a session title line, followed by at least one blank line, then at least one child content, which must be indented relative to the session title.
+
+        Sessions can be arbitrarily nested, with the only requirement that they must have at least one item as content (aside from the title).
+
     3. Paragraphs
 
-        Paragraphs are one or more consecutive Any Line tokens.
-        The trick is that paragraphs must be catch all, that is you don't match for paragraphs, you establish a paragraph by failing to match anything else.
+        Paragraphs are one or more consecutive non-blank lines.
 
-        The reason for this is two fold: for starters, the general syntax of paragraps, which are any number of any lines, is a generic as possible, that is, it will match anything. Hence it has to happen last.
+        The trick is that paragraphs are a catch-all. That is, you don't match for paragraphs; you establish a paragraph by failing to match anything else.
 
-        Additionally, txxt is forgiving, and if it's not sure about and element form, it's a paragraph, precisely because paragraphs are pretty much anything.
+        The reason for this is twofold: for starters, the general syntax of paragraphs (any number of non-blank lines) is as generic as possible. That is, it will match anything. Hence it has to happen last.
+
+        Additionally, txxt is forgiving, and if it's not sure about an element form, it's a paragraph, precisely because paragraphs are pretty much anything.

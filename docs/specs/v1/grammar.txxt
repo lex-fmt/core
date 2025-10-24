@@ -1,114 +1,15 @@
-Grammare for txxt
+Grammar for txxt
 
     This document describes the formal grammar for the txxt language, outlining its syntax and structural rules.
 
     The grammar is defined using a combination of Backus-Naur Form (BNF) and descriptive text to provide clarity on the language constructs.
 
-Terminology
 
-    Span Elements:
-        The smallest units of content in txxt, such as words, numbers, and punctuation, except for line breaks and indentation.
-    Indentation: 
-        Dedent and indent levels that define the hierarchical structure of the document.
-    Line Elements:
-        Complete lines of text, including their indentation and span elements.
-    Containers: 
-        A structural element that holds multiple child elements, defined by their indentation level. 
-    Block Elements:
-        Higher-level structures that can contain multiple lines or containers, such as paragraphs, lists and sessions.
-    Document: 
-        A structure composed of metadata about the document (which included non-content information) and the root node for the content.
-
-
-1. Syntax Elements
-
-    txxt strives to be syntax light, leveraging languages base syntax in addition to long held publishing conventions.  Hence, the nuimber of syntax elements is kept to a minimum.
-
-    1.1 Explicit Syntax: 
-
-        1.1.1 txxt-marker:
-
-            The only explict syntax is the txxt-marker, defined by two consecutive colons (::). This marker is used to denote special constructs within the document, such as annotation.
-
-    1.2 Implicit Syntax: 
-
-        Both lists and sessions can be decorated with ordering markers,. but only lists can use the plain decoration ((dash)
-
-        1.2.1 Sequence Markers: 
-
-            - Plain style: dash (-) for  lists.
-            - Ordered styles: 
-                - Number: 1., 2., 3., ...
-                - Letter: a., b., c., ...
-                - Roman Numerals: I
-                - Separators: dot (.), parenthesis ())
-
-            Hence all of these are ordered sequence markers:
-                1. First item
-                2) Second item
-                a) First item
-                b. Second item
-                I. First item
-                II) Second item
-
-        1.2.2  colons
-
-            Colons (:) are used in pairs to denote special constructs, namely subjec lines.
-        
-    2. Line Elements: 
-
-        Lines are the primary structural unit in txxt, consisting of span elements and their associated indentation level.
-
-        1. Core Lines: 
-            PlainDashed Line:
-                A line that begins with a dash (-), indicating it may be part of a plain list.
-            Ordered Line:
-                A line that is part of an ordered sequence, denoted by its sequence marker.
-            Subject Line:
-                A line that begins and ends with a colon (:), indicating it is a subject line.
-            Blank Line:
-                A line that contains no visible characters, used to separate blocks of content.
-            Text Line:
-                A line that doesn t fit into any of the above categories, typically plain text.
-
-        2. Line Types: 
-            These are unions of core lines that define their role in the document structure.
-            2.1 ListItem Line:
-                A line that is either a PlainDashed Line or an Ordered Line, representing an item in a list.
-            2.1 SessionTitle Line:
-                A line that is a either a ordered line, a subject line or a text line, representing the title of a session.
-            2.2 Any Line
-                Any line that is not a Blank Line.
-
-3. Elements: 
-
-    1. Lists: 
-        Lists are collections of ListItem Lines, two or more consecutive ListItem Lines 
-        ListItems can mix different decorations styles (remember, they are not content, but formatting). The list style is defined by the style of the first list item
-
-    2. Sessiosn: 
-
-        Sessions contain a SessionTitle line, followed by at least one blank line, then at least one child content, which must be indented relative to the session title.
-
-        <text-line>
-       <blank-line>
-      <indent> <any-line>...
-
-    3. Paragraphs
-
-        Paragraphs are one or more consecutive Any Line tokens.
-        The trick is that paragraphs must be catch all, that is you don't match for paragraphs, you establish a paragraph by failing to match anything else.
-
-        The reason for this is two fold: for starters, the general syntax of paragraps, which are any number of any lines, is a generic as possible, that is, it will match anything. Hence it has to happen last.
-
-        Additionally, txxt is forgiving, and if it's not sure about and element form, it's a paragraph, precisely because paragraphs are pretty much anything.
-
-
-4. Notation
+1. Notation
 
     This section documents the notation systems used in txxt specifications.
 
-    4.1. Grammar Notation
+    1.1. Grammar Notation
 
         txxt specs use a simplified BNF-like notation for describing syntax patterns:
 
@@ -132,7 +33,7 @@ Terminology
             <session-title> = (<number> <period>)? <text-span>+ <line-break>
         :: grammar
 
-    4.2. AST Tree Notation
+    1.2. AST Tree Notation
 
         AST structures are shown using ASCII tree notation:
 
@@ -152,7 +53,7 @@ Terminology
         - `└──` indicates the last child at a level
         - Indentation shows nesting depth
 
-    4.3. Token Pattern Notation
+    1.3. Token Pattern Notation
 
         Individual token patterns use regular expression-like syntax:
 
@@ -171,7 +72,7 @@ Terminology
             VerbatimStart: .+:\s*$
         :: regex
 
-    4.4. Indentation Notation
+    1.4. Indentation Notation
 
         Indentation levels are shown with explicit markers:
 
@@ -184,3 +85,85 @@ Terminology
         - Each indentation level is exactly 4 spaces
         - `+n` indicates n levels of indentation from base
         - Tabs are converted to 4 spaces during preprocessing
+
+2. Tokens
+
+    Tokens are the atomic units of the txxt language, from single characters to complete lines.
+
+    2.1. Character Tokens
+
+        2.1.1. txxt-marker
+
+            <txxt-marker> = ':' ':'
+
+            The only explicit syntax element in txxt, defined by two consecutive colons (::). This marker is used to denote special constructs within the document, such as annotations.
+
+        2.1.2. Whitespace
+
+            <space> = ' '
+            <tab> = '\t'
+            <whitespace> = <space> | <tab>
+            <line-break> = '\n'
+
+        2.1.3. Sequence Markers
+
+            <dash> = '-'
+            <period> = '.'
+            <open-paren> = '('
+            <close-paren> = ')'
+            <colon> = ':'
+
+    2.2. Composite Tokens
+
+        2.2.1. Indentation
+
+            <indent-step> = <space>{4} | <tab>
+            <indent> = <indent-step>+
+            <dedent> = (reduction in <indent> level)
+
+        2.2.2. Sequence Decorations
+
+            <plain-marker> = <dash> <space>
+
+            <number> = [0-9]+
+            <letter> = [a-zA-Z]
+            <roman-numeral> = 'I' | 'II' | 'III' | 'IV' | 'V' | ...
+
+            <separator> = <period> | <close-paren>
+            
+            <ordered-marker> = (<number> | <letter> | <roman-numeral>) <separator> <space>
+            <list-item-marker> = <plain-marker> | <ordered-marker>
+            <session-title-marker> = <ordered-marker>
+        2.2.3. Subject Markers
+            <subject> = <colon>
+        2.2.4. Text Spans
+            <text-char> = (any character except <line-break>)
+            <text-span> = <text-char>+
+
+    2.3. Line Tokens
+        2.3.1 Core Line Types
+            <plain-dashed-line> = <indent>? <plain-marker> <text-span>+ <line-break>
+            <ordered-line> = <indent>? <ordered-marker> <text-span>+ <line-break>
+            <subject-line> = <indent>?  <text-span>+ <subject> <line-break>
+            <blank-line> = <whitespace>* <line-break>
+            <text-line> = <indent>? <text-span>+ <line-break>
+        2.3.2 Composite Line Types:
+            <list-item-line> = <plain-dashed-line> | <ordered-line>
+            <session-title-line> = <ordered-line> | <subject-line> | <text-line>
+            <any-line> = <list-item-line> | <session-title-line> | <text-line>
+
+
+3. Element Grammar
+
+    These are the trifecta elements of txxt: sessions, paragraphs and lists: 
+
+    <list> = <list-item-line>{2,*}
+    
+    <session> = <session-title-line> <blank-line> <indent> <session-content>
+    <session-content> = (<paragraph> | <list> | <session>)+
+    
+    <paragraph> = <any-line>+
+    
+    <document> = <metadata>? <content>
+    <metadata> = (document metadata, non-content information)
+    <content> = (<paragraph> | <list> | <session>)*
