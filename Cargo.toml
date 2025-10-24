@@ -14,3 +14,7 @@ name = "txxt"
 path = "src/bin/txxt.rs"
 
 [dependencies]
+logos = "0.14"
+
+[dev-dependencies]
+proptest = "1.4"
