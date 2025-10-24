@@ -37,6 +37,25 @@ pub fn transform_indentation(tokens: Vec<Token>) -> Vec<Token> {
         // Count Indent tokens at the beginning of this line
         let line_indent_level = count_line_indent_steps(&tokens, line_start);
 
+        // Check if this line is blank (only contains indentation and newline)
+        let is_blank_line = is_line_blank(&tokens, line_start);
+
+        // Skip blank lines - they don't affect indentation level
+        if is_blank_line {
+            // Just add the newline token and continue
+            // Blank lines preserve the current indentation level
+            let mut j = line_start;
+            while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
+                j += 1;
+            }
+            if j < tokens.len() && matches!(tokens[j], Token::Newline) {
+                result.push(Token::Newline);
+                j += 1;
+            }
+            i = j;
+            continue;
+        }
+
         // Calculate the target indentation level for this line
         let target_level = line_indent_level;
 
@@ -74,6 +93,11 @@ pub fn transform_indentation(tokens: Vec<Token>) -> Vec<Token> {
         i = j;
     }
 
+    // Add dedents to close all remaining indentation levels
+    for _ in 0..current_level {
+        result.push(Token::DedentLevel);
+    }
+
     // Always add a final DedentLevel to close the document structure
     result.push(Token::DedentLevel);
 
@@ -90,6 +114,19 @@ fn find_line_start(tokens: &[Token], mut pos: usize) -> usize {
         }
     }
     0
+}
+
+/// Check if a line is blank (only contains indentation and newline)
+fn is_line_blank(tokens: &[Token], line_start: usize) -> bool {
+    let mut i = line_start;
+
+    // Skip any indentation tokens at the beginning
+    while i < tokens.len() && matches!(tokens[i], Token::Indent) {
+        i += 1;
+    }
+
+    // Check if the next token is a newline (or end of file)
+    i >= tokens.len() || matches!(tokens[i], Token::Newline)
 }
 
 /// Count consecutive Indent tokens at the beginning of a line
@@ -129,7 +166,8 @@ mod tests {
                 Token::IndentLevel,
                 Token::Dash,
                 Token::Newline,
-                Token::DedentLevel,
+                Token::DedentLevel, // Dedent from level 1 to level 0
+                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
@@ -162,7 +200,8 @@ mod tests {
                 Token::DedentLevel,
                 Token::Text,
                 Token::Newline,
-                Token::DedentLevel,
+                Token::DedentLevel, // Dedent from level 1 to level 0
+                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
@@ -279,6 +318,73 @@ mod tests {
     }
 
     #[test]
+    fn test_blank_lines() {
+        // Test case: blank lines should not affect indentation level
+        let input = vec![
+            Token::Text,
+            Token::Newline,
+            Token::Indent,
+            Token::Dash,
+            Token::Newline,
+            Token::Newline, // blank line
+            Token::Dash,
+            Token::Newline,
+        ];
+
+        let result = transform_indentation(input);
+
+        assert_eq!(
+            result,
+            vec![
+                Token::Text,
+                Token::Newline,
+                Token::IndentLevel,
+                Token::Dash,
+                Token::Newline,
+                Token::Newline,     // blank line preserved
+                Token::DedentLevel, // dedent from level 1 to level 0
+                Token::Dash,
+                Token::Newline,
+                Token::DedentLevel,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_blank_lines_with_indentation() {
+        // Test case: blank lines with indentation should be ignored
+        let input = vec![
+            Token::Text,
+            Token::Newline,
+            Token::Indent,
+            Token::Dash,
+            Token::Newline,
+            Token::Indent,
+            Token::Newline, // blank line with indentation
+            Token::Dash,
+            Token::Newline,
+        ];
+
+        let result = transform_indentation(input);
+
+        assert_eq!(
+            result,
+            vec![
+                Token::Text,
+                Token::Newline,
+                Token::IndentLevel,
+                Token::Dash,
+                Token::Newline,
+                Token::Newline,     // blank line preserved
+                Token::DedentLevel, // dedent from level 1 to level 0
+                Token::Dash,
+                Token::Newline,
+                Token::DedentLevel,
+            ]
+        );
+    }
+
+    #[test]
     fn test_whitespace_remainders() {
         // Test case with whitespace remainders (10 spaces = 2 indent levels + 2 remaining)
         let input = vec![
@@ -297,7 +403,143 @@ mod tests {
                 Token::IndentLevel,
                 Token::Text,
                 Token::Newline,
-                Token::DedentLevel,
+                Token::DedentLevel, // Dedent from level 2 to level 1
+                Token::DedentLevel, // Dedent from level 1 to level 0
+                Token::DedentLevel, // Final dedent to close document
+            ]
+        );
+    }
+
+    #[test]
+    fn test_file_ending_while_indented() {
+        // Test case: file ending while indented should emit proper dedents
+        let input = vec![
+            Token::Text,
+            Token::Newline,
+            Token::Indent,
+            Token::Dash,
+            Token::Newline,
+            Token::Indent,
+            Token::Indent,
+            Token::Text,
+            // File ends here without explicit dedents
+        ];
+
+        let result = transform_indentation(input);
+
+        assert_eq!(
+            result,
+            vec![
+                Token::Text,
+                Token::Newline,
+                Token::IndentLevel,
+                Token::Dash,
+                Token::Newline,
+                Token::IndentLevel,
+                Token::Text,
+                Token::DedentLevel, // Should dedent from level 2 to level 1
+                Token::DedentLevel, // Should dedent from level 1 to level 0
+                Token::DedentLevel, // Final dedent to close document
+            ]
+        );
+    }
+
+    #[test]
+    fn test_sharp_drop_in_indentation() {
+        // Test case: sharp drop from level 3 to level 0
+        let input = vec![
+            Token::Text,
+            Token::Newline,
+            Token::Indent,
+            Token::Indent,
+            Token::Indent,
+            Token::Dash,
+            Token::Newline,
+            Token::Text, // Back to level 0
+            Token::Newline,
+        ];
+
+        let result = transform_indentation(input);
+
+        assert_eq!(
+            result,
+            vec![
+                Token::Text,
+                Token::Newline,
+                Token::IndentLevel,
+                Token::IndentLevel,
+                Token::IndentLevel,
+                Token::Dash,
+                Token::Newline,
+                Token::DedentLevel, // Dedent from level 3 to level 2
+                Token::DedentLevel, // Dedent from level 2 to level 1
+                Token::DedentLevel, // Dedent from level 1 to level 0
+                Token::Text,
+                Token::Newline,
+                Token::DedentLevel, // Final dedent to close document
+            ]
+        );
+    }
+
+    #[test]
+    fn test_multiple_blank_lines_between_sections() {
+        // Test case: multiple blank lines between indented sections
+        let input = vec![
+            Token::Text,
+            Token::Newline,
+            Token::Indent,
+            Token::Dash,
+            Token::Newline,
+            Token::Newline, // blank line 1
+            Token::Newline, // blank line 2
+            Token::Newline, // blank line 3
+            Token::Dash,    // Should be at same level as first dash
+            Token::Newline,
+        ];
+
+        let result = transform_indentation(input);
+
+        assert_eq!(
+            result,
+            vec![
+                Token::Text,
+                Token::Newline,
+                Token::IndentLevel,
+                Token::Dash,
+                Token::Newline,
+                Token::Newline,     // blank line 1
+                Token::Newline,     // blank line 2
+                Token::Newline,     // blank line 3
+                Token::DedentLevel, // Dedent from level 1 to level 0
+                Token::Dash,        // Now at level 0
+                Token::Newline,
+                Token::DedentLevel, // Final dedent to close document
+            ]
+        );
+    }
+
+    #[test]
+    fn test_file_with_no_indentation() {
+        // Test case: file with no indentation at all
+        let input = vec![
+            Token::Text,
+            Token::Newline,
+            Token::Text,
+            Token::Newline,
+            Token::Text,
+        ];
+
+        let result = transform_indentation(input);
+
+        assert_eq!(
+            result,
+            vec![
+                Token::Text,
+                Token::Newline,
+                Token::Text,
+                Token::Newline,
+                Token::Text,
+                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
