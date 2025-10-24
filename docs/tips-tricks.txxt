@@ -1,0 +1,44 @@
+Parsing TXXT Tips and Tricks
+
+    The txxt format, although brain dead simple, is actually pretty tricky to parse.
+    The core difficulty being the combination of significant indentation and lack of explicit syntax tokens, which makes disambiguation tricker. 
+
+    That is not to say, however, that is it not parsable, it is, but it requires careful planning and attention to detail. 
+
+1. Parsing The Trifecta
+
+    The core elements: sessions, paragraphs and lists of txxt are the ones where these difficulties are more evident.
+    
+    The cause being: there is big syntatic overlap between session titles and list items, and all session titles and list items are valid paragraph.
+
+    1. Parse lists first: 
+
+        Lists requires: 
+            - ListItem Line types
+            - At least 2, contiguos (that is one list item line, blank line and other list item line is not a list)
+
+    2. Once lists get out of the way, parsing is simpler. 
+
+        A sessino will have a SessionTitle Line, then a blank line, indent, and any line.
+
+        IN general terms: 
+
+        <blank-line>
+        <session-title-line>
+        <blank-line>
+        <indent><any-line>
+
+    3. Anything else will be a paragraph.
+
+2. Recursion
+
+    Note that sessions can be arbitrarely nested,so techinically, the ast would look more lke this: 
+
+    <session>
+        <blank-line>
+        <title>
+        <blank-line>
+        <session-container>
+            <paragraph> ... 
+        </session-container>
+    </session>

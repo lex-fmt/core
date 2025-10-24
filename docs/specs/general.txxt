@@ -8,7 +8,7 @@ The txxt language
 
     Structure is denoted through indentation.
 
-General
+1. General
 
     txxt documents are utf-8 encoded plain text files with the file extension .txxt.
 
@@ -18,8 +18,30 @@ General
 
     The core syntax for the language is multi-line, that is, the same line contents in different grouppings can vary meaning. 
      
-Indentation
+2. Indentation
     
     An indentation step is represented by spaces multiple of tab stops, which is 4 by default. Tabs are not recommended, but if used count as 4 spaces.
 
     Since txxt aims to be flexible and forgiven, lines that have space remainders, as in 10 spaces, which convert to 2 tabs spaces, hence two indentation tokens + 2 spaces + text span will be parsed with no error and only two indentation level tokens will be generated. The empty whitespaces will be considered part of the text.
+
+
+3. Elements
+
+    1. Lists: 
+        Lists are collections of at least two ListItems. 
+        ListItems can mix different decorations styles (remember, they are not content, but formatting). The list style is defined by the style of the first list item
+
+    2. Sessiosn: 
+
+        Sessions contain a SessionTitle line, followed by at least one blank line, then at least one child content, which must be indented relative to the session title.
+
+        Sessions can be arbitrarely nested , with the only requirement ist that is must have at least one item as it's content (aside from the title)
+        
+    3. Paragraphs
+
+        Paragraphs are one or more consecutive Any Line tokens.
+        The trick is that paragraphs must be catch all, that is you don't match for paragraphs, you establish a paragraph by failing to match anything else.
+
+        The reason for this is two fold: for starters, the general syntax of paragraps, which are any number of any lines, is a generic as possible, that is, it will match anything. Hence it has to happen last.
+
+        Additionally, txxt is forgiving, and if it's not sure about and element form, it's a paragraph, precisely because paragraphs are pretty much anything.
