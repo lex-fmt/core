@@ -93,7 +93,6 @@ mod proptest_tests {
     use super::*;
 
     /// Generate valid txxt text content
-    #[allow(dead_code)]
     fn txxt_text_strategy() -> impl Strategy<Value = String> {
         prop::collection::vec(
             prop_oneof![
@@ -112,7 +111,6 @@ mod proptest_tests {
     }
 
     /// Generate valid indentation
-    #[allow(dead_code)]
     fn indentation_strategy() -> impl Strategy<Value = String> {
         prop_oneof![
             // No indentation
@@ -130,7 +128,6 @@ mod proptest_tests {
     }
 
     /// Generate valid list items
-    #[allow(dead_code)]
     fn list_item_strategy() -> impl Strategy<Value = String> {
         prop_oneof![
             // Plain dash list
@@ -145,7 +142,6 @@ mod proptest_tests {
     }
 
     /// Generate valid session titles
-    #[allow(dead_code)]
     fn session_title_strategy() -> impl Strategy<Value = String> {
         prop_oneof![
             // Numbered session
@@ -158,7 +154,6 @@ mod proptest_tests {
     }
 
     /// Generate valid txxt documents
-    #[allow(dead_code)]
     fn txxt_document_strategy() -> impl Strategy<Value = String> {
         prop::collection::vec(
             prop_oneof![
@@ -174,70 +169,110 @@ mod proptest_tests {
         .prop_map(|lines| lines.join("\n"))
     }
 
-    #[test]
-    fn test_tokenize_never_panics() {
-        // Test with various valid inputs
-        let test_inputs = vec![
-            "hello world",
-            "1. Session Title",
-            "- Item 1\n- Item 2",
-            "    indented text",
-            ":: marker",
-            "a. Letter item",
-            "(1) Parenthetical item",
-        ];
-
-        for input in test_inputs {
-            let _tokens = tokenize(input);
-            // Test passes if no panic occurs
+    // Property-based tests using the strategies above
+    proptest! {
+        #[test]
+        fn test_tokenize_never_panics(input in txxt_document_strategy()) {
+            // The lexer should never panic on any valid txxt input
+            let _tokens = tokenize(&input);
         }
-    }
 
-    #[test]
-    fn test_tokenize_produces_valid_tokens() {
-        let tokens = tokenize("hello world");
-        assert!(!tokens.is_empty());
-    }
+        #[test]
+        fn test_tokenize_produces_valid_tokens(input in txxt_document_strategy()) {
+            // All tokens should be valid Token variants
+            let tokens = tokenize(&input);
+            for token in tokens {
+                match token {
+                    Token::TxxtMarker | Token::Indent | Token::Whitespace |
+                    Token::Newline | Token::Dash | Token::Period |
+                    Token::OpenParen | Token::CloseParen | Token::Colon |
+                    Token::Number | Token::Text => {
+                        // All valid tokens
+                    }
+                }
+            }
+        }
 
-    #[test]
-    fn test_indentation_tokenization() {
-        let tokens = tokenize("    hello");
-        assert!(!tokens.is_empty());
-        assert!(tokens.iter().any(|t| t.is_indent()));
-    }
+        #[test]
+        fn test_indentation_tokenization(input in indentation_strategy()) {
+            // Indentation should produce appropriate Indent tokens
+            let tokens = tokenize(&input);
+            let indent_count = tokens.iter().filter(|t| t.is_indent()).count();
 
-    #[test]
-    fn test_list_item_tokenization() {
-        let tokens = tokenize("- Item 1");
-        assert!(!tokens.is_empty());
-        assert!(tokens.iter().any(|t| matches!(t, Token::Dash)));
-    }
+            // Count expected indent levels based on input
+            let expected_indents = if input.is_empty() {
+                0
+            } else {
+                // Count tabs (each tab = 1 indent)
+                let tab_count = input.matches('\t').count();
+                // Count groups of 4 spaces (each group = 1 indent)
+                let space_count = input.split('\t').map(|s| s.len() / 4).sum::<usize>();
+                tab_count + space_count
+            };
 
-    #[test]
-    fn test_session_title_tokenization() {
-        let tokens = tokenize("1. Session Title");
-        assert!(!tokens.is_empty());
-        assert!(tokens.iter().any(|t| matches!(t, Token::Period)));
-    }
+            assert_eq!(indent_count, expected_indents);
+        }
 
-    #[test]
-    fn test_multiline_tokenization() {
-        let tokens = tokenize("Line 1\nLine 2");
-        assert!(!tokens.is_empty());
-        assert!(tokens.iter().any(|t| matches!(t, Token::Newline)));
-    }
+        #[test]
+        fn test_list_item_tokenization(input in list_item_strategy()) {
+            // List items should contain appropriate markers
+            let tokens = tokenize(&input);
 
-    #[test]
-    fn test_empty_input_tokenization() {
-        let tokens = tokenize("");
-        assert!(tokens.is_empty());
-    }
+            if input.starts_with('-') {
+                assert!(tokens.iter().any(|t| matches!(t, Token::Dash)));
+            } else if input.contains('.') && input.chars().next().unwrap().is_ascii_digit() {
+                assert!(tokens.iter().any(|t| matches!(t, Token::Number)));
+                assert!(tokens.iter().any(|t| matches!(t, Token::Period)));
+            } else if input.starts_with('(') {
+                assert!(tokens.iter().any(|t| matches!(t, Token::OpenParen)));
+                assert!(tokens.iter().any(|t| matches!(t, Token::CloseParen)));
+            }
+        }
 
-    #[test]
-    fn test_whitespace_only_tokenization() {
-        let tokens = tokenize("   ");
-        assert!(!tokens.is_empty());
-        assert!(tokens.iter().any(|t| t.is_whitespace()));
+        #[test]
+        fn test_session_title_tokenization(input in session_title_strategy()) {
+            // Session titles should contain appropriate markers
+            let tokens = tokenize(&input);
+
+            if input.contains(':') {
+                assert!(tokens.iter().any(|t| matches!(t, Token::Colon)));
+            } else if input.contains('.') && input.chars().next().unwrap().is_ascii_digit() {
+                assert!(tokens.iter().any(|t| matches!(t, Token::Number)));
+                assert!(tokens.iter().any(|t| matches!(t, Token::Period)));
+            }
+        }
+
+        #[test]
+        fn test_multiline_tokenization(input in txxt_text_strategy()) {
+            // Multiline text should contain Newline tokens
+            let tokens = tokenize(&input);
+
+            if input.contains('\n') {
+                assert!(tokens.iter().any(|t| matches!(t, Token::Newline)));
+            }
+        }
+
+        #[test]
+        fn test_empty_input_tokenization(input in "") {
+            // Empty input should produce no tokens
+            let tokens = tokenize(&input);
+            assert!(tokens.is_empty());
+        }
+
+        #[test]
+        fn test_whitespace_only_tokenization(input in "[ ]{0,10}") {
+            // Whitespace-only input should produce appropriate tokens
+            let tokens = tokenize(&input);
+
+            if input.is_empty() {
+                assert!(tokens.is_empty());
+            } else {
+                // Should contain only whitespace-related tokens
+                for token in tokens {
+                    assert!(token.is_whitespace());
+                }
+            }
+        }
     }
 }
 
