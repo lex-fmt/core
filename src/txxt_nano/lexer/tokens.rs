@@ -37,8 +37,12 @@ pub enum Token {
     #[token(":")]
     Colon,
 
-    // Text content (catch-all for non-special characters)
-    #[regex(r"[^\s\n\t\-\.\(\):]+")]
+    // Numbers (for ordered lists and session titles)
+    #[regex(r"[0-9]+", priority = 2)]
+    Number,
+
+    // Text content (catch-all for non-special characters, excluding numbers)
+    #[regex(r"[^\s\n\t\-\.\(\):0-9]+")]
     Text,
 }
 
@@ -59,6 +63,11 @@ impl Token {
             self,
             Token::Dash | Token::Period | Token::OpenParen | Token::CloseParen
         )
+    }
+
+    /// Check if this token is a number
+    pub fn is_number(&self) -> bool {
+        matches!(self, Token::Number)
     }
 
     /// Check if this token is text content
@@ -130,7 +139,7 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Text,       // "1"
+                Token::Number,     // "1"
                 Token::Period,     // "."
                 Token::Whitespace, // " "
                 Token::Text,       // "Hello"
@@ -142,8 +151,17 @@ mod tests {
                 Token::Whitespace, // " "
                 Token::Text,       // "Item"
                 Token::Whitespace, // " "
-                Token::Text        // "1"
+                Token::Number      // "1"
             ]
+        );
+    }
+
+    #[test]
+    fn test_number_tokens() {
+        let tokens = tokenize("123 456");
+        assert_eq!(
+            tokens,
+            vec![Token::Number, Token::Whitespace, Token::Number]
         );
     }
 
@@ -160,8 +178,14 @@ mod tests {
         assert!(Token::Dash.is_sequence_marker());
         assert!(Token::Period.is_sequence_marker());
         assert!(!Token::Text.is_sequence_marker());
+        assert!(!Token::Number.is_sequence_marker());
 
         assert!(Token::Text.is_text());
         assert!(!Token::Dash.is_text());
+        assert!(!Token::Number.is_text());
+
+        assert!(Token::Number.is_number());
+        assert!(!Token::Text.is_number());
+        assert!(!Token::Dash.is_number());
     }
 }

@@ -71,7 +71,7 @@ mod tests {
                 Token::Whitespace,
                 Token::Text,
                 Token::Whitespace,
-                Token::Text
+                Token::Number
             ]
         );
     }
@@ -82,12 +82,12 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Text,
+                Token::Number,
                 Token::Period,
                 Token::Whitespace,
                 Token::Text,
                 Token::Whitespace,
-                Token::Text
+                Token::Number
             ]
         );
     }
@@ -98,7 +98,7 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Text,
+                Token::Number,
                 Token::Period,
                 Token::Whitespace,
                 Token::Text,
@@ -122,11 +122,11 @@ mod tests {
             vec![
                 Token::Text,
                 Token::Whitespace,
-                Token::Text,
+                Token::Number,
                 Token::Newline,
                 Token::Text,
                 Token::Whitespace,
-                Token::Text
+                Token::Number
             ]
         );
     }
@@ -137,7 +137,7 @@ mod tests {
         let tokens = tokenize(input);
 
         // Expected tokens for "1. Session Title"
-        assert_eq!(tokens[0], Token::Text); // "1"
+        assert_eq!(tokens[0], Token::Number); // "1"
         assert_eq!(tokens[1], Token::Period); // "."
         assert_eq!(tokens[2], Token::Whitespace); // " "
         assert_eq!(tokens[3], Token::Text); // "Session"
@@ -151,7 +151,7 @@ mod tests {
         assert_eq!(tokens[9], Token::Whitespace); // " "
         assert_eq!(tokens[10], Token::Text); // "Item"
         assert_eq!(tokens[11], Token::Whitespace); // " "
-        assert_eq!(tokens[12], Token::Text); // "1"
+        assert_eq!(tokens[12], Token::Number); // "1"
         assert_eq!(tokens[13], Token::Newline); // "\n"
 
         // Expected tokens for "    - Item 2"
@@ -160,7 +160,7 @@ mod tests {
         assert_eq!(tokens[16], Token::Whitespace); // " "
         assert_eq!(tokens[17], Token::Text); // "Item"
         assert_eq!(tokens[18], Token::Whitespace); // " "
-        assert_eq!(tokens[19], Token::Text); // "2"
+        assert_eq!(tokens[19], Token::Number); // "2"
     }
 
     #[test]
@@ -203,7 +203,7 @@ mod tests {
             tokens,
             vec![
                 Token::OpenParen,
-                Token::Text,
+                Token::Number,
                 Token::CloseParen,
                 Token::Whitespace,
                 Token::Text,

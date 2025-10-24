@@ -309,7 +309,7 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Text,       // "1"
+                Token::Number,     // "1"
                 Token::Period,     // "."
                 Token::Whitespace, // " "
                 Token::Text,       // "Session"
@@ -353,7 +353,7 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Text,       // "1"
+                Token::Number,     // "1"
                 Token::Period,     // "."
                 Token::Whitespace, // " "
                 Token::Text,       // "Session"
@@ -363,14 +363,14 @@ mod integration_tests {
                 Token::Whitespace, // " "
                 Token::Text,       // "Item"
                 Token::Whitespace, // " "
-                Token::Text,       // "1"
+                Token::Number,     // "1"
                 Token::Newline,    // "\n"
                 Token::Indent,     // "    "
                 Token::Dash,       // "-"
                 Token::Whitespace, // " "
                 Token::Text,       // "Item"
                 Token::Whitespace, // " "
-                Token::Text,       // "2"
+                Token::Number,     // "2"
                 Token::Newline,    // "\n"
                 Token::Newline,    // "\n"
                 Token::Text,       // "Paragraph"

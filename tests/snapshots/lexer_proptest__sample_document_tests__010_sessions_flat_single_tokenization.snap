@@ -50,7 +50,7 @@ expression: tokens
     Text,
     Newline,
     Newline,
-    Text,
+    Number,
     Period,
     Whitespace,
     Text,
