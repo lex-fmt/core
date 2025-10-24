@@ -1,0 +1,32 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo.lock (only for libraries, keep for binaries)
+# Cargo.lock
+
+# Coverage files
+lcov.info
+coverage/
+*.profraw
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local development
+.envrc
+.direnv/
+reference-no-git
+.padz
+ISSUES
+disposable/ .todos.db
+.todos.db

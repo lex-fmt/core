@@ -1,0 +1,25 @@
+The txxt language
+
+    txxt is a lightweight plain text lanuage designed to be a general idea format, that scales down to a single line up to full scientific publishing.
+
+    txxt aims to deliver rich functionality, being more expressive than HTML or markdown, while remaining human readable and writable in its raw form, without the need for specialized software.
+
+    The core philosophy of txxt is to prioritize human readability and writability, ensuring that documents remain accessible and easy to understand in their raw text form. In order to do this txxt leverages long ago stablised conventions from publishing, some of which are a few centuries old, and builds on them to create a modern, versatile format.
+
+    Structure is denoted through indentation.
+
+General
+
+    txxt documents are utf-8 encoded plain text files with the file extension .txxt.
+
+    blank lines are any line that has zero or more non visible characters (spaces, tabs) and no other content.
+
+    The langauge makes no assumptions about column width, line length, or page size. These are considered presentation details that are outside the scope of the language.
+
+    The core syntax for the language is multi-line, that is, the same line contents in different grouppings can vary meaning. 
+     
+Indentation
+    
+    An indentation step is represented by spaces multiple of tab stops, which is 4 by default. Tabs are not recommended, but if used count as 4 spaces.
+
+    Since txxt aims to be flexible and forgiven, lines that have space remainders, as in 10 spaces, which convert to 2 tabs spaces, hence two indentation tokens + 2 spaces + text span will be parsed with no error and only two indentation level tokens will be generated. The empty whitespaces will be considered part of the text.

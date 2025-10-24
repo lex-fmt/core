@@ -1,0 +1,104 @@
+Grammare for txxt
+
+    This document describes the formal grammar for the txxt language, outlining its syntax and structural rules.
+
+    The grammar is defined using a combination of Backus-Naur Form (BNF) and descriptive text to provide clarity on the language constructs.
+
+Terminology
+
+    Span Elements:
+        The smallest units of content in txxt, such as words, numbers, and punctuation, except for line breaks and indentation.
+    Indentation: 
+        Dedent and indent levels that define the hierarchical structure of the document.
+    Line Elements:
+        Complete lines of text, including their indentation and span elements.
+    Containers: 
+        A structural element that holds multiple child elements, defined by their indentation level. 
+    Block Elements:
+        Higher-level structures that can contain multiple lines or containers, such as paragraphs, lists and sessions.
+    Document: 
+        A structure composed of metadata about the document (which included non-content information) and the root node for the content.
+
+
+1. Syntax Elements
+
+    txxt strives to be syntax light, leveraging languages base syntax in addition to long held publishing conventions.  Hence, the nuimber of syntax elements is kept to a minimum.
+
+    1.1 Explicit Syntax: 
+
+        1.1.1 txxt-marker:
+
+            The only explict syntax is the txxt-marker, defined by two consecutive colons (::). This marker is used to denote special constructs within the document, such as annotation.
+
+    1.2 Implicit Syntax: 
+
+        Both lists and sessions can be decorated with ordering markers,. but only lists can use the plain decoration ((dash)
+
+        1.2.1 Sequence Markers: 
+
+            - Plain style: dash (-) for  lists.
+            - Ordered styles: 
+                - Number: 1., 2., 3., ...
+                - Letter: a., b., c., ...
+                - Roman Numerals: I
+                - Separators: dot (.), parenthesis ())
+
+            Hence all of these are ordered sequence markers:
+                1. First item
+                2) Second item
+                a) First item
+                b. Second item
+                I. First item
+                II) Second item
+
+        1.2.2  colons
+
+            Colons (:) are used in pairs to denote special constructs, namely subjec lines.
+        
+    2. Line Elements: 
+
+        Lines are the primary structural unit in txxt, consisting of span elements and their associated indentation level.
+
+        1. Core Lines: 
+            PlainDashed Line:
+                A line that begins with a dash (-), indicating it may be part of a plain list.
+            Ordered Line:
+                A line that is part of an ordered sequence, denoted by its sequence marker.
+            Subject Line:
+                A line that begins and ends with a colon (:), indicating it is a subject line.
+            Blank Line:
+                A line that contains no visible characters, used to separate blocks of content.
+            Text Line:
+                A line that doesn t fit into any of the above categories, typically plain text.
+
+        2. Line Types: 
+            These are unions of core lines that define their role in the document structure.
+            2.1 ListItem Line:
+                A line that is either a PlainDashed Line or an Ordered Line, representing an item in a list.
+            2.1 SessionTitle Line:
+                A line that is a either a ordered line, a subject line or a text line, representing the title of a session.
+            2.2 Any Line
+                Any line that is not a Blank Line.
+
+3. Elements: 
+
+    1. Lists: 
+        Lists are collections of ListItem Lines, two or more consecutive ListItem Lines 
+        ListItems can mix different decorations styles (remember, they are not content, but formatting). The list style is defined by the style of the first list item
+
+    2. Sessiosn: 
+
+        Sessions contain a SessionTitle line, followed by at least one blank line, then at least one child content, which must be indented relative to the session title.
+
+        <text-line>
+       <blank-line>
+      <indent> <any-line>...
+
+    3. Paragraphs
+
+        Paragraphs are one or more consecutive Any Line tokens.
+        The trick is that paragraphs must be catch all, that is you don't match for paragraphs, you establish a paragraph by failing to match anything else.
+
+        The reason for this is two fold: for starters, the general syntax of paragraps, which are any number of any lines, is a generic as possible, that is, it will match anything. Hence it has to happen last.
+
+        Additionally, txxt is forgiving, and if it's not sure about and element form, it's a paragraph, precisely because paragraphs are pretty much anything.
