@@ -13,10 +13,12 @@ pub enum Token {
     TxxtMarker,
 
     // Indentation (simplified - one token per 4 spaces or tab)
-    #[regex(r"    ", priority = 2)] // Exactly 4 spaces
-    IndentSpace,
-    #[regex(r"\t", priority = 2)] // Single tab
-    IndentTab,
+    #[regex(r" {4}|\t", priority = 3)] // Either 4 spaces OR 1 tab - highest priority
+    Indent,
+
+    // Whitespace (excluding newlines and indentation)
+    #[regex(r" {1,3}", priority = 1)] // 1-3 spaces only, lower priority than indentation
+    Whitespace,
 
     // Line breaks
     #[token("\n")]
@@ -34,10 +36,6 @@ pub enum Token {
     #[token(":")]
     Colon,
 
-    // Whitespace (excluding newlines and indentation)
-    #[regex(r"[ ]+", priority = 1)] // Only spaces, lower priority than indentation
-    Whitespace,
-
     // Text content (catch-all for non-special characters)
     #[regex(r"[^\s\n\t\-\.\(\):]+")]
     Text,
@@ -46,15 +44,12 @@ pub enum Token {
 impl Token {
     /// Check if this token represents indentation
     pub fn is_indent(&self) -> bool {
-        matches!(self, Token::IndentSpace | Token::IndentTab)
+        matches!(self, Token::Indent)
     }
 
     /// Check if this token is whitespace (including indentation)
     pub fn is_whitespace(&self) -> bool {
-        matches!(
-            self,
-            Token::IndentSpace | Token::IndentTab | Token::Whitespace | Token::Newline
-        )
+        matches!(self, Token::Indent | Token::Whitespace | Token::Newline)
     }
 
     /// Check if this token is a sequence marker
@@ -89,14 +84,14 @@ mod tests {
         let mut lexer = TxxtLexer::new("    ");
         let token = lexer.next();
         println!("Token for '    ': {:?}", token);
-        assert_eq!(token, Some(Token::IndentSpace));
+        assert_eq!(token, Some(Token::Indent));
         assert_eq!(lexer.next(), None);
 
         // Test tab
         let mut lexer = TxxtLexer::new("\t");
         let token = lexer.next();
         println!("Token for '\\t': {:?}", token);
-        assert_eq!(token, Some(Token::IndentTab));
+        assert_eq!(token, Some(Token::Indent));
         assert_eq!(lexer.next(), None);
 
         // Test multiple indent levels
@@ -104,8 +99,8 @@ mod tests {
         let token1 = lexer.next();
         let token2 = lexer.next();
         println!("Tokens for '        ': {:?}, {:?}", token1, token2);
-        assert_eq!(token1, Some(Token::IndentSpace));
-        assert_eq!(token2, Some(Token::IndentSpace));
+        assert_eq!(token1, Some(Token::Indent));
+        assert_eq!(token2, Some(Token::Indent));
         assert_eq!(lexer.next(), None);
     }
 
@@ -150,7 +145,7 @@ mod tests {
         assert_eq!(lexer.next(), Some(Token::Whitespace));
         assert_eq!(lexer.next(), Some(Token::Text)); // "world"
         assert_eq!(lexer.next(), Some(Token::Newline));
-        assert_eq!(lexer.next(), Some(Token::IndentSpace));
+        assert_eq!(lexer.next(), Some(Token::Indent));
         assert_eq!(lexer.next(), Some(Token::Dash));
         assert_eq!(lexer.next(), Some(Token::Whitespace));
         assert_eq!(lexer.next(), Some(Token::Text)); // "Item"
@@ -161,11 +156,10 @@ mod tests {
 
     #[test]
     fn test_token_predicates() {
-        assert!(Token::IndentSpace.is_indent());
-        assert!(Token::IndentTab.is_indent());
+        assert!(Token::Indent.is_indent());
         assert!(!Token::Text.is_indent());
 
-        assert!(Token::IndentSpace.is_whitespace());
+        assert!(Token::Indent.is_whitespace());
         assert!(Token::Whitespace.is_whitespace());
         assert!(Token::Newline.is_whitespace());
         assert!(!Token::Text.is_whitespace());

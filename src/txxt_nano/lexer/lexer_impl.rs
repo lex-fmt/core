@@ -1,8 +1,8 @@
 //! Implementation of the txxt lexer
 //!
 //! This module contains the concrete implementation of the lexer using logos.
-//! It handles the post-processing of whitespace tokens to convert them into
-//! appropriate indentation tokens according to the 4-space tab stop rule.
+//! The lexer now uses logos' built-in regex capabilities to handle indentation
+//! tokens directly without post-processing.
 
 use crate::txxt_nano::lexer::tokens::Token;
 use logos::{Lexer, Logos};
@@ -10,57 +10,14 @@ use logos::{Lexer, Logos};
 /// A lexer for the txxt format that produces tokens with simplified indentation handling
 pub struct TxxtLexer<'source> {
     logos_lexer: Lexer<'source, Token>,
-    processed_tokens: Vec<Token>,
-    current_pos: usize,
 }
 
 impl<'source> TxxtLexer<'source> {
     /// Create a new lexer for the given source text
     pub fn new(source: &'source str) -> Self {
-        let mut logos_lexer = Token::lexer(source);
-        let mut processed_tokens = Vec::new();
+        let logos_lexer = Token::lexer(source);
 
-        // Process all tokens and convert whitespace to indentation tokens
-        while let Some(result) = logos_lexer.next() {
-            match result {
-                Ok(token) => {
-                    match token {
-                        Token::Whitespace => {
-                            // Convert whitespace to indentation tokens
-                            let slice = logos_lexer.slice();
-                            let spaces = slice.chars().filter(|&c| c == ' ').count();
-                            let tabs = slice.chars().filter(|&c| c == '\t').count();
-
-                            // Add space-based indentation tokens
-                            for _ in 0..(spaces / 4) {
-                                processed_tokens.push(Token::IndentSpace);
-                            }
-
-                            // Add tab-based indentation tokens
-                            for _ in 0..tabs {
-                                processed_tokens.push(Token::IndentTab);
-                            }
-
-                            // Add remaining spaces as whitespace
-                            let remaining_spaces = spaces % 4;
-                            if remaining_spaces > 0 {
-                                processed_tokens.push(Token::Whitespace);
-                            }
-                        }
-                        _ => processed_tokens.push(token),
-                    }
-                }
-                Err(_) => {
-                    // Skip error tokens for now
-                }
-            }
-        }
-
-        Self {
-            logos_lexer,
-            processed_tokens,
-            current_pos: 0,
-        }
+        Self { logos_lexer }
     }
 
     /// Get the current position in the source text
@@ -78,13 +35,7 @@ impl<'source> Iterator for TxxtLexer<'source> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_pos < self.processed_tokens.len() {
-            let token = self.processed_tokens[self.current_pos].clone();
-            self.current_pos += 1;
-            Some(token)
-        } else {
-            None
-        }
+        self.logos_lexer.next().map(|result| result.unwrap())
     }
 }
 
@@ -118,31 +69,25 @@ mod tests {
     #[test]
     fn test_indentation_tokenization() {
         let tokens = tokenize("    hello");
-        assert_eq!(tokens, vec![Token::IndentSpace, Token::Text]);
+        assert_eq!(tokens, vec![Token::Indent, Token::Text]);
     }
 
     #[test]
     fn test_multiple_indentation_levels() {
         let tokens = tokenize("        hello");
-        assert_eq!(
-            tokens,
-            vec![Token::IndentSpace, Token::IndentSpace, Token::Text]
-        );
+        assert_eq!(tokens, vec![Token::Indent, Token::Indent, Token::Text]);
     }
 
     #[test]
     fn test_tab_indentation() {
         let tokens = tokenize("\thello");
-        assert_eq!(tokens, vec![Token::IndentTab, Token::Text]);
+        assert_eq!(tokens, vec![Token::Indent, Token::Text]);
     }
 
     #[test]
     fn test_mixed_indentation() {
         let tokens = tokenize("    \thello");
-        assert_eq!(
-            tokens,
-            vec![Token::IndentSpace, Token::IndentTab, Token::Text]
-        );
+        assert_eq!(tokens, vec![Token::Indent, Token::Indent, Token::Text]);
     }
 
     #[test]
@@ -230,7 +175,7 @@ mod tests {
         assert_eq!(tokens[6], Token::Newline); // "\n"
 
         // Expected tokens for "    - Item 1"
-        assert_eq!(tokens[7], Token::IndentSpace); // "    "
+        assert_eq!(tokens[7], Token::Indent); // "    "
         assert_eq!(tokens[8], Token::Dash); // "-"
         assert_eq!(tokens[9], Token::Whitespace); // " "
         assert_eq!(tokens[10], Token::Text); // "Item"
@@ -239,7 +184,7 @@ mod tests {
         assert_eq!(tokens[13], Token::Newline); // "\n"
 
         // Expected tokens for "    - Item 2"
-        assert_eq!(tokens[14], Token::IndentSpace); // "    "
+        assert_eq!(tokens[14], Token::Indent); // "    "
         assert_eq!(tokens[15], Token::Dash); // "-"
         assert_eq!(tokens[16], Token::Whitespace); // " "
         assert_eq!(tokens[17], Token::Text); // "Item"
@@ -267,10 +212,10 @@ mod tests {
     #[test]
     fn test_whitespace_only() {
         let tokens = tokenize("   \t  ");
-        // Expected: 3 spaces -> Whitespace, 1 tab -> IndentTab, 2 spaces -> Whitespace
+        // Expected: 3 spaces -> Whitespace, 1 tab -> Indent, 2 spaces -> Whitespace
         assert_eq!(
             tokens,
-            vec![Token::Whitespace, Token::IndentTab, Token::Whitespace]
+            vec![Token::Whitespace, Token::Indent, Token::Whitespace]
         );
     }
 
