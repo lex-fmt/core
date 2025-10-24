@@ -8,9 +8,59 @@ use logos::Logos;
 
 /// Convenience function to tokenize a string and collect all tokens
 pub fn tokenize(source: &str) -> Vec<Token> {
-    Token::lexer(source)
-        .filter_map(|result| result.ok())
-        .collect()
+    let tokens_with_spans = tokenize_with_spans(source);
+    process_whitespace_remainders(tokens_with_spans)
+}
+
+/// Process whitespace remainders according to txxt specification
+///
+/// The spec states: "lines that have space remainders (as in 10 spaces, which converts to
+/// 2 tab stops with 2 spaces remaining) will be parsed with no error. Only two indentation
+/// level tokens will be generated, and the remaining whitespaces will be considered part of the text."
+///
+/// This function removes Whitespace tokens that follow Indent tokens and precede Text tokens,
+/// effectively merging the whitespace remainder into the text content.
+fn process_whitespace_remainders(tokens_with_spans: Vec<(Token, logos::Span)>) -> Vec<Token> {
+    let mut result = Vec::new();
+    let mut i = 0;
+
+    while i < tokens_with_spans.len() {
+        let (token, _span) = &tokens_with_spans[i];
+
+        match token {
+            Token::Whitespace => {
+                // Check if this whitespace follows indentation tokens and precedes text content
+                let mut indent_count = 0;
+                let mut j = i;
+
+                // Count consecutive Indent tokens before this Whitespace
+                while j > 0 && matches!(tokens_with_spans[j - 1].0, Token::Indent) {
+                    indent_count += 1;
+                    j -= 1;
+                }
+
+                // If we have indentation and this whitespace is followed by text,
+                // skip this whitespace token (it will be considered part of the text)
+                if indent_count > 0
+                    && i + 1 < tokens_with_spans.len()
+                    && matches!(tokens_with_spans[i + 1].0, Token::Text)
+                {
+                    // Skip this whitespace token
+                    i += 1;
+                    continue;
+                }
+
+                // Otherwise, keep the whitespace token as-is
+                result.push(token.clone());
+            }
+            _ => {
+                result.push(token.clone());
+            }
+        }
+        i += 1;
+    }
+
+    result
 }
 
 /// Convenience function to tokenize a string and collect tokens with their spans
@@ -188,6 +238,21 @@ mod tests {
             tokens,
             vec![Token::Whitespace, Token::Indent, Token::Whitespace]
         );
+    }
+
+    #[test]
+    fn test_whitespace_remainders() {
+        // Test case: 10 spaces should produce 2 Indent tokens (8 spaces)
+        // and the remaining 2 spaces should be part of text content
+        let tokens = tokenize("          hello");
+        println!("Tokens for '          hello': {:?}", tokens);
+
+        // According to spec: 10 spaces = 2 indent levels (8 spaces) + 2 remaining spaces
+        // The remaining 2 spaces should be considered part of the text, not separate whitespace
+        assert_eq!(tokens.len(), 3); // Should be: [Indent, Indent, Text("  hello")]
+        assert_eq!(tokens[0], Token::Indent);
+        assert_eq!(tokens[1], Token::Indent);
+        assert_eq!(tokens[2], Token::Text);
     }
 
     #[test]
