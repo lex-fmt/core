@@ -251,11 +251,29 @@ mod integration_tests {
         let input = "This is a paragraph.\nIt has multiple lines.";
         let tokens = tokenize(input);
 
-        // Should contain text and newline tokens
-        assert!(tokens.iter().any(|t| matches!(t, Token::Text)));
-        assert!(tokens.iter().any(|t| matches!(t, Token::Newline)));
-        // Should produce valid tokens
-        assert!(!tokens.is_empty());
+        // Exact token sequence validation
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Text,       // "This"
+                Token::Whitespace, // " "
+                Token::Text,       // "is"
+                Token::Whitespace, // " "
+                Token::Text,       // "a"
+                Token::Whitespace, // " "
+                Token::Text,       // "paragraph"
+                Token::Period,     // "."
+                Token::Newline,    // "\n"
+                Token::Text,       // "It"
+                Token::Whitespace, // " "
+                Token::Text,       // "has"
+                Token::Whitespace, // " "
+                Token::Text,       // "multiple"
+                Token::Whitespace, // " "
+                Token::Text,       // "lines"
+                Token::Period,     // "."
+            ]
+        );
     }
 
     #[test]
@@ -263,10 +281,23 @@ mod integration_tests {
         let input = "- First item\n- Second item";
         let tokens = tokenize(input);
 
-        // Should contain dash tokens
-        assert!(tokens.iter().any(|t| matches!(t, Token::Dash)));
-        // Should produce valid tokens
-        assert!(!tokens.is_empty());
+        // Exact token sequence validation
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Dash,       // "-"
+                Token::Whitespace, // " "
+                Token::Text,       // "First"
+                Token::Whitespace, // " "
+                Token::Text,       // "item"
+                Token::Newline,    // "\n"
+                Token::Dash,       // "-"
+                Token::Whitespace, // " "
+                Token::Text,       // "Second"
+                Token::Whitespace, // " "
+                Token::Text,       // "item"
+            ]
+        );
     }
 
     #[test]
@@ -274,12 +305,23 @@ mod integration_tests {
         let input = "1. Session Title\n    Content here";
         let tokens = tokenize(input);
 
-        // Should contain period, text, and indentation tokens
-        assert!(tokens.iter().any(|t| matches!(t, Token::Period)));
-        assert!(tokens.iter().any(|t| matches!(t, Token::Text)));
-        assert!(tokens.iter().any(|t| t.is_indent()));
-        // Should produce valid tokens
-        assert!(!tokens.is_empty());
+        // Exact token sequence validation
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Text,       // "1"
+                Token::Period,     // "."
+                Token::Whitespace, // " "
+                Token::Text,       // "Session"
+                Token::Whitespace, // " "
+                Token::Text,       // "Title"
+                Token::Newline,    // "\n"
+                Token::Indent,     // "    "
+                Token::Text,       // "Content"
+                Token::Whitespace, // " "
+                Token::Text,       // "here"
+            ]
+        );
     }
 
     #[test]
@@ -287,10 +329,19 @@ mod integration_tests {
         let input = "Some text :: marker";
         let tokens = tokenize(input);
 
-        // Should contain txxt marker
-        assert!(tokens.iter().any(|t| matches!(t, Token::TxxtMarker)));
-        // Should produce valid tokens
-        assert!(!tokens.is_empty());
+        // Exact token sequence validation
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Text,       // "Some"
+                Token::Whitespace, // " "
+                Token::Text,       // "text"
+                Token::Whitespace, // " "
+                Token::TxxtMarker, // "::"
+                Token::Whitespace, // " "
+                Token::Text,       // "marker"
+            ]
+        );
     }
 
     #[test]
@@ -298,13 +349,35 @@ mod integration_tests {
         let input = "1. Session\n    - Item 1\n    - Item 2\n\nParagraph after.";
         let tokens = tokenize(input);
 
-        // Should contain various token types
-        assert!(tokens.iter().any(|t| matches!(t, Token::Period)));
-        assert!(tokens.iter().any(|t| matches!(t, Token::Dash)));
-        assert!(tokens.iter().any(|t| t.is_indent()));
-        assert!(tokens.iter().any(|t| matches!(t, Token::Newline)));
-        assert!(tokens.iter().any(|t| matches!(t, Token::Text)));
-        // Should produce valid tokens
-        assert!(!tokens.is_empty());
+        // Exact token sequence validation
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Text,       // "1"
+                Token::Period,     // "."
+                Token::Whitespace, // " "
+                Token::Text,       // "Session"
+                Token::Newline,    // "\n"
+                Token::Indent,     // "    "
+                Token::Dash,       // "-"
+                Token::Whitespace, // " "
+                Token::Text,       // "Item"
+                Token::Whitespace, // " "
+                Token::Text,       // "1"
+                Token::Newline,    // "\n"
+                Token::Indent,     // "    "
+                Token::Dash,       // "-"
+                Token::Whitespace, // " "
+                Token::Text,       // "Item"
+                Token::Whitespace, // " "
+                Token::Text,       // "2"
+                Token::Newline,    // "\n"
+                Token::Newline,    // "\n"
+                Token::Text,       // "Paragraph"
+                Token::Whitespace, // " "
+                Token::Text,       // "after"
+                Token::Period,     // "."
+            ]
+        );
     }
 }
