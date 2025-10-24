@@ -118,8 +118,11 @@ Grammar for txxt
         2.2.1. Indentation
 
             <indent-step> = <space>{4} | <tab>
-            <indent> = <indent-step>+
-            <dedent> = (reduction in <indent> level)
+            <indent-token> = <indent-step>
+            <dedent-token> = (generated in later transformation phase)
+            
+            Note: The lexer generates simple indent tokens (one per 4 spaces or tab).
+            Semantic indent/dedent tokens are generated in a later transformation step.
 
         2.2.2. Sequence Decorations
 
