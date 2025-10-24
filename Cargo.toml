@@ -18,3 +18,4 @@ logos = "0.14"
 
 [dev-dependencies]
 proptest = "1.4"
+insta = "1.39"

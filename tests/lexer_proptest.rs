@@ -6,7 +6,7 @@
 use proptest::prelude::*;
 use txxt_nano::txxt_nano::lexer::{tokenize, Token};
 
-/// Test that all sample documents can be tokenized without errors
+/// Sample document snapshot tests
 #[cfg(test)]
 mod sample_document_tests {
     use super::*;
@@ -22,8 +22,7 @@ mod sample_document_tests {
         let content = read_sample_document("docs/specs/v1/samples/000-paragraphs.txxt");
         let tokens = tokenize(&content);
 
-        // Should not panic and should produce tokens
-        assert!(!tokens.is_empty());
+        insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
@@ -32,7 +31,7 @@ mod sample_document_tests {
             read_sample_document("docs/specs/v1/samples/010-paragraphs-sessions-flat-single.txxt");
         let tokens = tokenize(&content);
 
-        assert!(!tokens.is_empty());
+        insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
@@ -42,7 +41,7 @@ mod sample_document_tests {
         );
         let tokens = tokenize(&content);
 
-        assert!(!tokens.is_empty());
+        insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
@@ -52,7 +51,7 @@ mod sample_document_tests {
         );
         let tokens = tokenize(&content);
 
-        assert!(!tokens.is_empty());
+        insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
@@ -60,7 +59,7 @@ mod sample_document_tests {
         let content = read_sample_document("docs/specs/v1/samples/040-lists.txxt");
         let tokens = tokenize(&content);
 
-        assert!(!tokens.is_empty());
+        insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
@@ -68,7 +67,7 @@ mod sample_document_tests {
         let content = read_sample_document("docs/specs/v1/samples/050-paragraph-lists.txxt");
         let tokens = tokenize(&content);
 
-        assert!(!tokens.is_empty());
+        insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
@@ -76,7 +75,7 @@ mod sample_document_tests {
         let content = read_sample_document("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
         let tokens = tokenize(&content);
 
-        assert!(!tokens.is_empty());
+        insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
@@ -84,7 +83,7 @@ mod sample_document_tests {
         let content = read_sample_document("docs/specs/v1/samples/060-trifecta-nesting.txxt");
         let tokens = tokenize(&content);
 
-        assert!(!tokens.is_empty());
+        insta::assert_debug_snapshot!(tokens);
     }
 }
 
