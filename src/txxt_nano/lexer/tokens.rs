@@ -5,9 +5,10 @@
 //!
 //! See docs/specs/<version>/grammar.txxt for the grammar of the txxt format.
 use logos::Logos;
+use std::fmt;
 
 /// All possible tokens in the txxt format
-#[derive(Logos, Debug, PartialEq, Clone)]
+#[derive(Logos, Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Token {
     // Special markers
     #[token("::")]
@@ -44,6 +45,25 @@ pub enum Token {
     // Text content (catch-all for non-special characters, excluding numbers)
     #[regex(r"[^\s\n\t\-\.\(\):0-9]+")]
     Text,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Token::TxxtMarker => "txxt-marker",
+            Token::Indent => "indent",
+            Token::Whitespace => "whitespace",
+            Token::Newline => "newline",
+            Token::Dash => "dash",
+            Token::Period => "period",
+            Token::OpenParen => "open-paren",
+            Token::CloseParen => "close-paren",
+            Token::Colon => "colon",
+            Token::Number => "number",
+            Token::Text => "text",
+        };
+        write!(f, "<{}>", name)
+    }
 }
 
 impl Token {

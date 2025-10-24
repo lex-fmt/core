@@ -1,6 +1,7 @@
 //! Main module for txxt-nano library functionality
 
 pub mod lexer;
+pub mod processor;
 
 /// Placeholder for future txxt parsing functionality
 pub struct Parser {
