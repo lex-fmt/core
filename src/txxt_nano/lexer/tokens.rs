@@ -2,7 +2,7 @@
 //!
 //! This module defines all the tokens that can be produced by the txxt lexer.
 //! The tokens are defined using the logos derive macro for efficient tokenization.
-
+//! See docs/specs/<version>/grammar.txxt for the grammar of the txxt format.
 use logos::Logos;
 
 /// All possible tokens in the txxt format

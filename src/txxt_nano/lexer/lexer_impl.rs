@@ -1,9 +1,15 @@
 //! Lexer for the txxt format
 //!
-//! The lexer uses logos to tokenize the input string. It does add indentation handling, but does not do any validation of the tokens.
-//! The indentation handling is two fold:
-//! 1. In this phase (this file) we simple add a indentation token, that is a simple replacemnt of tab stop / spaces . (i.e. every 4 spaces is a indent token, every tab is 4 spaces)
-//!    This will product, for a line that , say, is two levels indented, two indent tokens. This is correct for now. We will split the raw indentation tokens into semantic indent and dedent tokens in a later transformation step.
+//! The lexer uses logos to tokenize the input string and indentation tokens.
+//!
+//! The Indentation handling
+//!
+//! In order to make indented blocks tractable by regular parser combinators libraries, indentdation ultimately gets transformed into semantic indent and dedent tokens, which map nicely to say a brace token for more standard syntaxes.
+//! txxt will work the same, but at this original lexing pass we only do simple 4 spaces / 1 tab substitutions for in indentation block. This means, that say, a line that is 2 levels indented will produce two indent tokens.
+//! The rationale for this is:
+//! - This allows us to use a vanilla logos lexer, no custom code.
+//! - This isolates the logic for semantic indent and dedent tokens to a later transformation step, and apart from all other tokeniztion, which helps a lot.
+//! - At some point in the spec, we will handle blocks much like markdown's fenced blocks, that is , that display non txxt strings. In these while we may parse (for indentation) the lines, we never want to emit the indent and dedent token. Havaing this happening in two stages gives us more flexibility on how to handle these.
 
 use crate::txxt_nano::lexer::tokens::Token;
 use logos::{Lexer, Logos};
