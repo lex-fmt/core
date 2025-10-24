@@ -102,3 +102,85 @@ Terminology
         The reason for this is two fold: for starters, the general syntax of paragraps, which are any number of any lines, is a generic as possible, that is, it will match anything. Hence it has to happen last.
 
         Additionally, txxt is forgiving, and if it's not sure about and element form, it's a paragraph, precisely because paragraphs are pretty much anything.
+
+
+4. Notation
+
+    This section documents the notation systems used in txxt specifications.
+
+    4.1. Grammar Notation
+
+        txxt specs use a simplified BNF-like notation for describing syntax patterns:
+
+        Occurrence Indicators:
+        - `<element>?` - Optional (0 or 1 occurrence)
+        - `<element>*` - Zero or more occurrences
+        - `<element>+` - One or more occurrences
+        - `<element>{n}` - Exactly n occurrences
+        - `<element>{n,m}` - Between n and m occurrences
+        - `<element>{n,*}` - n or more occurrences
+
+        Sequence Operators:
+        - `A B` - A followed by B
+        - `A | B` - A or B (alternatives)
+        - `(A B)` - Grouping
+
+        Examples:
+            <text-line> = <text-span>+ <line-break>
+            <paragraph> = <text-line>+
+            <list-marker> = <dash> | <number> <period> | <letter> <period>
+            <session-title> = (<number> <period>)? <text-span>+ <line-break>
+        :: grammar
+
+    4.2. AST Tree Notation
+
+        AST structures are shown using ASCII tree notation:
+
+        Example AST structure:
+            ├── session
+            │   ├── session-title
+            │   └── container
+            │       ├── paragraph
+            │       └── list
+            │           ├── list-item
+            │           └── list-item
+        :: tree
+
+        Conventions:
+        - `├──` indicates a child node
+        - `│` indicates continuation of parent structure
+        - `└──` indicates the last child at a level
+        - Indentation shows nesting depth
+
+    4.3. Token Pattern Notation
+
+        Individual token patterns use regular expression-like syntax:
+
+        - `\s` - whitespace character
+        - `\n` - line break
+        - `[a-z]` - character class
+        - `+` - one or more
+        - `*` - zero or more
+        - `?` - optional
+        - `^` - start of line
+        - `$` - end of line
+
+        Examples:
+            SequenceMarker: ^- \s
+            AnnotationMarker: :
+            VerbatimStart: .+:\s*$
+        :: regex
+
+    4.4. Indentation Notation
+
+        Indentation levels are shown with explicit markers:
+
+        Indentation example:
+            Base level (column 0)
+                +1 indented (column 4)
+                    +2 indented (column 8)
+        :: indentation
+
+        - Each indentation level is exactly 4 spaces
+        - `+n` indicates n levels of indentation from base
+        - Tabs are converted to 4 spaces during preprocessing
