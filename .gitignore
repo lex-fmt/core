@@ -31,3 +31,7 @@ ISSUES
 disposable/ .todos.db
 .todos.db
 local
+
+# Added by cargo
+
+/target

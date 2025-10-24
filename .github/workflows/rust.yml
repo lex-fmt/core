@@ -1,186 +1,84 @@
-name: CI
+name: Rust CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
-          components: rustfmt, clippy
-
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.rust }}-
-            ${{ runner.os }}-cargo-
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Check compilation
-        run: cargo check --all-targets --all-features
-
-      - name: Run tests
-        run: cargo test --all-features --verbose
-
-      - name: Run doc tests
-        run: cargo test --doc --all-features
-
-  coverage:
-    name: Code Coverage
+  pre-commit-checks:
+    name: Pre-commit checks
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+        override: true
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    - name: Run pre-commit script
+      run: |
+        chmod +x scripts/pre-commit
+        ./scripts/pre-commit --all
+    
+    - name: Check that pre-commit script exists and is executable
+      run: |
+        test -f scripts/pre-commit
+        test -x scripts/pre-commit
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-
-      - name: Setup Rust cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Generate code coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
-        continue-on-error: true
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: lcov.info
-          fail_ci_if_error: false # Don't fail CI if coverage upload fails
-
-
-  # docs:
-  #   name: Documentation
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v4
-
-  #     - name: Install Rust toolchain
-  #       uses: dtolnay/rust-toolchain@stable
-
-  #     - name: Setup Rust cache
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ~/.cargo/bin/
-  #           ~/.cargo/registry/index/
-  #           ~/.cargo/registry/cache/
-  #           ~/.cargo/git/db/
-  #           target/
-  #         key: ${{ runner.os }}-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
-
-  #     - name: Check documentation
-  #       run: RUSTDOCFLAGS="-A warnings" cargo doc --no-deps --all-features --document-private-items
-
-  # security:
-  #   name: Security Audit
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v4
-
-  #     - name: Install Rust toolchain
-  #       uses: dtolnay/rust-toolchain@stable
-
-  #     - name: Install cargo-audit
-  #       uses: taiki-e/install-action@cargo-audit
-
-  #     - name: Run security audit
-  #       run: cargo audit
-  #       continue-on-error: true
-
-  # msrv:
-  #   name: Minimum Supported Rust Version
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v4
-
-  #     - name: Install Rust toolchain (MSRV)
-  #       uses: dtolnay/rust-toolchain@master
-  #       with:
-  #         toolchain: "1.80.0"  # Adjust based on your MSRV
-
-  #     - name: Setup Rust cache
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ~/.cargo/bin/
-  #           ~/.cargo/registry/index/
-  #           ~/.cargo/registry/cache/
-  #           ~/.cargo/git/db/
-  #           target/
-  #         key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
-
-  #     - name: Check with MSRV
-  #       run: cargo check --all-targets --all-features
-
-  # release-dry-run:
-  #   name: Release (Dry Run)
-  #   runs-on: ubuntu-latest
-  #   if: github.ref == 'refs/heads/main'
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v4
-
-  #     - name: Install Rust toolchain
-  #       uses: dtolnay/rust-toolchain@stable
-
-  #     - name: Setup Rust cache
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ~/.cargo/bin/
-  #           ~/.cargo/registry/index/
-  #           ~/.cargo/registry/cache/
-  #           ~/.cargo/git/db/
-  #           target/
-  #         key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
-
-  #     - name: Check if publishable
-  #       run: cargo publish --dry-run --all-features
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+        override: true
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    - name: Build
+      run: cargo build --verbose
+    
+    - name: Run tests
+      run: cargo test --verbose
+    
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+    
+    - name: Check formatting
+      run: cargo fmt -- --check
+    
+    - name: Build documentation
+      run: cargo doc --no-deps --all-features

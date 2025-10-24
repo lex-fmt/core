@@ -1,0 +1,16 @@
+[package]
+name = "txxt-nano"
+version = "0.1.0"
+edition = "2021"
+authors = ["txxt-nano contributors"]
+description = "A parser for the txxt format"
+license = "MIT"
+repository = "https://github.com/adebert/txxt-nano"
+keywords = ["parser", "format", "txxt"]
+categories = ["parsing", "text-processing"]
+
+[[bin]]
+name = "txxt"
+path = "src/bin/txxt.rs"
+
+[dependencies]
