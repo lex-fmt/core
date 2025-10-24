@@ -2,6 +2,7 @@
 //!
 //! This module defines all the tokens that can be produced by the txxt lexer.
 //! The tokens are defined using the logos derive macro for efficient tokenization.
+//!
 //! See docs/specs/<version>/grammar.txxt for the grammar of the txxt format.
 use logos::Logos;
 
@@ -69,89 +70,81 @@ impl Token {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt_nano::lexer::TxxtLexer;
+    use crate::txxt_nano::lexer::tokenize;
 
     #[test]
     fn test_txxt_marker() {
-        let mut lexer = TxxtLexer::new("::");
-        assert_eq!(lexer.next(), Some(Token::TxxtMarker));
-        assert_eq!(lexer.next(), None);
+        let tokens = tokenize("::");
+        assert_eq!(tokens, vec![Token::TxxtMarker]);
     }
 
     #[test]
     fn test_indentation_tokens() {
         // Test 4 spaces
-        let mut lexer = TxxtLexer::new("    ");
-        let token = lexer.next();
-        println!("Token for '    ': {:?}", token);
-        assert_eq!(token, Some(Token::Indent));
-        assert_eq!(lexer.next(), None);
+        let tokens = tokenize("    ");
+        assert_eq!(tokens, vec![Token::Indent]);
 
         // Test tab
-        let mut lexer = TxxtLexer::new("\t");
-        let token = lexer.next();
-        println!("Token for '\\t': {:?}", token);
-        assert_eq!(token, Some(Token::Indent));
-        assert_eq!(lexer.next(), None);
+        let tokens = tokenize("\t");
+        assert_eq!(tokens, vec![Token::Indent]);
 
         // Test multiple indent levels
-        let mut lexer = TxxtLexer::new("        "); // 8 spaces = 2 indent levels
-        let token1 = lexer.next();
-        let token2 = lexer.next();
-        println!("Tokens for '        ': {:?}, {:?}", token1, token2);
-        assert_eq!(token1, Some(Token::Indent));
-        assert_eq!(token2, Some(Token::Indent));
-        assert_eq!(lexer.next(), None);
+        let tokens = tokenize("        "); // 8 spaces = 2 indent levels
+        assert_eq!(tokens, vec![Token::Indent, Token::Indent]);
     }
 
     #[test]
     fn test_sequence_markers() {
-        let mut lexer = TxxtLexer::new("- . ( ) :");
-        assert_eq!(lexer.next(), Some(Token::Dash));
-        assert_eq!(lexer.next(), Some(Token::Whitespace));
-        assert_eq!(lexer.next(), Some(Token::Period));
-        assert_eq!(lexer.next(), Some(Token::Whitespace));
-        assert_eq!(lexer.next(), Some(Token::OpenParen));
-        assert_eq!(lexer.next(), Some(Token::Whitespace));
-        assert_eq!(lexer.next(), Some(Token::CloseParen));
-        assert_eq!(lexer.next(), Some(Token::Whitespace));
-        assert_eq!(lexer.next(), Some(Token::Colon));
-        assert_eq!(lexer.next(), None);
+        let tokens = tokenize("- . ( ) :");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Dash,
+                Token::Whitespace,
+                Token::Period,
+                Token::Whitespace,
+                Token::OpenParen,
+                Token::Whitespace,
+                Token::CloseParen,
+                Token::Whitespace,
+                Token::Colon
+            ]
+        );
     }
 
     #[test]
     fn test_text_tokens() {
-        let mut lexer = TxxtLexer::new("hello world");
-        assert_eq!(lexer.next(), Some(Token::Text));
-        assert_eq!(lexer.next(), Some(Token::Whitespace));
-        assert_eq!(lexer.next(), Some(Token::Text));
-        assert_eq!(lexer.next(), None);
+        let tokens = tokenize("hello world");
+        assert_eq!(tokens, vec![Token::Text, Token::Whitespace, Token::Text]);
     }
 
     #[test]
     fn test_newline_token() {
-        let mut lexer = TxxtLexer::new("\n");
-        assert_eq!(lexer.next(), Some(Token::Newline));
-        assert_eq!(lexer.next(), None);
+        let tokens = tokenize("\n");
+        assert_eq!(tokens, vec![Token::Newline]);
     }
 
     #[test]
     fn test_mixed_content() {
-        let mut lexer = TxxtLexer::new("1. Hello world\n    - Item 1");
-        assert_eq!(lexer.next(), Some(Token::Text)); // "1"
-        assert_eq!(lexer.next(), Some(Token::Period));
-        assert_eq!(lexer.next(), Some(Token::Whitespace));
-        assert_eq!(lexer.next(), Some(Token::Text)); // "Hello"
-        assert_eq!(lexer.next(), Some(Token::Whitespace));
-        assert_eq!(lexer.next(), Some(Token::Text)); // "world"
-        assert_eq!(lexer.next(), Some(Token::Newline));
-        assert_eq!(lexer.next(), Some(Token::Indent));
-        assert_eq!(lexer.next(), Some(Token::Dash));
-        assert_eq!(lexer.next(), Some(Token::Whitespace));
-        assert_eq!(lexer.next(), Some(Token::Text)); // "Item"
-        assert_eq!(lexer.next(), Some(Token::Whitespace));
-        assert_eq!(lexer.next(), Some(Token::Text)); // "1"
-        assert_eq!(lexer.next(), None);
+        let tokens = tokenize("1. Hello world\n    - Item 1");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Text,       // "1"
+                Token::Period,     // "."
+                Token::Whitespace, // " "
+                Token::Text,       // "Hello"
+                Token::Whitespace, // " "
+                Token::Text,       // "world"
+                Token::Newline,    // "\n"
+                Token::Indent,     // "    "
+                Token::Dash,       // "-"
+                Token::Whitespace, // " "
+                Token::Text,       // "Item"
+                Token::Whitespace, // " "
+                Token::Text        // "1"
+            ]
+        );
     }
 
     #[test]

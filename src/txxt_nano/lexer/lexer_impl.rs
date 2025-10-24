@@ -1,56 +1,27 @@
 //! Implementation of the txxt lexer
 //!
-//! This module contains the concrete implementation of the lexer using logos.
-//! The lexer now uses logos' built-in regex capabilities to handle indentation
-//! tokens directly without post-processing.
+//! This module provides convenience functions for tokenizing txxt text.
+//! The actual tokenization is handled entirely by logos.
 
 use crate::txxt_nano::lexer::tokens::Token;
-use logos::{Lexer, Logos};
-
-/// A lexer for the txxt format that produces tokens with simplified indentation handling
-pub struct TxxtLexer<'source> {
-    logos_lexer: Lexer<'source, Token>,
-}
-
-impl<'source> TxxtLexer<'source> {
-    /// Create a new lexer for the given source text
-    pub fn new(source: &'source str) -> Self {
-        let logos_lexer = Token::lexer(source);
-
-        Self { logos_lexer }
-    }
-
-    /// Get the current position in the source text
-    pub fn span(&self) -> logos::Span {
-        self.logos_lexer.span()
-    }
-
-    /// Get the current slice of the source text
-    pub fn slice(&self) -> &'source str {
-        self.logos_lexer.slice()
-    }
-}
-
-impl<'source> Iterator for TxxtLexer<'source> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.logos_lexer.next().map(|result| result.unwrap())
-    }
-}
+use logos::Logos;
 
 /// Convenience function to tokenize a string and collect all tokens
 pub fn tokenize(source: &str) -> Vec<Token> {
-    TxxtLexer::new(source).collect()
+    Token::lexer(source)
+        .filter_map(|result| result.ok())
+        .collect()
 }
 
 /// Convenience function to tokenize a string and collect tokens with their spans
 pub fn tokenize_with_spans(source: &str) -> Vec<(Token, logos::Span)> {
-    let mut lexer = TxxtLexer::new(source);
+    let mut lexer = Token::lexer(source);
     let mut tokens = Vec::new();
 
-    while let Some(token) = lexer.next() {
-        tokens.push((token, lexer.span()));
+    while let Some(result) = lexer.next() {
+        if let Ok(token) = result {
+            tokens.push((token, lexer.span()));
+        }
     }
 
     tokens

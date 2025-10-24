@@ -21,5 +21,5 @@
 pub mod lexer_impl;
 pub mod tokens;
 
-pub use lexer_impl::{tokenize, tokenize_with_spans, TxxtLexer};
+pub use lexer_impl::{tokenize, tokenize_with_spans};
 pub use tokens::Token;
