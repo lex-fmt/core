@@ -18,8 +18,16 @@
 //!   transformation step, separate from all other tokenization, which helps a lot.
 //! - At some point in the spec, we will handle blocks much like markdown's fenced blocks,that display non-txxt strings. In these cases, while we may parse (for indentation)the lines, we never want to emit the indent and dedent tokens. Having this happen two stages gives us more flexibility on how to handle these cases.
 
+pub mod indentation_transform;
 pub mod lexer_impl;
 pub mod tokens;
 
+pub use indentation_transform::transform_indentation;
 pub use lexer_impl::{tokenize, tokenize_with_spans};
 pub use tokens::Token;
+
+/// Main lexer function that returns fully processed tokens (tokenize + indentation transform)
+pub fn lex(source: &str) -> Vec<Token> {
+    let raw_tokens = tokenize(source);
+    transform_indentation(raw_tokens)
+}

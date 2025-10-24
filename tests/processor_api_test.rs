@@ -31,7 +31,7 @@ mod tests {
     #[test]
     fn test_available_specs() {
         let specs = ProcessingSpec::available_specs();
-        assert_eq!(specs.len(), 2);
+        assert_eq!(specs.len(), 4);
 
         let token_simple = specs
             .iter()
@@ -114,7 +114,7 @@ mod tests {
         assert!(result.contains("<period>"));
         assert!(result.contains("<text>"));
         assert!(result.contains("<newline>"));
-        assert!(result.contains("<indent>"));
+        assert!(result.contains("<indent-level>"));
         assert!(result.contains("<dash>"));
 
         // Test token-json processing
@@ -125,7 +125,7 @@ mod tests {
         assert!(result.contains("\"Period\""));
         assert!(result.contains("\"Text\""));
         assert!(result.contains("\"Newline\""));
-        assert!(result.contains("\"Indent\""));
+        assert!(result.contains("\"IndentLevel\""));
         assert!(result.contains("\"Dash\""));
 
         // Clean up
@@ -196,7 +196,7 @@ mod tests {
     ) -> Result<String, ProcessingError> {
         match spec.stage {
             ProcessingStage::Token => match spec.format {
-                OutputFormat::Simple => {
+                OutputFormat::Simple | OutputFormat::RawSimple => {
                     let mut result = String::new();
                     for token in tokens {
                         result.push_str(&format!("{}", token));
@@ -206,7 +206,7 @@ mod tests {
                     }
                     Ok(result)
                 }
-                OutputFormat::Json => {
+                OutputFormat::Json | OutputFormat::RawJson => {
                     let json = serde_json::to_string_pretty(tokens)
                         .map_err(|e| ProcessingError::IoError(e.to_string()))?;
                     Ok(json)
