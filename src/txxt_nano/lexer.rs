@@ -16,10 +16,7 @@
 //! - This allows us to use a vanilla logos lexer, no custom code.
 //! - This isolates the logic for semantic indent and dedent tokens to a later
 //!   transformation step, separate from all other tokenization, which helps a lot.
-//! - At some point in the spec, we will handle blocks much like markdown's fenced blocks,
-//!   that display non-txxt strings. In these cases, while we may parse (for indentation)
-//!   the lines, we never want to emit the indent and dedent tokens. Having this happen
-//!   in two stages gives us more flexibility on how to handle these cases.
+//! - At some point in the spec, we will handle blocks much like markdown's fenced blocks,that display non-txxt strings. In these cases, while we may parse (for indentation)the lines, we never want to emit the indent and dedent tokens. Having this happen two stages gives us more flexibility on how to handle these cases.
 
 pub mod lexer_impl;
 pub mod tokens;
