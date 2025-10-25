@@ -281,6 +281,8 @@ pub mod txxt_sources {
         "090-definitions-simple.txxt",
         "100-definitions-mixed-content.txxt",
         "110-ensemble-with-definitions.txxt",
+        "120-annotations-simple.txxt",
+        "130-annotations-block-content.txxt",
     ];
 
     /// Format options for sample content
@@ -452,7 +454,9 @@ pub mod txxt_sources {
             assert!(samples.contains(&"080-nested-lists-mixed-content.txxt"));
             assert!(samples.contains(&"090-definitions-simple.txxt"));
             assert!(samples.contains(&"100-definitions-mixed-content.txxt"));
-            assert_eq!(samples.len(), 13);
+            assert!(samples.contains(&"120-annotations-simple.txxt"));
+            assert!(samples.contains(&"130-annotations-block-content.txxt"));
+            assert_eq!(samples.len(), 15);
         }
 
         #[test]

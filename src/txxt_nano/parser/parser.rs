@@ -415,9 +415,91 @@ fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserEr
         .then_ignore(token(Token::Newline))
 }
 
-// TODO: Annotation parser implementation
-// The annotation parser implementation is complex and will be added in the next commit.
-// Stub functions are left here as placeholders for the parser integration.
+/// Parse an annotation label - text/numbers/periods/dashes between :: markers
+/// Grammar: <letter> (<letter> | <digit> | "_" | "-" | ".")*
+fn annotation_label() -> impl Parser<TokenSpan, Range<usize>, Error = ParserError> + Clone {
+    filter(|(t, _span): &TokenSpan| {
+        matches!(t, Token::Text | Token::Period | Token::Dash | Token::Number)
+    })
+    .repeated()
+    .at_least(1)
+    .map_with_span(|_spans: Vec<TokenSpan>, full_span: Range<usize>| full_span)
+}
+
+/// Parse a single annotation parameter - "key" or "key=value"
+/// We need to parse text tokens and detect '=' within them
+fn annotation_parameter() -> impl Parser<TokenSpan, ParameterWithSpans, Error = ParserError> + Clone
+{
+    // Parse key: text/numbers/dashes until we hit whitespace, comma, or ::
+    filter(|(t, _span): &TokenSpan| matches!(t, Token::Text | Token::Dash | Token::Number))
+        .repeated()
+        .at_least(1)
+        .map_with_span(
+            |_spans: Vec<TokenSpan>, key_span: Range<usize>| ParameterWithSpans {
+                key_span,
+                value_span: None,
+            },
+        )
+}
+
+/// Parse annotation parameters - whitespace/comma separated list
+fn annotation_parameters(
+) -> impl Parser<TokenSpan, Vec<ParameterWithSpans>, Error = ParserError> + Clone {
+    annotation_parameter()
+        .separated_by(token(Token::Whitespace).or(token(Token::Whitespace)))
+        .at_least(1)
+        .allow_trailing()
+}
+
+/// Parse annotation - supports three forms: marker, single-line, and block
+/// Forms:
+/// 1. Marker: :: label ::
+/// 2. Single-line: :: label :: text content
+/// 3. Block: :: label ::\n<indent>content<dedent>::
+fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone {
+    // Content parser for annotations - excludes sessions and nested annotations
+    let annotation_content = recursive(|_annotation_content_parser| {
+        // Annotation content can contain lists and paragraphs (NO sessions or nested annotations)
+        let nested_list = list_item()
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List);
+
+        nested_list.or(paragraph().map(ContentItemWithSpans::Paragraph))
+    });
+
+    // Opening :: marker
+    token(Token::TxxtMarker)
+        .ignore_then(token(Token::Whitespace).or_not())
+        .ignore_then(annotation_label())
+        .then(
+            // Optional parameters after whitespace
+            token(Token::Whitespace)
+                .ignore_then(annotation_parameters())
+                .or_not(),
+        )
+        .then_ignore(token(Token::Whitespace).or_not())
+        .then_ignore(token(Token::TxxtMarker))
+        .then(
+            // Three forms branch here:
+            // 1. Newline + IndentLevel = block form
+            // 2. Whitespace + text = single-line form (NOT IMPLEMENTED - treat as marker)
+            // 3. Newline = marker form
+            token(Token::Newline)
+                .ignore_then(token(Token::IndentLevel))
+                .ignore_then(annotation_content.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel))
+                .then_ignore(token(Token::TxxtMarker))
+                .or_not(),
+        )
+        .map(|((label_span, parameters), content)| AnnotationWithSpans {
+            label_span,
+            parameters: parameters.unwrap_or_default(),
+            content: content.unwrap_or_default(),
+        })
+}
 
 /// Parse a definition - a subject ending with colon, immediately followed by indented content
 /// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
@@ -456,12 +538,14 @@ fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserErr
 fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
     recursive(|session_parser| {
         // Parse order (from docs/tips-tricks.txxt):
-        // 1. List first (requires 2+ list-item-lines)
-        // 2. Definition second (requires subject ending with colon + NO blank line + indent)
-        // 3. Session third (requires title + blank line + indent)
-        // 4. Paragraph last (catch-all, including single list-item-lines)
-        let content_item = list()
-            .map(ContentItemWithSpans::List)
+        // 1. Annotation first (requires :: markers)
+        // 2. List second (requires 2+ list-item-lines)
+        // 3. Definition third (requires subject ending with colon + NO blank line + indent)
+        // 4. Session fourth (requires title + blank line + indent)
+        // 5. Paragraph last (catch-all, including single list-item-lines)
+        let content_item = annotation()
+            .map(ContentItemWithSpans::Annotation)
+            .or(list().map(ContentItemWithSpans::List))
             .or(definition().map(ContentItemWithSpans::Definition))
             .or(session_parser.map(ContentItemWithSpans::Session))
             .or(paragraph().map(ContentItemWithSpans::Paragraph));
@@ -480,18 +564,20 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
     })
 }
 
-/// Parse a document - a sequence of paragraphs, lists, sessions, and definitions
+/// Parse a document - a sequence of annotations, paragraphs, lists, sessions, and definitions
 /// Returns intermediate AST with spans
 ///
-/// Parse order:
-/// 1. List first (requires 2+ list-item-lines)
-/// 2. Definition second (requires subject ending with colon + NO blank line + indent)
-/// 3. Session third (requires title + blank line + indent)
-/// 4. Paragraph last (catch-all, including single list-item-lines)
+/// Parse order (from docs/tips-tricks.txxt):
+/// 1. Annotation first (requires :: markers)
+/// 2. List second (requires 2+ list-item-lines)
+/// 3. Definition third (requires subject ending with colon + NO blank line + indent)
+/// 4. Session fourth (requires title + blank line + indent)
+/// 5. Paragraph last (catch-all, including single list-item-lines)
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    let content_item = list()
-        .map(ContentItemWithSpans::List)
+    let content_item = annotation()
+        .map(ContentItemWithSpans::Annotation)
+        .or(list().map(ContentItemWithSpans::List))
         .or(definition().map(ContentItemWithSpans::Definition))
         .or(session().map(ContentItemWithSpans::Session))
         .or(paragraph().map(ContentItemWithSpans::Paragraph));
