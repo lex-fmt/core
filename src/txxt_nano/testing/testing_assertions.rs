@@ -350,19 +350,19 @@ pub struct ListItemAssertion<'a> {
 impl<'a> ListItemAssertion<'a> {
     /// Assert exact text match
     pub fn text(self, expected: &str) -> Self {
-        TextMatch::Exact(expected.to_string()).assert(&self.item.text(), &self.context);
+        TextMatch::Exact(expected.to_string()).assert(self.item.text(), &self.context);
         self
     }
 
     /// Assert text starts with prefix
     pub fn text_starts_with(self, prefix: &str) -> Self {
-        TextMatch::StartsWith(prefix.to_string()).assert(&self.item.text(), &self.context);
+        TextMatch::StartsWith(prefix.to_string()).assert(self.item.text(), &self.context);
         self
     }
 
     /// Assert text contains substring
     pub fn text_contains(self, substring: &str) -> Self {
-        TextMatch::Contains(substring.to_string()).assert(&self.item.text(), &self.context);
+        TextMatch::Contains(substring.to_string()).assert(self.item.text(), &self.context);
         self
     }
 }
