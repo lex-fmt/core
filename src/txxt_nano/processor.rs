@@ -45,6 +45,7 @@ pub enum OutputFormat {
     RawJson,
     Xml,    // Future: XML output
     AstTag, // AST XML-like tag format
+    AstTreeviz,
 }
 
 /// Represents a complete processing specification
@@ -75,21 +76,28 @@ impl ProcessingSpec {
             "raw-json" => OutputFormat::RawJson,
             "xml" => return Err(ProcessingError::InvalidFormatType("xml".to_string())), // XML not implemented yet
             "tag" => OutputFormat::AstTag,
+            "treeviz" => OutputFormat::AstTreeviz,
             _ => return Err(ProcessingError::InvalidFormatType(parts[1..].join("-"))),
         };
 
         // Validate stage/format compatibility
         match (&stage, &format) {
             (ProcessingStage::Ast, OutputFormat::AstTag) => {} // Valid
+            (ProcessingStage::Ast, OutputFormat::AstTreeviz) => {} // Valid
             (ProcessingStage::Ast, _) => {
                 return Err(ProcessingError::InvalidFormatType(format!(
-                    "Format '{:?}' not supported for AST stage (only 'tag' is supported)",
+                    "Format '{:?}' not supported for AST stage (only 'tag' and 'treeviz' are supported)",
                     format
                 )))
             }
             (ProcessingStage::Token, OutputFormat::AstTag) => {
                 return Err(ProcessingError::InvalidFormatType(
                     "Format 'tag' only works with AST stage".to_string(),
+                ))
+            }
+            (ProcessingStage::Token, OutputFormat::AstTreeviz) => {
+                return Err(ProcessingError::InvalidFormatType(
+                    "Format 'treeviz' only works with AST stage".to_string(),
                 ))
             }
             _ => {} // Token stage with other formats is fine
@@ -120,6 +128,10 @@ impl ProcessingSpec {
             ProcessingSpec {
                 stage: ProcessingStage::Ast,
                 format: OutputFormat::AstTag,
+            },
+            ProcessingSpec {
+                stage: ProcessingStage::Ast,
+                format: OutputFormat::AstTreeviz,
             },
         ]
     }
@@ -179,8 +191,9 @@ pub fn process_file<P: AsRef<Path>>(
             // Format according to output format
             match spec.format {
                 OutputFormat::AstTag => Ok(crate::txxt_nano::parser::serialize_ast_tag(&doc)),
+                OutputFormat::AstTreeviz => Ok(crate::txxt_nano::parser::to_treeviz_str(&doc)),
                 _ => Err(ProcessingError::InvalidFormatType(
-                    "Only ast-tag format is supported for AST stage".to_string(),
+                    "Only ast-tag and ast-treeviz formats are supported for AST stage".to_string(),
                 )),
             }
         }
@@ -215,6 +228,9 @@ fn format_tokens(tokens: &[Token], format: &OutputFormat) -> Result<String, Proc
                 "ast-tag format only works with ast stage".to_string(),
             ))
         }
+        OutputFormat::AstTreeviz => Err(ProcessingError::InvalidFormatType(
+            "ast-treeviz format only works with ast stage".to_string(),
+        )),
     }
 }
 
@@ -236,6 +252,7 @@ pub fn available_formats() -> Vec<String> {
                     OutputFormat::RawJson => "raw-json",
                     OutputFormat::Xml => "xml",
                     OutputFormat::AstTag => "tag",
+                    OutputFormat::AstTreeviz => "treeviz",
                 }
             )
         })
