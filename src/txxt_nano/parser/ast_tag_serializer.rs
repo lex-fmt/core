@@ -65,6 +65,18 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
                 output.push_str(&format!("{}</children></session>\n", indent));
             }
         }
+        ContentItem::List(l) => {
+            // <list><item>text</item><item>text</item>...</list>
+            output.push_str(&format!("{}<list>\n", indent));
+            for item in &l.items {
+                output.push_str(&format!(
+                    "{}<item>{}</item>\n",
+                    "  ".repeat(indent_level + 1),
+                    escape_xml(&item.text)
+                ));
+            }
+            output.push_str(&format!("{}</list>\n", indent));
+        }
     }
 }
 

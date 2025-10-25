@@ -26,21 +26,19 @@
 //! use crate::txxt_nano::processor::txxt_sources::TxxtSources;
 //! use crate::txxt_nano::parser::parse_document;
 //!
-//! // ✅ CORRECT: Use verified sample files
+//! // CORRECT: Use verified sample files
 //! let source = TxxtSources::get_string("000-paragraphs.txxt")?;
 //! let doc = parse_document(&source)?;
 //!
-//! // ❌ WRONG: Don't write txxt content directly in tests
+//! // WRONG: Don't write txxt content directly in tests
 //! let doc = parse_document("Some paragraph\n\nAnother paragraph\n\n")?;
 //! ```
 //!
 //! **Available samples:**
 //! - `000-paragraphs.txxt` - Basic paragraph parsing
 //! - `010-paragraphs-sessions-flat-single.txxt` - Single session
-//! - `020-paragraphs-sessions-flat-multiple.txxt` - Multiple sessions
-//! - `030-paragraphs-sessions-nested-multiple.txxt` - Nested sessions
-//! - `040-lists.txxt` - List structures
 //! - `050-paragraph-lists.txxt` - Mixed content
+//! and many more.
 //!
 //! ## Rule 2: Always Use assert_ast for AST Verification
 //!
@@ -82,85 +80,8 @@
 //! ```
 //!
 //! 20+ lines of boilerplate. Hard to see what's actually being tested.
-//!
-//! ### The Solution with assert_ast
-//!
-//! The same test with our fluent API:
-//!
-//! ```rust,ignore
-//! use txxt_nano::testing::assert_ast;
-//!
-//! assert_ast(&doc).item(0, |item| {
-//!     item.assert_session()
-//!         .label("Introduction")
-//!         .child_count(2)
-//!         .child(0, |child| {
-//!             child.assert_paragraph()
-//!                 .text_starts_with("Hello");
-//!         });
-//! });
+//! see the src/txxt_nano/testing/testing_assertions.rs
 //! ```
-//!
-//! 7 lines. The structure mirrors the AST. Clear what's being tested.
-//!
-//! ## Complete Testing Example
-//!
-//! Here's how to write a proper parser test using both required tools:
-//!
-//! ```rust,ignore
-//! use crate::txxt_nano::processor::txxt_sources::TxxtSources;
-//! use crate::txxt_nano::parser::parse_document;
-//! use crate::txxt_nano::testing::assert_ast;
-//!
-//! #[test]
-//! fn test_nested_sessions() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Rule 1: Use verified txxt sources
-//!     let source = TxxtSources::get_string("030-paragraphs-sessions-nested-multiple.txxt")?;
-//!     let doc = parse_document(&source)?;
-//!
-//!     // Rule 2: Use assert_ast for comprehensive verification
-//!     assert_ast(&doc)
-//!         .item_count(5)
-//!         .item(0, |item| {
-//!             item.assert_paragraph()
-//!                 .text_contains("Nested Sessions Test");
-//!         })
-//!         .item(2, |item| {
-//!             item.assert_session()
-//!                 .label("1. Root Session")
-//!                 .child_count(4)
-//!                 .child(1, |child| {
-//!                     child.assert_session()
-//!                         .label("1.1. First Sub-session")
-//!                         .child_count(2)
-//!                         .child(0, |para| {
-//!                             para.assert_paragraph()
-//!                                 .text_contains("This is content");
-//!                         });
-//!                 });
-//!         });
-//!
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ## Key Features of assert_ast
-//!
-//! **Type-safe**: Compiler catches mismatched assertions. Can't call `.label()` on a paragraph.
-//!
-//! **Clear errors**: Shows exactly what failed with context:
-//! ```text
-//! items[2]:children[1]: Expected text to start with 'Hello', but got 'Welcome'
-//! ```
-//!
-//! **Smart summaries**: Count mismatches show actual structure:
-//! ```text
-//! Expected 3 children, found 4: [Paragraph, Paragraph, Session, Paragraph]
-//! ```
-//!
-//! **Fluent API**: Mirrors the AST structure, making tests readable and maintainable.
-//!
-//! ## Adding New AST Nodes
 //!
 //! When you add a new container node (ListItem, Definition, etc.):
 //!
@@ -195,7 +116,7 @@ mod testing_assertions;
 mod testing_matchers;
 
 pub use testing_assertions::{
-    assert_ast, ChildrenAssertion, ContentItemAssertion, DocumentAssertion, ParagraphAssertion,
-    SessionAssertion,
+    assert_ast, ChildrenAssertion, ContentItemAssertion, DocumentAssertion, ListAssertion,
+    ListItemAssertion, ParagraphAssertion, SessionAssertion,
 };
 pub use testing_matchers::TextMatch;
