@@ -38,6 +38,7 @@
 //! - `000-paragraphs.txxt` - Basic paragraph parsing
 //! - `010-paragraphs-sessions-flat-single.txxt` - Single session
 //! - `050-paragraph-lists.txxt` - Mixed content
+//!
 //! and many more.
 //!
 //! ## Rule 2: Always Use assert_ast for AST Verification
@@ -81,7 +82,6 @@
 //!
 //! 20+ lines of boilerplate. Hard to see what's actually being tested.
 //! see the src/txxt_nano/testing/testing_assertions.rs
-//! ```
 //!
 //! When you add a new container node (ListItem, Definition, etc.):
 //!

@@ -273,9 +273,24 @@ mod tests {
                                     format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
                                 ContentItem::Session(s) =>
                                     format!("  {}: Session ({} children)", i, s.content.len()),
+                                ContentItem::List(l) =>
+                                    format!("  {}: List ({} items)", i, l.items.len()),
                             })
                             .collect::<Vec<_>>()
                             .join("\n")
+                    );
+                }
+            }
+            (ContentItem::List(l), "List") => {
+                // expected_details should be item count
+                if let Ok(expected_items) = expected_details.parse::<usize>() {
+                    assert_eq!(
+                        l.items.len(),
+                        expected_items,
+                        "{}: Expected List with {} items, got {} items",
+                        path,
+                        expected_items,
+                        l.items.len()
                     );
                 }
             }
@@ -293,6 +308,14 @@ mod tests {
                     path,
                     expected,
                     s.content.len()
+                );
+            }
+            (ContentItem::List(l), expected) => {
+                panic!(
+                    "{}: Expected {}, got List with {} items",
+                    path,
+                    expected,
+                    l.items.len()
                 );
             }
         }
@@ -428,6 +451,9 @@ mod tests {
                                 s.content.len()
                             );
                         }
+                        ContentItem::List(l) => {
+                            println!("  {}: List with {} items", i, l.items.len());
+                        }
                     }
                 }
                 // This is actually fine - empty session
@@ -484,6 +510,9 @@ mod tests {
                                 s.title,
                                 s.content.len()
                             );
+                        }
+                        ContentItem::List(l) => {
+                            println!("  {}: List with {} items", i, l.items.len());
                         }
                     }
                 }
@@ -596,6 +625,7 @@ mod tests {
                         s.title,
                         s.content.len()
                     ),
+                    ContentItem::List(l) => format!("  {}: List with {} items", i, l.items.len()),
                 })
                 .collect::<Vec<_>>()
                 .join("\n")
@@ -626,6 +656,14 @@ mod tests {
                     panic!(
                         "Item {} should be a Paragraph with {} lines, but found Session '{}' with {} items",
                         i, expected_lines, s.title, s.content.len()
+                    );
+                }
+                ContentItem::List(l) => {
+                    panic!(
+                        "Item {} should be a Paragraph with {} lines, but found List with {} items",
+                        i,
+                        expected_lines,
+                        l.items.len()
                     );
                 }
             }
@@ -669,6 +707,7 @@ mod tests {
                 .map(|(i, item)| match item {
                     ContentItem::Paragraph(p) => format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
                     ContentItem::Session(s) => format!("  {}: Session with {} items", i, s.content.len()),
+                    ContentItem::List(l) => format!("  {}: List with {} items", i, l.items.len()),
                 })
                 .collect::<Vec<_>>()
                 .join("\n")
@@ -692,6 +731,12 @@ mod tests {
                     s.content.len()
                 );
             }
+            ContentItem::List(l) => {
+                panic!(
+                    "Item 0: Expected Paragraph, got List with {} items",
+                    l.items.len()
+                );
+            }
         }
 
         // Verify item 1: Paragraph with 1 line
@@ -712,6 +757,12 @@ mod tests {
                     s.content.len()
                 );
             }
+            ContentItem::List(l) => {
+                panic!(
+                    "Item 1: Expected Paragraph, got List with {} items",
+                    l.items.len()
+                );
+            }
         }
 
         // Verify item 2: Session with 2 paragraphs
@@ -725,6 +776,7 @@ mod tests {
                         .map(|(i, item)| match item {
                             ContentItem::Paragraph(p) => format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
                             ContentItem::Session(s) => format!("  {}: Session with {} items", i, s.content.len()),
+                            ContentItem::List(l) => format!("  {}: List with {} items", i, l.items.len()),
                         })
                         .collect::<Vec<_>>()
                         .join("\n")
@@ -748,6 +800,12 @@ mod tests {
                             s.content.len()
                         );
                     }
+                    ContentItem::List(l) => {
+                        panic!(
+                            "Item 2, child 0: Expected Paragraph, got List with {} items",
+                            l.items.len()
+                        );
+                    }
                 }
 
                 // Verify session's second paragraph
@@ -768,12 +826,24 @@ mod tests {
                             s.content.len()
                         );
                     }
+                    ContentItem::List(l) => {
+                        panic!(
+                            "Item 2, child 1: Expected Paragraph, got List with {} items",
+                            l.items.len()
+                        );
+                    }
                 }
             }
             ContentItem::Paragraph(p) => {
                 panic!(
                     "Item 2: Expected Session with 2 items, got Paragraph with {} lines",
                     p.lines.len()
+                );
+            }
+            ContentItem::List(l) => {
+                panic!(
+                    "Item 2: Expected Session, got List with {} items",
+                    l.items.len()
                 );
             }
         }
@@ -796,6 +866,12 @@ mod tests {
                     s.content.len()
                 );
             }
+            ContentItem::List(l) => {
+                panic!(
+                    "Item 3: Expected Paragraph, got List with {} items",
+                    l.items.len()
+                );
+            }
         }
 
         // Verify item 4: Session with 1 paragraph
@@ -809,6 +885,7 @@ mod tests {
                         .map(|(i, item)| match item {
                             ContentItem::Paragraph(p) => format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
                             ContentItem::Session(s) => format!("  {}: Session with {} items", i, s.content.len()),
+                            ContentItem::List(l) => format!("  {}: List with {} items", i, l.items.len()),
                         })
                         .collect::<Vec<_>>()
                         .join("\n")
@@ -832,12 +909,24 @@ mod tests {
                             s.content.len()
                         );
                     }
+                    ContentItem::List(l) => {
+                        panic!(
+                            "Item 4, child 0: Expected Paragraph, got List with {} items",
+                            l.items.len()
+                        );
+                    }
                 }
             }
             ContentItem::Paragraph(p) => {
                 panic!(
                     "Item 4: Expected Session with 1 item, got Paragraph with {} lines",
                     p.lines.len()
+                );
+            }
+            ContentItem::List(l) => {
+                panic!(
+                    "Item 4: Expected Session, got List with {} items",
+                    l.items.len()
                 );
             }
         }
@@ -858,6 +947,12 @@ mod tests {
                     "Item 5: Expected Paragraph, got Session '{}' with {} items",
                     s.title,
                     s.content.len()
+                );
+            }
+            ContentItem::List(l) => {
+                panic!(
+                    "Item 5: Expected Paragraph, got List with {} items",
+                    l.items.len()
                 );
             }
         }
@@ -906,6 +1001,7 @@ mod tests {
                 .map(|(i, item)| match item {
                     ContentItem::Paragraph(p) => format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
                     ContentItem::Session(s) => format!("  {}: Session ({} items)", i, s.content.len()),
+                    ContentItem::List(l) => format!("  {}: List ({} items)", i, l.items.len()),
                 })
                 .collect::<Vec<_>>()
                 .join("\n")
@@ -1020,6 +1116,7 @@ mod tests {
                 .map(|(i, item)| match item {
                     ContentItem::Paragraph(p) => format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
                     ContentItem::Session(s) => format!("  {}: Session ({} items)", i, s.content.len()),
+                    ContentItem::List(l) => format!("  {}: List ({} items)", i, l.items.len()),
                 })
                 .collect::<Vec<_>>()
                 .join("\n")
