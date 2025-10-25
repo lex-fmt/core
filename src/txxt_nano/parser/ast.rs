@@ -139,8 +139,11 @@ pub struct List {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
     /// The text content of this list item (including the marker)
-    /// Stored as a single-element vector to satisfy TextNode trait
+    /// Stored as a single-element vector to maintain backward compatibility
     text: Vec<String>,
+    /// Nested content within this list item (paragraphs and lists)
+    /// Will be empty if there's no nested content
+    pub content: Vec<ContentItem>,
 }
 
 impl Document {
@@ -235,7 +238,18 @@ impl List {
 impl ListItem {
     /// Create a new list item with the given text
     pub fn new(text: String) -> Self {
-        Self { text: vec![text] }
+        Self {
+            text: vec![text],
+            content: Vec::new(),
+        }
+    }
+
+    /// Create a new list item with text and content
+    pub fn with_content(text: String, content: Vec<ContentItem>) -> Self {
+        Self {
+            text: vec![text],
+            content,
+        }
     }
 
     /// Get the text content of this list item
@@ -352,7 +366,7 @@ impl AstNode for List {
     }
 }
 
-// ListItem - AstNode and TextNode implementation
+// ListItem - AstNode and Container implementation
 impl AstNode for ListItem {
     fn node_type(&self) -> &'static str {
         "ListItem"
@@ -368,13 +382,17 @@ impl AstNode for ListItem {
     }
 }
 
-impl TextNode for ListItem {
-    fn text(&self) -> String {
-        self.text[0].clone()
+impl Container for ListItem {
+    fn label(&self) -> &str {
+        &self.text[0]
     }
 
-    fn lines(&self) -> &[String] {
-        &self.text
+    fn children(&self) -> &[ContentItem] {
+        &self.content
+    }
+
+    fn children_mut(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.content
     }
 }
 
