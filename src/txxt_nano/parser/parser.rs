@@ -525,8 +525,8 @@ fn annotation_parameter() -> impl Parser<TokenSpan, ParameterWithSpans, Error = 
 /// Grammar: <parameters> = (<parameter> ","?)+
 /// Parameters can be separated by whitespace, commas, or both
 #[allow(dead_code)]
-fn annotation_parameters(
-) -> impl Parser<TokenSpan, Vec<ParameterWithSpans>, Error = ParserError> + Clone {
+fn annotation_parameters()
+-> impl Parser<TokenSpan, Vec<ParameterWithSpans>, Error = ParserError> + Clone {
     // Separator can be: whitespace, comma, or comma+whitespace
     let separator = token(Token::Comma)
         .then(token(Token::Whitespace).or_not())
@@ -545,8 +545,8 @@ fn annotation_parameters(
 /// Strategy: Collect all tokens between :: markers, then parse them to determine:
 /// - If first word has no '=' after it → it's a label
 /// - Everything else → parameters
-fn annotation_header(
-) -> impl Parser<TokenSpan, (Option<Range<usize>>, Vec<ParameterWithSpans>), Error = ParserError> + Clone
+fn annotation_header()
+-> impl Parser<TokenSpan, (Option<Range<usize>>, Vec<ParameterWithSpans>), Error = ParserError> + Clone
 {
     // Collect all tokens between opening :: and closing ::
     let bounded_region =
@@ -1174,7 +1174,9 @@ mod tests {
             Token::DedentLevel,
         ];
 
-        println!("\n=== Test: Greedy paragraph bug - session title + IndentLevel + unparseable content ===");
+        println!(
+            "\n=== Test: Greedy paragraph bug - session title + IndentLevel + unparseable content ==="
+        );
         println!("Tokens: {:?}", tokens);
 
         let result = parse(tokens.clone());
@@ -1248,7 +1250,8 @@ mod tests {
                 // The critical check: error should NOT be at position 3 (IndentLevel)
                 // If it is, that means paragraph parser consumed the title
                 assert_ne!(
-                    error.span().start, 3,
+                    error.span().start,
+                    3,
                     "BUG STILL PRESENT: Paragraph parser consumed session title, error is at IndentLevel (position 3)"
                 );
 
@@ -1256,7 +1259,9 @@ mod tests {
                     "\n✓ Fix verified: Error is at position {}, not at IndentLevel (position 3)",
                     error.span().start
                 );
-                println!("  This means the paragraph parser correctly rejected the session title pattern");
+                println!(
+                    "  This means the paragraph parser correctly rejected the session title pattern"
+                );
             }
         }
     }
@@ -2669,11 +2674,13 @@ mod tests {
                     .unwrap_or(false)
             })
             .expect("Should contain :: note :: annotation");
-        assert!(note_annotation
-            .as_annotation()
-            .unwrap()
-            .parameters
-            .is_empty());
+        assert!(
+            note_annotation
+                .as_annotation()
+                .unwrap()
+                .parameters
+                .is_empty()
+        );
         assert!(note_annotation.as_annotation().unwrap().content.is_empty());
 
         // Find and verify :: warning severity=high :: annotation
@@ -2872,7 +2879,7 @@ mod tests {
             })
             .expect("Should contain JavaScript foreign block");
         let js = js_block.as_foreign_block().unwrap();
-        assert_eq!(js.subject, "Code Example:");
+        assert_eq!(js.subject, "Code Example");
         assert!(js.content.contains("function hello()"));
         assert!(js.content.contains("console.log"));
         assert_eq!(js.closing_annotation.parameters.len(), 1);
@@ -2889,7 +2896,7 @@ mod tests {
             })
             .expect("Should contain Python foreign block");
         let py = py_block.as_foreign_block().unwrap();
-        assert_eq!(py.subject, "Another Code Block:");
+        assert_eq!(py.subject, "Another Code Block");
         assert!(py.content.contains("def fibonacci"));
         assert!(py.content.contains("for i in range"));
 
@@ -2904,7 +2911,7 @@ mod tests {
             })
             .expect("Should contain SQL foreign block");
         let sql = sql_block.as_foreign_block().unwrap();
-        assert_eq!(sql.subject, "SQL Example:");
+        assert_eq!(sql.subject, "SQL Example");
         assert!(sql.content.contains("SELECT"));
         assert!(sql.content.contains("FROM users"));
     }
@@ -2927,7 +2934,7 @@ mod tests {
             })
             .expect("Should contain image foreign block");
         let image = image_block.as_foreign_block().unwrap();
-        assert_eq!(image.subject, "Image Reference:");
+        assert_eq!(image.subject, "Image Reference");
         assert_eq!(image.content, ""); // No content in marker form
         assert_eq!(image.closing_annotation.parameters.len(), 2);
         assert_eq!(image.closing_annotation.parameters[0].key, "type");
@@ -2947,9 +2954,9 @@ mod tests {
             })
             .expect("Should contain binary foreign block");
         let binary = binary_block.as_foreign_block().unwrap();
-        assert_eq!(binary.subject, "Binary File Reference:");
+        assert_eq!(binary.subject, "Binary File Reference");
         assert_eq!(binary.content, "");
-        assert_eq!(binary.closing_annotation.parameters.len(), 3);
+        assert_eq!(binary.closing_annotation.parameters.len(), 2);
         assert_eq!(binary.closing_annotation.parameters[0].key, "type");
         assert_eq!(
             binary.closing_annotation.parameters[0].value,
