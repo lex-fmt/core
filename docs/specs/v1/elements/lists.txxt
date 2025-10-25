@@ -121,18 +121,6 @@ Examples
 		- Item X
 		- Item Y
 
-Parsing
-
-	Parse order: before definitions and sessions
-	
-	Detection:
-		- Blank line before first item
-		- At least 2 consecutive list item lines
-		- List item pattern: (dash | number | letter | roman) (period | paren) space
-
-	Single list-item-like lines become paragraphs.
-	Lists without preceding blank line become paragraphs.
-
 Use Cases
 
 	- Task lists and checklists

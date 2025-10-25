@@ -42,14 +42,6 @@ Attachment
 	- Document level: when annotations are the first document elements , up to a blank line or any other element
 	- Parent: if no such prev element exists, it's attached to it's parent element (the container in which it appears)
 	
-Parsing
-
-	Annotations take precedence due to their distinct :: marker syntax. Invalid annotations gracefully degrade to paragraph parsing (e.g., missing closing markers).
-
-	Multiple annotations can attach to the same node. They are stored as a list (not a map), so duplicate labels/params are allowed.
-
-
-
 Examples:
 
 :: note :: Important information
