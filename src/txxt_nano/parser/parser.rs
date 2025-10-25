@@ -675,6 +675,8 @@ mod tests {
 
     #[test]
     fn test_verified_paragraphs_sample() {
+        use crate::txxt_nano::testing::assert_ast;
+
         let source =
             TxxtSources::get_string("000-paragraphs.txxt").expect("Failed to load sample file");
         let tokens = lex(&source);
@@ -690,83 +692,29 @@ mod tests {
 
         // Expected structure based on 000-paragraphs.txxt:
         // 7 paragraphs total, with specific line counts
-        let expected_structure = [
-            ("Paragraph", 1), // "Simple Paragraphs Test"
-            ("Paragraph", 1), // "This is a simple paragraph with just one line."
-            ("Paragraph", 3), // Multi-line paragraph
-            ("Paragraph", 1), // "Another paragraph follows..."
-            ("Paragraph", 1), // Paragraph with special chars
-            ("Paragraph", 1), // Paragraph with numbers
-            ("Paragraph", 1), // Paragraph with mixed content
-        ];
-
-        assert_eq!(
-            doc.items.len(),
-            expected_structure.len(),
-            "Expected {} paragraphs, got {}.\n\nExpected structure:\n{}\n\nActual structure:\n{}",
-            expected_structure.len(),
-            doc.items.len(),
-            expected_structure
-                .iter()
-                .enumerate()
-                .map(|(i, (t, lines))| format!("  {}: {} with {} lines", i, t, lines))
-                .collect::<Vec<_>>()
-                .join("\n"),
-            doc.items
-                .iter()
-                .enumerate()
-                .map(|(i, item)| match item {
-                    ContentItem::Paragraph(p) =>
-                        format!("  {}: Paragraph with {} lines", i, p.lines.len()),
-                    ContentItem::Session(s) => format!(
-                        "  {}: Session '{}' with {} items",
-                        i,
-                        s.title,
-                        s.content.len()
-                    ),
-                    ContentItem::List(l) => format!("  {}: List with {} items", i, l.items.len()),
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
-
-        // Verify each item matches expected structure
-        for (i, (item, (expected_type, expected_lines))) in
-            doc.items.iter().zip(expected_structure.iter()).enumerate()
-        {
-            match item {
-                ContentItem::Paragraph(p) => {
-                    assert_eq!(
-                        expected_type, &"Paragraph",
-                        "Item {} should be a {}, but found Paragraph",
-                        i, expected_type
-                    );
-                    assert_eq!(
-                        p.lines.len(),
-                        *expected_lines,
-                        "Item {} (Paragraph) should have {} lines, but has {}.\nLines: {:?}",
-                        i,
-                        expected_lines,
-                        p.lines.len(),
-                        p.lines
-                    );
-                }
-                ContentItem::Session(s) => {
-                    panic!(
-                        "Item {} should be a Paragraph with {} lines, but found Session '{}' with {} items",
-                        i, expected_lines, s.title, s.content.len()
-                    );
-                }
-                ContentItem::List(l) => {
-                    panic!(
-                        "Item {} should be a Paragraph with {} lines, but found List with {} items",
-                        i,
-                        expected_lines,
-                        l.items.len()
-                    );
-                }
-            }
-        }
+        assert_ast(&doc)
+            .item_count(7)
+            .item(0, |item| {
+                item.assert_paragraph().line_count(1); // "Simple Paragraphs Test"
+            })
+            .item(1, |item| {
+                item.assert_paragraph().line_count(1); // "This is a simple paragraph with just one line."
+            })
+            .item(2, |item| {
+                item.assert_paragraph().line_count(3); // Multi-line paragraph
+            })
+            .item(3, |item| {
+                item.assert_paragraph().line_count(1); // "Another paragraph follows..."
+            })
+            .item(4, |item| {
+                item.assert_paragraph().line_count(1); // Paragraph with special chars
+            })
+            .item(5, |item| {
+                item.assert_paragraph().line_count(1); // Paragraph with numbers
+            })
+            .item(6, |item| {
+                item.assert_paragraph().line_count(1); // Paragraph with mixed content
+            });
     }
 
     #[test]
