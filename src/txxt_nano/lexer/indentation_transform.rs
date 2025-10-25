@@ -560,4 +560,62 @@ mod tests {
         assert_eq!(find_line_start(&tokens, 2), 2);
         assert_eq!(find_line_start(&tokens, 3), 2);
     }
+
+    #[test]
+    fn test_blank_line_with_spaces_does_not_dedent() {
+        // Critical test: A line with only spaces (no content) should NOT produce dedent
+        // Example:
+        // ........Foo       (level 2)
+        // ........Foo2      (level 2)
+        // ....              (blank line with spaces - IGNORED)
+        // ........Bar       (level 2 - NO DEDENT from Foo2 to Bar!)
+
+        let input = vec![
+            // Line 1: "        Foo" (2 indent levels)
+            Token::Indent,
+            Token::Indent,
+            Token::Text,
+            Token::Newline,
+            // Line 2: "        Foo2" (2 indent levels)
+            Token::Indent,
+            Token::Indent,
+            Token::Text,
+            Token::Newline,
+            // Line 3: "    " (1 indent level BUT NO CONTENT - should be ignored)
+            Token::Indent,
+            Token::Newline,
+            // Line 4: "        Bar" (2 indent levels)
+            Token::Indent,
+            Token::Indent,
+            Token::Text,
+            Token::Newline,
+        ];
+
+        let result = transform_indentation(input);
+
+        // Expected: Level stays at 2, no dedent/re-indent around the blank line
+        assert_eq!(
+            result,
+            vec![
+                // Line 1
+                Token::IndentLevel, // From 0 to 1
+                Token::IndentLevel, // From 1 to 2
+                Token::Text,
+                Token::Newline,
+                // Line 2
+                Token::Text, // Still at level 2, no change
+                Token::Newline,
+                // Line 3 (blank with spaces)
+                Token::Newline, // Just newline, no dedent!
+                // Line 4
+                Token::Text, // Still at level 2, no dedent/re-indent!
+                Token::Newline,
+                // EOF
+                Token::DedentLevel, // From 2 to 1
+                Token::DedentLevel, // From 1 to 0
+                Token::DedentLevel, // Final document close
+            ],
+            "Blank lines with only spaces should NOT produce dedent/indent tokens"
+        );
+    }
 }
