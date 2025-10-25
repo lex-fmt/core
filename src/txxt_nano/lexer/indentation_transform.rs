@@ -142,6 +142,89 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
     count
 }
 
+/// Transform indentation while preserving source spans
+/// Synthetic tokens (IndentLevel, DedentLevel) are given empty spans (0..0)
+pub fn transform_indentation_with_spans(
+    tokens_with_spans: Vec<(Token, std::ops::Range<usize>)>,
+) -> Vec<(Token, std::ops::Range<usize>)> {
+    // Extract just the tokens for processing
+    let tokens: Vec<Token> = tokens_with_spans.iter().map(|(t, _)| t.clone()).collect();
+
+    let mut result = Vec::new();
+    let mut current_level = 0;
+    let mut i = 0;
+
+    while i < tokens.len() {
+        // Find the start of the current line
+        let line_start = find_line_start(&tokens, i);
+
+        // Count Indent tokens at the beginning of this line
+        let line_indent_level = count_line_indent_steps(&tokens, line_start);
+
+        // Check if this line is blank (only contains indentation and newline)
+        let is_blank_line = is_line_blank(&tokens, line_start);
+
+        // Skip blank lines - they don't affect indentation level
+        if is_blank_line {
+            let mut j = line_start;
+            while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
+                j += 1;
+            }
+            if j < tokens.len() && matches!(tokens[j], Token::Newline) {
+                // Preserve the newline span
+                result.push((Token::Newline, tokens_with_spans[j].1.clone()));
+                j += 1;
+            }
+            i = j;
+            continue;
+        }
+
+        // Calculate the target indentation level for this line
+        let target_level = line_indent_level;
+
+        // Generate appropriate IndentLevel/DedentLevel tokens with empty spans
+        if target_level > current_level {
+            for _ in 0..(target_level - current_level) {
+                result.push((Token::IndentLevel, 0..0));
+            }
+        } else if target_level < current_level {
+            for _ in 0..(current_level - target_level) {
+                result.push((Token::DedentLevel, 0..0));
+            }
+        }
+
+        // Update current level
+        current_level = target_level;
+
+        // Process the rest of the line, skipping Indent tokens but preserving spans
+        let mut j = line_start;
+        while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
+            if !matches!(tokens[j], Token::Indent) {
+                result.push((tokens[j].clone(), tokens_with_spans[j].1.clone()));
+            }
+            j += 1;
+        }
+
+        // Add the newline token if we haven't reached the end
+        if j < tokens.len() && matches!(tokens[j], Token::Newline) {
+            result.push((Token::Newline, tokens_with_spans[j].1.clone()));
+            j += 1;
+        }
+
+        i = j;
+    }
+
+    // Add dedents to close all remaining indentation levels (with empty spans)
+    for _ in 0..current_level {
+        result.push((Token::DedentLevel, 0..0));
+    }
+
+    // Always add a final DedentLevel to close the document structure
+    result.push((Token::DedentLevel, 0..0));
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
