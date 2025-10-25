@@ -46,9 +46,18 @@ fn text_line() -> impl Parser<Token, String, Error = Simple<Token>> {
 }
 
 /// Parse a paragraph - one or more lines of text separated by newlines, ending with a blank line
+/// A paragraph is a catch-all that matches when nothing else does.
+/// Critically: if a text pattern is followed by Newline + Newline + IndentLevel, it's a session title, NOT a paragraph
 fn paragraph() -> impl Parser<Token, Paragraph, Error = Simple<Token>> {
-    text_line()
-        .then_ignore(just(Token::Newline))
+    // Match lines that are NOT session titles (not followed by blank line + IndentLevel)
+    let non_session_line = text_line().then_ignore(just(Token::Newline)).then_ignore(
+        just(Token::Newline)
+            .then(just(Token::IndentLevel))
+            .not()
+            .rewind(),
+    );
+
+    non_session_line
         .repeated()
         .at_least(1)
         .then_ignore(just(Token::Newline).or_not()) // Optional blank line at end
@@ -63,6 +72,8 @@ fn session_title() -> impl Parser<Token, String, Error = Simple<Token>> {
 }
 
 /// Parse a session - a title followed by indented content
+/// IMPORTANT: Once we match a session title, we MUST see IndentLevel or fail
+/// This prevents backtracking to paragraph parser when session content is malformed
 fn session() -> impl Parser<Token, Session, Error = Simple<Token>> + Clone {
     recursive(|session_parser| {
         // Try session first (before paragraph) to handle nested sessions
@@ -72,8 +83,9 @@ fn session() -> impl Parser<Token, Session, Error = Simple<Token>> + Clone {
 
         session_title()
             .then(
+                // Once we have a session title, we're committed - must see IndentLevel
                 just(Token::IndentLevel)
-                    .ignore_then(content_item.repeated())
+                    .ignore_then(content_item.repeated().at_least(1)) // Sessions must have content
                     .then_ignore(just(Token::DedentLevel)),
             )
             .map(|(title, content)| Session::new(title, content))
@@ -178,6 +190,202 @@ mod tests {
 
         let para = result.unwrap();
         assert_eq!(para.lines.len(), 1);
+    }
+
+    #[test]
+    fn test_malformed_session_title_with_indent_but_no_content() {
+        // Test the exact scenario from the code review:
+        // A text line followed by blank line and IndentLevel, but no actual parseable content
+        // Session parser should fail (expects content after IndentLevel)
+        // Then paragraph parser tries and consumes the text line
+        // This leaves IndentLevel token unconsumed, causing confusing error
+
+        // We need actual indented content to get an IndentLevel token
+        // So let's use a session title followed by just a newline at the indent level
+        let input = "This looks like a session title\n\n    \n"; // Title + blank + indented newline
+        let tokens = lex(input);
+
+        println!("\n=== Test: Session title pattern with IndentLevel but no parseable content ===");
+        println!("Input: {:?}", input);
+        println!("Tokens: {:?}", tokens);
+
+        let result = parse(tokens.clone());
+
+        match &result {
+            Ok(doc) => {
+                println!("\n✓ Parsed successfully");
+                println!("Document has {} items:", doc.items.len());
+                for (i, item) in doc.items.iter().enumerate() {
+                    println!("  {}: {}", i, item);
+                }
+                // This might actually be fine - the blank indented line might be ignored
+            }
+            Err(errors) => {
+                println!("\n✗ Parse failed with errors:");
+                for error in errors {
+                    println!("  Error at span {:?}: {:?}", error.span(), error.reason());
+                    println!("  Found: {:?}", error.found());
+                }
+
+                // This is expected to fail, but the question is:
+                // Does it fail with a GOOD error message or a CONFUSING one?
+
+                // If paragraph parser consumed the title line, the error will be about
+                // finding IndentLevel when it expected something else (paragraph content or end)
+            }
+        }
+    }
+
+    #[test]
+    fn test_session_title_followed_by_bare_indent_level() {
+        // Test case 1: Session with empty content (IndentLevel immediately followed by DedentLevel)
+        // This actually SHOULD be allowed or give a clear error
+        let tokens = vec![
+            Token::Text,
+            Token::Newline,
+            Token::Newline,
+            Token::IndentLevel,
+            Token::DedentLevel,
+            Token::DedentLevel,
+        ];
+
+        println!("\n=== Test: Session with empty content ===");
+        println!("Tokens: {:?}", tokens);
+
+        let result = parse(tokens.clone());
+
+        match &result {
+            Ok(doc) => {
+                println!("\n✓ Parsed as session with 0 children");
+                println!("Document has {} items:", doc.items.len());
+                for (i, item) in doc.items.iter().enumerate() {
+                    match item {
+                        ContentItem::Paragraph(p) => {
+                            println!("  {}: Paragraph with {} lines", i, p.lines.len());
+                        }
+                        ContentItem::Session(s) => {
+                            println!(
+                                "  {}: Session '{}' with {} children",
+                                i,
+                                s.title,
+                                s.content.len()
+                            );
+                        }
+                    }
+                }
+                // This is actually fine - empty session
+            }
+            Err(errors) => {
+                println!("\n✗ Parse failed:");
+                for error in errors {
+                    println!("  Error at span {:?}: {:?}", error.span(), error.reason());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_greedy_paragraph_parser_bug() {
+        // THIS is the greedy paragraph bug from the code review:
+        // Text Newline Newline IndentLevel [something that's not a valid content item]
+        //
+        // When session parser fails to parse content after IndentLevel,
+        // it backtracks and paragraph parser gets a chance
+        // Paragraph parser matches "Text Newline" leaving "Newline IndentLevel ..."
+        // This causes a confusing error
+        //
+        // With the fix: Paragraph parser uses `.not()` to reject patterns followed by IndentLevel
+        // So it won't consume the session title, and the error will be about the malformed session
+
+        let tokens = vec![
+            Token::Text, // "title"
+            Token::Newline,
+            Token::Newline,
+            Token::IndentLevel,
+            Token::Colon, // This is not valid content (can't start a paragraph or session)
+            Token::DedentLevel,
+            Token::DedentLevel,
+        ];
+
+        println!("\n=== Test: Greedy paragraph bug - session title + IndentLevel + unparseable content ===");
+        println!("Tokens: {:?}", tokens);
+
+        let result = parse(tokens.clone());
+
+        match &result {
+            Ok(doc) => {
+                println!("\n✓ Parsed successfully (shouldn't happen!):");
+                for (i, item) in doc.items.iter().enumerate() {
+                    match item {
+                        ContentItem::Paragraph(p) => {
+                            println!("  {}: Paragraph with {} lines", i, p.lines.len());
+                        }
+                        ContentItem::Session(s) => {
+                            println!(
+                                "  {}: Session '{}' with {} children",
+                                i,
+                                s.title,
+                                s.content.len()
+                            );
+                        }
+                    }
+                }
+                panic!("Should have failed to parse!");
+            }
+            Err(errors) => {
+                println!("\n✗ Parse failed with {} error(s):", errors.len());
+                for (i, error) in errors.iter().enumerate() {
+                    println!("  Error {}: at span {:?}", i, error.span());
+                    println!("    Reason: {:?}", error.reason());
+                    println!("    Found: {:?}", error.found());
+                }
+
+                // With the bug: error says "unexpected IndentLevel at position 3"
+                //   because paragraph consumed "Text Newline", left "Newline IndentLevel Colon..."
+                //
+                // With the fix: error is NOT at position 3 (IndentLevel)
+                //   It could be at position 4 (Colon - can't start content item)
+                //   Or at position 5+ (trailing tokens after session attempts to match)
+
+                assert_eq!(errors.len(), 1, "Should have exactly one error");
+                let error = &errors[0];
+
+                // The critical check: error should NOT be at position 3 (IndentLevel)
+                // If it is, that means paragraph parser consumed the title
+                assert_ne!(
+                    error.span().start, 3,
+                    "BUG STILL PRESENT: Paragraph parser consumed session title, error is at IndentLevel (position 3)"
+                );
+
+                println!(
+                    "\n✓ Fix verified: Error is at position {}, not at IndentLevel (position 3)",
+                    error.span().start
+                );
+                println!("  This means the paragraph parser correctly rejected the session title pattern");
+            }
+        }
+    }
+
+    #[test]
+    fn test_session_title_pattern_without_indent() {
+        // This is just a paragraph - text + blank line
+        // Should parse fine as a paragraph
+        let input = "Normal paragraph\n\nAnother paragraph\n\n";
+        let tokens = lex(input);
+
+        println!("\n=== Test: Normal paragraphs (no IndentLevel) ===");
+        let result = parse(tokens);
+
+        match &result {
+            Ok(doc) => {
+                println!("✓ Parsed successfully");
+                println!("Document has {} items:", doc.items.len());
+                assert_eq!(doc.items.len(), 2, "Should have 2 paragraphs");
+            }
+            Err(e) => {
+                panic!("Should have parsed successfully: {:?}", e);
+            }
+        }
     }
 
     #[test]
