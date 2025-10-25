@@ -82,15 +82,3 @@ Examples
 
 		    OAuth:
 		        An open standard for access delegation.
-
-Parsing
-
-	Parse order: after lists, before sessions and paragraphs
-	
-	Detection:
-		- Subject line ending with colon
-		- Immediately followed by indented content (no blank line)
-		- Content does not contain sessions
-
-	Invalid definitions degrade to paragraphs.
-

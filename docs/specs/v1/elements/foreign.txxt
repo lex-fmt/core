@@ -65,20 +65,6 @@ Closing Annotation
 		:: python version=3.11 :: Example code
 		:: image src=photo.jpg :: Beautiful sunset
 
-Parsing Strategy
-
-	Foreign blocks parse FIRST (before other elements) because:
-		1. Content contains raw text (not txxt)
-		2. Could contain indent/dedent tokens that would confuse other parsers
-		3. Detection is unambiguous via the indentation wall
-
-	Parser matches:
-		<subject-line> <blank-line>? <indented-content>? <closing-annotation>
-
-	The closing annotation detected by:
-		<dedent>+ <annotation-tokens>
-		(dedent back to wall level + annotation syntax)
-
 Examples
 
 	Block form with code:

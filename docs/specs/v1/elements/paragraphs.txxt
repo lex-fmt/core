@@ -23,17 +23,7 @@ Syntax
 
 The Catch-All Rule
 
-	Paragraphs match last in the parse order.
-
-	Parse order:
-		1. Foreign blocks
-		2. Annotations
-		3. Lists
-		4. Definitions
-		5. Sessions
-		6. Paragraphs ← last resort
-
-	If text doesn't match patterns 1-5, it's a paragraph.
+	Paragraphs are defined by what they are NOT. If text doesn't match other element patterns, it's a paragraph.
 	This makes txxt forgiving - ambiguous content defaults to paragraph.
 
 Paragraph Boundaries
@@ -106,10 +96,6 @@ Examples
 
 		Third paragraph here.
 
-	Paragraph with special characters:
-		Text with :: markers, - dashes, and 1. numbers
-		that don't form other elements.
-
 	In a session:
 		Introduction:
 
@@ -120,18 +106,6 @@ Examples
 		Cache:
 		    This paragraph explains what a cache is.
 		    Multiple lines, same paragraph.
-
-Parsing
-
-	Paragraphs have no formal grammar to match.
-	They are the result of NOT matching other elements.
-
-	The paragraph parser:
-		- Matches non-blank lines
-		- Stops at blank lines, dedents, or other elements
-		- Groups consecutive lines into single paragraph
-
-	This "catch-all" behavior makes txxt forgiving and flexible.
 
 Use Cases
 
