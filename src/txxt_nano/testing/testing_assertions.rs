@@ -750,7 +750,7 @@ impl<'a> ForeignBlockAssertion<'a> {
     }
 
     /// Assert content is empty (marker form)
-    pub fn is_marker_form(self) -> Self {
+    pub fn assert_marker_form(self) -> Self {
         let actual = &self.foreign_block.content;
         assert!(
             actual.is_empty(),
@@ -762,7 +762,7 @@ impl<'a> ForeignBlockAssertion<'a> {
     }
 
     /// Assert content is not empty (block form)
-    pub fn is_block_form(self) -> Self {
+    pub fn assert_block_form(self) -> Self {
         let actual = &self.foreign_block.content;
         assert!(
             !actual.is_empty(),
