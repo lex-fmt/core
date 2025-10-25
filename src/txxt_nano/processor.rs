@@ -458,7 +458,9 @@ pub mod txxt_sources {
             assert!(samples.contains(&"100-definitions-mixed-content.txxt"));
             assert!(samples.contains(&"120-annotations-simple.txxt"));
             assert!(samples.contains(&"130-annotations-block-content.txxt"));
-            assert_eq!(samples.len(), 15);
+            assert!(samples.contains(&"140-foreign-blocks-simple.txxt"));
+            assert!(samples.contains(&"150-foreign-blocks-no-content.txxt"));
+            assert_eq!(samples.len(), 17); // Updated for foreign block samples 140 and 150
         }
 
         #[test]

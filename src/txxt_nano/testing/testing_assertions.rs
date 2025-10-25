@@ -75,27 +75,10 @@ impl<'a> ContentItemAssertion<'a> {
                 para: p,
                 context: self.context,
             },
-            ContentItem::Session(s) => panic!(
-                "{}: Expected Paragraph, found Session with label '{}'",
+            _ => panic!(
+                "{}: Expected Paragraph, found {}",
                 self.context,
-                s.label()
-            ),
-            ContentItem::List(l) => panic!(
-                "{}: Expected Paragraph, found List with {} items",
-                self.context,
-                l.items.len()
-            ),
-            ContentItem::Definition(d) => panic!(
-                "{}: Expected Paragraph, found Definition with subject '{}'",
-                self.context, d.subject
-            ),
-            ContentItem::Annotation(a) => panic!(
-                "{}: Expected Paragraph, found Annotation with label '{}'",
-                self.context, a.label.value
-            ),
-            ContentItem::ForeignBlock(fb) => panic!(
-                "{}: Expected Paragraph, found ForeignBlock with subject '{}'",
-                self.context, fb.subject
+                self.item.node_type()
             ),
         }
     }
@@ -107,34 +90,10 @@ impl<'a> ContentItemAssertion<'a> {
                 session: s,
                 context: self.context,
             },
-            ContentItem::Paragraph(p) => {
-                let text = p.text();
-                let display_text = if text.len() > 50 {
-                    format!("{}...", &text[..50])
-                } else {
-                    text
-                };
-                panic!(
-                    "{}: Expected Session, found Paragraph with text '{}'",
-                    self.context, display_text
-                )
-            }
-            ContentItem::List(l) => panic!(
-                "{}: Expected Session, found List with {} items",
+            _ => panic!(
+                "{}: Expected Session, found {}",
                 self.context,
-                l.items.len()
-            ),
-            ContentItem::Definition(d) => panic!(
-                "{}: Expected Session, found Definition with subject '{}'",
-                self.context, d.subject
-            ),
-            ContentItem::Annotation(a) => panic!(
-                "{}: Expected Session, found Annotation with label '{}'",
-                self.context, a.label.value
-            ),
-            ContentItem::ForeignBlock(fb) => panic!(
-                "{}: Expected Session, found ForeignBlock with subject '{}'",
-                self.context, fb.subject
+                self.item.node_type()
             ),
         }
     }
@@ -146,34 +105,10 @@ impl<'a> ContentItemAssertion<'a> {
                 list: l,
                 context: self.context,
             },
-            ContentItem::Paragraph(p) => {
-                let text = p.text();
-                let display_text = if text.len() > 50 {
-                    format!("{}...", &text[..50])
-                } else {
-                    text
-                };
-                panic!(
-                    "{}: Expected List, found Paragraph with text '{}'",
-                    self.context, display_text
-                )
-            }
-            ContentItem::Session(s) => panic!(
-                "{}: Expected List, found Session with label '{}'",
+            _ => panic!(
+                "{}: Expected List, found {}",
                 self.context,
-                s.label()
-            ),
-            ContentItem::Definition(d) => panic!(
-                "{}: Expected List, found Definition with subject '{}'",
-                self.context, d.subject
-            ),
-            ContentItem::Annotation(a) => panic!(
-                "{}: Expected List, found Annotation with label '{}'",
-                self.context, a.label.value
-            ),
-            ContentItem::ForeignBlock(fb) => panic!(
-                "{}: Expected List, found ForeignBlock with subject '{}'",
-                self.context, fb.subject
+                self.item.node_type()
             ),
         }
     }
@@ -185,35 +120,10 @@ impl<'a> ContentItemAssertion<'a> {
                 definition: d,
                 context: self.context,
             },
-            ContentItem::Paragraph(p) => {
-                let text = p.text();
-                let display_text = if text.len() > 50 {
-                    format!("{}...", &text[..50])
-                } else {
-                    text
-                };
-                panic!(
-                    "{}: Expected Definition, found Paragraph with text '{}'",
-                    self.context, display_text
-                )
-            }
-            ContentItem::Session(s) => panic!(
-                "{}: Expected Definition, found Session with label '{}'",
+            _ => panic!(
+                "{}: Expected Definition, found {}",
                 self.context,
-                s.label()
-            ),
-            ContentItem::List(l) => panic!(
-                "{}: Expected Definition, found List with {} items",
-                self.context,
-                l.items.len()
-            ),
-            ContentItem::Annotation(a) => panic!(
-                "{}: Expected Definition, found Annotation with label '{}'",
-                self.context, a.label.value
-            ),
-            ContentItem::ForeignBlock(fb) => panic!(
-                "{}: Expected Definition, found ForeignBlock with subject '{}'",
-                self.context, fb.subject
+                self.item.node_type()
             ),
         }
     }
@@ -225,35 +135,10 @@ impl<'a> ContentItemAssertion<'a> {
                 annotation: a,
                 context: self.context,
             },
-            ContentItem::Paragraph(p) => {
-                let text = p.text();
-                let display_text = if text.len() > 50 {
-                    format!("{}...", &text[..50])
-                } else {
-                    text
-                };
-                panic!(
-                    "{}: Expected Annotation, found Paragraph with text '{}'",
-                    self.context, display_text
-                )
-            }
-            ContentItem::Session(s) => panic!(
-                "{}: Expected Annotation, found Session with label '{}'",
+            _ => panic!(
+                "{}: Expected Annotation, found {}",
                 self.context,
-                s.label()
-            ),
-            ContentItem::List(l) => panic!(
-                "{}: Expected Annotation, found List with {} items",
-                self.context,
-                l.items.len()
-            ),
-            ContentItem::Definition(d) => panic!(
-                "{}: Expected Annotation, found Definition with subject '{}'",
-                self.context, d.subject
-            ),
-            ContentItem::ForeignBlock(fb) => panic!(
-                "{}: Expected Annotation, found ForeignBlock with subject '{}'",
-                self.context, fb.subject
+                self.item.node_type()
             ),
         }
     }
@@ -265,33 +150,10 @@ impl<'a> ContentItemAssertion<'a> {
                 foreign_block: fb,
                 context: self.context,
             },
-            ContentItem::Paragraph(p) => {
-                let text = p.text();
-                let display_text = if text.len() > 50 {
-                    format!("{}...", &text[..50])
-                } else {
-                    text
-                };
-                panic!(
-                    "{}: Expected ForeignBlock, found Paragraph with text '{}'",
-                    self.context, display_text
-                )
-            }
-            ContentItem::Session(s) => panic!(
-                "{}: Expected ForeignBlock, found Session with label '{}'",
-                self.context, s.label()
-            ),
-            ContentItem::List(l) => panic!(
-                "{}: Expected ForeignBlock, found List with {} items",
-                self.context, l.items.len()
-            ),
-            ContentItem::Definition(d) => panic!(
-                "{}: Expected ForeignBlock, found Definition with subject '{}'",
-                self.context, d.subject
-            ),
-            ContentItem::Annotation(a) => panic!(
-                "{}: Expected ForeignBlock, found Annotation with label '{}'",
-                self.context, a.label.value
+            _ => panic!(
+                "{}: Expected ForeignBlock, found {}",
+                self.context,
+                self.item.node_type()
             ),
         }
     }
@@ -1220,7 +1082,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "items[0]: Expected Paragraph, found Session with label 'Section'")]
+    #[should_panic(expected = "items[0]: Expected Paragraph, found Session")]
     fn test_type_mismatch_session_as_paragraph() {
         let doc = Document::with_items(vec![ContentItem::Session(Session::with_title(
             "Section".to_string(),
@@ -1232,9 +1094,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "items[0]: Expected Session, found Paragraph with text 'Hello world'"
-    )]
+    #[should_panic(expected = "items[0]: Expected Session, found Paragraph")]
     fn test_type_mismatch_paragraph_as_session() {
         let doc = Document::with_items(vec![ContentItem::Paragraph(Paragraph::from_line(
             "Hello world".to_string(),
