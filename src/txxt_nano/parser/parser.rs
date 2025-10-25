@@ -778,6 +778,8 @@ mod tests {
 
     #[test]
     fn test_verified_multiple_sessions_sample() {
+        use crate::txxt_nano::testing::assert_ast;
+
         let source = TxxtSources::get_string("020-paragraphs-sessions-flat-multiple.txxt")
             .expect("Failed to load sample file");
         let tokens = lex(&source);
@@ -807,25 +809,6 @@ mod tests {
         //   Line 25: "Session titles don't require..." - nested session title with 1 paragraph
         //     Line 27: "They just need..." - paragraph (1 line)
         // Line 29: "Final paragraph..." - paragraph (1 line)
-
-        let expected_items = 9;
-        assert_eq!(
-            doc.items.len(),
-            expected_items,
-            "Expected {} root-level items, got {}.\n\nExpected:\n  0: Paragraph (1 line)\n  1: Paragraph (1 line)\n  2: Session (2 paragraphs)\n  3: Session (1 paragraph)\n  4: Paragraph (1 line)\n  5: Session (1 paragraph)\n  6: Paragraph (1 line)\n  7: Session (1 nested session)\n  8: Paragraph (1 line)\n\nActual:\n{}",
-            expected_items,
-            doc.items.len(),
-            doc.items.iter().enumerate()
-                .map(|(i, item)| match item {
-                    ContentItem::Paragraph(p) => format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
-                    ContentItem::Session(s) => format!("  {}: Session ({} items)", i, s.content.len()),
-                    ContentItem::List(l) => format!("  {}: List ({} items)", i, l.items.len()),
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
-
-        use crate::txxt_nano::testing::assert_ast;
 
         assert_ast(&doc)
             .item_count(9)
