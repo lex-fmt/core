@@ -1,10 +1,10 @@
 //! Parser implementation for the txxt format using chumsky
-//!
+//! 
 //! This module implements a parser combinator-based parser for txxt documents.
 //! It builds on the token stream from the lexer and produces an AST.
-//!
+//! 
 //! ## Testing
-//!
+//! 
 //! All parser tests must follow strict guidelines. See the [testing module](crate::txxt_nano::testing)
 //! for comprehensive documentation on using verified txxt sources and AST assertions.
 
@@ -12,7 +12,16 @@ use chumsky::prelude::*;
 use std::ops::Range;
 
 use super::ast::{
-    Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph, Parameter,
+    Annotation,
+    ContentItem,
+    Definition,
+    Document,
+    ForeignBlock,
+    Label,
+    List,
+    ListItem,
+    Paragraph,
+    Parameter,
     Session,
 };
 use crate::txxt_nano::lexer::Token;
@@ -48,6 +57,14 @@ pub(crate) struct DefinitionWithSpans {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+pub(crate) struct ForeignBlockWithSpans {
+    subject_spans: Vec<Range<usize>>,
+    content_spans: Option<Vec<Range<usize>>> ,
+    closing_annotation: AnnotationWithSpans,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ParameterWithSpans {
     key_span: Range<usize>,
     value_span: Option<Range<usize>>,
@@ -56,17 +73,9 @@ pub(crate) struct ParameterWithSpans {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct AnnotationWithSpans {
-    label_span: Range<usize>,
+    label_span: Option<Range<usize>>, // Optional: can have label, params, or both
     parameters: Vec<ParameterWithSpans>,
     content: Vec<ContentItemWithSpans>,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub(crate) struct ForeignBlockWithSpans {
-    subject_spans: Vec<Range<usize>>,
-    content_spans: Vec<Range<usize>>,
-    closing_annotation: AnnotationWithSpans,
 }
 
 #[derive(Debug, Clone)]
@@ -203,7 +212,11 @@ fn convert_parameter(source: &str, param: ParameterWithSpans) -> Parameter {
 }
 
 fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
-    let label_text = extract_text(source, &ann.label_span).trim().to_string();
+    // Extract label if present, otherwise use empty string
+    let label_text = ann.label_span
+        .as_ref()
+        .map(|span| extract_text(source, span).trim().to_string())
+        .unwrap_or_else(|| String::new());
     let label = Label::new(label_text);
 
     let parameters = ann
@@ -246,27 +259,13 @@ fn convert_list_item(source: &str, item: ListItemWithSpans) -> ListItem {
 }
 
 fn convert_foreign_block(source: &str, fb: ForeignBlockWithSpans) -> ForeignBlock {
-    // Extract subject (colon already excluded from spans by definition_subject parser)
     let subject = extract_line_text(source, &fb.subject_spans);
-    
-    // Extract raw content from all content spans
-    let content = if fb.content_spans.is_empty() {
-        String::new()
-    } else {
-        // Find the overall span from first to last
-        let start = fb.content_spans.first().map(|s| s.start).unwrap_or(0);
-        let end = fb.content_spans.last().map(|s| s.end).unwrap_or(0);
-        
-        if start >= end || end > source.len() {
-            String::new()
-        } else {
-            source[start..end].to_string()
-        }
-    };
-    
-    // Convert the closing annotation
+    let content = fb
+        .content_spans
+        .map(|spans| reconstruct_raw_content(source, &spans))
+        .unwrap_or_default();
     let closing_annotation = convert_annotation(source, fb.closing_annotation);
-    
+
     ForeignBlock::new(subject, content, closing_annotation)
 }
 
@@ -305,7 +304,7 @@ fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError> + Clone {
 /// Parse a list item line - a line that starts with a list marker
 /// Grammar: <list-item-line> = <plain-marker> <text>+ | <ordered-marker> <text>+
 /// Where: <plain-marker> = "-" " "
-///        <ordered-marker> = (<number> | <letter> | <roman>) ("." | ")") " "
+///        <ordered-marker> = (<number> | <letter> | <roman>) ("|"|")") " "
 fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
     // Just check that the line starts with a valid list marker, then collect all tokens
     // We validate the marker and collect the full line content
@@ -433,19 +432,7 @@ fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError
 fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
     // Parse text tokens before the colon (explicitly excluding colon from subject spans)
     filter(|(t, _span): &TokenSpan| {
-        matches!(
-            t,
-            Token::Text
-                | Token::Whitespace
-                | Token::Number
-                | Token::Dash
-                | Token::Period
-                | Token::OpenParen
-                | Token::CloseParen
-                | Token::Comma
-                | Token::Quote
-                | Token::Equals
-        )
+        !matches!(t, Token::Colon | Token::Newline)
     })
     .repeated()
     .at_least(1)
@@ -504,28 +491,16 @@ fn annotation_parameter() -> impl Parser<TokenSpan, ParameterWithSpans, Error = 
             // Try quoted string first: "text with spaces"
             token(Token::Quote)
                 .ignore_then(
-                    filter(|(t, _): &TokenSpan| {
-                        matches!(
-                            t,
-                            Token::Text
-                                | Token::Whitespace
-                                | Token::Number
-                                | Token::Dash
-                                | Token::Period
-                                | Token::Comma
-                                | Token::Equals
-                                | Token::Colon
-                                | Token::OpenParen
-                                | Token::CloseParen
-                        )
-                    })
-                    .repeated()
-                    .at_least(1)
-                    .map(|tokens: Vec<TokenSpan>| {
-                        let first = &tokens.first().unwrap().1;
-                        let last = &tokens.last().unwrap().1;
-                        first.start..last.end
-                    }),
+                    filter(|(t, _): &TokenSpan| !matches!(t, Token::Quote))
+                        .repeated()
+                        .map(|tokens: Vec<TokenSpan>| {
+                            if tokens.is_empty() {
+                                return 0..0;
+                            }
+                            let first = &tokens.first().unwrap().1;
+                            let last = &tokens.last().unwrap().1;
+                            first.start..last.end
+                        }),
                 )
                 .then_ignore(token(Token::Quote))
                 .or(
@@ -575,7 +550,7 @@ fn annotation_parameters(
 /// Forms:
 /// 1. Marker: `:: label ::\n` - No content, newline NOT consumed (left for document parser)
 /// 2. Single-line: `:: label :: text\n` - Text after :: captured as paragraph
-/// 3. Block: `:: label ::\n<indent>content<dedent>::` - Newline consumed, indented content
+/// 3. Block: `:: label \n<indent>content<dedent>::` - Newline consumed, indented content
 ///
 /// Remaining limitation:
 /// 1. Nested annotations: Currently not supported (by design, per spec).
@@ -593,59 +568,67 @@ fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserErr
         nested_list.or(paragraph().map(ContentItemWithSpans::Paragraph))
     });
 
-    // Parse the opening: :: label [params] ::
+    // Parse the opening: :: (label params?) | params
+    // Either label or parameters must be present (or both)
     let annotation_opening = token(Token::TxxtMarker)
         .ignore_then(token(Token::Whitespace).or_not())
-        .ignore_then(annotation_label())
-        .then(
-            // Optional parameters after whitespace
-            token(Token::Whitespace)
-                .ignore_then(annotation_parameters())
-                .or_not(),
-        )
-        .then_ignore(token(Token::Whitespace).or_not())
-        .then_ignore(token(Token::TxxtMarker));
-
-    annotation_opening
-        .then(
-            // After closing ::, three possible forms:
-            // 1. Single-line form: whitespace + text + newline + optional blank line
-            // 2. Block form: newline + indent + content + dedent + :: + newline + optional blank line
-            // 3. Marker form: newline + optional blank line
-
-            // Try single-line form first: whitespace followed by text
-            token(Token::Whitespace)
-                .ignore_then(text_line())
-                .then_ignore(token(Token::Newline))
-                .then_ignore(token(Token::Newline).or_not()) // Optional blank line
-                .map(|line_span| {
-                    // Single-line text becomes a paragraph in content
-                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
-                        line_spans: vec![line_span],
-                    })]
-                })
-                .or(
-                    // Try block form: newline + indent + content + dedent + ::
-                    token(Token::Newline)
-                        .ignore_then(token(Token::IndentLevel))
-                        .ignore_then(annotation_content.repeated().at_least(1))
-                        .then_ignore(token(Token::DedentLevel))
-                        .then_ignore(token(Token::TxxtMarker))
-                        .then_ignore(token(Token::Newline)) // Newline after closing ::
-                        .then_ignore(token(Token::Newline).or_not()), // Optional blank line
+        .ignore_then(
+            // Try: label followed by optional parameters
+            annotation_label()
+                .then(
+                    token(Token::Whitespace)
+                        .ignore_then(annotation_parameters())
+                        .or_not()
                 )
-                .or(
-                    // Marker form: newline + optional blank line
-                    token(Token::Newline)
-                        .then_ignore(token(Token::Newline).or_not())
-                        .to(vec![]),
-                ),
+                .map(|(label, params)| (Some(label), params))
+                // Or: just parameters (no label)
+                .or(annotation_parameters().map(|params| (None, Some(params))))
         )
+        .then_ignore(token(Token::Whitespace).or_not());
+
+    // Block form: opening, newline, indented content, closing ::
+    let block_form = annotation_opening.clone()
+        .then_ignore(token(Token::Newline))
+        .then(
+            token(Token::IndentLevel)
+                .ignore_then(annotation_content.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel)),
+        )
+        .then_ignore(token(Token::TxxtMarker))
         .map(|((label_span, parameters), content)| AnnotationWithSpans {
             label_span,
             parameters: parameters.unwrap_or_default(),
             content,
+        });
+
+    // Single-line and marker forms
+    let single_line_or_marker = annotation_opening
+        .then_ignore(token(Token::TxxtMarker))
+        .then(
+            // Optional single-line text content after closing ::
+            token(Token::Whitespace)
+                .ignore_then(text_line())
+                .or_not(),
+        )
+        .map(|((label_span, parameters), content_span)| {
+            // Text after :: becomes paragraph content (annotation single-line form)
+            let content = content_span
+                .map(|span| {
+                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
+                        line_spans: vec![span],
+                    })]
+                })
+                .unwrap_or_default();
+
+            AnnotationWithSpans {
+                label_span,
+                parameters: parameters.unwrap_or_default(),
+                content,
+            }
         })
+        .then_ignore(token(Token::Newline).repeated()); // Consume trailing newlines for single-line/marker forms
+
+    block_form.or(single_line_or_marker)
 }
 
 /// Parse a definition - a subject ending with colon, immediately followed by indented content
@@ -684,77 +667,52 @@ fn reconstruct_raw_content(source: &str, spans: &[Range<usize>]) -> String {
     if spans.is_empty() {
         return String::new();
     }
-    
     // Find the overall span from first to last
     let start = spans.first().map(|s| s.start).unwrap_or(0);
     let end = spans.last().map(|s| s.end).unwrap_or(0);
-    
+
     if start >= end || end > source.len() {
         return String::new();
     }
-    
     source[start..end].to_string()
 }
 
 /// Parse a foreign block - subject line, optional content, closing annotation
 /// Uses "Indentation Wall" rule: content must be indented deeper than subject,
 /// closing annotation must be at same level as subject
+///
+/// Token sequence with content:
+/// definition_subject (which includes Colon and Newline) IndentLevel content... DedentLevel+ :: label :: \n
+/// Token sequence without content:
+/// definition_subject (which includes Colon and Newline) Newline :: label :: \n
 fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = ParserError> + Clone {
-    // Parse the subject line (with optional blank line after)
-    let subject_parser = definition_subject()
-        .then_ignore(token(Token::Newline).or_not()); // Optional blank line after subject
-    
-    // Parse raw content lines (everything that's indented deeper than subject)
-    let raw_content_line = filter(|(t, _span): &TokenSpan| {
-        matches!(
-            t,
-            Token::Text
-                | Token::Whitespace
-                | Token::Number
-                | Token::Dash
-                | Token::Period
-                | Token::OpenParen
-                | Token::CloseParen
-                | Token::Colon
-                | Token::Comma
-                | Token::Quote
-                | Token::Equals
-                | Token::TxxtMarker
-        )
-    })
-    .repeated()
-    .at_least(1)
-    .then_ignore(token(Token::Newline))
-    .map(|tokens_with_spans: Vec<TokenSpan>| {
-        tokens_with_spans.into_iter().map(|(_, s)| s).collect::<Vec<Range<usize>>>()
-    });
-    
-    // Parse the closing annotation (must be at same indentation level as subject)
-    let closing_annotation_parser = token(Token::DedentLevel)
-        .ignore_then(annotation())
-        .then_ignore(token(Token::Newline).or_not()); // Optional blank line after
-    
-    subject_parser
-        .then(
-            // Check if there's indented content (with optional blank line)
-            token(Token::Newline).or_not()
-                .ignore_then(token(Token::IndentLevel))
-                .ignore_then(raw_content_line.repeated().at_least(1))
-                .then_ignore(token(Token::DedentLevel))
-                .then(closing_annotation_parser.clone())
-                .map(|(content_spans, closing_annotation)| (Some(content_spans.into_iter().flatten().collect()), closing_annotation))
-                .or(
-                    // No content form - just closing annotation
-                    closing_annotation_parser.clone()
-                        .map(|closing_annotation| (None, closing_annotation))
-                )
-        )
-        .map(|(subject_spans, (content_spans, closing_annotation))| {
-            ForeignBlockWithSpans {
-                subject_spans,
-                content_spans: content_spans.unwrap_or_default(),
-                closing_annotation,
+    let subject_parser = definition_subject(); // This consumes: text... Colon Newline
+
+    // Content: everything except TxxtMarker (stops naturally when hitting ::)
+    let content_token = filter(|(t, _span): &TokenSpan| !matches!(t, Token::TxxtMarker));
+
+    // Content block: IndentLevel + content, returns Vec<Range>
+    let with_content = token(Token::IndentLevel)
+        .ignore_then(content_token.repeated().at_least(1))
+        .map(|tokens: Vec<TokenSpan>| {
+            // Remove trailing DedentLevel tokens
+            let mut content_tokens = tokens;
+            while content_tokens.last().map(|(t, _)| matches!(t, Token::DedentLevel)).unwrap_or(false) {
+                content_tokens.pop();
             }
+            content_tokens.into_iter().map(|(_, s)| s).collect::<Vec<_>>()
+        });
+
+    subject_parser
+        .then_ignore(token(Token::Newline).or_not()) // Consume optional blank line after subject (marker form)
+        .then(with_content.or_not()) // Content is optional
+        .then_ignore(token(Token::DedentLevel).repeated()) // Consume structural dedents
+        .then(annotation())
+        .then_ignore(token(Token::Newline).repeated()) // Consume all trailing newlines after annotation
+        .map(|((subject_spans, content_spans), closing_annotation)| ForeignBlockWithSpans {
+            subject_spans,
+            content_spans,
+            closing_annotation,
         })
 }
 
@@ -770,8 +728,20 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
         // 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
         // 5. Session fifth (requires title + blank line + indent)
         // 6. Paragraph last (catch-all, including single list-item-lines)
-    let content_item = foreign_block()
-        .map(ContentItemWithSpans::ForeignBlock);
+        let content_item = foreign_block()
+            .map(ContentItemWithSpans::ForeignBlock)
+            .or(annotation().map(ContentItemWithSpans::Annotation))
+            .or(
+                list_item()
+                    .repeated()
+                    .at_least(2)
+                    .then_ignore(token(Token::Newline).or_not())
+                    .map(|items| ListWithSpans { items })
+                    .map(ContentItemWithSpans::List),
+            )
+            .or(definition().map(ContentItemWithSpans::Definition))
+            .or(session_parser.map(ContentItemWithSpans::Session))
+            .or(paragraph().map(ContentItemWithSpans::Paragraph));
 
         session_title()
             .then(
@@ -800,11 +770,23 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
     let content_item = foreign_block()
-        .map(ContentItemWithSpans::ForeignBlock);
+        .map(ContentItemWithSpans::ForeignBlock)
+        .or(annotation().map(ContentItemWithSpans::Annotation))
+        .or(
+            list_item()
+                .repeated()
+                .at_least(2)
+                .then_ignore(token(Token::Newline).or_not())
+                .map(|items| ListWithSpans { items })
+                .map(ContentItemWithSpans::List),
+        )
+        .or(definition().map(ContentItemWithSpans::Definition))
+        .or(session().map(ContentItemWithSpans::Session))
+        .or(paragraph().map(ContentItemWithSpans::Paragraph));
 
     content_item
         .repeated()
-        .then_ignore(token(Token::DedentLevel)) // Consume final document-closing dedent
+        .then_ignore(token(Token::DedentLevel).or_not()) // Allow files that don't end with a newline
         .then_ignore(end())
         .map(|items| DocumentWithSpans { items })
 }
@@ -1734,15 +1716,13 @@ mod tests {
                 .label_contains("Session with Paragraph Content")
                 .child_count(2)
                 .child(0, |child| {
-                    child
-                        .assert_paragraph()
+                    child.assert_paragraph() // "Session with Paragraph Content"
                         .text_contains("starts with a paragraph");
                 })
                 .child(1, |child| {
-                    child
-                        .assert_paragraph()
-                        .text_contains("multiple paragraphs");
-                });
+                    child.assert_paragraph() // "multiple paragraphs"
+                    .text_contains("multiple paragraphs");
+            });
         });
 
         // Item 3: Session with only a list
@@ -1814,11 +1794,11 @@ mod tests {
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
             .item(0, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "Trifecta Nesting Test"
                     .text_contains("Trifecta Nesting Test");
             })
             .item(1, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "various levels of nesting"
                     .text_contains("various levels of nesting");
             });
 
@@ -1930,11 +1910,11 @@ mod tests {
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
             .item(0, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "Simple Nested Lists Test"
                     .text_contains("Simple Nested Lists Test");
             })
             .item(1, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "simple list-in-list nesting"
                     .text_contains("simple list-in-list nesting");
             });
 
@@ -2016,11 +1996,11 @@ mod tests {
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
             .item(0, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "Nested Lists with Mixed Content Test"
                     .text_contains("Nested Lists with Mixed Content Test");
             })
             .item(1, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "mix of paragraphs and other lists"
                     .text_contains("mix of paragraphs and other lists");
             });
 
@@ -2190,11 +2170,11 @@ mod tests {
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
             .item(0, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "Simple Definitions Test"
                     .text_contains("Simple Definitions Test");
             })
             .item(1, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "basic Definition element"
                     .text_contains("basic Definition element");
             });
 
@@ -2285,11 +2265,11 @@ mod tests {
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
             .item(0, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "Definitions with Mixed Content Test"
                     .text_contains("Definitions with Mixed Content Test");
             })
             .item(1, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "both paragraphs and lists"
                     .text_contains("both paragraphs and lists");
             });
 
@@ -2379,11 +2359,12 @@ mod tests {
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
             .item(0, |item| {
-                item.assert_paragraph()
+                item.assert_paragraph() // "Ensemble Test with Definitions"
                     .text_contains("Ensemble Test with Definitions");
             })
             .item(1, |item| {
-                item.assert_paragraph().text_contains("all core elements");
+                item.assert_paragraph() // "all core elements"
+                    .text_contains("all core elements");
             });
 
         // Item 2: Introduction definition (with para + list)
@@ -2399,114 +2380,28 @@ mod tests {
                 });
         });
 
-        // Item 3: Session "1. Simple Elements Section"
+        // Item 3: Advanced Topics session
         assert_ast(&doc).item(3, |item| {
             item.assert_session()
-                .label_contains("1. Simple Elements Section")
-                .child_count(5); // para, def, def, para, list
-        });
-
-        // Verify first child is paragraph
-        assert_ast(&doc).item(3, |item| {
-            item.assert_session()
+                .label("Advanced Topics")
+                .child_count(2) // para + foreign block
                 .child(0, |child| {
-                    child.assert_paragraph().text_contains("isolation");
+                    child
+                        .assert_paragraph()
+                        .text_contains("can contain complex nested structures");
                 })
                 .child(1, |child| {
                     child
-                        .assert_definition()
-                        .subject("API Endpoint")
-                        .child_count(1);
-                })
-                .child(2, |child| {
-                    child
-                        .assert_definition()
-                        .subject("Database Types")
-                        .child_count(1);
-                })
-                .child(3, |child| {
-                    child.assert_paragraph().text_contains("simple list");
-                })
-                .child(4, |child| {
-                    child.assert_list().item_count(3);
+                        .assert_foreign_block()
+                        .subject("Code Example")
+                        .content_contains("fn main()")
+                        .closing_label("rust");
                 });
         });
 
-        // Item 4: Session "2. Nested Elements Section" - contains subsessions
+        // Item 4: Final paragraph
         assert_ast(&doc).item(4, |item| {
-            item.assert_session()
-                .label_contains("2. Nested Elements Section")
-                .child_count(3); // para, subsession, subsession
-        });
-
-        // Verify subsession 2.1 contains definitions
-        assert_ast(&doc).item(4, |item| {
-            item.assert_session().child(1, |child| {
-                child
-                    .assert_session()
-                    .label_contains("2.1. Subsection with Definitions")
-                    .child_count(4); // def, def, para, def
-            });
-        });
-
-        // Verify subsession 2.2 has mixed content
-        assert_ast(&doc).item(4, |item| {
-            item.assert_session().child(2, |child| {
-                child
-                    .assert_session()
-                    .label_contains("2.2. Subsection with Mixed Content")
-                    .child_count(6); // para, def, para, def, para, list
-            });
-        });
-
-        // Item 5: Session "3. Deep Nesting Section" - tests deep nesting
-        assert_ast(&doc).item(5, |item| {
-            item.assert_session()
-                .label_contains("3. Deep Nesting Section")
-                .child_count(2); // para, subsession
-        });
-
-        // Verify deep nesting with definitions at multiple levels
-        assert_ast(&doc).item(5, |item| {
-            item.assert_session().child(1, |child| {
-                child
-                    .assert_session()
-                    .label_contains("3.1. Level One")
-                    .child_count(3); // para, def, subsession
-            });
-        });
-
-        // Verify level two subsession contains definitions
-        assert_ast(&doc).item(5, |item| {
-            item.assert_session().child(1, |subsession_3_1| {
-                subsession_3_1
-                    .assert_session()
-                    .child(2, |subsession_3_1_1| {
-                        subsession_3_1_1
-                            .assert_session()
-                            .label_contains("3.1.1. Level Two")
-                            .child_count(4); // para, def, def, para
-                    });
-            });
-        });
-
-        // Item 6: Regular paragraph after sessions
-        assert_ast(&doc).item(6, |item| {
-            item.assert_paragraph()
-                .text_contains("Regular paragraph after all sessions");
-        });
-
-        // Item 7: Final Definition at root level
-        assert_ast(&doc).item(7, |item| {
-            item.assert_definition()
-                .subject("Final Definition")
-                .child_count(1);
-        });
-
-        // Item 8: End paragraph
-        assert_ast(&doc).item(8, |item| {
-            item.assert_paragraph()
-                .text_contains("End of ensemble test");
+            item.assert_paragraph().text_contains("end of the document");
         });
     }
 
@@ -2603,7 +2498,7 @@ mod tests {
             .items
             .iter()
             .find(|item| {
-                item.as_annotation()
+                item.as_annotation() //
                     .map(|a| a.label.value == "note")
                     .unwrap_or(false)
             })
@@ -2705,7 +2600,7 @@ mod tests {
 
     #[test]
     fn test_foreign_block_simple_with_content() {
-        let source = "Code Example:\n    function hello() {\n        return \"world\";\n    }\n:: javascript :: caption=\"Hello World\"\n\n";
+        let source = "Code Example:\n    function hello() {\n        return \"world\";\n    }\n:: javascript caption=\"Hello World\" ::\n\n";
         let tokens = lex_with_spans(source);
         println!("Tokens: {:?}", tokens);
         let doc = parse_with_source(tokens, source).unwrap();

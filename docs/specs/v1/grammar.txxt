@@ -162,7 +162,7 @@ Grammar for txxt
 
     <annotation> = <annotation-marker> <annotation-opening> <annotation-content>? <annotation-closing>
     <annotation-marker> = "::"
-    <annotation-opening> = <label> <parameters>?
+    <annotation-opening> = (<label> <parameters>?) | <parameters>
     <label> = <letter> (<letter> | <digit> | "_" | "-" | ".")*
     <parameters> = (<parameter> ","?)+
     <parameter> = <key> ("=" <value>)?
@@ -171,10 +171,13 @@ Grammar for txxt
     <annotation-content> = <indent> (<paragraph> | <list>)+ <dedent>
     <annotation-closing> = <annotation-marker>
 
-    Note: Annotations have three forms:
+    Note: Annotations have multiple forms:
     - Marker form: :: label :: (no content)
     - Single-line form: :: label :: inline text
     - Block form: :: label \n <indent>content<dedent> ::
+    - Parameters-only: :: params :: (no label)
+    - Combined: :: label params :: inline text
+    Either label or parameters must be present (or both).
     Content cannot include sessions or nested annotations.
 
     <list> = <blank-line> <list-item-line>{2,*}

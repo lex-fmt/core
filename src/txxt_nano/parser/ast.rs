@@ -10,9 +10,9 @@
 
 use std::fmt;
 
-// ============================================================================
+// ============================================================================ 
 // AST Traits - Common interfaces for uniform node access
-// ============================================================================
+// ============================================================================ 
 //
 // These traits provide a uniform interface for working with different AST node types.
 // This is crucial for generic algorithms like tree traversal, serialization, and testing.
@@ -93,9 +93,9 @@ pub trait TextNode: AstNode {
     fn lines(&self) -> &[String];
 }
 
-// ============================================================================
+// ============================================================================ 
 // AST Node Definitions
-// ============================================================================
+// ============================================================================ 
 
 /// A complete txxt document
 #[derive(Debug, Clone, PartialEq)]
@@ -158,6 +158,17 @@ pub struct Definition {
     pub content: Vec<ContentItem>,
 }
 
+/// A foreign block is a subject followed by unparsed content and a closing annotation
+#[derive(Debug, Clone, PartialEq)]
+pub struct ForeignBlock {
+    /// The subject of the foreign block (without the trailing colon)
+    pub subject: String,
+    /// The raw, unparsed content of the block
+    pub content: String,
+    /// The mandatory closing annotation
+    pub closing_annotation: Annotation,
+}
+
 /// A label for an annotation - can be simple (note) or namespaced (python.typing)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Label {
@@ -185,17 +196,6 @@ pub struct Annotation {
     pub content: Vec<ContentItem>,
 }
 
-/// A foreign block is used to embed non-txxt content or reference external data
-#[derive(Debug, Clone, PartialEq)]
-pub struct ForeignBlock {
-    /// The subject line (without the trailing colon)
-    pub subject: String,
-    /// The raw content (if any) - unparsed text
-    pub content: String,
-    /// The closing annotation that marks the end of the block
-    pub closing_annotation: Annotation,
-}
-
 impl Document {
     /// Create a new empty document
     pub fn new() -> Self {
@@ -207,9 +207,9 @@ impl Document {
         Self { items }
     }
 
-    // ========================================================================
+    // ======================================================================== 
     // Iterator methods for type-specific access
-    // ========================================================================
+    // ======================================================================== 
 
     /// Iterate over all top-level content items
     pub fn iter_items(&self) -> impl Iterator<Item = &ContentItem> {
@@ -439,13 +439,7 @@ impl fmt::Display for ContentItem {
                 )
             }
             ContentItem::ForeignBlock(fb) => {
-                write!(
-                    f,
-                    "ForeignBlock('{}', {} chars, closing: {})",
-                    fb.subject,
-                    fb.content.len(),
-                    fb.closing_annotation.label.value
-                )
+                write!(f, "ForeignBlock('{}')", fb.subject)
             }
         }
     }
@@ -525,9 +519,9 @@ impl fmt::Display for ForeignBlock {
     }
 }
 
-// ============================================================================
+// ============================================================================ 
 // Trait Implementations
-// ============================================================================
+// ============================================================================ 
 
 // Paragraph - TextNode implementation
 impl AstNode for Paragraph {
@@ -769,9 +763,9 @@ impl ContentItem {
         }
     }
 
-    // ========================================================================
+    // ======================================================================== 
     // Type checking methods
-    // ========================================================================
+    // ======================================================================== 
 
     /// Check if this item is a Paragraph
     pub fn is_paragraph(&self) -> bool {
@@ -803,9 +797,9 @@ impl ContentItem {
         matches!(self, ContentItem::ForeignBlock(_))
     }
 
-    // ========================================================================
+    // ======================================================================== 
     // Safe extraction methods (Option-returning)
-    // ========================================================================
+    // ======================================================================== 
 
     /// Get a reference to the Paragraph if this is a Paragraph variant
     pub fn as_paragraph(&self) -> Option<&Paragraph> {
@@ -948,9 +942,9 @@ mod tests {
         assert_eq!(doc.items.len(), 2);
     }
 
-    // ========================================================================
+    // ======================================================================== 
     // Trait Tests
-    // ========================================================================
+    // ======================================================================== 
 
     #[test]
     fn test_paragraph_ast_node_trait() {

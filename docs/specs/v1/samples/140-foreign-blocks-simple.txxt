@@ -13,7 +13,7 @@ Code Example:
     const regex = /[a-z]+/g;
     console.log("Hello, World!");
 
-:: javascript :: caption="Hello World in JavaScript"
+:: javascript caption="Hello World in JavaScript" ::
 
 Another Code Block:
 
@@ -27,7 +27,7 @@ Another Code Block:
     for i in range(10):
         print(f"fib({i}) = {fibonacci(i)}")
 
-:: python :: caption="Fibonacci sequence implementation"
+:: python caption="Fibonacci sequence implementation" ::
 
 SQL Example:
 
@@ -40,7 +40,7 @@ SQL Example:
     GROUP BY u.id, u.name
     ORDER BY order_count DESC;
 
-:: sql :: caption="User order statistics query"
+:: sql caption="User order statistics query" ::
 
 Configuration Example:
 
@@ -55,6 +55,6 @@ Configuration Example:
         }
     }
 
-:: nginx :: caption="Nginx configuration"
+:: nginx caption="Nginx configuration" ::
 
 End of foreign blocks test. {{paragraph}}
