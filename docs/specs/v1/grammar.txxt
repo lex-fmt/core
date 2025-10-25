@@ -158,7 +158,24 @@ Grammar for txxt
 
 3. Element Grammar
 
-    These are the core elements of txxt: sessions, paragraphs, lists, and definitions:
+    These are the core elements of txxt: annotations, sessions, paragraphs, lists, and definitions:
+
+    <annotation> = <annotation-marker> <annotation-opening> <annotation-content>? <annotation-closing>
+    <annotation-marker> = "::"
+    <annotation-opening> = <label> <parameters>?
+    <label> = <letter> (<letter> | <digit> | "_" | "-" | ".")*
+    <parameters> = (<parameter> ","?)+
+    <parameter> = <key> ("=" <value>)?
+    <key> = <letter> (<letter> | <digit> | "_" | "-")*
+    <value> = <quoted-string> | <unquoted-value>
+    <annotation-content> = <indent> (<paragraph> | <list>)+ <dedent>
+    <annotation-closing> = <annotation-marker>
+
+    Note: Annotations have three forms:
+    - Marker form: :: label :: (no content)
+    - Single-line form: :: label :: inline text
+    - Block form: :: label \n <indent>content<dedent> ::
+    Content cannot include sessions or nested annotations.
 
     <list> = <blank-line> <list-item-line>{2,*}
 
@@ -182,6 +199,6 @@ Grammar for txxt
 
     <document> = <metadata>? <content>
     <metadata> = (document metadata, non-content information)
-    <content> = (<paragraph> | <list> | <definition> | <session>)*
+    <content> = (<annotation> | <paragraph> | <list> | <definition> | <session>)*
 
-    Parse order: <list> | <definition> | <session> | <paragraph>
+    Parse order: <annotation> | <list> | <definition> | <session> | <paragraph>

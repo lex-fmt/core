@@ -2,7 +2,7 @@
 
 use super::testing_matchers::TextMatch;
 use crate::txxt_nano::parser::ast::{
-    Container, ContentItem, Definition, Document, List, ListItem, Paragraph, Session,
+    Annotation, Container, ContentItem, Definition, Document, List, ListItem, Paragraph, Session,
 };
 
 // ============================================================================
@@ -89,6 +89,10 @@ impl<'a> ContentItemAssertion<'a> {
                 "{}: Expected Paragraph, found Definition with subject '{}'",
                 self.context, d.subject
             ),
+            ContentItem::Annotation(a) => panic!(
+                "{}: Expected Paragraph, found Annotation with label '{}'",
+                self.context, a.label.value
+            ),
         }
     }
 
@@ -119,6 +123,10 @@ impl<'a> ContentItemAssertion<'a> {
             ContentItem::Definition(d) => panic!(
                 "{}: Expected Session, found Definition with subject '{}'",
                 self.context, d.subject
+            ),
+            ContentItem::Annotation(a) => panic!(
+                "{}: Expected Session, found Annotation with label '{}'",
+                self.context, a.label.value
             ),
         }
     }
@@ -151,6 +159,10 @@ impl<'a> ContentItemAssertion<'a> {
                 "{}: Expected List, found Definition with subject '{}'",
                 self.context, d.subject
             ),
+            ContentItem::Annotation(a) => panic!(
+                "{}: Expected List, found Annotation with label '{}'",
+                self.context, a.label.value
+            ),
         }
     }
 
@@ -182,6 +194,46 @@ impl<'a> ContentItemAssertion<'a> {
                 "{}: Expected Definition, found List with {} items",
                 self.context,
                 l.items.len()
+            ),
+            ContentItem::Annotation(a) => panic!(
+                "{}: Expected Definition, found Annotation with label '{}'",
+                self.context, a.label.value
+            ),
+        }
+    }
+
+    /// Assert this item is an Annotation and return annotation-specific assertions
+    pub fn assert_annotation(self) -> AnnotationAssertion<'a> {
+        match self.item {
+            ContentItem::Annotation(a) => AnnotationAssertion {
+                annotation: a,
+                context: self.context,
+            },
+            ContentItem::Paragraph(p) => {
+                let text = p.text();
+                let display_text = if text.len() > 50 {
+                    format!("{}...", &text[..50])
+                } else {
+                    text
+                };
+                panic!(
+                    "{}: Expected Annotation, found Paragraph with text '{}'",
+                    self.context, display_text
+                )
+            }
+            ContentItem::Session(s) => panic!(
+                "{}: Expected Annotation, found Session with label '{}'",
+                self.context,
+                s.label()
+            ),
+            ContentItem::List(l) => panic!(
+                "{}: Expected Annotation, found List with {} items",
+                self.context,
+                l.items.len()
+            ),
+            ContentItem::Definition(d) => panic!(
+                "{}: Expected Annotation, found Definition with subject '{}'",
+                self.context, d.subject
             ),
         }
     }
@@ -532,6 +584,155 @@ impl<'a> DefinitionAssertion<'a> {
     {
         assertion(ChildrenAssertion {
             children: self.definition.children(),
+            context: format!("{}:children", self.context),
+        });
+        self
+    }
+}
+
+// ============================================================================
+// Annotation Assertions
+// ============================================================================
+
+pub struct AnnotationAssertion<'a> {
+    annotation: &'a Annotation,
+    context: String,
+}
+
+impl<'a> AnnotationAssertion<'a> {
+    /// Assert exact label match
+    pub fn label(self, expected: &str) -> Self {
+        let actual = &self.annotation.label.value;
+        assert_eq!(
+            actual, expected,
+            "{}: Expected annotation label to be '{}', but got '{}'",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    /// Assert label starts with prefix
+    pub fn label_starts_with(self, prefix: &str) -> Self {
+        let actual = &self.annotation.label.value;
+        assert!(
+            actual.starts_with(prefix),
+            "{}: Expected annotation label to start with '{}', but got '{}'",
+            self.context,
+            prefix,
+            actual
+        );
+        self
+    }
+
+    /// Assert label contains substring
+    pub fn label_contains(self, substring: &str) -> Self {
+        let actual = &self.annotation.label.value;
+        assert!(
+            actual.contains(substring),
+            "{}: Expected annotation label to contain '{}', but got '{}'",
+            self.context,
+            substring,
+            actual
+        );
+        self
+    }
+
+    /// Assert the number of parameters
+    pub fn parameter_count(self, expected: usize) -> Self {
+        let actual = self.annotation.parameters.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected {} parameters, found {} parameters",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    /// Assert a specific parameter exists with a key
+    pub fn has_parameter(self, key: &str) -> Self {
+        let found = self.annotation.parameters.iter().any(|p| p.key == key);
+        assert!(
+            found,
+            "{}: Expected parameter with key '{}' to exist",
+            self.context, key
+        );
+        self
+    }
+
+    /// Assert a specific parameter exists with key and value
+    pub fn has_parameter_with_value(self, key: &str, value: &str) -> Self {
+        let found = self
+            .annotation
+            .parameters
+            .iter()
+            .any(|p| p.key == key && p.value.as_deref() == Some(value));
+        assert!(
+            found,
+            "{}: Expected parameter '{}={}' to exist",
+            self.context, key, value
+        );
+        self
+    }
+
+    /// Assert a boolean parameter (no value)
+    pub fn has_boolean_parameter(self, key: &str) -> Self {
+        let found = self
+            .annotation
+            .parameters
+            .iter()
+            .any(|p| p.key == key && p.value.is_none());
+        assert!(
+            found,
+            "{}: Expected boolean parameter '{}' to exist",
+            self.context, key
+        );
+        self
+    }
+
+    /// Assert the number of children (content items)
+    pub fn child_count(self, expected: usize) -> Self {
+        let actual = self.annotation.children().len();
+        assert_eq!(
+            actual,
+            expected,
+            "{}: Expected {} children, found {} children: [{}]",
+            self.context,
+            expected,
+            actual,
+            summarize_items(self.annotation.children())
+        );
+        self
+    }
+
+    /// Assert on a specific child by index
+    pub fn child<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(ContentItemAssertion<'a>),
+    {
+        let children = self.annotation.children();
+        assert!(
+            index < children.len(),
+            "{}: Child index {} out of bounds (annotation has {} children)",
+            self.context,
+            index,
+            children.len()
+        );
+
+        let child = &children[index];
+        assertion(ContentItemAssertion {
+            item: child,
+            context: format!("{}:children[{}]", self.context, index),
+        });
+        self
+    }
+
+    /// Assert on all children using a builder
+    pub fn children<F>(self, assertion: F) -> Self
+    where
+        F: FnOnce(ChildrenAssertion<'a>),
+    {
+        assertion(ChildrenAssertion {
+            children: self.annotation.children(),
             context: format!("{}:children", self.context),
         });
         self

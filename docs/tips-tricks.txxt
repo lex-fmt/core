@@ -7,20 +7,28 @@ Parsing TXXT Tips and Tricks
 
 1. Parsing The Core Elements
 
-    The core elements: sessions, paragraphs, lists, and definitions of txxt are the ones where these difficulties are more evident.
+    The core elements: annotations, sessions, paragraphs, lists, and definitions of txxt are the ones where these difficulties are more evident.
 
     The cause being: there is big syntatic overlap between session titles, definitions, and list items, and all of these are valid paragraphs.
 
-    Parse order is critical: List → Definition → Session → Paragraph
+    Parse order is critical: Annotation → List → Definition → Session → Paragraph
 
-    1. Parse lists first:
+    1. Parse annotations first:
+
+        Annotations have explicit :: markers which makes them unambiguous to detect:
+            - Start with :: marker
+            - Followed by label and optional parameters
+            - End with :: marker
+            - Three forms: marker (:: label ::), single-line (:: label :: text), block form
+
+    2. Parse lists second:
 
         Lists requires:
             - ListItem Line types
             - At least 2, contiguos (that is one list item line, blank line and other list item line is not a list)
             - Must be preceded by a blank line
 
-    2. Parse definitions second:
+    3. Parse definitions third:
 
         Definitions require:
             - Subject line ending with a colon (:)
@@ -33,7 +41,7 @@ Parsing TXXT Tips and Tricks
         <subject-line-ending-with-colon>
         <indent><paragraph-or-list>
 
-    3. Parse sessions third:
+    4. Parse sessions fourth:
 
         A session will have a SessionTitle Line, then a blank line, indent, and any line.
 
@@ -45,7 +53,7 @@ Parsing TXXT Tips and Tricks
 
         The blank line distinguishes sessions from definitions.
 
-    4. Anything else will be a paragraph.
+    5. Anything else will be a paragraph.
 
 2. Recursion
 

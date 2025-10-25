@@ -41,6 +41,9 @@ fn append_content_item(result: &mut String, item: &ContentItem, prefix: &str, is
         ContentItem::Definition(definition) => {
             append_children(result, definition.children(), &new_prefix);
         }
+        ContentItem::Annotation(annotation) => {
+            append_children(result, annotation.children(), &new_prefix);
+        }
         ContentItem::List(list) => {
             append_list_items(result, &list.items, &new_prefix);
         }

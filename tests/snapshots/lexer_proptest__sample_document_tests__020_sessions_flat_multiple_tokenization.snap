@@ -194,6 +194,7 @@ expression: tokens
     Text,
     Whitespace,
     Text,
+    Text,
     Whitespace,
     Text,
     Whitespace,

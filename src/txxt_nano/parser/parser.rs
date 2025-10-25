@@ -11,7 +11,10 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-use super::ast::{ContentItem, Definition, Document, List, ListItem, Paragraph, Session};
+use super::ast::{
+    Annotation, ContentItem, Definition, Document, Label, List, ListItem, Paragraph, Parameter,
+    Session,
+};
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -45,6 +48,21 @@ pub(crate) struct DefinitionWithSpans {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+pub(crate) struct ParameterWithSpans {
+    key_span: Range<usize>,
+    value_span: Option<Range<usize>>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) struct AnnotationWithSpans {
+    label_span: Range<usize>,
+    parameters: Vec<ParameterWithSpans>,
+    content: Vec<ContentItemWithSpans>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ListItemWithSpans {
     text_spans: Vec<Range<usize>>,
     content: Vec<ContentItemWithSpans>,
@@ -63,6 +81,7 @@ pub(crate) enum ContentItemWithSpans {
     Session(SessionWithSpans),
     List(ListWithSpans),
     Definition(DefinitionWithSpans),
+    Annotation(AnnotationWithSpans),
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +136,9 @@ fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem
         ContentItemWithSpans::Definition(d) => {
             ContentItem::Definition(convert_definition(source, d))
         }
+        ContentItemWithSpans::Annotation(a) => {
+            ContentItem::Annotation(convert_annotation(source, a))
+        }
     }
 }
 
@@ -155,6 +177,42 @@ fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
     }
 }
 
+/// Convert a parameter from spans to final AST
+///
+/// Now that '=' is a separate token, key and value spans are captured independently
+fn convert_parameter(source: &str, param: ParameterWithSpans) -> Parameter {
+    let key = extract_text(source, &param.key_span).trim().to_string();
+
+    let value = param
+        .value_span
+        .map(|value_span| extract_text(source, &value_span).trim().to_string());
+
+    Parameter { key, value }
+}
+
+fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
+    let label_text = extract_text(source, &ann.label_span).trim().to_string();
+    let label = Label::new(label_text);
+
+    let parameters = ann
+        .parameters
+        .into_iter()
+        .map(|param| convert_parameter(source, param))
+        .collect();
+
+    let content = ann
+        .content
+        .into_iter()
+        .map(|item| convert_content_item(source, item))
+        .collect();
+
+    Annotation {
+        label,
+        parameters,
+        content,
+    }
+}
+
 fn convert_list(source: &str, list: ListWithSpans) -> List {
     List {
         items: list
@@ -189,6 +247,9 @@ fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError>
                 | Token::OpenParen
                 | Token::CloseParen
                 | Token::Colon
+                | Token::Comma
+                | Token::Quote
+                | Token::Equals
         )
     })
     .repeated()
@@ -222,6 +283,9 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
                 | Token::OpenParen
                 | Token::CloseParen
                 | Token::Colon
+                | Token::Comma
+                | Token::Quote
+                | Token::Equals
         )
     })
     .repeated();
@@ -341,6 +405,9 @@ fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = Par
                 | Token::Period
                 | Token::OpenParen
                 | Token::CloseParen
+                | Token::Comma
+                | Token::Quote
+                | Token::Equals
         )
     })
     .repeated()
@@ -359,6 +426,189 @@ fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserEr
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::Newline))
+}
+
+/// Parse an annotation label - text/numbers/periods/dashes between :: markers
+/// Grammar: <letter> (<letter> | <digit> | "_" | "-" | ".")*
+fn annotation_label() -> impl Parser<TokenSpan, Range<usize>, Error = ParserError> + Clone {
+    filter(|(t, _span): &TokenSpan| {
+        matches!(t, Token::Text | Token::Period | Token::Dash | Token::Number)
+    })
+    .repeated()
+    .at_least(1)
+    .map(|tokens_with_spans: Vec<TokenSpan>| {
+        // Get the span from first token start to last token end
+        let first_span = &tokens_with_spans.first().unwrap().1;
+        let last_span = &tokens_with_spans.last().unwrap().1;
+        first_span.start..last_span.end
+    })
+}
+
+/// Parse a single annotation parameter - "key" or "key=value" or "key=\"quoted value\""
+///
+/// Grammar: <parameter> = <key> ("=" <value>)?
+/// where <value> = <quoted-string> | <unquoted-value>
+fn annotation_parameter() -> impl Parser<TokenSpan, ParameterWithSpans, Error = ParserError> + Clone
+{
+    // Parse key: text/numbers/dashes
+    let key_tokens =
+        filter(|(t, _span): &TokenSpan| matches!(t, Token::Text | Token::Dash | Token::Number))
+            .repeated()
+            .at_least(1)
+            .map(|tokens_with_spans: Vec<TokenSpan>| {
+                let first_span = &tokens_with_spans.first().unwrap().1;
+                let last_span = &tokens_with_spans.last().unwrap().1;
+                first_span.start..last_span.end
+            });
+
+    // Parse optional "=value" part
+    let value_part = token(Token::Equals)
+        .ignore_then(
+            // Try quoted string first: "text with spaces"
+            token(Token::Quote)
+                .ignore_then(
+                    filter(|(t, _): &TokenSpan| {
+                        matches!(
+                            t,
+                            Token::Text
+                                | Token::Whitespace
+                                | Token::Number
+                                | Token::Dash
+                                | Token::Period
+                                | Token::Comma
+                                | Token::Equals
+                                | Token::Colon
+                                | Token::OpenParen
+                                | Token::CloseParen
+                        )
+                    })
+                    .repeated()
+                    .at_least(1)
+                    .map(|tokens: Vec<TokenSpan>| {
+                        let first = &tokens.first().unwrap().1;
+                        let last = &tokens.last().unwrap().1;
+                        first.start..last.end
+                    }),
+                )
+                .then_ignore(token(Token::Quote))
+                .or(
+                    // Unquoted value: text/numbers/dashes (no spaces)
+                    filter(|(t, _): &TokenSpan| {
+                        matches!(t, Token::Text | Token::Number | Token::Dash)
+                    })
+                    .repeated()
+                    .at_least(1)
+                    .map(|tokens: Vec<TokenSpan>| {
+                        let first = &tokens.first().unwrap().1;
+                        let last = &tokens.last().unwrap().1;
+                        first.start..last.end
+                    }),
+                ),
+        )
+        .or_not();
+
+    key_tokens
+        .then(value_part)
+        .map(|(key_span, value_span)| ParameterWithSpans {
+            key_span,
+            value_span,
+        })
+}
+
+/// Parse annotation parameters - whitespace or comma separated list
+///
+/// Grammar: <parameters> = (<parameter> ","?)+
+/// Parameters can be separated by whitespace, commas, or both
+fn annotation_parameters(
+) -> impl Parser<TokenSpan, Vec<ParameterWithSpans>, Error = ParserError> + Clone {
+    // Separator can be: whitespace, comma, or comma+whitespace
+    let separator = token(Token::Comma)
+        .then(token(Token::Whitespace).or_not())
+        .ignored()
+        .or(token(Token::Whitespace));
+
+    annotation_parameter()
+        .separated_by(separator)
+        .at_least(1)
+        .allow_trailing()
+}
+
+/// Parse annotation - supports three forms: marker, single-line, and block
+///
+/// Forms:
+/// 1. Marker: `:: label ::\n` - No content, newline NOT consumed (left for document parser)
+/// 2. Single-line: `:: label :: text\n` - Text after :: captured as paragraph
+/// 3. Block: `:: label ::\n<indent>content<dedent>::` - Newline consumed, indented content
+///
+/// Remaining limitation:
+/// 1. Nested annotations: Currently not supported (by design, per spec).
+fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone {
+    // Content parser for annotations - excludes sessions and nested annotations
+    let annotation_content = recursive(|_annotation_content_parser| {
+        // Annotation content can contain lists and paragraphs (NO sessions or nested annotations)
+        let nested_list = list_item()
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List);
+
+        nested_list.or(paragraph().map(ContentItemWithSpans::Paragraph))
+    });
+
+    // Parse the opening: :: label [params] ::
+    let annotation_opening = token(Token::TxxtMarker)
+        .ignore_then(token(Token::Whitespace).or_not())
+        .ignore_then(annotation_label())
+        .then(
+            // Optional parameters after whitespace
+            token(Token::Whitespace)
+                .ignore_then(annotation_parameters())
+                .or_not(),
+        )
+        .then_ignore(token(Token::Whitespace).or_not())
+        .then_ignore(token(Token::TxxtMarker));
+
+    annotation_opening
+        .then(
+            // After closing ::, three possible forms:
+            // 1. Single-line form: whitespace + text + newline + optional blank line
+            // 2. Block form: newline + indent + content + dedent + :: + newline + optional blank line
+            // 3. Marker form: newline + optional blank line
+
+            // Try single-line form first: whitespace followed by text
+            token(Token::Whitespace)
+                .ignore_then(text_line())
+                .then_ignore(token(Token::Newline))
+                .then_ignore(token(Token::Newline).or_not()) // Optional blank line
+                .map(|line_span| {
+                    // Single-line text becomes a paragraph in content
+                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
+                        line_spans: vec![line_span],
+                    })]
+                })
+                .or(
+                    // Try block form: newline + indent + content + dedent + ::
+                    token(Token::Newline)
+                        .ignore_then(token(Token::IndentLevel))
+                        .ignore_then(annotation_content.repeated().at_least(1))
+                        .then_ignore(token(Token::DedentLevel))
+                        .then_ignore(token(Token::TxxtMarker))
+                        .then_ignore(token(Token::Newline)) // Newline after closing ::
+                        .then_ignore(token(Token::Newline).or_not()), // Optional blank line
+                )
+                .or(
+                    // Marker form: newline + optional blank line
+                    token(Token::Newline)
+                        .then_ignore(token(Token::Newline).or_not())
+                        .to(vec![]),
+                ),
+        )
+        .map(|((label_span, parameters), content)| AnnotationWithSpans {
+            label_span,
+            parameters: parameters.unwrap_or_default(),
+            content,
+        })
 }
 
 /// Parse a definition - a subject ending with colon, immediately followed by indented content
@@ -398,12 +648,14 @@ fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserErr
 fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
     recursive(|session_parser| {
         // Parse order (from docs/tips-tricks.txxt):
-        // 1. List first (requires 2+ list-item-lines)
-        // 2. Definition second (requires subject ending with colon + NO blank line + indent)
-        // 3. Session third (requires title + blank line + indent)
-        // 4. Paragraph last (catch-all, including single list-item-lines)
-        let content_item = list()
-            .map(ContentItemWithSpans::List)
+        // 1. Annotation first (requires :: markers)
+        // 2. List second (requires 2+ list-item-lines)
+        // 3. Definition third (requires subject ending with colon + NO blank line + indent)
+        // 4. Session fourth (requires title + blank line + indent)
+        // 5. Paragraph last (catch-all, including single list-item-lines)
+        let content_item = annotation()
+            .map(ContentItemWithSpans::Annotation)
+            .or(list().map(ContentItemWithSpans::List))
             .or(definition().map(ContentItemWithSpans::Definition))
             .or(session_parser.map(ContentItemWithSpans::Session))
             .or(paragraph().map(ContentItemWithSpans::Paragraph));
@@ -422,18 +674,20 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
     })
 }
 
-/// Parse a document - a sequence of paragraphs, lists, sessions, and definitions
+/// Parse a document - a sequence of annotations, paragraphs, lists, sessions, and definitions
 /// Returns intermediate AST with spans
 ///
-/// Parse order:
-/// 1. List first (requires 2+ list-item-lines)
-/// 2. Definition second (requires subject ending with colon + NO blank line + indent)
-/// 3. Session third (requires title + blank line + indent)
-/// 4. Paragraph last (catch-all, including single list-item-lines)
+/// Parse order (from docs/tips-tricks.txxt):
+/// 1. Annotation first (requires :: markers)
+/// 2. List second (requires 2+ list-item-lines)
+/// 3. Definition third (requires subject ending with colon + NO blank line + indent)
+/// 4. Session fourth (requires title + blank line + indent)
+/// 5. Paragraph last (catch-all, including single list-item-lines)
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    let content_item = list()
-        .map(ContentItemWithSpans::List)
+    let content_item = annotation()
+        .map(ContentItemWithSpans::Annotation)
+        .or(list().map(ContentItemWithSpans::List))
         .or(definition().map(ContentItemWithSpans::Definition))
         .or(session().map(ContentItemWithSpans::Session))
         .or(paragraph().map(ContentItemWithSpans::Paragraph));
@@ -611,6 +865,14 @@ mod tests {
                                 d.content.len()
                             );
                         }
+                        ContentItem::Annotation(a) => {
+                            println!(
+                                "  {}: Annotation '{}' with {} children",
+                                i,
+                                a.label.value,
+                                a.content.len()
+                            );
+                        }
                     }
                 }
                 // This is actually fine - empty session
@@ -677,6 +939,14 @@ mod tests {
                                 i,
                                 d.subject,
                                 d.content.len()
+                            );
+                        }
+                        ContentItem::Annotation(a) => {
+                            println!(
+                                "  {}: Annotation '{}' with {} children",
+                                i,
+                                a.label.value,
+                                a.content.len()
                             );
                         }
                     }
@@ -2110,5 +2380,195 @@ mod tests {
             item.assert_paragraph()
                 .text_contains("End of ensemble test");
         });
+    }
+
+    // ==================== ANNOTATION TESTS ====================
+    // Testing the Annotation element
+    //
+    #[test]
+    fn test_annotation_marker_minimal() {
+        let source = "Para one. {{paragraph}}\n\n:: note ::\n\nPara two. {{paragraph}}\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        assert_eq!(doc.items.len(), 3); // paragraph, annotation, paragraph
+        assert!(doc.items[1].is_annotation());
+    }
+
+    #[test]
+    fn test_annotation_single_line() {
+        let source = "Para one. {{paragraph}}\n\n:: note :: This is inline text\n\nPara two. {{paragraph}}\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        assert_eq!(doc.items.len(), 3); // paragraph, annotation, paragraph
+        let annotation = doc.items[1].as_annotation().unwrap();
+        assert_eq!(annotation.label.value, "note");
+        assert_eq!(annotation.content.len(), 1); // One paragraph with inline text
+        assert!(annotation.content[0].is_paragraph());
+    }
+
+    #[test]
+    fn test_annotation_comma_separated_parameters() {
+        let source = ":: warning severity=high,priority=urgent ::\n\nText. {{paragraph}}\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        let annotation = doc.items[0].as_annotation().unwrap();
+        assert_eq!(annotation.label.value, "warning");
+        assert_eq!(annotation.parameters.len(), 2);
+        assert_eq!(annotation.parameters[0].key, "severity");
+        assert_eq!(annotation.parameters[0].value, Some("high".to_string()));
+        assert_eq!(annotation.parameters[1].key, "priority");
+        assert_eq!(annotation.parameters[1].value, Some("urgent".to_string()));
+    }
+
+    #[test]
+    fn test_annotation_quoted_string_values() {
+        let source =
+            ":: note author=\"Jane Doe\" title=\"Important Note\" ::\n\nText. {{paragraph}}\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        let annotation = doc.items[0].as_annotation().unwrap();
+        assert_eq!(annotation.label.value, "note");
+        assert_eq!(annotation.parameters.len(), 2);
+        assert_eq!(annotation.parameters[0].key, "author");
+        assert_eq!(annotation.parameters[0].value, Some("Jane Doe".to_string()));
+        assert_eq!(annotation.parameters[1].key, "title");
+        assert_eq!(
+            annotation.parameters[1].value,
+            Some("Important Note".to_string())
+        );
+    }
+
+    #[test]
+    fn test_annotation_mixed_separators_and_quotes() {
+        let source = ":: task priority=high,status=\"in progress\" assigned=alice ::\n\nText. {{paragraph}}\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        let annotation = doc.items[0].as_annotation().unwrap();
+        assert_eq!(annotation.parameters.len(), 3);
+        assert_eq!(annotation.parameters[0].key, "priority");
+        assert_eq!(annotation.parameters[0].value, Some("high".to_string()));
+        assert_eq!(annotation.parameters[1].key, "status");
+        assert_eq!(
+            annotation.parameters[1].value,
+            Some("in progress".to_string())
+        );
+        assert_eq!(annotation.parameters[2].key, "assigned");
+        assert_eq!(annotation.parameters[2].value, Some("alice".to_string()));
+    }
+
+    #[test]
+    fn test_verified_annotations_simple() {
+        let source = TxxtSources::get_string("120-annotations-simple.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Verify document parses successfully and contains expected structure
+
+        // Find and verify :: note :: annotation
+        let note_annotation = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_annotation()
+                    .map(|a| a.label.value == "note")
+                    .unwrap_or(false)
+            })
+            .expect("Should contain :: note :: annotation");
+        assert!(note_annotation
+            .as_annotation()
+            .unwrap()
+            .parameters
+            .is_empty());
+        assert!(note_annotation.as_annotation().unwrap().content.is_empty());
+
+        // Find and verify :: warning severity=high :: annotation
+        let warning_annotation = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_annotation()
+                    .map(|a| a.label.value == "warning")
+                    .unwrap_or(false)
+            })
+            .expect("Should contain :: warning :: annotation");
+        let warning = warning_annotation.as_annotation().unwrap();
+        assert_eq!(warning.parameters.len(), 1);
+        assert_eq!(warning.parameters[0].key, "severity");
+        assert_eq!(warning.parameters[0].value, Some("high".to_string()));
+
+        // Find and verify :: python.typing :: annotation (namespaced label)
+        let python_annotation = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_annotation()
+                    .map(|a| a.label.value.contains("python"))
+                    .unwrap_or(false)
+            })
+            .expect("Should contain :: python.typing :: annotation");
+        assert_eq!(
+            python_annotation.as_annotation().unwrap().label.value,
+            "python.typing"
+        );
+    }
+
+    #[test]
+    fn test_verified_annotations_block_content() {
+        let source = TxxtSources::get_string("130-annotations-block-content.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Find and verify :: note author="Jane Doe" :: annotation with block content
+        let note_annotation = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_annotation()
+                    .map(|a| a.label.value == "note")
+                    .unwrap_or(false)
+            })
+            .expect("Should contain :: note :: annotation");
+        let note = note_annotation.as_annotation().unwrap();
+        assert_eq!(note.parameters.len(), 2);
+        assert_eq!(note.parameters[0].key, "author");
+        assert_eq!(note.parameters[0].value, Some("Jane Doe".to_string()));
+        assert_eq!(note.parameters[1].key, "date");
+        assert_eq!(note.parameters[1].value, Some("2025-01-15".to_string()));
+        assert_eq!(note.content.len(), 2); // Two paragraphs
+        assert!(note.content[0].is_paragraph());
+        assert!(note.content[1].is_paragraph());
+
+        // Find and verify :: warning severity=critical :: annotation with list
+        let warning_annotation = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_annotation()
+                    .map(|a| a.label.value == "warning")
+                    .unwrap_or(false)
+            })
+            .expect("Should contain :: warning :: annotation");
+        let warning = warning_annotation.as_annotation().unwrap();
+        assert_eq!(warning.parameters.len(), 3);
+        assert_eq!(warning.parameters[0].key, "severity");
+        assert_eq!(warning.parameters[0].value, Some("critical".to_string()));
+        assert_eq!(warning.parameters[1].key, "priority");
+        assert_eq!(warning.parameters[1].value, Some("high".to_string()));
+        assert_eq!(warning.parameters[2].key, "reviewer");
+        assert_eq!(warning.parameters[2].value, Some("Alice Smith".to_string()));
+        assert_eq!(warning.content.len(), 2); // Paragraph + List
+        assert!(warning.content[0].is_paragraph());
+        assert!(warning.content[1].is_list());
+
+        // Verify the list has 3 items
+        let list = warning.content[1].as_list().unwrap();
+        assert_eq!(list.items.len(), 3);
     }
 }
