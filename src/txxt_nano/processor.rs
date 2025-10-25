@@ -3,7 +3,7 @@
 //! This module provides an extensible API for processing txxt files with different
 //! stages (token, ast) and formats (simple, json, xml, etc.).
 
-use crate::txxt_nano::lexer::{tokenize, Token};
+use crate::txxt_nano::lexer::{lex, tokenize, Token};
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -20,6 +20,8 @@ pub enum ProcessingStage {
 pub enum OutputFormat {
     Simple,
     Json,
+    RawSimple,
+    RawJson,
     Xml, // Future: XML output
 }
 
@@ -31,10 +33,10 @@ pub struct ProcessingSpec {
 }
 
 impl ProcessingSpec {
-    /// Parse a format string like "token-simple" or "ast-json"
+    /// Parse a format string like "token-simple" or "token-raw-simple"
     pub fn from_string(format_str: &str) -> Result<Self, ProcessingError> {
         let parts: Vec<&str> = format_str.split('-').collect();
-        if parts.len() != 2 {
+        if parts.len() < 2 {
             return Err(ProcessingError::InvalidFormat(format_str.to_string()));
         }
 
@@ -44,11 +46,13 @@ impl ProcessingSpec {
             _ => return Err(ProcessingError::InvalidStage(parts[0].to_string())),
         };
 
-        let format = match parts[1] {
+        let format = match parts[1..].join("-").as_str() {
             "simple" => OutputFormat::Simple,
             "json" => OutputFormat::Json,
-            "xml" => return Err(ProcessingError::InvalidFormatType(parts[1].to_string())), // XML not implemented yet
-            _ => return Err(ProcessingError::InvalidFormatType(parts[1].to_string())),
+            "raw-simple" => OutputFormat::RawSimple,
+            "raw-json" => OutputFormat::RawJson,
+            "xml" => return Err(ProcessingError::InvalidFormatType("xml".to_string())), // XML not implemented yet
+            _ => return Err(ProcessingError::InvalidFormatType(parts[1..].join("-"))),
         };
 
         Ok(ProcessingSpec { stage, format })
@@ -64,6 +68,14 @@ impl ProcessingSpec {
             ProcessingSpec {
                 stage: ProcessingStage::Token,
                 format: OutputFormat::Json,
+            },
+            ProcessingSpec {
+                stage: ProcessingStage::Token,
+                format: OutputFormat::RawSimple,
+            },
+            ProcessingSpec {
+                stage: ProcessingStage::Token,
+                format: OutputFormat::RawJson,
             },
             // Future: AST formats
         ]
@@ -108,7 +120,10 @@ pub fn process_file<P: AsRef<Path>>(
     // Process according to stage
     match spec.stage {
         ProcessingStage::Token => {
-            let tokens = tokenize(&content);
+            let tokens = match spec.format {
+                OutputFormat::RawSimple | OutputFormat::RawJson => tokenize(&content),
+                _ => lex(&content),
+            };
             format_tokens(&tokens, &spec.format)
         }
         ProcessingStage::Ast => {
@@ -121,7 +136,7 @@ pub fn process_file<P: AsRef<Path>>(
 /// Format tokens according to the specified format
 fn format_tokens(tokens: &[Token], format: &OutputFormat) -> Result<String, ProcessingError> {
     match format {
-        OutputFormat::Simple => {
+        OutputFormat::Simple | OutputFormat::RawSimple => {
             let mut result = String::new();
             for token in tokens {
                 result.push_str(&format!("{}", token));
@@ -131,7 +146,7 @@ fn format_tokens(tokens: &[Token], format: &OutputFormat) -> Result<String, Proc
             }
             Ok(result)
         }
-        OutputFormat::Json => {
+        OutputFormat::Json | OutputFormat::RawJson => {
             let json = serde_json::to_string_pretty(tokens)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
             Ok(json)
@@ -157,6 +172,8 @@ pub fn available_formats() -> Vec<String> {
                 match spec.format {
                     OutputFormat::Simple => "simple",
                     OutputFormat::Json => "json",
+                    OutputFormat::RawSimple => "raw-simple",
+                    OutputFormat::RawJson => "raw-json",
                     OutputFormat::Xml => "xml",
                 }
             )
