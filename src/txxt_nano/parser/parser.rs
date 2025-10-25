@@ -2556,28 +2556,18 @@ mod tests {
                 });
         });
 
-        // Item 3: Advanced Topics session
+        // Item 3: Simple Elements Section session
         assert_ast(&doc).item(3, |item| {
             item.assert_session()
-                .label("Advanced Topics")
-                .child_count(2) // para + foreign block
-                .child(0, |child| {
-                    child
-                        .assert_paragraph()
-                        .text_contains("can contain complex nested structures");
-                })
-                .child(1, |child| {
-                    child
-                        .assert_foreign_block()
-                        .subject("Code Example")
-                        .content_contains("fn main()")
-                        .closing_label("rust");
-                });
+                .label("1. Simple Elements Section {{session}}")
+                .child_count(5); // para + 2 definitions + para + list
         });
 
-        // Item 4: Final paragraph
+        // Item 4: Nested Elements Section session
         assert_ast(&doc).item(4, |item| {
-            item.assert_paragraph().text_contains("end of the document");
+            item.assert_session()
+                .label("2. Nested Elements Section {{session}}")
+                .child_count(3); // para + 2 subsections (2.1 and 2.2)
         });
     }
 
