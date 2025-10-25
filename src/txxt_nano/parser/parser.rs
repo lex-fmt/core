@@ -1538,4 +1538,213 @@ mod tests {
                 item.assert_list().item_count(3); // Alphabetical list
             });
     }
+
+    // ==================== TRIFECTA TESTS ====================
+    // Testing paragraphs + sessions + lists together
+
+    #[test]
+    fn test_trifecta_flat_simple() {
+        // Test flat structure with all three elements
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("050-trifecta-flat-simple.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Item 0-1: Opening paragraphs
+        assert_ast(&doc)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text_contains("Trifecta Flat Structure Test");
+            })
+            .item(1, |item| {
+                item.assert_paragraph()
+                    .text_contains("all three core elements");
+            });
+
+        // Item 2: Session with only paragraphs
+        assert_ast(&doc).item(2, |item| {
+            item.assert_session()
+                .label_contains("Session with Paragraph Content")
+                .child_count(2)
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("starts with a paragraph");
+                })
+                .child(1, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("multiple paragraphs");
+                });
+        });
+
+        // Item 3: Session with only a list
+        assert_ast(&doc).item(3, |item| {
+            item.assert_session()
+                .label_contains("Session with List Content")
+                .child_count(1)
+                .child(0, |child| {
+                    child.assert_list().item_count(3);
+                });
+        });
+
+        // Item 4: Session with mixed content (para + list + para)
+        assert_ast(&doc).item(4, |item| {
+            item.assert_session()
+                .label_contains("Session with Mixed Content")
+                .child_count(3)
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("starts with a paragraph");
+                })
+                .child(1, |child| {
+                    child.assert_list().item_count(2);
+                })
+                .child(2, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("ends with another paragraph");
+                });
+        });
+
+        // Item 5: Root level paragraph
+        assert_ast(&doc).item(5, |item| {
+            item.assert_paragraph().text_contains("root level");
+        });
+
+        // Item 6: Root level list
+        assert_ast(&doc).item(6, |item| {
+            item.assert_list().item_count(2);
+        });
+
+        // Item 7: Session with list + para + list
+        assert_ast(&doc).item(7, |item| {
+            item.assert_session()
+                .label_contains("Another Session")
+                .child_count(3)
+                .child(0, |child| {
+                    child.assert_list().item_count(2);
+                })
+                .child(1, |child| {
+                    child.assert_paragraph().text_contains("has a paragraph");
+                })
+                .child(2, |child| {
+                    child.assert_list().item_count(2);
+                });
+        });
+    }
+
+    #[test]
+    fn test_trifecta_nesting() {
+        // Test nested structure with all three elements
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("060-trifecta-nesting.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Item 0-1: Opening paragraphs
+        assert_ast(&doc)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text_contains("Trifecta Nesting Test");
+            })
+            .item(1, |item| {
+                item.assert_paragraph()
+                    .text_contains("various levels of nesting");
+            });
+
+        // Item 2: Root session with nested sessions and mixed content
+        assert_ast(&doc).item(2, |item| {
+            item.assert_session()
+                .label_contains("1. Root Session")
+                .child_count(5); // para, subsession, subsession, para, list
+        });
+
+        // Verify first child of root session is paragraph
+        assert_ast(&doc).item(2, |item| {
+            item.assert_session().child(0, |child| {
+                child.assert_paragraph().text_contains("nested elements");
+            });
+        });
+
+        // Verify first nested session (1.1)
+        assert_ast(&doc).item(2, |item| {
+            item.assert_session().child(1, |child| {
+                child
+                    .assert_session()
+                    .label_contains("1.1. Sub-session")
+                    .child_count(2) // para + list
+                    .child(0, |para| {
+                        para.assert_paragraph();
+                    })
+                    .child(1, |list| {
+                        list.assert_list().item_count(2);
+                    });
+            });
+        });
+
+        // Verify deeply nested session (1.2 containing 1.2.1)
+        assert_ast(&doc).item(2, |item| {
+            item.assert_session().child(2, |child| {
+                child
+                    .assert_session()
+                    .label_contains("1.2. Sub-session with List")
+                    .child_count(3) // list, para, nested session
+                    .child(2, |nested| {
+                        nested
+                            .assert_session()
+                            .label_contains("1.2.1. Deeply Nested")
+                            .child_count(3); // para + list + list
+                    });
+            });
+        });
+
+        // Verify the deeply nested session has 2 lists
+        assert_ast(&doc).item(2, |item| {
+            item.assert_session().child(2, |subsession| {
+                subsession.assert_session().child(2, |deeply_nested| {
+                    deeply_nested
+                        .assert_session()
+                        .child(1, |first_list| {
+                            first_list.assert_list().item_count(2);
+                        })
+                        .child(2, |second_list| {
+                            second_list.assert_list().item_count(2);
+                        });
+                });
+            });
+        });
+
+        // Item 3: Another root session with different nesting
+        assert_ast(&doc).item(3, |item| {
+            item.assert_session()
+                .label_contains("2. Another Root Session")
+                .child_count(2); // para + subsession
+        });
+
+        // Verify even deeper nesting (2.1.1)
+        assert_ast(&doc).item(3, |item| {
+            item.assert_session().child(1, |subsession| {
+                subsession
+                    .assert_session()
+                    .label_contains("2.1. Mixed Content")
+                    .child_count(4) // list, para, list, nested session
+                    .child(3, |deeply_nested| {
+                        deeply_nested
+                            .assert_session()
+                            .label_contains("2.1.1. Even Deeper")
+                            .child_count(4); // para, list, para, list
+                    });
+            });
+        });
+
+        // Final root paragraph
+        assert_ast(&doc).item(4, |item| {
+            item.assert_paragraph()
+                .text_contains("Final root level paragraph");
+        });
+    }
 }
