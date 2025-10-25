@@ -747,7 +747,11 @@ fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserErr
         .ignore_then(annotation_header())
         .then_ignore(token(Token::TxxtMarker));
 
-    // Block form: opening, newline, indented content, closing ::
+    // Block form: :: label params :: \n <indent>content<dedent> ::
+    // Note: There are TWO closing :: markers:
+    //   1. First :: right after label/params on opening line
+    //   2. Second :: after the indented content block
+    // The header already consumed the first closing ::, so we just need the second one
     let block_form = header
         .clone()
         .then_ignore(token(Token::Newline))
@@ -756,12 +760,13 @@ fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserErr
                 .ignore_then(annotation_content.repeated().at_least(1))
                 .then_ignore(token(Token::DedentLevel)),
         )
-        .then_ignore(token(Token::TxxtMarker))
+        .then_ignore(token(Token::TxxtMarker)) // Second closing :: after content
         .map(|((label_span, parameters), content)| AnnotationWithSpans {
             label_span,
             parameters,
             content,
-        });
+        })
+        .then_ignore(token(Token::Newline).repeated()); // Consume trailing newlines
 
     // Single-line and marker forms
     let single_line_or_marker = header
