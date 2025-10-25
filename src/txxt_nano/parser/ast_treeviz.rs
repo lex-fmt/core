@@ -48,6 +48,7 @@ fn append_content_item(result: &mut String, item: &ContentItem, prefix: &str, is
             append_list_items(result, &list.items, &new_prefix);
         }
         ContentItem::Paragraph(_) => {}
+        ContentItem::ForeignBlock(_) => {} // Foreign blocks don't have children
     }
 }
 

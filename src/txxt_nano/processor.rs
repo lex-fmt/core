@@ -283,6 +283,8 @@ pub mod txxt_sources {
         "110-ensemble-with-definitions.txxt",
         "120-annotations-simple.txxt",
         "130-annotations-block-content.txxt",
+        "140-foreign-blocks-simple.txxt",
+        "150-foreign-blocks-no-content.txxt",
     ];
 
     /// Format options for sample content

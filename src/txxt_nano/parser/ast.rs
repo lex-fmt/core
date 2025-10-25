@@ -104,7 +104,7 @@ pub struct Document {
     pub items: Vec<ContentItem>,
 }
 
-/// A content item can be a paragraph, session, list, definition, or annotation
+/// A content item can be a paragraph, session, list, definition, annotation, or foreign block
 #[derive(Debug, Clone, PartialEq)]
 pub enum ContentItem {
     Paragraph(Paragraph),
@@ -112,6 +112,7 @@ pub enum ContentItem {
     List(List),
     Definition(Definition),
     Annotation(Annotation),
+    ForeignBlock(ForeignBlock),
 }
 
 /// A paragraph is a block of text content
@@ -184,6 +185,17 @@ pub struct Annotation {
     pub content: Vec<ContentItem>,
 }
 
+/// A foreign block is used to embed non-txxt content or reference external data
+#[derive(Debug, Clone, PartialEq)]
+pub struct ForeignBlock {
+    /// The subject line (without the trailing colon)
+    pub subject: String,
+    /// The raw content (if any) - unparsed text
+    pub content: String,
+    /// The closing annotation that marks the end of the block
+    pub closing_annotation: Annotation,
+}
+
 impl Document {
     /// Create a new empty document
     pub fn new() -> Self {
@@ -219,12 +231,18 @@ impl Document {
         self.items.iter().filter_map(|item| item.as_list())
     }
 
+    /// Iterate over all top-level foreign blocks only
+    pub fn iter_foreign_blocks(&self) -> impl Iterator<Item = &ForeignBlock> {
+        self.items.iter().filter_map(|item| item.as_foreign_block())
+    }
+
     /// Count items by type
-    pub fn count_by_type(&self) -> (usize, usize, usize) {
+    pub fn count_by_type(&self) -> (usize, usize, usize, usize) {
         let paragraphs = self.iter_paragraphs().count();
         let sessions = self.iter_sessions().count();
         let lists = self.iter_lists().count();
-        (paragraphs, sessions, lists)
+        let foreign_blocks = self.iter_foreign_blocks().count();
+        (paragraphs, sessions, lists, foreign_blocks)
     }
 }
 
@@ -374,6 +392,26 @@ impl Annotation {
     }
 }
 
+impl ForeignBlock {
+    /// Create a new foreign block with all fields
+    pub fn new(subject: String, content: String, closing_annotation: Annotation) -> Self {
+        Self {
+            subject,
+            content,
+            closing_annotation,
+        }
+    }
+
+    /// Create a foreign block with no content (marker form)
+    pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
+        Self {
+            subject,
+            content: String::new(),
+            closing_annotation,
+        }
+    }
+}
+
 impl fmt::Display for Document {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Document({} items)", self.items.len())
@@ -398,6 +436,15 @@ impl fmt::Display for ContentItem {
                     a.label.value,
                     a.parameters.len(),
                     a.content.len()
+                )
+            }
+            ContentItem::ForeignBlock(fb) => {
+                write!(
+                    f,
+                    "ForeignBlock('{}', {} chars, closing: {})",
+                    fb.subject,
+                    fb.content.len(),
+                    fb.closing_annotation.label.value
                 )
             }
         }
@@ -462,6 +509,18 @@ impl fmt::Display for Annotation {
             self.label.value,
             self.parameters.len(),
             self.content.len()
+        )
+    }
+}
+
+impl fmt::Display for ForeignBlock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "ForeignBlock('{}', {} chars, closing: {})",
+            self.subject,
+            self.content.len(),
+            self.closing_annotation.label.value
         )
     }
 }
@@ -621,6 +680,21 @@ impl Container for Annotation {
     }
 }
 
+// ForeignBlock - AstNode implementation (NOT Container - content is raw string)
+impl AstNode for ForeignBlock {
+    fn node_type(&self) -> &'static str {
+        "ForeignBlock"
+    }
+
+    fn display_label(&self) -> String {
+        if self.subject.len() > 50 {
+            format!("{}...", &self.subject[..50])
+        } else {
+            self.subject.clone()
+        }
+    }
+}
+
 // ContentItem - Helper methods for trait access
 impl ContentItem {
     /// Get the node type name (delegates to AstNode trait)
@@ -631,6 +705,7 @@ impl ContentItem {
             ContentItem::List(l) => l.node_type(),
             ContentItem::Definition(d) => d.node_type(),
             ContentItem::Annotation(a) => a.node_type(),
+            ContentItem::ForeignBlock(fb) => fb.node_type(),
         }
     }
 
@@ -642,6 +717,7 @@ impl ContentItem {
             ContentItem::List(l) => l.display_label(),
             ContentItem::Definition(d) => d.display_label(),
             ContentItem::Annotation(a) => a.display_label(),
+            ContentItem::ForeignBlock(fb) => fb.display_label(),
         }
     }
 
@@ -651,6 +727,7 @@ impl ContentItem {
             ContentItem::Session(s) => Some(s.label()),
             ContentItem::Definition(d) => Some(d.label()),
             ContentItem::Annotation(a) => Some(a.label()),
+            ContentItem::ForeignBlock(fb) => Some(&fb.subject),
             ContentItem::Paragraph(_) => None,
             ContentItem::List(_) => None,
         }
@@ -662,6 +739,7 @@ impl ContentItem {
             ContentItem::Session(s) => Some(s.children()),
             ContentItem::Definition(d) => Some(d.children()),
             ContentItem::Annotation(a) => Some(a.children()),
+            ContentItem::ForeignBlock(_) => None, // ForeignBlock is NOT a container
             ContentItem::Paragraph(_) => None,
             ContentItem::List(_) => None,
         }
@@ -673,6 +751,7 @@ impl ContentItem {
             ContentItem::Session(s) => Some(s.children_mut()),
             ContentItem::Definition(d) => Some(d.children_mut()),
             ContentItem::Annotation(a) => Some(a.children_mut()),
+            ContentItem::ForeignBlock(_) => None, // ForeignBlock is NOT a container
             ContentItem::Paragraph(_) => None,
             ContentItem::List(_) => None,
         }
@@ -686,6 +765,7 @@ impl ContentItem {
             ContentItem::List(_) => None,
             ContentItem::Definition(_) => None,
             ContentItem::Annotation(_) => None,
+            ContentItem::ForeignBlock(_) => None,
         }
     }
 
@@ -716,6 +796,11 @@ impl ContentItem {
     /// Check if this item is an Annotation
     pub fn is_annotation(&self) -> bool {
         matches!(self, ContentItem::Annotation(_))
+    }
+
+    /// Check if this item is a ForeignBlock
+    pub fn is_foreign_block(&self) -> bool {
+        matches!(self, ContentItem::ForeignBlock(_))
     }
 
     // ========================================================================
@@ -807,6 +892,24 @@ impl ContentItem {
     pub fn as_annotation_mut(&mut self) -> Option<&mut Annotation> {
         if let ContentItem::Annotation(a) = self {
             Some(a)
+        } else {
+            None
+        }
+    }
+
+    /// Get a reference to the ForeignBlock if this is a ForeignBlock variant
+    pub fn as_foreign_block(&self) -> Option<&ForeignBlock> {
+        if let ContentItem::ForeignBlock(fb) = self {
+            Some(fb)
+        } else {
+            None
+        }
+    }
+
+    /// Get a mutable reference to the ForeignBlock if this is a ForeignBlock variant
+    pub fn as_foreign_block_mut(&mut self) -> Option<&mut ForeignBlock> {
+        if let ContentItem::ForeignBlock(fb) = self {
+            Some(fb)
         } else {
             None
         }

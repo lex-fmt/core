@@ -12,7 +12,7 @@ use chumsky::prelude::*;
 use std::ops::Range;
 
 use super::ast::{
-    Annotation, ContentItem, Definition, Document, Label, List, ListItem, Paragraph, Parameter,
+    Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph, Parameter,
     Session,
 };
 use crate::txxt_nano::lexer::Token;
@@ -63,6 +63,14 @@ pub(crate) struct AnnotationWithSpans {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+pub(crate) struct ForeignBlockWithSpans {
+    subject_spans: Vec<Range<usize>>,
+    content_spans: Vec<Range<usize>>,
+    closing_annotation: AnnotationWithSpans,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ListItemWithSpans {
     text_spans: Vec<Range<usize>>,
     content: Vec<ContentItemWithSpans>,
@@ -82,6 +90,7 @@ pub(crate) enum ContentItemWithSpans {
     List(ListWithSpans),
     Definition(DefinitionWithSpans),
     Annotation(AnnotationWithSpans),
+    ForeignBlock(ForeignBlockWithSpans),
 }
 
 #[derive(Debug, Clone)]
@@ -138,6 +147,9 @@ fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem
         }
         ContentItemWithSpans::Annotation(a) => {
             ContentItem::Annotation(convert_annotation(source, a))
+        }
+        ContentItemWithSpans::ForeignBlock(fb) => {
+            ContentItem::ForeignBlock(convert_foreign_block(source, fb))
         }
     }
 }
@@ -231,6 +243,31 @@ fn convert_list_item(source: &str, item: ListItemWithSpans) -> ListItem {
             .map(|content_item| convert_content_item(source, content_item))
             .collect(),
     )
+}
+
+fn convert_foreign_block(source: &str, fb: ForeignBlockWithSpans) -> ForeignBlock {
+    // Extract subject (colon already excluded from spans by definition_subject parser)
+    let subject = extract_line_text(source, &fb.subject_spans);
+    
+    // Extract raw content from all content spans
+    let content = if fb.content_spans.is_empty() {
+        String::new()
+    } else {
+        // Find the overall span from first to last
+        let start = fb.content_spans.first().map(|s| s.start).unwrap_or(0);
+        let end = fb.content_spans.last().map(|s| s.end).unwrap_or(0);
+        
+        if start >= end || end > source.len() {
+            String::new()
+        } else {
+            source[start..end].to_string()
+        }
+    };
+    
+    // Convert the closing annotation
+    let closing_annotation = convert_annotation(source, fb.closing_annotation);
+    
+    ForeignBlock::new(subject, content, closing_annotation)
 }
 
 /// Parse a text line (sequence of text and whitespace tokens)
@@ -642,23 +679,99 @@ fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserErr
         })
 }
 
+/// Helper to reconstruct raw content from token spans
+fn reconstruct_raw_content(source: &str, spans: &[Range<usize>]) -> String {
+    if spans.is_empty() {
+        return String::new();
+    }
+    
+    // Find the overall span from first to last
+    let start = spans.first().map(|s| s.start).unwrap_or(0);
+    let end = spans.last().map(|s| s.end).unwrap_or(0);
+    
+    if start >= end || end > source.len() {
+        return String::new();
+    }
+    
+    source[start..end].to_string()
+}
+
+/// Parse a foreign block - subject line, optional content, closing annotation
+/// Uses "Indentation Wall" rule: content must be indented deeper than subject,
+/// closing annotation must be at same level as subject
+fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = ParserError> + Clone {
+    // Parse the subject line (with optional blank line after)
+    let subject_parser = definition_subject()
+        .then_ignore(token(Token::Newline).or_not()); // Optional blank line after subject
+    
+    // Parse raw content lines (everything that's indented deeper than subject)
+    let raw_content_line = filter(|(t, _span): &TokenSpan| {
+        matches!(
+            t,
+            Token::Text
+                | Token::Whitespace
+                | Token::Number
+                | Token::Dash
+                | Token::Period
+                | Token::OpenParen
+                | Token::CloseParen
+                | Token::Colon
+                | Token::Comma
+                | Token::Quote
+                | Token::Equals
+                | Token::TxxtMarker
+        )
+    })
+    .repeated()
+    .at_least(1)
+    .then_ignore(token(Token::Newline))
+    .map(|tokens_with_spans: Vec<TokenSpan>| {
+        tokens_with_spans.into_iter().map(|(_, s)| s).collect::<Vec<Range<usize>>>()
+    });
+    
+    // Parse the closing annotation (must be at same indentation level as subject)
+    let closing_annotation_parser = token(Token::DedentLevel)
+        .ignore_then(annotation())
+        .then_ignore(token(Token::Newline).or_not()); // Optional blank line after
+    
+    subject_parser
+        .then(
+            // Check if there's indented content (with optional blank line)
+            token(Token::Newline).or_not()
+                .ignore_then(token(Token::IndentLevel))
+                .ignore_then(raw_content_line.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel))
+                .then(closing_annotation_parser.clone())
+                .map(|(content_spans, closing_annotation)| (Some(content_spans.into_iter().flatten().collect()), closing_annotation))
+                .or(
+                    // No content form - just closing annotation
+                    closing_annotation_parser.clone()
+                        .map(|closing_annotation| (None, closing_annotation))
+                )
+        )
+        .map(|(subject_spans, (content_spans, closing_annotation))| {
+            ForeignBlockWithSpans {
+                subject_spans,
+                content_spans: content_spans.unwrap_or_default(),
+                closing_annotation,
+            }
+        })
+}
+
 /// Parse a session - a title followed by indented content
 /// IMPORTANT: Once we match a session title, we MUST see IndentLevel or fail
 /// This prevents backtracking to paragraph parser when session content is malformed
 fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
     recursive(|session_parser| {
         // Parse order (from docs/tips-tricks.txxt):
-        // 1. Annotation first (requires :: markers)
-        // 2. List second (requires 2+ list-item-lines)
-        // 3. Definition third (requires subject ending with colon + NO blank line + indent)
-        // 4. Session fourth (requires title + blank line + indent)
-        // 5. Paragraph last (catch-all, including single list-item-lines)
-        let content_item = annotation()
-            .map(ContentItemWithSpans::Annotation)
-            .or(list().map(ContentItemWithSpans::List))
-            .or(definition().map(ContentItemWithSpans::Definition))
-            .or(session_parser.map(ContentItemWithSpans::Session))
-            .or(paragraph().map(ContentItemWithSpans::Paragraph));
+        // 1. Foreign block first (requires subject + closing annotation)
+        // 2. Annotation second (requires :: markers)
+        // 3. List third (requires 2+ list-item-lines)
+        // 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
+        // 5. Session fifth (requires title + blank line + indent)
+        // 6. Paragraph last (catch-all, including single list-item-lines)
+    let content_item = foreign_block()
+        .map(ContentItemWithSpans::ForeignBlock);
 
         session_title()
             .then(
@@ -678,19 +791,16 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
 /// Returns intermediate AST with spans
 ///
 /// Parse order (from docs/tips-tricks.txxt):
-/// 1. Annotation first (requires :: markers)
-/// 2. List second (requires 2+ list-item-lines)
-/// 3. Definition third (requires subject ending with colon + NO blank line + indent)
-/// 4. Session fourth (requires title + blank line + indent)
-/// 5. Paragraph last (catch-all, including single list-item-lines)
+/// 1. Foreign block first (requires subject + closing annotation)
+/// 2. Annotation second (requires :: markers)
+/// 3. List third (requires 2+ list-item-lines)
+/// 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
+/// 5. Session fifth (requires title + blank line + indent)
+/// 6. Paragraph last (catch-all, including single list-item-lines)
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    let content_item = annotation()
-        .map(ContentItemWithSpans::Annotation)
-        .or(list().map(ContentItemWithSpans::List))
-        .or(definition().map(ContentItemWithSpans::Definition))
-        .or(session().map(ContentItemWithSpans::Session))
-        .or(paragraph().map(ContentItemWithSpans::Paragraph));
+    let content_item = foreign_block()
+        .map(ContentItemWithSpans::ForeignBlock);
 
     content_item
         .repeated()
@@ -873,6 +983,15 @@ mod tests {
                                 a.content.len()
                             );
                         }
+                        ContentItem::ForeignBlock(fb) => {
+                            println!(
+                                "  {}: ForeignBlock '{}' with {} chars, closing: {}",
+                                i,
+                                fb.subject,
+                                fb.content.len(),
+                                fb.closing_annotation.label.value
+                            );
+                        }
                     }
                 }
                 // This is actually fine - empty session
@@ -947,6 +1066,15 @@ mod tests {
                                 i,
                                 a.label.value,
                                 a.content.len()
+                            );
+                        }
+                        ContentItem::ForeignBlock(fb) => {
+                            println!(
+                                "  {}: ForeignBlock '{}' with {} chars, closing: {}",
+                                i,
+                                fb.subject,
+                                fb.content.len(),
+                                fb.closing_annotation.label.value
                             );
                         }
                     }
@@ -2570,5 +2698,183 @@ mod tests {
         // Verify the list has 3 items
         let list = warning.content[1].as_list().unwrap();
         assert_eq!(list.items.len(), 3);
+    }
+
+    // ==================== FOREIGN BLOCK TESTS ====================
+    // Testing the Foreign Block element
+
+    #[test]
+    fn test_foreign_block_simple_with_content() {
+        let source = "Code Example:\n    function hello() {\n        return \"world\";\n    }\n:: javascript :: caption=\"Hello World\"\n\n";
+        let tokens = lex_with_spans(source);
+        println!("Tokens: {:?}", tokens);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        assert_eq!(doc.items.len(), 1);
+        let foreign_block = doc.items[0].as_foreign_block().unwrap();
+        assert_eq!(foreign_block.subject, "Code Example");
+        assert!(foreign_block.content.contains("function hello()"));
+        assert!(foreign_block.content.contains("return \"world\""));
+        assert_eq!(foreign_block.closing_annotation.label.value, "javascript");
+        assert_eq!(foreign_block.closing_annotation.parameters.len(), 1);
+        assert_eq!(foreign_block.closing_annotation.parameters[0].key, "caption");
+        assert_eq!(foreign_block.closing_annotation.parameters[0].value, Some("Hello World".to_string()));
+    }
+
+    #[test]
+    fn test_foreign_block_marker_form() {
+        let source = "Image Reference:\n\n:: image type=jpg, src=sunset.jpg :: As the sun sets, we see a colored sea bed.\n\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        assert_eq!(doc.items.len(), 1);
+        let foreign_block = doc.items[0].as_foreign_block().unwrap();
+        assert_eq!(foreign_block.subject, "Image Reference");
+        assert_eq!(foreign_block.content, ""); // No content in marker form
+        assert_eq!(foreign_block.closing_annotation.label.value, "image");
+        assert_eq!(foreign_block.closing_annotation.parameters.len(), 2);
+        assert_eq!(foreign_block.closing_annotation.parameters[0].key, "type");
+        assert_eq!(foreign_block.closing_annotation.parameters[0].value, Some("jpg".to_string()));
+        assert_eq!(foreign_block.closing_annotation.parameters[1].key, "src");
+        assert_eq!(foreign_block.closing_annotation.parameters[1].value, Some("sunset.jpg".to_string()));
+    }
+
+    #[test]
+    fn test_foreign_block_preserves_whitespace() {
+        let source = "Indented Code:\n\n    // This has    multiple    spaces\n    const regex = /[a-z]+/g;\n    \n    console.log(\"Hello, World!\");\n\n:: javascript ::\n\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        let foreign_block = doc.items[0].as_foreign_block().unwrap();
+        assert!(foreign_block.content.contains("    multiple    spaces")); // Preserves multiple spaces
+        assert!(foreign_block.content.contains("    \n")); // Preserves blank lines
+    }
+
+    #[test]
+    fn test_foreign_block_multiple_blocks() {
+        let source = "First Block:\n\n    code1\n\n:: lang1 ::\n\nSecond Block:\n\n    code2\n\n:: lang2 ::\n\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        assert_eq!(doc.items.len(), 2);
+        
+        let first_block = doc.items[0].as_foreign_block().unwrap();
+        assert_eq!(first_block.subject, "First Block");
+        assert!(first_block.content.contains("code1"));
+        assert_eq!(first_block.closing_annotation.label.value, "lang1");
+        
+        let second_block = doc.items[1].as_foreign_block().unwrap();
+        assert_eq!(second_block.subject, "Second Block");
+        assert!(second_block.content.contains("code2"));
+        assert_eq!(second_block.closing_annotation.label.value, "lang2");
+    }
+
+    #[test]
+    fn test_foreign_block_with_paragraphs() {
+        let source = "Intro paragraph.\n\nCode Block:\n\n    function test() {\n        return true;\n    }\n\n:: javascript ::\n\nOutro paragraph.\n\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        assert_eq!(doc.items.len(), 3);
+        assert!(doc.items[0].is_paragraph());
+        assert!(doc.items[1].is_foreign_block());
+        assert!(doc.items[2].is_paragraph());
+    }
+
+    #[test]
+    fn test_verified_foreign_blocks_simple() {
+        let source = TxxtSources::get_string("140-foreign-blocks-simple.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Find JavaScript code block
+        let js_block = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_foreign_block()
+                    .map(|fb| fb.closing_annotation.label.value == "javascript")
+                    .unwrap_or(false)
+            })
+            .expect("Should contain JavaScript foreign block");
+        let js = js_block.as_foreign_block().unwrap();
+        assert_eq!(js.subject, "Code Example:");
+        assert!(js.content.contains("function hello()"));
+        assert!(js.content.contains("console.log"));
+        assert_eq!(js.closing_annotation.parameters.len(), 1);
+        assert_eq!(js.closing_annotation.parameters[0].key, "caption");
+
+        // Find Python code block
+        let py_block = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_foreign_block()
+                    .map(|fb| fb.closing_annotation.label.value == "python")
+                    .unwrap_or(false)
+            })
+            .expect("Should contain Python foreign block");
+        let py = py_block.as_foreign_block().unwrap();
+        assert_eq!(py.subject, "Another Code Block:");
+        assert!(py.content.contains("def fibonacci"));
+        assert!(py.content.contains("for i in range"));
+
+        // Find SQL block
+        let sql_block = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_foreign_block()
+                    .map(|fb| fb.closing_annotation.label.value == "sql")
+                    .unwrap_or(false)
+            })
+            .expect("Should contain SQL foreign block");
+        let sql = sql_block.as_foreign_block().unwrap();
+        assert_eq!(sql.subject, "SQL Example:");
+        assert!(sql.content.contains("SELECT"));
+        assert!(sql.content.contains("FROM users"));
+    }
+
+    #[test]
+    fn test_verified_foreign_blocks_no_content() {
+        let source = TxxtSources::get_string("150-foreign-blocks-no-content.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Find image reference
+        let image_block = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_foreign_block()
+                    .map(|fb| fb.closing_annotation.label.value == "image")
+                    .unwrap_or(false)
+            })
+            .expect("Should contain image foreign block");
+        let image = image_block.as_foreign_block().unwrap();
+        assert_eq!(image.subject, "Image Reference:");
+        assert_eq!(image.content, ""); // No content in marker form
+        assert_eq!(image.closing_annotation.parameters.len(), 2);
+        assert_eq!(image.closing_annotation.parameters[0].key, "type");
+        assert_eq!(image.closing_annotation.parameters[0].value, Some("jpg".to_string()));
+
+        // Find binary file reference
+        let binary_block = doc
+            .items
+            .iter()
+            .find(|item| {
+                item.as_foreign_block()
+                    .map(|fb| fb.closing_annotation.label.value == "binary")
+                    .unwrap_or(false)
+            })
+            .expect("Should contain binary foreign block");
+        let binary = binary_block.as_foreign_block().unwrap();
+        assert_eq!(binary.subject, "Binary File Reference:");
+        assert_eq!(binary.content, "");
+        assert_eq!(binary.closing_annotation.parameters.len(), 3);
+        assert_eq!(binary.closing_annotation.parameters[0].key, "type");
+        assert_eq!(binary.closing_annotation.parameters[0].value, Some("pdf".to_string()));
     }
 }
