@@ -626,7 +626,7 @@ fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserErr
                 content,
             }
         })
-        .then_ignore(token(Token::Newline).repeated()); // Consume trailing newlines for single-line/marker forms
+        .then_ignore(token(Token::Newline).repeated()); // Consume trailing newlines
 
     block_form.or(single_line_or_marker)
 }
@@ -706,9 +706,9 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
     subject_parser
         .then_ignore(token(Token::Newline).or_not()) // Consume optional blank line after subject (marker form)
         .then(with_content.or_not()) // Content is optional
-        .then_ignore(token(Token::DedentLevel).repeated()) // Consume structural dedents
+        // Don't consume DedentLevel before annotation - content parser handles them
         .then(annotation())
-        .then_ignore(token(Token::Newline).repeated()) // Consume all trailing newlines after annotation
+        // Don't consume newlines after annotation - they belong to document-level parsing
         .map(|((subject_spans, content_spans), closing_annotation)| ForeignBlockWithSpans {
             subject_spans,
             content_spans,
