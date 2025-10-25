@@ -2,6 +2,11 @@
 //!
 //! This module defines the data structures that represent the parsed
 //! structure of a txxt document.
+//!
+//! ## Testing
+//!
+//! All parser tests must follow strict guidelines. See the [testing module](crate::txxt_nano::testing)
+//! for comprehensive documentation on using verified txxt sources and AST assertions.
 
 use std::fmt;
 

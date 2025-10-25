@@ -1,6 +1,11 @@
 //! # txxt-nano
 //!
 //! A parser for the txxt format.
+//!
+//! ## Testing
+//!
+//! For comprehensive testing guidelines, see the [testing module](txxt_nano::testing).
+//! All parser tests must follow strict rules using verified txxt sources and AST assertions.
 
 pub mod txxt_nano;
 

@@ -2,6 +2,11 @@
 //!
 //! This module contains the parsing logic for the txxt format,
 //! including AST definitions and the parser implementation.
+//!
+//! ## Testing
+//!
+//! All parser tests must follow strict guidelines. See the [testing module](crate::txxt_nano::testing)
+//! for comprehensive documentation on using verified txxt sources and AST assertions.
 
 pub mod ast;
 pub mod ast_tag_serializer;

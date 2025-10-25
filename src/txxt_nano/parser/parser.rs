@@ -2,6 +2,11 @@
 //!
 //! This module implements a parser combinator-based parser for txxt documents.
 //! It builds on the token stream from the lexer and produces an AST.
+//!
+//! ## Testing
+//!
+//! All parser tests must follow strict guidelines. See the [testing module](crate::txxt_nano::testing)
+//! for comprehensive documentation on using verified txxt sources and AST assertions.
 
 use chumsky::prelude::*;
 use std::ops::Range;
