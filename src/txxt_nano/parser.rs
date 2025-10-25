@@ -10,11 +10,13 @@
 
 pub mod ast;
 pub mod ast_tag_serializer;
+pub mod ast_treeviz;
 #[allow(clippy::module_inception)]
 pub mod parser;
 
 pub use ast::{ContentItem, Document, List, ListItem, Paragraph, Session};
 pub use ast_tag_serializer::serialize_document as serialize_ast_tag;
+pub use ast_treeviz::to_treeviz_str;
 pub use parser::{document, parse, parse_with_source};
 
 /// Type alias for parse result with spanned tokens

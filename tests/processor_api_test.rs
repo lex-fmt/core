@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn test_available_specs() {
         let specs = ProcessingSpec::available_specs();
-        assert_eq!(specs.len(), 5); // 4 token formats + 1 AST format
+        assert_eq!(specs.len(), 6);
 
         let token_simple = specs
             .iter()
@@ -228,8 +228,20 @@ mod tests {
                 OutputFormat::AstTag => Err(ProcessingError::InvalidFormatType(
                     "ast-tag format only works with ast stage".to_string(),
                 )),
+                OutputFormat::AstTreeviz => Err(ProcessingError::InvalidFormatType(
+                    "ast-treeviz format only works with ast stage".to_string(),
+                )),
             },
             ProcessingStage::Ast => Err(ProcessingError::InvalidStage("ast".to_string())),
         }
+    }
+
+    #[test]
+    fn test_ast_treeviz_format_complex() {
+        let file_path = "docs/specs/v1/samples/060-trifecta-nesting.txxt";
+        let spec = ProcessingSpec::from_string("ast-treeviz").unwrap();
+        let result = process_file(file_path, &spec).unwrap();
+        let expected = "├─ Paragraph: Trifecta Nesting Test {{paragr...\n├─ Paragraph: This document tests the combin...\n├─ Session: 1. Root Session {{session-titl...\n│ ├─ Paragraph: This root session contains var...\n│ ├─ Session: 1.1. Sub-session with Paragrap...\n│ │ ├─ Paragraph: This sub-session starts with a...\n│ │ └─ List: 2 items\n│ │   ├─ ListItem: - Then has a list {{list-item}...\n│ │   └─ ListItem: - With multiple items {{list-i...\n│ ├─ Session: 1.2. Sub-session with List {{s...\n│ │ ├─ List: 2 items\n│ │ │ ├─ ListItem: - Starts with a list {{list-it...\n│ │ │ └─ ListItem: - Has multiple items {{list-it...\n│ │ ├─ Paragraph: Then has a paragraph. {{paragr...\n│ │ └─ Session: 1.2.1. Deeply Nested Session {...\n│ │   ├─ Paragraph: This is a deeply nested sessio...\n│ │   ├─ List: 2 items\n│ │   │ ├─ ListItem: - With its own list {{list-ite...\n│ │   │ └─ ListItem: - And multiple items {{list-it...\n│ │   └─ List: 2 items\n│ │     ├─ ListItem: - Another list follows {{list-...\n│ │     └─ ListItem: - In the same session {{list-i...\n│ ├─ Paragraph: Back to the root session level...\n│ └─ List: 2 items\n│   ├─ ListItem: - Root session can also have l...\n│   └─ ListItem: - At its own level {{list-item...\n├─ Session: 2. Another Root Session {{sess...\n│ ├─ Paragraph: This session demonstrates diff...\n│ └─ Session: 2.1. Mixed Content Sub-session...\n│   ├─ List: 2 items\n│   │ ├─ ListItem: - Starts with list {{list-item...\n│   │ └─ ListItem: - Multiple items {{list-item}}\n│   ├─ Paragraph: Paragraph in the middle. {{par...\n│   ├─ List: 2 items\n│   │ ├─ ListItem: - Ends with another list {{lis...\n│   │ └─ ListItem: - To complete the pattern {{li...\n│   └─ Session: 2.1.1. Even Deeper Nesting {{s...\n│     ├─ Paragraph: The deepest level contains par...\n│     ├─ List: 2 items\n│     │ ├─ ListItem: - First deep list {{list-item}...\n│     │ └─ ListItem: - Second deep item {{list-item...\n│     ├─ Paragraph: Another paragraph at deep leve...\n│     └─ List: 2 items\n│       ├─ ListItem: - Second deep list {{list-item...\n│       └─ ListItem: - Completing the deep structur...\n└─ Paragraph: Final root level paragraph. {{...\n";
+        assert_eq!(result.replace("\r\n", "\n"), expected);
     }
 }
