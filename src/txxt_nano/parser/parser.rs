@@ -200,7 +200,7 @@ pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserErr
 
     content_item
         .repeated()
-        .then_ignore(token(Token::DedentLevel).repeated()) // Consume any trailing dedents
+        .then_ignore(token(Token::DedentLevel)) // Consume final document-closing dedent
         .then_ignore(end())
         .map(|items| DocumentWithSpans { items })
 }
