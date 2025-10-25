@@ -2,10 +2,6 @@ Simple Annotations Test {{paragraph}}
 
 This document tests the marker form of annotations. {{paragraph}}
 
-NOTE: This sample file is currently not fully functional due to parser limitations.
-The annotation parser has newline consumption issues in document context.
-See TODO(annotation-parser) in parser.rs for details. {{paragraph}}
-
 :: note ::
 
 Regular paragraph between annotations. {{paragraph}}
