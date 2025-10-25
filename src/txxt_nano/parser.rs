@@ -4,10 +4,12 @@
 //! including AST definitions and the parser implementation.
 
 pub mod ast;
+pub mod ast_tag_serializer;
 #[allow(clippy::module_inception)]
 pub mod parser;
 
 pub use ast::{ContentItem, Document, Paragraph, Session};
+pub use ast_tag_serializer::serialize_document as serialize_ast_tag;
 pub use parser::{document, parse, parse_with_source};
 
 /// Type alias for parse result with spanned tokens
