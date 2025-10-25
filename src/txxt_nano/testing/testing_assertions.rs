@@ -2,7 +2,7 @@
 
 use super::testing_matchers::TextMatch;
 use crate::txxt_nano::parser::ast::{
-    Container, ContentItem, Document, Paragraph, Session, TextNode,
+    Container, ContentItem, Document, List, ListItem, Paragraph, Session, TextNode,
 };
 
 // ============================================================================
@@ -80,6 +80,11 @@ impl<'a> ContentItemAssertion<'a> {
                 self.context,
                 s.label()
             ),
+            ContentItem::List(l) => panic!(
+                "{}: Expected Paragraph, found List with {} items",
+                self.context,
+                l.items.len()
+            ),
         }
     }
 
@@ -102,6 +107,38 @@ impl<'a> ContentItemAssertion<'a> {
                     self.context, display_text
                 )
             }
+            ContentItem::List(l) => panic!(
+                "{}: Expected Session, found List with {} items",
+                self.context,
+                l.items.len()
+            ),
+        }
+    }
+
+    /// Assert this item is a List and return list-specific assertions
+    pub fn assert_list(self) -> ListAssertion<'a> {
+        match self.item {
+            ContentItem::List(l) => ListAssertion {
+                list: l,
+                context: self.context,
+            },
+            ContentItem::Paragraph(p) => {
+                let text = p.text();
+                let display_text = if text.len() > 50 {
+                    format!("{}...", &text[..50])
+                } else {
+                    text
+                };
+                panic!(
+                    "{}: Expected List, found Paragraph with text '{}'",
+                    self.context, display_text
+                )
+            }
+            ContentItem::Session(s) => panic!(
+                "{}: Expected List, found Session with label '{}'",
+                self.context,
+                s.label()
+            ),
         }
     }
 
@@ -113,6 +150,11 @@ impl<'a> ContentItemAssertion<'a> {
     /// Check if this item is a session (non-panicking)
     pub fn is_session(&self) -> bool {
         matches!(self.item, ContentItem::Session(_))
+    }
+
+    /// Check if this item is a list (non-panicking)
+    pub fn is_list(&self) -> bool {
+        matches!(self.item, ContentItem::List(_))
     }
 }
 
@@ -249,6 +291,78 @@ impl<'a> SessionAssertion<'a> {
             children: self.session.children(),
             context: format!("{}:children", self.context),
         });
+        self
+    }
+}
+
+// ============================================================================
+// List Assertions
+// ============================================================================
+
+pub struct ListAssertion<'a> {
+    list: &'a List,
+    context: String,
+}
+
+impl<'a> ListAssertion<'a> {
+    /// Assert the number of items in the list
+    pub fn item_count(self, expected: usize) -> Self {
+        let actual = self.list.items.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected {} list items, found {} list items",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    /// Assert on a specific list item by index
+    pub fn item<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(ListItemAssertion<'a>),
+    {
+        assert!(
+            index < self.list.items.len(),
+            "{}: Item index {} out of bounds (list has {} items)",
+            self.context,
+            index,
+            self.list.items.len()
+        );
+
+        let item = &self.list.items[index];
+        assertion(ListItemAssertion {
+            item,
+            context: format!("{}:items[{}]", self.context, index),
+        });
+        self
+    }
+}
+
+// ============================================================================
+// ListItem Assertions
+// ============================================================================
+
+pub struct ListItemAssertion<'a> {
+    item: &'a ListItem,
+    context: String,
+}
+
+impl<'a> ListItemAssertion<'a> {
+    /// Assert exact text match
+    pub fn text(self, expected: &str) -> Self {
+        TextMatch::Exact(expected.to_string()).assert(self.item.text(), &self.context);
+        self
+    }
+
+    /// Assert text starts with prefix
+    pub fn text_starts_with(self, prefix: &str) -> Self {
+        TextMatch::StartsWith(prefix.to_string()).assert(self.item.text(), &self.context);
+        self
+    }
+
+    /// Assert text contains substring
+    pub fn text_contains(self, substring: &str) -> Self {
+        TextMatch::Contains(substring.to_string()).assert(self.item.text(), &self.context);
         self
     }
 }

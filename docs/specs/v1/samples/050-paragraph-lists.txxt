@@ -12,14 +12,17 @@ Lists require at least two items: {{paragraph}}
 - First item {{list-item}}
 - Second item {{list-item}}
 
-Paragraph followed by list without blank line: {{paragraph}}
+Paragraph followed by list WITH blank line (required): {{paragraph}}
+
 - This is a list {{list-item}}
-- Just without a blank line from the paragraph {{list-item}}
+- Blank line required before list {{list-item}}
 
 List followed by paragraph without blank line: {{paragraph}}
+
 - Last list item {{list-item}}
 - Another list item {{list-item}}
-This paragraph follows immediately {{paragraph}}
+
+This paragraph follows after blank line {{paragraph}}
 
 Blank lines between list items (illegal, becomes separate paragraphs): {{paragraph}}
 - This is not {{paragraph}}
