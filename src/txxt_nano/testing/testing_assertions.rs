@@ -1,6 +1,6 @@
 //! Fluent assertion API for AST nodes
 
-use super::matchers::TextMatch;
+use super::testing_matchers::TextMatch;
 use crate::txxt_nano::parser::ast::{
     Container, ContentItem, Document, Paragraph, Session, TextNode,
 };
