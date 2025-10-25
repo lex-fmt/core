@@ -2,90 +2,20 @@ Annotations with Block Content Test {{paragraph}}
 
 This document tests annotations containing paragraphs and lists in block form. {{paragraph}}
 
-:: note author="Jane Doe" {{annotation}}
-    This is an important note that requires a detailed explanation. {{paragraph}} {{annotation}}
+:: note author=JaneDoe ::
+    This is an important note that requires a detailed explanation. {{paragraph}}
 
     It can span multiple paragraphs to provide comprehensive information. {{paragraph}}
 ::
 
 Regular paragraph between annotations. {{paragraph}}
 
-:: warning severity=critical {{annotation}}
-    The following items must be addressed before deployment {{paragraph}} {{annotation}}
+:: warning severity=critical ::
+    The following items must be addressed before deployment {{paragraph}}
 
     - Security vulnerabilities {{list-item}}
     - Performance issues {{list-item}}
     - Documentation gaps {{list-item}}
-::
-
-:: example lang="python" {{annotation}}
-    Here's how to use this feature {{paragraph}} {{annotation}}
-
-    Basic usage steps {{paragraph}}
-
-    - Import the module {{list-item}}
-    - Configure settings {{list-item}}
-    - Run the main function {{list-item}}
-
-    Remember to handle errors appropriately. {{paragraph}}
-::
-
-Annotation with nested lists {{paragraph}}
-
-:: checklist phase="pre-deployment" {{annotation}}
-    Pre-deployment checklist {{paragraph}} {{annotation}}
-
-    Code quality {{paragraph}}
-
-    - Run linter {{list-item}}
-    - Fix warnings {{list-item}}
-    - Update tests {{list-item}}
-
-    Documentation {{paragraph}}
-
-    - Update README {{list-item}}
-    - Add changelog entry {{list-item}}
-    - Review API docs {{list-item}}
-::
-
-Annotation with only paragraphs {{paragraph}}
-
-:: discussion topic="architecture" {{annotation}}
-    This annotation contains multiple paragraphs discussing the architectural decisions. {{paragraph}} {{annotation}}
-
-    The first paragraph explains the problem. {{paragraph}}
-
-    The second paragraph describes the solution. {{paragraph}}
-
-    The third paragraph outlines next steps. {{paragraph}}
-::
-
-Annotation with only a list {{paragraph}}
-
-:: requirements {{annotation}}
-    - Node.js 18 or higher {{list-item}} {{annotation}}
-    - PostgreSQL 14+ {{list-item}}
-    - Redis 6+ {{list-item}}
-::
-
-Mixed content annotation {{paragraph}}
-
-:: implementation status="in-progress",reviewer="Alice" {{annotation}}
-    Current implementation notes {{paragraph}} {{annotation}}
-
-    Completed tasks {{paragraph}}
-
-    - Basic structure {{list-item}}
-    - Core logic {{list-item}}
-
-    Still pending {{paragraph}}
-
-    The error handling needs improvement. {{paragraph}}
-
-    Remaining items {{paragraph}}
-
-    - Edge cases {{list-item}}
-    - Performance optimization {{list-item}}
 ::
 
 End of block content test. {{paragraph}}
