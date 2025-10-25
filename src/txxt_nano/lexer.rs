@@ -3,7 +3,7 @@
 //! This module contains the tokenization logic for the txxt format,
 //! including token definitions and the lexer implementation.
 //!
-//! ## Indentation Handling
+//! Indentation Handling
 //!
 //! In order to make indented blocks tractable by regular parser combinators libraries,
 //! indentation ultimately gets transformed into semantic indent and dedent tokens, which

@@ -312,63 +312,36 @@ mod tests {
 
     #[test]
     fn test_real_content_extraction() {
+        use crate::txxt_nano::testing::assert_ast;
+
         // Test that we extract real content, not placeholder strings
         let input = "First paragraph with numbers 123 and symbols (like this).\n\nSecond paragraph.\n\n1. Session Title\n\n    Session content here.\n\n";
 
-        // Use the new parse_document API
-        let result = crate::txxt_nano::parser::parse_document(input);
-        assert!(result.is_ok(), "Failed to parse: {:?}", result);
+        let doc = crate::txxt_nano::parser::parse_document(input).expect("Failed to parse");
 
-        let doc = result.unwrap();
-
-        // Verify we have 3 items: 2 paragraphs and 1 session
-        assert_eq!(
-            doc.items.len(),
-            3,
-            "Expected 3 items, got {}",
-            doc.items.len()
-        );
-
-        // Check first paragraph has real content
-        match &doc.items[0] {
-            ContentItem::Paragraph(p) => {
-                assert_eq!(p.lines.len(), 1);
-                assert_eq!(
-                    p.lines[0], "First paragraph with numbers 123 and symbols (like this).",
-                    "First paragraph should have real content, not placeholders"
-                );
-            }
-            _ => panic!("Expected paragraph, got session"),
-        }
-
-        // Check second paragraph
-        match &doc.items[1] {
-            ContentItem::Paragraph(p) => {
-                assert_eq!(p.lines.len(), 1);
-                assert_eq!(p.lines[0], "Second paragraph.");
-            }
-            _ => panic!("Expected paragraph, got session"),
-        }
-
-        // Check session title and content
-        match &doc.items[2] {
-            ContentItem::Session(s) => {
-                assert_eq!(
-                    s.title, "1. Session Title",
-                    "Session title should be '1. Session Title', not placeholder"
-                );
-                assert_eq!(s.content.len(), 1);
-
-                match &s.content[0] {
-                    ContentItem::Paragraph(p) => {
-                        assert_eq!(p.lines.len(), 1);
-                        assert_eq!(p.lines[0], "Session content here.");
-                    }
-                    _ => panic!("Expected paragraph in session content"),
-                }
-            }
-            _ => panic!("Expected session, got paragraph"),
-        }
+        assert_ast(&doc)
+            .item_count(3)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text("First paragraph with numbers 123 and symbols (like this).")
+                    .line_count(1);
+            })
+            .item(1, |item| {
+                item.assert_paragraph()
+                    .text("Second paragraph.")
+                    .line_count(1);
+            })
+            .item(2, |item| {
+                item.assert_session()
+                    .label("1. Session Title")
+                    .child_count(1)
+                    .child(0, |child| {
+                        child
+                            .assert_paragraph()
+                            .text("Session content here.")
+                            .line_count(1);
+                    });
+            });
     }
 
     #[test]
@@ -933,56 +906,67 @@ mod tests {
                 .join("\n")
         );
 
-        // Item 0: Paragraph (1 line)
-        verify_item(&doc.items[0], "Item[0]", "Paragraph", "1");
+        use crate::txxt_nano::testing::assert_ast;
 
-        // Item 1: Paragraph (1 line)
-        verify_item(&doc.items[1], "Item[1]", "Paragraph", "1");
-
-        // Item 2: Session with 2 paragraphs
-        verify_item(&doc.items[2], "Item[2]", "Session", "2");
-        if let ContentItem::Session(s) = &doc.items[2] {
-            verify_item(&s.content[0], "Item[2].content[0]", "Paragraph", "1");
-            verify_item(&s.content[1], "Item[2].content[1]", "Paragraph", "1");
-        }
-
-        // Item 3: Session with 1 paragraph
-        verify_item(&doc.items[3], "Item[3]", "Session", "1");
-        if let ContentItem::Session(s) = &doc.items[3] {
-            verify_item(&s.content[0], "Item[3].content[0]", "Paragraph", "1");
-        }
-
-        // Item 4: Paragraph (1 line)
-        verify_item(&doc.items[4], "Item[4]", "Paragraph", "1");
-
-        // Item 5: Session with 1 paragraph
-        verify_item(&doc.items[5], "Item[5]", "Session", "1");
-        if let ContentItem::Session(s) = &doc.items[5] {
-            verify_item(&s.content[0], "Item[5].content[0]", "Paragraph", "1");
-        }
-
-        // Item 6: Paragraph (1 line)
-        verify_item(&doc.items[6], "Item[6]", "Paragraph", "1");
-
-        // Item 7: Session with 1 nested session
-        verify_item(&doc.items[7], "Item[7]", "Session", "1");
-        if let ContentItem::Session(s) = &doc.items[7] {
-            // This should be a nested session, not a paragraph
-            verify_item(&s.content[0], "Item[7].content[0]", "Session", "1");
-
-            // Verify the nested session's content
-            if let ContentItem::Session(nested) = &s.content[0] {
-                verify_item(
-                    &nested.content[0],
-                    "Item[7].content[0].content[0]",
-                    "Paragraph",
-                    "1",
-                );
-            }
-        }
-
-        // Item 8: Paragraph (1 line)
-        verify_item(&doc.items[8], "Item[8]", "Paragraph", "1");
+        assert_ast(&doc)
+            .item_count(9)
+            // Item 0: Paragraph (1 line)
+            .item(0, |item| {
+                item.assert_paragraph().line_count(1);
+            })
+            // Item 1: Paragraph (1 line)
+            .item(1, |item| {
+                item.assert_paragraph().line_count(1);
+            })
+            // Item 2: Session with 2 paragraphs
+            .item(2, |item| {
+                item.assert_session().child_count(2).children(|children| {
+                    children
+                        .all_paragraphs()
+                        .item(0, |p| {
+                            p.assert_paragraph().line_count(1);
+                        })
+                        .item(1, |p| {
+                            p.assert_paragraph().line_count(1);
+                        });
+                });
+            })
+            // Item 3: Session with 1 paragraph
+            .item(3, |item| {
+                item.assert_session().child_count(1).child(0, |child| {
+                    child.assert_paragraph().line_count(1);
+                });
+            })
+            // Item 4: Paragraph (1 line)
+            .item(4, |item| {
+                item.assert_paragraph().line_count(1);
+            })
+            // Item 5: Session with 1 paragraph
+            .item(5, |item| {
+                item.assert_session().child_count(1).child(0, |child| {
+                    child.assert_paragraph().line_count(1);
+                });
+            })
+            // Item 6: Paragraph (1 line)
+            .item(6, |item| {
+                item.assert_paragraph().line_count(1);
+            })
+            // Item 7: Session with 1 nested session
+            .item(7, |item| {
+                item.assert_session().child_count(1).child(0, |child| {
+                    // This should be a nested session, not a paragraph
+                    child
+                        .assert_session()
+                        .child_count(1)
+                        .child(0, |nested_child| {
+                            nested_child.assert_paragraph().line_count(1);
+                        });
+                });
+            })
+            // Item 8: Paragraph (1 line)
+            .item(8, |item| {
+                item.assert_paragraph().line_count(1);
+            });
     }
 
     #[test]
