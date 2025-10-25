@@ -1,0 +1,37 @@
+Simple Annotations Test {{paragraph}}
+
+This document tests various forms of annotations including marker form, single-line form, and basic block form. {{paragraph}}
+
+:: note :: {{annotation}}
+
+This is a paragraph after a marker-form annotation. {{paragraph}}
+
+:: warning severity=high :: This function is deprecated {{annotation}}
+
+Another paragraph after a single-line annotation. {{paragraph}}
+
+:: todo priority=urgent :: {{annotation}}
+
+:: author name="Jane Doe" :: {{annotation}}
+
+:: metadata version="1.0",build=42 :: {{annotation}}
+
+Boolean parameter test {{paragraph}}
+
+:: debug :: {{annotation}}
+
+:: experimental enabled :: {{annotation}}
+
+Namespaced labels test {{paragraph}}
+
+:: python.typing :: {{annotation}}
+
+:: org.example.custom param="value" :: {{annotation}}
+
+Complex parameters with quoted values {{paragraph}}
+
+:: config setting="value with spaces",enabled,count=10 :: {{annotation}}
+
+:: info message="Hello, world!" :: {{annotation}}
+
+End of simple annotations test. {{paragraph}}
