@@ -104,12 +104,13 @@ pub struct Document {
     pub items: Vec<ContentItem>,
 }
 
-/// A content item can be either a paragraph, a session, or a list
+/// A content item can be either a paragraph, a session, a list, or a definition
 #[derive(Debug, Clone, PartialEq)]
 pub enum ContentItem {
     Paragraph(Paragraph),
     Session(Session),
     List(List),
+    Definition(Definition),
 }
 
 /// A paragraph is a block of text content
@@ -143,6 +144,15 @@ pub struct ListItem {
     text: Vec<String>,
     /// Nested content within this list item (paragraphs and lists)
     /// Will be empty if there's no nested content
+    pub content: Vec<ContentItem>,
+}
+
+/// A definition is a subject followed by its definition content
+#[derive(Debug, Clone, PartialEq)]
+pub struct Definition {
+    /// The subject being defined (without the trailing colon)
+    pub subject: String,
+    /// Content that defines the subject (paragraphs and lists, no sessions)
     pub content: Vec<ContentItem>,
 }
 
@@ -258,6 +268,21 @@ impl ListItem {
     }
 }
 
+impl Definition {
+    /// Create a new definition with the given subject and content
+    pub fn new(subject: String, content: Vec<ContentItem>) -> Self {
+        Self { subject, content }
+    }
+
+    /// Create a definition with just a subject and no content
+    pub fn with_subject(subject: String) -> Self {
+        Self {
+            subject,
+            content: Vec::new(),
+        }
+    }
+}
+
 impl fmt::Display for Document {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Document({} items)", self.items.len())
@@ -272,6 +297,9 @@ impl fmt::Display for ContentItem {
                 write!(f, "Session('{}', {} items)", s.title, s.content.len())
             }
             ContentItem::List(l) => write!(f, "List({} items)", l.items.len()),
+            ContentItem::Definition(d) => {
+                write!(f, "Definition('{}', {} items)", d.subject, d.content.len())
+            }
         }
     }
 }
@@ -297,6 +325,17 @@ impl fmt::Display for List {
 impl fmt::Display for ListItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ListItem('{}')", self.text())
+    }
+}
+
+impl fmt::Display for Definition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Definition('{}', {} items)",
+            self.subject,
+            self.content.len()
+        )
     }
 }
 
@@ -396,6 +435,35 @@ impl Container for ListItem {
     }
 }
 
+// Definition - AstNode and Container implementation
+impl AstNode for Definition {
+    fn node_type(&self) -> &'static str {
+        "Definition"
+    }
+
+    fn display_label(&self) -> String {
+        if self.subject.len() > 50 {
+            format!("{}...", &self.subject[..50])
+        } else {
+            self.subject.clone()
+        }
+    }
+}
+
+impl Container for Definition {
+    fn label(&self) -> &str {
+        &self.subject
+    }
+
+    fn children(&self) -> &[ContentItem] {
+        &self.content
+    }
+
+    fn children_mut(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.content
+    }
+}
+
 // ContentItem - Helper methods for trait access
 impl ContentItem {
     /// Get the node type name (delegates to AstNode trait)
@@ -404,6 +472,7 @@ impl ContentItem {
             ContentItem::Paragraph(p) => p.node_type(),
             ContentItem::Session(s) => s.node_type(),
             ContentItem::List(l) => l.node_type(),
+            ContentItem::Definition(d) => d.node_type(),
         }
     }
 
@@ -413,6 +482,7 @@ impl ContentItem {
             ContentItem::Paragraph(p) => p.display_label(),
             ContentItem::Session(s) => s.display_label(),
             ContentItem::List(l) => l.display_label(),
+            ContentItem::Definition(d) => d.display_label(),
         }
     }
 
@@ -420,6 +490,7 @@ impl ContentItem {
     pub fn label(&self) -> Option<&str> {
         match self {
             ContentItem::Session(s) => Some(s.label()),
+            ContentItem::Definition(d) => Some(d.label()),
             ContentItem::Paragraph(_) => None,
             ContentItem::List(_) => None,
         }
@@ -429,6 +500,7 @@ impl ContentItem {
     pub fn children(&self) -> Option<&[ContentItem]> {
         match self {
             ContentItem::Session(s) => Some(s.children()),
+            ContentItem::Definition(d) => Some(d.children()),
             ContentItem::Paragraph(_) => None,
             ContentItem::List(_) => None,
         }
@@ -438,6 +510,7 @@ impl ContentItem {
     pub fn children_mut(&mut self) -> Option<&mut Vec<ContentItem>> {
         match self {
             ContentItem::Session(s) => Some(s.children_mut()),
+            ContentItem::Definition(d) => Some(d.children_mut()),
             ContentItem::Paragraph(_) => None,
             ContentItem::List(_) => None,
         }
@@ -449,6 +522,7 @@ impl ContentItem {
             ContentItem::Paragraph(p) => Some(p.text()),
             ContentItem::Session(_) => None,
             ContentItem::List(_) => None,
+            ContentItem::Definition(_) => None,
         }
     }
 
@@ -469,6 +543,11 @@ impl ContentItem {
     /// Check if this item is a List
     pub fn is_list(&self) -> bool {
         matches!(self, ContentItem::List(_))
+    }
+
+    /// Check if this item is a Definition
+    pub fn is_definition(&self) -> bool {
+        matches!(self, ContentItem::Definition(_))
     }
 
     // ========================================================================
@@ -502,6 +581,15 @@ impl ContentItem {
         }
     }
 
+    /// Get a reference to the Definition if this is a Definition variant
+    pub fn as_definition(&self) -> Option<&Definition> {
+        if let ContentItem::Definition(d) = self {
+            Some(d)
+        } else {
+            None
+        }
+    }
+
     /// Get a mutable reference to the Paragraph if this is a Paragraph variant
     pub fn as_paragraph_mut(&mut self) -> Option<&mut Paragraph> {
         if let ContentItem::Paragraph(p) = self {
@@ -524,6 +612,15 @@ impl ContentItem {
     pub fn as_list_mut(&mut self) -> Option<&mut List> {
         if let ContentItem::List(l) = self {
             Some(l)
+        } else {
+            None
+        }
+    }
+
+    /// Get a mutable reference to the Definition if this is a Definition variant
+    pub fn as_definition_mut(&mut self) -> Option<&mut Definition> {
+        if let ContentItem::Definition(d) = self {
+            Some(d)
         } else {
             None
         }
