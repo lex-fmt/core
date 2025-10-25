@@ -27,13 +27,23 @@ The txxt language
 
 3. Elements
 
-    1. Lists
+    1. Annotations
+
+        Annotations are metadata elements that provide structured non-content information such as author comments, build tool directives, and semantic markers.
+
+        Annotations are introduced by the :: marker and consist of a required label, optional parameters, and optional content.
+
+        Three forms exist: marker form (:: label ::), single-line form (:: label :: content), and block form with indented content enclosed by :: markers.
+
+        Annotation content can include paragraphs and lists, but cannot contain sessions or nested annotations.
+
+    2. Lists
 
         Lists are collections of at least two list items.
 
         List items can mix different decoration styles (remember, they are not content, but formatting). The list style is defined by the style of the first list item.
 
-    2. Definitions
+    3. Definitions
 
         Definitions consist of a subject line ending with a colon, immediately followed by indented content with no blank line between them.
 
@@ -41,13 +51,13 @@ The txxt language
 
         Definition content can include paragraphs and lists, but cannot contain sessions. This restriction ensures definitions remain focused explanatory units.
 
-    3. Sessions
+    4. Sessions
 
         Sessions contain a session title line, followed by at least one blank line, then at least one child content, which must be indented relative to the session title.
 
         Sessions can be arbitrarily nested, with the only requirement that they must have at least one item as content (aside from the title).
 
-    4. Paragraphs
+    5. Paragraphs
 
         Paragraphs are one or more consecutive non-blank lines.
 
