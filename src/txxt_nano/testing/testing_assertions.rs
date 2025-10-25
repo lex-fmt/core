@@ -2,7 +2,7 @@
 
 use super::testing_matchers::TextMatch;
 use crate::txxt_nano::parser::ast::{
-    Container, ContentItem, Document, List, ListItem, Paragraph, Session, TextNode,
+    Container, ContentItem, Document, List, ListItem, Paragraph, Session,
 };
 
 // ============================================================================
@@ -188,7 +188,7 @@ impl<'a> ParagraphAssertion<'a> {
 
     /// Assert the number of lines in the paragraph
     pub fn line_count(self, expected: usize) -> Self {
-        let actual = self.para.lines().len();
+        let actual = self.para.lines.len();
         assert_eq!(
             actual, expected,
             "{}: Expected {} lines, found {} lines",
@@ -363,6 +363,55 @@ impl<'a> ListItemAssertion<'a> {
     /// Assert text contains substring
     pub fn text_contains(self, substring: &str) -> Self {
         TextMatch::Contains(substring.to_string()).assert(self.item.text(), &self.context);
+        self
+    }
+
+    /// Assert the number of children (nested content)
+    pub fn child_count(self, expected: usize) -> Self {
+        let actual = self.item.children().len();
+        assert_eq!(
+            actual,
+            expected,
+            "{}: Expected {} children, found {} children: [{}]",
+            self.context,
+            expected,
+            actual,
+            summarize_items(self.item.children())
+        );
+        self
+    }
+
+    /// Assert on a specific child by index
+    pub fn child<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(ContentItemAssertion<'a>),
+    {
+        let children = self.item.children();
+        assert!(
+            index < children.len(),
+            "{}: Child index {} out of bounds (list item has {} children)",
+            self.context,
+            index,
+            children.len()
+        );
+
+        let child = &children[index];
+        assertion(ContentItemAssertion {
+            item: child,
+            context: format!("{}:children[{}]", self.context, index),
+        });
+        self
+    }
+
+    /// Assert on all children using a builder
+    pub fn children<F>(self, assertion: F) -> Self
+    where
+        F: FnOnce(ChildrenAssertion<'a>),
+    {
+        assertion(ChildrenAssertion {
+            children: self.item.children(),
+            context: format!("{}:children", self.context),
+        });
         self
     }
 }

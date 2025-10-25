@@ -38,8 +38,15 @@ pub(crate) struct SessionWithSpans {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+pub(crate) struct ListItemWithSpans {
+    text_spans: Vec<Range<usize>>,
+    content: Vec<ContentItemWithSpans>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ListWithSpans {
-    item_spans: Vec<Vec<Range<usize>>>,
+    items: Vec<ListItemWithSpans>,
 }
 
 #[derive(Debug, Clone)]
@@ -126,11 +133,21 @@ fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
 fn convert_list(source: &str, list: ListWithSpans) -> List {
     List {
         items: list
-            .item_spans
-            .iter()
-            .map(|spans| ListItem::new(extract_line_text(source, spans)))
+            .items
+            .into_iter()
+            .map(|item| convert_list_item(source, item))
             .collect(),
     }
+}
+
+fn convert_list_item(source: &str, item: ListItemWithSpans) -> ListItem {
+    ListItem::with_content(
+        extract_line_text(source, &item.text_spans),
+        item.content
+            .into_iter()
+            .map(|content_item| convert_content_item(source, content_item))
+            .collect(),
+    )
 }
 
 /// Parse a text line (sequence of text and whitespace tokens)
@@ -213,20 +230,52 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
         })
 }
 
-/// Parse a list - two or more consecutive list-item-lines
-/// Grammar: <list> = <blank-line> <list-item-line>{2,*}
+/// Parse a single list item with optional indented content
+/// Grammar: <list-item> = <list-item-line> (<indent> <list-item-content>+ <dedent>)?
+fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
+    recursive(|list_item_parser| {
+        // Define nested list parser that uses the recursive list_item_parser
+        let nested_list = list_item_parser
+            .clone()
+            .repeated()
+            .at_least(2) // Lists require at least 2 items
+            .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List);
+
+        // Content inside list items: paragraphs and nested lists (NO sessions)
+        let list_item_content = nested_list.or(paragraph().map(ContentItemWithSpans::Paragraph));
+
+        // Parse the list item line, then optionally parse indented content
+        list_item_line()
+            .then_ignore(token(Token::Newline))
+            .then(
+                // Optional indented block
+                token(Token::IndentLevel)
+                    .ignore_then(list_item_content.repeated().at_least(1))
+                    .then_ignore(token(Token::DedentLevel))
+                    .or_not(),
+            )
+            .map(|(text_spans, maybe_content)| ListItemWithSpans {
+                text_spans,
+                content: maybe_content.unwrap_or_default(),
+            })
+    })
+}
+
+/// Parse a list - two or more consecutive list items
+/// Grammar: <list> = <blank-line> <list-item>{2,*}
 ///
 /// IMPORTANT: Lists require a preceding blank line for disambiguation.
 /// The blank line has already been consumed by the previous element's ending newline.
 /// Blank lines between list items are NOT allowed (would terminate the list).
 fn list() -> impl Parser<TokenSpan, ListWithSpans, Error = ParserError> + Clone {
     // Expect to start right at first list-item-line (blank line already consumed)
-    list_item_line()
-        .then_ignore(token(Token::Newline))
+    list_item()
         .repeated()
         .at_least(2) // Lists require at least 2 items
         .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
-        .map(|item_spans| ListWithSpans { item_spans })
+        .map(|items| ListWithSpans { items })
 }
 
 /// Parse a paragraph - one or more lines of text separated by newlines, ending with a blank line
@@ -1273,6 +1322,7 @@ mod tests {
             });
 
         // Item 2: Root session with nested sessions and mixed content
+        // The structure has been updated to include nested lists, which may affect the child count
         assert_ast(&doc).item(2, |item| {
             item.assert_session()
                 .label_contains("1. Root Session")
@@ -1361,6 +1411,266 @@ mod tests {
         assert_ast(&doc).item(4, |item| {
             item.assert_paragraph()
                 .text_contains("Final root level paragraph");
+        });
+    }
+
+    // ==================== NESTED LISTS TESTS ====================
+    // Testing nested list structures
+
+    #[test]
+    fn test_verified_nested_lists_simple() {
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("070-nested-lists-simple.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Item 0-1: Opening paragraphs
+        assert_ast(&doc)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text_contains("Simple Nested Lists Test");
+            })
+            .item(1, |item| {
+                item.assert_paragraph()
+                    .text_contains("simple list-in-list nesting");
+            });
+
+        // Item 2: Paragraph before first list
+        assert_ast(&doc).item(2, |item| {
+            item.assert_paragraph().text_contains("Basic nested list");
+        });
+
+        // Item 3: First nested list structure
+        assert_ast(&doc).item(3, |item| {
+            item.assert_list()
+                .item_count(2)
+                // First item with nested list
+                .item(0, |list_item| {
+                    list_item
+                        .text_contains("First outer item")
+                        .child_count(1)
+                        .child(0, |child| {
+                            child.assert_list().item_count(2);
+                        });
+                })
+                // Second item with nested list
+                .item(1, |list_item| {
+                    list_item
+                        .text_contains("Second outer item")
+                        .child_count(1)
+                        .child(0, |child| {
+                            child.assert_list().item_count(2);
+                        });
+                });
+        });
+
+        // Item 4: Paragraph before second list
+        assert_ast(&doc).item(4, |item| {
+            item.assert_paragraph()
+                .text_contains("Numbered list with nested dashed list");
+        });
+
+        // Item 5: Numbered list with nested dashed lists
+        assert_ast(&doc).item(5, |item| {
+            item.assert_list()
+                .item_count(2)
+                .item(0, |list_item| {
+                    list_item
+                        .text_starts_with("1.")
+                        .text_contains("First numbered item")
+                        .child_count(1)
+                        .child(0, |child| {
+                            child.assert_list().item_count(2);
+                        });
+                })
+                .item(1, |list_item| {
+                    list_item
+                        .text_starts_with("2.")
+                        .text_contains("Second numbered item")
+                        .child_count(1)
+                        .child(0, |child| {
+                            child.assert_list().item_count(2);
+                        });
+                });
+        });
+
+        // Item 6: Final paragraph
+        assert_ast(&doc).item(6, |item| {
+            item.assert_paragraph()
+                .text_contains("Final paragraph after lists");
+        });
+    }
+
+    #[test]
+    fn test_verified_nested_lists_mixed_content() {
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("080-nested-lists-mixed-content.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Item 0-1: Opening paragraphs
+        assert_ast(&doc)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text_contains("Nested Lists with Mixed Content Test");
+            })
+            .item(1, |item| {
+                item.assert_paragraph()
+                    .text_contains("mix of paragraphs and other lists");
+            });
+
+        // Item 2: Paragraph before first list
+        assert_ast(&doc).item(2, |item| {
+            item.assert_paragraph()
+                .text_contains("List with paragraph content");
+        });
+
+        // Item 3: List with paragraph content in items
+        assert_ast(&doc).item(3, |item| {
+            item.assert_list()
+                .item_count(2)
+                // First item with one paragraph
+                .item(0, |list_item| {
+                    list_item
+                        .text_contains("First item with nested paragraph")
+                        .child_count(1)
+                        .child(0, |child| {
+                            child
+                                .assert_paragraph()
+                                .text_contains("paragraph nested inside the first list item");
+                        });
+                })
+                // Second item with two paragraphs
+                .item(1, |list_item| {
+                    list_item
+                        .text_contains("Second item with multiple paragraphs")
+                        .child_count(2)
+                        .child(0, |child| {
+                            child
+                                .assert_paragraph()
+                                .text_contains("first paragraph in the second item");
+                        })
+                        .child(1, |child| {
+                            child.assert_paragraph().text_contains("second paragraph");
+                        });
+                });
+        });
+
+        // Item 4: Paragraph before mixed content list
+        assert_ast(&doc).item(4, |item| {
+            item.assert_paragraph()
+                .text_contains("mixed paragraphs and nested lists");
+        });
+
+        // Item 5: List with mixed content (paragraphs and nested lists)
+        assert_ast(&doc).item(5, |item| {
+            item.assert_list()
+                .item_count(2)
+                // First complex item: para + list + para
+                .item(0, |list_item| {
+                    list_item
+                        .text_starts_with("1.")
+                        .text_contains("First complex item")
+                        .child_count(3)
+                        .child(0, |child| {
+                            child
+                                .assert_paragraph()
+                                .text_contains("paragraph explaining the first item");
+                        })
+                        .child(1, |child| {
+                            child.assert_list().item_count(2);
+                        })
+                        .child(2, |child| {
+                            child
+                                .assert_paragraph()
+                                .text_contains("Another paragraph after the nested list");
+                        });
+                })
+                // Second complex item: para + list + para
+                .item(1, |list_item| {
+                    list_item
+                        .text_starts_with("2.")
+                        .text_contains("Second complex item")
+                        .child_count(3)
+                        .child(0, |child| {
+                            child
+                                .assert_paragraph()
+                                .text_contains("Opening paragraph for item two");
+                        })
+                        .child(1, |child| {
+                            child.assert_list().item_count(2);
+                        })
+                        .child(2, |child| {
+                            child
+                                .assert_paragraph()
+                                .text_contains("Closing paragraph for item two");
+                        });
+                });
+        });
+
+        // Item 6: Paragraph before deeply nested structure
+        assert_ast(&doc).item(6, |item| {
+            item.assert_paragraph()
+                .text_contains("Deeply nested structure");
+        });
+
+        // Item 7: Deeply nested list structure
+        assert_ast(&doc).item(7, |item| {
+            item.assert_list()
+                .item_count(2)
+                // First outer item with deep nesting
+                .item(0, |outer_item| {
+                    outer_item
+                        .text_contains("Outer item one")
+                        .child_count(2) // para + nested list
+                        .child(0, |child| {
+                            child
+                                .assert_paragraph()
+                                .text_contains("Paragraph in outer item");
+                        })
+                        .child(1, |middle_list| {
+                            middle_list
+                                .assert_list()
+                                .item_count(2)
+                                // Middle item one with inner list
+                                .item(0, |middle_item| {
+                                    middle_item
+                                        .text_contains("Middle item one")
+                                        .child_count(1)
+                                        .child(0, |inner_list| {
+                                            inner_list.assert_list().item_count(2);
+                                        });
+                                })
+                                // Middle item two with paragraph
+                                .item(1, |middle_item| {
+                                    middle_item
+                                        .text_contains("Middle item two")
+                                        .child_count(1)
+                                        .child(0, |para| {
+                                            para.assert_paragraph()
+                                                .text_contains("Paragraph in middle item");
+                                        });
+                                });
+                        });
+                })
+                // Second outer item with paragraph
+                .item(1, |outer_item| {
+                    outer_item
+                        .text_contains("Outer item two")
+                        .child_count(1)
+                        .child(0, |child| {
+                            child.assert_paragraph().text_contains("Final paragraph");
+                        });
+                });
+        });
+
+        // Item 8: Final paragraph
+        assert_ast(&doc).item(8, |item| {
+            item.assert_paragraph().text_contains("End of document");
         });
     }
 }

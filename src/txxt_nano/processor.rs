@@ -259,6 +259,8 @@ pub mod txxt_sources {
         "050-paragraph-lists.txxt",
         "050-trifecta-flat-simple.txxt",
         "060-trifecta-nesting.txxt",
+        "070-nested-lists-simple.txxt",
+        "080-nested-lists-mixed-content.txxt",
     ];
 
     /// Format options for sample content
@@ -426,7 +428,9 @@ pub mod txxt_sources {
             let samples = TxxtSources::list_samples();
             assert!(samples.contains(&"000-paragraphs.txxt"));
             assert!(samples.contains(&"040-lists.txxt"));
-            assert_eq!(samples.len(), 8);
+            assert!(samples.contains(&"070-nested-lists-simple.txxt"));
+            assert!(samples.contains(&"080-nested-lists-mixed-content.txxt"));
+            assert_eq!(samples.len(), 10);
         }
 
         #[test]
