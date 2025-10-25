@@ -128,9 +128,7 @@ fn convert_list(source: &str, list: ListWithSpans) -> List {
         items: list
             .item_spans
             .iter()
-            .map(|spans| ListItem {
-                text: extract_line_text(source, spans),
-            })
+            .map(|spans| ListItem::new(extract_line_text(source, spans)))
             .collect(),
     }
 }

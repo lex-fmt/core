@@ -139,7 +139,8 @@ pub struct List {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
     /// The text content of this list item (including the marker)
-    pub text: String,
+    /// Stored as a single-element vector to satisfy TextNode trait
+    text: Vec<String>,
 }
 
 impl Document {
@@ -234,7 +235,12 @@ impl List {
 impl ListItem {
     /// Create a new list item with the given text
     pub fn new(text: String) -> Self {
-        Self { text }
+        Self { text: vec![text] }
+    }
+
+    /// Get the text content of this list item
+    pub fn text(&self) -> &str {
+        &self.text[0]
     }
 }
 
@@ -276,7 +282,7 @@ impl fmt::Display for List {
 
 impl fmt::Display for ListItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ListItem('{}')", self.text)
+        write!(f, "ListItem('{}')", self.text())
     }
 }
 
@@ -353,27 +359,22 @@ impl AstNode for ListItem {
     }
 
     fn display_label(&self) -> String {
-        if self.text.len() > 50 {
-            format!("{}...", &self.text[..50])
+        let text = self.text();
+        if text.len() > 50 {
+            format!("{}...", &text[..50])
         } else {
-            self.text.clone()
+            text.to_string()
         }
     }
 }
 
 impl TextNode for ListItem {
     fn text(&self) -> String {
-        self.text.clone()
+        self.text[0].clone()
     }
 
     fn lines(&self) -> &[String] {
-        // ListItem is a single line, but we need to return a slice
-        // This is a bit awkward, but we can't return a temporary
-        // In practice, this method may not be used for ListItem
-        // If needed, we could change the trait or store it differently
-        // For now, we'll use a workaround
-        static EMPTY: &[String] = &[];
-        EMPTY
+        &self.text
     }
 }
 
