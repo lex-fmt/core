@@ -158,7 +158,7 @@ Grammar for txxt
 
 3. Element Grammar
 
-    These are the trifecta elements of txxt: sessions, paragraphs and lists:
+    These are the core elements of txxt: sessions, paragraphs, lists, and definitions:
 
     <list> = <blank-line> <list-item-line>{2,*}
 
@@ -167,6 +167,14 @@ Grammar for txxt
     - Blank lines between list items are NOT allowed (would terminate the list)
     - Single list-item-lines become paragraphs (not lists)
 
+    <definition> = <subject-line> <indent> <definition-content>
+    <definition-content> = (<paragraph> | <list>)+
+
+    Note: Definitions differ from sessions in two key ways:
+    - NO blank line between subject and content (immediate indent)
+    - Content cannot include sessions (only paragraphs and lists)
+    - Subject line must end with a colon (:)
+
     <session> = <session-title-line> <blank-line> <indent> <session-content>
     <session-content> = (<paragraph> | <list> | <session>)+
 
@@ -174,4 +182,6 @@ Grammar for txxt
 
     <document> = <metadata>? <content>
     <metadata> = (document metadata, non-content information)
-    <content> = (<paragraph> | <list> | <session>)*
+    <content> = (<paragraph> | <list> | <definition> | <session>)*
+
+    Parse order: <list> | <definition> | <session> | <paragraph>

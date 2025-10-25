@@ -33,13 +33,21 @@ The txxt language
 
         List items can mix different decoration styles (remember, they are not content, but formatting). The list style is defined by the style of the first list item.
 
-    2. Sessions
+    2. Definitions
+
+        Definitions consist of a subject line ending with a colon, immediately followed by indented content with no blank line between them.
+
+        The subject line identifies what is being defined, while the indented content provides the definition or explanation.
+
+        Definition content can include paragraphs and lists, but cannot contain sessions. This restriction ensures definitions remain focused explanatory units.
+
+    3. Sessions
 
         Sessions contain a session title line, followed by at least one blank line, then at least one child content, which must be indented relative to the session title.
 
         Sessions can be arbitrarily nested, with the only requirement that they must have at least one item as content (aside from the title).
 
-    3. Paragraphs
+    4. Paragraphs
 
         Paragraphs are one or more consecutive non-blank lines.
 

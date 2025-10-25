@@ -5,30 +5,47 @@ Parsing TXXT Tips and Tricks
 
     That is not to say, however, that is it not parsable, it is, but it requires careful planning and attention to detail. 
 
-1. Parsing The Trifecta
+1. Parsing The Core Elements
 
-    The core elements: sessions, paragraphs and lists of txxt are the ones where these difficulties are more evident.
-    
-    The cause being: there is big syntatic overlap between session titles and list items, and all session titles and list items are valid paragraph.
+    The core elements: sessions, paragraphs, lists, and definitions of txxt are the ones where these difficulties are more evident.
 
-    1. Parse lists first: 
+    The cause being: there is big syntatic overlap between session titles, definitions, and list items, and all of these are valid paragraphs.
 
-        Lists requires: 
+    Parse order is critical: List → Definition → Session → Paragraph
+
+    1. Parse lists first:
+
+        Lists requires:
             - ListItem Line types
             - At least 2, contiguos (that is one list item line, blank line and other list item line is not a list)
+            - Must be preceded by a blank line
 
-    2. Once lists get out of the way, parsing is simpler. 
+    2. Parse definitions second:
 
-        A sessino will have a SessionTitle Line, then a blank line, indent, and any line.
+        Definitions require:
+            - Subject line ending with a colon (:)
+            - NO blank line after the subject
+            - Immediate indent with content
+            - Content can include paragraphs and lists, but NOT sessions
 
-        IN general terms: 
+        In general terms:
 
-        <blank-line>
+        <subject-line-ending-with-colon>
+        <indent><paragraph-or-list>
+
+    3. Parse sessions third:
+
+        A session will have a SessionTitle Line, then a blank line, indent, and any line.
+
+        IN general terms:
+
         <session-title-line>
         <blank-line>
         <indent><any-line>
 
-    3. Anything else will be a paragraph.
+        The blank line distinguishes sessions from definitions.
+
+    4. Anything else will be a paragraph.
 
 2. Recursion
 
