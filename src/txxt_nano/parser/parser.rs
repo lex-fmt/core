@@ -11,7 +11,10 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-use super::ast::{ContentItem, Definition, Document, List, ListItem, Paragraph, Session};
+use super::ast::{
+    Annotation, ContentItem, Definition, Document, Label, List, ListItem, Paragraph, Parameter,
+    Session,
+};
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -45,6 +48,21 @@ pub(crate) struct DefinitionWithSpans {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+pub(crate) struct ParameterWithSpans {
+    key_span: Range<usize>,
+    value_span: Option<Range<usize>>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) struct AnnotationWithSpans {
+    label_span: Range<usize>,
+    parameters: Vec<ParameterWithSpans>,
+    content: Vec<ContentItemWithSpans>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ListItemWithSpans {
     text_spans: Vec<Range<usize>>,
     content: Vec<ContentItemWithSpans>,
@@ -63,6 +81,7 @@ pub(crate) enum ContentItemWithSpans {
     Session(SessionWithSpans),
     List(ListWithSpans),
     Definition(DefinitionWithSpans),
+    Annotation(AnnotationWithSpans),
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +136,9 @@ fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem
         ContentItemWithSpans::Definition(d) => {
             ContentItem::Definition(convert_definition(source, d))
         }
+        ContentItemWithSpans::Annotation(a) => {
+            ContentItem::Annotation(convert_annotation(source, a))
+        }
     }
 }
 
@@ -152,6 +174,38 @@ fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
             .into_iter()
             .map(|item| convert_content_item(source, item))
             .collect(),
+    }
+}
+
+fn convert_parameter(source: &str, param: ParameterWithSpans) -> Parameter {
+    let key = extract_text(source, &param.key_span).trim().to_string();
+    let value = param
+        .value_span
+        .map(|span| extract_text(source, &span).trim().to_string());
+
+    Parameter { key, value }
+}
+
+fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
+    let label_text = extract_text(source, &ann.label_span).trim().to_string();
+    let label = Label::new(label_text);
+
+    let parameters = ann
+        .parameters
+        .into_iter()
+        .map(|param| convert_parameter(source, param))
+        .collect();
+
+    let content = ann
+        .content
+        .into_iter()
+        .map(|item| convert_content_item(source, item))
+        .collect();
+
+    Annotation {
+        label,
+        parameters,
+        content,
     }
 }
 
@@ -360,6 +414,10 @@ fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserEr
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::Newline))
 }
+
+// TODO: Annotation parser implementation
+// The annotation parser implementation is complex and will be added in the next commit.
+// Stub functions are left here as placeholders for the parser integration.
 
 /// Parse a definition - a subject ending with colon, immediately followed by indented content
 /// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
@@ -611,6 +669,14 @@ mod tests {
                                 d.content.len()
                             );
                         }
+                        ContentItem::Annotation(a) => {
+                            println!(
+                                "  {}: Annotation '{}' with {} children",
+                                i,
+                                a.label.value,
+                                a.content.len()
+                            );
+                        }
                     }
                 }
                 // This is actually fine - empty session
@@ -677,6 +743,14 @@ mod tests {
                                 i,
                                 d.subject,
                                 d.content.len()
+                            );
+                        }
+                        ContentItem::Annotation(a) => {
+                            println!(
+                                "  {}: Annotation '{}' with {} children",
+                                i,
+                                a.label.value,
+                                a.content.len()
                             );
                         }
                     }

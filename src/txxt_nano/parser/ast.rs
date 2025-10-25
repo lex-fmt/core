@@ -104,13 +104,14 @@ pub struct Document {
     pub items: Vec<ContentItem>,
 }
 
-/// A content item can be either a paragraph, a session, a list, or a definition
+/// A content item can be a paragraph, session, list, definition, or annotation
 #[derive(Debug, Clone, PartialEq)]
 pub enum ContentItem {
     Paragraph(Paragraph),
     Session(Session),
     List(List),
     Definition(Definition),
+    Annotation(Annotation),
 }
 
 /// A paragraph is a block of text content
@@ -153,6 +154,33 @@ pub struct Definition {
     /// The subject being defined (without the trailing colon)
     pub subject: String,
     /// Content that defines the subject (paragraphs and lists, no sessions)
+    pub content: Vec<ContentItem>,
+}
+
+/// A label for an annotation - can be simple (note) or namespaced (python.typing)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Label {
+    /// The full label string (e.g., "note" or "python.typing")
+    pub value: String,
+}
+
+/// A parameter for an annotation - key=value pair or boolean shorthand
+#[derive(Debug, Clone, PartialEq)]
+pub struct Parameter {
+    /// The parameter key
+    pub key: String,
+    /// The parameter value (None for boolean shorthand, Some for explicit values)
+    pub value: Option<String>,
+}
+
+/// An annotation is a metadata element with label, optional parameters, and optional content
+#[derive(Debug, Clone, PartialEq)]
+pub struct Annotation {
+    /// The annotation label (e.g., "note", "warning", "python.typing")
+    pub label: Label,
+    /// Optional parameters (key=value pairs or boolean shorthand)
+    pub parameters: Vec<Parameter>,
+    /// Optional content (paragraphs and lists, no sessions or nested annotations)
     pub content: Vec<ContentItem>,
 }
 
@@ -283,6 +311,69 @@ impl Definition {
     }
 }
 
+impl Label {
+    /// Create a new label from a string
+    pub fn new(value: String) -> Self {
+        Self { value }
+    }
+
+    /// Create a label from a string slice
+    pub fn from_string(value: &str) -> Self {
+        Self {
+            value: value.to_string(),
+        }
+    }
+}
+
+impl Parameter {
+    /// Create a new parameter with key and value
+    pub fn new(key: String, value: Option<String>) -> Self {
+        Self { key, value }
+    }
+
+    /// Create a boolean parameter (shorthand, no value)
+    pub fn boolean(key: String) -> Self {
+        Self { key, value: None }
+    }
+
+    /// Create a parameter with a string value
+    pub fn with_value(key: String, value: String) -> Self {
+        Self {
+            key,
+            value: Some(value),
+        }
+    }
+}
+
+impl Annotation {
+    /// Create a new annotation with all fields
+    pub fn new(label: Label, parameters: Vec<Parameter>, content: Vec<ContentItem>) -> Self {
+        Self {
+            label,
+            parameters,
+            content,
+        }
+    }
+
+    /// Create a marker-form annotation (label only, no parameters or content)
+    pub fn marker(label: Label) -> Self {
+        Self {
+            label,
+            parameters: Vec::new(),
+            content: Vec::new(),
+        }
+    }
+
+    /// Create an annotation with label and parameters only (no content)
+    pub fn with_parameters(label: Label, parameters: Vec<Parameter>) -> Self {
+        Self {
+            label,
+            parameters,
+            content: Vec::new(),
+        }
+    }
+}
+
 impl fmt::Display for Document {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Document({} items)", self.items.len())
@@ -299,6 +390,15 @@ impl fmt::Display for ContentItem {
             ContentItem::List(l) => write!(f, "List({} items)", l.items.len()),
             ContentItem::Definition(d) => {
                 write!(f, "Definition('{}', {} items)", d.subject, d.content.len())
+            }
+            ContentItem::Annotation(a) => {
+                write!(
+                    f,
+                    "Annotation('{}', {} params, {} items)",
+                    a.label.value,
+                    a.parameters.len(),
+                    a.content.len()
+                )
             }
         }
     }
@@ -334,6 +434,33 @@ impl fmt::Display for Definition {
             f,
             "Definition('{}', {} items)",
             self.subject,
+            self.content.len()
+        )
+    }
+}
+
+impl fmt::Display for Label {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl fmt::Display for Parameter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.value {
+            Some(v) => write!(f, "{}={}", self.key, v),
+            None => write!(f, "{}", self.key),
+        }
+    }
+}
+
+impl fmt::Display for Annotation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Annotation('{}', {} params, {} items)",
+            self.label.value,
+            self.parameters.len(),
             self.content.len()
         )
     }
@@ -464,6 +591,36 @@ impl Container for Definition {
     }
 }
 
+// Annotation - AstNode and Container implementation
+impl AstNode for Annotation {
+    fn node_type(&self) -> &'static str {
+        "Annotation"
+    }
+
+    fn display_label(&self) -> String {
+        // Show label and parameter count
+        if self.parameters.is_empty() {
+            self.label.value.clone()
+        } else {
+            format!("{} ({} params)", self.label.value, self.parameters.len())
+        }
+    }
+}
+
+impl Container for Annotation {
+    fn label(&self) -> &str {
+        &self.label.value
+    }
+
+    fn children(&self) -> &[ContentItem] {
+        &self.content
+    }
+
+    fn children_mut(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.content
+    }
+}
+
 // ContentItem - Helper methods for trait access
 impl ContentItem {
     /// Get the node type name (delegates to AstNode trait)
@@ -473,6 +630,7 @@ impl ContentItem {
             ContentItem::Session(s) => s.node_type(),
             ContentItem::List(l) => l.node_type(),
             ContentItem::Definition(d) => d.node_type(),
+            ContentItem::Annotation(a) => a.node_type(),
         }
     }
 
@@ -483,6 +641,7 @@ impl ContentItem {
             ContentItem::Session(s) => s.display_label(),
             ContentItem::List(l) => l.display_label(),
             ContentItem::Definition(d) => d.display_label(),
+            ContentItem::Annotation(a) => a.display_label(),
         }
     }
 
@@ -491,6 +650,7 @@ impl ContentItem {
         match self {
             ContentItem::Session(s) => Some(s.label()),
             ContentItem::Definition(d) => Some(d.label()),
+            ContentItem::Annotation(a) => Some(a.label()),
             ContentItem::Paragraph(_) => None,
             ContentItem::List(_) => None,
         }
@@ -501,6 +661,7 @@ impl ContentItem {
         match self {
             ContentItem::Session(s) => Some(s.children()),
             ContentItem::Definition(d) => Some(d.children()),
+            ContentItem::Annotation(a) => Some(a.children()),
             ContentItem::Paragraph(_) => None,
             ContentItem::List(_) => None,
         }
@@ -511,6 +672,7 @@ impl ContentItem {
         match self {
             ContentItem::Session(s) => Some(s.children_mut()),
             ContentItem::Definition(d) => Some(d.children_mut()),
+            ContentItem::Annotation(a) => Some(a.children_mut()),
             ContentItem::Paragraph(_) => None,
             ContentItem::List(_) => None,
         }
@@ -523,6 +685,7 @@ impl ContentItem {
             ContentItem::Session(_) => None,
             ContentItem::List(_) => None,
             ContentItem::Definition(_) => None,
+            ContentItem::Annotation(_) => None,
         }
     }
 
@@ -548,6 +711,11 @@ impl ContentItem {
     /// Check if this item is a Definition
     pub fn is_definition(&self) -> bool {
         matches!(self, ContentItem::Definition(_))
+    }
+
+    /// Check if this item is an Annotation
+    pub fn is_annotation(&self) -> bool {
+        matches!(self, ContentItem::Annotation(_))
     }
 
     // ========================================================================
@@ -621,6 +789,24 @@ impl ContentItem {
     pub fn as_definition_mut(&mut self) -> Option<&mut Definition> {
         if let ContentItem::Definition(d) = self {
             Some(d)
+        } else {
+            None
+        }
+    }
+
+    /// Get a reference to the Annotation if this is an Annotation variant
+    pub fn as_annotation(&self) -> Option<&Annotation> {
+        if let ContentItem::Annotation(a) = self {
+            Some(a)
+        } else {
+            None
+        }
+    }
+
+    /// Get a mutable reference to the Annotation if this is an Annotation variant
+    pub fn as_annotation_mut(&mut self) -> Option<&mut Annotation> {
+        if let ContentItem::Annotation(a) = self {
+            Some(a)
         } else {
             None
         }
