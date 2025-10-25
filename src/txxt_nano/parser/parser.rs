@@ -1537,6 +1537,57 @@ mod tests {
             });
     }
 
+    #[test]
+    fn test_list_requires_preceding_blank_line() {
+        // Critical test: Lists MUST have a preceding blank line for disambiguation
+        // Without the blank line, consecutive list-item-lines should be parsed as paragraphs
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = "First paragraph\n- Item one\n- Item two\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        // Should be parsed as a single paragraph, NOT a paragraph + list
+        // because there's no blank line before the list-item-lines
+        assert_eq!(
+            doc.items.len(),
+            1,
+            "Should be 1 paragraph, not paragraph + list"
+        );
+        assert_ast(&doc).item(0, |item| {
+            item.assert_paragraph()
+                .text_contains("First paragraph")
+                .text_contains("- Item one")
+                .text_contains("- Item two");
+        });
+
+        // Now test the positive case: with blank line, it becomes separate items
+        let source_with_blank = "First paragraph\n\n- Item one\n- Item two\n";
+        let tokens2 = lex_with_spans(source_with_blank);
+        let doc2 = parse_with_source(tokens2, source_with_blank).unwrap();
+
+        // Should be parsed as paragraph + list
+        assert_eq!(
+            doc2.items.len(),
+            2,
+            "Should be paragraph + list with blank line"
+        );
+        assert_ast(&doc2)
+            .item(0, |item| {
+                item.assert_paragraph().text_contains("First paragraph");
+            })
+            .item(1, |item| {
+                item.assert_list()
+                    .item_count(2)
+                    .item(0, |list_item| {
+                        list_item.text_contains("Item one");
+                    })
+                    .item(1, |list_item| {
+                        list_item.text_contains("Item two");
+                    });
+            });
+    }
+
     // ==================== TRIFECTA TESTS ====================
     // Testing paragraphs + sessions + lists together
 
