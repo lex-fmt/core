@@ -11,7 +11,7 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-use super::ast::{ContentItem, Document, Paragraph, Session};
+use super::ast::{ContentItem, Document, List, ListItem, Paragraph, Session};
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -38,9 +38,16 @@ pub(crate) struct SessionWithSpans {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+pub(crate) struct ListWithSpans {
+    item_spans: Vec<Vec<Range<usize>>>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) enum ContentItemWithSpans {
     Paragraph(ParagraphWithSpans),
     Session(SessionWithSpans),
+    List(ListWithSpans),
 }
 
 #[derive(Debug, Clone)]
@@ -91,6 +98,7 @@ fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem
     match item {
         ContentItemWithSpans::Paragraph(p) => ContentItem::Paragraph(convert_paragraph(source, p)),
         ContentItemWithSpans::Session(s) => ContentItem::Session(convert_session(source, s)),
+        ContentItemWithSpans::List(l) => ContentItem::List(convert_list(source, l)),
     }
 }
 
@@ -111,6 +119,18 @@ fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
             .content
             .into_iter()
             .map(|item| convert_content_item(source, item))
+            .collect(),
+    }
+}
+
+fn convert_list(source: &str, list: ListWithSpans) -> List {
+    List {
+        items: list
+            .item_spans
+            .iter()
+            .map(|spans| ListItem {
+                text: extract_line_text(source, spans),
+            })
             .collect(),
     }
 }
@@ -144,9 +164,81 @@ fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError> + Clone {
     filter(move |(tok, _)| tok == &t).ignored()
 }
 
+/// Parse a list item line - a line that starts with a list marker
+/// Grammar: <list-item-line> = <plain-marker> <text>+ | <ordered-marker> <text>+
+/// Where: <plain-marker> = "-" " "
+///        <ordered-marker> = (<number> | <letter> | <roman>) ("." | ")") " "
+fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+    // Just check that the line starts with a valid list marker, then collect all tokens
+    // We validate the marker and collect the full line content
+    let rest_of_line = filter(|(t, _span): &TokenSpan| {
+        matches!(
+            t,
+            Token::Text
+                | Token::Whitespace
+                | Token::Number
+                | Token::Dash
+                | Token::Period
+                | Token::OpenParen
+                | Token::CloseParen
+                | Token::Colon
+        )
+    })
+    .repeated();
+
+    // Pattern 1: Dash + whitespace + rest
+    let dash_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Dash))
+        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
+        .chain(rest_of_line);
+
+    // Pattern 2: Number/Text + Period/CloseParen + whitespace + rest
+    let ordered_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Number | Token::Text))
+        .then(filter(|(t, _): &TokenSpan| {
+            matches!(t, Token::Period | Token::CloseParen)
+        }))
+        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
+        .chain(rest_of_line);
+
+    // Pattern 3: OpenParen + Number + CloseParen + whitespace + rest
+    let paren_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::OpenParen))
+        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Number)))
+        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::CloseParen)))
+        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
+        .chain(rest_of_line);
+
+    // Try each pattern and collect all spans
+    dash_pattern
+        .or(ordered_pattern)
+        .or(paren_pattern)
+        .map(|tokens_with_spans: Vec<TokenSpan>| {
+            tokens_with_spans.into_iter().map(|(_, s)| s).collect()
+        })
+}
+
+/// Parse a list - two or more consecutive list-item-lines
+/// Grammar: <list> = <blank-line> <list-item-line>{2,*}
+///
+/// IMPORTANT: Lists require a preceding blank line for disambiguation.
+/// The blank line has already been consumed by the previous element's ending newline.
+/// Blank lines between list items are NOT allowed (would terminate the list).
+fn list() -> impl Parser<TokenSpan, ListWithSpans, Error = ParserError> + Clone {
+    // Expect to start right at first list-item-line (blank line already consumed)
+    list_item_line()
+        .then_ignore(token(Token::Newline))
+        .repeated()
+        .at_least(2) // Lists require at least 2 items
+        .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
+        .map(|item_spans| ListWithSpans { item_spans })
+}
+
 /// Parse a paragraph - one or more lines of text separated by newlines, ending with a blank line
 /// A paragraph is a catch-all that matches when nothing else does.
-/// Critically: if a text pattern is followed by Newline + Newline + IndentLevel, it's a session title, NOT a paragraph
+///
+/// Simplified rule: Paragraphs can contain ANYTHING (including single list-item-lines).
+/// Lists require a blank line before them, so disambiguation is handled by parse order:
+/// 1. Try list first (needs blank line + 2+ items)
+/// 2. Try session (needs title + blank + indent)
+/// 3. Try paragraph (catches everything else)
 fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> {
     // Match lines that are NOT session titles (not followed by blank line + IndentLevel)
     let non_session_line = text_line().then_ignore(token(Token::Newline)).then_ignore(
@@ -175,9 +267,13 @@ fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserEr
 /// This prevents backtracking to paragraph parser when session content is malformed
 fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
     recursive(|session_parser| {
-        // Try session first (before paragraph) to handle nested sessions
-        let content_item = session_parser
-            .map(ContentItemWithSpans::Session)
+        // Parse order (from docs/tips-tricks.txxt):
+        // 1. List first (requires 2+ list-item-lines)
+        // 2. Session second (requires title + blank + indent)
+        // 3. Paragraph last (catch-all, including single list-item-lines)
+        let content_item = list()
+            .map(ContentItemWithSpans::List)
+            .or(session_parser.map(ContentItemWithSpans::Session))
             .or(paragraph().map(ContentItemWithSpans::Paragraph));
 
         session_title()
@@ -194,13 +290,18 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
     })
 }
 
-/// Parse a document - a sequence of paragraphs and sessions
+/// Parse a document - a sequence of paragraphs, lists, and sessions
 /// Returns intermediate AST with spans
+///
+/// Parse order (from docs/tips-tricks.txxt):
+/// 1. List first (requires 2+ list-item-lines)
+/// 2. Session second (requires title + blank + indent)
+/// 3. Paragraph last (catch-all, including single list-item-lines)
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    // Try session first, as a session title looks like a paragraph
-    let content_item = session()
-        .map(ContentItemWithSpans::Session)
+    let content_item = list()
+        .map(ContentItemWithSpans::List)
+        .or(session().map(ContentItemWithSpans::Session))
         .or(paragraph().map(ContentItemWithSpans::Paragraph));
 
     content_item
@@ -1230,5 +1331,211 @@ mod tests {
 
         // Item 4: Final paragraph
         verify_item(&doc.items[4], "Item[4]", "Paragraph", "1");
+    }
+
+    // ==================== LIST TESTS ====================
+    // Following the complexity ladder: simplest → variations → documents
+
+    #[test]
+    fn test_simplest_dash_list() {
+        // Simplest possible list: 2 dashed items
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("040-lists.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Find the first list (after "Plain dash lists:" paragraph)
+        // Document structure: Para Para Para List Para List...
+        assert_ast(&doc).item(3, |item| {
+            item.assert_list()
+                .item_count(3)
+                .item(0, |list_item| {
+                    list_item
+                        .text("- First item {{list-item}}")
+                        .text_contains("First item");
+                })
+                .item(1, |list_item| {
+                    list_item
+                        .text("- Second item {{list-item}}")
+                        .text_contains("Second item");
+                })
+                .item(2, |list_item| {
+                    list_item
+                        .text("- Third item {{list-item}}")
+                        .text_contains("Third item");
+                });
+        });
+    }
+
+    #[test]
+    fn test_numbered_list() {
+        // Test numbered list: "1. ", "2. ", "3. "
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("040-lists.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Numerical lists (item 5)
+        assert_ast(&doc).item(5, |item| {
+            item.assert_list()
+                .item_count(3)
+                .item(0, |list_item| {
+                    list_item.text_starts_with("1.");
+                })
+                .item(1, |list_item| {
+                    list_item.text_starts_with("2.");
+                })
+                .item(2, |list_item| {
+                    list_item.text_starts_with("3.");
+                });
+        });
+    }
+
+    #[test]
+    fn test_alphabetical_list() {
+        // Test alphabetical list: "a. ", "b. ", "c. "
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("040-lists.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Alphabetical lists (item 7)
+        assert_ast(&doc).item(7, |item| {
+            item.assert_list()
+                .item_count(3)
+                .item(0, |list_item| {
+                    list_item.text_starts_with("a.");
+                })
+                .item(1, |list_item| {
+                    list_item.text_starts_with("b.");
+                })
+                .item(2, |list_item| {
+                    list_item.text_starts_with("c.");
+                });
+        });
+    }
+
+    #[test]
+    fn test_mixed_decoration_list() {
+        // Test mixed decorations: different markers in same list
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("040-lists.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Mixed decoration lists (item 9)
+        assert_ast(&doc).item(9, |item| {
+            item.assert_list()
+                .item_count(3)
+                .item(0, |list_item| {
+                    list_item.text_starts_with("1.");
+                })
+                .item(1, |list_item| {
+                    list_item.text_starts_with("-");
+                })
+                .item(2, |list_item| {
+                    list_item.text_starts_with("a.");
+                });
+        });
+    }
+
+    #[test]
+    fn test_parenthetical_list() {
+        // Test parenthetical numbering: "(1) ", "(2) ", "(3) "
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("040-lists.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Parenthetical numbering (item 11)
+        assert_ast(&doc).item(11, |item| {
+            item.assert_list()
+                .item_count(3)
+                .item(0, |list_item| {
+                    list_item.text_starts_with("(1)");
+                })
+                .item(1, |list_item| {
+                    list_item.text_starts_with("(2)");
+                })
+                .item(2, |list_item| {
+                    list_item.text_starts_with("(3)");
+                });
+        });
+    }
+
+    #[test]
+    fn test_paragraph_list_disambiguation() {
+        // Critical test: single list-like line becomes paragraph, 2+ with blank line become list
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("050-paragraph-lists.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Items 2-4: Single list-item-lines merged into paragraphs
+        assert_ast(&doc).item(2, |item| {
+            item.assert_paragraph()
+                .text_contains("- This is not a list");
+        });
+
+        assert_ast(&doc).item(3, |item| {
+            item.assert_paragraph()
+                .text_contains("1. This is also not a list");
+        });
+
+        // Item 6: First actual list (after blank line) - 0-indexed!
+        assert_ast(&doc).item(6, |item| {
+            item.assert_list()
+                .item_count(2)
+                .item(0, |list_item| {
+                    list_item.text_contains("This is a list");
+                })
+                .item(1, |list_item| {
+                    list_item.text_contains("Blank line required");
+                });
+        });
+    }
+
+    #[test]
+    fn test_verified_lists_document() {
+        // Full document test with lists from TxxtSources
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("040-lists.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Verify document structure: paragraphs + lists alternating
+        assert_ast(&doc)
+            .item(0, |item| {
+                item.assert_paragraph().text_contains("Lists Only Test");
+            })
+            .item(1, |item| {
+                item.assert_paragraph()
+                    .text_contains("various list formats");
+            })
+            .item(2, |item| {
+                item.assert_paragraph().text_contains("Plain dash lists");
+            })
+            .item(3, |item| {
+                item.assert_list().item_count(3); // Dash list
+            })
+            .item(4, |item| {
+                item.assert_paragraph().text_contains("Numerical lists");
+            })
+            .item(5, |item| {
+                item.assert_list().item_count(3); // Numbered list
+            })
+            .item(6, |item| {
+                item.assert_paragraph().text_contains("Alphabetical lists");
+            })
+            .item(7, |item| {
+                item.assert_list().item_count(3); // Alphabetical list
+            });
     }
 }
