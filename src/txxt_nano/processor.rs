@@ -261,6 +261,8 @@ pub mod txxt_sources {
         "060-trifecta-nesting.txxt",
         "070-nested-lists-simple.txxt",
         "080-nested-lists-mixed-content.txxt",
+        "090-definitions-simple.txxt",
+        "100-definitions-mixed-content.txxt",
     ];
 
     /// Format options for sample content
@@ -430,7 +432,9 @@ pub mod txxt_sources {
             assert!(samples.contains(&"040-lists.txxt"));
             assert!(samples.contains(&"070-nested-lists-simple.txxt"));
             assert!(samples.contains(&"080-nested-lists-mixed-content.txxt"));
-            assert_eq!(samples.len(), 10);
+            assert!(samples.contains(&"090-definitions-simple.txxt"));
+            assert!(samples.contains(&"100-definitions-mixed-content.txxt"));
+            assert_eq!(samples.len(), 12);
         }
 
         #[test]
