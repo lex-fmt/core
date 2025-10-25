@@ -22,7 +22,7 @@ pub mod indentation_transform;
 pub mod lexer_impl;
 pub mod tokens;
 
-pub use indentation_transform::transform_indentation;
+pub use indentation_transform::{transform_indentation, transform_indentation_with_spans};
 pub use lexer_impl::{tokenize, tokenize_with_spans};
 pub use tokens::Token;
 
@@ -30,4 +30,12 @@ pub use tokens::Token;
 pub fn lex(source: &str) -> Vec<Token> {
     let raw_tokens = tokenize(source);
     transform_indentation(raw_tokens)
+}
+
+/// Lexing function that preserves source spans for parser
+/// Returns tokens with their corresponding source spans
+/// Synthetic tokens (IndentLevel, DedentLevel) have empty spans (0..0)
+pub fn lex_with_spans(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
+    let raw_tokens_with_spans = tokenize_with_spans(source);
+    transform_indentation_with_spans(raw_tokens_with_spans)
 }

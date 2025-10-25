@@ -142,6 +142,89 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
     count
 }
 
+/// Transform indentation while preserving source spans
+/// Synthetic tokens (IndentLevel, DedentLevel) are given empty spans (0..0)
+pub fn transform_indentation_with_spans(
+    tokens_with_spans: Vec<(Token, std::ops::Range<usize>)>,
+) -> Vec<(Token, std::ops::Range<usize>)> {
+    // Extract just the tokens for processing
+    let tokens: Vec<Token> = tokens_with_spans.iter().map(|(t, _)| t.clone()).collect();
+
+    let mut result = Vec::new();
+    let mut current_level = 0;
+    let mut i = 0;
+
+    while i < tokens.len() {
+        // Find the start of the current line
+        let line_start = find_line_start(&tokens, i);
+
+        // Count Indent tokens at the beginning of this line
+        let line_indent_level = count_line_indent_steps(&tokens, line_start);
+
+        // Check if this line is blank (only contains indentation and newline)
+        let is_blank_line = is_line_blank(&tokens, line_start);
+
+        // Skip blank lines - they don't affect indentation level
+        if is_blank_line {
+            let mut j = line_start;
+            while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
+                j += 1;
+            }
+            if j < tokens.len() && matches!(tokens[j], Token::Newline) {
+                // Preserve the newline span
+                result.push((Token::Newline, tokens_with_spans[j].1.clone()));
+                j += 1;
+            }
+            i = j;
+            continue;
+        }
+
+        // Calculate the target indentation level for this line
+        let target_level = line_indent_level;
+
+        // Generate appropriate IndentLevel/DedentLevel tokens with empty spans
+        if target_level > current_level {
+            for _ in 0..(target_level - current_level) {
+                result.push((Token::IndentLevel, 0..0));
+            }
+        } else if target_level < current_level {
+            for _ in 0..(current_level - target_level) {
+                result.push((Token::DedentLevel, 0..0));
+            }
+        }
+
+        // Update current level
+        current_level = target_level;
+
+        // Process the rest of the line, skipping Indent tokens but preserving spans
+        let mut j = line_start;
+        while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
+            if !matches!(tokens[j], Token::Indent) {
+                result.push((tokens[j].clone(), tokens_with_spans[j].1.clone()));
+            }
+            j += 1;
+        }
+
+        // Add the newline token if we haven't reached the end
+        if j < tokens.len() && matches!(tokens[j], Token::Newline) {
+            result.push((Token::Newline, tokens_with_spans[j].1.clone()));
+            j += 1;
+        }
+
+        i = j;
+    }
+
+    // Add dedents to close all remaining indentation levels (with empty spans)
+    for _ in 0..current_level {
+        result.push((Token::DedentLevel, 0..0));
+    }
+
+    // Always add a final DedentLevel to close the document structure
+    result.push((Token::DedentLevel, 0..0));
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -559,5 +642,63 @@ mod tests {
         assert_eq!(find_line_start(&tokens, 0), 0);
         assert_eq!(find_line_start(&tokens, 2), 2);
         assert_eq!(find_line_start(&tokens, 3), 2);
+    }
+
+    #[test]
+    fn test_blank_line_with_spaces_does_not_dedent() {
+        // Critical test: A line with only spaces (no content) should NOT produce dedent
+        // Example:
+        // ........Foo       (level 2)
+        // ........Foo2      (level 2)
+        // ....              (blank line with spaces - IGNORED)
+        // ........Bar       (level 2 - NO DEDENT from Foo2 to Bar!)
+
+        let input = vec![
+            // Line 1: "        Foo" (2 indent levels)
+            Token::Indent,
+            Token::Indent,
+            Token::Text,
+            Token::Newline,
+            // Line 2: "        Foo2" (2 indent levels)
+            Token::Indent,
+            Token::Indent,
+            Token::Text,
+            Token::Newline,
+            // Line 3: "    " (1 indent level BUT NO CONTENT - should be ignored)
+            Token::Indent,
+            Token::Newline,
+            // Line 4: "        Bar" (2 indent levels)
+            Token::Indent,
+            Token::Indent,
+            Token::Text,
+            Token::Newline,
+        ];
+
+        let result = transform_indentation(input);
+
+        // Expected: Level stays at 2, no dedent/re-indent around the blank line
+        assert_eq!(
+            result,
+            vec![
+                // Line 1
+                Token::IndentLevel, // From 0 to 1
+                Token::IndentLevel, // From 1 to 2
+                Token::Text,
+                Token::Newline,
+                // Line 2
+                Token::Text, // Still at level 2, no change
+                Token::Newline,
+                // Line 3 (blank with spaces)
+                Token::Newline, // Just newline, no dedent!
+                // Line 4
+                Token::Text, // Still at level 2, no dedent/re-indent!
+                Token::Newline,
+                // EOF
+                Token::DedentLevel, // From 2 to 1
+                Token::DedentLevel, // From 1 to 0
+                Token::DedentLevel, // Final document close
+            ],
+            "Blank lines with only spaces should NOT produce dedent/indent tokens"
+        );
     }
 }
