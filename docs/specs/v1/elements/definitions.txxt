@@ -94,10 +94,3 @@ Parsing
 
 	Invalid definitions degrade to paragraphs.
 
-Use Cases
-
-	- Glossaries and terminology
-	- API documentation (endpoints, parameters)
-	- Concept explanations
-	- Technical specifications
-	- Dictionary-style entries
