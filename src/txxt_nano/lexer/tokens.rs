@@ -8,7 +8,7 @@ use logos::Logos;
 use std::fmt;
 
 /// All possible tokens in the txxt format
-#[derive(Logos, Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Logos, Debug, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Token {
     // Special markers
     #[token("::")]
