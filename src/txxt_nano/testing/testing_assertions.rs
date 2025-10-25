@@ -2,7 +2,8 @@
 
 use super::testing_matchers::TextMatch;
 use crate::txxt_nano::parser::ast::{
-    Annotation, Container, ContentItem, Definition, Document, ForeignBlock, List, ListItem, Paragraph, Session,
+    Annotation, Container, ContentItem, Definition, Document, ForeignBlock, List, ListItem,
+    Paragraph, Session,
 };
 
 // ============================================================================
@@ -691,7 +692,9 @@ impl<'a> ForeignBlockAssertion<'a> {
         assert!(
             actual.starts_with(prefix),
             "{}: Expected foreign block subject to start with '{}', but got '{}'",
-            self.context, prefix, actual
+            self.context,
+            prefix,
+            actual
         );
         self
     }
@@ -702,7 +705,9 @@ impl<'a> ForeignBlockAssertion<'a> {
         assert!(
             actual.contains(substring),
             "{}: Expected foreign block subject to contain '{}', but got '{}'",
-            self.context, substring, actual
+            self.context,
+            substring,
+            actual
         );
         self
     }
@@ -724,7 +729,9 @@ impl<'a> ForeignBlockAssertion<'a> {
         assert!(
             actual.contains(substring),
             "{}: Expected foreign block content to contain '{}', but got '{}'",
-            self.context, substring, actual
+            self.context,
+            substring,
+            actual
         );
         self
     }
@@ -735,7 +742,9 @@ impl<'a> ForeignBlockAssertion<'a> {
         assert!(
             actual.starts_with(prefix),
             "{}: Expected foreign block content to start with '{}', but got '{}'",
-            self.context, prefix, actual
+            self.context,
+            prefix,
+            actual
         );
         self
     }
@@ -746,7 +755,8 @@ impl<'a> ForeignBlockAssertion<'a> {
         assert!(
             actual.is_empty(),
             "{}: Expected foreign block to be marker form (empty content), but got '{}'",
-            self.context, actual
+            self.context,
+            actual
         );
         self
     }
@@ -775,7 +785,12 @@ impl<'a> ForeignBlockAssertion<'a> {
 
     /// Assert closing annotation has specific parameter
     pub fn has_closing_parameter(self, key: &str) -> Self {
-        let found = self.foreign_block.closing_annotation.parameters.iter().any(|p| p.key == key);
+        let found = self
+            .foreign_block
+            .closing_annotation
+            .parameters
+            .iter()
+            .any(|p| p.key == key);
         assert!(
             found,
             "{}: Expected closing annotation to have parameter '{}'",
