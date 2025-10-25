@@ -4,13 +4,116 @@
 //! It builds on the token stream from the lexer and produces an AST.
 
 use chumsky::prelude::*;
+use std::ops::Range;
 
 use super::ast::{ContentItem, Document, Paragraph, Session};
 use crate::txxt_nano::lexer::Token;
 
+/// Type alias for token with span
+type TokenSpan = (Token, Range<usize>);
+
+/// Type alias for parser error
+type ParserError = Simple<TokenSpan>;
+
+/// Intermediate AST structures that hold spans instead of extracted text
+/// These are converted to final AST structures after parsing completes
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)] // Used internally in parser, may not be directly constructed elsewhere
+pub(crate) struct ParagraphWithSpans {
+    line_spans: Vec<Vec<Range<usize>>>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) struct SessionWithSpans {
+    title_spans: Vec<Range<usize>>,
+    content: Vec<ContentItemWithSpans>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) enum ContentItemWithSpans {
+    Paragraph(ParagraphWithSpans),
+    Session(SessionWithSpans),
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) struct DocumentWithSpans {
+    items: Vec<ContentItemWithSpans>,
+}
+
+/// Helper to extract text from source using a span
+#[allow(dead_code)] // Reserved for future use
+fn extract_text(source: &str, span: &Range<usize>) -> String {
+    if span.start >= span.end || span.end > source.len() {
+        // Empty or synthetic span (like for IndentLevel/DedentLevel)
+        return String::new();
+    }
+    source[span.start..span.end].to_string()
+}
+
+/// Helper to extract and concatenate text from multiple spans
+fn extract_line_text(source: &str, spans: &[Range<usize>]) -> String {
+    if spans.is_empty() {
+        return String::new();
+    }
+
+    // Find the overall span from first to last
+    let start = spans.first().map(|s| s.start).unwrap_or(0);
+    let end = spans.last().map(|s| s.end).unwrap_or(0);
+
+    if start >= end || end > source.len() {
+        return String::new();
+    }
+
+    source[start..end].trim().to_string()
+}
+
+/// Convert intermediate AST with spans to final AST with extracted text
+fn convert_document(source: &str, doc_with_spans: DocumentWithSpans) -> Document {
+    Document {
+        items: doc_with_spans
+            .items
+            .into_iter()
+            .map(|item| convert_content_item(source, item))
+            .collect(),
+    }
+}
+
+fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem {
+    match item {
+        ContentItemWithSpans::Paragraph(p) => ContentItem::Paragraph(convert_paragraph(source, p)),
+        ContentItemWithSpans::Session(s) => ContentItem::Session(convert_session(source, s)),
+    }
+}
+
+fn convert_paragraph(source: &str, para: ParagraphWithSpans) -> Paragraph {
+    Paragraph {
+        lines: para
+            .line_spans
+            .iter()
+            .map(|spans| extract_line_text(source, spans))
+            .collect(),
+    }
+}
+
+fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
+    Session {
+        title: extract_line_text(source, &sess.title_spans),
+        content: sess
+            .content
+            .into_iter()
+            .map(|item| convert_content_item(source, item))
+            .collect(),
+    }
+}
+
 /// Parse a text line (sequence of text and whitespace tokens)
-fn text_line() -> impl Parser<Token, String, Error = Simple<Token>> {
-    filter(|t: &Token| {
+/// Returns the collected spans for this line
+fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+    filter(|(t, _span): &TokenSpan| {
         matches!(
             t,
             Token::Text
@@ -25,34 +128,25 @@ fn text_line() -> impl Parser<Token, String, Error = Simple<Token>> {
     })
     .repeated()
     .at_least(1)
-    .map(|tokens| {
-        tokens
-            .iter()
-            .map(|t| match t {
-                Token::Text => "text",
-                Token::Whitespace => " ",
-                Token::Number => "num",
-                Token::Dash => "-",
-                Token::Period => ".",
-                Token::OpenParen => "(",
-                Token::CloseParen => ")",
-                Token::Colon => ":",
-                _ => "",
-            })
-            .collect::<String>()
-            .trim()
-            .to_string()
+    .map(|tokens_with_spans: Vec<TokenSpan>| {
+        // Collect all spans for this line
+        tokens_with_spans.into_iter().map(|(_, s)| s).collect()
     })
+}
+
+/// Helper: match a specific token type, ignoring the span
+fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError> + Clone {
+    filter(move |(tok, _)| tok == &t).ignored()
 }
 
 /// Parse a paragraph - one or more lines of text separated by newlines, ending with a blank line
 /// A paragraph is a catch-all that matches when nothing else does.
 /// Critically: if a text pattern is followed by Newline + Newline + IndentLevel, it's a session title, NOT a paragraph
-fn paragraph() -> impl Parser<Token, Paragraph, Error = Simple<Token>> {
+fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> {
     // Match lines that are NOT session titles (not followed by blank line + IndentLevel)
-    let non_session_line = text_line().then_ignore(just(Token::Newline)).then_ignore(
-        just(Token::Newline)
-            .then(just(Token::IndentLevel))
+    let non_session_line = text_line().then_ignore(token(Token::Newline)).then_ignore(
+        token(Token::Newline)
+            .then(token(Token::IndentLevel))
             .not()
             .rewind(),
     );
@@ -60,61 +154,80 @@ fn paragraph() -> impl Parser<Token, Paragraph, Error = Simple<Token>> {
     non_session_line
         .repeated()
         .at_least(1)
-        .then_ignore(just(Token::Newline).or_not()) // Optional blank line at end
-        .map(Paragraph::new)
+        .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
+        .map(|line_spans| ParagraphWithSpans { line_spans })
 }
 
 /// Parse a session title - a line of text followed by a newline and blank line
-fn session_title() -> impl Parser<Token, String, Error = Simple<Token>> {
+fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
     text_line()
-        .then_ignore(just(Token::Newline))
-        .then_ignore(just(Token::Newline))
+        .then_ignore(token(Token::Newline))
+        .then_ignore(token(Token::Newline))
 }
 
 /// Parse a session - a title followed by indented content
 /// IMPORTANT: Once we match a session title, we MUST see IndentLevel or fail
 /// This prevents backtracking to paragraph parser when session content is malformed
-fn session() -> impl Parser<Token, Session, Error = Simple<Token>> + Clone {
+fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
     recursive(|session_parser| {
         // Try session first (before paragraph) to handle nested sessions
         let content_item = session_parser
-            .map(ContentItem::Session)
-            .or(paragraph().map(ContentItem::Paragraph));
+            .map(ContentItemWithSpans::Session)
+            .or(paragraph().map(ContentItemWithSpans::Paragraph));
 
         session_title()
             .then(
                 // Once we have a session title, we're committed - must see IndentLevel
-                just(Token::IndentLevel)
+                token(Token::IndentLevel)
                     .ignore_then(content_item.repeated().at_least(1)) // Sessions must have content
-                    .then_ignore(just(Token::DedentLevel)),
+                    .then_ignore(token(Token::DedentLevel)),
             )
-            .map(|(title, content)| Session::new(title, content))
+            .map(|(title_spans, content)| SessionWithSpans {
+                title_spans,
+                content,
+            })
     })
 }
 
 /// Parse a document - a sequence of paragraphs and sessions
-pub fn document() -> impl Parser<Token, Document, Error = Simple<Token>> {
+/// Returns intermediate AST with spans
+#[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
+pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
     // Try session first, as a session title looks like a paragraph
     let content_item = session()
-        .map(ContentItem::Session)
-        .or(paragraph().map(ContentItem::Paragraph));
+        .map(ContentItemWithSpans::Session)
+        .or(paragraph().map(ContentItemWithSpans::Paragraph));
 
     content_item
         .repeated()
-        .then_ignore(just(Token::DedentLevel).repeated()) // Consume any trailing dedents
+        .then_ignore(token(Token::DedentLevel).repeated()) // Consume any trailing dedents
         .then_ignore(end())
-        .map(Document::with_items)
+        .map(|items| DocumentWithSpans { items })
 }
 
-/// Parse a txxt document from a token stream
+/// Parse with source text - extracts actual content from spans
+pub fn parse_with_source(
+    tokens_with_spans: Vec<TokenSpan>,
+    source: &str,
+) -> Result<Document, Vec<ParserError>> {
+    let doc_with_spans = document().parse(tokens_with_spans)?;
+    Ok(convert_document(source, doc_with_spans))
+}
+
+/// Parse a txxt document from a token stream (legacy - doesn't preserve source text)
 pub fn parse(tokens: Vec<Token>) -> Result<Document, Vec<Simple<Token>>> {
-    document().parse(tokens)
+    // Convert tokens to token-span tuples with empty spans
+    let tokens_with_spans: Vec<TokenSpan> = tokens.into_iter().map(|t| (t, 0..0)).collect();
+
+    // Parse with empty source
+    parse_with_source(tokens_with_spans, "")
+        .map_err(|errs| errs.into_iter().map(|e| e.map(|(t, _)| t)).collect())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt_nano::lexer::lex;
+    use crate::txxt_nano::lexer::{lex, lex_with_spans};
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
 
     /// Helper to verify a content item matches expected type and structure
@@ -183,13 +296,79 @@ mod tests {
     #[test]
     fn test_simple_paragraph() {
         let input = "Hello world\n\n";
-        let tokens = lex(input);
+        let tokens_with_spans = lex_with_spans(input);
 
-        let result = paragraph().parse(tokens);
+        let result = paragraph().parse(tokens_with_spans);
         assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
 
-        let para = result.unwrap();
+        let para_with_spans = result.unwrap();
+        assert_eq!(para_with_spans.line_spans.len(), 1);
+
+        // Verify actual content is preserved
+        let para = convert_paragraph(input, para_with_spans);
         assert_eq!(para.lines.len(), 1);
+        assert_eq!(para.lines[0], "Hello world");
+    }
+
+    #[test]
+    fn test_real_content_extraction() {
+        // Test that we extract real content, not placeholder strings
+        let input = "First paragraph with numbers 123 and symbols (like this).\n\nSecond paragraph.\n\n1. Session Title\n\n    Session content here.\n\n";
+
+        // Use the new parse_document API
+        let result = crate::txxt_nano::parser::parse_document(input);
+        assert!(result.is_ok(), "Failed to parse: {:?}", result);
+
+        let doc = result.unwrap();
+
+        // Verify we have 3 items: 2 paragraphs and 1 session
+        assert_eq!(
+            doc.items.len(),
+            3,
+            "Expected 3 items, got {}",
+            doc.items.len()
+        );
+
+        // Check first paragraph has real content
+        match &doc.items[0] {
+            ContentItem::Paragraph(p) => {
+                assert_eq!(p.lines.len(), 1);
+                assert_eq!(
+                    p.lines[0], "First paragraph with numbers 123 and symbols (like this).",
+                    "First paragraph should have real content, not placeholders"
+                );
+            }
+            _ => panic!("Expected paragraph, got session"),
+        }
+
+        // Check second paragraph
+        match &doc.items[1] {
+            ContentItem::Paragraph(p) => {
+                assert_eq!(p.lines.len(), 1);
+                assert_eq!(p.lines[0], "Second paragraph.");
+            }
+            _ => panic!("Expected paragraph, got session"),
+        }
+
+        // Check session title and content
+        match &doc.items[2] {
+            ContentItem::Session(s) => {
+                assert_eq!(
+                    s.title, "1. Session Title",
+                    "Session title should be '1. Session Title', not placeholder"
+                );
+                assert_eq!(s.content.len(), 1);
+
+                match &s.content[0] {
+                    ContentItem::Paragraph(p) => {
+                        assert_eq!(p.lines.len(), 1);
+                        assert_eq!(p.lines[0], "Session content here.");
+                    }
+                    _ => panic!("Expected paragraph in session content"),
+                }
+            }
+            _ => panic!("Expected session, got paragraph"),
+        }
     }
 
     #[test]
