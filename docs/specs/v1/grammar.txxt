@@ -158,15 +158,20 @@ Grammar for txxt
 
 3. Element Grammar
 
-    These are the trifecta elements of txxt: sessions, paragraphs and lists: 
+    These are the trifecta elements of txxt: sessions, paragraphs and lists:
 
-    <list> = <list-item-line>{2,*}
-    
+    <list> = <blank-line> <list-item-line>{2,*}
+
+    Note: Lists require a preceding blank line for disambiguation. This means:
+    - A list must start after a blank line (or at document start)
+    - Blank lines between list items are NOT allowed (would terminate the list)
+    - Single list-item-lines become paragraphs (not lists)
+
     <session> = <session-title-line> <blank-line> <indent> <session-content>
     <session-content> = (<paragraph> | <list> | <session>)+
-    
+
     <paragraph> = <any-line>+
-    
+
     <document> = <metadata>? <content>
     <metadata> = (document metadata, non-content information)
     <content> = (<paragraph> | <list> | <session>)*
