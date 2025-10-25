@@ -7,10 +7,25 @@ Introduction
 
 	Core features:
 
-	- Annotations have an optional label (identifier like "note", "warning"), which supports namespaces (txxt.foo)
-	- Annotations have optional parameters (key-value pairs like "severity=high", "id=456"). Supports quoted values and boolean shorthand (debug = debug=true)
+	- Annotations have an optional labels [./labels.txxt] and parameters [./parameters.txxt]
 	- Either label or parameters must be present (or both)
 	- Annotations have optional content: inline text or block content (paragraphs/lists, but NOT sessions or nested annotations)
+
+Syntax Forms:
+
+	Marker form (no content):
+		:: label ::
+		:: label params ::
+
+	Single-line form (inline text):
+		:: label :: text content here
+		:: label params :: text content here
+
+	Block form (indented content - note TWO closing :: markers):
+		:: label ::
+		    indented paragraph or list
+		::
+
 
 Content
 
@@ -34,21 +49,6 @@ Parsing
 	Multiple annotations can attach to the same node. They are stored as a list (not a map), so duplicate labels/params are allowed.
 
 
-
-Syntax Forms:
-
-	Marker form (no content):
-		:: label ::
-		:: label params ::
-
-	Single-line form (inline text):
-		:: label :: text content here
-		:: label params :: text content here
-
-	Block form (indented content - note TWO closing :: markers):
-		:: label ::
-		    indented paragraph or list
-		::
 
 Examples:
 
