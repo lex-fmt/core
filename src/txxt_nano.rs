@@ -3,6 +3,4 @@
 pub mod lexer;
 pub mod parser;
 pub mod processor;
-
-#[cfg(test)]
 pub mod testing;
