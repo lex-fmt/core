@@ -72,7 +72,7 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
                 output.push_str(&format!(
                     "{}<item>{}</item>\n",
                     "  ".repeat(indent_level + 1),
-                    escape_xml(&item.text)
+                    escape_xml(item.text())
                 ));
             }
             output.push_str(&format!("{}</list>\n", indent));
