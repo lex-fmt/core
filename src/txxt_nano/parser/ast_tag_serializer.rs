@@ -127,6 +127,43 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
                 output.push_str(&format!("{}</content></annotation>\n", indent));
             }
         }
+        ContentItem::ForeignBlock(fb) => {
+            // <foreign-block>subject<content>raw content</content><closing-annotation>...</closing-annotation></foreign-block>
+            output.push_str(&format!("{}<foreign-block>", indent));
+            output.push_str(&escape_xml(&fb.subject));
+
+            if fb.content.is_empty() {
+                // Marker form - no content
+                output.push_str("<content></content>");
+            } else {
+                // Block form - raw content
+                output.push_str("<content>");
+                output.push_str(&escape_xml(&fb.content));
+                output.push_str("</content>");
+            }
+
+            // Add closing annotation
+            output.push_str("<closing-annotation>");
+            output.push_str(&escape_xml(&fb.closing_annotation.label.value));
+
+            // Add parameters if present
+            if !fb.closing_annotation.parameters.is_empty() {
+                output.push_str("<parameters>");
+                for (i, param) in fb.closing_annotation.parameters.iter().enumerate() {
+                    if i > 0 {
+                        output.push(',');
+                    }
+                    output.push_str(&escape_xml(&param.key));
+                    if let Some(value) = &param.value {
+                        output.push('=');
+                        output.push_str(&escape_xml(value));
+                    }
+                }
+                output.push_str("</parameters>");
+            }
+
+            output.push_str("</closing-annotation></foreign-block>\n");
+        }
     }
 }
 

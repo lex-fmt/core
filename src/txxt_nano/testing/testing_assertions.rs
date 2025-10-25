@@ -2,7 +2,8 @@
 
 use super::testing_matchers::TextMatch;
 use crate::txxt_nano::parser::ast::{
-    Annotation, Container, ContentItem, Definition, Document, List, ListItem, Paragraph, Session,
+    Annotation, Container, ContentItem, Definition, Document, ForeignBlock, List, ListItem,
+    Paragraph, Session,
 };
 
 // ============================================================================
@@ -75,23 +76,10 @@ impl<'a> ContentItemAssertion<'a> {
                 para: p,
                 context: self.context,
             },
-            ContentItem::Session(s) => panic!(
-                "{}: Expected Paragraph, found Session with label '{}'",
+            _ => panic!(
+                "{}: Expected Paragraph, found {}",
                 self.context,
-                s.label()
-            ),
-            ContentItem::List(l) => panic!(
-                "{}: Expected Paragraph, found List with {} items",
-                self.context,
-                l.items.len()
-            ),
-            ContentItem::Definition(d) => panic!(
-                "{}: Expected Paragraph, found Definition with subject '{}'",
-                self.context, d.subject
-            ),
-            ContentItem::Annotation(a) => panic!(
-                "{}: Expected Paragraph, found Annotation with label '{}'",
-                self.context, a.label.value
+                self.item.node_type()
             ),
         }
     }
@@ -103,30 +91,10 @@ impl<'a> ContentItemAssertion<'a> {
                 session: s,
                 context: self.context,
             },
-            ContentItem::Paragraph(p) => {
-                let text = p.text();
-                let display_text = if text.len() > 50 {
-                    format!("{}...", &text[..50])
-                } else {
-                    text
-                };
-                panic!(
-                    "{}: Expected Session, found Paragraph with text '{}'",
-                    self.context, display_text
-                )
-            }
-            ContentItem::List(l) => panic!(
-                "{}: Expected Session, found List with {} items",
+            _ => panic!(
+                "{}: Expected Session, found {}",
                 self.context,
-                l.items.len()
-            ),
-            ContentItem::Definition(d) => panic!(
-                "{}: Expected Session, found Definition with subject '{}'",
-                self.context, d.subject
-            ),
-            ContentItem::Annotation(a) => panic!(
-                "{}: Expected Session, found Annotation with label '{}'",
-                self.context, a.label.value
+                self.item.node_type()
             ),
         }
     }
@@ -138,30 +106,10 @@ impl<'a> ContentItemAssertion<'a> {
                 list: l,
                 context: self.context,
             },
-            ContentItem::Paragraph(p) => {
-                let text = p.text();
-                let display_text = if text.len() > 50 {
-                    format!("{}...", &text[..50])
-                } else {
-                    text
-                };
-                panic!(
-                    "{}: Expected List, found Paragraph with text '{}'",
-                    self.context, display_text
-                )
-            }
-            ContentItem::Session(s) => panic!(
-                "{}: Expected List, found Session with label '{}'",
+            _ => panic!(
+                "{}: Expected List, found {}",
                 self.context,
-                s.label()
-            ),
-            ContentItem::Definition(d) => panic!(
-                "{}: Expected List, found Definition with subject '{}'",
-                self.context, d.subject
-            ),
-            ContentItem::Annotation(a) => panic!(
-                "{}: Expected List, found Annotation with label '{}'",
-                self.context, a.label.value
+                self.item.node_type()
             ),
         }
     }
@@ -173,31 +121,10 @@ impl<'a> ContentItemAssertion<'a> {
                 definition: d,
                 context: self.context,
             },
-            ContentItem::Paragraph(p) => {
-                let text = p.text();
-                let display_text = if text.len() > 50 {
-                    format!("{}...", &text[..50])
-                } else {
-                    text
-                };
-                panic!(
-                    "{}: Expected Definition, found Paragraph with text '{}'",
-                    self.context, display_text
-                )
-            }
-            ContentItem::Session(s) => panic!(
-                "{}: Expected Definition, found Session with label '{}'",
+            _ => panic!(
+                "{}: Expected Definition, found {}",
                 self.context,
-                s.label()
-            ),
-            ContentItem::List(l) => panic!(
-                "{}: Expected Definition, found List with {} items",
-                self.context,
-                l.items.len()
-            ),
-            ContentItem::Annotation(a) => panic!(
-                "{}: Expected Definition, found Annotation with label '{}'",
-                self.context, a.label.value
+                self.item.node_type()
             ),
         }
     }
@@ -209,31 +136,25 @@ impl<'a> ContentItemAssertion<'a> {
                 annotation: a,
                 context: self.context,
             },
-            ContentItem::Paragraph(p) => {
-                let text = p.text();
-                let display_text = if text.len() > 50 {
-                    format!("{}...", &text[..50])
-                } else {
-                    text
-                };
-                panic!(
-                    "{}: Expected Annotation, found Paragraph with text '{}'",
-                    self.context, display_text
-                )
-            }
-            ContentItem::Session(s) => panic!(
-                "{}: Expected Annotation, found Session with label '{}'",
+            _ => panic!(
+                "{}: Expected Annotation, found {}",
                 self.context,
-                s.label()
+                self.item.node_type()
             ),
-            ContentItem::List(l) => panic!(
-                "{}: Expected Annotation, found List with {} items",
+        }
+    }
+
+    /// Assert this item is a ForeignBlock and return foreign block-specific assertions
+    pub fn assert_foreign_block(self) -> ForeignBlockAssertion<'a> {
+        match self.item {
+            ContentItem::ForeignBlock(fb) => ForeignBlockAssertion {
+                foreign_block: fb,
+                context: self.context,
+            },
+            _ => panic!(
+                "{}: Expected ForeignBlock, found {}",
                 self.context,
-                l.items.len()
-            ),
-            ContentItem::Definition(d) => panic!(
-                "{}: Expected Annotation, found Definition with subject '{}'",
-                self.context, d.subject
+                self.item.node_type()
             ),
         }
     }
@@ -251,6 +172,11 @@ impl<'a> ContentItemAssertion<'a> {
     /// Check if this item is a list (non-panicking)
     pub fn is_list(&self) -> bool {
         matches!(self.item, ContentItem::List(_))
+    }
+
+    /// Check if this item is a foreign block (non-panicking)
+    pub fn is_foreign_block(&self) -> bool {
+        matches!(self.item, ContentItem::ForeignBlock(_))
     }
 }
 
@@ -740,6 +666,168 @@ impl<'a> AnnotationAssertion<'a> {
 }
 
 // ============================================================================
+// Foreign Block Assertions
+// ============================================================================
+
+pub struct ForeignBlockAssertion<'a> {
+    foreign_block: &'a ForeignBlock,
+    context: String,
+}
+
+impl<'a> ForeignBlockAssertion<'a> {
+    /// Assert exact subject match
+    pub fn subject(self, expected: &str) -> Self {
+        let actual = &self.foreign_block.subject;
+        assert_eq!(
+            actual, expected,
+            "{}: Expected foreign block subject to be '{}', but got '{}'",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    /// Assert subject starts with prefix
+    pub fn subject_starts_with(self, prefix: &str) -> Self {
+        let actual = &self.foreign_block.subject;
+        assert!(
+            actual.starts_with(prefix),
+            "{}: Expected foreign block subject to start with '{}', but got '{}'",
+            self.context,
+            prefix,
+            actual
+        );
+        self
+    }
+
+    /// Assert subject contains substring
+    pub fn subject_contains(self, substring: &str) -> Self {
+        let actual = &self.foreign_block.subject;
+        assert!(
+            actual.contains(substring),
+            "{}: Expected foreign block subject to contain '{}', but got '{}'",
+            self.context,
+            substring,
+            actual
+        );
+        self
+    }
+
+    /// Assert exact content match
+    pub fn content(self, expected: &str) -> Self {
+        let actual = &self.foreign_block.content;
+        assert_eq!(
+            actual, expected,
+            "{}: Expected foreign block content to be '{}', but got '{}'",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    /// Assert content contains substring
+    pub fn content_contains(self, substring: &str) -> Self {
+        let actual = &self.foreign_block.content;
+        assert!(
+            actual.contains(substring),
+            "{}: Expected foreign block content to contain '{}', but got '{}'",
+            self.context,
+            substring,
+            actual
+        );
+        self
+    }
+
+    /// Assert content starts with prefix
+    pub fn content_starts_with(self, prefix: &str) -> Self {
+        let actual = &self.foreign_block.content;
+        assert!(
+            actual.starts_with(prefix),
+            "{}: Expected foreign block content to start with '{}', but got '{}'",
+            self.context,
+            prefix,
+            actual
+        );
+        self
+    }
+
+    /// Assert content is empty (marker form)
+    pub fn assert_marker_form(self) -> Self {
+        let actual = &self.foreign_block.content;
+        assert!(
+            actual.is_empty(),
+            "{}: Expected foreign block to be marker form (empty content), but got '{}'",
+            self.context,
+            actual
+        );
+        self
+    }
+
+    /// Assert content is not empty (block form)
+    pub fn assert_block_form(self) -> Self {
+        let actual = &self.foreign_block.content;
+        assert!(
+            !actual.is_empty(),
+            "{}: Expected foreign block to be block form (non-empty content), but got empty content",
+            self.context
+        );
+        self
+    }
+
+    /// Assert closing annotation label
+    pub fn closing_label(self, expected: &str) -> Self {
+        let actual = &self.foreign_block.closing_annotation.label.value;
+        assert_eq!(
+            actual, expected,
+            "{}: Expected closing annotation label to be '{}', but got '{}'",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    /// Assert closing annotation has specific parameter
+    pub fn has_closing_parameter(self, key: &str) -> Self {
+        let found = self
+            .foreign_block
+            .closing_annotation
+            .parameters
+            .iter()
+            .any(|p| p.key == key);
+        assert!(
+            found,
+            "{}: Expected closing annotation to have parameter '{}'",
+            self.context, key
+        );
+        self
+    }
+
+    /// Assert closing annotation has specific parameter with value
+    pub fn has_closing_parameter_with_value(self, key: &str, value: &str) -> Self {
+        let found = self
+            .foreign_block
+            .closing_annotation
+            .parameters
+            .iter()
+            .any(|p| p.key == key && p.value.as_deref() == Some(value));
+        assert!(
+            found,
+            "{}: Expected closing annotation to have parameter '{}={}'",
+            self.context, key, value
+        );
+        self
+    }
+
+    /// Assert closing annotation parameter count
+    pub fn closing_parameter_count(self, expected: usize) -> Self {
+        let actual = self.foreign_block.closing_annotation.parameters.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected {} closing annotation parameters, found {}",
+            self.context, expected, actual
+        );
+        self
+    }
+}
+
+// ============================================================================
 // Children Assertions (bulk operations)
 // ============================================================================
 
@@ -1009,7 +1097,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "items[0]: Expected Paragraph, found Session with label 'Section'")]
+    #[should_panic(expected = "items[0]: Expected Paragraph, found Session")]
     fn test_type_mismatch_session_as_paragraph() {
         let doc = Document::with_items(vec![ContentItem::Session(Session::with_title(
             "Section".to_string(),
@@ -1021,9 +1109,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "items[0]: Expected Session, found Paragraph with text 'Hello world'"
-    )]
+    #[should_panic(expected = "items[0]: Expected Session, found Paragraph")]
     fn test_type_mismatch_paragraph_as_session() {
         let doc = Document::with_items(vec![ContentItem::Paragraph(Paragraph::from_line(
             "Hello world".to_string(),
