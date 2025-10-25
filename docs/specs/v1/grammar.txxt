@@ -162,7 +162,7 @@ Grammar for txxt
 
     <annotation> = <annotation-marker> <annotation-opening> <annotation-content>? <annotation-closing>
     <annotation-marker> = "::"
-    <annotation-opening> = <label> <parameters>?
+    <annotation-opening> = (<label> <parameters>?) | <parameters>
     <label> = <letter> (<letter> | <digit> | "_" | "-" | ".")*
     <parameters> = (<parameter> ","?)+
     <parameter> = <key> ("=" <value>)?
@@ -171,10 +171,13 @@ Grammar for txxt
     <annotation-content> = <indent> (<paragraph> | <list>)+ <dedent>
     <annotation-closing> = <annotation-marker>
 
-    Note: Annotations have three forms:
+    Note: Annotations have multiple forms:
     - Marker form: :: label :: (no content)
     - Single-line form: :: label :: inline text
     - Block form: :: label \n <indent>content<dedent> ::
+    - Parameters-only: :: params :: (no label)
+    - Combined: :: label params :: inline text
+    Either label or parameters must be present (or both).
     Content cannot include sessions or nested annotations.
 
     <list> = <blank-line> <list-item-line>{2,*}
@@ -195,10 +198,22 @@ Grammar for txxt
     <session> = <session-title-line> <blank-line> <indent> <session-content>
     <session-content> = (<paragraph> | <list> | <session>)+
 
+    <foreign-block> = <subject-line> <foreign-content>? <closing-annotation>
+    <subject-line> = <text-span>+ <colon> <line-break>
+    <foreign-content> = <indent> <raw-text-line>+ <dedent>
+    <raw-text-line> = <indent>? <any-character>+ <line-break>
+    <closing-annotation> = <annotation-marker> <label> <parameters>? <annotation-marker>
+
+    Note: Foreign blocks have two forms:
+    - Block form: subject + indented content + closing annotation
+    - Marker form: subject + closing annotation (no content)
+    The "Indentation Wall" rule applies: content must be indented deeper than subject,
+    and closing annotation must be at same level as subject.
+
     <paragraph> = <any-line>+
 
     <document> = <metadata>? <content>
     <metadata> = (document metadata, non-content information)
-    <content> = (<annotation> | <paragraph> | <list> | <definition> | <session>)*
+    <content> = (<foreign-block> | <annotation> | <paragraph> | <list> | <definition> | <session>)*
 
-    Parse order: <annotation> | <list> | <definition> | <session> | <paragraph>
+    Parse order: <foreign-block> | <annotation> | <list> | <definition> | <session> | <paragraph>
