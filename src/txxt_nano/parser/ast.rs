@@ -5,6 +5,46 @@
 
 use std::fmt;
 
+// ============================================================================
+// AST Traits - Common interfaces for uniform node access
+// ============================================================================
+
+/// Common interface for all AST nodes
+pub trait AstNode {
+    /// Get the node type name for display/debugging
+    fn node_type(&self) -> &'static str;
+
+    /// Get the display label for this node (for tree visualization)
+    /// - For containers (Session, ListItem, etc): returns the title/subject
+    /// - For leaf nodes (Paragraph): returns first N chars of content
+    fn display_label(&self) -> String;
+}
+
+/// Trait for container nodes that have a label and children
+pub trait Container: AstNode {
+    /// Get the label/title/subject of this container
+    fn label(&self) -> &str;
+
+    /// Get the children of this container
+    fn children(&self) -> &[ContentItem];
+
+    /// Get a mutable reference to children (for tree manipulation)
+    fn children_mut(&mut self) -> &mut Vec<ContentItem>;
+}
+
+/// Trait for leaf nodes that contain text
+pub trait TextNode: AstNode {
+    /// Get the text content of this node
+    fn text(&self) -> String;
+
+    /// Get the lines that make up this text
+    fn lines(&self) -> &[String];
+}
+
+// ============================================================================
+// AST Node Definitions
+// ============================================================================
+
 /// A complete txxt document
 #[derive(Debug, Clone, PartialEq)]
 pub struct Document {
@@ -114,6 +154,112 @@ impl fmt::Display for Session {
     }
 }
 
+// ============================================================================
+// Trait Implementations
+// ============================================================================
+
+// Paragraph - TextNode implementation
+impl AstNode for Paragraph {
+    fn node_type(&self) -> &'static str {
+        "Paragraph"
+    }
+
+    fn display_label(&self) -> String {
+        let text = self.text();
+        if text.len() > 50 {
+            format!("{}...", &text[..50])
+        } else {
+            text
+        }
+    }
+}
+
+impl TextNode for Paragraph {
+    fn text(&self) -> String {
+        self.lines.join("\n")
+    }
+
+    fn lines(&self) -> &[String] {
+        &self.lines
+    }
+}
+
+// Session - Container implementation
+impl AstNode for Session {
+    fn node_type(&self) -> &'static str {
+        "Session"
+    }
+
+    fn display_label(&self) -> String {
+        self.title.clone()
+    }
+}
+
+impl Container for Session {
+    fn label(&self) -> &str {
+        &self.title
+    }
+
+    fn children(&self) -> &[ContentItem] {
+        &self.content
+    }
+
+    fn children_mut(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.content
+    }
+}
+
+// ContentItem - Helper methods for trait access
+impl ContentItem {
+    /// Get the node type name (delegates to AstNode trait)
+    pub fn node_type(&self) -> &'static str {
+        match self {
+            ContentItem::Paragraph(p) => p.node_type(),
+            ContentItem::Session(s) => s.node_type(),
+        }
+    }
+
+    /// Get the display label (delegates to AstNode trait)
+    pub fn display_label(&self) -> String {
+        match self {
+            ContentItem::Paragraph(p) => p.display_label(),
+            ContentItem::Session(s) => s.display_label(),
+        }
+    }
+
+    /// Get the label if this is a container node
+    pub fn label(&self) -> Option<&str> {
+        match self {
+            ContentItem::Session(s) => Some(s.label()),
+            ContentItem::Paragraph(_) => None,
+        }
+    }
+
+    /// Get the children if this is a container node
+    pub fn children(&self) -> Option<&[ContentItem]> {
+        match self {
+            ContentItem::Session(s) => Some(s.children()),
+            ContentItem::Paragraph(_) => None,
+        }
+    }
+
+    /// Get mutable children if this is a container node
+    pub fn children_mut(&mut self) -> Option<&mut Vec<ContentItem>> {
+        match self {
+            ContentItem::Session(s) => Some(s.children_mut()),
+            ContentItem::Paragraph(_) => None,
+        }
+    }
+
+    /// Get the text content if this is a text node
+    pub fn text(&self) -> Option<String> {
+        match self {
+            ContentItem::Paragraph(p) => Some(p.text()),
+            ContentItem::Session(_) => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,5 +290,186 @@ mod tests {
             ContentItem::Session(Session::with_title("Section 1".to_string())),
         ]);
         assert_eq!(doc.items.len(), 2);
+    }
+
+    // ========================================================================
+    // Trait Tests
+    // ========================================================================
+
+    #[test]
+    fn test_paragraph_ast_node_trait() {
+        let para = Paragraph::new(vec!["First line".to_string(), "Second line".to_string()]);
+
+        assert_eq!(para.node_type(), "Paragraph");
+        assert_eq!(para.display_label(), "First line\nSecond line");
+    }
+
+    #[test]
+    fn test_paragraph_ast_node_trait_long_text() {
+        let long_text = "a".repeat(60);
+        let para = Paragraph::from_line(long_text);
+
+        assert_eq!(para.node_type(), "Paragraph");
+        let label = para.display_label();
+        assert!(label.ends_with("..."));
+        assert_eq!(label.len(), 53); // 50 chars + "..."
+    }
+
+    #[test]
+    fn test_paragraph_text_node_trait() {
+        let para = Paragraph::new(vec![
+            "Line 1".to_string(),
+            "Line 2".to_string(),
+            "Line 3".to_string(),
+        ]);
+
+        assert_eq!(para.text(), "Line 1\nLine 2\nLine 3");
+        assert_eq!(para.lines(), &["Line 1", "Line 2", "Line 3"]);
+    }
+
+    #[test]
+    fn test_session_ast_node_trait() {
+        let session = Session::new(
+            "Introduction".to_string(),
+            vec![ContentItem::Paragraph(Paragraph::from_line(
+                "Content".to_string(),
+            ))],
+        );
+
+        assert_eq!(session.node_type(), "Session");
+        assert_eq!(session.display_label(), "Introduction");
+    }
+
+    #[test]
+    fn test_session_container_trait() {
+        let mut session = Session::new(
+            "My Session".to_string(),
+            vec![
+                ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
+                ContentItem::Paragraph(Paragraph::from_line("Para 2".to_string())),
+            ],
+        );
+
+        // Test label
+        assert_eq!(session.label(), "My Session");
+
+        // Test children (immutable)
+        assert_eq!(session.children().len(), 2);
+        match &session.children()[0] {
+            ContentItem::Paragraph(p) => assert_eq!(p.text(), "Para 1"),
+            _ => panic!("Expected paragraph"),
+        }
+
+        // Test children_mut
+        session
+            .children_mut()
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Para 3".to_string(),
+            )));
+        assert_eq!(session.children().len(), 3);
+    }
+
+    #[test]
+    fn test_content_item_node_type() {
+        let para = ContentItem::Paragraph(Paragraph::from_line("Text".to_string()));
+        assert_eq!(para.node_type(), "Paragraph");
+
+        let session = ContentItem::Session(Session::with_title("Title".to_string()));
+        assert_eq!(session.node_type(), "Session");
+    }
+
+    #[test]
+    fn test_content_item_display_label() {
+        let para = ContentItem::Paragraph(Paragraph::from_line("Hello world".to_string()));
+        assert_eq!(para.display_label(), "Hello world");
+
+        let session = ContentItem::Session(Session::with_title("My Title".to_string()));
+        assert_eq!(session.display_label(), "My Title");
+    }
+
+    #[test]
+    fn test_content_item_label() {
+        let para = ContentItem::Paragraph(Paragraph::from_line("Text".to_string()));
+        assert_eq!(para.label(), None);
+
+        let session = ContentItem::Session(Session::with_title("Title".to_string()));
+        assert_eq!(session.label(), Some("Title"));
+    }
+
+    #[test]
+    fn test_content_item_children() {
+        let para = ContentItem::Paragraph(Paragraph::from_line("Text".to_string()));
+        assert_eq!(para.children(), None);
+
+        let session = ContentItem::Session(Session::new(
+            "Title".to_string(),
+            vec![ContentItem::Paragraph(Paragraph::from_line(
+                "Content".to_string(),
+            ))],
+        ));
+        assert_eq!(session.children().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_content_item_children_mut() {
+        let mut para = ContentItem::Paragraph(Paragraph::from_line("Text".to_string()));
+        assert_eq!(para.children_mut(), None);
+
+        let mut session = ContentItem::Session(Session::with_title("Title".to_string()));
+        let children = session.children_mut().unwrap();
+        children.push(ContentItem::Paragraph(Paragraph::from_line(
+            "New content".to_string(),
+        )));
+
+        assert_eq!(session.children().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_content_item_text() {
+        let para = ContentItem::Paragraph(Paragraph::new(vec![
+            "Line 1".to_string(),
+            "Line 2".to_string(),
+        ]));
+        assert_eq!(para.text(), Some("Line 1\nLine 2".to_string()));
+
+        let session = ContentItem::Session(Session::with_title("Title".to_string()));
+        assert_eq!(session.text(), None);
+    }
+
+    #[test]
+    fn test_nested_session_trait_access() {
+        // Create a nested structure
+        let mut root_session = Session::new(
+            "Root".to_string(),
+            vec![
+                ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
+                ContentItem::Session(Session::new(
+                    "Nested".to_string(),
+                    vec![ContentItem::Paragraph(Paragraph::from_line(
+                        "Nested para".to_string(),
+                    ))],
+                )),
+            ],
+        );
+
+        // Access through traits
+        assert_eq!(root_session.label(), "Root");
+        assert_eq!(root_session.children().len(), 2);
+
+        // Navigate to nested session using trait methods
+        if let Some(ContentItem::Session(nested)) = root_session.children().get(1) {
+            assert_eq!(nested.label(), "Nested");
+            assert_eq!(nested.children().len(), 1);
+        } else {
+            panic!("Expected nested session");
+        }
+
+        // Mutate through traits
+        root_session
+            .children_mut()
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Added para".to_string(),
+            )));
+        assert_eq!(root_session.children().len(), 3);
     }
 }
