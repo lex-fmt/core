@@ -57,7 +57,19 @@ The txxt language
 
         Sessions can be arbitrarily nested, with the only requirement that they must have at least one item as content (aside from the title).
 
-    5. Paragraphs
+    5. Foreign Blocks
+
+        Foreign blocks are used to embed non-txxt content within a document, such as source code, or to reference binary data. They are analogous to Markdown's fenced code blocks but use indentation for delimitation.
+
+        A foreign block consists of a subject line, an optional block of raw/unparsed content, and a mandatory closing annotation.
+
+        Two forms exist:
+        - Block form (with text content): For embedding raw text like source code
+        - Marker form (no content): For referencing external or binary data
+
+        The "Indentation Wall" rule is critical: the subject line establishes the base indentation level, content (if present) must be indented at least one level deeper, and the closing annotation must be at the same indentation level as the subject.
+
+    6. Paragraphs
 
         Paragraphs are one or more consecutive non-blank lines.
 

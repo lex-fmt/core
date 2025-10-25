@@ -2,7 +2,7 @@
 
 use super::testing_matchers::TextMatch;
 use crate::txxt_nano::parser::ast::{
-    Annotation, Container, ContentItem, Definition, Document, List, ListItem, Paragraph, Session,
+    Annotation, Container, ContentItem, Definition, Document, ForeignBlock, List, ListItem, Paragraph, Session,
 };
 
 // ============================================================================
@@ -93,6 +93,10 @@ impl<'a> ContentItemAssertion<'a> {
                 "{}: Expected Paragraph, found Annotation with label '{}'",
                 self.context, a.label.value
             ),
+            ContentItem::ForeignBlock(fb) => panic!(
+                "{}: Expected Paragraph, found ForeignBlock with subject '{}'",
+                self.context, fb.subject
+            ),
         }
     }
 
@@ -128,6 +132,10 @@ impl<'a> ContentItemAssertion<'a> {
                 "{}: Expected Session, found Annotation with label '{}'",
                 self.context, a.label.value
             ),
+            ContentItem::ForeignBlock(fb) => panic!(
+                "{}: Expected Session, found ForeignBlock with subject '{}'",
+                self.context, fb.subject
+            ),
         }
     }
 
@@ -162,6 +170,10 @@ impl<'a> ContentItemAssertion<'a> {
             ContentItem::Annotation(a) => panic!(
                 "{}: Expected List, found Annotation with label '{}'",
                 self.context, a.label.value
+            ),
+            ContentItem::ForeignBlock(fb) => panic!(
+                "{}: Expected List, found ForeignBlock with subject '{}'",
+                self.context, fb.subject
             ),
         }
     }
@@ -199,6 +211,10 @@ impl<'a> ContentItemAssertion<'a> {
                 "{}: Expected Definition, found Annotation with label '{}'",
                 self.context, a.label.value
             ),
+            ContentItem::ForeignBlock(fb) => panic!(
+                "{}: Expected Definition, found ForeignBlock with subject '{}'",
+                self.context, fb.subject
+            ),
         }
     }
 
@@ -235,6 +251,48 @@ impl<'a> ContentItemAssertion<'a> {
                 "{}: Expected Annotation, found Definition with subject '{}'",
                 self.context, d.subject
             ),
+            ContentItem::ForeignBlock(fb) => panic!(
+                "{}: Expected Annotation, found ForeignBlock with subject '{}'",
+                self.context, fb.subject
+            ),
+        }
+    }
+
+    /// Assert this item is a ForeignBlock and return foreign block-specific assertions
+    pub fn assert_foreign_block(self) -> ForeignBlockAssertion<'a> {
+        match self.item {
+            ContentItem::ForeignBlock(fb) => ForeignBlockAssertion {
+                foreign_block: fb,
+                context: self.context,
+            },
+            ContentItem::Paragraph(p) => {
+                let text = p.text();
+                let display_text = if text.len() > 50 {
+                    format!("{}...", &text[..50])
+                } else {
+                    text
+                };
+                panic!(
+                    "{}: Expected ForeignBlock, found Paragraph with text '{}'",
+                    self.context, display_text
+                )
+            }
+            ContentItem::Session(s) => panic!(
+                "{}: Expected ForeignBlock, found Session with label '{}'",
+                self.context, s.label()
+            ),
+            ContentItem::List(l) => panic!(
+                "{}: Expected ForeignBlock, found List with {} items",
+                self.context, l.items.len()
+            ),
+            ContentItem::Definition(d) => panic!(
+                "{}: Expected ForeignBlock, found Definition with subject '{}'",
+                self.context, d.subject
+            ),
+            ContentItem::Annotation(a) => panic!(
+                "{}: Expected ForeignBlock, found Annotation with label '{}'",
+                self.context, a.label.value
+            ),
         }
     }
 
@@ -251,6 +309,11 @@ impl<'a> ContentItemAssertion<'a> {
     /// Check if this item is a list (non-panicking)
     pub fn is_list(&self) -> bool {
         matches!(self.item, ContentItem::List(_))
+    }
+
+    /// Check if this item is a foreign block (non-panicking)
+    pub fn is_foreign_block(&self) -> bool {
+        matches!(self.item, ContentItem::ForeignBlock(_))
     }
 }
 
@@ -735,6 +798,154 @@ impl<'a> AnnotationAssertion<'a> {
             children: self.annotation.children(),
             context: format!("{}:children", self.context),
         });
+        self
+    }
+}
+
+// ============================================================================
+// Foreign Block Assertions
+// ============================================================================
+
+pub struct ForeignBlockAssertion<'a> {
+    foreign_block: &'a ForeignBlock,
+    context: String,
+}
+
+impl<'a> ForeignBlockAssertion<'a> {
+    /// Assert exact subject match
+    pub fn subject(self, expected: &str) -> Self {
+        let actual = &self.foreign_block.subject;
+        assert_eq!(
+            actual, expected,
+            "{}: Expected foreign block subject to be '{}', but got '{}'",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    /// Assert subject starts with prefix
+    pub fn subject_starts_with(self, prefix: &str) -> Self {
+        let actual = &self.foreign_block.subject;
+        assert!(
+            actual.starts_with(prefix),
+            "{}: Expected foreign block subject to start with '{}', but got '{}'",
+            self.context, prefix, actual
+        );
+        self
+    }
+
+    /// Assert subject contains substring
+    pub fn subject_contains(self, substring: &str) -> Self {
+        let actual = &self.foreign_block.subject;
+        assert!(
+            actual.contains(substring),
+            "{}: Expected foreign block subject to contain '{}', but got '{}'",
+            self.context, substring, actual
+        );
+        self
+    }
+
+    /// Assert exact content match
+    pub fn content(self, expected: &str) -> Self {
+        let actual = &self.foreign_block.content;
+        assert_eq!(
+            actual, expected,
+            "{}: Expected foreign block content to be '{}', but got '{}'",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    /// Assert content contains substring
+    pub fn content_contains(self, substring: &str) -> Self {
+        let actual = &self.foreign_block.content;
+        assert!(
+            actual.contains(substring),
+            "{}: Expected foreign block content to contain '{}', but got '{}'",
+            self.context, substring, actual
+        );
+        self
+    }
+
+    /// Assert content starts with prefix
+    pub fn content_starts_with(self, prefix: &str) -> Self {
+        let actual = &self.foreign_block.content;
+        assert!(
+            actual.starts_with(prefix),
+            "{}: Expected foreign block content to start with '{}', but got '{}'",
+            self.context, prefix, actual
+        );
+        self
+    }
+
+    /// Assert content is empty (marker form)
+    pub fn is_marker_form(self) -> Self {
+        let actual = &self.foreign_block.content;
+        assert!(
+            actual.is_empty(),
+            "{}: Expected foreign block to be marker form (empty content), but got '{}'",
+            self.context, actual
+        );
+        self
+    }
+
+    /// Assert content is not empty (block form)
+    pub fn is_block_form(self) -> Self {
+        let actual = &self.foreign_block.content;
+        assert!(
+            !actual.is_empty(),
+            "{}: Expected foreign block to be block form (non-empty content), but got empty content",
+            self.context
+        );
+        self
+    }
+
+    /// Assert closing annotation label
+    pub fn closing_label(self, expected: &str) -> Self {
+        let actual = &self.foreign_block.closing_annotation.label.value;
+        assert_eq!(
+            actual, expected,
+            "{}: Expected closing annotation label to be '{}', but got '{}'",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    /// Assert closing annotation has specific parameter
+    pub fn has_closing_parameter(self, key: &str) -> Self {
+        let found = self.foreign_block.closing_annotation.parameters.iter().any(|p| p.key == key);
+        assert!(
+            found,
+            "{}: Expected closing annotation to have parameter '{}'",
+            self.context, key
+        );
+        self
+    }
+
+    /// Assert closing annotation has specific parameter with value
+    pub fn has_closing_parameter_with_value(self, key: &str, value: &str) -> Self {
+        let found = self
+            .foreign_block
+            .closing_annotation
+            .parameters
+            .iter()
+            .any(|p| p.key == key && p.value.as_deref() == Some(value));
+        assert!(
+            found,
+            "{}: Expected closing annotation to have parameter '{}={}'",
+            self.context, key, value
+        );
+        self
+    }
+
+    /// Assert closing annotation parameter count
+    pub fn closing_parameter_count(self, expected: usize) -> Self {
+        let actual = self.foreign_block.closing_annotation.parameters.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected {} closing annotation parameters, found {}",
+            self.context, expected, actual
+        );
         self
     }
 }
