@@ -1,8 +1,6 @@
 //! Treeviz formatter for AST nodes
 
-use crate::txxt_nano::parser::ast::{
-    AstNode, Container, ContentItem, Document, ListItem,
-};
+use crate::txxt_nano::parser::ast::{AstNode, Container, ContentItem, Document, ListItem};
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() > max_chars {
@@ -39,6 +37,9 @@ fn append_content_item(result: &mut String, item: &ContentItem, prefix: &str, is
     match item {
         ContentItem::Session(session) => {
             append_children(result, session.children(), &new_prefix);
+        }
+        ContentItem::Definition(definition) => {
+            append_children(result, definition.children(), &new_prefix);
         }
         ContentItem::List(list) => {
             append_list_items(result, &list.items, &new_prefix);
