@@ -2,7 +2,7 @@ Annotations with Block Content Test {{paragraph}}
 
 This document tests annotations containing paragraphs and lists in block form. {{paragraph}}
 
-:: note author=JaneDoe ::
+:: note author="Jane Doe" date=2025-01-15 ::
     This is an important note that requires a detailed explanation. {{paragraph}}
 
     It can span multiple paragraphs to provide comprehensive information. {{paragraph}}
@@ -10,7 +10,7 @@ This document tests annotations containing paragraphs and lists in block form. {
 
 Regular paragraph between annotations. {{paragraph}}
 
-:: warning severity=critical ::
+:: warning severity=critical,priority=high reviewer="Alice Smith" ::
     The following items must be addressed before deployment {{paragraph}}
 
     - Security vulnerabilities {{list-item}}

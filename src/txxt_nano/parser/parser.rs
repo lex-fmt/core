@@ -179,28 +179,15 @@ fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
 
 /// Convert a parameter from spans to final AST
 ///
-/// IMPLEMENTATION NOTE: Since the parser captures "key=value" as a single key_span,
-/// this function splits on '=' to separate the key and value portions.
-/// This is a workaround until the lexer is extended to tokenize '=' separately.
+/// Now that '=' is a separate token, key and value spans are captured independently
 fn convert_parameter(source: &str, param: ParameterWithSpans) -> Parameter {
-    let full_text = extract_text(source, &param.key_span).trim().to_string();
+    let key = extract_text(source, &param.key_span).trim().to_string();
 
-    // Split on '=' to handle "key=value" format
-    // If no '=' found, this is a boolean parameter (key only)
-    if let Some(eq_pos) = full_text.find('=') {
-        let key = full_text[..eq_pos].trim().to_string();
-        let value = full_text[eq_pos + 1..].trim().to_string();
-        Parameter {
-            key,
-            value: Some(value),
-        }
-    } else {
-        // Boolean parameter - no value
-        Parameter {
-            key: full_text,
-            value: None,
-        }
-    }
+    let value = param
+        .value_span
+        .map(|value_span| extract_text(source, &value_span).trim().to_string());
+
+    Parameter { key, value }
 }
 
 fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
@@ -260,6 +247,9 @@ fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError>
                 | Token::OpenParen
                 | Token::CloseParen
                 | Token::Colon
+                | Token::Comma
+                | Token::Quote
+                | Token::Equals
         )
     })
     .repeated()
@@ -293,6 +283,9 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
                 | Token::OpenParen
                 | Token::CloseParen
                 | Token::Colon
+                | Token::Comma
+                | Token::Quote
+                | Token::Equals
         )
     })
     .repeated();
@@ -412,6 +405,9 @@ fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = Par
                 | Token::Period
                 | Token::OpenParen
                 | Token::CloseParen
+                | Token::Comma
+                | Token::Quote
+                | Token::Equals
         )
     })
     .repeated()
@@ -448,43 +444,91 @@ fn annotation_label() -> impl Parser<TokenSpan, Range<usize>, Error = ParserErro
     })
 }
 
-/// Parse a single annotation parameter - "key" or "key=value"
+/// Parse a single annotation parameter - "key" or "key=value" or "key=\"quoted value\""
 ///
-/// IMPLEMENTATION NOTE: Currently only parses the key portion (boolean form).
-/// Full key=value parsing requires either:
-/// 1. Extending the lexer to tokenize '=' separately, OR
-/// 2. Post-processing text token content to detect and split on '='
-///
-/// For now, this implementation captures the entire parameter span as a key,
-/// and the convert_parameter function will need to handle splitting on '=' during
-/// text extraction. This is a valid subset of the grammar (boolean parameters).
+/// Grammar: <parameter> = <key> ("=" <value>)?
+/// where <value> = <quoted-string> | <unquoted-value>
 fn annotation_parameter() -> impl Parser<TokenSpan, ParameterWithSpans, Error = ParserError> + Clone
 {
-    // Parse key: text/numbers/dashes until we hit whitespace, comma, or ::
-    // NOTE: This will capture "key=value" as a single key_span. The conversion
-    // function should split on '=' when extracting text from the span.
-    filter(|(t, _span): &TokenSpan| matches!(t, Token::Text | Token::Dash | Token::Number))
-        .repeated()
-        .at_least(1)
-        .map(|tokens_with_spans: Vec<TokenSpan>| {
-            // Get the span from first token start to last token end
-            let first_span = &tokens_with_spans.first().unwrap().1;
-            let last_span = &tokens_with_spans.last().unwrap().1;
-            ParameterWithSpans {
-                key_span: first_span.start..last_span.end,
-                value_span: None, // Will be populated during text extraction if '=' found
-            }
+    // Parse key: text/numbers/dashes
+    let key_tokens =
+        filter(|(t, _span): &TokenSpan| matches!(t, Token::Text | Token::Dash | Token::Number))
+            .repeated()
+            .at_least(1)
+            .map(|tokens_with_spans: Vec<TokenSpan>| {
+                let first_span = &tokens_with_spans.first().unwrap().1;
+                let last_span = &tokens_with_spans.last().unwrap().1;
+                first_span.start..last_span.end
+            });
+
+    // Parse optional "=value" part
+    let value_part = token(Token::Equals)
+        .ignore_then(
+            // Try quoted string first: "text with spaces"
+            token(Token::Quote)
+                .ignore_then(
+                    filter(|(t, _): &TokenSpan| {
+                        matches!(
+                            t,
+                            Token::Text
+                                | Token::Whitespace
+                                | Token::Number
+                                | Token::Dash
+                                | Token::Period
+                                | Token::Comma
+                                | Token::Equals
+                                | Token::Colon
+                                | Token::OpenParen
+                                | Token::CloseParen
+                        )
+                    })
+                    .repeated()
+                    .at_least(1)
+                    .map(|tokens: Vec<TokenSpan>| {
+                        let first = &tokens.first().unwrap().1;
+                        let last = &tokens.last().unwrap().1;
+                        first.start..last.end
+                    }),
+                )
+                .then_ignore(token(Token::Quote))
+                .or(
+                    // Unquoted value: text/numbers/dashes (no spaces)
+                    filter(|(t, _): &TokenSpan| {
+                        matches!(t, Token::Text | Token::Number | Token::Dash)
+                    })
+                    .repeated()
+                    .at_least(1)
+                    .map(|tokens: Vec<TokenSpan>| {
+                        let first = &tokens.first().unwrap().1;
+                        let last = &tokens.last().unwrap().1;
+                        first.start..last.end
+                    }),
+                ),
+        )
+        .or_not();
+
+    key_tokens
+        .then(value_part)
+        .map(|(key_span, value_span)| ParameterWithSpans {
+            key_span,
+            value_span,
         })
 }
 
-/// Parse annotation parameters - whitespace/comma separated list
+/// Parse annotation parameters - whitespace or comma separated list
 ///
-/// NOTE: Parameters are separated by whitespace. Comma support would require
-/// adding Token::Comma to the lexer or detecting commas within Text tokens.
+/// Grammar: <parameters> = (<parameter> ","?)+
+/// Parameters can be separated by whitespace, commas, or both
 fn annotation_parameters(
 ) -> impl Parser<TokenSpan, Vec<ParameterWithSpans>, Error = ParserError> + Clone {
+    // Separator can be: whitespace, comma, or comma+whitespace
+    let separator = token(Token::Comma)
+        .then(token(Token::Whitespace).or_not())
+        .ignored()
+        .or(token(Token::Whitespace));
+
     annotation_parameter()
-        .separated_by(token(Token::Whitespace).or(token(Token::Whitespace)))
+        .separated_by(separator)
         .at_least(1)
         .allow_trailing()
 }
@@ -496,9 +540,8 @@ fn annotation_parameters(
 /// 2. Single-line: `:: label :: text\n` - Text after :: captured as paragraph
 /// 3. Block: `:: label ::\n<indent>content<dedent>::` - Newline consumed, indented content
 ///
-/// TODO(annotation-parser): Remaining limitations:
-/// 1. Parameters with commas: Comma separation requires lexer support or text post-processing.
-/// 2. Nested annotations: Currently not supported (by design, per spec).
+/// Remaining limitation:
+/// 1. Nested annotations: Currently not supported (by design, per spec).
 fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone {
     // Content parser for annotations - excludes sessions and nested annotations
     let annotation_content = recursive(|_annotation_content_parser| {
@@ -2366,6 +2409,59 @@ mod tests {
     }
 
     #[test]
+    fn test_annotation_comma_separated_parameters() {
+        let source = ":: warning severity=high,priority=urgent ::\n\nText. {{paragraph}}\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        let annotation = doc.items[0].as_annotation().unwrap();
+        assert_eq!(annotation.label.value, "warning");
+        assert_eq!(annotation.parameters.len(), 2);
+        assert_eq!(annotation.parameters[0].key, "severity");
+        assert_eq!(annotation.parameters[0].value, Some("high".to_string()));
+        assert_eq!(annotation.parameters[1].key, "priority");
+        assert_eq!(annotation.parameters[1].value, Some("urgent".to_string()));
+    }
+
+    #[test]
+    fn test_annotation_quoted_string_values() {
+        let source =
+            ":: note author=\"Jane Doe\" title=\"Important Note\" ::\n\nText. {{paragraph}}\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        let annotation = doc.items[0].as_annotation().unwrap();
+        assert_eq!(annotation.label.value, "note");
+        assert_eq!(annotation.parameters.len(), 2);
+        assert_eq!(annotation.parameters[0].key, "author");
+        assert_eq!(annotation.parameters[0].value, Some("Jane Doe".to_string()));
+        assert_eq!(annotation.parameters[1].key, "title");
+        assert_eq!(
+            annotation.parameters[1].value,
+            Some("Important Note".to_string())
+        );
+    }
+
+    #[test]
+    fn test_annotation_mixed_separators_and_quotes() {
+        let source = ":: task priority=high,status=\"in progress\" assigned=alice ::\n\nText. {{paragraph}}\n";
+        let tokens = lex_with_spans(source);
+        let doc = parse_with_source(tokens, source).unwrap();
+
+        let annotation = doc.items[0].as_annotation().unwrap();
+        assert_eq!(annotation.parameters.len(), 3);
+        assert_eq!(annotation.parameters[0].key, "priority");
+        assert_eq!(annotation.parameters[0].value, Some("high".to_string()));
+        assert_eq!(annotation.parameters[1].key, "status");
+        assert_eq!(
+            annotation.parameters[1].value,
+            Some("in progress".to_string())
+        );
+        assert_eq!(annotation.parameters[2].key, "assigned");
+        assert_eq!(annotation.parameters[2].value, Some("alice".to_string()));
+    }
+
+    #[test]
     fn test_verified_annotations_simple() {
         let source = TxxtSources::get_string("120-annotations-simple.txxt")
             .expect("Failed to load sample file");
@@ -2440,9 +2536,11 @@ mod tests {
             })
             .expect("Should contain :: note :: annotation");
         let note = note_annotation.as_annotation().unwrap();
-        assert_eq!(note.parameters.len(), 1);
+        assert_eq!(note.parameters.len(), 2);
         assert_eq!(note.parameters[0].key, "author");
-        assert_eq!(note.parameters[0].value, Some("JaneDoe".to_string()));
+        assert_eq!(note.parameters[0].value, Some("Jane Doe".to_string()));
+        assert_eq!(note.parameters[1].key, "date");
+        assert_eq!(note.parameters[1].value, Some("2025-01-15".to_string()));
         assert_eq!(note.content.len(), 2); // Two paragraphs
         assert!(note.content[0].is_paragraph());
         assert!(note.content[1].is_paragraph());
@@ -2458,9 +2556,13 @@ mod tests {
             })
             .expect("Should contain :: warning :: annotation");
         let warning = warning_annotation.as_annotation().unwrap();
-        assert_eq!(warning.parameters.len(), 1);
+        assert_eq!(warning.parameters.len(), 3);
         assert_eq!(warning.parameters[0].key, "severity");
         assert_eq!(warning.parameters[0].value, Some("critical".to_string()));
+        assert_eq!(warning.parameters[1].key, "priority");
+        assert_eq!(warning.parameters[1].value, Some("high".to_string()));
+        assert_eq!(warning.parameters[2].key, "reviewer");
+        assert_eq!(warning.parameters[2].value, Some("Alice Smith".to_string()));
         assert_eq!(warning.content.len(), 2); // Paragraph + List
         assert!(warning.content[0].is_paragraph());
         assert!(warning.content[1].is_list());

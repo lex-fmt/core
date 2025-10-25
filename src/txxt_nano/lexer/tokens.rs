@@ -42,12 +42,20 @@ pub enum Token {
     #[token(":")]
     Colon,
 
+    // Parameter markers (for annotations)
+    #[token(",")]
+    Comma,
+    #[token("\"")]
+    Quote,
+    #[token("=")]
+    Equals,
+
     // Numbers (for ordered lists and session titles)
     #[regex(r"[0-9]+", priority = 2)]
     Number,
 
-    // Text content (catch-all for non-special characters, excluding numbers)
-    #[regex(r"[^\s\n\t\-\.\(\):0-9]+")]
+    // Text content (catch-all for non-special characters, excluding numbers and special chars)
+    #[regex(r#"[^\s\n\t\-\.\(\):0-9,="']+"#)]
     Text,
 }
 
@@ -65,6 +73,9 @@ impl fmt::Display for Token {
             Token::OpenParen => "open-paren",
             Token::CloseParen => "close-paren",
             Token::Colon => "colon",
+            Token::Comma => "comma",
+            Token::Quote => "quote",
+            Token::Equals => "equals",
             Token::Number => "number",
             Token::Text => "text",
         };
