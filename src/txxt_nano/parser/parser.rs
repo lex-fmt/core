@@ -719,6 +719,8 @@ mod tests {
 
     #[test]
     fn test_verified_single_session_sample() {
+        use crate::txxt_nano::testing::assert_ast;
+
         let source = TxxtSources::get_string("010-paragraphs-sessions-flat-single.txxt")
             .expect("Failed to load sample file");
         let tokens = lex(&source);
@@ -743,266 +745,35 @@ mod tests {
         //   Line 15: "This session demonstrates..." - paragraph (1 line)
         // Line 17: "Final paragraph..." - paragraph (1 line)
 
-        let expected_doc_items = 6;
-        assert_eq!(
-            doc.items.len(),
-            expected_doc_items,
-            "Expected {} root-level items, got {}.\n\nExpected:\n  0: Paragraph (1 line)\n  1: Paragraph (1 line)\n  2: Session with 2 paragraphs\n  3: Paragraph (1 line)\n  4: Session with 1 paragraph\n  5: Paragraph (1 line)\n\nActual:\n{}",
-            expected_doc_items,
-            doc.items.len(),
-            doc.items.iter().enumerate()
-                .map(|(i, item)| match item {
-                    ContentItem::Paragraph(p) => format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
-                    ContentItem::Session(s) => format!("  {}: Session with {} items", i, s.content.len()),
-                    ContentItem::List(l) => format!("  {}: List with {} items", i, l.items.len()),
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
-
-        // Verify item 0: Paragraph with 1 line
-        match &doc.items[0] {
-            ContentItem::Paragraph(p) => {
-                assert_eq!(
-                    p.lines.len(),
-                    1,
-                    "Item 0: Expected 1 line, got {}. Lines: {:?}",
-                    p.lines.len(),
-                    p.lines
-                );
-            }
-            ContentItem::Session(s) => {
-                panic!(
-                    "Item 0: Expected Paragraph, got Session '{}' with {} items",
-                    s.title,
-                    s.content.len()
-                );
-            }
-            ContentItem::List(l) => {
-                panic!(
-                    "Item 0: Expected Paragraph, got List with {} items",
-                    l.items.len()
-                );
-            }
-        }
-
-        // Verify item 1: Paragraph with 1 line
-        match &doc.items[1] {
-            ContentItem::Paragraph(p) => {
-                assert_eq!(
-                    p.lines.len(),
-                    1,
-                    "Item 1: Expected 1 line, got {}. Lines: {:?}",
-                    p.lines.len(),
-                    p.lines
-                );
-            }
-            ContentItem::Session(s) => {
-                panic!(
-                    "Item 1: Expected Paragraph, got Session '{}' with {} items",
-                    s.title,
-                    s.content.len()
-                );
-            }
-            ContentItem::List(l) => {
-                panic!(
-                    "Item 1: Expected Paragraph, got List with {} items",
-                    l.items.len()
-                );
-            }
-        }
-
-        // Verify item 2: Session with 2 paragraphs
-        match &doc.items[2] {
-            ContentItem::Session(session) => {
-                assert_eq!(
-                    session.content.len(), 2,
-                    "Item 2: Session should have 2 items, got {}.\n\nExpected:\n  0: Paragraph (1 line)\n  1: Paragraph (1 line)\n\nActual:\n{}",
-                    session.content.len(),
-                    session.content.iter().enumerate()
-                        .map(|(i, item)| match item {
-                            ContentItem::Paragraph(p) => format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
-                            ContentItem::Session(s) => format!("  {}: Session with {} items", i, s.content.len()),
-                            ContentItem::List(l) => format!("  {}: List with {} items", i, l.items.len()),
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                );
-
-                // Verify session's first paragraph
-                match &session.content[0] {
-                    ContentItem::Paragraph(p) => {
-                        assert_eq!(
-                            p.lines.len(),
-                            1,
-                            "Item 2, child 0: Expected 1 line, got {}. Lines: {:?}",
-                            p.lines.len(),
-                            p.lines
-                        );
-                    }
-                    ContentItem::Session(s) => {
-                        panic!(
-                            "Item 2, child 0: Expected Paragraph, got Session '{}' with {} items",
-                            s.title,
-                            s.content.len()
-                        );
-                    }
-                    ContentItem::List(l) => {
-                        panic!(
-                            "Item 2, child 0: Expected Paragraph, got List with {} items",
-                            l.items.len()
-                        );
-                    }
-                }
-
-                // Verify session's second paragraph
-                match &session.content[1] {
-                    ContentItem::Paragraph(p) => {
-                        assert_eq!(
-                            p.lines.len(),
-                            1,
-                            "Item 2, child 1: Expected 1 line, got {}. Lines: {:?}",
-                            p.lines.len(),
-                            p.lines
-                        );
-                    }
-                    ContentItem::Session(s) => {
-                        panic!(
-                            "Item 2, child 1: Expected Paragraph, got Session '{}' with {} items",
-                            s.title,
-                            s.content.len()
-                        );
-                    }
-                    ContentItem::List(l) => {
-                        panic!(
-                            "Item 2, child 1: Expected Paragraph, got List with {} items",
-                            l.items.len()
-                        );
-                    }
-                }
-            }
-            ContentItem::Paragraph(p) => {
-                panic!(
-                    "Item 2: Expected Session with 2 items, got Paragraph with {} lines",
-                    p.lines.len()
-                );
-            }
-            ContentItem::List(l) => {
-                panic!(
-                    "Item 2: Expected Session, got List with {} items",
-                    l.items.len()
-                );
-            }
-        }
-
-        // Verify item 3: Paragraph with 1 line
-        match &doc.items[3] {
-            ContentItem::Paragraph(p) => {
-                assert_eq!(
-                    p.lines.len(),
-                    1,
-                    "Item 3: Expected 1 line, got {}. Lines: {:?}",
-                    p.lines.len(),
-                    p.lines
-                );
-            }
-            ContentItem::Session(s) => {
-                panic!(
-                    "Item 3: Expected Paragraph, got Session '{}' with {} items",
-                    s.title,
-                    s.content.len()
-                );
-            }
-            ContentItem::List(l) => {
-                panic!(
-                    "Item 3: Expected Paragraph, got List with {} items",
-                    l.items.len()
-                );
-            }
-        }
-
-        // Verify item 4: Session with 1 paragraph
-        match &doc.items[4] {
-            ContentItem::Session(session) => {
-                assert_eq!(
-                    session.content.len(), 1,
-                    "Item 4: Session should have 1 item, got {}.\n\nExpected:\n  0: Paragraph (1 line)\n\nActual:\n{}",
-                    session.content.len(),
-                    session.content.iter().enumerate()
-                        .map(|(i, item)| match item {
-                            ContentItem::Paragraph(p) => format!("  {}: Paragraph ({} lines)", i, p.lines.len()),
-                            ContentItem::Session(s) => format!("  {}: Session with {} items", i, s.content.len()),
-                            ContentItem::List(l) => format!("  {}: List with {} items", i, l.items.len()),
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                );
-
-                // Verify session's paragraph
-                match &session.content[0] {
-                    ContentItem::Paragraph(p) => {
-                        assert_eq!(
-                            p.lines.len(),
-                            1,
-                            "Item 4, child 0: Expected 1 line, got {}. Lines: {:?}",
-                            p.lines.len(),
-                            p.lines
-                        );
-                    }
-                    ContentItem::Session(s) => {
-                        panic!(
-                            "Item 4, child 0: Expected Paragraph, got Session '{}' with {} items",
-                            s.title,
-                            s.content.len()
-                        );
-                    }
-                    ContentItem::List(l) => {
-                        panic!(
-                            "Item 4, child 0: Expected Paragraph, got List with {} items",
-                            l.items.len()
-                        );
-                    }
-                }
-            }
-            ContentItem::Paragraph(p) => {
-                panic!(
-                    "Item 4: Expected Session with 1 item, got Paragraph with {} lines",
-                    p.lines.len()
-                );
-            }
-            ContentItem::List(l) => {
-                panic!(
-                    "Item 4: Expected Session, got List with {} items",
-                    l.items.len()
-                );
-            }
-        }
-
-        // Verify item 5: Paragraph with 1 line
-        match &doc.items[5] {
-            ContentItem::Paragraph(p) => {
-                assert_eq!(
-                    p.lines.len(),
-                    1,
-                    "Item 5: Expected 1 line, got {}. Lines: {:?}",
-                    p.lines.len(),
-                    p.lines
-                );
-            }
-            ContentItem::Session(s) => {
-                panic!(
-                    "Item 5: Expected Paragraph, got Session '{}' with {} items",
-                    s.title,
-                    s.content.len()
-                );
-            }
-            ContentItem::List(l) => {
-                panic!(
-                    "Item 5: Expected Paragraph, got List with {} items",
-                    l.items.len()
-                );
-            }
-        }
+        assert_ast(&doc)
+            .item_count(6)
+            .item(0, |item| {
+                item.assert_paragraph().line_count(1);
+            })
+            .item(1, |item| {
+                item.assert_paragraph().line_count(1);
+            })
+            .item(2, |item| {
+                item.assert_session()
+                    .child_count(2)
+                    .child(0, |child| {
+                        child.assert_paragraph().line_count(1);
+                    })
+                    .child(1, |child| {
+                        child.assert_paragraph().line_count(1);
+                    });
+            })
+            .item(3, |item| {
+                item.assert_paragraph().line_count(1);
+            })
+            .item(4, |item| {
+                item.assert_session().child_count(1).child(0, |child| {
+                    child.assert_paragraph().line_count(1);
+                });
+            })
+            .item(5, |item| {
+                item.assert_paragraph().line_count(1);
+            });
     }
 
     #[test]
