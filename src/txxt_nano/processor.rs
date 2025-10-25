@@ -2,6 +2,27 @@
 //!
 //! This module provides an extensible API for processing txxt files with different
 //! stages (token, ast) and formats (simple, json, xml, etc.).
+//!
+//! # Sample Sources
+//!
+//! The `txxt_sources` module provides access to verified txxt sample files for testing.
+//! These samples are the only canonical sources for txxt content and should be used
+//! instead of copying content to ensure tests use the latest specification.
+//!
+//! ## Example Usage
+//!
+//! ```rust
+//! use txxt_nano::txxt_nano::processor::txxt_sources::TxxtSources;
+//!
+//! // Get raw string content
+//! let content = TxxtSources::get_string("000-paragraphs.txxt").unwrap();
+//!
+//! // Get tokenized content
+//! let tokens = TxxtSources::get_tokens("040-lists.txxt").unwrap();
+//!
+//! // Get processed content in simple format
+//! let processed = TxxtSources::get_processed("050-paragraph-lists.txxt", "token-simple").unwrap();
+//! ```
 
 use crate::txxt_nano::lexer::{lex, tokenize, Token};
 use std::fmt;
@@ -92,6 +113,8 @@ pub enum ProcessingError {
     IoError(String),
 }
 
+impl std::error::Error for ProcessingError {}
+
 impl fmt::Display for ProcessingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -179,6 +202,213 @@ pub fn available_formats() -> Vec<String> {
             )
         })
         .collect()
+}
+
+/// Sample sources module for accessing verified txxt test files
+pub mod txxt_sources {
+    use super::*;
+
+    /// The current specification version - change this when spec updates
+    pub const SPEC_VERSION: &str = "v1";
+
+    /// Available sample files (canonical sources)
+    pub const AVAILABLE_SAMPLES: &[&str] = &[
+        "000-paragraphs.txxt",
+        "010-paragraphs-sessions-flat-single.txxt",
+        "020-paragraphs-sessions-flat-multiple.txxt",
+        "030-paragraphs-sessions-nested-multiple.txxt",
+        "040-lists.txxt",
+        "050-paragraph-lists.txxt",
+        "050-trifecta-flat-simple.txxt",
+        "060-trifecta-nesting.txxt",
+    ];
+
+    /// Format options for sample content
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum SampleFormat {
+        /// Raw string content
+        String,
+        /// Tokenized content (Vec<Token>)
+        Tokens,
+        /// Processed content using the specified format string
+        Processed(String),
+    }
+
+    /// Main interface for accessing txxt sample files
+    pub struct TxxtSources;
+
+    impl TxxtSources {
+        /// Get the path to the samples directory
+        fn samples_dir() -> String {
+            format!("docs/specs/{}/samples", SPEC_VERSION)
+        }
+
+        /// Get the full path to a sample file
+        fn sample_path(filename: &str) -> String {
+            format!("{}/{}", Self::samples_dir(), filename)
+        }
+
+        /// Validate that a sample file exists and is available
+        fn validate_sample(filename: &str) -> Result<(), ProcessingError> {
+            if !AVAILABLE_SAMPLES.contains(&filename) {
+                return Err(ProcessingError::FileNotFound(format!(
+                    "Sample '{}' is not available. Available samples: {:?}",
+                    filename, AVAILABLE_SAMPLES
+                )));
+            }
+            Ok(())
+        }
+
+        /// Get sample content in the specified format
+        pub fn get_sample(filename: &str, format: SampleFormat) -> Result<String, ProcessingError> {
+            Self::validate_sample(filename)?;
+
+            let path = Self::sample_path(filename);
+
+            match format {
+                SampleFormat::String => fs::read_to_string(&path).map_err(|e| {
+                    ProcessingError::IoError(format!("Failed to read {}: {}", path, e))
+                }),
+                SampleFormat::Tokens => {
+                    let content = fs::read_to_string(&path).map_err(|e| {
+                        ProcessingError::IoError(format!("Failed to read {}: {}", path, e))
+                    })?;
+
+                    let tokens = lex(&content);
+                    let json = serde_json::to_string_pretty(&tokens).map_err(|e| {
+                        ProcessingError::IoError(format!("Failed to serialize tokens: {}", e))
+                    })?;
+
+                    Ok(json)
+                }
+                SampleFormat::Processed(format_str) => {
+                    let spec = ProcessingSpec::from_string(&format_str)?;
+                    process_file(&path, &spec)
+                }
+            }
+        }
+
+        /// Get sample content as raw string
+        pub fn get_string(filename: &str) -> Result<String, ProcessingError> {
+            Self::get_sample(filename, SampleFormat::String)
+        }
+
+        /// Get sample content as tokens (JSON format)
+        pub fn get_tokens(filename: &str) -> Result<String, ProcessingError> {
+            Self::get_sample(filename, SampleFormat::Tokens)
+        }
+
+        /// Get sample content processed with the specified format
+        pub fn get_processed(filename: &str, format: &str) -> Result<String, ProcessingError> {
+            Self::get_sample(filename, SampleFormat::Processed(format.to_string()))
+        }
+
+        /// List all available sample files
+        pub fn list_samples() -> Vec<&'static str> {
+            AVAILABLE_SAMPLES.to_vec()
+        }
+
+        /// Get sample metadata
+        pub fn get_sample_info(filename: &str) -> Result<SampleInfo, ProcessingError> {
+            Self::validate_sample(filename)?;
+
+            let path = Self::sample_path(filename);
+            let content = fs::read_to_string(&path)
+                .map_err(|e| ProcessingError::IoError(format!("Failed to read {}: {}", path, e)))?;
+
+            let lines: Vec<&str> = content.lines().collect();
+            let line_count = lines.len();
+            let char_count = content.len();
+
+            Ok(SampleInfo {
+                filename: filename.to_string(),
+                spec_version: SPEC_VERSION.to_string(),
+                line_count,
+                char_count,
+                description: Self::extract_description(&content),
+            })
+        }
+
+        /// Extract description from sample content (first line or comment)
+        fn extract_description(content: &str) -> Option<String> {
+            let first_line = content.lines().next()?;
+            if first_line.contains("{{paragraph}}") {
+                Some(first_line.replace("{{paragraph}}", "").trim().to_string())
+            } else {
+                Some(first_line.to_string())
+            }
+        }
+    }
+
+    /// Information about a sample file
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SampleInfo {
+        pub filename: String,
+        pub spec_version: String,
+        pub line_count: usize,
+        pub char_count: usize,
+        pub description: Option<String>,
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_get_string_sample() {
+            let content = TxxtSources::get_string("000-paragraphs.txxt").unwrap();
+            assert!(content.contains("Simple Paragraphs Test"));
+            assert!(content.contains("{{paragraph}}"));
+        }
+
+        #[test]
+        fn test_get_tokens_sample() {
+            let tokens_json = TxxtSources::get_tokens("040-lists.txxt").unwrap();
+            assert!(tokens_json.contains("\"Text\""));
+            assert!(tokens_json.contains("\"Dash\""));
+            assert!(tokens_json.contains("\"Number\""));
+        }
+
+        #[test]
+        fn test_get_processed_sample() {
+            let processed =
+                TxxtSources::get_processed("050-paragraph-lists.txxt", "token-simple").unwrap();
+            assert!(processed.contains("<text>"));
+            assert!(processed.contains("<newline>"));
+        }
+
+        #[test]
+        fn test_validate_sample() {
+            assert!(TxxtSources::validate_sample("000-paragraphs.txxt").is_ok());
+            assert!(TxxtSources::validate_sample("invalid-sample.txxt").is_err());
+        }
+
+        #[test]
+        fn test_list_samples() {
+            let samples = TxxtSources::list_samples();
+            assert!(samples.contains(&"000-paragraphs.txxt"));
+            assert!(samples.contains(&"040-lists.txxt"));
+            assert_eq!(samples.len(), 8);
+        }
+
+        #[test]
+        fn test_get_sample_info() {
+            let info = TxxtSources::get_sample_info("000-paragraphs.txxt").unwrap();
+            assert_eq!(info.filename, "000-paragraphs.txxt");
+            assert_eq!(info.spec_version, "v1");
+            assert!(info.line_count > 0);
+            assert!(info.char_count > 0);
+            assert!(info.description.is_some());
+        }
+
+        #[test]
+        fn test_all_samples_accessible() {
+            for sample in TxxtSources::list_samples() {
+                let content = TxxtSources::get_string(sample).unwrap();
+                assert!(!content.is_empty(), "Sample {} should not be empty", sample);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
