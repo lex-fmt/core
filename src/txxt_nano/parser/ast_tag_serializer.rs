@@ -94,6 +94,39 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
                 output.push_str(&format!("{}</content></definition>\n", indent));
             }
         }
+        ContentItem::Annotation(a) => {
+            // <annotation>label<parameters>...</parameters><content>...</content></annotation>
+            output.push_str(&format!("{}<annotation>", indent));
+            output.push_str(&escape_xml(&a.label.value));
+
+            // Add parameters if present
+            if !a.parameters.is_empty() {
+                output.push_str("<parameters>");
+                for (i, param) in a.parameters.iter().enumerate() {
+                    if i > 0 {
+                        output.push(',');
+                    }
+                    output.push_str(&escape_xml(&param.key));
+                    if let Some(value) = &param.value {
+                        output.push('=');
+                        output.push_str(&escape_xml(value));
+                    }
+                }
+                output.push_str("</parameters>");
+            }
+
+            if a.children().is_empty() {
+                // Empty annotation (marker or single-line form)
+                output.push_str("</annotation>\n");
+            } else {
+                // Annotation with content (block form)
+                output.push_str("<content>\n");
+                for child in a.children() {
+                    serialize_content_item(child, indent_level + 1, output);
+                }
+                output.push_str(&format!("{}</content></annotation>\n", indent));
+            }
+        }
     }
 }
 
