@@ -413,10 +413,12 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
     recursive(|session_parser| {
         // Parse order (from docs/tips-tricks.txxt):
         // 1. List first (requires 2+ list-item-lines)
-        // 2. Session second (requires title + blank + indent)
-        // 3. Paragraph last (catch-all, including single list-item-lines)
+        // 2. Definition second (requires subject ending with colon + NO blank line + indent)
+        // 3. Session third (requires title + blank line + indent)
+        // 4. Paragraph last (catch-all, including single list-item-lines)
         let content_item = list()
             .map(ContentItemWithSpans::List)
+            .or(definition().map(ContentItemWithSpans::Definition))
             .or(session_parser.map(ContentItemWithSpans::Session))
             .or(paragraph().map(ContentItemWithSpans::Paragraph));
 
@@ -1978,6 +1980,149 @@ mod tests {
         // Item 7: End paragraph
         assert_ast(&doc).item(7, |item| {
             item.assert_paragraph().text_contains("End of document");
+        });
+    }
+
+    #[test]
+    fn test_verified_ensemble_with_definitions() {
+        // Comprehensive ensemble test with all core elements including definitions
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("110-ensemble-with-definitions.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Item 0-1: Opening paragraphs
+        assert_ast(&doc)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text_contains("Ensemble Test with Definitions");
+            })
+            .item(1, |item| {
+                item.assert_paragraph().text_contains("all core elements");
+            });
+
+        // Item 2: Introduction definition (with para + list)
+        assert_ast(&doc).item(2, |item| {
+            item.assert_definition()
+                .subject("Introduction")
+                .child_count(2)
+                .child(0, |child| {
+                    child.assert_paragraph().text_contains("ensemble test");
+                })
+                .child(1, |child| {
+                    child.assert_list().item_count(4);
+                });
+        });
+
+        // Item 3: Session "1. Simple Elements Section"
+        assert_ast(&doc).item(3, |item| {
+            item.assert_session()
+                .label_contains("1. Simple Elements Section")
+                .child_count(5); // para, def, def, para, list
+        });
+
+        // Verify first child is paragraph
+        assert_ast(&doc).item(3, |item| {
+            item.assert_session()
+                .child(0, |child| {
+                    child.assert_paragraph().text_contains("isolation");
+                })
+                .child(1, |child| {
+                    child
+                        .assert_definition()
+                        .subject("API Endpoint")
+                        .child_count(1);
+                })
+                .child(2, |child| {
+                    child
+                        .assert_definition()
+                        .subject("Database Types")
+                        .child_count(1);
+                })
+                .child(3, |child| {
+                    child.assert_paragraph().text_contains("simple list");
+                })
+                .child(4, |child| {
+                    child.assert_list().item_count(3);
+                });
+        });
+
+        // Item 4: Session "2. Nested Elements Section" - contains subsessions
+        assert_ast(&doc).item(4, |item| {
+            item.assert_session()
+                .label_contains("2. Nested Elements Section")
+                .child_count(3); // para, subsession, subsession
+        });
+
+        // Verify subsession 2.1 contains definitions
+        assert_ast(&doc).item(4, |item| {
+            item.assert_session().child(1, |child| {
+                child
+                    .assert_session()
+                    .label_contains("2.1. Subsection with Definitions")
+                    .child_count(4); // def, def, para, def
+            });
+        });
+
+        // Verify subsession 2.2 has mixed content
+        assert_ast(&doc).item(4, |item| {
+            item.assert_session().child(2, |child| {
+                child
+                    .assert_session()
+                    .label_contains("2.2. Subsection with Mixed Content")
+                    .child_count(6); // para, def, para, def, para, list
+            });
+        });
+
+        // Item 5: Session "3. Deep Nesting Section" - tests deep nesting
+        assert_ast(&doc).item(5, |item| {
+            item.assert_session()
+                .label_contains("3. Deep Nesting Section")
+                .child_count(2); // para, subsession
+        });
+
+        // Verify deep nesting with definitions at multiple levels
+        assert_ast(&doc).item(5, |item| {
+            item.assert_session().child(1, |child| {
+                child
+                    .assert_session()
+                    .label_contains("3.1. Level One")
+                    .child_count(3); // para, def, subsession
+            });
+        });
+
+        // Verify level two subsession contains definitions
+        assert_ast(&doc).item(5, |item| {
+            item.assert_session().child(1, |subsession_3_1| {
+                subsession_3_1
+                    .assert_session()
+                    .child(2, |subsession_3_1_1| {
+                        subsession_3_1_1
+                            .assert_session()
+                            .label_contains("3.1.1. Level Two")
+                            .child_count(4); // para, def, def, para
+                    });
+            });
+        });
+
+        // Item 6: Regular paragraph after sessions
+        assert_ast(&doc).item(6, |item| {
+            item.assert_paragraph()
+                .text_contains("Regular paragraph after all sessions");
+        });
+
+        // Item 7: Final Definition at root level
+        assert_ast(&doc).item(7, |item| {
+            item.assert_definition()
+                .subject("Final Definition")
+                .child_count(1);
+        });
+
+        // Item 8: End paragraph
+        assert_ast(&doc).item(8, |item| {
+            item.assert_paragraph()
+                .text_contains("End of ensemble test");
         });
     }
 }

@@ -263,6 +263,7 @@ pub mod txxt_sources {
         "080-nested-lists-mixed-content.txxt",
         "090-definitions-simple.txxt",
         "100-definitions-mixed-content.txxt",
+        "110-ensemble-with-definitions.txxt",
     ];
 
     /// Format options for sample content
@@ -434,7 +435,7 @@ pub mod txxt_sources {
             assert!(samples.contains(&"080-nested-lists-mixed-content.txxt"));
             assert!(samples.contains(&"090-definitions-simple.txxt"));
             assert!(samples.contains(&"100-definitions-mixed-content.txxt"));
-            assert_eq!(samples.len(), 12);
+            assert_eq!(samples.len(), 13);
         }
 
         #[test]
