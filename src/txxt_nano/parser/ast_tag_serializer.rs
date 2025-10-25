@@ -145,7 +145,7 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
             // Add closing annotation
             output.push_str("<closing-annotation>");
             output.push_str(&escape_xml(&fb.closing_annotation.label.value));
-            
+
             // Add parameters if present
             if !fb.closing_annotation.parameters.is_empty() {
                 output.push_str("<parameters>");
@@ -161,7 +161,7 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
                 }
                 output.push_str("</parameters>");
             }
-            
+
             output.push_str("</closing-annotation></foreign-block>\n");
         }
     }

@@ -185,15 +185,21 @@ pub fn process_file<P: AsRef<Path>>(
         }
         ProcessingStage::Ast => {
             // Parse the document
-            let doc = crate::txxt_nano::parser::parse_document(&content)
-                .map_err(|errs| {
-                    let error_details = errs.iter()
-                        .map(|e| format!("  Parse error at span {:?}: reason={:?}, found={:?}",
-                            e.span(), e.reason(), e.found()))
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    ProcessingError::IoError(format!("Failed to parse document:\n{}", error_details))
-                })?;
+            let doc = crate::txxt_nano::parser::parse_document(&content).map_err(|errs| {
+                let error_details = errs
+                    .iter()
+                    .map(|e| {
+                        format!(
+                            "  Parse error at span {:?}: reason={:?}, found={:?}",
+                            e.span(),
+                            e.reason(),
+                            e.found()
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                ProcessingError::IoError(format!("Failed to parse document:\n{}", error_details))
+            })?;
 
             // Format according to output format
             match spec.format {
