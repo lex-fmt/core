@@ -4,7 +4,7 @@
 //! from our sample collection without panicking or producing invalid tokens.
 
 use proptest::prelude::*;
-use txxt_nano::txxt_nano::lexer::{tokenize, Token};
+use txxt_nano::txxt_nano::lexer::{lex, tokenize, Token};
 
 /// Sample document snapshot tests
 #[cfg(test)]
@@ -20,7 +20,7 @@ mod sample_document_tests {
     #[test]
     fn test_000_paragraphs_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/000-paragraphs.txxt");
-        let tokens = tokenize(&content);
+        let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -29,7 +29,7 @@ mod sample_document_tests {
     fn test_010_sessions_flat_single_tokenization() {
         let content =
             read_sample_document("docs/specs/v1/samples/010-paragraphs-sessions-flat-single.txxt");
-        let tokens = tokenize(&content);
+        let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -39,7 +39,7 @@ mod sample_document_tests {
         let content = read_sample_document(
             "docs/specs/v1/samples/020-paragraphs-sessions-flat-multiple.txxt",
         );
-        let tokens = tokenize(&content);
+        let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -49,7 +49,7 @@ mod sample_document_tests {
         let content = read_sample_document(
             "docs/specs/v1/samples/030-paragraphs-sessions-nested-multiple.txxt",
         );
-        let tokens = tokenize(&content);
+        let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -57,7 +57,7 @@ mod sample_document_tests {
     #[test]
     fn test_040_lists_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/040-lists.txxt");
-        let tokens = tokenize(&content);
+        let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -65,7 +65,7 @@ mod sample_document_tests {
     #[test]
     fn test_050_paragraph_lists_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/050-paragraph-lists.txxt");
-        let tokens = tokenize(&content);
+        let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -73,7 +73,7 @@ mod sample_document_tests {
     #[test]
     fn test_050_trifecta_flat_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
-        let tokens = tokenize(&content);
+        let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -81,7 +81,7 @@ mod sample_document_tests {
     #[test]
     fn test_060_trifecta_nesting_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/060-trifecta-nesting.txxt");
-        let tokens = tokenize(&content);
+        let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -183,8 +183,8 @@ mod proptest_tests {
             let tokens = tokenize(&input);
             for token in tokens {
                 match token {
-                    Token::TxxtMarker | Token::Indent | Token::Whitespace |
-                    Token::Newline | Token::Dash | Token::Period |
+                    Token::TxxtMarker | Token::Indent | Token::IndentLevel | Token::DedentLevel |
+                    Token::Whitespace | Token::Newline | Token::Dash | Token::Period |
                     Token::OpenParen | Token::CloseParen | Token::Colon |
                     Token::Number | Token::Text => {
                         // All valid tokens
