@@ -8,6 +8,43 @@ use std::fmt;
 // ============================================================================
 // AST Traits - Common interfaces for uniform node access
 // ============================================================================
+//
+// These traits provide a uniform interface for working with different AST node types.
+// This is crucial for generic algorithms like tree traversal, serialization, and testing.
+//
+// ## Design Philosophy
+//
+// AST nodes have semantic field names (`title`, `content`, `subject`, `item_line`) that
+// describe their specific role, but generic code needs uniform access. These traits bridge
+// that gap:
+//
+// - Struct fields: Semantic names (`Session.title`, `Session.content`)
+// - Trait methods: Standard names (`session.label()`, `session.children()`)
+//
+// ## Usage
+//
+// **Testing**: The assertion library uses these traits to provide uniform assertions
+// across all node types without knowing their concrete types.
+//
+// **Serialization**: A generic XML/JSON serializer can traverse any AST node using
+// `label()` and `children()` without knowing if it's a Session, ListItem, or Definition.
+//
+// **Tree visualization**: Debug printers can show any tree structure using the common
+// interface, automatically formatting nested structures regardless of node type.
+//
+// ## Example
+//
+// ```rust
+// use txxt_nano::parser::ast::{Container, Session, ContentItem, Paragraph};
+//
+// let session = Session::new("Introduction".to_string(), vec![
+//     ContentItem::Paragraph(Paragraph::from_line("Hello".to_string()))
+// ]);
+//
+// // Access through trait - works for Session, ListItem, Definition, etc.
+// assert_eq!(session.label(), "Introduction");
+// assert_eq!(session.children().len(), 1);
+// ```
 
 /// Common interface for all AST nodes
 pub trait AstNode {
@@ -21,11 +58,18 @@ pub trait AstNode {
 }
 
 /// Trait for container nodes that have a label and children
+///
+/// Container nodes have a "title-like" identifier and nested content.
+/// Examples: Session (has title), ListItem (has item line), Definition (has subject).
 pub trait Container: AstNode {
     /// Get the label/title/subject of this container
+    ///
+    /// Maps to semantic field: `title`, `subject`, `item_line`, etc.
     fn label(&self) -> &str;
 
     /// Get the children of this container
+    ///
+    /// Maps to semantic field: `content`
     fn children(&self) -> &[ContentItem];
 
     /// Get a mutable reference to children (for tree manipulation)
@@ -33,6 +77,9 @@ pub trait Container: AstNode {
 }
 
 /// Trait for leaf nodes that contain text
+///
+/// Text nodes are leaves in the AST tree - they have content but no children.
+/// Example: Paragraph.
 pub trait TextNode: AstNode {
     /// Get the text content of this node
     fn text(&self) -> String;
