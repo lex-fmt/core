@@ -21,17 +21,22 @@ mod tests {
         assert_eq!(spec.stage, ProcessingStage::Token);
         assert_eq!(spec.format, OutputFormat::Json);
 
+        // Test AST stage
+        let spec = ProcessingSpec::from_string("ast-tag").unwrap();
+        assert_eq!(spec.stage, ProcessingStage::Ast);
+        assert_eq!(spec.format, OutputFormat::AstTag);
+
         // Test invalid specs
         assert!(ProcessingSpec::from_string("invalid").is_err());
         assert!(ProcessingSpec::from_string("token-invalid").is_err());
         assert!(ProcessingSpec::from_string("invalid-simple").is_err());
-        assert!(ProcessingSpec::from_string("ast-simple").is_err()); // AST not implemented yet
+        assert!(ProcessingSpec::from_string("ast-simple").is_err()); // Simple format not supported for AST
     }
 
     #[test]
     fn test_available_specs() {
         let specs = ProcessingSpec::available_specs();
-        assert_eq!(specs.len(), 4);
+        assert_eq!(specs.len(), 5); // 4 token formats + 1 AST format
 
         let token_simple = specs
             .iter()
@@ -145,12 +150,20 @@ mod tests {
     }
 
     #[test]
-    fn test_ast_processing_not_implemented() {
+    fn test_ast_tag_format() {
+        // AST tag format is now implemented
+        let result = ProcessingSpec::from_string("ast-tag");
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert_eq!(spec.stage, ProcessingStage::Ast);
+        assert_eq!(spec.format, OutputFormat::AstTag);
+
+        // But ast-simple is still not supported
         let result = ProcessingSpec::from_string("ast-simple");
         assert!(result.is_err());
         match result.unwrap_err() {
-            ProcessingError::InvalidStage(_) => {} // Expected
-            _ => panic!("Expected InvalidStage error"),
+            ProcessingError::InvalidFormatType(_) => {} // Expected
+            _ => panic!("Expected InvalidFormatType error"),
         }
     }
 
@@ -212,6 +225,9 @@ mod tests {
                     Ok(json)
                 }
                 OutputFormat::Xml => Err(ProcessingError::InvalidFormatType("xml".to_string())),
+                OutputFormat::AstTag => Err(ProcessingError::InvalidFormatType(
+                    "ast-tag format only works with ast stage".to_string(),
+                )),
             },
             ProcessingStage::Ast => Err(ProcessingError::InvalidStage("ast".to_string())),
         }
