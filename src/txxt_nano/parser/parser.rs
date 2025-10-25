@@ -11,7 +11,7 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-use super::ast::{ContentItem, Document, List, ListItem, Paragraph, Session};
+use super::ast::{ContentItem, Definition, Document, List, ListItem, Paragraph, Session};
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -38,6 +38,13 @@ pub(crate) struct SessionWithSpans {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+pub(crate) struct DefinitionWithSpans {
+    subject_spans: Vec<Range<usize>>,
+    content: Vec<ContentItemWithSpans>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ListItemWithSpans {
     text_spans: Vec<Range<usize>>,
     content: Vec<ContentItemWithSpans>,
@@ -55,6 +62,7 @@ pub(crate) enum ContentItemWithSpans {
     Paragraph(ParagraphWithSpans),
     Session(SessionWithSpans),
     List(ListWithSpans),
+    Definition(DefinitionWithSpans),
 }
 
 #[derive(Debug, Clone)]
@@ -106,6 +114,9 @@ fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem
         ContentItemWithSpans::Paragraph(p) => ContentItem::Paragraph(convert_paragraph(source, p)),
         ContentItemWithSpans::Session(s) => ContentItem::Session(convert_session(source, s)),
         ContentItemWithSpans::List(l) => ContentItem::List(convert_list(source, l)),
+        ContentItemWithSpans::Definition(d) => {
+            ContentItem::Definition(convert_definition(source, d))
+        }
     }
 }
 
@@ -123,6 +134,20 @@ fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
     Session {
         title: extract_line_text(source, &sess.title_spans),
         content: sess
+            .content
+            .into_iter()
+            .map(|item| convert_content_item(source, item))
+            .collect(),
+    }
+}
+
+fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
+    // Extract subject (colon already excluded from spans by definition_subject parser)
+    let subject = extract_line_text(source, &def.subject_spans);
+
+    Definition {
+        subject,
+        content: def
             .content
             .into_iter()
             .map(|item| convert_content_item(source, item))
@@ -302,11 +327,69 @@ fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError
         .map(|line_spans| ParagraphWithSpans { line_spans })
 }
 
+/// Parse a definition subject - a line of text ending with colon, followed immediately by newline (no blank line)
+/// The key difference from session_title is the absence of a blank line before indented content
+fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+    // Parse text tokens before the colon (explicitly excluding colon from subject spans)
+    filter(|(t, _span): &TokenSpan| {
+        matches!(
+            t,
+            Token::Text
+                | Token::Whitespace
+                | Token::Number
+                | Token::Dash
+                | Token::Period
+                | Token::OpenParen
+                | Token::CloseParen
+        )
+    })
+    .repeated()
+    .at_least(1)
+    .map(|tokens_with_spans: Vec<TokenSpan>| {
+        // Collect spans for the subject text (without colon)
+        tokens_with_spans.into_iter().map(|(_, s)| s).collect()
+    })
+    // Explicitly consume the colon and newline
+    .then_ignore(token(Token::Colon))
+    .then_ignore(token(Token::Newline))
+}
+
 /// Parse a session title - a line of text followed by a newline and blank line
 fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::Newline))
+}
+
+/// Parse a definition - a subject ending with colon, immediately followed by indented content
+/// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
+/// Content can include paragraphs and lists, but NOT sessions
+fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
+    // Content parser for definitions - excludes sessions, only paragraphs and lists
+    let definition_content = recursive(|_definition_content_parser| {
+        // Nested list parser
+        let nested_list = list_item()
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List);
+
+        // Definition content can contain lists and paragraphs (NO sessions)
+        nested_list.or(paragraph().map(ContentItemWithSpans::Paragraph))
+    });
+
+    definition_subject()
+        .then(
+            // Must immediately see IndentLevel (no blank line)
+            token(Token::IndentLevel)
+                .ignore_then(definition_content.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel)),
+        )
+        .map(|(subject_spans, content)| DefinitionWithSpans {
+            subject_spans,
+            content,
+        })
 }
 
 /// Parse a session - a title followed by indented content
@@ -316,10 +399,12 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
     recursive(|session_parser| {
         // Parse order (from docs/tips-tricks.txxt):
         // 1. List first (requires 2+ list-item-lines)
-        // 2. Session second (requires title + blank + indent)
-        // 3. Paragraph last (catch-all, including single list-item-lines)
+        // 2. Definition second (requires subject ending with colon + NO blank line + indent)
+        // 3. Session third (requires title + blank line + indent)
+        // 4. Paragraph last (catch-all, including single list-item-lines)
         let content_item = list()
             .map(ContentItemWithSpans::List)
+            .or(definition().map(ContentItemWithSpans::Definition))
             .or(session_parser.map(ContentItemWithSpans::Session))
             .or(paragraph().map(ContentItemWithSpans::Paragraph));
 
@@ -337,17 +422,19 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
     })
 }
 
-/// Parse a document - a sequence of paragraphs, lists, and sessions
+/// Parse a document - a sequence of paragraphs, lists, sessions, and definitions
 /// Returns intermediate AST with spans
 ///
-/// Parse order (from docs/tips-tricks.txxt):
+/// Parse order:
 /// 1. List first (requires 2+ list-item-lines)
-/// 2. Session second (requires title + blank + indent)
-/// 3. Paragraph last (catch-all, including single list-item-lines)
+/// 2. Definition second (requires subject ending with colon + NO blank line + indent)
+/// 3. Session third (requires title + blank line + indent)
+/// 4. Paragraph last (catch-all, including single list-item-lines)
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
     let content_item = list()
         .map(ContentItemWithSpans::List)
+        .or(definition().map(ContentItemWithSpans::Definition))
         .or(session().map(ContentItemWithSpans::Session))
         .or(paragraph().map(ContentItemWithSpans::Paragraph));
 
@@ -516,6 +603,14 @@ mod tests {
                         ContentItem::List(l) => {
                             println!("  {}: List with {} items", i, l.items.len());
                         }
+                        ContentItem::Definition(d) => {
+                            println!(
+                                "  {}: Definition '{}' with {} children",
+                                i,
+                                d.subject,
+                                d.content.len()
+                            );
+                        }
                     }
                 }
                 // This is actually fine - empty session
@@ -575,6 +670,14 @@ mod tests {
                         }
                         ContentItem::List(l) => {
                             println!("  {}: List with {} items", i, l.items.len());
+                        }
+                        ContentItem::Definition(d) => {
+                            println!(
+                                "  {}: Definition '{}' with {} children",
+                                i,
+                                d.subject,
+                                d.content.len()
+                            );
                         }
                     }
                 }
@@ -1671,6 +1774,341 @@ mod tests {
         // Item 8: Final paragraph
         assert_ast(&doc).item(8, |item| {
             item.assert_paragraph().text_contains("End of document");
+        });
+    }
+
+    // ==================== DEFINITION TESTS ====================
+    // Testing definition structures
+
+    #[test]
+    fn test_verified_definitions_simple() {
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("090-definitions-simple.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Item 0-1: Opening paragraphs
+        assert_ast(&doc)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text_contains("Simple Definitions Test");
+            })
+            .item(1, |item| {
+                item.assert_paragraph()
+                    .text_contains("basic Definition element");
+            });
+
+        // Item 2: First Definition
+        assert_ast(&doc).item(2, |item| {
+            item.assert_definition()
+                .subject("First Definition")
+                .child_count(1)
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("content of the first definition");
+                });
+        });
+
+        // Item 3: Second Definition
+        assert_ast(&doc).item(3, |item| {
+            item.assert_definition()
+                .subject("Second Definition")
+                .child_count(1)
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("content that explains the second term");
+                });
+        });
+
+        // Item 4: Glossary Term (with multiple paragraphs)
+        assert_ast(&doc).item(4, |item| {
+            item.assert_definition()
+                .subject("Glossary Term")
+                .child_count(2)
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("word or phrase that needs explanation");
+                })
+                .child(1, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("definitions can have complex content");
+                });
+        });
+
+        // Item 5: API Endpoint
+        assert_ast(&doc).item(5, |item| {
+            item.assert_definition()
+                .subject("API Endpoint")
+                .child_count(1)
+                .child(0, |child| {
+                    child.assert_paragraph().text_contains("specific URL path");
+                });
+        });
+
+        // Item 6: Regular paragraph
+        assert_ast(&doc).item(6, |item| {
+            item.assert_paragraph()
+                .text_contains("Regular paragraph after definitions");
+        });
+
+        // Item 7: Another Term
+        assert_ast(&doc).item(7, |item| {
+            item.assert_definition()
+                .subject("Another Term")
+                .child_count(1)
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("appear anywhere in the document");
+                });
+        });
+
+        // Item 8: Final paragraph
+        assert_ast(&doc).item(8, |item| {
+            item.assert_paragraph().text_contains("Final paragraph");
+        });
+    }
+
+    #[test]
+    fn test_verified_definitions_mixed_content() {
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("100-definitions-mixed-content.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Item 0-1: Opening paragraphs
+        assert_ast(&doc)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text_contains("Definitions with Mixed Content Test");
+            })
+            .item(1, |item| {
+                item.assert_paragraph()
+                    .text_contains("both paragraphs and lists");
+            });
+
+        // Item 2: Programming Language (paragraph + list)
+        assert_ast(&doc).item(2, |item| {
+            item.assert_definition()
+                .subject("Programming Language")
+                .child_count(2)
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("formal language comprising");
+                })
+                .child(1, |child| {
+                    child.assert_list().item_count(3);
+                });
+        });
+
+        // Item 3: HTTP Methods (list only)
+        assert_ast(&doc).item(3, |item| {
+            item.assert_definition()
+                .subject("HTTP Methods")
+                .child_count(1)
+                .child(0, |child| {
+                    child.assert_list().item_count(4);
+                });
+        });
+
+        // Item 4: Data Structure (paragraph + 2 lists)
+        assert_ast(&doc).item(4, |item| {
+            item.assert_definition()
+                .subject("Data Structure")
+                .child_count(3)
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("organizing and storing data");
+                })
+                .child(1, |child| {
+                    child.assert_list().item_count(4);
+                })
+                .child(2, |child| {
+                    child.assert_list().item_count(3);
+                });
+        });
+
+        // Item 5: Regular paragraph
+        assert_ast(&doc).item(5, |item| {
+            item.assert_paragraph()
+                .text_contains("Regular paragraph between definitions");
+        });
+
+        // Item 6: Design Pattern (paragraph + 3 lists)
+        assert_ast(&doc).item(6, |item| {
+            item.assert_definition()
+                .subject("Design Pattern")
+                .child_count(4)
+                .child(0, |child| {
+                    child.assert_paragraph().text_contains("reusable solution");
+                })
+                .child(1, |child| {
+                    child.assert_list().item_count(3);
+                })
+                .child(2, |child| {
+                    child.assert_list().item_count(3);
+                })
+                .child(3, |child| {
+                    child.assert_list().item_count(3);
+                });
+        });
+
+        // Item 7: End paragraph
+        assert_ast(&doc).item(7, |item| {
+            item.assert_paragraph().text_contains("End of document");
+        });
+    }
+
+    #[test]
+    fn test_verified_ensemble_with_definitions() {
+        // Comprehensive ensemble test with all core elements including definitions
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("110-ensemble-with-definitions.txxt").unwrap();
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Item 0-1: Opening paragraphs
+        assert_ast(&doc)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text_contains("Ensemble Test with Definitions");
+            })
+            .item(1, |item| {
+                item.assert_paragraph().text_contains("all core elements");
+            });
+
+        // Item 2: Introduction definition (with para + list)
+        assert_ast(&doc).item(2, |item| {
+            item.assert_definition()
+                .subject("Introduction")
+                .child_count(2)
+                .child(0, |child| {
+                    child.assert_paragraph().text_contains("ensemble test");
+                })
+                .child(1, |child| {
+                    child.assert_list().item_count(4);
+                });
+        });
+
+        // Item 3: Session "1. Simple Elements Section"
+        assert_ast(&doc).item(3, |item| {
+            item.assert_session()
+                .label_contains("1. Simple Elements Section")
+                .child_count(5); // para, def, def, para, list
+        });
+
+        // Verify first child is paragraph
+        assert_ast(&doc).item(3, |item| {
+            item.assert_session()
+                .child(0, |child| {
+                    child.assert_paragraph().text_contains("isolation");
+                })
+                .child(1, |child| {
+                    child
+                        .assert_definition()
+                        .subject("API Endpoint")
+                        .child_count(1);
+                })
+                .child(2, |child| {
+                    child
+                        .assert_definition()
+                        .subject("Database Types")
+                        .child_count(1);
+                })
+                .child(3, |child| {
+                    child.assert_paragraph().text_contains("simple list");
+                })
+                .child(4, |child| {
+                    child.assert_list().item_count(3);
+                });
+        });
+
+        // Item 4: Session "2. Nested Elements Section" - contains subsessions
+        assert_ast(&doc).item(4, |item| {
+            item.assert_session()
+                .label_contains("2. Nested Elements Section")
+                .child_count(3); // para, subsession, subsession
+        });
+
+        // Verify subsession 2.1 contains definitions
+        assert_ast(&doc).item(4, |item| {
+            item.assert_session().child(1, |child| {
+                child
+                    .assert_session()
+                    .label_contains("2.1. Subsection with Definitions")
+                    .child_count(4); // def, def, para, def
+            });
+        });
+
+        // Verify subsession 2.2 has mixed content
+        assert_ast(&doc).item(4, |item| {
+            item.assert_session().child(2, |child| {
+                child
+                    .assert_session()
+                    .label_contains("2.2. Subsection with Mixed Content")
+                    .child_count(6); // para, def, para, def, para, list
+            });
+        });
+
+        // Item 5: Session "3. Deep Nesting Section" - tests deep nesting
+        assert_ast(&doc).item(5, |item| {
+            item.assert_session()
+                .label_contains("3. Deep Nesting Section")
+                .child_count(2); // para, subsession
+        });
+
+        // Verify deep nesting with definitions at multiple levels
+        assert_ast(&doc).item(5, |item| {
+            item.assert_session().child(1, |child| {
+                child
+                    .assert_session()
+                    .label_contains("3.1. Level One")
+                    .child_count(3); // para, def, subsession
+            });
+        });
+
+        // Verify level two subsession contains definitions
+        assert_ast(&doc).item(5, |item| {
+            item.assert_session().child(1, |subsession_3_1| {
+                subsession_3_1
+                    .assert_session()
+                    .child(2, |subsession_3_1_1| {
+                        subsession_3_1_1
+                            .assert_session()
+                            .label_contains("3.1.1. Level Two")
+                            .child_count(4); // para, def, def, para
+                    });
+            });
+        });
+
+        // Item 6: Regular paragraph after sessions
+        assert_ast(&doc).item(6, |item| {
+            item.assert_paragraph()
+                .text_contains("Regular paragraph after all sessions");
+        });
+
+        // Item 7: Final Definition at root level
+        assert_ast(&doc).item(7, |item| {
+            item.assert_definition()
+                .subject("Final Definition")
+                .child_count(1);
+        });
+
+        // Item 8: End paragraph
+        assert_ast(&doc).item(8, |item| {
+            item.assert_paragraph()
+                .text_contains("End of ensemble test");
         });
     }
 }

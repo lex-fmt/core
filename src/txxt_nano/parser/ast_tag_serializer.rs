@@ -77,6 +77,23 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
             }
             output.push_str(&format!("{}</list>\n", indent));
         }
+        ContentItem::Definition(d) => {
+            // <definition>subject<content>...</content></definition>
+            output.push_str(&format!("{}<definition>", indent));
+            output.push_str(&escape_xml(&d.subject));
+
+            if d.children().is_empty() {
+                // Empty definition
+                output.push_str("</definition>\n");
+            } else {
+                // Definition with children
+                output.push_str("<content>\n");
+                for child in d.children() {
+                    serialize_content_item(child, indent_level + 1, output);
+                }
+                output.push_str(&format!("{}</content></definition>\n", indent));
+            }
+        }
     }
 }
 
