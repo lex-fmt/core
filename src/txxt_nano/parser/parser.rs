@@ -142,12 +142,8 @@ fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
 }
 
 fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
-    // Extract subject and remove the trailing colon
-    let subject_with_colon = extract_line_text(source, &def.subject_spans);
-    let subject = subject_with_colon
-        .strip_suffix(':')
-        .unwrap_or(&subject_with_colon)
-        .to_string();
+    // Extract subject (colon already excluded from spans by definition_subject parser)
+    let subject = extract_line_text(source, &def.subject_spans);
 
     Definition {
         subject,
@@ -334,9 +330,7 @@ fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError
 /// Parse a definition subject - a line of text ending with colon, followed immediately by newline (no blank line)
 /// The key difference from session_title is the absence of a blank line before indented content
 fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
-    // We need a text line that includes tokens up to and including a colon
-    // The colon is already captured by text_line() since it matches Token::Colon
-    // We just need to verify the line ends with a colon by checking the last token
+    // Parse text tokens before the colon (explicitly excluding colon from subject spans)
     filter(|(t, _span): &TokenSpan| {
         matches!(
             t,
@@ -347,24 +341,16 @@ fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = Par
                 | Token::Period
                 | Token::OpenParen
                 | Token::CloseParen
-                | Token::Colon
         )
     })
     .repeated()
     .at_least(1)
-    .validate(|tokens_with_spans: Vec<TokenSpan>, span, emit| {
-        // Check if the last token is a colon
-        if let Some((last_token, _)) = tokens_with_spans.last() {
-            if !matches!(last_token, Token::Colon) {
-                emit(Simple::custom(
-                    span,
-                    "Definition subject must end with a colon",
-                ));
-            }
-        }
-        // Collect all spans for this line
+    .map(|tokens_with_spans: Vec<TokenSpan>| {
+        // Collect spans for the subject text (without colon)
         tokens_with_spans.into_iter().map(|(_, s)| s).collect()
     })
+    // Explicitly consume the colon and newline
+    .then_ignore(token(Token::Colon))
     .then_ignore(token(Token::Newline))
 }
 
