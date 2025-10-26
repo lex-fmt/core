@@ -2468,6 +2468,142 @@ mod tests {
         assert_eq!(list.items.len(), 3);
     }
 
+    #[test]
+    fn test_verified_annotations_nesting_minimal() {
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("annotations/annotations.nesting.minimal.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Document structure: Paragraph, Paragraph, Annotation(with Definition), Paragraph
+        assert_ast(&doc)
+            .item_count(4)
+            .item(0, |item| {
+                item.assert_paragraph().line_count(1);
+            })
+            .item(1, |item| {
+                item.assert_paragraph().line_count(1);
+            })
+            .item(2, |item| {
+                item.assert_annotation()
+                    .label("note")
+                    .parameter_count(0)
+                    .child_count(1)
+                    .child(0, |child| {
+                        child
+                            .assert_definition()
+                            .subject("API")
+                            .child_count(1)
+                            .child(0, |grandchild| {
+                                grandchild
+                                    .assert_paragraph()
+                                    .text_contains("Application Programming Interface");
+                            });
+                    });
+            })
+            .item(3, |item| {
+                item.assert_paragraph().line_count(1);
+            });
+    }
+
+    #[test]
+    fn test_verified_annotations_nesting_classic() {
+        use crate::txxt_nano::testing::assert_ast;
+
+        let source = TxxtSources::get_string("annotations/annotations.nesting.classic.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).unwrap();
+
+        // Document structure: 2 paragraphs, 2 annotations (with mixed content), 1 paragraph
+        assert_ast(&doc)
+            .item_count(5)
+            .item(0, |item| {
+                item.assert_paragraph()
+                    .text_contains("Classic Annotation Nesting Test");
+            })
+            .item(1, |item| {
+                item.assert_paragraph()
+                    .text_contains("annotations containing various nested elements");
+            })
+            .item(2, |item| {
+                // First annotation: note with type=explanation parameter
+                item.assert_annotation()
+                    .label("note")
+                    .parameter_count(1)
+                    .has_parameter_with_value("type", "explanation")
+                    .child_count(5) // Paragraph, Definition, List, Definition, Paragraph
+                    .child(0, |child| {
+                        child
+                            .assert_paragraph()
+                            .text_contains("multiple element types");
+                    })
+                    .child(1, |child| {
+                        child
+                            .assert_definition()
+                            .subject("HTTP Methods")
+                            .child_count(1)
+                            .child(0, |grandchild| {
+                                grandchild
+                                    .assert_paragraph()
+                                    .text_contains("HTTP request methods");
+                            });
+                    })
+                    .child(2, |child| {
+                        child.assert_list().item_count(4); // GET, POST, PUT, DELETE
+                    })
+                    .child(3, |child| {
+                        child
+                            .assert_definition()
+                            .subject("REST")
+                            .child_count(1)
+                            .child(0, |grandchild| {
+                                grandchild
+                                    .assert_paragraph()
+                                    .text_contains("Representational State Transfer");
+                            });
+                    })
+                    .child(4, |child| {
+                        child
+                            .assert_paragraph()
+                            .text_contains("definition above explains");
+                    });
+            })
+            .item(3, |item| {
+                // Second annotation: warning with severity=high parameter
+                item.assert_annotation()
+                    .label("warning")
+                    .parameter_count(1)
+                    .has_parameter_with_value("severity", "high")
+                    .child_count(3) // Paragraph, Definition, List
+                    .child(0, |child| {
+                        child
+                            .assert_paragraph()
+                            .text_contains("Critical items requiring attention");
+                    })
+                    .child(1, |child| {
+                        child
+                            .assert_definition()
+                            .subject("Security")
+                            .child_count(1)
+                            .child(0, |grandchild| {
+                                grandchild
+                                    .assert_paragraph()
+                                    .text_contains("protect the system");
+                            });
+                    })
+                    .child(2, |child| {
+                        child.assert_list().item_count(3); // validation, authentication, authorization
+                    });
+            })
+            .item(4, |item| {
+                item.assert_paragraph()
+                    .text_contains("Final paragraph after annotations");
+            });
+    }
+
     // ==================== FOREIGN BLOCK TESTS ====================
     // Testing the Foreign Block element
 
