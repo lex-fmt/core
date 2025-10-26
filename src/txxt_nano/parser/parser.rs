@@ -15,6 +15,7 @@ use super::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
     Session,
 };
+use super::labels::parse_label_from_tokens;
 use super::parameters::{convert_parameter, parse_parameters_from_tokens, ParameterWithSpans};
 use crate::txxt_nano::lexer::Token;
 
@@ -424,23 +425,6 @@ fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserEr
         .then_ignore(token(Token::Newline))
 }
 
-/// Parse an annotation label - text/numbers/periods/dashes between :: markers
-/// Grammar: <letter> (<letter> | <digit> | "_" | "-" | ".")*
-#[allow(dead_code)]
-fn annotation_label() -> impl Parser<TokenSpan, Range<usize>, Error = ParserError> + Clone {
-    filter(|(t, _span): &TokenSpan| {
-        matches!(t, Token::Text | Token::Period | Token::Dash | Token::Number)
-    })
-    .repeated()
-    .at_least(1)
-    .map(|tokens_with_spans: Vec<TokenSpan>| {
-        // Get the span from first token start to last token end
-        let first_span = &tokens_with_spans.first().unwrap().1;
-        let last_span = &tokens_with_spans.last().unwrap().1;
-        first_span.start..last_span.end
-    })
-}
-
 /// Parse the bounded region between :: markers
 /// Format: :: <label>? <params>? ::
 ///
@@ -457,62 +441,17 @@ fn annotation_header(
             .at_least(1);
 
     bounded_region.validate(|tokens, span, emit| {
-        // Skip leading whitespace
-        let mut i = 0;
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
-        }
-
-        if i >= tokens.len() {
+        if tokens.is_empty() {
             emit(ParserError::expected_input_found(span, None, None));
             return (None, Vec::new());
         }
 
-        // Check if first word is a label by looking ahead for '='
-        // A label is: word(s) followed by whitespace/comma (NOT equals)
-        let label_span = {
-            let start = i;
+        // Parse label from tokens
+        let (label_span, mut i) = parse_label_from_tokens(&tokens);
 
-            // Collect identifier tokens (Text, Dash, Number, Period)
-            while i < tokens.len()
-                && matches!(
-                    tokens[i].0,
-                    Token::Text | Token::Dash | Token::Number | Token::Period
-                )
-            {
-                i += 1;
-            }
-
-            if i == start {
-                None // No identifier found
-            } else {
-                // Check what comes after: if it's '=', this is NOT a label but a parameter key
-                // Skip optional whitespace to check
-                let mut peek = i;
-                while peek < tokens.len() && matches!(tokens[peek].0, Token::Whitespace) {
-                    peek += 1;
-                }
-
-                if peek < tokens.len() && matches!(tokens[peek].0, Token::Equals) {
-                    // This is a parameter key, not a label
-                    None
-                } else {
-                    // This is a label
-                    let first_span = &tokens[start].1;
-                    let last_span = &tokens[i - 1].1;
-                    Some(first_span.start..last_span.end)
-                }
-            }
-        };
-
-        // If we found a label, skip past it and any trailing whitespace
-        if label_span.is_some() {
-            while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-                i += 1;
-            }
-        } else {
+        // If no label was found and i is 0, we need to restart parsing for parameters
+        if label_span.is_none() && i == 0 {
             // Reset to start for parameter parsing
-            i = 0;
             while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
                 i += 1;
             }
