@@ -191,7 +191,7 @@ Lists
 
 	Content:
 
-		List items contain text on the same line as the marker. No nested content blocks within list items.
+		List items contain text on the same line as the marker. Indented content can contain paragraphs and nested lists (cannot contain sessions or annotations).
 
 	Block termination:
 
