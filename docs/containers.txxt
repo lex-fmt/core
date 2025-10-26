@@ -1,0 +1,121 @@
+Containers, Nesting and Recursion
+
+	A core feature of txxt is the ability to nest elements. From the higher level sessions all the way to definitions and lists.
+
+	To the point it's actually easier to describe what can't be nested: 
+
+	- Pargraphs: always flat.
+	- Foreign Blocks: the content is not txxt, so we neve parse nor process it, no nesting.
+
+	All other elements: sessions, definitions, lists and annotations can be nested. Nesting happens via container elements, that is, elements that contains other elements. 
+
+
+Containers
+
+	Containers are general, non-functional elements that hold a nestable element's children.
+	The key thing is: all containers work the same way. The <content> node is the one indented, and the parser must recurse and parse its children.
+
+	But containers differ in which elements they can host.
+	The most capable are session containers, as the doc root is a session container node.
+
+	Content containers should be able to hold any children **but** sessions. It makes sense - we don't want a structural session popping up from within a list item. So not only do we have to create the distinct containers, but figure out how to best leverage chusmki and implement this with the library.
+
+Container Types
+
+	While we look for conceptual purity, there are a couple of sematnic reasons to differenctiate containers, on what elements then can hold.
+
+	Session Container:
+		Can host any element. The root document is a session container, for example. It is the only container that can host sessions, which maintains integrity of the document structure.
+    Content Container:
+        Can host any element but sessions 
+    Annotation Container: 
+		A container that cannot host sesssions nor annotation. This is needed because as annotations are metadata, they are not part of the document per se, nested annotations cause confusion and all sorts of problems.
+
+In terms of the parer, things should be quite straight forward. New sessions allways go into a session container. Annotations's content goes into an annotation container. Everything else goes into a content container.
+
+This means that txxt is really a nested parsing processes, and the parser must reflect this.
+
+For reference
+
+	The text bellow was used to brief the list implementation and is a good reference for understanding containers.
+
+	Nested Lists Implementation
+
+	Now that we have lists working, we will tackle the more complex list variant: nested lists.
+
+	Overview
+
+	A nested list is a list where one of its list items has a list as content.
+
+	Example in txxt source:
+	- Groceries
+		- Bread
+		- Eggs
+	- Call mom
+
+	In this case, the outer list's first list item "Groceries" has a child list with "Bread" and "Eggs" as its list items.
+
+	Mixed List Styles
+
+	Note that list decoration styles can vary within nested structures:
+
+	- Groceries:
+		1. Bread
+		2. Eggs
+	- Call mom
+
+	The list style is always determined by the style used in the first list item, which means that every list should do the same check.
+
+	AST Indentation Principle
+
+	It's important to note a counterintuitive fact about how the txxt AST works.
+	Indentation is an encoding of nesting, but not on the main element, but on container nodes.
+
+	For example:
+	<session>
+		<blank-line>
+		<title>
+		<blank-line>
+		<session-container>
+			<paragraph>...
+		</session-container>
+	</session>
+
+	This is why in sessions, the session and session title are at the same indentation level as their siblings, and only the session's content (its children) gets indented. The session-container is what gets indented.
+
+	Likewise, for lists, it's not the list itself that gets indented. If it were, all lists would need to be like this:
+		- Extra indented from their session
+		- Which is not true
+
+	In the example above, the AST is:
+	<list>
+		<list-item>Groceries
+			<content-container>
+				<list>
+					<list-item>1. Bread</list-item>
+					<list-item>2. Eggs</list-item>
+				</list>
+			</content-container>
+		</list-item>
+	</list>
+
+	This is why the outer list does not indent (no container), but the inner one does.
+
+	Content Flexibility
+
+	txxt gives users powerful primitives, and nested structures are a key part.
+
+	Hence list items can contain other lists, but not only that. They can contain any elements that content holds, like paragraphs.
+
+	For example:
+	- Groceries
+		- Bread
+			Do remember that both mom and pop are celiac, and breads can't have gluten.
+
+			Also little Mark is on a diet, so please do not go crazy with the bread amount
+		- Eggs
+	- Call mom
+
+	Here, Groceries > Bread > container has two paragraphs.
+	As you can see, they are +1 indented from the parent list item.
+			
