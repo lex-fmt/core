@@ -298,6 +298,8 @@ pub mod txxt_sources {
         "130-annotations-block-content.txxt",
         "140-foreign-blocks-simple.txxt",
         "150-foreign-blocks-no-content.txxt",
+        "annotations/annotations.nesting.minimal.txxt",
+        "annotations/annotations.nesting.classic.txxt",
     ];
 
     /// Format options for sample content
@@ -473,7 +475,9 @@ pub mod txxt_sources {
             assert!(samples.contains(&"130-annotations-block-content.txxt"));
             assert!(samples.contains(&"140-foreign-blocks-simple.txxt"));
             assert!(samples.contains(&"150-foreign-blocks-no-content.txxt"));
-            assert_eq!(samples.len(), 17); // Updated for foreign block samples 140 and 150
+            assert!(samples.contains(&"annotations/annotations.nesting.minimal.txxt"));
+            assert!(samples.contains(&"annotations/annotations.nesting.classic.txxt"));
+            assert_eq!(samples.len(), 19); // Updated for annotation nesting samples
         }
 
         #[test]

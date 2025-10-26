@@ -1,0 +1,10 @@
+Minimal Annotation Nesting Test {{paragraph}}
+
+This tests the simplest case of a definition inside an annotation. {{paragraph}}
+
+:: note ::
+    API:
+        Application Programming Interface
+::
+
+End of minimal test. {{paragraph}}

@@ -1,0 +1,33 @@
+Classic Annotation Nesting Test {{paragraph}}
+
+This tests annotations containing various nested elements (paragraphs, lists, definitions). {{paragraph}}
+
+:: note type=explanation ::
+    This annotation contains multiple element types to verify container capabilities. {{paragraph}}
+
+    HTTP Methods:
+        Common HTTP request methods used in web APIs
+
+    - GET {{list-item}}
+    - POST {{list-item}}
+    - PUT {{list-item}}
+    - DELETE {{list-item}}
+
+    REST:
+        Representational State Transfer architecture style
+
+    The definition above explains a key concept related to HTTP. {{paragraph}}
+::
+
+:: warning severity=high ::
+    Critical items requiring attention before deployment {{paragraph}}
+
+    Security:
+        Measures to protect the system from threats
+
+    - Input validation {{list-item}}
+    - Authentication {{list-item}}
+    - Authorization {{list-item}}
+::
+
+Final paragraph after annotations. {{paragraph}}

@@ -479,8 +479,11 @@ fn annotation_header(
 /// which prevents parameters from consuming text after the closing ::.
 fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone {
     // Content parser for annotations - excludes sessions and nested annotations
+    // Per containers.txxt: AnnotationContainer cannot host Sessions or Annotations
+    // IMPORTANT: ForeignBlocks require closing annotations, so they also cannot be in AnnotationContainers
+    // (hosting a ForeignBlock = hosting its closing annotation = nested annotation = forbidden)
+    // AnnotationContainer can host: Paragraphs, Lists, Definitions
     let annotation_content = recursive(|_annotation_content_parser| {
-        // Annotation content can contain lists and paragraphs (NO sessions or nested annotations)
         let nested_list = list_item()
             .repeated()
             .at_least(2)
@@ -488,7 +491,11 @@ fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserErr
             .map(|items| ListWithSpans { items })
             .map(ContentItemWithSpans::List);
 
-        nested_list.or(paragraph().map(ContentItemWithSpans::Paragraph))
+        // Parse order: List → Definition → Paragraph
+        // (No ForeignBlock, no Session, no nested Annotation per spec)
+        nested_list
+            .or(definition().map(ContentItemWithSpans::Definition))
+            .or(paragraph().map(ContentItemWithSpans::Paragraph))
     });
 
     // Parse the header: :: <bounded region> ::
