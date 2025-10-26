@@ -142,6 +142,15 @@ Grammar for txxt
         2.2.4. Text Spans
             <text-char> = (any character except <line-break>)
             <text-span> = <text-char>+
+            <any-character> = (any character including <line-break>)
+
+        2.2.5. Character Classes
+            <letter> = [a-zA-Z]
+            <digit> = [0-9]
+
+        2.2.6. Quoted and Unquoted Values
+            <quoted-string> = '"' <text-char>* '"'
+            <unquoted-value> = (<letter> | <digit> | <dash> | <period>)+
 
     2.3. Line Tokens
         2.3.1 Core Line Types
@@ -158,23 +167,24 @@ Grammar for txxt
 
 3. Element Grammar
 
-    These are the core elements of txxt: annotations, sessions, paragraphs, lists, and definitions:
+    These are the core elements of txxt: annotations, lists, definitions, sessions, foreign blocks, and paragraphs:
 
-    <annotation> = <annotation-marker> <annotation-opening> <annotation-content>? <annotation-closing>
+    <annotation> = <annotation-marker> <annotation-header> <annotation-marker> <annotation-tail>?
     <annotation-marker> = "::"
-    <annotation-opening> = (<label> <parameters>?) | <parameters>
+    <annotation-header> = (<label> <parameters>?) | <parameters>
     <label> = <letter> (<letter> | <digit> | "_" | "-" | ".")*
     <parameters> = (<parameter> ","?)+
     <parameter> = <key> ("=" <value>)?
     <key> = <letter> (<letter> | <digit> | "_" | "-")*
     <value> = <quoted-string> | <unquoted-value>
-    <annotation-content> = <indent> (<paragraph> | <list>)+ <dedent>
-    <annotation-closing> = <annotation-marker>
+    <annotation-tail> = <single-line-content> | <block-content>
+    <single-line-content> = <whitespace> <text-line>
+    <block-content> = <line-break> <indent> (<paragraph> | <list>)+ <dedent> <annotation-marker>
 
     Note: Annotations have multiple forms:
-    - Marker form: :: label :: (no content)
-    - Single-line form: :: label :: inline text
-    - Block form: :: label \n <indent>content<dedent> ::
+    - Marker form: :: label :: (no content, no tail)
+    - Single-line form: :: label :: inline text (text is the tail)
+    - Block form: :: label :: \n <indent>content<dedent> :: (note TWO closing :: markers)
     - Parameters-only: :: params :: (no label)
     - Combined: :: label params :: inline text
     Either label or parameters must be present (or both).
@@ -198,17 +208,18 @@ Grammar for txxt
     <session> = <session-title-line> <blank-line> <indent> <session-content>
     <session-content> = (<paragraph> | <list> | <session>)+
 
-    <foreign-block> = <subject-line> <foreign-content>? <closing-annotation>
+    <foreign-block> = <subject-line> <blank-line>? <foreign-content>? <closing-annotation>
     <subject-line> = <text-span>+ <colon> <line-break>
     <foreign-content> = <indent> <raw-text-line>+ <dedent>
     <raw-text-line> = <indent>? <any-character>+ <line-break>
-    <closing-annotation> = <annotation-marker> <label> <parameters>? <annotation-marker>
+    <closing-annotation> = <annotation-marker> <annotation-header> <annotation-marker> <single-line-content>?
 
     Note: Foreign blocks have two forms:
-    - Block form: subject + indented content + closing annotation
-    - Marker form: subject + closing annotation (no content)
+    - Block form: subject + blank line (optional) + indented content + closing annotation
+    - Marker form: subject + blank line (optional) + closing annotation with optional text (no indented content)
     The "Indentation Wall" rule applies: content must be indented deeper than subject,
     and closing annotation must be at same level as subject.
+    The closing annotation can have optional text content after the second :: marker (single-line form).
 
     <paragraph> = <any-line>+
 

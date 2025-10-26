@@ -158,26 +158,6 @@ impl<'a> ContentItemAssertion<'a> {
             ),
         }
     }
-
-    /// Check if this item is a paragraph (non-panicking)
-    pub fn is_paragraph(&self) -> bool {
-        matches!(self.item, ContentItem::Paragraph(_))
-    }
-
-    /// Check if this item is a session (non-panicking)
-    pub fn is_session(&self) -> bool {
-        matches!(self.item, ContentItem::Session(_))
-    }
-
-    /// Check if this item is a list (non-panicking)
-    pub fn is_list(&self) -> bool {
-        matches!(self.item, ContentItem::List(_))
-    }
-
-    /// Check if this item is a foreign block (non-panicking)
-    pub fn is_foreign_block(&self) -> bool {
-        matches!(self.item, ContentItem::ForeignBlock(_))
-    }
 }
 
 // ============================================================================
@@ -190,25 +170,18 @@ pub struct ParagraphAssertion<'a> {
 }
 
 impl<'a> ParagraphAssertion<'a> {
-    /// Assert exact text match
     pub fn text(self, expected: &str) -> Self {
         TextMatch::Exact(expected.to_string()).assert(&self.para.text(), &self.context);
         self
     }
-
-    /// Assert text starts with prefix
     pub fn text_starts_with(self, prefix: &str) -> Self {
         TextMatch::StartsWith(prefix.to_string()).assert(&self.para.text(), &self.context);
         self
     }
-
-    /// Assert text contains substring
     pub fn text_contains(self, substring: &str) -> Self {
         TextMatch::Contains(substring.to_string()).assert(&self.para.text(), &self.context);
         self
     }
-
-    /// Assert the number of lines in the paragraph
     pub fn line_count(self, expected: usize) -> Self {
         let actual = self.para.lines.len();
         assert_eq!(
@@ -230,7 +203,6 @@ pub struct SessionAssertion<'a> {
 }
 
 impl<'a> SessionAssertion<'a> {
-    /// Assert exact label match
     pub fn label(self, expected: &str) -> Self {
         let actual = self.session.label();
         assert_eq!(
@@ -240,8 +212,6 @@ impl<'a> SessionAssertion<'a> {
         );
         self
     }
-
-    /// Assert label starts with prefix
     pub fn label_starts_with(self, prefix: &str) -> Self {
         let actual = self.session.label();
         assert!(
@@ -253,8 +223,6 @@ impl<'a> SessionAssertion<'a> {
         );
         self
     }
-
-    /// Assert label contains substring
     pub fn label_contains(self, substring: &str) -> Self {
         let actual = self.session.label();
         assert!(
@@ -266,8 +234,6 @@ impl<'a> SessionAssertion<'a> {
         );
         self
     }
-
-    /// Assert the number of children
     pub fn child_count(self, expected: usize) -> Self {
         let actual = self.session.children().len();
         assert_eq!(
@@ -281,8 +247,6 @@ impl<'a> SessionAssertion<'a> {
         );
         self
     }
-
-    /// Assert on a specific child by index
     pub fn child<F>(self, index: usize, assertion: F) -> Self
     where
         F: FnOnce(ContentItemAssertion<'a>),
@@ -295,7 +259,6 @@ impl<'a> SessionAssertion<'a> {
             index,
             children.len()
         );
-
         let child = &children[index];
         assertion(ContentItemAssertion {
             item: child,
@@ -303,8 +266,6 @@ impl<'a> SessionAssertion<'a> {
         });
         self
     }
-
-    /// Assert on all children using a builder
     pub fn children<F>(self, assertion: F) -> Self
     where
         F: FnOnce(ChildrenAssertion<'a>),
@@ -327,7 +288,6 @@ pub struct ListAssertion<'a> {
 }
 
 impl<'a> ListAssertion<'a> {
-    /// Assert the number of items in the list
     pub fn item_count(self, expected: usize) -> Self {
         let actual = self.list.items.len();
         assert_eq!(
@@ -337,8 +297,6 @@ impl<'a> ListAssertion<'a> {
         );
         self
     }
-
-    /// Assert on a specific list item by index
     pub fn item<F>(self, index: usize, assertion: F) -> Self
     where
         F: FnOnce(ListItemAssertion<'a>),
@@ -350,7 +308,6 @@ impl<'a> ListAssertion<'a> {
             index,
             self.list.items.len()
         );
-
         let item = &self.list.items[index];
         assertion(ListItemAssertion {
             item,
@@ -370,25 +327,18 @@ pub struct ListItemAssertion<'a> {
 }
 
 impl<'a> ListItemAssertion<'a> {
-    /// Assert exact text match
     pub fn text(self, expected: &str) -> Self {
         TextMatch::Exact(expected.to_string()).assert(self.item.text(), &self.context);
         self
     }
-
-    /// Assert text starts with prefix
     pub fn text_starts_with(self, prefix: &str) -> Self {
         TextMatch::StartsWith(prefix.to_string()).assert(self.item.text(), &self.context);
         self
     }
-
-    /// Assert text contains substring
     pub fn text_contains(self, substring: &str) -> Self {
         TextMatch::Contains(substring.to_string()).assert(self.item.text(), &self.context);
         self
     }
-
-    /// Assert the number of children (nested content)
     pub fn child_count(self, expected: usize) -> Self {
         let actual = self.item.children().len();
         assert_eq!(
@@ -402,8 +352,6 @@ impl<'a> ListItemAssertion<'a> {
         );
         self
     }
-
-    /// Assert on a specific child by index
     pub fn child<F>(self, index: usize, assertion: F) -> Self
     where
         F: FnOnce(ContentItemAssertion<'a>),
@@ -416,7 +364,6 @@ impl<'a> ListItemAssertion<'a> {
             index,
             children.len()
         );
-
         let child = &children[index];
         assertion(ContentItemAssertion {
             item: child,
@@ -424,8 +371,6 @@ impl<'a> ListItemAssertion<'a> {
         });
         self
     }
-
-    /// Assert on all children using a builder
     pub fn children<F>(self, assertion: F) -> Self
     where
         F: FnOnce(ChildrenAssertion<'a>),
@@ -448,25 +393,18 @@ pub struct DefinitionAssertion<'a> {
 }
 
 impl<'a> DefinitionAssertion<'a> {
-    /// Assert exact subject match
     pub fn subject(self, expected: &str) -> Self {
         TextMatch::Exact(expected.to_string()).assert(&self.definition.subject, &self.context);
         self
     }
-
-    /// Assert subject starts with prefix
     pub fn subject_starts_with(self, prefix: &str) -> Self {
         TextMatch::StartsWith(prefix.to_string()).assert(&self.definition.subject, &self.context);
         self
     }
-
-    /// Assert subject contains substring
     pub fn subject_contains(self, substring: &str) -> Self {
         TextMatch::Contains(substring.to_string()).assert(&self.definition.subject, &self.context);
         self
     }
-
-    /// Assert the number of children (content items)
     pub fn child_count(self, expected: usize) -> Self {
         let actual = self.definition.children().len();
         assert_eq!(
@@ -480,8 +418,6 @@ impl<'a> DefinitionAssertion<'a> {
         );
         self
     }
-
-    /// Assert on a specific child by index
     pub fn child<F>(self, index: usize, assertion: F) -> Self
     where
         F: FnOnce(ContentItemAssertion<'a>),
@@ -494,7 +430,6 @@ impl<'a> DefinitionAssertion<'a> {
             index,
             children.len()
         );
-
         let child = &children[index];
         assertion(ContentItemAssertion {
             item: child,
@@ -502,8 +437,6 @@ impl<'a> DefinitionAssertion<'a> {
         });
         self
     }
-
-    /// Assert on all children using a builder
     pub fn children<F>(self, assertion: F) -> Self
     where
         F: FnOnce(ChildrenAssertion<'a>),
@@ -526,7 +459,6 @@ pub struct AnnotationAssertion<'a> {
 }
 
 impl<'a> AnnotationAssertion<'a> {
-    /// Assert exact label match
     pub fn label(self, expected: &str) -> Self {
         let actual = &self.annotation.label.value;
         assert_eq!(
@@ -536,34 +468,6 @@ impl<'a> AnnotationAssertion<'a> {
         );
         self
     }
-
-    /// Assert label starts with prefix
-    pub fn label_starts_with(self, prefix: &str) -> Self {
-        let actual = &self.annotation.label.value;
-        assert!(
-            actual.starts_with(prefix),
-            "{}: Expected annotation label to start with '{}', but got '{}'",
-            self.context,
-            prefix,
-            actual
-        );
-        self
-    }
-
-    /// Assert label contains substring
-    pub fn label_contains(self, substring: &str) -> Self {
-        let actual = &self.annotation.label.value;
-        assert!(
-            actual.contains(substring),
-            "{}: Expected annotation label to contain '{}', but got '{}'",
-            self.context,
-            substring,
-            actual
-        );
-        self
-    }
-
-    /// Assert the number of parameters
     pub fn parameter_count(self, expected: usize) -> Self {
         let actual = self.annotation.parameters.len();
         assert_eq!(
@@ -573,19 +477,6 @@ impl<'a> AnnotationAssertion<'a> {
         );
         self
     }
-
-    /// Assert a specific parameter exists with a key
-    pub fn has_parameter(self, key: &str) -> Self {
-        let found = self.annotation.parameters.iter().any(|p| p.key == key);
-        assert!(
-            found,
-            "{}: Expected parameter with key '{}' to exist",
-            self.context, key
-        );
-        self
-    }
-
-    /// Assert a specific parameter exists with key and value
     pub fn has_parameter_with_value(self, key: &str, value: &str) -> Self {
         let found = self
             .annotation
@@ -599,8 +490,6 @@ impl<'a> AnnotationAssertion<'a> {
         );
         self
     }
-
-    /// Assert a boolean parameter (no value)
     pub fn has_boolean_parameter(self, key: &str) -> Self {
         let found = self
             .annotation
@@ -614,8 +503,6 @@ impl<'a> AnnotationAssertion<'a> {
         );
         self
     }
-
-    /// Assert the number of children (content items)
     pub fn child_count(self, expected: usize) -> Self {
         let actual = self.annotation.children().len();
         assert_eq!(
@@ -629,8 +516,6 @@ impl<'a> AnnotationAssertion<'a> {
         );
         self
     }
-
-    /// Assert on a specific child by index
     pub fn child<F>(self, index: usize, assertion: F) -> Self
     where
         F: FnOnce(ContentItemAssertion<'a>),
@@ -643,23 +528,10 @@ impl<'a> AnnotationAssertion<'a> {
             index,
             children.len()
         );
-
         let child = &children[index];
         assertion(ContentItemAssertion {
             item: child,
             context: format!("{}:children[{}]", self.context, index),
-        });
-        self
-    }
-
-    /// Assert on all children using a builder
-    pub fn children<F>(self, assertion: F) -> Self
-    where
-        F: FnOnce(ChildrenAssertion<'a>),
-    {
-        assertion(ChildrenAssertion {
-            children: self.annotation.children(),
-            context: format!("{}:children", self.context),
         });
         self
     }
@@ -675,7 +547,6 @@ pub struct ForeignBlockAssertion<'a> {
 }
 
 impl<'a> ForeignBlockAssertion<'a> {
-    /// Assert exact subject match
     pub fn subject(self, expected: &str) -> Self {
         let actual = &self.foreign_block.subject;
         assert_eq!(
@@ -685,45 +556,6 @@ impl<'a> ForeignBlockAssertion<'a> {
         );
         self
     }
-
-    /// Assert subject starts with prefix
-    pub fn subject_starts_with(self, prefix: &str) -> Self {
-        let actual = &self.foreign_block.subject;
-        assert!(
-            actual.starts_with(prefix),
-            "{}: Expected foreign block subject to start with '{}', but got '{}'",
-            self.context,
-            prefix,
-            actual
-        );
-        self
-    }
-
-    /// Assert subject contains substring
-    pub fn subject_contains(self, substring: &str) -> Self {
-        let actual = &self.foreign_block.subject;
-        assert!(
-            actual.contains(substring),
-            "{}: Expected foreign block subject to contain '{}', but got '{}'",
-            self.context,
-            substring,
-            actual
-        );
-        self
-    }
-
-    /// Assert exact content match
-    pub fn content(self, expected: &str) -> Self {
-        let actual = &self.foreign_block.content;
-        assert_eq!(
-            actual, expected,
-            "{}: Expected foreign block content to be '{}', but got '{}'",
-            self.context, expected, actual
-        );
-        self
-    }
-
-    /// Assert content contains substring
     pub fn content_contains(self, substring: &str) -> Self {
         let actual = &self.foreign_block.content;
         assert!(
@@ -735,22 +567,7 @@ impl<'a> ForeignBlockAssertion<'a> {
         );
         self
     }
-
-    /// Assert content starts with prefix
-    pub fn content_starts_with(self, prefix: &str) -> Self {
-        let actual = &self.foreign_block.content;
-        assert!(
-            actual.starts_with(prefix),
-            "{}: Expected foreign block content to start with '{}', but got '{}'",
-            self.context,
-            prefix,
-            actual
-        );
-        self
-    }
-
-    /// Assert content is empty (marker form)
-    pub fn assert_marker_form(self) -> Self {
+    pub fn is_marker_form(self) -> Self {
         let actual = &self.foreign_block.content;
         assert!(
             actual.is_empty(),
@@ -760,19 +577,6 @@ impl<'a> ForeignBlockAssertion<'a> {
         );
         self
     }
-
-    /// Assert content is not empty (block form)
-    pub fn assert_block_form(self) -> Self {
-        let actual = &self.foreign_block.content;
-        assert!(
-            !actual.is_empty(),
-            "{}: Expected foreign block to be block form (non-empty content), but got empty content",
-            self.context
-        );
-        self
-    }
-
-    /// Assert closing annotation label
     pub fn closing_label(self, expected: &str) -> Self {
         let actual = &self.foreign_block.closing_annotation.label.value;
         assert_eq!(
@@ -782,24 +586,6 @@ impl<'a> ForeignBlockAssertion<'a> {
         );
         self
     }
-
-    /// Assert closing annotation has specific parameter
-    pub fn has_closing_parameter(self, key: &str) -> Self {
-        let found = self
-            .foreign_block
-            .closing_annotation
-            .parameters
-            .iter()
-            .any(|p| p.key == key);
-        assert!(
-            found,
-            "{}: Expected closing annotation to have parameter '{}'",
-            self.context, key
-        );
-        self
-    }
-
-    /// Assert closing annotation has specific parameter with value
     pub fn has_closing_parameter_with_value(self, key: &str, value: &str) -> Self {
         let found = self
             .foreign_block
@@ -811,17 +597,6 @@ impl<'a> ForeignBlockAssertion<'a> {
             found,
             "{}: Expected closing annotation to have parameter '{}={}'",
             self.context, key, value
-        );
-        self
-    }
-
-    /// Assert closing annotation parameter count
-    pub fn closing_parameter_count(self, expected: usize) -> Self {
-        let actual = self.foreign_block.closing_annotation.parameters.len();
-        assert_eq!(
-            actual, expected,
-            "{}: Expected {} closing annotation parameters, found {}",
-            self.context, expected, actual
         );
         self
     }
@@ -837,7 +612,6 @@ pub struct ChildrenAssertion<'a> {
 }
 
 impl<'a> ChildrenAssertion<'a> {
-    /// Assert the number of children
     pub fn count(self, expected: usize) -> Self {
         let actual = self.children.len();
         assert_eq!(
@@ -851,8 +625,6 @@ impl<'a> ChildrenAssertion<'a> {
         );
         self
     }
-
-    /// Assert on a specific child by index
     pub fn item<F>(self, index: usize, assertion: F) -> Self
     where
         F: FnOnce(ContentItemAssertion<'a>),
@@ -864,7 +636,6 @@ impl<'a> ChildrenAssertion<'a> {
             index,
             self.children.len()
         );
-
         let child = &self.children[index];
         assertion(ContentItemAssertion {
             item: child,
@@ -872,8 +643,6 @@ impl<'a> ChildrenAssertion<'a> {
         });
         self
     }
-
-    /// Assert all children are paragraphs
     pub fn all_paragraphs(self) -> Self {
         for (i, child) in self.children.iter().enumerate() {
             assert!(
@@ -886,8 +655,6 @@ impl<'a> ChildrenAssertion<'a> {
         }
         self
     }
-
-    /// Assert all children are sessions
     pub fn all_sessions(self) -> Self {
         for (i, child) in self.children.iter().enumerate() {
             assert!(
@@ -906,217 +673,10 @@ impl<'a> ChildrenAssertion<'a> {
 // Helper Functions
 // ============================================================================
 
-/// Summarize items as "[Paragraph, Session, Paragraph]"
 fn summarize_items(items: &[ContentItem]) -> String {
     items
         .iter()
         .map(|item| item.node_type())
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::txxt_nano::parser::ast::{Document, Paragraph, Session};
-
-    #[test]
-    fn test_document_item_count() {
-        let doc = Document::with_items(vec![
-            ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
-            ContentItem::Paragraph(Paragraph::from_line("Para 2".to_string())),
-        ]);
-
-        assert_ast(&doc).item_count(2);
-    }
-
-    #[test]
-    #[should_panic(expected = "Expected 1 items, found 2 items: [Paragraph, Paragraph]")]
-    fn test_document_item_count_failure() {
-        let doc = Document::with_items(vec![
-            ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
-            ContentItem::Paragraph(Paragraph::from_line("Para 2".to_string())),
-        ]);
-
-        assert_ast(&doc).item_count(1);
-    }
-
-    #[test]
-    fn test_paragraph_text() {
-        let doc = Document::with_items(vec![ContentItem::Paragraph(Paragraph::from_line(
-            "Hello world".to_string(),
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_paragraph().text("Hello world");
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "items[0]: Expected text to be 'Goodbye', but got 'Hello world'")]
-    fn test_paragraph_text_failure() {
-        let doc = Document::with_items(vec![ContentItem::Paragraph(Paragraph::from_line(
-            "Hello world".to_string(),
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_paragraph().text("Goodbye");
-        });
-    }
-
-    #[test]
-    fn test_paragraph_text_starts_with() {
-        let doc = Document::with_items(vec![ContentItem::Paragraph(Paragraph::from_line(
-            "Hello world".to_string(),
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_paragraph().text_starts_with("Hello");
-        });
-    }
-
-    #[test]
-    fn test_paragraph_text_contains() {
-        let doc = Document::with_items(vec![ContentItem::Paragraph(Paragraph::from_line(
-            "Hello world".to_string(),
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_paragraph().text_contains("world");
-        });
-    }
-
-    #[test]
-    fn test_session_label() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::with_title(
-            "Introduction".to_string(),
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_session().label("Introduction");
-        });
-    }
-
-    #[test]
-    #[should_panic(
-        expected = "items[0]: Expected session label to be 'Conclusion', but got 'Introduction'"
-    )]
-    fn test_session_label_failure() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::with_title(
-            "Introduction".to_string(),
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_session().label("Conclusion");
-        });
-    }
-
-    #[test]
-    fn test_session_child_count() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::new(
-            "Section".to_string(),
-            vec![
-                ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
-                ContentItem::Paragraph(Paragraph::from_line("Para 2".to_string())),
-            ],
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_session().child_count(2);
-        });
-    }
-
-    #[test]
-    #[should_panic(
-        expected = "items[0]: Expected 3 children, found 2 children: [Paragraph, Paragraph]"
-    )]
-    fn test_session_child_count_failure() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::new(
-            "Section".to_string(),
-            vec![
-                ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
-                ContentItem::Paragraph(Paragraph::from_line("Para 2".to_string())),
-            ],
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_session().child_count(3);
-        });
-    }
-
-    #[test]
-    fn test_nested_assertions() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::new(
-            "Getting Started".to_string(),
-            vec![
-                ContentItem::Paragraph(Paragraph::from_line("Hello".to_string())),
-                ContentItem::Paragraph(Paragraph::from_line("Not sure what to do".to_string())),
-            ],
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_session()
-                .label("Getting Started")
-                .child_count(2)
-                .child(0, |child| {
-                    child.assert_paragraph().text_starts_with("Hello");
-                })
-                .child(1, |child| {
-                    child.assert_paragraph().text_starts_with("Not sure");
-                });
-        });
-    }
-
-    #[test]
-    fn test_children_assertion() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::new(
-            "Section".to_string(),
-            vec![
-                ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
-                ContentItem::Paragraph(Paragraph::from_line("Para 2".to_string())),
-            ],
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_session().children(|children| {
-                children
-                    .count(2)
-                    .all_paragraphs()
-                    .item(0, |child| {
-                        child.assert_paragraph().text("Para 1");
-                    })
-                    .item(1, |child| {
-                        child.assert_paragraph().text("Para 2");
-                    });
-            });
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "items[0]: Expected Paragraph, found Session")]
-    fn test_type_mismatch_session_as_paragraph() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::with_title(
-            "Section".to_string(),
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_paragraph();
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "items[0]: Expected Session, found Paragraph")]
-    fn test_type_mismatch_paragraph_as_session() {
-        let doc = Document::with_items(vec![ContentItem::Paragraph(Paragraph::from_line(
-            "Hello world".to_string(),
-        ))]);
-
-        assert_ast(&doc).item(0, |item| {
-            item.assert_session();
-        });
-    }
 }

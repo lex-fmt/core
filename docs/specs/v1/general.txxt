@@ -31,9 +31,11 @@ The txxt language
 
         Annotations are metadata elements that provide structured non-content information such as author comments, build tool directives, and semantic markers.
 
-        Annotations are introduced by the :: marker and consist of a required label, optional parameters, and optional content.
+        Annotations are introduced by the :: marker and consist of an optional label, optional parameters (at least one of label or parameters must be present), and optional content.
 
-        Three forms exist: marker form (:: label ::), single-line form (:: label :: content), and block form with indented content enclosed by :: markers.
+        Three forms exist: marker form (:: label ::), single-line form (:: label :: content), and block form (:: label :: \n indented content \n ::).
+
+        Note: The block form has two closing :: markers - one immediately after the label/parameters on the opening line, and a second bare :: marker after the indented content.
 
         Annotation content can include paragraphs and lists, but cannot contain sessions or nested annotations.
 

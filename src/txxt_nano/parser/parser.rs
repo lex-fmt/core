@@ -525,8 +525,8 @@ fn annotation_parameter() -> impl Parser<TokenSpan, ParameterWithSpans, Error = 
 /// Grammar: <parameters> = (<parameter> ","?)+
 /// Parameters can be separated by whitespace, commas, or both
 #[allow(dead_code)]
-fn annotation_parameters()
--> impl Parser<TokenSpan, Vec<ParameterWithSpans>, Error = ParserError> + Clone {
+fn annotation_parameters(
+) -> impl Parser<TokenSpan, Vec<ParameterWithSpans>, Error = ParserError> + Clone {
     // Separator can be: whitespace, comma, or comma+whitespace
     let separator = token(Token::Comma)
         .then(token(Token::Whitespace).or_not())
@@ -545,8 +545,8 @@ fn annotation_parameters()
 /// Strategy: Collect all tokens between :: markers, then parse them to determine:
 /// - If first word has no '=' after it → it's a label
 /// - Everything else → parameters
-fn annotation_header()
--> impl Parser<TokenSpan, (Option<Range<usize>>, Vec<ParameterWithSpans>), Error = ParserError> + Clone
+fn annotation_header(
+) -> impl Parser<TokenSpan, (Option<Range<usize>>, Vec<ParameterWithSpans>), Error = ParserError> + Clone
 {
     // Collect all tokens between opening :: and closing ::
     let bounded_region =
@@ -2669,13 +2669,11 @@ mod tests {
                     .unwrap_or(false)
             })
             .expect("Should contain :: note :: annotation");
-        assert!(
-            note_annotation
-                .as_annotation()
-                .unwrap()
-                .parameters
-                .is_empty()
-        );
+        assert!(note_annotation
+            .as_annotation()
+            .unwrap()
+            .parameters
+            .is_empty());
         assert!(note_annotation.as_annotation().unwrap().content.is_empty());
 
         // Find and verify :: warning severity=high :: annotation
