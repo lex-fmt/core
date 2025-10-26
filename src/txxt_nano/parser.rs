@@ -11,6 +11,7 @@
 pub mod ast;
 pub mod ast_tag_serializer;
 pub mod ast_treeviz;
+pub mod parameters;
 #[allow(clippy::module_inception)]
 pub mod parser;
 

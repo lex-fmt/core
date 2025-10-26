@@ -13,8 +13,9 @@ use std::ops::Range;
 
 use super::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
-    Parameter, Session,
+    Session,
 };
+use super::parameters::{convert_parameter, parse_parameters_from_tokens, ParameterWithSpans};
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -52,13 +53,6 @@ pub(crate) struct ForeignBlockWithSpans {
     subject_spans: Vec<Range<usize>>,
     content_spans: Option<Vec<Range<usize>>>,
     closing_annotation: AnnotationWithSpans,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub(crate) struct ParameterWithSpans {
-    key_span: Range<usize>,
-    value_span: Option<Range<usize>>,
 }
 
 #[derive(Debug, Clone)]
@@ -187,19 +181,6 @@ fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
             .map(|item| convert_content_item(source, item))
             .collect(),
     }
-}
-
-/// Convert a parameter from spans to final AST
-///
-/// Now that '=' is a separate token, key and value spans are captured independently
-fn convert_parameter(source: &str, param: ParameterWithSpans) -> Parameter {
-    let key = extract_text(source, &param.key_span).to_string();
-
-    let value = param
-        .value_span
-        .map(|value_span| extract_text(source, &value_span).to_string());
-
-    Parameter { key, value }
 }
 
 fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
@@ -542,138 +523,6 @@ fn annotation_header(
 
         (label_span, params)
     })
-}
-
-/// Helper function to parse parameters from a token slice
-///
-/// Simplified parameter parsing:
-/// 1. Split by comma
-/// 2. For each segment, split by '=' to get key/value
-/// 3. Whitespace around parameters is ignored
-fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<ParameterWithSpans> {
-    let mut params = Vec::new();
-    let mut i = 0;
-
-    while i < tokens.len() {
-        // Skip leading whitespace
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
-        }
-
-        if i >= tokens.len() {
-            break;
-        }
-
-        // Parse key: identifier tokens (Text, Dash, Number)
-        let key_start = i;
-        while i < tokens.len() && matches!(tokens[i].0, Token::Text | Token::Dash | Token::Number) {
-            i += 1;
-        }
-
-        if i == key_start {
-            // No key found, skip to next comma
-            while i < tokens.len() && !matches!(tokens[i].0, Token::Comma) {
-                i += 1;
-            }
-            if i < tokens.len() {
-                i += 1; // Skip comma
-            }
-            continue;
-        }
-
-        let key_span = {
-            let first_span = &tokens[key_start].1;
-            let last_span = &tokens[i - 1].1;
-            first_span.start..last_span.end
-        };
-
-        // Skip whitespace before '='
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
-        }
-
-        // Require '=' sign (no boolean parameters)
-        if i >= tokens.len() || !matches!(tokens[i].0, Token::Equals) {
-            // Skip this malformed parameter and move to next comma
-            while i < tokens.len() && !matches!(tokens[i].0, Token::Comma) {
-                i += 1;
-            }
-            if i < tokens.len() {
-                i += 1; // Skip comma
-            }
-            continue;
-        }
-
-        i += 1; // Skip '='
-
-        // Skip whitespace after '='
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
-        }
-
-        // Parse value - could be quoted or unquoted
-        let value_span = if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
-            i += 1; // Skip opening quote
-            let val_start = i;
-
-            // Collect until closing quote
-            while i < tokens.len() && !matches!(tokens[i].0, Token::Quote) {
-                i += 1;
-            }
-
-            let val_span = if val_start < i {
-                let first_span = &tokens[val_start].1;
-                let last_span = &tokens[i - 1].1;
-                Some(first_span.start..last_span.end)
-            } else {
-                Some(0..0) // Empty quoted string
-            };
-
-            if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
-                i += 1; // Skip closing quote
-            }
-
-            val_span
-        } else {
-            // Unquoted value: collect until comma or whitespace
-            let val_start = i;
-            while i < tokens.len() && !matches!(tokens[i].0, Token::Comma | Token::Whitespace) {
-                i += 1;
-            }
-
-            if val_start < i {
-                let first_span = &tokens[val_start].1;
-                let last_span = &tokens[i - 1].1;
-                Some(first_span.start..last_span.end)
-            } else {
-                // No value found, skip this parameter
-                while i < tokens.len() && !matches!(tokens[i].0, Token::Comma) {
-                    i += 1;
-                }
-                if i < tokens.len() {
-                    i += 1; // Skip comma
-                }
-                continue;
-            }
-        };
-
-        params.push(ParameterWithSpans {
-            key_span,
-            value_span,
-        });
-
-        // Skip trailing whitespace
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
-        }
-
-        // Skip comma separator
-        if i < tokens.len() && matches!(tokens[i].0, Token::Comma) {
-            i += 1;
-        }
-    }
-
-    params
 }
 
 /// Parse annotation - supports three forms: marker, single-line, and block
@@ -2552,77 +2401,6 @@ mod tests {
         assert_eq!(annotation.label.value, "note");
         assert_eq!(annotation.content.len(), 1); // One paragraph with inline text
         assert!(annotation.content[0].is_paragraph());
-    }
-
-    #[test]
-    fn test_annotation_comma_separated_parameters() {
-        let source = ":: warning severity=high,priority=urgent ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        let annotation = doc.items[0].as_annotation().unwrap();
-        assert_eq!(annotation.label.value, "warning");
-        assert_eq!(annotation.parameters.len(), 2);
-        assert_eq!(annotation.parameters[0].key, "severity");
-        assert_eq!(annotation.parameters[0].value, Some("high".to_string()));
-        assert_eq!(annotation.parameters[1].key, "priority");
-        assert_eq!(annotation.parameters[1].value, Some("urgent".to_string()));
-    }
-
-    #[test]
-    fn test_annotation_quoted_string_values() {
-        let source =
-            ":: note author=\"Jane Doe\" title=\"Important Note\" ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        let annotation = doc.items[0].as_annotation().unwrap();
-        assert_eq!(annotation.label.value, "note");
-        assert_eq!(annotation.parameters.len(), 2);
-        assert_eq!(annotation.parameters[0].key, "author");
-        assert_eq!(annotation.parameters[0].value, Some("Jane Doe".to_string()));
-        assert_eq!(annotation.parameters[1].key, "title");
-        assert_eq!(
-            annotation.parameters[1].value,
-            Some("Important Note".to_string())
-        );
-    }
-
-    #[test]
-    fn test_annotation_mixed_separators_and_quotes() {
-        let source = ":: task priority=high,status=\"in progress\",assigned=alice ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        let annotation = doc.items[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters.len(), 3);
-        assert_eq!(annotation.parameters[0].key, "priority");
-        assert_eq!(annotation.parameters[0].value, Some("high".to_string()));
-        assert_eq!(annotation.parameters[1].key, "status");
-        assert_eq!(
-            annotation.parameters[1].value,
-            Some("in progress".to_string())
-        );
-        assert_eq!(annotation.parameters[2].key, "assigned");
-        assert_eq!(annotation.parameters[2].value, Some("alice".to_string()));
-    }
-
-    #[test]
-    fn test_annotation_whitespace_around_commas() {
-        // Test that whitespace around commas is properly ignored
-        let source = ":: note key1=val1 , key2=val2 , key3=val3 ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        let annotation = doc.items[0].as_annotation().unwrap();
-        assert_eq!(annotation.label.value, "note");
-        assert_eq!(annotation.parameters.len(), 3);
-        assert_eq!(annotation.parameters[0].key, "key1");
-        assert_eq!(annotation.parameters[0].value, Some("val1".to_string()));
-        assert_eq!(annotation.parameters[1].key, "key2");
-        assert_eq!(annotation.parameters[1].value, Some("val2".to_string()));
-        assert_eq!(annotation.parameters[2].key, "key3");
-        assert_eq!(annotation.parameters[2].value, Some("val3".to_string()));
     }
 
     #[test]
