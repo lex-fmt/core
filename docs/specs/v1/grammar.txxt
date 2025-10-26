@@ -173,8 +173,8 @@ Grammar for txxt
     <annotation-marker> = "::"
     <annotation-header> = (<label> <parameters>?) | <parameters>
     <label> = <letter> (<letter> | <digit> | "_" | "-" | ".")*
-    <parameters> = (<parameter> ","?)+
-    <parameter> = <key> ("=" <value>)?
+    <parameters> = <parameter> ("," <parameter>)*
+    <parameter> = <key> "=" <value>
     <key> = <letter> (<letter> | <digit> | "_" | "-")*
     <value> = <quoted-string> | <unquoted-value>
     <annotation-tail> = <single-line-content> | <block-content>
