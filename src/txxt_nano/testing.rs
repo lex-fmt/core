@@ -81,42 +81,76 @@
 //! ```
 //!
 //! 20+ lines of boilerplate. Hard to see what's actually being tested.
-//! see the src/txxt_nano/testing/testing_assertions.rs
+
+//! ### The Solution: Fluent Assertion API
+
+//! With the `assert_ast` fluent API, the same test becomes:
+
+//! ```rust,ignore
+//! use crate::txxt_nano::testing::assert_ast;
 //!
-//! When you add a new container node (ListItem, Definition, etc.):
+//! assert_ast(&doc)
+//!     .item(0, |item| {
+//!         item.assert_session()
+//!             .label("Introduction")
+//!             .child_count(2)
+//!             .child(0, |child| {
+//!                 child.assert_paragraph()
+//!                     .text_starts_with("Hello")
+//!             })
+//!     });
+//! ```
+
+//! Concise, readable, and maintainable.
+
+//! ## Available Node Types
+
+//! The assertion API supports all AST node types:
+//! - `ParagraphAssertion` - Text content nodes
+//! - `SessionAssertion` - Titled container nodes  
+//! - `ListAssertion` / `ListItemAssertion` - List structures
+//! - `DefinitionAssertion` - Subject-definition pairs
+//! - `AnnotationAssertion` - Metadata with parameters
+//! - `ForeignBlockAssertion` - Raw content blocks
+
+//!   Each assertion type provides type-specific methods (e.g., `label()` for
+//!   sessions, `subject()` for definitions, `parameter_count()` for annotations).
+
+//! ## Extending the Assertion API
+
+//! To add support for a new container node type:
 //!
 //! 1. **Implement the traits** in `ast.rs`:
 //!    ```rust,ignore
-//!    impl Container for ListItem {
-//!        fn label(&self) -> &str { &self.item_line }
+//!    impl Container for NewNode {
+//!        fn label(&self) -> &str { &self.label }
 //!        fn children(&self) -> &[ContentItem] { &self.content }
 //!        fn children_mut(&mut self) -> &mut Vec<ContentItem> { &mut self.content }
 //!    }
 //!    ```
 //!
-//! 2. **Add to ContentItem enum**: Update the enum and its helper methods
+//! 2. **Add to ContentItem enum** and implement helper methods
 //!
-//! 3. **Add assertion type** in `testing/assertions.rs`:
+//! 3. **Add assertion type** in `testing_assertions.rs`:
 //!    ```rust,ignore
-//!    pub struct ListItemAssertion<'a> { /* ... */ }
-//!    impl ListItemAssertion {
-//!        pub fn item_line(self, expected: &str) -> Self { /* ... */ }
+//!    pub struct NewNodeAssertion<'a> { /* ... */ }
+//!    impl NewNodeAssertion {
+//!        pub fn custom_field(self, expected: &str) -> Self { /* ... */ }
 //!        pub fn child_count(self, expected: usize) -> Self { /* ... */ }
 //!    }
 //!    ```
 //!
-//! 4. **Add to ContentItemAssertion**:
+//! 4. **Add to ContentItemAssertion** and export in `testing.rs`:
 //!    ```rust,ignore
-//!    pub fn assert_list_item(self) -> ListItemAssertion<'a> { /* ... */ }
+//!    pub fn assert_new_node(self) -> NewNodeAssertion<'a> { /* ... */ }
 //!    ```
-//!
-//! That's it! The fluent API automatically works with the new node type.
 
 mod testing_assertions;
 mod testing_matchers;
 
 pub use testing_assertions::{
-    assert_ast, ChildrenAssertion, ContentItemAssertion, DocumentAssertion, ListAssertion,
-    ListItemAssertion, ParagraphAssertion, SessionAssertion,
+    assert_ast, AnnotationAssertion, ChildrenAssertion, ContentItemAssertion, DefinitionAssertion,
+    DocumentAssertion, ForeignBlockAssertion, ListAssertion, ListItemAssertion, ParagraphAssertion,
+    SessionAssertion,
 };
 pub use testing_matchers::TextMatch;
