@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn test_serialize_session_with_paragraph() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::new(
+        let doc = Document::with_items(vec![ContentItem::Session(Session::with_items(
             "Introduction".to_string(),
             vec![ContentItem::Paragraph(Paragraph::from_line(
                 "Welcome".to_string(),
@@ -210,11 +210,11 @@ mod tests {
 
     #[test]
     fn test_serialize_nested_sessions() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::new(
+        let doc = Document::with_items(vec![ContentItem::Session(Session::with_items(
             "Root".to_string(),
             vec![
                 ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
-                ContentItem::Session(Session::new(
+                ContentItem::Session(Session::with_items(
                     "Nested".to_string(),
                     vec![ContentItem::Paragraph(Paragraph::from_line(
                         "Nested para".to_string(),

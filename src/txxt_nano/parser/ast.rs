@@ -52,6 +52,29 @@ pub enum ContentItem {
     ForeignBlock(ForeignBlock),
 }
 
+// ============================================================================
+// Container Types - Explicit container nodes that hold children
+// ============================================================================
+
+/// Session container - can host any element including nested sessions
+#[derive(Debug, Clone, PartialEq)]
+pub struct SessionContainer {
+    items: Vec<ContentItem>,
+}
+
+/// Content container - can host any element except sessions
+#[derive(Debug, Clone, PartialEq)]
+pub struct ContentContainer {
+    items: Vec<ContentItem>,
+}
+
+/// Annotation container - can host paragraphs, lists, definitions, and foreign blocks
+/// Cannot host sessions or nested annotations
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnnotationContainer {
+    items: Vec<ContentItem>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
     pub lines: Vec<String>,
@@ -60,7 +83,7 @@ pub struct Paragraph {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Session {
     pub title: String,
-    pub content: Vec<ContentItem>,
+    pub container: SessionContainer,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,13 +94,13 @@ pub struct List {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
     text: Vec<String>,
-    pub content: Vec<ContentItem>,
+    pub container: ContentContainer,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Definition {
     pub subject: String,
-    pub content: Vec<ContentItem>,
+    pub container: ContentContainer,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,7 +125,7 @@ pub struct Parameter {
 pub struct Annotation {
     pub label: Label,
     pub parameters: Vec<Parameter>,
-    pub content: Vec<ContentItem>,
+    pub container: AnnotationContainer,
 }
 
 impl Document {
@@ -162,13 +185,19 @@ impl Paragraph {
 }
 
 impl Session {
-    pub fn new(title: String, content: Vec<ContentItem>) -> Self {
-        Self { title, content }
+    pub fn new(title: String, container: SessionContainer) -> Self {
+        Self { title, container }
     }
     pub fn with_title(title: String) -> Self {
         Self {
             title,
-            content: Vec::new(),
+            container: SessionContainer::new(),
+        }
+    }
+    pub fn with_items(title: String, items: Vec<ContentItem>) -> Self {
+        Self {
+            title,
+            container: SessionContainer::with_items(items),
         }
     }
 }
@@ -183,13 +212,19 @@ impl ListItem {
     pub fn new(text: String) -> Self {
         Self {
             text: vec![text],
-            content: Vec::new(),
+            container: ContentContainer::new(),
         }
     }
-    pub fn with_content(text: String, content: Vec<ContentItem>) -> Self {
+    pub fn with_container(text: String, container: ContentContainer) -> Self {
         Self {
             text: vec![text],
-            content,
+            container,
+        }
+    }
+    pub fn with_items(text: String, items: Vec<ContentItem>) -> Self {
+        Self {
+            text: vec![text],
+            container: ContentContainer::with_items(items),
         }
     }
     pub fn text(&self) -> &str {
@@ -198,13 +233,19 @@ impl ListItem {
 }
 
 impl Definition {
-    pub fn new(subject: String, content: Vec<ContentItem>) -> Self {
-        Self { subject, content }
+    pub fn new(subject: String, container: ContentContainer) -> Self {
+        Self { subject, container }
     }
     pub fn with_subject(subject: String) -> Self {
         Self {
             subject,
-            content: Vec::new(),
+            container: ContentContainer::new(),
+        }
+    }
+    pub fn with_items(subject: String, items: Vec<ContentItem>) -> Self {
+        Self {
+            subject,
+            container: ContentContainer::with_items(items),
         }
     }
 }
@@ -253,26 +294,288 @@ impl Parameter {
 }
 
 impl Annotation {
-    pub fn new(label: Label, parameters: Vec<Parameter>, content: Vec<ContentItem>) -> Self {
+    pub fn new(label: Label, parameters: Vec<Parameter>, container: AnnotationContainer) -> Self {
         Self {
             label,
             parameters,
-            content,
+            container,
         }
     }
     pub fn marker(label: Label) -> Self {
         Self {
             label,
             parameters: Vec::new(),
-            content: Vec::new(),
+            container: AnnotationContainer::new(),
         }
     }
     pub fn with_parameters(label: Label, parameters: Vec<Parameter>) -> Self {
         Self {
             label,
             parameters,
-            content: Vec::new(),
+            container: AnnotationContainer::new(),
         }
+    }
+    pub fn with_items(label: Label, parameters: Vec<Parameter>, items: Vec<ContentItem>) -> Self {
+        Self {
+            label,
+            parameters,
+            container: AnnotationContainer::with_items(items),
+        }
+    }
+}
+
+// ============================================================================
+// Container Implementations - Full Vec wrapper methods
+// ============================================================================
+
+impl SessionContainer {
+    pub fn new() -> Self {
+        Self { items: Vec::new() }
+    }
+
+    pub fn with_items(items: Vec<ContentItem>) -> Self {
+        Self { items }
+    }
+
+    pub fn push(&mut self, item: ContentItem) {
+        self.items.push(item)
+    }
+
+    pub fn pop(&mut self) -> Option<ContentItem> {
+        self.items.pop()
+    }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.items.clear()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ContentItem> {
+        self.items.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ContentItem> {
+        self.items.iter_mut()
+    }
+
+    pub fn as_slice(&self) -> &[ContentItem] {
+        &self.items
+    }
+
+    pub fn as_mut_vec(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.items
+    }
+}
+
+impl ContentContainer {
+    pub fn new() -> Self {
+        Self { items: Vec::new() }
+    }
+
+    pub fn with_items(items: Vec<ContentItem>) -> Self {
+        Self { items }
+    }
+
+    pub fn push(&mut self, item: ContentItem) {
+        self.items.push(item)
+    }
+
+    pub fn pop(&mut self) -> Option<ContentItem> {
+        self.items.pop()
+    }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.items.clear()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ContentItem> {
+        self.items.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ContentItem> {
+        self.items.iter_mut()
+    }
+
+    pub fn as_slice(&self) -> &[ContentItem] {
+        &self.items
+    }
+
+    pub fn as_mut_vec(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.items
+    }
+}
+
+impl AnnotationContainer {
+    pub fn new() -> Self {
+        Self { items: Vec::new() }
+    }
+
+    pub fn with_items(items: Vec<ContentItem>) -> Self {
+        Self { items }
+    }
+
+    pub fn push(&mut self, item: ContentItem) {
+        self.items.push(item)
+    }
+
+    pub fn pop(&mut self) -> Option<ContentItem> {
+        self.items.pop()
+    }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.items.clear()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ContentItem> {
+        self.items.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ContentItem> {
+        self.items.iter_mut()
+    }
+
+    pub fn as_slice(&self) -> &[ContentItem] {
+        &self.items
+    }
+
+    pub fn as_mut_vec(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.items
+    }
+}
+
+// Index trait implementations for container[index] syntax
+impl std::ops::Index<usize> for SessionContainer {
+    type Output = ContentItem;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.items[index]
+    }
+}
+
+impl std::ops::IndexMut<usize> for SessionContainer {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.items[index]
+    }
+}
+
+impl std::ops::Index<usize> for ContentContainer {
+    type Output = ContentItem;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.items[index]
+    }
+}
+
+impl std::ops::IndexMut<usize> for ContentContainer {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.items[index]
+    }
+}
+
+impl std::ops::Index<usize> for AnnotationContainer {
+    type Output = ContentItem;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.items[index]
+    }
+}
+
+impl std::ops::IndexMut<usize> for AnnotationContainer {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.items[index]
+    }
+}
+
+// IntoIterator implementations for 'for item in container' syntax
+impl IntoIterator for SessionContainer {
+    type Item = ContentItem;
+    type IntoIter = std::vec::IntoIter<ContentItem>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a SessionContainer {
+    type Item = &'a ContentItem;
+    type IntoIter = std::slice::Iter<'a, ContentItem>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.iter()
+    }
+}
+
+impl IntoIterator for ContentContainer {
+    type Item = ContentItem;
+    type IntoIter = std::vec::IntoIter<ContentItem>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a ContentContainer {
+    type Item = &'a ContentItem;
+    type IntoIter = std::slice::Iter<'a, ContentItem>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.iter()
+    }
+}
+
+impl IntoIterator for AnnotationContainer {
+    type Item = ContentItem;
+    type IntoIter = std::vec::IntoIter<ContentItem>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a AnnotationContainer {
+    type Item = &'a ContentItem;
+    type IntoIter = std::slice::Iter<'a, ContentItem>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.iter()
+    }
+}
+
+impl Default for SessionContainer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for ContentContainer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for AnnotationContainer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -287,18 +590,23 @@ impl fmt::Display for ContentItem {
         match self {
             ContentItem::Paragraph(p) => write!(f, "Paragraph({} lines)", p.lines.len()),
             ContentItem::Session(s) => {
-                write!(f, "Session('{}', {} items)", s.title, s.content.len())
+                write!(f, "Session('{}', {} items)", s.title, s.container.len())
             }
             ContentItem::List(l) => write!(f, "List({} items)", l.items.len()),
             ContentItem::Definition(d) => {
-                write!(f, "Definition('{}', {} items)", d.subject, d.content.len())
+                write!(
+                    f,
+                    "Definition('{}', {} items)",
+                    d.subject,
+                    d.container.len()
+                )
             }
             ContentItem::Annotation(a) => write!(
                 f,
                 "Annotation('{}', {} params, {} items)",
                 a.label.value,
                 a.parameters.len(),
-                a.content.len()
+                a.container.len()
             ),
             ContentItem::ForeignBlock(fb) => write!(f, "ForeignBlock('{}')", fb.subject),
         }
@@ -313,7 +621,12 @@ impl fmt::Display for Paragraph {
 
 impl fmt::Display for Session {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Session('{}', {} items)", self.title, self.content.len())
+        write!(
+            f,
+            "Session('{}', {} items)",
+            self.title,
+            self.container.len()
+        )
     }
 }
 
@@ -335,7 +648,7 @@ impl fmt::Display for Definition {
             f,
             "Definition('{}', {} items)",
             self.subject,
-            self.content.len()
+            self.container.len()
         )
     }
 }
@@ -362,7 +675,7 @@ impl fmt::Display for Annotation {
             "Annotation('{}', {} params, {} items)",
             self.label.value,
             self.parameters.len(),
-            self.content.len()
+            self.container.len()
         )
     }
 }
@@ -420,10 +733,10 @@ impl Container for Session {
         &self.title
     }
     fn children(&self) -> &[ContentItem] {
-        &self.content
+        self.container.as_slice()
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.content
+        self.container.as_mut_vec()
     }
 }
 
@@ -455,10 +768,10 @@ impl Container for ListItem {
         &self.text[0]
     }
     fn children(&self) -> &[ContentItem] {
-        &self.content
+        self.container.as_slice()
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.content
+        self.container.as_mut_vec()
     }
 }
 
@@ -480,10 +793,10 @@ impl Container for Definition {
         &self.subject
     }
     fn children(&self) -> &[ContentItem] {
-        &self.content
+        self.container.as_slice()
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.content
+        self.container.as_mut_vec()
     }
 }
 
@@ -505,10 +818,10 @@ impl Container for Annotation {
         &self.label.value
     }
     fn children(&self) -> &[ContentItem] {
-        &self.content
+        self.container.as_slice()
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.content
+        self.container.as_mut_vec()
     }
 }
 
@@ -702,14 +1015,14 @@ mod tests {
 
     #[test]
     fn test_session_creation() {
-        let session = Session::new(
+        let session = Session::with_items(
             "Introduction".to_string(),
             vec![ContentItem::Paragraph(Paragraph::from_line(
                 "Content".to_string(),
             ))],
         );
         assert_eq!(session.title, "Introduction");
-        assert_eq!(session.content.len(), 1);
+        assert_eq!(session.container.len(), 1);
     }
 
     #[test]

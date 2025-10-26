@@ -12,8 +12,8 @@ use chumsky::prelude::*;
 use std::ops::Range;
 
 use super::ast::{
-    Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
-    Session,
+    Annotation, AnnotationContainer, ContentContainer, ContentItem, Definition, Document,
+    ForeignBlock, Label, List, ListItem, Paragraph, Session, SessionContainer,
 };
 use super::labels::parse_label_from_tokens;
 use super::parameters::{convert_parameter, parse_parameters_from_tokens, ParameterWithSpans};
@@ -160,13 +160,15 @@ fn convert_paragraph(source: &str, para: ParagraphWithSpans) -> Paragraph {
 }
 
 fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
+    let items: Vec<ContentItem> = sess
+        .content
+        .into_iter()
+        .map(|item| convert_content_item(source, item))
+        .collect();
+
     Session {
         title: extract_line_text(source, &sess.title_spans),
-        content: sess
-            .content
-            .into_iter()
-            .map(|item| convert_content_item(source, item))
-            .collect(),
+        container: SessionContainer::with_items(items),
     }
 }
 
@@ -174,13 +176,15 @@ fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
     // Extract subject (colon already excluded from spans by definition_subject parser)
     let subject = extract_line_text(source, &def.subject_spans);
 
+    let items: Vec<ContentItem> = def
+        .content
+        .into_iter()
+        .map(|item| convert_content_item(source, item))
+        .collect();
+
     Definition {
         subject,
-        content: def
-            .content
-            .into_iter()
-            .map(|item| convert_content_item(source, item))
-            .collect(),
+        container: ContentContainer::with_items(items),
     }
 }
 
@@ -199,7 +203,7 @@ fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
         .map(|param| convert_parameter(source, param))
         .collect();
 
-    let content = ann
+    let items: Vec<ContentItem> = ann
         .content
         .into_iter()
         .map(|item| convert_content_item(source, item))
@@ -208,7 +212,7 @@ fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
     Annotation {
         label,
         parameters,
-        content,
+        container: AnnotationContainer::with_items(items),
     }
 }
 
@@ -223,13 +227,13 @@ fn convert_list(source: &str, list: ListWithSpans) -> List {
 }
 
 fn convert_list_item(source: &str, item: ListItemWithSpans) -> ListItem {
-    ListItem::with_content(
-        extract_line_text(source, &item.text_spans),
-        item.content
-            .into_iter()
-            .map(|content_item| convert_content_item(source, content_item))
-            .collect(),
-    )
+    let items: Vec<ContentItem> = item
+        .content
+        .into_iter()
+        .map(|content_item| convert_content_item(source, content_item))
+        .collect();
+
+    ListItem::with_items(extract_line_text(source, &item.text_spans), items)
 }
 
 fn convert_foreign_block(source: &str, fb: ForeignBlockWithSpans) -> ForeignBlock {
@@ -857,7 +861,7 @@ mod tests {
                                 "  {}: Session '{}' with {} children",
                                 i,
                                 s.title,
-                                s.content.len()
+                                s.container.len()
                             );
                         }
                         ContentItem::List(l) => {
@@ -868,7 +872,7 @@ mod tests {
                                 "  {}: Definition '{}' with {} children",
                                 i,
                                 d.subject,
-                                d.content.len()
+                                d.container.len()
                             );
                         }
                         ContentItem::Annotation(a) => {
@@ -876,7 +880,7 @@ mod tests {
                                 "  {}: Annotation '{}' with {} children",
                                 i,
                                 a.label.value,
-                                a.content.len()
+                                a.container.len()
                             );
                         }
                         ContentItem::ForeignBlock(fb) => {
@@ -944,7 +948,7 @@ mod tests {
                                 "  {}: Session '{}' with {} children",
                                 i,
                                 s.title,
-                                s.content.len()
+                                s.container.len()
                             );
                         }
                         ContentItem::List(l) => {
@@ -955,7 +959,7 @@ mod tests {
                                 "  {}: Definition '{}' with {} children",
                                 i,
                                 d.subject,
-                                d.content.len()
+                                d.container.len()
                             );
                         }
                         ContentItem::Annotation(a) => {
@@ -963,7 +967,7 @@ mod tests {
                                 "  {}: Annotation '{}' with {} children",
                                 i,
                                 a.label.value,
-                                a.content.len()
+                                a.container.len()
                             );
                         }
                         ContentItem::ForeignBlock(fb) => {
@@ -2338,8 +2342,8 @@ mod tests {
         assert_eq!(doc.items.len(), 3); // paragraph, annotation, paragraph
         let annotation = doc.items[1].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
-        assert_eq!(annotation.content.len(), 1); // One paragraph with inline text
-        assert!(annotation.content[0].is_paragraph());
+        assert_eq!(annotation.container.len(), 1); // One paragraph with inline text
+        assert!(annotation.container[0].is_paragraph());
     }
 
     #[test]
@@ -2366,7 +2370,11 @@ mod tests {
             .unwrap()
             .parameters
             .is_empty());
-        assert!(note_annotation.as_annotation().unwrap().content.is_empty());
+        assert!(note_annotation
+            .as_annotation()
+            .unwrap()
+            .container
+            .is_empty());
 
         // Find and verify :: warning severity=high :: annotation
         let warning_annotation = doc
@@ -2422,9 +2430,9 @@ mod tests {
         assert_eq!(note.parameters[0].value, Some("Jane Doe".to_string()));
         assert_eq!(note.parameters[1].key, "date");
         assert_eq!(note.parameters[1].value, Some("2025-01-15".to_string()));
-        assert_eq!(note.content.len(), 2); // Two paragraphs
-        assert!(note.content[0].is_paragraph());
-        assert!(note.content[1].is_paragraph());
+        assert_eq!(note.container.len(), 2); // Two paragraphs
+        assert!(note.container[0].is_paragraph());
+        assert!(note.container[1].is_paragraph());
 
         // Find and verify :: warning severity=critical :: annotation with list
         let warning_annotation = doc
@@ -2444,12 +2452,12 @@ mod tests {
         assert_eq!(warning.parameters[1].value, Some("high".to_string()));
         assert_eq!(warning.parameters[2].key, "reviewer");
         assert_eq!(warning.parameters[2].value, Some("Alice Smith".to_string()));
-        assert_eq!(warning.content.len(), 2); // Paragraph + List
-        assert!(warning.content[0].is_paragraph());
-        assert!(warning.content[1].is_list());
+        assert_eq!(warning.container.len(), 2); // Paragraph + List
+        assert!(warning.container[0].is_paragraph());
+        assert!(warning.container[1].is_list());
 
         // Verify the list has 3 items
-        let list = warning.content[1].as_list().unwrap();
+        let list = warning.container[1].as_list().unwrap();
         assert_eq!(list.items.len(), 3);
     }
 
