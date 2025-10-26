@@ -15,6 +15,7 @@ pub mod labels;
 pub mod parameters;
 #[allow(clippy::module_inception)]
 pub mod parser;
+mod recursive_prototype;
 
 pub use ast::{ContentItem, Document, List, ListItem, Paragraph, Session};
 pub use ast_tag_serializer::serialize_document as serialize_ast_tag;

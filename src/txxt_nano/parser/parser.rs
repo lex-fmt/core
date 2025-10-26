@@ -357,43 +357,6 @@ fn list_item_impl(
 
 /// Parse a single list item with optional indented content (temporary wrapper)
 /// This wrapper maintains backward compatibility during refactoring
-fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
-    recursive(|list_item_parser| {
-        // Define nested list parser that uses the recursive list_item_parser
-        let nested_list = list_item_parser
-            .clone()
-            .repeated()
-            .at_least(2) // Lists require at least 2 items
-            .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
-            .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List);
-
-        // Content inside list items: paragraphs and nested lists (NO sessions)
-        let list_item_content = nested_list
-            .or(paragraph().map(ContentItemWithSpans::Paragraph))
-            .boxed(); // Box to make it Clone
-
-        // Use the _impl version with the constructed child parser
-        list_item_impl(list_item_content)
-    })
-}
-
-/// Parse a list - two or more consecutive list items
-/// Grammar: <list> = <blank-line> <list-item>{2,*}
-///
-/// IMPORTANT: Lists require a preceding blank line for disambiguation.
-/// The blank line has already been consumed by the previous element's ending newline.
-/// Blank lines between list items are NOT allowed (would terminate the list).
-#[allow(dead_code)]
-fn list() -> impl Parser<TokenSpan, ListWithSpans, Error = ParserError> + Clone {
-    // Expect to start right at first list-item-line (blank line already consumed)
-    list_item()
-        .repeated()
-        .at_least(2) // Lists require at least 2 items
-        .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
-        .map(|items| ListWithSpans { items })
-}
-
 /// Parse a paragraph - one or more lines of text separated by newlines, ending with a blank line
 /// A paragraph is a catch-all that matches when nothing else does.
 ///
@@ -543,29 +506,6 @@ fn annotation_impl(
     block_form.or(single_line_or_marker)
 }
 
-/// Parse annotation (temporary wrapper)
-/// This wrapper maintains backward compatibility during refactoring
-fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone {
-    // Content parser for annotations - excludes sessions and nested annotations
-    // AnnotationContainer can host: Paragraphs, Lists, Definitions
-    let annotation_content = recursive(|_annotation_content_parser| {
-        let nested_list = list_item()
-            .repeated()
-            .at_least(2)
-            .then_ignore(token(Token::Newline).or_not())
-            .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List);
-
-        // Parse order: List → Definition → Paragraph
-        nested_list
-            .or(definition().map(ContentItemWithSpans::Definition))
-            .or(paragraph().map(ContentItemWithSpans::Paragraph))
-            .boxed() // Box to make it Clone
-    });
-
-    annotation_impl(annotation_content)
-}
-
 /// Parse a definition - a subject ending with colon, immediately followed by indented content (implementation)
 /// Takes a child_parser for parsing the definition's container content
 /// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
@@ -585,29 +525,6 @@ fn definition_impl(
         })
 }
 
-/// Parse a definition (temporary wrapper)
-/// This wrapper maintains backward compatibility during refactoring
-fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
-    // Content parser for definitions - excludes sessions, only paragraphs and lists
-    // TODO: Add ContentContainer support (Annotations, ForeignBlocks) when cycle is resolved
-    let definition_content = recursive(|_definition_content_parser| {
-        // Nested list parser
-        let nested_list = list_item()
-            .repeated()
-            .at_least(2)
-            .then_ignore(token(Token::Newline).or_not())
-            .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List);
-
-        // Definition content can contain lists and paragraphs (NO sessions)
-        nested_list
-            .or(paragraph().map(ContentItemWithSpans::Paragraph))
-            .boxed() // Box to make it Clone
-    });
-
-    definition_impl(definition_content)
-}
-
 /// Helper to reconstruct raw content from token spans
 fn reconstruct_raw_content(source: &str, spans: &[Range<usize>]) -> String {
     if spans.is_empty() {
@@ -623,15 +540,11 @@ fn reconstruct_raw_content(source: &str, spans: &[Range<usize>]) -> String {
     source[start..end].to_string()
 }
 
-/// Parse a foreign block - subject line, optional content, closing annotation
-/// Uses "Indentation Wall" rule: content must be indented deeper than subject,
-/// closing annotation must be at same level as subject
-///
-/// Token sequence with content:
-/// definition_subject (which includes Colon and Newline) IndentLevel content... DedentLevel+ :: label :: \n
-/// Token sequence without content:
-/// definition_subject (which includes Colon and Newline) Newline :: label :: \n
-fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = ParserError> + Clone {
+/// Parse a foreign block - subject line, optional content, closing annotation (implementation)
+/// Takes an annotation parser to avoid mutual recursion
+fn foreign_block_impl(
+    annotation_parser: impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone,
+) -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = ParserError> + Clone {
     let subject_parser = definition_subject(); // This consumes: text... Colon Newline
 
     // Content: everything except TxxtMarker (stops naturally when hitting ::)
@@ -660,7 +573,7 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
         .then_ignore(token(Token::Newline).or_not()) // Consume optional blank line after subject (marker form)
         .then(with_content.or_not()) // Content is optional
         // Don't consume DedentLevel before annotation - content parser handles them
-        .then(annotation())
+        .then(annotation_parser)
         // Don't consume newlines after annotation - they belong to document-level parsing
         .map(
             |((subject_spans, content_spans), closing_annotation)| ForeignBlockWithSpans {
@@ -692,35 +605,11 @@ fn session_impl(
 
 /// Parse a session (temporary wrapper)
 /// This wrapper maintains backward compatibility during refactoring
-fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
-    recursive(|session_parser| {
-        // Parse order (from docs/tips-tricks.txxt):
-        // 1. Foreign block first (requires subject + closing annotation)
-        // 2. Annotation second (requires :: markers)
-        // 3. List third (requires 2+ list-item-lines)
-        // 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
-        // 5. Session fifth (requires title + blank line + indent)
-        // 6. Paragraph last (catch-all, including single list-item-lines)
-        let content_item = foreign_block()
-            .map(ContentItemWithSpans::ForeignBlock)
-            .or(annotation().map(ContentItemWithSpans::Annotation))
-            .or(list_item()
-                .repeated()
-                .at_least(2)
-                .then_ignore(token(Token::Newline).or_not())
-                .map(|items| ListWithSpans { items })
-                .map(ContentItemWithSpans::List))
-            .or(definition().map(ContentItemWithSpans::Definition))
-            .or(session_parser.map(ContentItemWithSpans::Session))
-            .or(paragraph().map(ContentItemWithSpans::Paragraph))
-            .boxed(); // Box to make it Clone
-
-        session_impl(content_item)
-    })
-}
-
 /// Parse a document - a sequence of annotations, paragraphs, lists, sessions, and definitions
 /// Returns intermediate AST with spans
+///
+/// Uses Recursive::declare() pattern for mutual recursion between element parsers.
+/// This enables ContentContainer support (Definitions hosting Annotations, etc).
 ///
 /// Parse order (from docs/tips-tricks.txxt):
 /// 1. Foreign block first (requires subject + closing annotation)
@@ -731,24 +620,105 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
 /// 6. Paragraph last (catch-all, including single list-item-lines)
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    let content_item = foreign_block()
-        .map(ContentItemWithSpans::ForeignBlock)
-        .or(annotation().map(ContentItemWithSpans::Annotation))
-        .or(list_item()
+    // ====================================================================
+    // STEP 1: Declare mutually recursive element parsers
+    // ====================================================================
+    let mut annotation_parser = Recursive::declare();
+    let mut definition_parser = Recursive::declare();
+    let mut session_parser = Recursive::declare();
+
+    // ====================================================================
+    // STEP 2: Define each parser inline
+    // ====================================================================
+
+    // Annotation: can contain Lists (with annotation-level content), Definitions, Paragraphs
+    annotation_parser.define(annotation_impl(recursive(|ann_content| {
+        // Lists in annotations use annotation-level content recursively
+        let nested_list = list_item_impl(ann_content.clone())
             .repeated()
             .at_least(2)
             .then_ignore(token(Token::Newline).or_not())
             .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List))
-        .or(definition().map(ContentItemWithSpans::Definition))
-        .or(session().map(ContentItemWithSpans::Session))
-        .or(paragraph().map(ContentItemWithSpans::Paragraph));
+            .map(ContentItemWithSpans::List);
 
-    content_item
-        .repeated()
-        .then_ignore(token(Token::DedentLevel).or_not()) // Allow files that don't end with a newline
-        .then_ignore(end())
-        .map(|items| DocumentWithSpans { items })
+        nested_list
+            .or(definition_parser
+                .clone()
+                .map(ContentItemWithSpans::Definition))
+            .or(paragraph().map(ContentItemWithSpans::Paragraph))
+    })));
+
+    // Definition: uses ContentContainer (can contain ForeignBlocks, Annotations, Lists, Definitions, Paragraphs)
+    // Temporarily simplified: NO nested definitions to test
+    definition_parser.define(definition_impl(recursive(|content| {
+        // Lists in definitions use content-level content recursively
+        let nested_list = list_item_impl(content.clone())
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List);
+
+        foreign_block_impl(annotation_parser.clone())
+            .map(ContentItemWithSpans::ForeignBlock)
+            .or(annotation_parser
+                .clone()
+                .map(ContentItemWithSpans::Annotation))
+            .or(nested_list)
+            // TEMPORARILY REMOVED: .or(definition_parser.clone().map(ContentItemWithSpans::Definition))
+            .or(paragraph().map(ContentItemWithSpans::Paragraph))
+    })));
+
+    // Session: uses SessionContainer (can contain everything including nested sessions)
+    session_parser.define(session_impl(recursive(|session_content| {
+        // Lists in sessions use session-level content recursively
+        let nested_list = list_item_impl(session_content.clone())
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List);
+
+        foreign_block_impl(annotation_parser.clone())
+            .map(ContentItemWithSpans::ForeignBlock)
+            .or(annotation_parser
+                .clone()
+                .map(ContentItemWithSpans::Annotation))
+            .or(nested_list)
+            .or(definition_parser
+                .clone()
+                .map(ContentItemWithSpans::Definition))
+            .or(session_parser.clone().map(ContentItemWithSpans::Session))
+            .or(paragraph().map(ContentItemWithSpans::Paragraph))
+    })));
+
+    // ====================================================================
+    // STEP 3: Build final document parser with correct precedence
+    // ====================================================================
+    // Parse order: ForeignBlock → Annotation → List → Definition → Session → Paragraph
+    // Document-level lists use ContentContainer (full content support)
+
+    recursive(|doc_content| {
+        // Lists at document level use document-level content recursively
+        let doc_list = list_item_impl(doc_content.clone())
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List);
+
+        foreign_block_impl(annotation_parser.clone())
+            .map(ContentItemWithSpans::ForeignBlock)
+            .or(annotation_parser.map(ContentItemWithSpans::Annotation))
+            .or(doc_list)
+            .or(definition_parser.map(ContentItemWithSpans::Definition))
+            .or(session_parser.map(ContentItemWithSpans::Session))
+            .or(paragraph().map(ContentItemWithSpans::Paragraph))
+    })
+    .repeated()
+    .then_ignore(token(Token::DedentLevel).or_not()) // Allow files that don't end with a newline
+    .then_ignore(end())
+    .map(|items| DocumentWithSpans { items })
 }
 
 /// Parse with source text - extracts actual content from spans
