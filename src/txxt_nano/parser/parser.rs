@@ -589,6 +589,7 @@ fn definition_impl(
 /// This wrapper maintains backward compatibility during refactoring
 fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
     // Content parser for definitions - excludes sessions, only paragraphs and lists
+    // TODO: Add ContentContainer support (Annotations, ForeignBlocks) when cycle is resolved
     let definition_content = recursive(|_definition_content_parser| {
         // Nested list parser
         let nested_list = list_item()
