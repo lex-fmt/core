@@ -1,0 +1,4 @@
+[term]
+# Has to be quiet by default. Else this produces almost 2k lines of output.
+# which kills context windows in 3 runs :)
+quiet = true

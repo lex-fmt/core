@@ -335,8 +335,20 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
         })
 }
 
+/// Container types that define what content elements are allowed
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)] // Content and Annotation will be used when we update definition() and annotation()
+enum ContainerType {
+    /// Session containers - can contain everything (sessions, definitions, lists, paragraphs, annotations, foreign blocks)
+    Session,
+    /// Content containers - used by definitions and list items (cannot contain sessions)
+    Content,
+    /// Annotation containers - used by annotation block content (cannot contain sessions or nested annotations)
+    Annotation,
+}
+
 /// Build the unified content parser that implements the canonical parse order.
-/// This is used by both session() and document() to ensure consistent parsing.
+/// This is used by sessions, documents, definitions, list items, and annotations.
 ///
 /// Parse order (from docs/parsing.txxt):
 /// 1. Foreign block first (requires subject + closing annotation)
@@ -348,12 +360,25 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
 ///
 /// Parameters:
 /// - session_parser: The parser to use for sessions (either recursive ref or the full session parser)
+/// - container_type: What type of container this is (determines what content is allowed)
 fn build_content_parser(
-    session_parser: impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone,
+    session_parser: impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone + 'static,
+    container_type: ContainerType,
 ) -> impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone {
-    foreign_block()
+    // Build the base parser chain
+    let mut parser = foreign_block()
         .map(ContentItemWithSpans::ForeignBlock)
-        .or(annotation().map(ContentItemWithSpans::Annotation))
+        .boxed();
+
+    // Annotations allowed in Session and Content containers, but NOT in Annotation containers
+    if container_type != ContainerType::Annotation {
+        parser = parser
+            .or(annotation().map(ContentItemWithSpans::Annotation))
+            .boxed();
+    }
+
+    // Lists, definitions, and paragraphs allowed in all container types
+    parser = parser
         .or(list_item()
             .repeated()
             .at_least(2)
@@ -361,8 +386,19 @@ fn build_content_parser(
             .map(|items| ListWithSpans { items })
             .map(ContentItemWithSpans::List))
         .or(definition().map(ContentItemWithSpans::Definition))
-        .or(session_parser.map(ContentItemWithSpans::Session))
+        .boxed();
+
+    // Sessions only allowed in Session containers
+    if container_type == ContainerType::Session {
+        parser = parser
+            .or(session_parser.map(ContentItemWithSpans::Session))
+            .boxed();
+    }
+
+    // Paragraph is the catch-all (always last)
+    parser
         .or(paragraph().map(ContentItemWithSpans::Paragraph))
+        .boxed()
 }
 
 /// Parse a single list item with optional indented content
@@ -676,7 +712,8 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
 fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
     recursive(|session_parser| {
         // Use the unified content parser with the recursive session reference
-        let content_item = build_content_parser(session_parser);
+        // Sessions are SessionContainers - they can contain everything
+        let content_item = build_content_parser(session_parser, ContainerType::Session);
 
         session_title()
             .then(
@@ -700,8 +737,8 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
     // Use the unified content parser with the full session() parser
-    // Documents can contain sessions, so we pass session() directly
-    let content_item = build_content_parser(session());
+    // Documents are SessionContainers - they can contain everything including sessions
+    let content_item = build_content_parser(session(), ContainerType::Session);
 
     content_item
         .repeated()
