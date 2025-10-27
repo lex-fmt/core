@@ -35,7 +35,7 @@ recursive(|content| {
 
 ## Attempted Solutions
 
-### Boxing Strategy (Failed)
+### 1. Boxing Strategy (Failed)
 **Attempt**: Use `.boxed()` to break type recursion cycles
 ```rust
 let definition_parser = recursive(|def_content| {
@@ -50,6 +50,27 @@ let definition_parser = recursive(|def_content| {
 - ❌ Appears to be an issue with how Chumsky handles boxed recursive parsers
 
 **Hypothesis**: The boxing might interfere with Chumsky's internal recursive reference handling, causing the parser to fail when trying to recurse.
+
+### 2. Nested Recursive Blocks (Failed)
+**Attempt**: Use nested recursive() blocks pattern from Chumsky's nano_rust example
+```rust
+fn build_document_content_parser() -> impl Parser<...> {
+    recursive(|session_content| {
+        let content_without_sessions = recursive(|content_no_sessions| {
+            // Nested recursive parser
+        });
+        // Use both recursive parsers together
+    })
+}
+```
+
+**Result**:
+- ✅ Compiles successfully
+- ✅ No type recursion issues
+- ❌ Breaks document-level parsing - expects EOF after first item
+- ❌ Interferes with `.repeated()` call in document parser
+
+**Root Cause**: Wrapping the entire document content parser in `recursive()` creates a context where the parser expects to consume all input, breaking the ability to parse multiple items at the document level.
 
 ## Potential Future Approaches
 
@@ -82,6 +103,18 @@ The parameterized `_with_content()` parser functions are implemented and ready:
 
 These can be activated once the recursion challenge is solved.
 
+## Discovered Issues
+
+### Foreign Block vs Session Ambiguity
+During investigation, discovered a fundamental ambiguity in the txxt format:
+- Both sessions and foreign blocks start with "Subject:" followed by indented content
+- Parser must choose between them before seeing the distinguishing closing annotation
+- Currently resolved by parser ordering (sessions before foreign blocks)
+- This causes some foreign blocks to be incorrectly parsed as sessions
+- See test `test_foreign_block_multiple_blocks` marked as ignored
+- Tracked as issue #33
+
 ## References
 - Issue #31: Complete transition to unified recursive parser
+- Issue #33: Foreign block vs session parsing ambiguity
 - Chumsky recursive combinator: https://docs.rs/chumsky/latest/chumsky/recursive/fn.recursive.html
