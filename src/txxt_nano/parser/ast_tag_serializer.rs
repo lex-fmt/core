@@ -27,7 +27,7 @@ use crate::txxt_nano::parser::ast::{Container, ContentItem, Document};
 pub fn serialize_document(doc: &Document) -> String {
     let mut result = String::new();
     result.push_str("<document>\n");
-    for item in &doc.items {
+    for item in &doc.content {
         serialize_content_item(item, 1, &mut result);
     }
     result.push_str("</document>");
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_serialize_simple_paragraph() {
-        let doc = Document::with_items(vec![ContentItem::Paragraph(Paragraph::from_line(
+        let doc = Document::with_content(vec![ContentItem::Paragraph(Paragraph::from_line(
             "Hello world".to_string(),
         ))]);
 
@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn test_serialize_session_with_paragraph() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::new(
+        let doc = Document::with_content(vec![ContentItem::Session(Session::new(
             "Introduction".to_string(),
             vec![ContentItem::Paragraph(Paragraph::from_line(
                 "Welcome".to_string(),
@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_serialize_nested_sessions() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::new(
+        let doc = Document::with_content(vec![ContentItem::Session(Session::new(
             "Root".to_string(),
             vec![
                 ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_xml_escaping() {
-        let doc = Document::with_items(vec![ContentItem::Paragraph(Paragraph::from_line(
+        let doc = Document::with_content(vec![ContentItem::Paragraph(Paragraph::from_line(
             "Text with <special> & \"chars\"".to_string(),
         ))]);
 
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_empty_session() {
-        let doc = Document::with_items(vec![ContentItem::Session(Session::with_title(
+        let doc = Document::with_content(vec![ContentItem::Session(Session::with_title(
             "Empty".to_string(),
         ))]);
 

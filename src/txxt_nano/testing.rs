@@ -63,7 +63,7 @@
 //! Testing a nested session traditionally looks like this:
 //!
 //! ```rust,ignore
-//! match &doc.items[0] {
+//! match &doc.content[0] {
 //!     ContentItem::Session(s) => {
 //!         assert_eq!(s.title, "Introduction");
 //!         assert_eq!(s.content.len(), 2);

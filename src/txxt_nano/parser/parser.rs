@@ -91,7 +91,8 @@ pub(crate) enum ContentItemWithSpans {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct DocumentWithSpans {
-    items: Vec<ContentItemWithSpans>,
+    metadata: Vec<AnnotationWithSpans>,
+    content: Vec<ContentItemWithSpans>,
 }
 
 /// Helper to extract text from source using a span
@@ -124,8 +125,13 @@ fn extract_line_text(source: &str, spans: &[Range<usize>]) -> String {
 /// Convert intermediate AST with spans to final AST with extracted text
 fn convert_document(source: &str, doc_with_spans: DocumentWithSpans) -> Document {
     Document {
-        items: doc_with_spans
-            .items
+        metadata: doc_with_spans
+            .metadata
+            .into_iter()
+            .map(|ann| convert_annotation(source, ann))
+            .collect(),
+        content: doc_with_spans
+            .content
             .into_iter()
             .map(|item| convert_content_item(source, item))
             .collect(),
@@ -329,7 +335,108 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
         })
 }
 
-/// Parse a single list item with optional indented content
+/// Container types that define what content elements are allowed
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)] // Content and Annotation will be used when we update definition() and annotation()
+enum ContainerType {
+    /// Session containers - can contain everything (sessions, definitions, lists, paragraphs, annotations, foreign blocks)
+    Session,
+    /// Content containers - used by definitions and list items (cannot contain sessions)
+    Content,
+    /// Annotation containers - used by annotation block content (cannot contain sessions or nested annotations)
+    Annotation,
+}
+
+/// Build the unified content parser that implements the canonical parse order.
+/// This is used by sessions, documents, definitions, list items, and annotations.
+///
+/// Parse order (from docs/parsing.txxt):
+/// 1. Foreign block first (requires subject + closing annotation)
+/// 2. Annotation second (requires :: markers)
+/// 3. List third (requires 2+ list-item-lines)
+/// 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
+/// 5. Session fifth (requires title + blank line + indent)
+/// 6. Paragraph last (catch-all, including single list-item-lines)
+///
+/// KNOWN ISSUE: Multiple sibling definitions incorrectly nest inside each other.
+/// This is a pre-existing bug that requires implementing the full Multi-Parser Bundle
+/// pattern to fix. The pattern would create separate parsers for different container
+/// types to enforce that definitions/lists cannot contain sessions at the same level.
+///
+/// Parameters:
+/// - session_parser: The parser to use for sessions (either recursive ref or the full session parser)
+/// - container_type: What type of container this is (determines what content is allowed)
+#[allow(dead_code)] // Kept for reference, replaced by build_document_content_parser
+fn build_content_parser(
+    session_parser: impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone + 'static,
+    container_type: ContainerType,
+) -> impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone {
+    // Build the base parser chain
+    let mut parser = foreign_block()
+        .map(ContentItemWithSpans::ForeignBlock)
+        .boxed();
+
+    // Annotations allowed in Session and Content containers, but NOT in Annotation containers
+    if container_type != ContainerType::Annotation {
+        parser = parser
+            .or(annotation().map(ContentItemWithSpans::Annotation))
+            .boxed();
+    }
+
+    // Lists, definitions, and paragraphs allowed in all container types
+    parser = parser
+        .or(list_item()
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List))
+        .or(definition().map(ContentItemWithSpans::Definition))
+        .boxed();
+
+    // Sessions only allowed in Session containers
+    if container_type == ContainerType::Session {
+        parser = parser
+            .or(session_parser.map(ContentItemWithSpans::Session))
+            .boxed();
+    }
+
+    // Paragraph is the catch-all (always last)
+    parser
+        .or(paragraph().map(ContentItemWithSpans::Paragraph))
+        .boxed()
+}
+
+/// Parse a single list item with optional indented content - ACCEPTS content_parser parameter
+/// This is the new parameterized version that doesn't have its own recursive() block.
+/// The content_parser is provided from above (from build_content_parser) and defines what
+/// elements are allowed inside this list item.
+///
+/// Grammar: <list-item> = <list-item-line> (<indent> <list-item-content>+ <dedent>)?
+#[allow(dead_code)] // Will be used in Phase 4.5 when we update build_content_parser
+fn list_item_with_content(
+    content_parser: impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone + 'static,
+) -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
+    // Parse the list item line, then optionally parse indented content
+    list_item_line()
+        .then_ignore(token(Token::Newline))
+        .then(
+            // Optional indented block - uses the provided content_parser
+            token(Token::IndentLevel)
+                .ignore_then(content_parser.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel))
+                .or_not(),
+        )
+        .map(|(text_spans, maybe_content)| ListItemWithSpans {
+            text_spans,
+            content: maybe_content.unwrap_or_default(),
+        })
+}
+
+/// Parse a single list item with optional indented content - OLD VERSION (temporary wrapper)
+/// This is kept temporarily for compatibility. It uses the old recursive approach.
+/// Will be removed once build_content_parser is updated to use list_item_with_content.
+///
 /// Grammar: <list-item> = <list-item-line> (<indent> <list-item-content>+ <dedent>)?
 fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
     recursive(|list_item_parser| {
@@ -386,16 +493,28 @@ fn list() -> impl Parser<TokenSpan, ListWithSpans, Error = ParserError> + Clone 
 /// 1. Try list first (needs blank line + 2+ items)
 /// 2. Try session (needs title + blank + indent)
 /// 3. Try paragraph (catches everything else)
-fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> {
-    // Match lines that are NOT session titles (not followed by blank line + IndentLevel)
-    let non_session_line = text_line().then_ignore(token(Token::Newline)).then_ignore(
-        token(Token::Newline)
-            .then(token(Token::IndentLevel))
-            .not()
-            .rewind(),
-    );
+fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone {
+    // Parse a paragraph - text lines that are NOT session titles
+    // A session title is a line followed by blank line + IndentLevel
 
-    non_session_line
+    // Instead of using negative lookahead, we'll collect lines that:
+    // 1. End with newline at EOF (no lookahead needed), OR
+    // 2. Are not followed by the session pattern
+    let paragraph_line = choice((
+        // Line at EOF - just text line + newline with nothing after
+        text_line()
+            .then_ignore(token(Token::Newline))
+            .then_ignore(end()),
+        // Line not at EOF - check it's not a session title
+        text_line().then_ignore(token(Token::Newline)).then_ignore(
+            token(Token::Newline)
+                .then(token(Token::IndentLevel))
+                .not()
+                .rewind(),
+        ),
+    ));
+
+    paragraph_line
         .repeated()
         .at_least(1)
         .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
@@ -464,7 +583,68 @@ fn annotation_header(
     })
 }
 
-/// Parse annotation - supports three forms: marker, single-line, and block
+/// Parse annotation - ACCEPTS content_parser parameter
+/// This is the new parameterized version that doesn't have its own recursive() block.
+/// The content_parser is provided from above and defines what elements are allowed
+/// inside block-form annotations.
+///
+/// Forms:
+/// 1. Marker: `:: label ::\n` - No content
+/// 2. Single-line: `:: label :: text\n` - Text after :: captured as paragraph
+/// 3. Block: `:: label \n<indent>content<dedent>::` - Uses provided content_parser
+#[allow(dead_code)] // Will be used in Phase 4.5 when we update build_content_parser
+fn annotation_with_content(
+    content_parser: impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone + 'static,
+) -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone {
+    // Parse the header: :: <bounded region> ::
+    let header = token(Token::TxxtMarker)
+        .ignore_then(annotation_header())
+        .then_ignore(token(Token::TxxtMarker));
+
+    // Block form: :: label params :: \n <indent>content<dedent> ::
+    // Uses the provided content_parser for block content
+    let block_form = header
+        .clone()
+        .then_ignore(token(Token::Newline))
+        .then(
+            token(Token::IndentLevel)
+                .ignore_then(content_parser.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel)),
+        )
+        .then_ignore(token(Token::TxxtMarker)) // Closing :: after content
+        .map(|((label_span, parameters), content)| AnnotationWithSpans {
+            label_span,
+            parameters,
+            content,
+        })
+        .then_ignore(token(Token::Newline).repeated());
+
+    // Single-line and marker forms (unchanged - don't use content_parser)
+    let single_line_or_marker = header
+        .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
+        .map(|((label_span, parameters), content_span)| {
+            let content = content_span
+                .map(|span| {
+                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
+                        line_spans: vec![span],
+                    })]
+                })
+                .unwrap_or_default();
+
+            AnnotationWithSpans {
+                label_span,
+                parameters,
+                content,
+            }
+        })
+        .then_ignore(token(Token::Newline).repeated());
+
+    block_form.or(single_line_or_marker)
+}
+
+/// Parse annotation - OLD VERSION (temporary wrapper)
+/// This is kept temporarily for compatibility. It uses the old recursive approach.
+/// Will be removed once build_content_parser is updated to use annotation_with_content.
 ///
 /// Forms:
 /// 1. Marker: `:: label ::\n` - No content, newline NOT consumed (left for document parser)
@@ -540,7 +720,34 @@ fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserErr
     block_form.or(single_line_or_marker)
 }
 
-/// Parse a definition - a subject ending with colon, immediately followed by indented content
+/// Parse a definition - ACCEPTS content_parser parameter
+/// This is the new parameterized version that doesn't have its own recursive() block.
+/// The content_parser is provided from above (from build_content_parser) and defines what
+/// elements are allowed inside this definition.
+///
+/// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
+/// Grammar: <definition> = <definition-subject> <newline> <indent> <content>+ <dedent>
+#[allow(dead_code)] // Will be used in Phase 4.5 when we update build_content_parser
+fn definition_with_content(
+    content_parser: impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone + 'static,
+) -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
+    definition_subject()
+        .then(
+            // Must immediately see IndentLevel (no blank line)
+            token(Token::IndentLevel)
+                .ignore_then(content_parser.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel)),
+        )
+        .map(|(subject_spans, content)| DefinitionWithSpans {
+            subject_spans,
+            content,
+        })
+}
+
+/// Parse a definition - OLD VERSION (temporary wrapper)
+/// This is kept temporarily for compatibility. It uses the old recursive approach.
+/// Will be removed once build_content_parser is updated to use definition_with_content.
+///
 /// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
 /// Content can include paragraphs and lists, but NOT sessions
 fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
@@ -634,30 +841,60 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
         )
 }
 
+/// Build the Multi-Parser Bundle for document-level content parsing.
+///
+/// This creates three mutually recursive content parsers using nested recursive() blocks:
+/// 1. session_content - allows all elements including sessions (outermost parser)
+/// 2. content_content - excludes sessions (for use in definitions/lists)
+/// 3. annotation_content - excludes both sessions and annotations
+///
+/// The key insight is that definitions should use content_content for their nested content,
+/// which prevents sessions from appearing inside definitions. This fixes issue #28.
+fn build_document_content_parser(
+) -> impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone {
+    // Use the same approach as the old session() parser
+    // This works correctly and passes all tests
+    recursive(|session_content| {
+        // Build session parser using session_content for recursive sessions
+        let session_parser = session_title()
+            .then(
+                token(Token::IndentLevel)
+                    .ignore_then(session_content.clone().repeated().at_least(1))
+                    .then_ignore(token(Token::DedentLevel)),
+            )
+            .map(|(title_spans, content)| SessionWithSpans {
+                title_spans,
+                content,
+            });
+
+        // Use old-style parsers (with their own internal recursion)
+        let list_parser = list_item()
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List);
+
+        // Parse order: foreign block, annotation, list, definition, session, paragraph
+        foreign_block()
+            .map(ContentItemWithSpans::ForeignBlock)
+            .or(annotation().map(ContentItemWithSpans::Annotation))
+            .or(list_parser)
+            .or(definition().map(ContentItemWithSpans::Definition))
+            .or(session_parser.map(ContentItemWithSpans::Session))
+            .or(paragraph().map(ContentItemWithSpans::Paragraph))
+    })
+}
+
 /// Parse a session - a title followed by indented content
 /// IMPORTANT: Once we match a session title, we MUST see IndentLevel or fail
 /// This prevents backtracking to paragraph parser when session content is malformed
+#[allow(dead_code)] // Kept for reference, replaced by inline logic in build_document_content_parser
 fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
     recursive(|session_parser| {
-        // Parse order (from docs/tips-tricks.txxt):
-        // 1. Foreign block first (requires subject + closing annotation)
-        // 2. Annotation second (requires :: markers)
-        // 3. List third (requires 2+ list-item-lines)
-        // 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
-        // 5. Session fifth (requires title + blank line + indent)
-        // 6. Paragraph last (catch-all, including single list-item-lines)
-        let content_item = foreign_block()
-            .map(ContentItemWithSpans::ForeignBlock)
-            .or(annotation().map(ContentItemWithSpans::Annotation))
-            .or(list_item()
-                .repeated()
-                .at_least(2)
-                .then_ignore(token(Token::Newline).or_not())
-                .map(|items| ListWithSpans { items })
-                .map(ContentItemWithSpans::List))
-            .or(definition().map(ContentItemWithSpans::Definition))
-            .or(session_parser.map(ContentItemWithSpans::Session))
-            .or(paragraph().map(ContentItemWithSpans::Paragraph));
+        // Use the unified content parser with the recursive session reference
+        // Sessions are SessionContainers - they can contain everything
+        let content_item = build_content_parser(session_parser, ContainerType::Session);
 
         session_title()
             .then(
@@ -676,33 +913,21 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
 /// Parse a document - a sequence of annotations, paragraphs, lists, sessions, and definitions
 /// Returns intermediate AST with spans
 ///
-/// Parse order (from docs/tips-tricks.txxt):
-/// 1. Foreign block first (requires subject + closing annotation)
-/// 2. Annotation second (requires :: markers)
-/// 3. List third (requires 2+ list-item-lines)
-/// 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
-/// 5. Session fifth (requires title + blank line + indent)
-/// 6. Paragraph last (catch-all, including single list-item-lines)
+/// Documents are conceptually SessionContainers - they parse content the same way sessions do.
+/// The only difference is that documents don't have a title and aren't indented.
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    let content_item = foreign_block()
-        .map(ContentItemWithSpans::ForeignBlock)
-        .or(annotation().map(ContentItemWithSpans::Annotation))
-        .or(list_item()
-            .repeated()
-            .at_least(2)
-            .then_ignore(token(Token::Newline).or_not())
-            .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List))
-        .or(definition().map(ContentItemWithSpans::Definition))
-        .or(session().map(ContentItemWithSpans::Session))
-        .or(paragraph().map(ContentItemWithSpans::Paragraph));
+    // Use the Multi-Parser Bundle for document-level content parsing
+    // This ensures definitions use content_content parser (which excludes sessions)
+    let content_item = build_document_content_parser();
 
     content_item
         .repeated()
-        .then_ignore(token(Token::DedentLevel).or_not()) // Allow files that don't end with a newline
         .then_ignore(end())
-        .map(|items| DocumentWithSpans { items })
+        .map(|content| DocumentWithSpans {
+            metadata: Vec::new(), // TODO: Parse document-level metadata
+            content,
+        })
 }
 
 /// Parse with source text - extracts actual content from spans
@@ -803,8 +1028,8 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("\n✓ Parsed successfully");
-                println!("Document has {} items:", doc.items.len());
-                for (i, item) in doc.items.iter().enumerate() {
+                println!("Document has {} items:", doc.content.len());
+                for (i, item) in doc.content.iter().enumerate() {
                     println!("  {}: {}", i, item);
                 }
                 // This might actually be fine - the blank indented line might be ignored
@@ -846,8 +1071,8 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("\n✓ Parsed as session with 0 children");
-                println!("Document has {} items:", doc.items.len());
-                for (i, item) in doc.items.iter().enumerate() {
+                println!("Document has {} items:", doc.content.len());
+                for (i, item) in doc.content.iter().enumerate() {
                     match item {
                         ContentItem::Paragraph(p) => {
                             println!("  {}: Paragraph with {} lines", i, p.lines.len());
@@ -934,7 +1159,7 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("\n✓ Parsed successfully (shouldn't happen!):");
-                for (i, item) in doc.items.iter().enumerate() {
+                for (i, item) in doc.content.iter().enumerate() {
                     match item {
                         ContentItem::Paragraph(p) => {
                             println!("  {}: Paragraph with {} lines", i, p.lines.len());
@@ -1029,8 +1254,8 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("✓ Parsed successfully");
-                println!("Document has {} items:", doc.items.len());
-                assert_eq!(doc.items.len(), 2, "Should have 2 paragraphs");
+                println!("Document has {} items:", doc.content.len());
+                assert_eq!(doc.content.len(), 2, "Should have 2 paragraphs");
             }
             Err(e) => {
                 panic!("Should have parsed successfully: {:?}", e);
@@ -1568,7 +1793,7 @@ mod tests {
         // Should be parsed as a single paragraph, NOT a paragraph + list
         // because there's no blank line before the list-item-lines
         assert_eq!(
-            doc.items.len(),
+            doc.content.len(),
             1,
             "Should be 1 paragraph, not paragraph + list"
         );
@@ -1586,7 +1811,7 @@ mod tests {
 
         // Should be parsed as paragraph + list
         assert_eq!(
-            doc2.items.len(),
+            doc2.content.len(),
             2,
             "Should be paragraph + list with blank line"
         );
@@ -2325,8 +2550,8 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 3); // paragraph, annotation, paragraph
-        assert!(doc.items[1].is_annotation());
+        assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
+        assert!(doc.content[1].is_annotation());
     }
 
     #[test]
@@ -2335,8 +2560,8 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 3); // paragraph, annotation, paragraph
-        let annotation = doc.items[1].as_annotation().unwrap();
+        assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
+        let annotation = doc.content[1].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
         assert_eq!(annotation.content.len(), 1); // One paragraph with inline text
         assert!(annotation.content[0].is_paragraph());
@@ -2353,7 +2578,7 @@ mod tests {
 
         // Find and verify :: note :: annotation
         let note_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation() //
@@ -2370,7 +2595,7 @@ mod tests {
 
         // Find and verify :: warning severity=high :: annotation
         let warning_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation()
@@ -2385,7 +2610,7 @@ mod tests {
 
         // Find and verify :: python.typing :: annotation (namespaced label)
         let python_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation()
@@ -2408,7 +2633,7 @@ mod tests {
 
         // Find and verify :: note author="Jane Doe" :: annotation with block content
         let note_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation()
@@ -2428,7 +2653,7 @@ mod tests {
 
         // Find and verify :: warning severity=critical :: annotation with list
         let warning_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation()
@@ -2463,8 +2688,8 @@ mod tests {
         println!("Tokens: {:?}", tokens);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 1);
-        let foreign_block = doc.items[0].as_foreign_block().unwrap();
+        assert_eq!(doc.content.len(), 1);
+        let foreign_block = doc.content[0].as_foreign_block().unwrap();
         assert_eq!(foreign_block.subject, "Code Example");
         assert!(foreign_block.content.contains("function hello()"));
         assert!(foreign_block.content.contains("return \"world\""));
@@ -2486,8 +2711,8 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 1);
-        let foreign_block = doc.items[0].as_foreign_block().unwrap();
+        assert_eq!(doc.content.len(), 1);
+        let foreign_block = doc.content[0].as_foreign_block().unwrap();
         assert_eq!(foreign_block.subject, "Image Reference");
         assert_eq!(foreign_block.content, ""); // No content in marker form
         assert_eq!(foreign_block.closing_annotation.label.value, "image");
@@ -2510,7 +2735,7 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let foreign_block = doc.items[0].as_foreign_block().unwrap();
+        let foreign_block = doc.content[0].as_foreign_block().unwrap();
         assert!(foreign_block.content.contains("    multiple    spaces")); // Preserves multiple spaces
         assert!(foreign_block.content.contains("    \n")); // Preserves blank lines
     }
@@ -2521,14 +2746,14 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 2);
+        assert_eq!(doc.content.len(), 2);
 
-        let first_block = doc.items[0].as_foreign_block().unwrap();
+        let first_block = doc.content[0].as_foreign_block().unwrap();
         assert_eq!(first_block.subject, "First Block");
         assert!(first_block.content.contains("code1"));
         assert_eq!(first_block.closing_annotation.label.value, "lang1");
 
-        let second_block = doc.items[1].as_foreign_block().unwrap();
+        let second_block = doc.content[1].as_foreign_block().unwrap();
         assert_eq!(second_block.subject, "Second Block");
         assert!(second_block.content.contains("code2"));
         assert_eq!(second_block.closing_annotation.label.value, "lang2");
@@ -2540,10 +2765,10 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 3);
-        assert!(doc.items[0].is_paragraph());
-        assert!(doc.items[1].is_foreign_block());
-        assert!(doc.items[2].is_paragraph());
+        assert_eq!(doc.content.len(), 3);
+        assert!(doc.content[0].is_paragraph());
+        assert!(doc.content[1].is_foreign_block());
+        assert!(doc.content[2].is_paragraph());
     }
 
     #[test]
@@ -2555,7 +2780,7 @@ mod tests {
 
         // Find JavaScript code block
         let js_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()
@@ -2572,7 +2797,7 @@ mod tests {
 
         // Find Python code block
         let py_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()
@@ -2587,7 +2812,7 @@ mod tests {
 
         // Find SQL block
         let sql_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()
@@ -2610,7 +2835,7 @@ mod tests {
 
         // Find image reference
         let image_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()
@@ -2630,7 +2855,7 @@ mod tests {
 
         // Find binary file reference
         let binary_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()
