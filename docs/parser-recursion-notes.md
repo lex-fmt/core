@@ -112,9 +112,9 @@ During investigation, discovered a fundamental ambiguity in the txxt format:
 - Currently resolved by parser ordering (sessions before foreign blocks)
 - This causes some foreign blocks to be incorrectly parsed as sessions
 - See test `test_foreign_block_multiple_blocks` marked as ignored
-- Tracked as issue #33
+- Tracked as issue #34
 
 ## References
 - Issue #31: Complete transition to unified recursive parser
-- Issue #33: Foreign block vs session parsing ambiguity
+- Issue #34: Foreign block vs session parsing ambiguity
 - Chumsky recursive combinator: https://docs.rs/chumsky/latest/chumsky/recursive/fn.recursive.html

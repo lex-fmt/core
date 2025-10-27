@@ -2723,7 +2723,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Known issue: Foreign blocks ambiguous with sessions - see issue #33"]
+    #[ignore = "Known issue: Foreign blocks ambiguous with sessions - see issue #34"]
     fn test_foreign_block_multiple_blocks() {
         // This test reveals an ambiguity in the txxt format:
         // Both sessions and foreign blocks start with "Subject:" followed by indented content.
