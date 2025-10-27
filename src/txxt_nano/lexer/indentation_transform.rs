@@ -75,12 +75,17 @@ pub fn transform_indentation(tokens: Vec<Token>) -> Vec<Token> {
         // Update current level
         current_level = target_level;
 
-        // Process the rest of the line, skipping Indent tokens
+        // Skip the initial Indent tokens that were processed as indentation
         let mut j = line_start;
-        while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
-            if !matches!(tokens[j], Token::Indent) {
-                result.push(tokens[j].clone());
+        for _ in 0..line_indent_level {
+            if j < tokens.len() && matches!(tokens[j], Token::Indent) {
+                j += 1;
             }
+        }
+
+        // Process the rest of the line, keeping all remaining tokens
+        while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
+            result.push(tokens[j].clone());
             j += 1;
         }
 
@@ -193,12 +198,17 @@ pub fn transform_indentation_with_spans(
         // Update current level
         current_level = target_level;
 
-        // Process the rest of the line, skipping Indent tokens but preserving spans
+        // Skip the initial Indent tokens that were processed as indentation
         let mut j = line_start;
-        while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
-            if !matches!(tokens[j], Token::Indent) {
-                result.push((tokens[j].clone(), tokens_with_spans[j].1.clone()));
+        for _ in 0..line_indent_level {
+            if j < tokens.len() && matches!(tokens[j], Token::Indent) {
+                j += 1;
             }
+        }
+
+        // Process the rest of the line, keeping all remaining tokens with spans
+        while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
+            result.push((tokens[j].clone(), tokens_with_spans[j].1.clone()));
             j += 1;
         }
 
