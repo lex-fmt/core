@@ -273,19 +273,6 @@
       "type_id" : 20
     },
     {
-      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
-      "object_id" : "0385AC1C-91A8-4342-A93A-E5E46C430D35",
-      "tixels" : {
-        "text_content" : [
-          "▀"
-        ],
-        "text_points" : [
-          "9,9"
-        ]
-      },
-      "type_id" : 18
-    },
-    {
       "alignment" : 0,
       "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
       "enabled" : false,
@@ -479,6 +466,11 @@
     {
       "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
       "object_id" : "054C6B01-22D1-4007-A45C-2D71F76FB501",
+      "type_id" : 18
+    },
+    {
+      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
+      "object_id" : "054D4BA6-7B50-4ABD-A1D9-94A2EAD8737A",
       "type_id" : 18
     },
     {
@@ -2423,6 +2415,49 @@
     },
     {
       "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
+      "object_id" : "1A183818-3EB3-4AE8-8E27-88D3083F8D5C",
+      "tixels" : {
+        "text_content" : [
+          "▄",
+          "▄",
+          "▀",
+          "▀",
+          "▄",
+          "▄",
+          "▀",
+          "▀",
+          "▄",
+          "▄",
+          "▀",
+          "▀",
+          "▄",
+          "▄",
+          "▀",
+          "▀"
+        ],
+        "text_points" : [
+          "9,0",
+          "10,0",
+          "11,0",
+          "12,0",
+          "7,1",
+          "8,1",
+          "9,1",
+          "10,1",
+          "4,2",
+          "5,2",
+          "6,2",
+          "7,2",
+          "0,3",
+          "1,3",
+          "2,3",
+          "3,3"
+        ]
+      },
+      "type_id" : 18
+    },
+    {
+      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
       "object_id" : "1A3A475E-E7C9-45A9-B6B8-EA3BD252A472",
       "tixels" : {
         "text_content" : [
@@ -3739,9 +3774,10 @@
       ],
       "object_id" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
       "shape_seq_numbers" : {
-        "5" : 72,
+        "4" : 0,
+        "5" : 76,
         "6" : 1,
-        "8" : 14,
+        "8" : 15,
         "10" : 1
       },
       "type_id" : 0
@@ -6398,8 +6434,8 @@
       "name" : "Canvas 1",
       "object_id" : "454E62CC-8999-4966-B05F-B23E7424F041",
       "subshape_refs" : [
+        "A7033F11-7A01-46E6-8576-6A45397668B8",
         "DA917CDA-9D6B-40CC-B99C-450AA641562E",
-        "F621969B-6FC8-4B09-A242-684B2DF5A015",
         "B80C0DA8-1351-4379-A578-38917F5A8427",
         "0DE2D17A-2725-4667-8246-1C9E4719B08B",
         "9DD8FA84-BF0B-4FF3-AACB-5DAC0A9C9116",
@@ -13471,6 +13507,12 @@
     },
     {
       "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
+      "object_id" : "90627F7B-69B1-4EA9-A05F-18722679F08C",
+      "point" : "0,0",
+      "type_id" : 11
+    },
+    {
+      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
       "object_id" : "907D20B9-A66C-48E1-A4C2-B201365F1E2E",
       "point" : "9,9",
       "type_id" : 11
@@ -14049,11 +14091,6 @@
           "9,9"
         ]
       },
-      "type_id" : 18
-    },
-    {
-      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
-      "object_id" : "95834222-898B-4982-A614-0FC5B92FCA5D",
       "type_id" : 18
     },
     {
@@ -15306,6 +15343,15 @@
       "type_id" : 11
     },
     {
+      "alignment" : 0,
+      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
+      "enabled" : false,
+      "object_id" : "A34237F7-035E-47E6-BB9A-574865977CEA",
+      "position" : 0,
+      "text" : "",
+      "type_id" : 27
+    },
+    {
       "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
       "object_id" : "A354E770-F675-4271-BA50-C4A8693AEF1E",
       "tixels" : {
@@ -15811,6 +15857,24 @@
       "type_id" : 18
     },
     {
+      "background_enabled" : false,
+      "border_tixels" : "054D4BA6-7B50-4ABD-A1D9-94A2EAD8737A",
+      "content_tixels" : "1A183818-3EB3-4AE8-8E27-88D3083F8D5C",
+      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
+      "frame_anchor_ref" : "90627F7B-69B1-4EA9-A05F-18722679F08C",
+      "frame_size" : "13,4",
+      "model_text" : "A34237F7-035E-47E6-BB9A-574865977CEA",
+      "name" : "Surface 76",
+      "object_id" : "A7033F11-7A01-46E6-8576-6A45397668B8",
+      "origin" : "86,53",
+      "position_refs" : [
+        "90627F7B-69B1-4EA9-A05F-18722679F08C"
+      ],
+      "rectangular_border_enabled" : false,
+      "shape_type" : 5,
+      "type_id" : 20
+    },
+    {
       "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
       "object_id" : "A715C991-9D69-478B-B153-2AE1FDA960F4",
       "point" : "9,9",
@@ -15851,12 +15915,6 @@
     {
       "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
       "object_id" : "A77EEC17-8149-4BED-9027-5722D4AD0DDB",
-      "point" : "9,9",
-      "type_id" : 11
-    },
-    {
-      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
-      "object_id" : "A77F3865-DD3A-488D-AA04-A6423F297A73",
       "point" : "9,9",
       "type_id" : 11
     },
@@ -16473,15 +16531,6 @@
         ]
       },
       "type_id" : 18
-    },
-    {
-      "alignment" : 0,
-      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
-      "enabled" : false,
-      "object_id" : "ADA92761-D2BB-4295-ACE0-A388B1D10E02",
-      "position" : 0,
-      "text" : "",
-      "type_id" : 27
     },
     {
       "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
@@ -21110,7 +21159,7 @@
       "model_text" : "FE62E086-879A-49F4-8B7B-8314D7F8AC63",
       "name" : "Surface 72",
       "object_id" : "DA917CDA-9D6B-40CC-B99C-450AA641562E",
-      "origin" : "118,38",
+      "origin" : "100,39",
       "position_refs" : [
         "F3068B17-B7DF-43BC-800B-387408DB5E68"
       ],
@@ -23846,25 +23895,6 @@
       "origin" : "59,42",
       "position_refs" : [
         "7FDF14DD-9FAA-4052-9BF5-BAC50D773858"
-      ],
-      "rectangular_border_enabled" : false,
-      "shape_type" : 5,
-      "type_id" : 20
-    },
-    {
-      "background_enabled" : false,
-      "border_tixels" : "95834222-898B-4982-A614-0FC5B92FCA5D",
-      "content_offset" : "-9,-9",
-      "content_tixels" : "0385AC1C-91A8-4342-A93A-E5E46C430D35",
-      "doc_ref" : "2911371A-D6FE-4A01-ADBE-4B16CAC091C9",
-      "frame_anchor_ref" : "A77F3865-DD3A-488D-AA04-A6423F297A73",
-      "frame_size" : "1,1",
-      "model_text" : "ADA92761-D2BB-4295-ACE0-A388B1D10E02",
-      "name" : "Surface 71",
-      "object_id" : "F621969B-6FC8-4B09-A242-684B2DF5A015",
-      "origin" : "118,39",
-      "position_refs" : [
-        "A77F3865-DD3A-488D-AA04-A6423F297A73"
       ],
       "rectangular_border_enabled" : false,
       "shape_type" : 5,
