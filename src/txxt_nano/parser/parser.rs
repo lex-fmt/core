@@ -329,6 +329,36 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
         })
 }
 
+/// Build the unified content parser that implements the canonical parse order.
+/// This is used by both session() and document() to ensure consistent parsing.
+///
+/// Parse order (from docs/parsing.txxt):
+/// 1. Foreign block first (requires subject + closing annotation)
+/// 2. Annotation second (requires :: markers)
+/// 3. List third (requires 2+ list-item-lines)
+/// 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
+/// 5. Session fifth (requires title + blank line + indent)
+/// 6. Paragraph last (catch-all, including single list-item-lines)
+///
+/// Parameters:
+/// - session_parser: The parser to use for sessions (either recursive ref or the full session parser)
+fn build_content_parser(
+    session_parser: impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone,
+) -> impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone {
+    foreign_block()
+        .map(ContentItemWithSpans::ForeignBlock)
+        .or(annotation().map(ContentItemWithSpans::Annotation))
+        .or(list_item()
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List))
+        .or(definition().map(ContentItemWithSpans::Definition))
+        .or(session_parser.map(ContentItemWithSpans::Session))
+        .or(paragraph().map(ContentItemWithSpans::Paragraph))
+}
+
 /// Parse a single list item with optional indented content
 /// Grammar: <list-item> = <list-item-line> (<indent> <list-item-content>+ <dedent>)?
 fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
@@ -386,7 +416,7 @@ fn list() -> impl Parser<TokenSpan, ListWithSpans, Error = ParserError> + Clone 
 /// 1. Try list first (needs blank line + 2+ items)
 /// 2. Try session (needs title + blank + indent)
 /// 3. Try paragraph (catches everything else)
-fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> {
+fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone {
     // Match lines that are NOT session titles (not followed by blank line + IndentLevel)
     let non_session_line = text_line().then_ignore(token(Token::Newline)).then_ignore(
         token(Token::Newline)
@@ -639,25 +669,8 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
 /// This prevents backtracking to paragraph parser when session content is malformed
 fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
     recursive(|session_parser| {
-        // Parse order (from docs/tips-tricks.txxt):
-        // 1. Foreign block first (requires subject + closing annotation)
-        // 2. Annotation second (requires :: markers)
-        // 3. List third (requires 2+ list-item-lines)
-        // 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
-        // 5. Session fifth (requires title + blank line + indent)
-        // 6. Paragraph last (catch-all, including single list-item-lines)
-        let content_item = foreign_block()
-            .map(ContentItemWithSpans::ForeignBlock)
-            .or(annotation().map(ContentItemWithSpans::Annotation))
-            .or(list_item()
-                .repeated()
-                .at_least(2)
-                .then_ignore(token(Token::Newline).or_not())
-                .map(|items| ListWithSpans { items })
-                .map(ContentItemWithSpans::List))
-            .or(definition().map(ContentItemWithSpans::Definition))
-            .or(session_parser.map(ContentItemWithSpans::Session))
-            .or(paragraph().map(ContentItemWithSpans::Paragraph));
+        // Use the unified content parser with the recursive session reference
+        let content_item = build_content_parser(session_parser);
 
         session_title()
             .then(
@@ -676,27 +689,13 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
 /// Parse a document - a sequence of annotations, paragraphs, lists, sessions, and definitions
 /// Returns intermediate AST with spans
 ///
-/// Parse order (from docs/tips-tricks.txxt):
-/// 1. Foreign block first (requires subject + closing annotation)
-/// 2. Annotation second (requires :: markers)
-/// 3. List third (requires 2+ list-item-lines)
-/// 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
-/// 5. Session fifth (requires title + blank line + indent)
-/// 6. Paragraph last (catch-all, including single list-item-lines)
+/// Documents are conceptually SessionContainers - they parse content the same way sessions do.
+/// The only difference is that documents don't have a title and aren't indented.
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    let content_item = foreign_block()
-        .map(ContentItemWithSpans::ForeignBlock)
-        .or(annotation().map(ContentItemWithSpans::Annotation))
-        .or(list_item()
-            .repeated()
-            .at_least(2)
-            .then_ignore(token(Token::Newline).or_not())
-            .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List))
-        .or(definition().map(ContentItemWithSpans::Definition))
-        .or(session().map(ContentItemWithSpans::Session))
-        .or(paragraph().map(ContentItemWithSpans::Paragraph));
+    // Use the unified content parser with the full session() parser
+    // Documents can contain sessions, so we pass session() directly
+    let content_item = build_content_parser(session());
 
     content_item
         .repeated()
