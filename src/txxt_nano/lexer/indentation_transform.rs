@@ -98,9 +98,6 @@ pub fn transform_indentation(tokens: Vec<Token>) -> Vec<Token> {
         result.push(Token::DedentLevel);
     }
 
-    // Always add a final DedentLevel to close the document structure
-    result.push(Token::DedentLevel);
-
     result
 }
 
@@ -219,9 +216,6 @@ pub fn transform_indentation_with_spans(
         result.push((Token::DedentLevel, 0..0));
     }
 
-    // Always add a final DedentLevel to close the document structure
-    result.push((Token::DedentLevel, 0..0));
-
     result
 }
 
@@ -250,7 +244,6 @@ mod tests {
                 Token::Dash,
                 Token::Newline,
                 Token::DedentLevel, // Dedent from level 1 to level 0
-                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
@@ -284,7 +277,6 @@ mod tests {
                 Token::Text,
                 Token::Newline,
                 Token::DedentLevel, // Dedent from level 1 to level 0
-                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
@@ -370,7 +362,6 @@ mod tests {
                 Token::Whitespace,
                 Token::Text,
                 Token::Newline,
-                Token::DedentLevel,
             ]
         );
     }
@@ -381,23 +372,22 @@ mod tests {
 
         let result = transform_indentation(input.clone());
 
-        let mut expected = input.clone();
-        expected.push(Token::DedentLevel);
-        assert_eq!(result, expected);
+        // No changes expected - no indentation, no DedentLevel at EOF
+        assert_eq!(result, input);
     }
 
     #[test]
     fn test_empty_input() {
         let input = vec![];
         let result = transform_indentation(input);
-        assert_eq!(result, vec![Token::DedentLevel]);
+        assert_eq!(result, vec![]);
     }
 
     #[test]
     fn test_single_line() {
         let input = vec![Token::Text];
         let result = transform_indentation(input);
-        assert_eq!(result, vec![Token::Text, Token::DedentLevel]);
+        assert_eq!(result, vec![Token::Text]);
     }
 
     #[test]
@@ -428,7 +418,6 @@ mod tests {
                 Token::DedentLevel, // dedent from level 1 to level 0
                 Token::Dash,
                 Token::Newline,
-                Token::DedentLevel,
             ]
         );
     }
@@ -462,7 +451,6 @@ mod tests {
                 Token::DedentLevel, // dedent from level 1 to level 0
                 Token::Dash,
                 Token::Newline,
-                Token::DedentLevel,
             ]
         );
     }
@@ -488,7 +476,6 @@ mod tests {
                 Token::Newline,
                 Token::DedentLevel, // Dedent from level 2 to level 1
                 Token::DedentLevel, // Dedent from level 1 to level 0
-                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
@@ -522,7 +509,6 @@ mod tests {
                 Token::Text,
                 Token::DedentLevel, // Should dedent from level 2 to level 1
                 Token::DedentLevel, // Should dedent from level 1 to level 0
-                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
@@ -559,7 +545,6 @@ mod tests {
                 Token::DedentLevel, // Dedent from level 1 to level 0
                 Token::Text,
                 Token::Newline,
-                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
@@ -596,7 +581,6 @@ mod tests {
                 Token::DedentLevel, // Dedent from level 1 to level 0
                 Token::Dash,        // Now at level 0
                 Token::Newline,
-                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
@@ -622,7 +606,6 @@ mod tests {
                 Token::Text,
                 Token::Newline,
                 Token::Text,
-                Token::DedentLevel, // Final dedent to close document
             ]
         );
     }
@@ -696,7 +679,6 @@ mod tests {
                 // EOF
                 Token::DedentLevel, // From 2 to 1
                 Token::DedentLevel, // From 1 to 0
-                Token::DedentLevel, // Final document close
             ],
             "Blank lines with only spaces should NOT produce dedent/indent tokens"
         );

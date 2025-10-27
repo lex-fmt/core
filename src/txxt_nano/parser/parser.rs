@@ -494,15 +494,27 @@ fn list() -> impl Parser<TokenSpan, ListWithSpans, Error = ParserError> + Clone 
 /// 2. Try session (needs title + blank + indent)
 /// 3. Try paragraph (catches everything else)
 fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone {
-    // Match lines that are NOT session titles (not followed by blank line + IndentLevel)
-    let non_session_line = text_line().then_ignore(token(Token::Newline)).then_ignore(
-        token(Token::Newline)
-            .then(token(Token::IndentLevel))
-            .not()
-            .rewind(),
-    );
+    // Parse a paragraph - text lines that are NOT session titles
+    // A session title is a line followed by blank line + IndentLevel
 
-    non_session_line
+    // Instead of using negative lookahead, we'll collect lines that:
+    // 1. End with newline at EOF (no lookahead needed), OR
+    // 2. Are not followed by the session pattern
+    let paragraph_line = choice((
+        // Line at EOF - just text line + newline with nothing after
+        text_line()
+            .then_ignore(token(Token::Newline))
+            .then_ignore(end()),
+        // Line not at EOF - check it's not a session title
+        text_line().then_ignore(token(Token::Newline)).then_ignore(
+            token(Token::Newline)
+                .then(token(Token::IndentLevel))
+                .not()
+                .rewind(),
+        ),
+    ));
+
+    paragraph_line
         .repeated()
         .at_least(1)
         .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
@@ -911,7 +923,6 @@ pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserErr
 
     content_item
         .repeated()
-        .then_ignore(token(Token::DedentLevel).or_not()) // Allow files that don't end with a newline
         .then_ignore(end())
         .map(|content| DocumentWithSpans {
             metadata: Vec::new(), // TODO: Parse document-level metadata
