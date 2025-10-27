@@ -183,5 +183,4 @@ expression: tokens
     Whitespace,
     Text,
     Newline,
-    DedentLevel,
 ]
