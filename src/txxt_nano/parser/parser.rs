@@ -565,7 +565,68 @@ fn annotation_header(
     })
 }
 
-/// Parse annotation - supports three forms: marker, single-line, and block
+/// Parse annotation - ACCEPTS content_parser parameter
+/// This is the new parameterized version that doesn't have its own recursive() block.
+/// The content_parser is provided from above and defines what elements are allowed
+/// inside block-form annotations.
+///
+/// Forms:
+/// 1. Marker: `:: label ::\n` - No content
+/// 2. Single-line: `:: label :: text\n` - Text after :: captured as paragraph
+/// 3. Block: `:: label \n<indent>content<dedent>::` - Uses provided content_parser
+#[allow(dead_code)] // Will be used in Phase 4.5 when we update build_content_parser
+fn annotation_with_content(
+    content_parser: impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone + 'static,
+) -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone {
+    // Parse the header: :: <bounded region> ::
+    let header = token(Token::TxxtMarker)
+        .ignore_then(annotation_header())
+        .then_ignore(token(Token::TxxtMarker));
+
+    // Block form: :: label params :: \n <indent>content<dedent> ::
+    // Uses the provided content_parser for block content
+    let block_form = header
+        .clone()
+        .then_ignore(token(Token::Newline))
+        .then(
+            token(Token::IndentLevel)
+                .ignore_then(content_parser.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel)),
+        )
+        .then_ignore(token(Token::TxxtMarker)) // Closing :: after content
+        .map(|((label_span, parameters), content)| AnnotationWithSpans {
+            label_span,
+            parameters,
+            content,
+        })
+        .then_ignore(token(Token::Newline).repeated());
+
+    // Single-line and marker forms (unchanged - don't use content_parser)
+    let single_line_or_marker = header
+        .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
+        .map(|((label_span, parameters), content_span)| {
+            let content = content_span
+                .map(|span| {
+                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
+                        line_spans: vec![span],
+                    })]
+                })
+                .unwrap_or_default();
+
+            AnnotationWithSpans {
+                label_span,
+                parameters,
+                content,
+            }
+        })
+        .then_ignore(token(Token::Newline).repeated());
+
+    block_form.or(single_line_or_marker)
+}
+
+/// Parse annotation - OLD VERSION (temporary wrapper)
+/// This is kept temporarily for compatibility. It uses the old recursive approach.
+/// Will be removed once build_content_parser is updated to use annotation_with_content.
 ///
 /// Forms:
 /// 1. Marker: `:: label ::\n` - No content, newline NOT consumed (left for document parser)
