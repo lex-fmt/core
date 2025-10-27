@@ -88,11 +88,23 @@ Generate the recursive parser structure using macros to avoid manual repetition.
 
 ## Current Pragmatic Solution
 
-The codebase uses isolated recursive blocks for each element type. While not architecturally ideal:
-- It works correctly
-- All tests pass
-- It's maintainable
-- It can be refactored later when a better solution is found
+The codebase uses a unified recursive parser approach with a workaround:
+
+### Unified Recursive Parser
+- Single `recursive()` block shared by all elements
+- Enables nested definitions (our primary goal)
+- 92/96 tests pass
+
+### Trailing Newline Hack
+To mitigate EOF issues with recursive/.repeated() interaction:
+- Lexer ensures source always ends with a newline
+- Helps prevent parser choking on EOF when paragraph is last element
+- Doesn't fully solve definition recognition issues
+
+### Remaining Issues
+- 4 tests remain ignored (definitions parsed as paragraphs in some contexts)
+- Root cause: Chumsky's `recursive()` doesn't interact well with `.repeated()`
+- This appears to be a fundamental limitation of the library
 
 ## Infrastructure Ready for Future
 

@@ -186,7 +186,8 @@ mod proptest_tests {
                     Token::TxxtMarker | Token::Indent | Token::IndentLevel | Token::DedentLevel |
                     Token::Whitespace | Token::Newline | Token::Dash | Token::Period |
                     Token::OpenParen | Token::CloseParen | Token::Colon | Token::Comma |
-                    Token::Quote | Token::Equals | Token::Number | Token::Text => {
+                    Token::Quote | Token::Equals | Token::Number | Token::Text |
+                    Token::DocStart | Token::DocEnd => {
                         // All valid tokens
                     }
                 }

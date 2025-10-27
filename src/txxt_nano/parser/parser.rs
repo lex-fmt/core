@@ -859,64 +859,83 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
 
 /// Build the Multi-Parser Bundle for document-level content parsing.
 ///
-/// Uses a single recursive parser shared by all elements.
-/// This allows proper recursive nesting without type recursion issues.
-///
-/// This fixes issues #25, #26, #28, #31 by enabling proper recursive nesting.
+/// Uses manual recursion to build repetition without .repeated()
+/// This avoids the recursive() + .repeated() interaction issue in Chumsky
 fn build_document_content_parser(
-) -> impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone {
-    // EXPERIMENTAL: Single recursive parser shared by all elements
-    // This successfully enables nested definitions and cross-element recursion!
-    // Trade-offs:
-    // - May allow sessions in places they shouldn't be (e.g., inside lists)
-    // - Some tests fail due to paragraph EOF handling in recursive contexts
-    // - But 35/39 tests pass, including nested definitions!
+) -> impl Parser<TokenSpan, Vec<ContentItemWithSpans>, Error = ParserError> + Clone {
+    // HACK: Build repetition through recursion itself, not .repeated()
+    // This avoids the problematic recursive() + .repeated() pattern
 
-    // Define a recursive parser that will be used by all container elements
-    let content_parser = recursive(|content| {
-        // Build session parser that uses the recursive content
-        let session_parser = session_title()
-            .then(
-                token(Token::IndentLevel)
-                    .ignore_then(content.clone().repeated().at_least(1))
-                    .then_ignore(token(Token::DedentLevel)),
-            )
-            .map(|(title_spans, content)| {
-                ContentItemWithSpans::Session(SessionWithSpans {
-                    title_spans,
-                    content,
-                })
-            });
+    recursive(|items| {
+        // First, define the single item parser (not recursive yet)
+        let single_item = {
+            // For sessions, we need nested recursion
+            let session_parser = session_title()
+                .then(
+                    token(Token::IndentLevel)
+                        .ignore_then(items.clone()) // Sessions contain multiple items recursively
+                        .then_ignore(token(Token::DedentLevel)),
+                )
+                .map(|(title_spans, content)| {
+                    ContentItemWithSpans::Session(SessionWithSpans {
+                        title_spans,
+                        content,
+                    })
+                });
 
-        // Build definition parser using the same recursive content
-        let definition_parser =
-            definition_with_content(content.clone()).map(ContentItemWithSpans::Definition);
+            // Definitions also need recursion for their content
+            let definition_parser = definition_subject()
+                .then(
+                    token(Token::IndentLevel)
+                        .ignore_then(items.clone()) // Definitions contain items recursively
+                        .then_ignore(token(Token::DedentLevel)),
+                )
+                .map(|(subject_spans, content)| {
+                    ContentItemWithSpans::Definition(DefinitionWithSpans {
+                        subject_spans,
+                        content,
+                    })
+                });
 
-        // Build list parser using the same recursive content
-        let list_parser = list_item_with_content(content.clone())
-            .repeated()
-            .at_least(2)
-            .then_ignore(token(Token::Newline).or_not())
-            .map(|items| ContentItemWithSpans::List(ListWithSpans { items }));
+            // Lists - use the simpler version for now
+            // TODO: Support recursive content in list items
+            let list_parser = list_item()
+                .repeated()
+                .at_least(2)
+                .then_ignore(token(Token::Newline).or_not())
+                .map(|items| ContentItemWithSpans::List(ListWithSpans { items }));
 
-        // Build annotation parser using the same recursive content
-        let annotation_parser =
-            annotation_with_content(content.clone()).map(ContentItemWithSpans::Annotation);
+            // Annotations - use the simpler version for now
+            // TODO: Support recursive content in annotations
+            let annotation_parser = annotation().map(ContentItemWithSpans::Annotation);
 
-        // Parse order from docs/parsing.txxt:
-        // Foreign Block → Annotation → List → Definition → Session → Paragraph
-        choice((
-            foreign_block().map(ContentItemWithSpans::ForeignBlock),
-            annotation_parser,
-            list_parser,
-            definition_parser,
-            session_parser,
-            paragraph().map(ContentItemWithSpans::Paragraph),
-        ))
-    });
+            // Parse order from docs/parsing.txxt
+            choice((
+                foreign_block().map(ContentItemWithSpans::ForeignBlock),
+                annotation_parser,
+                list_parser,
+                definition_parser,
+                session_parser,
+                paragraph().map(ContentItemWithSpans::Paragraph),
+            ))
+        };
 
-    // Return the parser directly
-    content_parser
+        // Now build repetition through recursion (cons pattern)
+        // Either parse one item and then more items, or parse nothing
+        single_item
+            .then(items.or_not())
+            .map(|(first, rest)| {
+                let mut result = vec![first];
+                if let Some(mut rest_items) = rest {
+                    result.append(&mut rest_items);
+                }
+                result
+            })
+            // Base case: if we see DocEnd, return empty vec
+            .or(filter(|(t, _)| matches!(t, Token::DocEnd))
+                .rewind()
+                .map(|_| vec![]))
+    })
 }
 
 /// Parse a session - a title followed by indented content
@@ -954,9 +973,11 @@ pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserErr
     // This ensures definitions use content_content parser (which excludes sessions)
     let content_item = build_document_content_parser();
 
-    content_item
-        .repeated()
-        .then_ignore(end())
+    // Parse document content using the manual recursive approach
+    // This returns a Vec<ContentItemWithSpans> directly
+    token(Token::DocStart)
+        .ignore_then(content_item)
+        .then_ignore(token(Token::DocEnd))
         .map(|content| DocumentWithSpans {
             metadata: Vec::new(), // TODO: Parse document-level metadata
             content,
@@ -991,7 +1012,10 @@ mod tests {
     #[test]
     fn test_simple_paragraph() {
         let input = "Hello world\n\n";
-        let tokens_with_spans = lex_with_spans(input);
+        let mut tokens_with_spans = lex_with_spans(input);
+
+        // Skip DocStart and DocEnd tokens for direct paragraph test
+        tokens_with_spans.retain(|(t, _)| !matches!(t, Token::DocStart | Token::DocEnd));
 
         let result = paragraph().parse(tokens_with_spans);
         assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
