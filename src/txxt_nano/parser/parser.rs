@@ -641,7 +641,34 @@ fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserErr
     block_form.or(single_line_or_marker)
 }
 
-/// Parse a definition - a subject ending with colon, immediately followed by indented content
+/// Parse a definition - ACCEPTS content_parser parameter
+/// This is the new parameterized version that doesn't have its own recursive() block.
+/// The content_parser is provided from above (from build_content_parser) and defines what
+/// elements are allowed inside this definition.
+///
+/// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
+/// Grammar: <definition> = <definition-subject> <newline> <indent> <content>+ <dedent>
+#[allow(dead_code)] // Will be used in Phase 4.5 when we update build_content_parser
+fn definition_with_content(
+    content_parser: impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone + 'static,
+) -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
+    definition_subject()
+        .then(
+            // Must immediately see IndentLevel (no blank line)
+            token(Token::IndentLevel)
+                .ignore_then(content_parser.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel)),
+        )
+        .map(|(subject_spans, content)| DefinitionWithSpans {
+            subject_spans,
+            content,
+        })
+}
+
+/// Parse a definition - OLD VERSION (temporary wrapper)
+/// This is kept temporarily for compatibility. It uses the old recursive approach.
+/// Will be removed once build_content_parser is updated to use definition_with_content.
+///
 /// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
 /// Content can include paragraphs and lists, but NOT sessions
 fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
