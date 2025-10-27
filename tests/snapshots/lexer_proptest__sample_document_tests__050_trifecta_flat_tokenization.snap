@@ -3,6 +3,7 @@ source: tests/lexer_proptest.rs
 expression: tokens
 ---
 [
+    DocStart,
     Text,
     Whitespace,
     Text,
@@ -382,4 +383,5 @@ expression: tokens
     Whitespace,
     Text,
     Newline,
+    DocEnd,
 ]

@@ -22,6 +22,11 @@ pub enum Token {
     IndentLevel,
     DedentLevel,
 
+    // Document boundary tokens (synthetic - added by lexer)
+    // These solve the recursive/.repeated() EOF issue by providing explicit boundaries
+    DocStart,
+    DocEnd,
+
     // Whitespace (excluding newlines and indentation)
     #[regex(r" {1,3}", priority = 1)] // 1-3 spaces only, lower priority than indentation
     Whitespace,
@@ -78,6 +83,8 @@ impl fmt::Display for Token {
             Token::Equals => "equals",
             Token::Number => "number",
             Token::Text => "text",
+            Token::DocStart => "doc-start",
+            Token::DocEnd => "doc-end",
         };
         write!(f, "<{}>", name)
     }
