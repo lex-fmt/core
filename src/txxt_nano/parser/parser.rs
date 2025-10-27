@@ -494,30 +494,16 @@ fn list() -> impl Parser<TokenSpan, ListWithSpans, Error = ParserError> + Clone 
 /// 2. Try session (needs title + blank + indent)
 /// 3. Try paragraph (catches everything else)
 fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone {
-    // Parse a paragraph - text lines that are NOT session titles
-    // A session title is a line followed by blank line + IndentLevel
+    // Parse a paragraph - consecutive non-blank text lines
+    // Simplified to work in both document and recursive contexts
 
-    // Instead of using negative lookahead, we'll collect lines that:
-    // 1. End with newline at EOF (no lookahead needed), OR
-    // 2. Are not followed by the session pattern
-    let paragraph_line = choice((
-        // Line at EOF - just text line + newline with nothing after
-        text_line()
-            .then_ignore(token(Token::Newline))
-            .then_ignore(end()),
-        // Line not at EOF - check it's not a session title
-        text_line().then_ignore(token(Token::Newline)).then_ignore(
-            token(Token::Newline)
-                .then(token(Token::IndentLevel))
-                .not()
-                .rewind(),
-        ),
-    ));
-
-    paragraph_line
+    // A paragraph is one or more text lines followed by newlines
+    // We stop at blank lines (double newlines) which separate paragraphs
+    text_line()
+        .then_ignore(token(Token::Newline))
         .repeated()
         .at_least(1)
-        .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
+        .then_ignore(token(Token::Newline).or_not()) // Consume trailing blank line if present
         .map(|line_spans| ParagraphWithSpans { line_spans })
 }
 
@@ -929,7 +915,7 @@ fn build_document_content_parser(
         ))
     });
 
-    // Return the parser directly - don't wrap it again
+    // Return the parser directly
     content_parser
 }
 
@@ -2411,7 +2397,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Known issue with unified recursive parser - paragraph EOF handling"]
+    #[ignore = "Issue #35: recursive() doesn't work well with .repeated() at document level"]
     fn test_unified_parser_paragraph_then_definition() {
         // Test paragraph followed by definition - similar to failing test
         let source = "Simple paragraph\n\nAnother paragraph\n\nFirst Definition:\n    Definition content\n\nSecond Definition:\n    More content\n";
@@ -2445,7 +2431,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Known issue with unified recursive parser - paragraph EOF handling"]
+    #[ignore = "Issue #35: recursive() doesn't work well with .repeated() at document level"]
     fn test_verified_definitions_simple() {
         use crate::txxt_nano::testing::assert_ast;
 
