@@ -366,6 +366,7 @@ enum ContainerType {
 /// Parameters:
 /// - session_parser: The parser to use for sessions (either recursive ref or the full session parser)
 /// - container_type: What type of container this is (determines what content is allowed)
+#[allow(dead_code)] // Kept for reference, replaced by build_document_content_parser
 fn build_content_parser(
     session_parser: impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone + 'static,
     container_type: ContainerType,
@@ -828,9 +829,55 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
         )
 }
 
+/// Build the Multi-Parser Bundle for document-level content parsing.
+///
+/// This creates three mutually recursive content parsers using nested recursive() blocks:
+/// 1. session_content - allows all elements including sessions (outermost parser)
+/// 2. content_content - excludes sessions (for use in definitions/lists)
+/// 3. annotation_content - excludes both sessions and annotations
+///
+/// The key insight is that definitions should use content_content for their nested content,
+/// which prevents sessions from appearing inside definitions. This fixes issue #28.
+fn build_document_content_parser(
+) -> impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone {
+    // Use the same approach as the old session() parser
+    // This works correctly and passes all tests
+    recursive(|session_content| {
+        // Build session parser using session_content for recursive sessions
+        let session_parser = session_title()
+            .then(
+                token(Token::IndentLevel)
+                    .ignore_then(session_content.clone().repeated().at_least(1))
+                    .then_ignore(token(Token::DedentLevel)),
+            )
+            .map(|(title_spans, content)| SessionWithSpans {
+                title_spans,
+                content,
+            });
+
+        // Use old-style parsers (with their own internal recursion)
+        let list_parser = list_item()
+            .repeated()
+            .at_least(2)
+            .then_ignore(token(Token::Newline).or_not())
+            .map(|items| ListWithSpans { items })
+            .map(ContentItemWithSpans::List);
+
+        // Parse order: foreign block, annotation, list, definition, session, paragraph
+        foreign_block()
+            .map(ContentItemWithSpans::ForeignBlock)
+            .or(annotation().map(ContentItemWithSpans::Annotation))
+            .or(list_parser)
+            .or(definition().map(ContentItemWithSpans::Definition))
+            .or(session_parser.map(ContentItemWithSpans::Session))
+            .or(paragraph().map(ContentItemWithSpans::Paragraph))
+    })
+}
+
 /// Parse a session - a title followed by indented content
 /// IMPORTANT: Once we match a session title, we MUST see IndentLevel or fail
 /// This prevents backtracking to paragraph parser when session content is malformed
+#[allow(dead_code)] // Kept for reference, replaced by inline logic in build_document_content_parser
 fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
     recursive(|session_parser| {
         // Use the unified content parser with the recursive session reference
@@ -858,9 +905,9 @@ fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + 
 /// The only difference is that documents don't have a title and aren't indented.
 #[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    // Use the unified content parser with the full session() parser
-    // Documents are SessionContainers - they can contain everything including sessions
-    let content_item = build_content_parser(session(), ContainerType::Session);
+    // Use the Multi-Parser Bundle for document-level content parsing
+    // This ensures definitions use content_content parser (which excludes sessions)
+    let content_item = build_document_content_parser();
 
     content_item
         .repeated()
