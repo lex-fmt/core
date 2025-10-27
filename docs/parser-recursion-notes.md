@@ -105,14 +105,15 @@ These can be activated once the recursion challenge is solved.
 
 ## Discovered Issues
 
-### Foreign Block vs Session Ambiguity
+### Foreign Block vs Session Ambiguity (RESOLVED)
 During investigation, discovered a fundamental ambiguity in the txxt format:
 - Both sessions and foreign blocks start with "Subject:" followed by indented content
 - Parser must choose between them before seeing the distinguishing closing annotation
-- Currently resolved by parser ordering (sessions before foreign blocks)
-- This causes some foreign blocks to be incorrectly parsed as sessions
-- See test `test_foreign_block_multiple_blocks` marked as ignored
-- Tracked as issue #34
+- **RESOLVED**: By implementing the correct parse order from docs/parsing.txxt
+- Foreign blocks are now parsed first (before all other elements)
+- Since foreign blocks have stricter requirements (must have closing annotation), trying them first resolves the ambiguity
+- Test `test_foreign_block_multiple_blocks` now passes
+- Issue #34 closed
 
 ## References
 - Issue #31: Complete transition to unified recursive parser
