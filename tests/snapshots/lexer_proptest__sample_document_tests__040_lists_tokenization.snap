@@ -454,5 +454,4 @@ expression: tokens
     Dash,
     Text,
     Newline,
-    DedentLevel,
 ]
