@@ -358,6 +358,11 @@ enum ContainerType {
 /// 5. Session fifth (requires title + blank line + indent)
 /// 6. Paragraph last (catch-all, including single list-item-lines)
 ///
+/// KNOWN ISSUE: Multiple sibling definitions incorrectly nest inside each other.
+/// This is a pre-existing bug that requires implementing the full Multi-Parser Bundle
+/// pattern to fix. The pattern would create separate parsers for different container
+/// types to enforce that definitions/lists cannot contain sessions at the same level.
+///
 /// Parameters:
 /// - session_parser: The parser to use for sessions (either recursive ref or the full session parser)
 /// - container_type: What type of container this is (determines what content is allowed)
