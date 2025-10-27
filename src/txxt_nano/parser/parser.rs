@@ -401,7 +401,36 @@ fn build_content_parser(
         .boxed()
 }
 
-/// Parse a single list item with optional indented content
+/// Parse a single list item with optional indented content - ACCEPTS content_parser parameter
+/// This is the new parameterized version that doesn't have its own recursive() block.
+/// The content_parser is provided from above (from build_content_parser) and defines what
+/// elements are allowed inside this list item.
+///
+/// Grammar: <list-item> = <list-item-line> (<indent> <list-item-content>+ <dedent>)?
+#[allow(dead_code)] // Will be used in Phase 4.5 when we update build_content_parser
+fn list_item_with_content(
+    content_parser: impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone + 'static,
+) -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
+    // Parse the list item line, then optionally parse indented content
+    list_item_line()
+        .then_ignore(token(Token::Newline))
+        .then(
+            // Optional indented block - uses the provided content_parser
+            token(Token::IndentLevel)
+                .ignore_then(content_parser.repeated().at_least(1))
+                .then_ignore(token(Token::DedentLevel))
+                .or_not(),
+        )
+        .map(|(text_spans, maybe_content)| ListItemWithSpans {
+            text_spans,
+            content: maybe_content.unwrap_or_default(),
+        })
+}
+
+/// Parse a single list item with optional indented content - OLD VERSION (temporary wrapper)
+/// This is kept temporarily for compatibility. It uses the old recursive approach.
+/// Will be removed once build_content_parser is updated to use list_item_with_content.
+///
 /// Grammar: <list-item> = <list-item-line> (<indent> <list-item-content>+ <dedent>)?
 fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
     recursive(|list_item_parser| {
