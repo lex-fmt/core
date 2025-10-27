@@ -28,7 +28,15 @@ pub use tokens::Token;
 
 /// Main lexer function that returns fully processed tokens (tokenize + indentation transform)
 pub fn lex(source: &str) -> Vec<Token> {
-    let raw_tokens = tokenize(source);
+    // HACK: Ensure source ends with newline to work around Chumsky recursive/.repeated() issue
+    // This helps when a paragraph is the last element in a recursive context
+    let source_with_newline = if !source.is_empty() && !source.ends_with('\n') {
+        format!("{}\n", source)
+    } else {
+        source.to_string()
+    };
+
+    let raw_tokens = tokenize(&source_with_newline);
     transform_indentation(raw_tokens)
 }
 
@@ -36,6 +44,14 @@ pub fn lex(source: &str) -> Vec<Token> {
 /// Returns tokens with their corresponding source spans
 /// Synthetic tokens (IndentLevel, DedentLevel) have empty spans (0..0)
 pub fn lex_with_spans(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
-    let raw_tokens_with_spans = tokenize_with_spans(source);
+    // HACK: Ensure source ends with newline to work around Chumsky recursive/.repeated() issue
+    // This helps when a paragraph is the last element in a recursive context
+    let source_with_newline = if !source.is_empty() && !source.ends_with('\n') {
+        format!("{}\n", source)
+    } else {
+        source.to_string()
+    };
+
+    let raw_tokens_with_spans = tokenize_with_spans(&source_with_newline);
     transform_indentation_with_spans(raw_tokens_with_spans)
 }
