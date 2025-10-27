@@ -849,14 +849,22 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
 /// This fixes issues #25, #26, #28, #31 by enabling proper recursive nesting.
 fn build_document_content_parser(
 ) -> impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone {
-    // Revert to the working isolated recursive approach
-    // Each element has its own recursive block which works correctly
+    // Parse order is CRITICAL - must match docs/parsing.txxt specification:
+    // Foreign Block → Annotation → List → Definition → Session → Paragraph
+    //
+    // Each element must be tried in this exact order because:
+    // 1. Foreign blocks have the most specific requirements (indentation wall + closing annotation)
+    // 2. Annotations have explicit :: markers
+    // 3. Lists require blank line + 2+ items
+    // 4. Definitions have colon + NO blank line
+    // 5. Sessions have colon + blank line
+    // 6. Paragraphs are the catch-all
     choice((
-        session().map(ContentItemWithSpans::Session),
         foreign_block().map(ContentItemWithSpans::ForeignBlock),
         annotation().map(ContentItemWithSpans::Annotation),
         list().map(ContentItemWithSpans::List),
         definition().map(ContentItemWithSpans::Definition),
+        session().map(ContentItemWithSpans::Session),
         paragraph().map(ContentItemWithSpans::Paragraph),
     ))
 }
@@ -2723,12 +2731,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Known issue: Foreign blocks ambiguous with sessions - see issue #34"]
     fn test_foreign_block_multiple_blocks() {
-        // This test reveals an ambiguity in the txxt format:
-        // Both sessions and foreign blocks start with "Subject:" followed by indented content.
-        // The parser currently prefers sessions over foreign blocks in the choice order,
-        // causing "First Block:" to be parsed as a session title rather than a foreign block subject.
+        // Fixed by reordering parsers: foreign_block before session
+        // Since foreign blocks have stricter requirements (must have closing annotation),
+        // trying them first resolves the ambiguity
 
         let source = "First Block:\n\n    code1\n\n:: lang1 ::\n\nSecond Block:\n\n    code2\n\n:: lang2 ::\n\n";
         let tokens = lex_with_spans(source);
