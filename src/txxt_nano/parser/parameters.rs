@@ -181,7 +181,7 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.items[0].as_annotation().unwrap();
+        let annotation = doc.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "warning");
         assert_eq!(annotation.parameters.len(), 2);
         assert_eq!(annotation.parameters[0].key, "severity");
@@ -197,7 +197,7 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.items[0].as_annotation().unwrap();
+        let annotation = doc.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
         assert_eq!(annotation.parameters.len(), 2);
         assert_eq!(annotation.parameters[0].key, "author");
@@ -215,7 +215,7 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.items[0].as_annotation().unwrap();
+        let annotation = doc.content[0].as_annotation().unwrap();
         assert_eq!(annotation.parameters.len(), 3);
         assert_eq!(annotation.parameters[0].key, "priority");
         assert_eq!(annotation.parameters[0].value, Some("high".to_string()));
@@ -235,7 +235,7 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.items[0].as_annotation().unwrap();
+        let annotation = doc.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
         assert_eq!(annotation.parameters.len(), 3);
         assert_eq!(annotation.parameters[0].key, "key1");

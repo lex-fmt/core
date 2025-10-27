@@ -14,8 +14,8 @@ fn truncate(s: &str, max_chars: usize) -> String {
 
 pub fn to_treeviz_str(doc: &Document) -> String {
     let mut result = String::new();
-    for (i, item) in doc.items.iter().enumerate() {
-        let is_last = i == doc.items.len() - 1;
+    for (i, item) in doc.content.iter().enumerate() {
+        let is_last = i == doc.content.len() - 1;
         append_content_item(&mut result, item, "", is_last);
     }
     result

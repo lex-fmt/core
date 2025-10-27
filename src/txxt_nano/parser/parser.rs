@@ -91,7 +91,8 @@ pub(crate) enum ContentItemWithSpans {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct DocumentWithSpans {
-    items: Vec<ContentItemWithSpans>,
+    metadata: Vec<AnnotationWithSpans>,
+    content: Vec<ContentItemWithSpans>,
 }
 
 /// Helper to extract text from source using a span
@@ -124,8 +125,13 @@ fn extract_line_text(source: &str, spans: &[Range<usize>]) -> String {
 /// Convert intermediate AST with spans to final AST with extracted text
 fn convert_document(source: &str, doc_with_spans: DocumentWithSpans) -> Document {
     Document {
-        items: doc_with_spans
-            .items
+        metadata: doc_with_spans
+            .metadata
+            .into_iter()
+            .map(|ann| convert_annotation(source, ann))
+            .collect(),
+        content: doc_with_spans
+            .content
             .into_iter()
             .map(|item| convert_content_item(source, item))
             .collect(),
@@ -701,7 +707,10 @@ pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserErr
         .repeated()
         .then_ignore(token(Token::DedentLevel).or_not()) // Allow files that don't end with a newline
         .then_ignore(end())
-        .map(|items| DocumentWithSpans { items })
+        .map(|content| DocumentWithSpans {
+            metadata: Vec::new(), // TODO: Parse document-level metadata
+            content,
+        })
 }
 
 /// Parse with source text - extracts actual content from spans
@@ -802,8 +811,8 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("\n✓ Parsed successfully");
-                println!("Document has {} items:", doc.items.len());
-                for (i, item) in doc.items.iter().enumerate() {
+                println!("Document has {} items:", doc.content.len());
+                for (i, item) in doc.content.iter().enumerate() {
                     println!("  {}: {}", i, item);
                 }
                 // This might actually be fine - the blank indented line might be ignored
@@ -845,8 +854,8 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("\n✓ Parsed as session with 0 children");
-                println!("Document has {} items:", doc.items.len());
-                for (i, item) in doc.items.iter().enumerate() {
+                println!("Document has {} items:", doc.content.len());
+                for (i, item) in doc.content.iter().enumerate() {
                     match item {
                         ContentItem::Paragraph(p) => {
                             println!("  {}: Paragraph with {} lines", i, p.lines.len());
@@ -933,7 +942,7 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("\n✓ Parsed successfully (shouldn't happen!):");
-                for (i, item) in doc.items.iter().enumerate() {
+                for (i, item) in doc.content.iter().enumerate() {
                     match item {
                         ContentItem::Paragraph(p) => {
                             println!("  {}: Paragraph with {} lines", i, p.lines.len());
@@ -1028,8 +1037,8 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("✓ Parsed successfully");
-                println!("Document has {} items:", doc.items.len());
-                assert_eq!(doc.items.len(), 2, "Should have 2 paragraphs");
+                println!("Document has {} items:", doc.content.len());
+                assert_eq!(doc.content.len(), 2, "Should have 2 paragraphs");
             }
             Err(e) => {
                 panic!("Should have parsed successfully: {:?}", e);
@@ -1567,7 +1576,7 @@ mod tests {
         // Should be parsed as a single paragraph, NOT a paragraph + list
         // because there's no blank line before the list-item-lines
         assert_eq!(
-            doc.items.len(),
+            doc.content.len(),
             1,
             "Should be 1 paragraph, not paragraph + list"
         );
@@ -1585,7 +1594,7 @@ mod tests {
 
         // Should be parsed as paragraph + list
         assert_eq!(
-            doc2.items.len(),
+            doc2.content.len(),
             2,
             "Should be paragraph + list with blank line"
         );
@@ -2324,8 +2333,8 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 3); // paragraph, annotation, paragraph
-        assert!(doc.items[1].is_annotation());
+        assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
+        assert!(doc.content[1].is_annotation());
     }
 
     #[test]
@@ -2334,8 +2343,8 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 3); // paragraph, annotation, paragraph
-        let annotation = doc.items[1].as_annotation().unwrap();
+        assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
+        let annotation = doc.content[1].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
         assert_eq!(annotation.content.len(), 1); // One paragraph with inline text
         assert!(annotation.content[0].is_paragraph());
@@ -2352,7 +2361,7 @@ mod tests {
 
         // Find and verify :: note :: annotation
         let note_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation() //
@@ -2369,7 +2378,7 @@ mod tests {
 
         // Find and verify :: warning severity=high :: annotation
         let warning_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation()
@@ -2384,7 +2393,7 @@ mod tests {
 
         // Find and verify :: python.typing :: annotation (namespaced label)
         let python_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation()
@@ -2407,7 +2416,7 @@ mod tests {
 
         // Find and verify :: note author="Jane Doe" :: annotation with block content
         let note_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation()
@@ -2427,7 +2436,7 @@ mod tests {
 
         // Find and verify :: warning severity=critical :: annotation with list
         let warning_annotation = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_annotation()
@@ -2462,8 +2471,8 @@ mod tests {
         println!("Tokens: {:?}", tokens);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 1);
-        let foreign_block = doc.items[0].as_foreign_block().unwrap();
+        assert_eq!(doc.content.len(), 1);
+        let foreign_block = doc.content[0].as_foreign_block().unwrap();
         assert_eq!(foreign_block.subject, "Code Example");
         assert!(foreign_block.content.contains("function hello()"));
         assert!(foreign_block.content.contains("return \"world\""));
@@ -2485,8 +2494,8 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 1);
-        let foreign_block = doc.items[0].as_foreign_block().unwrap();
+        assert_eq!(doc.content.len(), 1);
+        let foreign_block = doc.content[0].as_foreign_block().unwrap();
         assert_eq!(foreign_block.subject, "Image Reference");
         assert_eq!(foreign_block.content, ""); // No content in marker form
         assert_eq!(foreign_block.closing_annotation.label.value, "image");
@@ -2509,7 +2518,7 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let foreign_block = doc.items[0].as_foreign_block().unwrap();
+        let foreign_block = doc.content[0].as_foreign_block().unwrap();
         assert!(foreign_block.content.contains("    multiple    spaces")); // Preserves multiple spaces
         assert!(foreign_block.content.contains("    \n")); // Preserves blank lines
     }
@@ -2520,14 +2529,14 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 2);
+        assert_eq!(doc.content.len(), 2);
 
-        let first_block = doc.items[0].as_foreign_block().unwrap();
+        let first_block = doc.content[0].as_foreign_block().unwrap();
         assert_eq!(first_block.subject, "First Block");
         assert!(first_block.content.contains("code1"));
         assert_eq!(first_block.closing_annotation.label.value, "lang1");
 
-        let second_block = doc.items[1].as_foreign_block().unwrap();
+        let second_block = doc.content[1].as_foreign_block().unwrap();
         assert_eq!(second_block.subject, "Second Block");
         assert!(second_block.content.contains("code2"));
         assert_eq!(second_block.closing_annotation.label.value, "lang2");
@@ -2539,10 +2548,10 @@ mod tests {
         let tokens = lex_with_spans(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.items.len(), 3);
-        assert!(doc.items[0].is_paragraph());
-        assert!(doc.items[1].is_foreign_block());
-        assert!(doc.items[2].is_paragraph());
+        assert_eq!(doc.content.len(), 3);
+        assert!(doc.content[0].is_paragraph());
+        assert!(doc.content[1].is_foreign_block());
+        assert!(doc.content[2].is_paragraph());
     }
 
     #[test]
@@ -2554,7 +2563,7 @@ mod tests {
 
         // Find JavaScript code block
         let js_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()
@@ -2571,7 +2580,7 @@ mod tests {
 
         // Find Python code block
         let py_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()
@@ -2586,7 +2595,7 @@ mod tests {
 
         // Find SQL block
         let sql_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()
@@ -2609,7 +2618,7 @@ mod tests {
 
         // Find image reference
         let image_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()
@@ -2629,7 +2638,7 @@ mod tests {
 
         // Find binary file reference
         let binary_block = doc
-            .items
+            .content
             .iter()
             .find(|item| {
                 item.as_foreign_block()

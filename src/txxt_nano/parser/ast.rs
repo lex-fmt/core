@@ -39,7 +39,8 @@ pub trait TextNode: AstNode {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Document {
-    pub items: Vec<ContentItem>,
+    pub metadata: Vec<Annotation>,
+    pub content: Vec<ContentItem>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -107,31 +108,43 @@ pub struct Annotation {
 
 impl Document {
     pub fn new() -> Self {
-        Self { items: Vec::new() }
+        Self {
+            metadata: Vec::new(),
+            content: Vec::new(),
+        }
     }
 
-    pub fn with_items(items: Vec<ContentItem>) -> Self {
-        Self { items }
+    pub fn with_content(content: Vec<ContentItem>) -> Self {
+        Self {
+            metadata: Vec::new(),
+            content,
+        }
+    }
+
+    pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
+        Self { metadata, content }
     }
 
     pub fn iter_items(&self) -> impl Iterator<Item = &ContentItem> {
-        self.items.iter()
+        self.content.iter()
     }
 
     pub fn iter_paragraphs(&self) -> impl Iterator<Item = &Paragraph> {
-        self.items.iter().filter_map(|item| item.as_paragraph())
+        self.content.iter().filter_map(|item| item.as_paragraph())
     }
 
     pub fn iter_sessions(&self) -> impl Iterator<Item = &Session> {
-        self.items.iter().filter_map(|item| item.as_session())
+        self.content.iter().filter_map(|item| item.as_session())
     }
 
     pub fn iter_lists(&self) -> impl Iterator<Item = &List> {
-        self.items.iter().filter_map(|item| item.as_list())
+        self.content.iter().filter_map(|item| item.as_list())
     }
 
     pub fn iter_foreign_blocks(&self) -> impl Iterator<Item = &ForeignBlock> {
-        self.items.iter().filter_map(|item| item.as_foreign_block())
+        self.content
+            .iter()
+            .filter_map(|item| item.as_foreign_block())
     }
 
     pub fn count_by_type(&self) -> (usize, usize, usize, usize) {
@@ -278,7 +291,12 @@ impl Annotation {
 
 impl fmt::Display for Document {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Document({} items)", self.items.len())
+        write!(
+            f,
+            "Document({} metadata, {} items)",
+            self.metadata.len(),
+            self.content.len()
+        )
     }
 }
 
@@ -714,10 +732,11 @@ mod tests {
 
     #[test]
     fn test_document_creation() {
-        let doc = Document::with_items(vec![
+        let doc = Document::with_content(vec![
             ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
             ContentItem::Session(Session::with_title("Section 1".to_string())),
         ]);
-        assert_eq!(doc.items.len(), 2);
+        assert_eq!(doc.content.len(), 2);
+        assert_eq!(doc.metadata.len(), 0);
     }
 }
