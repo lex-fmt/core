@@ -115,7 +115,7 @@ pub(crate) fn convert_document_with_positions(
     }
 }
 
-fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem {
+pub(crate) fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem {
     match item {
         ContentItemWithSpans::Paragraph(p) => ContentItem::Paragraph(convert_paragraph(source, p)),
         ContentItemWithSpans::Session(s) => ContentItem::Session(convert_session(source, s)),
@@ -143,7 +143,7 @@ pub(crate) fn convert_paragraph(source: &str, para: ParagraphWithSpans) -> Parag
     }
 }
 
-fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
+pub(crate) fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
     Session {
         title: extract_line_text(source, &sess.title_spans),
         content: sess
@@ -155,7 +155,7 @@ fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
     }
 }
 
-fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
+pub(crate) fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
     // Extract subject (colon already excluded from spans by definition_subject parser)
     let subject = extract_line_text(source, &def.subject_spans);
 
@@ -170,7 +170,7 @@ fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
     }
 }
 
-fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
+pub(crate) fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
     // Extract label if present, otherwise use empty string
     let label_text = ann
         .label_span
@@ -199,7 +199,7 @@ fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
     }
 }
 
-fn convert_list(source: &str, list: ListWithSpans) -> List {
+pub(crate) fn convert_list(source: &str, list: ListWithSpans) -> List {
     List {
         items: list
             .items
@@ -210,7 +210,7 @@ fn convert_list(source: &str, list: ListWithSpans) -> List {
     }
 }
 
-fn convert_list_item(source: &str, item: ListItemWithSpans) -> ListItem {
+pub(crate) fn convert_list_item(source: &str, item: ListItemWithSpans) -> ListItem {
     ListItem::with_content(
         extract_line_text(source, &item.text_spans),
         item.content
@@ -220,7 +220,7 @@ fn convert_list_item(source: &str, item: ListItemWithSpans) -> ListItem {
     )
 }
 
-fn convert_foreign_block(source: &str, fb: ForeignBlockWithSpans) -> ForeignBlock {
+pub(crate) fn convert_foreign_block(source: &str, fb: ForeignBlockWithSpans) -> ForeignBlock {
     let subject = extract_line_text(source, &fb.subject_spans);
     let content = fb
         .content_spans
@@ -235,7 +235,7 @@ fn convert_foreign_block(source: &str, fb: ForeignBlockWithSpans) -> ForeignBloc
 // Position-Preserving Conversion Functions
 // ============================================================================
 
-fn convert_content_item_with_positions(
+pub(crate) fn convert_content_item_with_positions(
     source: &str,
     source_loc: &SourceLocation,
     item: ContentItemWithSpans,
@@ -262,7 +262,7 @@ fn convert_content_item_with_positions(
     }
 }
 
-fn convert_paragraph_with_positions(
+pub(crate) fn convert_paragraph_with_positions(
     source: &str,
     source_loc: &SourceLocation,
     para: ParagraphWithSpans,
@@ -291,7 +291,7 @@ fn convert_paragraph_with_positions(
     }
 }
 
-fn convert_session_with_positions(
+pub(crate) fn convert_session_with_positions(
     source: &str,
     source_loc: &SourceLocation,
     sess: SessionWithSpans,
@@ -321,7 +321,7 @@ fn convert_session_with_positions(
     }
 }
 
-fn convert_definition_with_positions(
+pub(crate) fn convert_definition_with_positions(
     source: &str,
     source_loc: &SourceLocation,
     def: DefinitionWithSpans,
@@ -351,7 +351,7 @@ fn convert_definition_with_positions(
     }
 }
 
-fn convert_annotation_with_positions(
+pub(crate) fn convert_annotation_with_positions(
     source: &str,
     source_loc: &SourceLocation,
     ann: AnnotationWithSpans,
@@ -389,7 +389,7 @@ fn convert_annotation_with_positions(
     }
 }
 
-fn convert_list_with_positions(
+pub(crate) fn convert_list_with_positions(
     source: &str,
     source_loc: &SourceLocation,
     list: ListWithSpans,
@@ -404,7 +404,7 @@ fn convert_list_with_positions(
     }
 }
 
-fn convert_list_item_with_positions(
+pub(crate) fn convert_list_item_with_positions(
     source: &str,
     source_loc: &SourceLocation,
     item: ListItemWithSpans,
@@ -435,7 +435,7 @@ fn convert_list_item_with_positions(
     .with_span(span)
 }
 
-fn convert_foreign_block_with_positions(
+pub(crate) fn convert_foreign_block_with_positions(
     source: &str,
     source_loc: &SourceLocation,
     fb: ForeignBlockWithSpans,
