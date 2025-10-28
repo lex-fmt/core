@@ -24,7 +24,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "This",
     ),
@@ -82,7 +82,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "1",
     ),
@@ -104,7 +104,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "This",
@@ -143,7 +143,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "It",
     ),
@@ -169,7 +169,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Number(
         "2",
@@ -192,7 +192,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "The",
@@ -223,7 +223,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Text(
         "A",
@@ -246,7 +246,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "3",
     ),
@@ -268,7 +268,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "Sessions",
@@ -303,7 +303,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Text(
         "Another",
@@ -318,7 +318,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "4",
     ),
@@ -344,7 +344,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "Session",
@@ -379,7 +379,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "They",
@@ -438,7 +438,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     DedentLevel,
     Text(

@@ -20,7 +20,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "This",
     ),
@@ -102,7 +102,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "1",
     ),
@@ -124,7 +124,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "This",
@@ -159,7 +159,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "1",
     ),
@@ -193,7 +193,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "This",
@@ -228,7 +228,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -277,7 +277,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Number(
         "1",
@@ -312,7 +312,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Dash,
     Whitespace,
@@ -362,7 +362,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Then",
     ),
@@ -384,7 +384,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "1",
     ),
@@ -418,7 +418,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "This",
@@ -449,7 +449,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -498,7 +498,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -547,7 +547,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     DedentLevel,
     Text(
@@ -579,7 +579,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -640,7 +640,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Number(
         "2",
@@ -667,7 +667,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "This",
@@ -698,7 +698,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "2",
     ),
@@ -732,7 +732,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Dash,
     Whitespace,
@@ -774,7 +774,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Paragraph",
     ),
@@ -796,7 +796,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -849,7 +849,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "2",
     ),
@@ -883,7 +883,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "The",
@@ -918,7 +918,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -963,7 +963,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Another",
     ),
@@ -989,7 +989,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -1038,7 +1038,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     DedentLevel,
     DedentLevel,

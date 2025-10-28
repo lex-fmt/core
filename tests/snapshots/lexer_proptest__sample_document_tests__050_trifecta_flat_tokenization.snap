@@ -24,7 +24,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "This",
     ),
@@ -110,7 +110,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "1",
     ),
@@ -140,7 +140,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "This",
@@ -187,7 +187,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "It",
     ),
@@ -213,7 +213,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Number(
         "2",
@@ -244,7 +244,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Dash,
     Whitespace,
@@ -312,7 +312,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Number(
         "3",
@@ -343,7 +343,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "This",
@@ -374,7 +374,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -423,7 +423,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "And",
     ),
@@ -449,7 +449,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Text(
         "A",
@@ -480,7 +480,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -525,7 +525,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "4",
     ),
@@ -547,7 +547,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Dash,
     Whitespace,
@@ -597,7 +597,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Then",
     ),
@@ -619,7 +619,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -676,7 +676,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Text(
         "Final",

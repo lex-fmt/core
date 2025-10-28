@@ -13,6 +13,7 @@ impl ToTxxtString for Token {
             Token::Indent => "    ".to_string(),
             Token::Whitespace => " ".to_string(),
             Token::Newline => "\n".to_string(),
+            Token::BlankLine => "\n".to_string(), // BlankLine represents 2+ consecutive newlines, output as single newline
             Token::Dash => "-".to_string(),
             Token::Period => ".".to_string(),
             Token::OpenParen => "(".to_string(),

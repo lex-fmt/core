@@ -20,7 +20,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "This",
     ),
@@ -58,7 +58,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Plain",
     ),
@@ -76,7 +76,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -131,7 +131,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Numerical",
     ),
@@ -145,7 +145,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "1",
     ),
@@ -221,7 +221,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Alphabetical",
     ),
@@ -235,7 +235,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "a",
     ),
@@ -311,7 +311,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Mixed",
     ),
@@ -351,7 +351,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "1",
     ),
@@ -412,7 +412,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Parenthetical",
     ),
@@ -426,7 +426,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     OpenParen,
     Number(
         "1",
@@ -505,7 +505,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Roman",
     ),
@@ -519,7 +519,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "I",
     ),
@@ -595,7 +595,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Lists",
     ),
@@ -617,7 +617,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
