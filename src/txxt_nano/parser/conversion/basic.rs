@@ -7,11 +7,11 @@ use super::super::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
     Session,
 };
-use super::super::parameters::convert_parameter;
-use super::super::parser::{
+use super::super::intermediate_ast::{
     AnnotationWithSpans, ContentItemWithSpans, DefinitionWithSpans, DocumentWithSpans,
     ForeignBlockWithSpans, ListItemWithSpans, ListWithSpans, ParagraphWithSpans, SessionWithSpans,
 };
+use super::super::parameters::convert_parameter;
 use super::text::{extract_line_text, extract_text, reconstruct_raw_content};
 
 /// Convert document with spans to final document
