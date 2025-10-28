@@ -33,8 +33,8 @@ use super::combinators::{
     text_line, token,
 };
 
-// Position-preserving conversion functions are re-exported from conversion::positions
-use super::conversion::positions::convert_document_with_positions;
+// Position-preserving conversion functions
+use super::ast_conversion::convert_document_with_positions;
 
 // Parser combinator functions (text_line, token, list_item_line) are imported from combinators.rs
 
