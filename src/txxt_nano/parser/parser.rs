@@ -2467,11 +2467,15 @@ mod tests {
         let para_old = doc_old.content[0].as_paragraph().unwrap();
         let para_new = doc_new.content[0].as_paragraph().unwrap();
 
-        // Text should be the same
-        assert_eq!(para_old.lines, para_new.lines);
+        // Text content should be the same (ignoring span information)
+        assert_eq!(para_old.lines.len(), para_new.lines.len());
+        for (line_old, line_new) in para_old.lines.iter().zip(para_new.lines.iter()) {
+            assert_eq!(line_old.as_string(), line_new.as_string());
+        }
 
-        // But new version should have positions
+        // But new version should have positions on the paragraph and text
         assert!(para_new.span.is_some());
+        assert!(para_new.lines[0].span.is_some());
     }
 
     #[test]
