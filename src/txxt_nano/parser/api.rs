@@ -4,9 +4,9 @@ use chumsky::prelude::*;
 use std::ops::Range;
 
 use crate::txxt_nano::lexer::Token;
-use crate::txxt_nano::parser::ast::Document;
 use crate::txxt_nano::parser::ast_conversion::{convert_document, convert_document_with_positions};
 use crate::txxt_nano::parser::document::document;
+use txxt_ast::Document;
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);

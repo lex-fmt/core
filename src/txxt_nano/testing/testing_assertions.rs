@@ -1,7 +1,7 @@
 //! Fluent assertion API for AST nodes
 
 use super::testing_matchers::TextMatch;
-use crate::txxt_nano::parser::ast::{
+use txxt_ast::{
     Annotation, Container, ContentItem, Definition, Document, ForeignBlock, List, ListItem,
     Paragraph, Session,
 };

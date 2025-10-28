@@ -13,18 +13,21 @@ The txxt-nano parser suffers from **incomplete refactoring artifacts** - code th
 The codebase shows evidence of three attempted refactoring efforts that were never completed:
 
 #### 1. **WithSpans Extraction (Partially Completed)**
+
 - **What was planned**: Extract intermediate AST structures to separate module for clarity
 - **What was completed**: Created `intermediate_ast.rs` with proper definitions
 - **What was left undone**: `parser.rs` still defines identical structs (old location)
 - **Result**: 64 lines of pure duplication, confusion about single source of truth
 
 #### 2. **Combinators Extraction (Never Activated)**
+
 - **What was planned**: Extract parser combinators to separate, reusable module
 - **What was completed**: Created `combinators.rs` with 8 parser functions
 - **What was left undone**: `parser.rs` was never switched to use the extracted module
 - **Result**: 216 lines of dead code in combinators.rs, 130+ duplicate lines in parser.rs
 
 #### 3. **Conversion Consolidation (In Progress)**
+
 - **What was planned**: Consolidate conversion logic to `ast_conversion.rs`
 - **What was completed**: Core functions created in `ast_conversion.rs`
 - **What was left undone**: Conversion functions re-exported from conversion/basic.rs and conversion/positions.rs are not properly set up
@@ -39,6 +42,7 @@ The codebase shows evidence of three attempted refactoring efforts that were nev
 **Problem**: Extracting code creates circular dependency risks
 
 Example: `conversion/basic.rs` needs WithSpans structs
+
 ```
 conversion/basic.rs imports from parser.rs
   ↓
@@ -48,6 +52,7 @@ CIRCULAR DEPENDENCY
 ```
 
 **Why it blocks refactoring**:
+
 - Can't just remove parser.rs definitions without updating conversion/basic.rs imports
 - Pre-commit hooks may reject changes that break intermediate states
 - Must coordinate changes across multiple files atomically
@@ -79,12 +84,14 @@ Where do combinators live?
 **Problem**: Changes must maintain passing tests during refactoring
 
 The pre-commit hooks enforce:
+
 1. Code formatting must pass (`cargo fmt`)
 2. Linting must pass (`cargo clippy`)
 3. All tests must pass (`cargo test --lib`)
 4. Any change that breaks these → rejected
 
 This means:
+
 - Can't commit half-completed refactoring
 - Must ensure every change is atomic and compilable
 - Import changes can fail if intermediate files have missing deps
@@ -96,6 +103,7 @@ This means:
 ### Issue #1: Fuzzy Module Boundaries
 
 **Current state:**
+
 ```
 intermediate_ast/          → WithSpans struct definitions
 ├─ Should be used by: parser, conversion, etc.
@@ -114,6 +122,7 @@ conversion/                → Conversion logic
 ```
 
 **The fix**: Define clear ownership
+
 - `intermediate_ast.rs` owns WithSpans (period)
 - `combinators.rs` owns parser combinators (period)
 - `ast_conversion.rs` owns all conversion logic (period)
@@ -121,6 +130,7 @@ conversion/                → Conversion logic
 ### Issue #2: Abandoned Extraction Work
 
 **Combinators.rs is a "ghost module"**:
+
 - It exists and compiles
 - It contains useful, high-quality code
 - But it's never used/imported
@@ -163,6 +173,7 @@ Result: Unclear pattern, incomplete solution
 ### Reason 1: Pre-commit Hook Strictness
 
 The pre-commit hooks enforce strict correctness:
+
 ```
 ✓ Code must compile
 ✓ Tests must pass
@@ -171,6 +182,7 @@ The pre-commit hooks enforce strict correctness:
 ```
 
 This means you can't commit:
+
 - Half-deleted code with missing imports
 - Code that compiles but tests fail
 - Code with unused imports (linter catches these)
@@ -199,6 +211,7 @@ Step 4: Hope pre-commit hooks accept the changes
 ### Reason 3: Dead Code Detection
 
 Extracting unused code is risky:
+
 ```
 If we activate combinators.rs by importing it:
   → Tests might fail because it works differently than inline version
@@ -217,6 +230,7 @@ The core problem isn't technical—it's **architectural indecision**:
 3. **Conversions**: Should be consolidated? Yes → But no clear strategy for re-exports
 
 This creates a **state of permanent incompleteness**:
+
 - Can't commit either way (extracted OR not extracted)
 - Each module is partially refactored
 - Result: Worst of both worlds (duplication + dead code + confusion)

@@ -1,0 +1,12 @@
+[package]
+name = "txxt_ast"
+version = "0.1.0"
+edition = "2021"
+authors = ["txxt-nano contributors"]
+description = "AST definitions and utilities for the txxt format"
+license = "MIT"
+repository = "https://github.com/adebert/txxt-nano"
+
+[dependencies]
+
+[dev-dependencies]

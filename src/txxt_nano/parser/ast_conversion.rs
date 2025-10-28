@@ -1,16 +1,15 @@
 //! AST conversion functions that transform intermediate, span-based AST nodes
 //! into the final AST with extracted text and source positions.
 
-use super::ast::{
-    Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
-    Session, Span,
-};
 use super::intermediate_ast::{
     AnnotationWithSpans, ContentItemWithSpans, DefinitionWithSpans, DocumentWithSpans,
     ForeignBlockWithSpans, ListItemWithSpans, ListWithSpans, ParagraphWithSpans, SessionWithSpans,
 };
 use super::parameters::convert_parameter;
-use super::source_location::SourceLocation;
+use txxt_ast::{
+    Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
+    Session, SourceLocation, Span,
+};
 
 /// Helper to extract text from source using a span
 #[allow(dead_code)] // Reserved for future use

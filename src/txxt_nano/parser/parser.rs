@@ -11,10 +11,10 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-use super::ast::Document;
 #[allow(unused_imports)] // convert_paragraph is used in tests
 use super::conversion::basic::{convert_document, convert_paragraph};
 use crate::txxt_nano::lexer::Token;
+use txxt_ast::Document;
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);
@@ -311,8 +311,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<Document, Vec<Simple<Token>>> {
 mod tests {
     use super::*;
     use crate::txxt_nano::lexer::{lex, lex_with_spans};
-    use crate::txxt_nano::parser::ast::{ContentItem, Position};
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
+    use txxt_ast::{ContentItem, Position};
 
     #[test]
     fn test_simple_paragraph() {

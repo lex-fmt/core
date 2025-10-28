@@ -2,10 +2,9 @@
 //!
 //! Common patterns extracted from conversion logic to reduce duplication.
 
-use super::super::ast::Span;
-use super::super::source_location::SourceLocation;
 use crate::txxt_nano::lexer::Token;
 use std::ops::Range;
+use txxt_ast::{SourceLocation, Span};
 
 /// Check if a token is a text-like token (content that can appear in lines)
 ///

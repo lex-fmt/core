@@ -21,7 +21,7 @@
 //! </children></session>
 //! ```
 
-use crate::txxt_nano::parser::ast::{Container, ContentItem, Document};
+use txxt_ast::{Container, ContentItem, Document};
 
 /// Serialize a document to AST tag format
 pub fn serialize_document(doc: &Document) -> String {
@@ -179,7 +179,7 @@ fn escape_xml(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt_nano::parser::ast::{Paragraph, Session};
+    use txxt_ast::{Paragraph, Session};
 
     #[test]
     fn test_serialize_simple_paragraph() {

@@ -3,16 +3,16 @@
 //! Converts intermediate AST structures (with spans) to final AST structures
 //! with extracted text content (no position information).
 
-use super::super::ast::{
-    Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
-    Session,
-};
 use super::super::intermediate_ast::{
     AnnotationWithSpans, ContentItemWithSpans, DefinitionWithSpans, DocumentWithSpans,
     ForeignBlockWithSpans, ListItemWithSpans, ListWithSpans, ParagraphWithSpans, SessionWithSpans,
 };
 use super::super::parameters::convert_parameter;
 use super::text::{extract_line_text, extract_text, reconstruct_raw_content};
+use txxt_ast::{
+    Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
+    Session,
+};
 
 /// Convert document with spans to final document
 pub(crate) fn convert_document(source: &str, doc_with_spans: DocumentWithSpans) -> Document {
