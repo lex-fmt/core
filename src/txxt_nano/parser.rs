@@ -15,11 +15,13 @@ pub mod labels;
 pub mod parameters;
 #[allow(clippy::module_inception)]
 pub mod parser;
+pub mod source_location;
 
-pub use ast::{ContentItem, Document, List, ListItem, Paragraph, Session};
+pub use ast::{ContentItem, Document, List, ListItem, Paragraph, Position, Session, Span};
 pub use ast_tag_serializer::serialize_document as serialize_ast_tag;
 pub use ast_treeviz::to_treeviz_str;
-pub use parser::{document, parse, parse_with_source};
+pub use parser::{document, parse, parse_with_source, parse_with_source_positions};
+pub use source_location::SourceLocation;
 
 /// Type alias for parse result with spanned tokens
 type ParseResult = Result<

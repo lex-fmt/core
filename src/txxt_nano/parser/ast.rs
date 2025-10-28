@@ -11,6 +11,64 @@
 use std::fmt;
 
 // ============================================================================
+// Position Tracking Structures
+// ============================================================================
+
+/// Represents a position in source code (line and column)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Position {
+    pub line: usize,
+    pub column: usize,
+}
+
+impl Position {
+    pub fn new(line: usize, column: usize) -> Self {
+        Self { line, column }
+    }
+}
+
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.line, self.column)
+    }
+}
+
+/// Represents a span in source code (start and end positions)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Span {
+    pub start: Position,
+    pub end: Position,
+}
+
+impl Span {
+    pub fn new(start: Position, end: Position) -> Self {
+        Self { start, end }
+    }
+
+    /// Check if a position is contained within this span
+    pub fn contains(&self, pos: Position) -> bool {
+        (self.start.line < pos.line
+            || (self.start.line == pos.line && self.start.column <= pos.column))
+            && (self.end.line > pos.line
+                || (self.end.line == pos.line && self.end.column >= pos.column))
+    }
+
+    /// Check if another span overlaps with this span
+    pub fn overlaps(&self, other: Span) -> bool {
+        self.contains(other.start)
+            || self.contains(other.end)
+            || other.contains(self.start)
+            || other.contains(self.end)
+    }
+}
+
+impl fmt::Display for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}..{}", self.start, self.end)
+    }
+}
+
+// ============================================================================
 // AST Traits - Common interfaces for uniform node access
 // ============================================================================
 
@@ -41,6 +99,7 @@ pub trait TextNode: AstNode {
 pub struct Document {
     pub metadata: Vec<Annotation>,
     pub content: Vec<ContentItem>,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,29 +115,34 @@ pub enum ContentItem {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
     pub lines: Vec<String>,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Session {
     pub title: String,
     pub content: Vec<ContentItem>,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
     pub items: Vec<ListItem>,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
     text: Vec<String>,
     pub content: Vec<ContentItem>,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Definition {
     pub subject: String,
     pub content: Vec<ContentItem>,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -86,17 +150,20 @@ pub struct ForeignBlock {
     pub subject: String,
     pub content: String,
     pub closing_annotation: Annotation,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Label {
     pub value: String,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
     pub key: String,
     pub value: Option<String>,
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -104,6 +171,7 @@ pub struct Annotation {
     pub label: Label,
     pub parameters: Vec<Parameter>,
     pub content: Vec<ContentItem>,
+    pub span: Option<Span>,
 }
 
 impl Document {
@@ -111,6 +179,7 @@ impl Document {
         Self {
             metadata: Vec::new(),
             content: Vec::new(),
+            span: None,
         }
     }
 
@@ -118,11 +187,21 @@ impl Document {
         Self {
             metadata: Vec::new(),
             content,
+            span: None,
         }
     }
 
     pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
-        Self { metadata, content }
+        Self {
+            metadata,
+            content,
+            span: None,
+        }
+    }
+
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
 
     pub fn iter_items(&self) -> impl Iterator<Item = &ContentItem> {
@@ -154,6 +233,17 @@ impl Document {
         let foreign_blocks = self.iter_foreign_blocks().count();
         (paragraphs, sessions, lists, foreign_blocks)
     }
+
+    /// Find all elements at the given position, returning them in order from deepest to shallowest
+    pub fn elements_at(&self, pos: Position) -> Vec<&ContentItem> {
+        let mut results = Vec::new();
+        for item in &self.content {
+            if let Some(mut items) = item.elements_at(pos) {
+                results.append(&mut items);
+            }
+        }
+        results
+    }
 }
 
 impl Default for Document {
@@ -164,10 +254,17 @@ impl Default for Document {
 
 impl Paragraph {
     pub fn new(lines: Vec<String>) -> Self {
-        Self { lines }
+        Self { lines, span: None }
     }
     pub fn from_line(line: String) -> Self {
-        Self { lines: vec![line] }
+        Self {
+            lines: vec![line],
+            span: None,
+        }
+    }
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
     pub fn text(&self) -> String {
         self.lines.join("\n")
@@ -176,19 +273,32 @@ impl Paragraph {
 
 impl Session {
     pub fn new(title: String, content: Vec<ContentItem>) -> Self {
-        Self { title, content }
+        Self {
+            title,
+            content,
+            span: None,
+        }
     }
     pub fn with_title(title: String) -> Self {
         Self {
             title,
             content: Vec::new(),
+            span: None,
         }
+    }
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
 }
 
 impl List {
     pub fn new(items: Vec<ListItem>) -> Self {
-        Self { items }
+        Self { items, span: None }
+    }
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
 }
 
@@ -197,13 +307,19 @@ impl ListItem {
         Self {
             text: vec![text],
             content: Vec::new(),
+            span: None,
         }
     }
     pub fn with_content(text: String, content: Vec<ContentItem>) -> Self {
         Self {
             text: vec![text],
             content,
+            span: None,
         }
+    }
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
     pub fn text(&self) -> &str {
         &self.text[0]
@@ -212,13 +328,22 @@ impl ListItem {
 
 impl Definition {
     pub fn new(subject: String, content: Vec<ContentItem>) -> Self {
-        Self { subject, content }
+        Self {
+            subject,
+            content,
+            span: None,
+        }
     }
     pub fn with_subject(subject: String) -> Self {
         Self {
             subject,
             content: Vec::new(),
+            span: None,
         }
+    }
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
 }
 
@@ -228,6 +353,7 @@ impl ForeignBlock {
             subject,
             content,
             closing_annotation,
+            span: None,
         }
     }
     pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
@@ -235,33 +361,56 @@ impl ForeignBlock {
             subject,
             content: String::new(),
             closing_annotation,
+            span: None,
         }
+    }
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
 }
 
 impl Label {
     pub fn new(value: String) -> Self {
-        Self { value }
+        Self { value, span: None }
     }
     pub fn from_string(value: &str) -> Self {
         Self {
             value: value.to_string(),
+            span: None,
         }
+    }
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
 }
 
 impl Parameter {
     pub fn new(key: String, value: Option<String>) -> Self {
-        Self { key, value }
+        Self {
+            key,
+            value,
+            span: None,
+        }
     }
     pub fn boolean(key: String) -> Self {
-        Self { key, value: None }
+        Self {
+            key,
+            value: None,
+            span: None,
+        }
     }
     pub fn with_value(key: String, value: String) -> Self {
         Self {
             key,
             value: Some(value),
+            span: None,
         }
+    }
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
 }
 
@@ -271,6 +420,7 @@ impl Annotation {
             label,
             parameters,
             content,
+            span: None,
         }
     }
     pub fn marker(label: Label) -> Self {
@@ -278,6 +428,7 @@ impl Annotation {
             label,
             parameters: Vec::new(),
             content: Vec::new(),
+            span: None,
         }
     }
     pub fn with_parameters(label: Label, parameters: Vec<Parameter>) -> Self {
@@ -285,7 +436,12 @@ impl Annotation {
             label,
             parameters,
             content: Vec::new(),
+            span: None,
         }
+    }
+    pub fn with_span(mut self, span: Option<Span>) -> Self {
+        self.span = span;
+        self
     }
 }
 
@@ -705,6 +861,42 @@ impl ContentItem {
             None
         }
     }
+
+    /// Find all elements at the given position in this item and its children
+    /// Returns elements in order from deepest to shallowest nesting
+    pub fn elements_at(&self, pos: Position) -> Option<Vec<&ContentItem>> {
+        // Check if this item contains the position
+        let span = match self {
+            ContentItem::Paragraph(p) => p.span,
+            ContentItem::Session(s) => s.span,
+            ContentItem::List(l) => l.span,
+            ContentItem::Definition(d) => d.span,
+            ContentItem::Annotation(a) => a.span,
+            ContentItem::ForeignBlock(fb) => fb.span,
+        };
+
+        if let Some(span) = span {
+            if !span.contains(pos) {
+                return None;
+            }
+        }
+
+        // Position is in this item, now check children
+        let mut results = vec![self];
+
+        // Check nested items
+        let children = self.children();
+        if let Some(children) = children {
+            for child in children {
+                if let Some(mut child_results) = child.elements_at(pos) {
+                    results.append(&mut child_results);
+                    break; // Only one branch can contain the position
+                }
+            }
+        }
+
+        Some(results)
+    }
 }
 
 #[cfg(test)]
@@ -738,5 +930,207 @@ mod tests {
         ]);
         assert_eq!(doc.content.len(), 2);
         assert_eq!(doc.metadata.len(), 0);
+    }
+
+    // ========================================================================
+    // Position Tracking Tests
+    // ========================================================================
+
+    #[test]
+    fn test_position_creation() {
+        let pos = Position::new(5, 10);
+        assert_eq!(pos.line, 5);
+        assert_eq!(pos.column, 10);
+    }
+
+    #[test]
+    fn test_position_comparison() {
+        let pos1 = Position::new(1, 5);
+        let pos2 = Position::new(1, 5);
+        let pos3 = Position::new(2, 3);
+
+        assert_eq!(pos1, pos2);
+        assert_ne!(pos1, pos3);
+        assert!(pos1 < pos3);
+    }
+
+    #[test]
+    fn test_span_creation() {
+        let start = Position::new(0, 0);
+        let end = Position::new(2, 5);
+        let span = Span::new(start, end);
+
+        assert_eq!(span.start, start);
+        assert_eq!(span.end, end);
+    }
+
+    #[test]
+    fn test_span_contains_single_line() {
+        let span = Span::new(Position::new(0, 0), Position::new(0, 10));
+
+        assert!(span.contains(Position::new(0, 0)));
+        assert!(span.contains(Position::new(0, 5)));
+        assert!(span.contains(Position::new(0, 10)));
+
+        assert!(!span.contains(Position::new(0, 11)));
+        assert!(!span.contains(Position::new(1, 0)));
+    }
+
+    #[test]
+    fn test_span_contains_multiline() {
+        let span = Span::new(Position::new(1, 5), Position::new(2, 10));
+
+        // Before span
+        assert!(!span.contains(Position::new(1, 4)));
+        assert!(!span.contains(Position::new(0, 5)));
+
+        // In span
+        assert!(span.contains(Position::new(1, 5)));
+        assert!(span.contains(Position::new(1, 10)));
+        assert!(span.contains(Position::new(2, 0)));
+        assert!(span.contains(Position::new(2, 10)));
+
+        // After span
+        assert!(!span.contains(Position::new(2, 11)));
+        assert!(!span.contains(Position::new(3, 0)));
+    }
+
+    #[test]
+    fn test_span_overlaps() {
+        let span1 = Span::new(Position::new(0, 0), Position::new(1, 5));
+        let span2 = Span::new(Position::new(1, 0), Position::new(2, 5));
+        let span3 = Span::new(Position::new(3, 0), Position::new(4, 5));
+
+        assert!(span1.overlaps(span2));
+        assert!(span2.overlaps(span1));
+        assert!(!span1.overlaps(span3));
+        assert!(!span3.overlaps(span1));
+    }
+
+    #[test]
+    fn test_position_display() {
+        let pos = Position::new(5, 10);
+        assert_eq!(format!("{}", pos), "5:10");
+    }
+
+    #[test]
+    fn test_span_display() {
+        let span = Span::new(Position::new(1, 0), Position::new(2, 5));
+        assert_eq!(format!("{}", span), "1:0..2:5");
+    }
+
+    // ========================================================================
+    // Query API Tests
+    // ========================================================================
+
+    #[test]
+    fn test_elements_at_simple_paragraph() {
+        let para = Paragraph::from_line("Test".to_string())
+            .with_span(Some(Span::new(Position::new(0, 0), Position::new(0, 4))));
+        let item = ContentItem::Paragraph(para);
+
+        let pos = Position::new(0, 2);
+        if let Some(results) = item.elements_at(pos) {
+            assert_eq!(results.len(), 1);
+            assert!(results[0].is_paragraph());
+        } else {
+            panic!("Expected to find paragraph at position");
+        }
+    }
+
+    #[test]
+    fn test_elements_at_position_outside_span() {
+        let para = Paragraph::from_line("Test".to_string())
+            .with_span(Some(Span::new(Position::new(0, 0), Position::new(0, 4))));
+        let item = ContentItem::Paragraph(para);
+
+        let pos = Position::new(0, 10);
+        let results = item.elements_at(pos);
+        assert!(results.is_none());
+    }
+
+    #[test]
+    fn test_elements_at_no_span() {
+        // Item with no span should match any position
+        let para = Paragraph::from_line("Test".to_string());
+        let item = ContentItem::Paragraph(para);
+
+        let pos = Position::new(5, 10);
+        if let Some(results) = item.elements_at(pos) {
+            assert_eq!(results.len(), 1);
+            assert!(results[0].is_paragraph());
+        } else {
+            panic!("Expected to find paragraph when no span is set");
+        }
+    }
+
+    #[test]
+    fn test_elements_at_nested_session() {
+        let para = Paragraph::from_line("Nested".to_string())
+            .with_span(Some(Span::new(Position::new(1, 0), Position::new(1, 6))));
+        let session = Session::new("Section".to_string(), vec![ContentItem::Paragraph(para)])
+            .with_span(Some(Span::new(Position::new(0, 0), Position::new(2, 0))));
+        let item = ContentItem::Session(session);
+
+        let pos = Position::new(1, 3);
+        if let Some(results) = item.elements_at(pos) {
+            assert_eq!(results.len(), 2);
+            assert!(results[0].is_session());
+            assert!(results[1].is_paragraph());
+        } else {
+            panic!("Expected to find session and paragraph");
+        }
+    }
+
+    #[test]
+    fn test_document_elements_at() {
+        let para1 = Paragraph::from_line("First".to_string())
+            .with_span(Some(Span::new(Position::new(0, 0), Position::new(0, 5))));
+        let para2 = Paragraph::from_line("Second".to_string())
+            .with_span(Some(Span::new(Position::new(1, 0), Position::new(1, 6))));
+
+        let doc = Document::with_content(vec![
+            ContentItem::Paragraph(para1),
+            ContentItem::Paragraph(para2),
+        ]);
+
+        let results = doc.elements_at(Position::new(1, 3));
+        assert_eq!(results.len(), 1);
+        assert!(results[0].is_paragraph());
+    }
+
+    #[test]
+    fn test_paragraph_with_span() {
+        let span = Span::new(Position::new(0, 0), Position::new(0, 5));
+        let para = Paragraph::from_line("Hello".to_string()).with_span(Some(span));
+
+        assert_eq!(para.span, Some(span));
+    }
+
+    #[test]
+    fn test_builder_methods() {
+        let span = Span::new(Position::new(1, 0), Position::new(1, 10));
+
+        let para = Paragraph::new(vec!["Test".to_string()]).with_span(Some(span));
+        assert_eq!(para.span, Some(span));
+
+        let session = Session::with_title("Title".to_string()).with_span(Some(span));
+        assert_eq!(session.span, Some(span));
+
+        let list = List::new(vec![]).with_span(Some(span));
+        assert_eq!(list.span, Some(span));
+
+        let definition = Definition::with_subject("Subject".to_string()).with_span(Some(span));
+        assert_eq!(definition.span, Some(span));
+
+        let label = Label::new("test".to_string()).with_span(Some(span));
+        assert_eq!(label.span, Some(span));
+
+        let param =
+            Parameter::new("key".to_string(), Some("value".to_string())).with_span(Some(span));
+        assert_eq!(param.span, Some(span));
+
+        let annotation = Annotation::marker(Label::new("test".to_string())).with_span(Some(span));
+        assert_eq!(annotation.span, Some(span));
     }
 }
