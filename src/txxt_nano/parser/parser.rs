@@ -12,7 +12,7 @@ use chumsky::prelude::*;
 use std::ops::Range;
 
 #[allow(unused_imports)] // convert_paragraph is used in tests
-use super::ast_conversion::{convert_document, convert_document_with_positions, convert_paragraph};
+use super::ast_conversion::convert_paragraph;
 use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
 
@@ -273,12 +273,13 @@ pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserErr
 }
 
 /// Parse with source text - extracts actual content from spans
+///
+/// Re-exports the canonical implementation from api.rs
 pub fn parse_with_source(
     tokens_with_spans: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    let doc_with_spans = document().parse(tokens_with_spans)?;
-    Ok(convert_document(source, doc_with_spans))
+    super::api::parse_with_source(tokens_with_spans, source)
 }
 
 /// Parse a txxt document from tokens with source, preserving position information
@@ -286,12 +287,13 @@ pub fn parse_with_source(
 /// This version preserves line/column position information in all AST nodes,
 /// enabling position-based queries like `elements_at()` for IDE integrations,
 /// error reporting, and source mapping.
+///
+/// Re-exports the canonical implementation from api.rs
 pub fn parse_with_source_positions(
     tokens_with_spans: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    let doc_with_spans = document().parse(tokens_with_spans)?;
-    Ok(convert_document_with_positions(source, doc_with_spans))
+    super::api::parse_with_source_positions(tokens_with_spans, source)
 }
 
 /// Parse a txxt document from a token stream (legacy - doesn't preserve source text)
