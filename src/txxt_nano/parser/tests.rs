@@ -1,7 +1,6 @@
 use crate::txxt_nano::ast::{Container, ContentItem};
 use crate::txxt_nano::lexer::{lex, lex_with_spans, Token};
 use crate::txxt_nano::parser::api::parse;
-use crate::txxt_nano::parser::ast_conversion::convert_paragraph;
 use crate::txxt_nano::parser::combinators::paragraph;
 use chumsky::Parser;
 
@@ -13,14 +12,10 @@ fn test_simple_paragraph() {
     // Skip DocStart and DocEnd tokens for direct paragraph test
     tokens_with_spans.retain(|(t, _)| !matches!(t, Token::DocStart | Token::DocEnd));
 
-    let result = paragraph().parse(tokens_with_spans);
+    let result = paragraph(input).parse(tokens_with_spans);
     assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
 
-    let para_with_spans = result.unwrap();
-    assert_eq!(para_with_spans.line_spans.len(), 1);
-
-    // Verify actual content is preserved
-    let para = convert_paragraph(input, para_with_spans);
+    let para = result.unwrap();
     assert_eq!(para.lines.len(), 1);
     assert_eq!(para.lines[0].as_string(), "Hello world");
 }
