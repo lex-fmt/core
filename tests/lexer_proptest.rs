@@ -186,7 +186,7 @@ mod proptest_tests {
                     Token::TxxtMarker | Token::Indent | Token::IndentLevel | Token::DedentLevel |
                     Token::Whitespace | Token::Newline | Token::Dash | Token::Period |
                     Token::OpenParen | Token::CloseParen | Token::Colon | Token::Comma |
-                    Token::Quote | Token::Equals | Token::Number | Token::Text |
+                    Token::Quote | Token::Equals | Token::Number(_) | Token::Text(_) |
                     Token::DocStart | Token::DocEnd => {
                         // All valid tokens
                     }
@@ -222,7 +222,7 @@ mod proptest_tests {
             if input.starts_with('-') {
                 assert!(tokens.iter().any(|t| matches!(t, Token::Dash)));
             } else if input.contains('.') && input.chars().next().unwrap().is_ascii_digit() {
-                assert!(tokens.iter().any(|t| matches!(t, Token::Number)));
+                assert!(tokens.iter().any(|t| matches!(t, Token::Number(_))));
                 assert!(tokens.iter().any(|t| matches!(t, Token::Period)));
             } else if input.starts_with('(') {
                 assert!(tokens.iter().any(|t| matches!(t, Token::OpenParen)));
@@ -238,7 +238,7 @@ mod proptest_tests {
             if input.contains(':') {
                 assert!(tokens.iter().any(|t| matches!(t, Token::Colon)));
             } else if input.contains('.') && input.chars().next().unwrap().is_ascii_digit() {
-                assert!(tokens.iter().any(|t| matches!(t, Token::Number)));
+                assert!(tokens.iter().any(|t| matches!(t, Token::Number(_))));
                 assert!(tokens.iter().any(|t| matches!(t, Token::Period)));
             }
         }
@@ -291,22 +291,22 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Text,       // "This"
+                Token::Text("This".to_string()),       // "This"
                 Token::Whitespace, // " "
-                Token::Text,       // "is"
+                Token::Text("is".to_string()),       // "is"
                 Token::Whitespace, // " "
-                Token::Text,       // "a"
+                Token::Text("a".to_string()),       // "a"
                 Token::Whitespace, // " "
-                Token::Text,       // "paragraph"
+                Token::Text("paragraph".to_string()),       // "paragraph"
                 Token::Period,     // "."
                 Token::Newline,    // "\n"
-                Token::Text,       // "It"
+                Token::Text("It".to_string()),       // "It"
                 Token::Whitespace, // " "
-                Token::Text,       // "has"
+                Token::Text("has".to_string()),       // "has"
                 Token::Whitespace, // " "
-                Token::Text,       // "multiple"
+                Token::Text("multiple".to_string()), // "multiple"
                 Token::Whitespace, // " "
-                Token::Text,       // "lines"
+                Token::Text("lines".to_string()),       // "lines"
                 Token::Period,     // "."
             ]
         );
@@ -323,15 +323,15 @@ mod integration_tests {
             vec![
                 Token::Dash,       // "-"
                 Token::Whitespace, // " "
-                Token::Text,       // "First"
+                Token::Text("First".to_string()),       // "First"
                 Token::Whitespace, // " "
-                Token::Text,       // "item"
+                Token::Text("item".to_string()),       // "item"
                 Token::Newline,    // "\n"
                 Token::Dash,       // "-"
                 Token::Whitespace, // " "
-                Token::Text,       // "Second"
+                Token::Text("Second".to_string()),       // "Second"
                 Token::Whitespace, // " "
-                Token::Text,       // "item"
+                Token::Text("item".to_string()),       // "item"
             ]
         );
     }
@@ -345,17 +345,17 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Number,     // "1"
+                Token::Number("1".to_string()),     // "1"
                 Token::Period,     // "."
                 Token::Whitespace, // " "
-                Token::Text,       // "Session"
+                Token::Text("Session".to_string()),       // "Session"
                 Token::Whitespace, // " "
-                Token::Text,       // "Title"
+                Token::Text("Title".to_string()),       // "Title"
                 Token::Newline,    // "\n"
                 Token::Indent,     // "    "
-                Token::Text,       // "Content"
+                Token::Text("Content".to_string()),       // "Content"
                 Token::Whitespace, // " "
-                Token::Text,       // "here"
+                Token::Text("here".to_string()),       // "here"
             ]
         );
     }
@@ -369,13 +369,13 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Text,       // "Some"
+                Token::Text("Some".to_string()),       // "Some"
                 Token::Whitespace, // " "
-                Token::Text,       // "text"
+                Token::Text("text".to_string()),       // "text"
                 Token::Whitespace, // " "
                 Token::TxxtMarker, // "::"
                 Token::Whitespace, // " "
-                Token::Text,       // "marker"
+                Token::Text("marker".to_string()),       // "marker"
             ]
         );
     }
@@ -389,29 +389,29 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Number,     // "1"
+                Token::Number("1".to_string()),     // "1"
                 Token::Period,     // "."
                 Token::Whitespace, // " "
-                Token::Text,       // "Session"
+                Token::Text("Session".to_string()),       // "Session"
                 Token::Newline,    // "\n"
                 Token::Indent,     // "    "
                 Token::Dash,       // "-"
                 Token::Whitespace, // " "
-                Token::Text,       // "Item"
+                Token::Text("Item".to_string()),       // "Item"
                 Token::Whitespace, // " "
-                Token::Number,     // "1"
+                Token::Number("1".to_string()),     // "1"
                 Token::Newline,    // "\n"
                 Token::Indent,     // "    "
                 Token::Dash,       // "-"
                 Token::Whitespace, // " "
-                Token::Text,       // "Item"
+                Token::Text("Item".to_string()),       // "Item"
                 Token::Whitespace, // " "
-                Token::Number,     // "2"
+                Token::Number("2".to_string()),     // "2"
                 Token::Newline,    // "\n"
                 Token::Newline,    // "\n"
-                Token::Text,       // "Paragraph"
+                Token::Text("Paragraph".to_string()),       // "Paragraph"
                 Token::Whitespace, // " "
-                Token::Text,       // "after"
+                Token::Text("after".to_string()),       // "after"
                 Token::Period,     // "."
             ]
         );

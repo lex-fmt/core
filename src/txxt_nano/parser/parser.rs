@@ -255,9 +255,9 @@ fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError>
     filter(|(t, _span): &TokenSpan| {
         matches!(
             t,
-            Token::Text
+            Token::Text(_)
                 | Token::Whitespace
-                | Token::Number
+                | Token::Number(_)
                 | Token::Dash
                 | Token::Period
                 | Token::OpenParen
@@ -291,9 +291,9 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
     let rest_of_line = filter(|(t, _span): &TokenSpan| {
         matches!(
             t,
-            Token::Text
+            Token::Text(_)
                 | Token::Whitespace
-                | Token::Number
+                | Token::Number(_)
                 | Token::Dash
                 | Token::Period
                 | Token::OpenParen
@@ -312,7 +312,7 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
         .chain(rest_of_line);
 
     // Pattern 2: Number/Text + Period/CloseParen + whitespace + rest
-    let ordered_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Number | Token::Text))
+    let ordered_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Number(_) | Token::Text(_)))
         .then(filter(|(t, _): &TokenSpan| {
             matches!(t, Token::Period | Token::CloseParen)
         }))
@@ -321,7 +321,7 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
 
     // Pattern 3: OpenParen + Number + CloseParen + whitespace + rest
     let paren_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::OpenParen))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Number)))
+        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Number(_))))
         .then(filter(|(t, _): &TokenSpan| matches!(t, Token::CloseParen)))
         .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
         .chain(rest_of_line);
@@ -868,7 +868,7 @@ mod tests {
         // Test case 1: Session with empty content (IndentLevel immediately followed by DedentLevel)
         // This actually SHOULD be allowed or give a clear error
         let tokens = vec![
-            Token::Text,
+            Token::Text("".to_string()),
             Token::Newline,
             Token::Newline,
             Token::IndentLevel,
@@ -953,7 +953,7 @@ mod tests {
         // So it won't consume the session title, and the error will be about the malformed session
 
         let tokens = vec![
-            Token::Text, // "title"
+            Token::Text("".to_string()), // "title"
             Token::Newline,
             Token::Newline,
             Token::IndentLevel,
