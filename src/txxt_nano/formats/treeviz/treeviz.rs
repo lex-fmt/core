@@ -1,6 +1,6 @@
 //! Treeviz formatter for AST nodes
 
-use crate::txxt_nano::parser::ast::{AstNode, Container, ContentItem, Document, ListItem};
+use crate::txxt_nano::ast::{AstNode, Container, ContentItem, Document, ListItem};
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() > max_chars {
