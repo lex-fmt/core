@@ -15,6 +15,8 @@ use super::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
     Session, Span,
 };
+#[allow(unused_imports)] // convert_paragraph is used in tests
+use super::conversion::basic::{convert_document, convert_paragraph};
 use super::conversion::helpers::{
     is_text_token, nested_spans_to_span_position, spans_to_span_position,
 };
@@ -36,50 +38,50 @@ type ParserError = Simple<TokenSpan>;
 #[derive(Debug, Clone)]
 #[allow(dead_code)] // Used internally in parser, may not be directly constructed elsewhere
 pub(crate) struct ParagraphWithSpans {
-    line_spans: Vec<Vec<Range<usize>>>,
+    pub(crate) line_spans: Vec<Vec<Range<usize>>>,
 }
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct SessionWithSpans {
-    title_spans: Vec<Range<usize>>,
-    content: Vec<ContentItemWithSpans>,
+    pub(crate) title_spans: Vec<Range<usize>>,
+    pub(crate) content: Vec<ContentItemWithSpans>,
 }
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct DefinitionWithSpans {
-    subject_spans: Vec<Range<usize>>,
-    content: Vec<ContentItemWithSpans>,
+    pub(crate) subject_spans: Vec<Range<usize>>,
+    pub(crate) content: Vec<ContentItemWithSpans>,
 }
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct ForeignBlockWithSpans {
-    subject_spans: Vec<Range<usize>>,
-    content_spans: Option<Vec<Range<usize>>>,
-    closing_annotation: AnnotationWithSpans,
+    pub(crate) subject_spans: Vec<Range<usize>>,
+    pub(crate) content_spans: Option<Vec<Range<usize>>>,
+    pub(crate) closing_annotation: AnnotationWithSpans,
 }
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct AnnotationWithSpans {
-    label_span: Option<Range<usize>>, // Optional: can have label, params, or both
-    parameters: Vec<ParameterWithSpans>,
-    content: Vec<ContentItemWithSpans>,
+    pub(crate) label_span: Option<Range<usize>>, // Optional: can have label, params, or both
+    pub(crate) parameters: Vec<ParameterWithSpans>,
+    pub(crate) content: Vec<ContentItemWithSpans>,
 }
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct ListItemWithSpans {
-    text_spans: Vec<Range<usize>>,
-    content: Vec<ContentItemWithSpans>,
+    pub(crate) text_spans: Vec<Range<usize>>,
+    pub(crate) content: Vec<ContentItemWithSpans>,
 }
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct ListWithSpans {
-    items: Vec<ListItemWithSpans>,
+    pub(crate) items: Vec<ListItemWithSpans>,
 }
 
 #[derive(Debug, Clone)]
@@ -96,26 +98,13 @@ pub(crate) enum ContentItemWithSpans {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct DocumentWithSpans {
-    metadata: Vec<AnnotationWithSpans>,
-    content: Vec<ContentItemWithSpans>,
+    pub(crate) metadata: Vec<AnnotationWithSpans>,
+    pub(crate) content: Vec<ContentItemWithSpans>,
 }
 
-/// Convert intermediate AST with spans to final AST with extracted text
-fn convert_document(source: &str, doc_with_spans: DocumentWithSpans) -> Document {
-    Document {
-        metadata: doc_with_spans
-            .metadata
-            .into_iter()
-            .map(|ann| convert_annotation(source, ann))
-            .collect(),
-        content: doc_with_spans
-            .content
-            .into_iter()
-            .map(|item| convert_content_item(source, item))
-            .collect(),
-        span: None,
-    }
-}
+// ============================================================================
+// Position-Preserving Conversion Functions
+// ============================================================================
 
 /// Convert intermediate AST with spans to final AST, preserving position information
 fn convert_document_with_positions(source: &str, doc_with_spans: DocumentWithSpans) -> Document {
@@ -135,126 +124,6 @@ fn convert_document_with_positions(source: &str, doc_with_spans: DocumentWithSpa
         span: None,
     }
 }
-
-fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem {
-    match item {
-        ContentItemWithSpans::Paragraph(p) => ContentItem::Paragraph(convert_paragraph(source, p)),
-        ContentItemWithSpans::Session(s) => ContentItem::Session(convert_session(source, s)),
-        ContentItemWithSpans::List(l) => ContentItem::List(convert_list(source, l)),
-        ContentItemWithSpans::Definition(d) => {
-            ContentItem::Definition(convert_definition(source, d))
-        }
-        ContentItemWithSpans::Annotation(a) => {
-            ContentItem::Annotation(convert_annotation(source, a))
-        }
-        ContentItemWithSpans::ForeignBlock(fb) => {
-            ContentItem::ForeignBlock(convert_foreign_block(source, fb))
-        }
-    }
-}
-
-fn convert_paragraph(source: &str, para: ParagraphWithSpans) -> Paragraph {
-    Paragraph {
-        lines: para
-            .line_spans
-            .iter()
-            .map(|spans| extract_line_text(source, spans))
-            .collect(),
-        span: None,
-    }
-}
-
-fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
-    Session {
-        title: extract_line_text(source, &sess.title_spans),
-        content: sess
-            .content
-            .into_iter()
-            .map(|item| convert_content_item(source, item))
-            .collect(),
-        span: None,
-    }
-}
-
-fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
-    // Extract subject (colon already excluded from spans by definition_subject parser)
-    let subject = extract_line_text(source, &def.subject_spans);
-
-    Definition {
-        subject,
-        content: def
-            .content
-            .into_iter()
-            .map(|item| convert_content_item(source, item))
-            .collect(),
-        span: None,
-    }
-}
-
-fn convert_annotation(source: &str, ann: AnnotationWithSpans) -> Annotation {
-    // Extract label if present, otherwise use empty string
-    let label_text = ann
-        .label_span
-        .as_ref()
-        .map(|span| extract_text(source, span).trim().to_string())
-        .unwrap_or_default();
-    let label = Label::new(label_text);
-
-    let parameters = ann
-        .parameters
-        .into_iter()
-        .map(|param| convert_parameter(source, param))
-        .collect();
-
-    let content = ann
-        .content
-        .into_iter()
-        .map(|item| convert_content_item(source, item))
-        .collect();
-
-    Annotation {
-        label,
-        parameters,
-        content,
-        span: None,
-    }
-}
-
-fn convert_list(source: &str, list: ListWithSpans) -> List {
-    List {
-        items: list
-            .items
-            .into_iter()
-            .map(|item| convert_list_item(source, item))
-            .collect(),
-        span: None,
-    }
-}
-
-fn convert_list_item(source: &str, item: ListItemWithSpans) -> ListItem {
-    ListItem::with_content(
-        extract_line_text(source, &item.text_spans),
-        item.content
-            .into_iter()
-            .map(|content_item| convert_content_item(source, content_item))
-            .collect(),
-    )
-}
-
-fn convert_foreign_block(source: &str, fb: ForeignBlockWithSpans) -> ForeignBlock {
-    let subject = extract_line_text(source, &fb.subject_spans);
-    let content = fb
-        .content_spans
-        .map(|spans| reconstruct_raw_content(source, &spans))
-        .unwrap_or_default();
-    let closing_annotation = convert_annotation(source, fb.closing_annotation);
-
-    ForeignBlock::new(subject, content, closing_annotation)
-}
-
-// ============================================================================
-// Position-Preserving Conversion Functions
-// ============================================================================
 
 fn convert_content_item_with_positions(
     source: &str,
