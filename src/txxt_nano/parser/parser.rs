@@ -24,199 +24,25 @@ type TokenSpan = (Token, Range<usize>);
 type ParserError = Simple<TokenSpan>;
 
 // WithSpans structures are now imported from intermediate_ast.rs (single source of truth)
-use super::intermediate_ast::{
-    AnnotationWithSpans, ContentItemWithSpans, DefinitionWithSpans, DocumentWithSpans,
-    ListItemWithSpans, ListWithSpans, ParagraphWithSpans, SessionWithSpans,
-};
-// Parser combinators are now imported from combinators.rs (single source of truth)
-use super::combinators::{
-    annotation_header, definition_subject, foreign_block, list_item_line, paragraph, session_title,
-    text_line, token,
-};
+use super::intermediate_ast::DocumentWithSpans;
+// Parser combinators - kept for test support if needed
+#[allow(unused_imports)]
+use super::combinators::paragraph;
 
 // Parser combinator functions (text_line, token, list_item_line, definition_subject, session_title,
 // annotation_header, foreign_block) are imported from combinators.rs
 
-/// Build the Multi-Parser Bundle for document-level content parsing.
-///
-/// Uses manual recursion to build repetition without .repeated()
-/// This avoids the recursive() + .repeated() interaction issue in Chumsky
-///
-/// ## Structure
-/// This function builds several sub-parsers for different element types:
-/// - **Session parser**: Title followed by indented content
-/// - **Definition parser**: Subject line (text + colon) followed by indented content
-/// - **List parser**: Multiple list items with optional nested content
-/// - **Annotation parser**: Header between `::` markers, with optional indented content or single-line text
-/// - **Single item parser**: Choice of all the above, plus foreign blocks and paragraphs
-/// - **Content parser**: Handles blank line separation and recursive composition of items
-fn build_document_content_parser(
-) -> impl Parser<TokenSpan, Vec<ContentItemWithSpans>, Error = ParserError> + Clone {
-    // HACK: Build repetition through recursion itself, not .repeated()
-    // This avoids the problematic recursive() + .repeated() pattern
+// Import Phase 3b refactored document parser from document module
+use super::document as document_module;
 
-    recursive(|items| {
-        // Session parser - parses title followed by indented content
-        let session_parser = session_title()
-            .then(
-                token(Token::IndentLevel)
-                    .ignore_then(items.clone())
-                    .then_ignore(token(Token::DedentLevel)),
-            )
-            .map(|(title_spans, content)| {
-                ContentItemWithSpans::Session(SessionWithSpans {
-                    title_spans,
-                    content,
-                })
-            });
-
-        // Definition parser - parses subject line followed by indented content
-        let definition_parser = definition_subject()
-            .then(
-                token(Token::IndentLevel)
-                    .ignore_then(items.clone())
-                    .then_ignore(token(Token::DedentLevel)),
-            )
-            .map(|(subject_spans, content)| {
-                ContentItemWithSpans::Definition(DefinitionWithSpans {
-                    subject_spans,
-                    content,
-                })
-            });
-
-        // List parser - parses multiple list items, each with optional indented content
-        let list_parser = {
-            let single_list_item = list_item_line()
-                .then_ignore(token(Token::Newline))
-                .then(
-                    token(Token::IndentLevel)
-                        .ignore_then(items.clone())
-                        .then_ignore(token(Token::DedentLevel))
-                        .or_not(),
-                )
-                .map(|(text_spans, maybe_content)| ListItemWithSpans {
-                    text_spans,
-                    content: maybe_content.unwrap_or_default(),
-                });
-
-            single_list_item
-                .repeated()
-                .at_least(2)
-                .map(|items| ContentItemWithSpans::List(ListWithSpans { items }))
-        };
-
-        // Annotation parser - parses header between :: markers with optional content
-        let annotation_parser = {
-            let header = token(Token::TxxtMarker)
-                .ignore_then(annotation_header())
-                .then_ignore(token(Token::TxxtMarker));
-
-            // Block form: :: label params :: \n <indent>content<dedent> ::
-            let block_form = header
-                .clone()
-                .then_ignore(token(Token::Newline))
-                .then(
-                    token(Token::IndentLevel)
-                        .ignore_then(items.clone())
-                        .then_ignore(token(Token::DedentLevel)),
-                )
-                .then_ignore(token(Token::TxxtMarker))
-                .then_ignore(token(Token::Newline).or_not())
-                .map(|((label_span, parameters), content)| AnnotationWithSpans {
-                    label_span,
-                    parameters,
-                    content,
-                });
-
-            // Single-line and marker forms: :: header :: optional_text
-            let single_line_or_marker = header
-                .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
-                .then_ignore(token(Token::Newline).or_not())
-                .map(|((label_span, parameters), content_span)| {
-                    let content = content_span
-                        .map(|span| {
-                            vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
-                                line_spans: vec![span],
-                            })]
-                        })
-                        .unwrap_or_default();
-
-                    AnnotationWithSpans {
-                        label_span,
-                        parameters,
-                        content,
-                    }
-                });
-
-            block_form
-                .or(single_line_or_marker)
-                .map(ContentItemWithSpans::Annotation)
-        };
-
-        // Single item parser - choice of all element types in parsing order
-        // Order from docs/parsing.txxt
-        let single_item = choice((
-            foreign_block().map(ContentItemWithSpans::ForeignBlock),
-            annotation_parser,
-            list_parser,
-            definition_parser,
-            session_parser,
-            paragraph().map(ContentItemWithSpans::Paragraph),
-        ));
-
-        // Content parser - handles blank line separation and recursive composition
-        // BlankLine tokens separate block-level elements
-        choice((
-            // Skip any leading blank lines, then try to parse item
-            token(Token::BlankLine)
-                .repeated()
-                .at_least(1)
-                .ignore_then(choice((
-                    // After blank lines, check for boundary
-                    filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
-                        .rewind()
-                        .to(vec![]),
-                    // Or continue with more items
-                    items.clone(),
-                ))),
-            // Parse item without leading blank lines
-            single_item
-                .then(items.clone().or_not())
-                .map(|(first, rest)| {
-                    let mut result = vec![first];
-                    if let Some(mut rest_items) = rest {
-                        result.append(&mut rest_items);
-                    }
-                    result
-                }),
-            // Base case: At a boundary (DocEnd or DedentLevel)
-            filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
-                .rewind()
-                .to(vec![]),
-        ))
-    })
-}
-
-/// Parse a document - a sequence of annotations, paragraphs, lists, sessions, and definitions
-/// Returns intermediate AST with spans
-///
-/// Documents are conceptually SessionContainers - they parse content the same way sessions do.
-/// The only difference is that documents don't have a title and aren't indented.
-#[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
+/// Parse a document - delegated to document module
+/// Phase 3b: The document parser now requires source text for inline type conversion
+#[allow(private_interfaces)]
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    // Use the Multi-Parser Bundle for document-level content parsing
-    // This ensures definitions use content_content parser (which excludes sessions)
-    let content_item = build_document_content_parser();
-
-    // Parse document content using the manual recursive approach
-    // This returns a Vec<ContentItemWithSpans> directly
-    token(Token::DocStart)
-        .ignore_then(content_item)
-        .then_ignore(token(Token::DocEnd))
-        .map(|content| DocumentWithSpans {
-            metadata: Vec::new(), // TODO: Parse document-level metadata
-            content,
-        })
+    // This function is kept for backward compatibility but delegates to document_module::document(source)
+    // Since this function doesn't have access to source, it uses an empty string.
+    // For proper position tracking, use parse_with_source_positions or parse_with_source instead.
+    document_module::document("")
 }
 
 /// Parse with source text - extracts actual content from spans
