@@ -113,6 +113,23 @@ fn find_node_at_position(items: &[ContentItem], target_pos: Position) -> Option<
                 }
             }
         }
+
+        // Always check children of container nodes, even if the span doesn't contain the position
+        // This is because container spans (like Sessions) may only cover the header line,
+        // not the entire nested content
+        let children = get_content_item_children(item);
+        if !children.is_empty() {
+            if let Some(child_match) = find_node_at_position(children, target_pos) {
+                // Only use this match if it's better than what we've found
+                if best_match
+                    .as_ref()
+                    .map(|best| child_match.depth > best.depth)
+                    .unwrap_or(true)
+                {
+                    best_match = Some(child_match);
+                }
+            }
+        }
     }
 
     best_match
