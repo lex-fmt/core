@@ -424,10 +424,12 @@ fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = Par
 }
 
 /// Parse a session title - a line of text followed by a newline and blank line
+/// Format: "<Title>\n<BlankLine>"
+/// The blank line (represented as a BlankLine token) distinguishes sessions from definitions
 fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
     text_line()
         .then_ignore(token(Token::Newline))
-        .then_ignore(token(Token::Newline))
+        .then_ignore(token(Token::BlankLine))
 }
 
 /// Parse the bounded region between :: markers
@@ -618,7 +620,7 @@ fn build_document_content_parser(
                 single_list_item
                     .repeated()
                     .at_least(2)
-                    .then_ignore(token(Token::Newline).or_not())
+                    // Don't consume trailing newlines - the content parser handles separators via BlankLine tokens
                     .map(|items| ContentItemWithSpans::List(ListWithSpans { items }))
             };
 
@@ -639,19 +641,20 @@ fn build_document_content_parser(
                             .then_ignore(token(Token::DedentLevel)),
                     )
                     .then_ignore(token(Token::TxxtMarker)) // Second closing :: after content
+                    .then_ignore(token(Token::Newline).or_not()) // Consume optional newline after closing ::
                     .map(|((label_span, parameters), content)| AnnotationWithSpans {
                         label_span,
                         parameters,
                         content,
-                    })
-                    .then_ignore(token(Token::Newline).repeated());
+                    });
 
-                // Single-line and marker forms
+                // Single-line and marker forms: :: header :: optional_text
                 let single_line_or_marker = header
                     .then(
                         // Optional single-line text content after closing ::
                         token(Token::Whitespace).ignore_then(text_line()).or_not(),
                     )
+                    .then_ignore(token(Token::Newline).or_not()) // Consume optional newline after annotation
                     .map(|((label_span, parameters), content_span)| {
                         // Text after :: becomes paragraph content (annotation single-line form)
                         let content = content_span
@@ -667,8 +670,7 @@ fn build_document_content_parser(
                             parameters,
                             content,
                         }
-                    })
-                    .then_ignore(token(Token::Newline).repeated());
+                    });
 
                 block_form
                     .or(single_line_or_marker)
@@ -687,9 +689,10 @@ fn build_document_content_parser(
         };
 
         // Parse content, with optional leading/trailing blank lines
+        // BlankLine tokens separate block-level elements
         choice((
             // Skip any leading blank lines, then try to parse item
-            token(Token::Newline)
+            token(Token::BlankLine)
                 .repeated()
                 .at_least(1)
                 .ignore_then(choice((
