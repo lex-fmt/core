@@ -472,18 +472,40 @@ fn annotation_header(
 }
 
 /// Helper to reconstruct raw content from token spans
+/// For foreign blocks, this includes the leading indentation that comes before the first token
 fn reconstruct_raw_content(source: &str, spans: &[Range<usize>]) -> String {
     if spans.is_empty() {
         return String::new();
     }
     // Find the overall span from first to last
-    let start = spans.first().map(|s| s.start).unwrap_or(0);
-    let end = spans.last().map(|s| s.end).unwrap_or(0);
+    let first_start = spans.first().map(|s| s.start).unwrap_or(0);
+    let last_end = spans.last().map(|s| s.end).unwrap_or(0);
 
-    if start >= end || end > source.len() {
+    if first_start >= last_end || last_end > source.len() {
         return String::new();
     }
-    source[start..end].to_string()
+
+    // For foreign blocks, we need to include the leading indentation.
+    // Look backwards from first_start to find the previous newline.
+    // Everything from after the newline to last_end is the content.
+    let mut start = first_start;
+
+    // Scan backwards to find the beginning of this line (after previous newline)
+    if first_start > 0 {
+        let bytes = source.as_bytes();
+        // Look for the previous newline
+        for i in (0..first_start).rev() {
+            if bytes[i] == b'\n' {
+                // Found the newline, content starts after it
+                start = i + 1;
+                break;
+            }
+        }
+        // If no newline found, start from the beginning of the source
+        // (This handles the first line case)
+    }
+
+    source[start..last_end].to_string()
 }
 
 /// Parse a foreign block - subject line, optional content, closing annotation
@@ -504,15 +526,17 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
     let with_content = token(Token::IndentLevel)
         .ignore_then(content_token.repeated().at_least(1))
         .map(|tokens: Vec<TokenSpan>| {
-            // Remove trailing DedentLevel tokens
+            // Remove trailing structural tokens (DedentLevel, BlankLine, Newline)
+            // These are delimiters, not content
             let mut content_tokens = tokens;
             while content_tokens
                 .last()
-                .map(|(t, _)| matches!(t, Token::DedentLevel))
+                .map(|(t, _)| matches!(t, Token::DedentLevel | Token::BlankLine | Token::Newline))
                 .unwrap_or(false)
             {
                 content_tokens.pop();
             }
+
             content_tokens
                 .into_iter()
                 .map(|(_, s)| s)
@@ -2656,7 +2680,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // See issue #38: Foreign block content extraction needs span handling fix
     fn test_foreign_block_preserves_whitespace() {
         let source = "Indented Code:\n\n    // This has    multiple    spaces\n    const regex = /[a-z]+/g;\n    \n    console.log(\"Hello, World!\");\n\n:: javascript ::\n\n";
         let tokens = lex_with_spans(source);
@@ -2668,7 +2691,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // See issue #38: Foreign block content extraction needs span handling fix
     fn test_foreign_block_multiple_blocks() {
         // Fixed by reordering parsers: foreign_block before session
         // Since foreign blocks have stricter requirements (must have closing annotation),
@@ -2704,7 +2726,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // See issue #38: Foreign block content extraction needs span handling fix
     fn test_verified_foreign_blocks_simple() {
         let source = TxxtSources::get_string("140-foreign-blocks-simple.txxt")
             .expect("Failed to load sample file");
