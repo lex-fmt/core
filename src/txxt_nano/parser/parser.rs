@@ -459,18 +459,37 @@ fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError>
                 // Optional indented block
                 token(Token::IndentLevel)
                     .ignore_then(
-                        // Allow blank lines between content items in list
-                        choice((
-                            // Skip blank lines then parse content
-                            token(Token::Newline)
-                                .repeated()
-                                .at_least(1)
-                                .ignore_then(list_item_content.clone()),
-                            // Parse content directly
-                            list_item_content.clone(),
-                        ))
-                        .repeated()
-                        .at_least(1)
+                        // Use recursive pattern similar to main document parser
+                        recursive(|content_items| {
+                            choice((
+                                // Skip any leading blank lines, then check what comes next
+                                token(Token::Newline)
+                                    .repeated()
+                                    .at_least(1)
+                                    .ignore_then(choice((
+                                        // After blank lines, check for DedentLevel (end of content)
+                                        filter(|(t, _)| matches!(t, Token::DedentLevel))
+                                            .rewind()
+                                            .to(vec![]),
+                                        // Or continue with more content
+                                        content_items.clone(),
+                                    ))),
+                                // Parse content item and continue
+                                list_item_content.clone().then(content_items.or_not()).map(
+                                    |(first, rest)| {
+                                        let mut result = vec![first];
+                                        if let Some(mut rest_items) = rest {
+                                            result.append(&mut rest_items);
+                                        }
+                                        result
+                                    },
+                                ),
+                                // Base case: at DedentLevel
+                                filter(|(t, _)| matches!(t, Token::DedentLevel))
+                                    .rewind()
+                                    .to(vec![]),
+                            ))
+                        }),
                     )
                     .then_ignore(token(Token::DedentLevel))
                     .or_not(),
@@ -723,7 +742,7 @@ fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserErr
                         annotation_content.clone(),
                     ))
                     .repeated()
-                    .at_least(1)
+                    .at_least(1),
                 )
                 .then_ignore(token(Token::DedentLevel)),
         )
@@ -952,16 +971,14 @@ fn build_document_content_parser(
             token(Token::Newline)
                 .repeated()
                 .at_least(1)
-                .ignore_then(
-                    choice((
-                        // After blank lines, check for boundary
-                        filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
-                            .rewind()
-                            .to(vec![]),
-                        // Or continue with more items
-                        items.clone(),
-                    ))
-                ),
+                .ignore_then(choice((
+                    // After blank lines, check for boundary
+                    filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
+                        .rewind()
+                        .to(vec![]),
+                    // Or continue with more items
+                    items.clone(),
+                ))),
             // Parse item without leading blank lines
             single_item
                 .then(items.clone().or_not())
