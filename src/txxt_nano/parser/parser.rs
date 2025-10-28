@@ -11,8 +11,6 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-#[allow(unused_imports)] // convert_paragraph is used in tests
-use super::ast_conversion::convert_paragraph;
 #[allow(unused_imports)] // Container is used in tests
 use crate::txxt_nano::ast::{Container, Document};
 use crate::txxt_nano::lexer::Token;
@@ -23,8 +21,6 @@ type TokenSpan = (Token, Range<usize>);
 /// Type alias for parser error
 type ParserError = Simple<TokenSpan>;
 
-// WithSpans structures are now imported from intermediate_ast.rs (single source of truth)
-use super::intermediate_ast::DocumentWithSpans;
 // Parser combinators - kept for test support if needed
 #[allow(unused_imports)]
 use super::combinators::paragraph;
@@ -36,9 +32,8 @@ use super::combinators::paragraph;
 use super::document as document_module;
 
 /// Parse a document - delegated to document module
-/// Phase 3b: The document parser now requires source text for inline type conversion
-#[allow(private_interfaces)]
-pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
+/// Phase 5: The document parser requires source text to populate span information
+pub fn document() -> impl Parser<TokenSpan, Document, Error = ParserError> {
     // This function is kept for backward compatibility but delegates to document_module::document(source)
     // Since this function doesn't have access to source, it uses an empty string.
     // For proper position tracking, use parse_with_source_positions or parse_with_source instead.
@@ -94,14 +89,10 @@ mod tests {
         // Skip DocStart and DocEnd tokens for direct paragraph test
         tokens_with_spans.retain(|(t, _)| !matches!(t, Token::DocStart | Token::DocEnd));
 
-        let result = paragraph().parse(tokens_with_spans);
+        let result = paragraph(input).parse(tokens_with_spans);
         assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
 
-        let para_with_spans = result.unwrap();
-        assert_eq!(para_with_spans.line_spans.len(), 1);
-
-        // Verify actual content is preserved
-        let para = convert_paragraph(input, para_with_spans);
+        let para = result.unwrap();
         assert_eq!(para.lines.len(), 1);
         assert_eq!(para.lines[0].as_string(), "Hello world");
     }

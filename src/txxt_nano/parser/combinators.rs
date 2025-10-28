@@ -3,19 +3,44 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
+use crate::txxt_nano::ast::position::SourceLocation;
+use crate::txxt_nano::ast::{
+    Annotation, ContentItem, ForeignBlock, Label, Paragraph, Parameter, Span, TextContent,
+};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::conversion::helpers::is_text_token;
-use crate::txxt_nano::parser::intermediate_ast::{
-    AnnotationWithSpans, ContentItemWithSpans, ForeignBlockWithSpans, ParagraphWithSpans,
-};
 use crate::txxt_nano::parser::labels::parse_label_from_tokens;
-use crate::txxt_nano::parser::parameters::{parse_parameters_from_tokens, ParameterWithSpans};
+use crate::txxt_nano::parser::parameters::{convert_parameter, parse_parameters_from_tokens};
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenSpan>;
+
+/// Helper: convert a byte range to a Span using source location
+fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
+    if range.start > range.end {
+        return None;
+    }
+    let source_loc = SourceLocation::new(source);
+    Some(source_loc.range_to_span(range))
+}
+
+/// Helper: extract text from multiple spans
+pub(crate) fn extract_text_from_spans(source: &str, spans: &[Range<usize>]) -> String {
+    if spans.is_empty() {
+        return String::new();
+    }
+    let start = spans.first().map(|s| s.start).unwrap_or(0);
+    let end = spans.last().map(|s| s.end).unwrap_or(0);
+
+    if start >= end || end > source.len() {
+        return String::new();
+    }
+
+    source[start..end].trim().to_string()
+}
 
 /// Helper: match a specific token type, ignoring the span
 pub(crate) fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError> + Clone {
@@ -36,8 +61,11 @@ pub(crate) fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = P
 }
 
 /// Parse a list item line - a line that starts with a list marker
+/// Phase 5: Now returns extracted text with span information
 pub(crate) fn list_item_line(
-) -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+    source: &str,
+) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
+    let source = source.to_string();
     let rest_of_line = filter(|(t, _span): &TokenSpan| is_text_token(t)).repeated();
 
     let dash_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Dash))
@@ -58,58 +86,134 @@ pub(crate) fn list_item_line(
         .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
         .chain(rest_of_line);
 
-    dash_pattern
-        .or(ordered_pattern)
-        .or(paren_pattern)
-        .map(|tokens_with_spans: Vec<TokenSpan>| {
-            tokens_with_spans.into_iter().map(|(_, s)| s).collect()
-        })
+    dash_pattern.or(ordered_pattern).or(paren_pattern).map(
+        move |tokens_with_spans: Vec<TokenSpan>| {
+            let spans: Vec<Range<usize>> = tokens_with_spans.into_iter().map(|(_, s)| s).collect();
+            let text = extract_text_from_spans(&source, &spans);
+            // Compute span from token ranges
+            let span = if spans.is_empty() {
+                0..0
+            } else {
+                let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
+                let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
+                start..end
+            };
+            (text, span)
+        },
+    )
 }
 
 /// Parse a paragraph
-pub(crate) fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone
-{
+/// Phase 5: Now populates span information
+pub(crate) fn paragraph(
+    source: &str,
+) -> impl Parser<TokenSpan, Paragraph, Error = ParserError> + Clone {
+    let source = source.to_string();
     text_line()
         .then_ignore(token(Token::Newline))
         .repeated()
         .at_least(1)
-        .map(|line_spans| ParagraphWithSpans { line_spans })
+        .map(move |line_spans_list: Vec<Vec<Range<usize>>>| {
+            let lines = line_spans_list
+                .iter()
+                .map(|spans| {
+                    let text = extract_text_from_spans(&source, spans);
+                    // Compute span for this line
+                    let line_span = if spans.is_empty() {
+                        None
+                    } else {
+                        let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
+                        let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
+                        byte_range_to_span(&source, &(start..end))
+                    };
+                    TextContent::from_string(text, line_span)
+                })
+                .collect();
+
+            // Compute overall span from all collected line spans
+            let span = {
+                let all_spans: Vec<Range<usize>> = line_spans_list.into_iter().flatten().collect();
+                if all_spans.is_empty() {
+                    None
+                } else {
+                    let start = all_spans.iter().map(|r| r.start).min().unwrap_or(0);
+                    let end = all_spans.iter().map(|r| r.end).max().unwrap_or(0);
+                    byte_range_to_span(&source, &(start..end))
+                }
+            };
+
+            Paragraph { lines, span }
+        })
 }
 
 /// Parse a definition subject
+/// Phase 5: Now returns extracted text with span information
 pub(crate) fn definition_subject(
-) -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+    source: &str,
+) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
+    let source = source.to_string();
     filter(|(t, _span): &TokenSpan| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
-        .map(|tokens_with_spans: Vec<TokenSpan>| {
-            tokens_with_spans.into_iter().map(|(_, s)| s).collect()
+        .map(move |tokens_with_spans: Vec<TokenSpan>| {
+            let spans: Vec<Range<usize>> = tokens_with_spans.into_iter().map(|(_, s)| s).collect();
+            let text = extract_text_from_spans(&source, &spans);
+            // Compute span from token ranges
+            let span = if spans.is_empty() {
+                0..0
+            } else {
+                let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
+                let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
+                start..end
+            };
+            (text, span)
         })
         .then_ignore(token(Token::Colon))
         .then_ignore(token(Token::Newline))
 }
 
 /// Parse a session title
+/// Phase 5: Now returns extracted text with span information
 pub(crate) fn session_title(
-) -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+    source: &str,
+) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
+    let source = source.to_string();
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::BlankLine))
+        .map(move |spans| {
+            let text = extract_text_from_spans(&source, &spans);
+            // Compute span from token ranges
+            let span = if spans.is_empty() {
+                0..0
+            } else {
+                let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
+                let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
+                start..end
+            };
+            (text, span)
+        })
 }
 
 /// Parse the bounded region between :: markers
+/// Phase 5: Now returns extracted label text, label span, and final Parameter types
 pub(crate) fn annotation_header(
-) -> impl Parser<TokenSpan, (Option<Range<usize>>, Vec<ParameterWithSpans>), Error = ParserError> + Clone
-{
+    source: &str,
+) -> impl Parser<
+    TokenSpan,
+    (Option<String>, Option<Range<usize>>, Vec<Parameter>),
+    Error = ParserError,
+> + Clone {
+    let source = source.to_string();
     let bounded_region =
         filter(|(t, _): &TokenSpan| !matches!(t, Token::TxxtMarker | Token::Newline))
             .repeated()
             .at_least(1);
 
-    bounded_region.validate(|tokens, span, emit| {
+    bounded_region.validate(move |tokens, span, emit| {
         if tokens.is_empty() {
             emit(ParserError::expected_input_found(span, None, None));
-            return (None, Vec::new());
+            return (None, None, Vec::new());
         }
 
         let (label_span, mut i) = parse_label_from_tokens(&tokens);
@@ -120,16 +224,35 @@ pub(crate) fn annotation_header(
             }
         }
 
-        let params = parse_parameters_from_tokens(&tokens[i..]);
+        let params_with_spans = parse_parameters_from_tokens(&tokens[i..]);
 
-        (label_span, params)
+        // Extract label text if present
+        let label = label_span.as_ref().map(|span| {
+            let text = if span.start < span.end && span.end <= source.len() {
+                source[span.start..span.end].trim().to_string()
+            } else {
+                String::new()
+            };
+            text
+        });
+
+        // Convert parameters to final types
+        let params = params_with_spans
+            .into_iter()
+            .map(|p| convert_parameter(&source, p))
+            .collect();
+
+        (label, label_span, params)
     })
 }
 
 /// Parse a foreign block
+/// Phase 4: Now builds final ForeignBlock type directly
 pub(crate) fn foreign_block(
-) -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = ParserError> + Clone {
-    let subject_parser = definition_subject();
+    source: &str,
+) -> impl Parser<TokenSpan, ForeignBlock, Error = ParserError> + Clone {
+    let source = source.to_string();
+    let subject_parser = definition_subject(&source.clone());
 
     let content_token = filter(|(t, _span): &TokenSpan| !matches!(t, Token::TxxtMarker));
 
@@ -151,25 +274,34 @@ pub(crate) fn foreign_block(
                 .collect::<Vec<_>>()
         });
 
+    let source_for_annotation = source.clone();
     let closing_annotation_parser = token(Token::TxxtMarker)
-        .ignore_then(annotation_header())
+        .ignore_then(annotation_header(&source_for_annotation.clone()))
         .then_ignore(token(Token::TxxtMarker))
         .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
-        .map(|((label_span, parameters), content_span)| {
-            let content = content_span
-                .map(|span| {
-                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
-                        line_spans: vec![span],
-                    })]
-                })
-                .unwrap_or_default();
+        .map(
+            move |((label_opt, _label_span, parameters), content_span)| {
+                // Build Annotation from extracted label and parameters
+                let label = Label::new(label_opt.unwrap_or_default());
 
-            AnnotationWithSpans {
-                label_span,
-                parameters,
-                content,
-            }
-        });
+                let content = content_span
+                    .map(|spans| {
+                        let text = extract_text_from_spans(&source_for_annotation, &spans);
+                        vec![ContentItem::Paragraph(Paragraph {
+                            lines: vec![TextContent::from_string(text, None)],
+                            span: None,
+                        })]
+                    })
+                    .unwrap_or_default();
+
+                Annotation {
+                    label,
+                    parameters,
+                    content,
+                    span: None,
+                }
+            },
+        );
 
     subject_parser
         .then_ignore(token(Token::BlankLine).repeated())
@@ -177,10 +309,17 @@ pub(crate) fn foreign_block(
         .then(closing_annotation_parser)
         .then_ignore(token(Token::Newline).or_not())
         .map(
-            |((subject_spans, content_spans), closing_annotation)| ForeignBlockWithSpans {
-                subject_spans,
-                content_spans,
-                closing_annotation,
+            move |(((subject_text, _subject_span), content_spans), closing_annotation)| {
+                let content = content_spans
+                    .map(|spans| extract_text_from_spans(&source, &spans))
+                    .unwrap_or_default();
+
+                ForeignBlock {
+                    subject: TextContent::from_string(subject_text, None),
+                    content: TextContent::from_string(content, None),
+                    closing_annotation,
+                    span: None,
+                }
             },
         )
 }

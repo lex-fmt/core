@@ -5,7 +5,6 @@ use std::ops::Range;
 
 use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
-use crate::txxt_nano::parser::ast_conversion::{convert_document, convert_document_with_positions};
 use crate::txxt_nano::parser::document::document;
 
 /// Type alias for token with span
@@ -14,22 +13,21 @@ type TokenSpan = (Token, Range<usize>);
 /// Type alias for parser error
 type ParserError = Simple<TokenSpan>;
 
-/// Parse with source text - extracts actual content from spans
+/// Parse with source text - returns final Document with full span information
 pub fn parse_with_source(
     tokens_with_spans: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    let doc_with_spans = document(source).parse(tokens_with_spans)?;
-    Ok(convert_document(source, doc_with_spans))
+    document(source).parse(tokens_with_spans)
 }
 
 /// Parse a txxt document from tokens with source, preserving position information
+/// Note: All parsed documents now include complete span information automatically
 pub fn parse_with_source_positions(
     tokens_with_spans: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    let doc_with_spans = document(source).parse(tokens_with_spans)?;
-    Ok(convert_document_with_positions(source, doc_with_spans))
+    document(source).parse(tokens_with_spans)
 }
 
 /// Parse a txxt document from a token stream (legacy - doesn't preserve source text)
