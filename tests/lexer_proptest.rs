@@ -291,23 +291,23 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Text("This".to_string()),       // "This"
-                Token::Whitespace, // " "
-                Token::Text("is".to_string()),       // "is"
-                Token::Whitespace, // " "
-                Token::Text("a".to_string()),       // "a"
-                Token::Whitespace, // " "
-                Token::Text("paragraph".to_string()),       // "paragraph"
-                Token::Period,     // "."
-                Token::Newline,    // "\n"
-                Token::Text("It".to_string()),       // "It"
-                Token::Whitespace, // " "
+                Token::Text("This".to_string()),      // "This"
+                Token::Whitespace,                    // " "
+                Token::Text("is".to_string()),        // "is"
+                Token::Whitespace,                    // " "
+                Token::Text("a".to_string()),         // "a"
+                Token::Whitespace,                    // " "
+                Token::Text("paragraph".to_string()), // "paragraph"
+                Token::Period,                        // "."
+                Token::Newline,                       // "\n"
+                Token::Text("It".to_string()),        // "It"
+                Token::Whitespace,                    // " "
                 Token::Text("has".to_string()),       // "has"
-                Token::Whitespace, // " "
-                Token::Text("multiple".to_string()), // "multiple"
-                Token::Whitespace, // " "
-                Token::Text("lines".to_string()),       // "lines"
-                Token::Period,     // "."
+                Token::Whitespace,                    // " "
+                Token::Text("multiple".to_string()),  // "multiple"
+                Token::Whitespace,                    // " "
+                Token::Text("lines".to_string()),     // "lines"
+                Token::Period,                        // "."
             ]
         );
     }
@@ -321,17 +321,17 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Dash,       // "-"
-                Token::Whitespace, // " "
-                Token::Text("First".to_string()),       // "First"
-                Token::Whitespace, // " "
-                Token::Text("item".to_string()),       // "item"
-                Token::Newline,    // "\n"
-                Token::Dash,       // "-"
-                Token::Whitespace, // " "
-                Token::Text("Second".to_string()),       // "Second"
-                Token::Whitespace, // " "
-                Token::Text("item".to_string()),       // "item"
+                Token::Dash,                       // "-"
+                Token::Whitespace,                 // " "
+                Token::Text("First".to_string()),  // "First"
+                Token::Whitespace,                 // " "
+                Token::Text("item".to_string()),   // "item"
+                Token::Newline,                    // "\n"
+                Token::Dash,                       // "-"
+                Token::Whitespace,                 // " "
+                Token::Text("Second".to_string()), // "Second"
+                Token::Whitespace,                 // " "
+                Token::Text("item".to_string()),   // "item"
             ]
         );
     }
@@ -346,16 +346,16 @@ mod integration_tests {
             tokens,
             vec![
                 Token::Number("1".to_string()),     // "1"
-                Token::Period,     // "."
-                Token::Whitespace, // " "
-                Token::Text("Session".to_string()),       // "Session"
-                Token::Whitespace, // " "
-                Token::Text("Title".to_string()),       // "Title"
-                Token::Newline,    // "\n"
-                Token::Indent,     // "    "
-                Token::Text("Content".to_string()),       // "Content"
-                Token::Whitespace, // " "
-                Token::Text("here".to_string()),       // "here"
+                Token::Period,                      // "."
+                Token::Whitespace,                  // " "
+                Token::Text("Session".to_string()), // "Session"
+                Token::Whitespace,                  // " "
+                Token::Text("Title".to_string()),   // "Title"
+                Token::Newline,                     // "\n"
+                Token::Indent,                      // "    "
+                Token::Text("Content".to_string()), // "Content"
+                Token::Whitespace,                  // " "
+                Token::Text("here".to_string()),    // "here"
             ]
         );
     }
@@ -369,13 +369,13 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Text("Some".to_string()),       // "Some"
-                Token::Whitespace, // " "
-                Token::Text("text".to_string()),       // "text"
-                Token::Whitespace, // " "
-                Token::TxxtMarker, // "::"
-                Token::Whitespace, // " "
-                Token::Text("marker".to_string()),       // "marker"
+                Token::Text("Some".to_string()),   // "Some"
+                Token::Whitespace,                 // " "
+                Token::Text("text".to_string()),   // "text"
+                Token::Whitespace,                 // " "
+                Token::TxxtMarker,                 // "::"
+                Token::Whitespace,                 // " "
+                Token::Text("marker".to_string()), // "marker"
             ]
         );
     }
@@ -389,30 +389,30 @@ mod integration_tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Number("1".to_string()),     // "1"
-                Token::Period,     // "."
-                Token::Whitespace, // " "
-                Token::Text("Session".to_string()),       // "Session"
-                Token::Newline,    // "\n"
-                Token::Indent,     // "    "
-                Token::Dash,       // "-"
-                Token::Whitespace, // " "
-                Token::Text("Item".to_string()),       // "Item"
-                Token::Whitespace, // " "
-                Token::Number("1".to_string()),     // "1"
-                Token::Newline,    // "\n"
-                Token::Indent,     // "    "
-                Token::Dash,       // "-"
-                Token::Whitespace, // " "
-                Token::Text("Item".to_string()),       // "Item"
-                Token::Whitespace, // " "
-                Token::Number("2".to_string()),     // "2"
-                Token::Newline,    // "\n"
-                Token::Newline,    // "\n"
-                Token::Text("Paragraph".to_string()),       // "Paragraph"
-                Token::Whitespace, // " "
-                Token::Text("after".to_string()),       // "after"
-                Token::Period,     // "."
+                Token::Number("1".to_string()),       // "1"
+                Token::Period,                        // "."
+                Token::Whitespace,                    // " "
+                Token::Text("Session".to_string()),   // "Session"
+                Token::Newline,                       // "\n"
+                Token::Indent,                        // "    "
+                Token::Dash,                          // "-"
+                Token::Whitespace,                    // " "
+                Token::Text("Item".to_string()),      // "Item"
+                Token::Whitespace,                    // " "
+                Token::Number("1".to_string()),       // "1"
+                Token::Newline,                       // "\n"
+                Token::Indent,                        // "    "
+                Token::Dash,                          // "-"
+                Token::Whitespace,                    // " "
+                Token::Text("Item".to_string()),      // "Item"
+                Token::Whitespace,                    // " "
+                Token::Number("2".to_string()),       // "2"
+                Token::Newline,                       // "\n"
+                Token::Newline,                       // "\n"
+                Token::Text("Paragraph".to_string()), // "Paragraph"
+                Token::Whitespace,                    // " "
+                Token::Text("after".to_string()),     // "after"
+                Token::Period,                        // "."
             ]
         );
     }

@@ -110,43 +110,31 @@ mod tests {
         assert_eq!(detokenized, source);
     }
 
-    // ===== Round-trip tests with snapshot verification =====
+    // ===== Round-trip tests =====
+    // These tests verify that tokenizing and detokenizing produces the original source
+    // (or an equivalent representation for indentation normalization).
 
-    fn test_roundtrip_raw_tokens(source: &str, label: &str) {
+    fn test_roundtrip_raw_tokens(source: &str, _label: &str) {
         let tokens = tokenize(source);
         let detokenized = detokenize(&tokens);
-        if detokenized != source {
-            eprintln!("MISMATCH in {}", label);
-            eprintln!("Source:\n{:?}", source);
-            eprintln!("Detokenized:\n{:?}", detokenized);
-            eprintln!("Source bytes: {:?}", source.as_bytes());
-            eprintln!("Detokenized bytes: {:?}", detokenized.as_bytes());
-        }
-        assert_eq!(detokenized, source, "Roundtrip failed for {}", label);
+        assert_eq!(detokenized, source);
     }
 
-    fn test_roundtrip_semantic_tokens(source: &str, label: &str) {
+    fn test_roundtrip_semantic_tokens(source: &str, _label: &str) {
         let raw_tokens = tokenize(source);
         let tokens = transform_indentation(raw_tokens);
         let detokenized = detokenize(&tokens);
-        if detokenized != source {
-            eprintln!("MISMATCH in {}", label);
-            eprintln!("Source:\n{:?}", source);
-            eprintln!("Detokenized:\n{:?}", detokenized);
-            eprintln!("Source bytes: {:?}", source.as_bytes());
-            eprintln!("Detokenized bytes: {:?}", detokenized.as_bytes());
-        }
-        assert_eq!(detokenized, source, "Roundtrip failed for {}", label);
+        assert_eq!(detokenized, source);
     }
 
     #[test]
-    fn test_sample_000_paragraphs_raw() {
+    fn test_roundtrip_000_paragraphs() {
         let source = include_str!("../../../docs/specs/v1/samples/000-paragraphs.txxt");
         test_roundtrip_raw_tokens(source, "000-paragraphs");
     }
 
     #[test]
-    fn test_sample_010_sessions_flat_single_raw() {
+    fn test_roundtrip_010_sessions_flat_single() {
         let source =
             include_str!("../../../docs/specs/v1/samples/010-paragraphs-sessions-flat-single.txxt");
         test_roundtrip_raw_tokens(source, "010-paragraphs-sessions-flat-single");

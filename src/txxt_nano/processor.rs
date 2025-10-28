@@ -525,10 +525,7 @@ mod tests {
         ];
 
         let simple = format_tokens(&tokens, &OutputFormat::Simple).unwrap();
-        assert_eq!(
-            simple,
-            "<text:hello><whitespace><text:world><newline>\n"
-        );
+        assert_eq!(simple, "<text:hello><whitespace><text:world><newline>\n");
 
         let json = format_tokens(&tokens, &OutputFormat::Json).unwrap();
         assert!(json.contains("\"Text\""));

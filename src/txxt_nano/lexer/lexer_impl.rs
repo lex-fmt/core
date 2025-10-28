@@ -119,15 +119,9 @@ mod tests {
         assert_eq!(tokens_with_spans.len(), 3);
 
         // Check that tokens are correct (spans are not preserved in current implementation)
-        assert_eq!(
-            tokens_with_spans[0].0,
-            Token::Text("hello".to_string())
-        );
+        assert_eq!(tokens_with_spans[0].0, Token::Text("hello".to_string()));
         assert_eq!(tokens_with_spans[1].0, Token::Whitespace);
-        assert_eq!(
-            tokens_with_spans[2].0,
-            Token::Text("world".to_string())
-        );
+        assert_eq!(tokens_with_spans[2].0, Token::Text("world".to_string()));
     }
 
     #[test]
