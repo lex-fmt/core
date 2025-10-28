@@ -6,8 +6,8 @@
 //! Grammar: `<parameters> = <parameter> ("," <parameter>)*`
 //! Where: `<parameter> = <key> "=" <value>`
 
+use crate::txxt_nano::ast::Parameter;
 use crate::txxt_nano::lexer::Token;
-use crate::txxt_nano::parser::ast::Parameter;
 use std::ops::Range;
 
 /// Type alias for token with span

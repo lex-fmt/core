@@ -3,8 +3,8 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
+use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
-use crate::txxt_nano::parser::ast::Document;
 use crate::txxt_nano::parser::ast_conversion::{convert_document, convert_document_with_positions};
 use crate::txxt_nano::parser::document::document;
 

@@ -256,7 +256,9 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                 OutputFormat::AstTag => Ok(crate::txxt_nano::parser::serialize_ast_tag(&doc)),
                 OutputFormat::AstTreeviz => Ok(crate::txxt_nano::parser::to_treeviz_str(&doc)),
                 OutputFormat::AstPosition => {
-                    crate::txxt_nano::parser::ast_position::format_at_position(&doc, &extras)
+                    crate::txxt_nano::parser::format_at_position(&doc, &extras).map_err(|e| {
+                        ProcessingError::InvalidFormatType(e.to_string())
+                    })
                 }
                 _ => Err(ProcessingError::InvalidFormatType(
                     "Only ast-tag, ast-treeviz, and ast-position formats are supported for AST stage".to_string(),

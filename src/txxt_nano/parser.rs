@@ -9,11 +9,7 @@
 //! for comprehensive documentation on using verified txxt sources and AST assertions.
 
 pub mod api;
-pub mod ast;
-pub mod ast_conversion;
-pub mod ast_position;
-pub mod ast_tag_serializer;
-pub mod ast_treeviz;
+pub(crate) mod ast_conversion;
 pub mod combinators;
 pub mod conversion;
 pub mod document;
@@ -22,17 +18,19 @@ pub mod labels;
 pub mod parameters;
 #[allow(clippy::module_inception)]
 pub mod parser;
-pub mod source_location;
 #[cfg(test)]
 mod tests;
 
-pub use ast::{ContentItem, Document, List, ListItem, Paragraph, Position, Session, Span};
-pub use ast_position::format_at_position;
-pub use ast_tag_serializer::serialize_document as serialize_ast_tag;
-pub use ast_treeviz::to_treeviz_str;
+// Re-export AST types and utilities from the ast module
+pub use crate::txxt_nano::ast::{
+    format_at_position, Annotation, AstNode, Container, ContentItem, Definition, Document,
+    ForeignBlock, Label, List, ListItem, Paragraph, Parameter, Position, Session, SourceLocation,
+    Span, TextNode,
+};
+
+pub use crate::txxt_nano::formats::{serialize_ast_tag, to_treeviz_str};
 pub use document::document;
 pub use parser::{parse, parse_with_source, parse_with_source_positions};
-pub use source_location::SourceLocation;
 
 /// Type alias for parse result with spanned tokens
 type ParseResult = Result<

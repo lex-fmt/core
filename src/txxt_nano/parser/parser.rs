@@ -11,9 +11,9 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-use super::ast::{ContentItem, Document};
 #[allow(unused_imports)] // convert_paragraph is used in tests
-use super::conversion::basic::{convert_document, convert_paragraph};
+use super::ast_conversion::convert_paragraph;
+use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -33,65 +33,8 @@ use super::combinators::{
     text_line, token,
 };
 
-// Position-preserving conversion functions are re-exported from conversion::positions
-use super::conversion::positions::convert_document_with_positions;
-
-// Parser combinator functions (text_line, token, list_item_line) are imported from combinators.rs
-
-/// Container types that define what content elements are allowed
-///
-/// NOTE: Container restrictions are NOT currently enforced - all containers
-/// allow all element types in the unified recursive parser. This enum and
-/// associated logic in build_content_parser() are kept for future enhancement
-/// but are not active in the current implementation.
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)] // Not currently used - kept for future container restriction implementation
-enum ContainerType {
-    /// Session containers - can contain everything (sessions, definitions, lists, paragraphs, annotations, foreign blocks)
-    /// (Currently: no restrictions enforced)
-    Session,
-    /// Content containers - used by definitions and list items (cannot contain sessions)
-    /// (Currently: no restrictions enforced, sessions are allowed)
-    Content,
-    /// Annotation containers - used by annotation block content (cannot contain sessions or nested annotations)
-    /// (Currently: no restrictions enforced, all elements allowed)
-    Annotation,
-}
-
-/// Parse a paragraph for use in recursive contexts (simplified)
-// Note: main paragraph() function is imported from combinators.rs
-#[allow(dead_code)] // Kept for future improvements
-fn paragraph_recursive() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone
-{
-    // In recursive contexts, collect consecutive non-blank text lines
-    // A blank line (double newline) ends the paragraph
-
-    // Parse lines that are NOT followed by blank lines
-    let paragraph_line = text_line().then_ignore(token(Token::Newline));
-
-    // Collect consecutive lines, stopping at a blank line
-    paragraph_line
-        .then_ignore(
-            // Continue only if NOT followed by another newline (which would be a blank line)
-            token(Token::Newline).not().rewind(),
-        )
-        .repeated()
-        .then(
-            // Last line might not have continuation check
-            text_line().then_ignore(token(Token::Newline)).or_not(),
-        )
-        .map(|(mut lines, last)| {
-            if let Some(last_line) = last {
-                lines.push(last_line);
-            }
-            ParagraphWithSpans { line_spans: lines }
-        })
-        .then_ignore(token(Token::Newline).or_not()) // Consume trailing blank line if present
-}
-
-// Parser combinator functions (definition_subject, session_title) are imported from combinators.rs
-
-// Parser combinator functions (annotation_header, foreign_block) are imported from combinators.rs
+// Parser combinator functions (text_line, token, list_item_line, definition_subject, session_title,
+// annotation_header, foreign_block) are imported from combinators.rs
 
 /// Build the Multi-Parser Bundle for document-level content parsing.
 ///
@@ -276,12 +219,13 @@ pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserErr
 }
 
 /// Parse with source text - extracts actual content from spans
+///
+/// Re-exports the canonical implementation from api.rs
 pub fn parse_with_source(
     tokens_with_spans: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    let doc_with_spans = document().parse(tokens_with_spans)?;
-    Ok(convert_document(source, doc_with_spans))
+    super::api::parse_with_source(tokens_with_spans, source)
 }
 
 /// Parse a txxt document from tokens with source, preserving position information
@@ -289,12 +233,13 @@ pub fn parse_with_source(
 /// This version preserves line/column position information in all AST nodes,
 /// enabling position-based queries like `elements_at()` for IDE integrations,
 /// error reporting, and source mapping.
+///
+/// Re-exports the canonical implementation from api.rs
 pub fn parse_with_source_positions(
     tokens_with_spans: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    let doc_with_spans = document().parse(tokens_with_spans)?;
-    Ok(convert_document_with_positions(source, doc_with_spans))
+    super::api::parse_with_source_positions(tokens_with_spans, source)
 }
 
 /// Parse a txxt document from a token stream (legacy - doesn't preserve source text)
@@ -310,8 +255,8 @@ pub fn parse(tokens: Vec<Token>) -> Result<Document, Vec<Simple<Token>>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::txxt_nano::ast::{ContentItem, Position};
     use crate::txxt_nano::lexer::{lex, lex_with_spans};
-    use crate::txxt_nano::parser::ast::Position;
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
 
     #[test]

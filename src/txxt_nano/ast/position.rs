@@ -4,7 +4,7 @@
 //! to human-readable line and column positions, useful for error reporting
 //! and position tracking in AST nodes.
 
-use super::ast::{Position, Span};
+use super::span::{Position, Span};
 use std::ops::Range;
 
 /// Provides fast conversion from byte offsets to line/column positions
