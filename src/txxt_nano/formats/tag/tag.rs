@@ -130,7 +130,7 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
         ContentItem::ForeignBlock(fb) => {
             // <foreign-block>subject<content>raw content</content><closing-annotation>...</closing-annotation></foreign-block>
             output.push_str(&format!("{}<foreign-block>", indent));
-            output.push_str(&escape_xml(&fb.subject));
+            output.push_str(&escape_xml(fb.subject.as_string()));
 
             if fb.content.is_empty() {
                 // Marker form - no content
@@ -138,7 +138,7 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
             } else {
                 // Block form - raw content
                 output.push_str("<content>");
-                output.push_str(&escape_xml(&fb.content));
+                output.push_str(&escape_xml(fb.content.as_string()));
                 output.push_str("</content>");
             }
 
