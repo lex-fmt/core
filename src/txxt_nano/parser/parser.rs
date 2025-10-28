@@ -12,7 +12,7 @@ use chumsky::prelude::*;
 use std::ops::Range;
 
 #[allow(unused_imports)] // convert_paragraph is used in tests
-use super::conversion::basic::{convert_document, convert_paragraph};
+use super::ast_conversion::{convert_document, convert_document_with_positions, convert_paragraph};
 use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
 
@@ -32,9 +32,6 @@ use super::combinators::{
     annotation_header, definition_subject, foreign_block, list_item_line, paragraph, session_title,
     text_line, token,
 };
-
-// Position-preserving conversion functions
-use super::ast_conversion::convert_document_with_positions;
 
 // Parser combinator functions (text_line, token, list_item_line) are imported from combinators.rs
 
