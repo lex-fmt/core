@@ -8,21 +8,30 @@
 //! All parser tests must follow strict guidelines. See the [testing module](crate::txxt_nano::testing)
 //! for comprehensive documentation on using verified txxt sources and AST assertions.
 
+pub mod api;
 pub mod ast;
+pub mod ast_conversion;
 pub mod ast_position;
 pub mod ast_tag_serializer;
 pub mod ast_treeviz;
+pub mod combinators;
+pub mod conversion;
+pub mod document;
+pub mod intermediate_ast;
 pub mod labels;
 pub mod parameters;
 #[allow(clippy::module_inception)]
 pub mod parser;
 pub mod source_location;
+#[cfg(test)]
+mod tests;
 
 pub use ast::{ContentItem, Document, List, ListItem, Paragraph, Position, Session, Span};
 pub use ast_position::format_at_position;
 pub use ast_tag_serializer::serialize_document as serialize_ast_tag;
 pub use ast_treeviz::to_treeviz_str;
-pub use parser::{document, parse, parse_with_source, parse_with_source_positions};
+pub use document::document;
+pub use parser::{parse, parse_with_source, parse_with_source_positions};
 pub use source_location::SourceLocation;
 
 /// Type alias for parse result with spanned tokens
@@ -36,13 +45,4 @@ type ParseResult = Result<
 pub fn parse_document(source: &str) -> ParseResult {
     let tokens_with_spans = crate::txxt_nano::lexer::lex_with_spans(source);
     parse_with_source(tokens_with_spans, source)
-}
-
-/// Legacy parser function (for backward compatibility with tests)
-/// This version doesn't preserve source text - use parse_document instead for real usage
-#[deprecated(note = "Use parse_document instead to preserve source text")]
-pub fn parse_tokens_only(
-    tokens: Vec<crate::txxt_nano::lexer::Token>,
-) -> Result<Document, Vec<chumsky::prelude::Simple<crate::txxt_nano::lexer::Token>>> {
-    parse(tokens)
 }
