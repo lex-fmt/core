@@ -3,7 +3,9 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
+use crate::txxt_nano::ast::ContentItem;
 use crate::txxt_nano::lexer::Token;
+use crate::txxt_nano::parser::ast_conversion::convert_content_items;
 use crate::txxt_nano::parser::combinators::{
     annotation_header, definition_subject, foreign_block, list_item_line, paragraph, session_title,
     token,
@@ -20,9 +22,15 @@ type TokenSpan = (Token, Range<usize>);
 type ParserError = Simple<TokenSpan>;
 
 /// Build the Multi-Parser Bundle for document-level content parsing.
+///
+/// Phase 3b: This parser now converts ContentItemWithSpans to final ContentItem types inline,
+/// requiring the source text to extract text from spans.
 pub(crate) fn build_document_content_parser(
-) -> impl Parser<TokenSpan, Vec<ContentItemWithSpans>, Error = ParserError> + Clone {
-    recursive(|items| {
+    source: &str,
+) -> impl Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone {
+    let source_owned = source.to_string();
+
+    let parser = recursive(|items| {
         let single_item = {
             let session_parser = session_title()
                 .then(
@@ -152,13 +160,19 @@ pub(crate) fn build_document_content_parser(
                 .rewind()
                 .to(vec![]),
         ))
-    })
+    });
+
+    parser.map(move |items| convert_content_items(&source_owned, items))
 }
 
 /// Parse a document
+///
+/// Phase 3b: Requires source text to convert intermediate types to final types at parse time.
 #[allow(private_interfaces)]
-pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    let content_item = build_document_content_parser();
+pub fn document(
+    source: &str,
+) -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> + Clone {
+    let content_item = build_document_content_parser(source);
 
     token(Token::DocStart)
         .ignore_then(content_item)

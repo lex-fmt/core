@@ -105,6 +105,7 @@ pub(crate) fn reconstruct_raw_content(source: &str, spans: &[std::ops::Range<usi
 }
 
 /// Convert intermediate AST with spans to final AST with extracted text
+/// Phase 3b: Content is already converted to final types at parse time
 pub(crate) fn convert_document(source: &str, doc_with_spans: DocumentWithSpans) -> Document {
     Document {
         metadata: doc_with_spans
@@ -112,35 +113,39 @@ pub(crate) fn convert_document(source: &str, doc_with_spans: DocumentWithSpans) 
             .into_iter()
             .map(|ann| convert_annotation(source, ann))
             .collect(),
-        content: doc_with_spans
-            .content
-            .into_iter()
-            .map(|item| convert_content_item(source, item))
-            .collect(),
+        content: doc_with_spans.content, // Already converted at parse time
         span: None,
     }
 }
 
 /// Convert intermediate AST with spans to final AST, preserving position information
+/// Phase 3b: Content is already converted to final types at parse time
 pub(crate) fn convert_document_with_positions(
     source: &str,
     doc_with_spans: DocumentWithSpans,
 ) -> Document {
-    let source_loc = SourceLocation::new(source);
-
     Document {
         metadata: doc_with_spans
             .metadata
             .into_iter()
-            .map(|ann| convert_annotation_with_positions(source, &source_loc, ann))
+            .map(|ann| convert_annotation_with_positions(source, &SourceLocation::new(source), ann))
             .collect(),
-        content: doc_with_spans
-            .content
-            .into_iter()
-            .map(|item| convert_content_item_with_positions(source, &source_loc, item))
-            .collect(),
+        content: doc_with_spans.content, // Already converted at parse time
         span: None,
     }
+}
+
+/// Convert a vector of intermediate content items to final types, preserving position information
+/// Phase 3b: This version preserves span information for all content items
+pub(crate) fn convert_content_items(
+    source: &str,
+    items: Vec<ContentItemWithSpans>,
+) -> Vec<ContentItem> {
+    let source_loc = SourceLocation::new(source);
+    items
+        .into_iter()
+        .map(|item| convert_content_item_with_positions(source, &source_loc, item))
+        .collect()
 }
 
 pub(crate) fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem {

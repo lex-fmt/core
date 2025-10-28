@@ -19,7 +19,7 @@ pub fn parse_with_source(
     tokens_with_spans: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    let doc_with_spans = document().parse(tokens_with_spans)?;
+    let doc_with_spans = document(source).parse(tokens_with_spans)?;
     Ok(convert_document(source, doc_with_spans))
 }
 
@@ -28,7 +28,7 @@ pub fn parse_with_source_positions(
     tokens_with_spans: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    let doc_with_spans = document().parse(tokens_with_spans)?;
+    let doc_with_spans = document(source).parse(tokens_with_spans)?;
     Ok(convert_document_with_positions(source, doc_with_spans))
 }
 
