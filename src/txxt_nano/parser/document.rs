@@ -4,6 +4,7 @@ use chumsky::prelude::*;
 use std::ops::Range;
 
 use crate::txxt_nano::ast::position::SourceLocation;
+use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::ast::{
     Annotation, ContentItem, Definition, Label, List, ListItem, Paragraph, Session, Span,
     TextContent,
@@ -13,7 +14,6 @@ use crate::txxt_nano::parser::combinators::{
     annotation_header, definition_subject, foreign_block, list_item_line, paragraph, session_title,
     token,
 };
-use crate::txxt_nano::parser::intermediate_ast::DocumentWithSpans;
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);
@@ -292,18 +292,16 @@ pub(crate) fn build_document_content_parser(
 
 /// Parse a document
 ///
-/// Phase 3b: Requires source text to convert intermediate types to final types at parse time.
-#[allow(private_interfaces)]
-pub fn document(
-    source: &str,
-) -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> + Clone {
+/// Phase 5: Returns final Document directly with no intermediate conversion.
+pub fn document(source: &str) -> impl Parser<TokenSpan, Document, Error = ParserError> + Clone {
     let content_item = build_document_content_parser(source);
 
     token(Token::DocStart)
         .ignore_then(content_item)
         .then_ignore(token(Token::DocEnd))
-        .map(|content| DocumentWithSpans {
+        .map(|content| Document {
             metadata: Vec::new(),
             content,
+            span: None,
         })
 }
