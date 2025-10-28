@@ -2318,7 +2318,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Still failing - needs investigation"]
+    #[ignore = "Fails due to parser bug #41"]
     fn test_verified_definitions_mixed_content() {
         use crate::txxt_nano::testing::assert_ast;
 
@@ -2796,5 +2796,32 @@ mod tests {
             binary.closing_annotation.parameters[0].value,
             Some("pdf".to_string())
         );
+    }
+
+    #[test]
+    #[ignore = "Regression: parser fails when definition with list is followed by another definition"]
+    fn test_regression_definition_with_list_followed_by_definition() {
+        // Issue: https://github.com/arthur-debert/txxt-nano/issues/41
+        // See: docs/specs/v1/regression-bugs/parser-definition-list-transition.txxt
+
+        let source = std::fs::read_to_string(
+            "docs/specs/v1/regression-bugs/parser-definition-list-transition.txxt",
+        )
+        .expect("Failed to load regression test file");
+        let tokens = lex_with_spans(&source);
+
+        // This should parse successfully but currently fails with:
+        // Parse error at span 14..15: reason=Unexpected, found=Some((Newline, 34..35))
+        let doc = parse_with_source(tokens, &source)
+            .expect("Parser should handle definition with list followed by definition");
+
+        // Should have 2 definitions
+        assert_eq!(doc.content.len(), 2);
+
+        // First should be a definition
+        assert!(doc.content[0].as_definition().is_some());
+
+        // Second should also be a definition
+        assert!(doc.content[1].as_definition().is_some());
     }
 }

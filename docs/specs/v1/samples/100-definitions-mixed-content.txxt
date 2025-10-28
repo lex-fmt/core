@@ -1,6 +1,6 @@
 Definitions with Mixed Content Test {{paragraph}}
 
-This document tests definitions containing both paragraphs and lists. {{paragraph}}
+This document tests definitions containing both paragraphs and lists {{paragraph}}
 
 Programming Language:
     A formal language comprising a set of instructions that produce various kinds of output. {{paragraph}} {{definition}}
