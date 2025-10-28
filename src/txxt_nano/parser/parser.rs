@@ -15,6 +15,9 @@ use super::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
     Session, Span,
 };
+use super::conversion::helpers::{
+    is_text_token, nested_spans_to_span_position, spans_to_span_position,
+};
 use super::conversion::text::{extract_line_text, extract_text, reconstruct_raw_content};
 use super::labels::parse_label_from_tokens;
 use super::parameters::{convert_parameter, parse_parameters_from_tokens, ParameterWithSpans};
@@ -285,19 +288,7 @@ fn convert_paragraph_with_positions(
     source_loc: &SourceLocation,
     para: ParagraphWithSpans,
 ) -> Paragraph {
-    let span = if !para.line_spans.is_empty() {
-        let start_range = para.line_spans.first().and_then(|spans| spans.first());
-        let end_range = para.line_spans.last().and_then(|spans| spans.last());
-        match (start_range, end_range) {
-            (Some(start), Some(end)) => Some(Span::new(
-                source_loc.byte_to_position(start.start),
-                source_loc.byte_to_position(end.end),
-            )),
-            _ => None,
-        }
-    } else {
-        None
-    };
+    let span = nested_spans_to_span_position(&para.line_spans, source_loc);
 
     Paragraph {
         lines: para
@@ -314,19 +305,7 @@ fn convert_session_with_positions(
     source_loc: &SourceLocation,
     sess: SessionWithSpans,
 ) -> Session {
-    let span = if !sess.title_spans.is_empty() {
-        let start_range = sess.title_spans.first();
-        let end_range = sess.title_spans.last();
-        match (start_range, end_range) {
-            (Some(start), Some(end)) => Some(Span::new(
-                source_loc.byte_to_position(start.start),
-                source_loc.byte_to_position(end.end),
-            )),
-            _ => None,
-        }
-    } else {
-        None
-    };
+    let span = spans_to_span_position(&sess.title_spans, source_loc);
 
     Session {
         title: extract_line_text(source, &sess.title_spans),
@@ -344,19 +323,7 @@ fn convert_definition_with_positions(
     source_loc: &SourceLocation,
     def: DefinitionWithSpans,
 ) -> Definition {
-    let span = if !def.subject_spans.is_empty() {
-        let start_range = def.subject_spans.first();
-        let end_range = def.subject_spans.last();
-        match (start_range, end_range) {
-            (Some(start), Some(end)) => Some(Span::new(
-                source_loc.byte_to_position(start.start),
-                source_loc.byte_to_position(end.end),
-            )),
-            _ => None,
-        }
-    } else {
-        None
-    };
+    let span = spans_to_span_position(&def.subject_spans, source_loc);
 
     Definition {
         subject: extract_line_text(source, &def.subject_spans),
@@ -427,19 +394,7 @@ fn convert_list_item_with_positions(
     source_loc: &SourceLocation,
     item: ListItemWithSpans,
 ) -> ListItem {
-    let span = if !item.text_spans.is_empty() {
-        let start_range = item.text_spans.first();
-        let end_range = item.text_spans.last();
-        match (start_range, end_range) {
-            (Some(start), Some(end)) => Some(Span::new(
-                source_loc.byte_to_position(start.start),
-                source_loc.byte_to_position(end.end),
-            )),
-            _ => None,
-        }
-    } else {
-        None
-    };
+    let span = spans_to_span_position(&item.text_spans, source_loc);
 
     ListItem::with_content(
         extract_line_text(source, &item.text_spans),
@@ -458,19 +413,7 @@ fn convert_foreign_block_with_positions(
     source_loc: &SourceLocation,
     fb: ForeignBlockWithSpans,
 ) -> ForeignBlock {
-    let span = if !fb.subject_spans.is_empty() {
-        let start_range = fb.subject_spans.first();
-        let end_range = fb.subject_spans.last();
-        match (start_range, end_range) {
-            (Some(start), Some(end)) => Some(Span::new(
-                source_loc.byte_to_position(start.start),
-                source_loc.byte_to_position(end.end),
-            )),
-            _ => None,
-        }
-    } else {
-        None
-    };
+    let span = spans_to_span_position(&fb.subject_spans, source_loc);
 
     let subject = extract_line_text(source, &fb.subject_spans);
     let content = fb
@@ -486,28 +429,13 @@ fn convert_foreign_block_with_positions(
 /// Parse a text line (sequence of text and whitespace tokens)
 /// Returns the collected spans for this line
 fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
-    filter(|(t, _span): &TokenSpan| {
-        matches!(
-            t,
-            Token::Text(_)
-                | Token::Whitespace
-                | Token::Number(_)
-                | Token::Dash
-                | Token::Period
-                | Token::OpenParen
-                | Token::CloseParen
-                | Token::Colon
-                | Token::Comma
-                | Token::Quote
-                | Token::Equals
-        )
-    })
-    .repeated()
-    .at_least(1)
-    .map(|tokens_with_spans: Vec<TokenSpan>| {
-        // Collect all spans for this line
-        tokens_with_spans.into_iter().map(|(_, s)| s).collect()
-    })
+    filter(|(t, _span): &TokenSpan| is_text_token(t))
+        .repeated()
+        .at_least(1)
+        .map(|tokens_with_spans: Vec<TokenSpan>| {
+            // Collect all spans for this line
+            tokens_with_spans.into_iter().map(|(_, s)| s).collect()
+        })
 }
 
 /// Helper: match a specific token type, ignoring the span
@@ -522,23 +450,7 @@ fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError> + Clone {
 fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
     // Just check that the line starts with a valid list marker, then collect all tokens
     // We validate the marker and collect the full line content
-    let rest_of_line = filter(|(t, _span): &TokenSpan| {
-        matches!(
-            t,
-            Token::Text(_)
-                | Token::Whitespace
-                | Token::Number(_)
-                | Token::Dash
-                | Token::Period
-                | Token::OpenParen
-                | Token::CloseParen
-                | Token::Colon
-                | Token::Comma
-                | Token::Quote
-                | Token::Equals
-        )
-    })
-    .repeated();
+    let rest_of_line = filter(|(t, _span): &TokenSpan| is_text_token(t)).repeated();
 
     // Pattern 1: Dash + whitespace + rest
     let dash_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Dash))

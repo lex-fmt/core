@@ -4,5 +4,6 @@
 //! to the final AST (with extracted text) and position-aware variants.
 
 pub mod basic;
+pub mod helpers;
 pub mod positions;
 pub mod text;
