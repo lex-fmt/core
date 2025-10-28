@@ -9,7 +9,7 @@ use super::super::intermediate_ast::{
 };
 use super::super::parameters::convert_parameter;
 use super::text::{extract_line_text, extract_text, reconstruct_raw_content};
-use txxt_ast::{
+use crate::txxt_nano::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
     Session,
 };

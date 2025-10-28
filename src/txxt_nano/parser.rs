@@ -21,8 +21,8 @@ pub mod parser;
 #[cfg(test)]
 mod tests;
 
-// Re-export AST types and utilities from the txxt_ast crate
-pub use txxt_ast::{
+// Re-export AST types and utilities from the ast module
+pub use crate::txxt_nano::ast::{
     format_at_position, Annotation, AstNode, Container, ContentItem, Definition, Document,
     ForeignBlock, Label, List, ListItem, Paragraph, Parameter, Position, Session, SourceLocation,
     Span, TextNode,
