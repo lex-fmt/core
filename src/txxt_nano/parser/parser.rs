@@ -355,34 +355,6 @@ enum ContainerType {
     Annotation,
 }
 
-/// Build the unified content parser that implements the canonical parse order.
-///
-/// Parse a single list item with optional indented content - ACCEPTS content_parser parameter
-/// This is the new parameterized version that doesn't have its own recursive() block.
-/// The content_parser is provided from above (from build_content_parser) and defines what
-/// elements are allowed inside this list item.
-///
-/// Grammar: <list-item> = <list-item-line> (<indent> <list-item-content>+ <dedent>)?
-#[allow(dead_code)] // Will be used in Phase 4.5 when we update build_content_parser
-fn list_item_with_content(
-    content_parser: impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone + 'static,
-) -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
-    // Parse the list item line, then optionally parse indented content
-    list_item_line()
-        .then_ignore(token(Token::Newline))
-        .then(
-            // Optional indented block - uses the provided content_parser
-            token(Token::IndentLevel)
-                .ignore_then(content_parser.repeated().at_least(1))
-                .then_ignore(token(Token::DedentLevel))
-                .or_not(),
-        )
-        .map(|(text_spans, maybe_content)| ListItemWithSpans {
-            text_spans,
-            content: maybe_content.unwrap_or_default(),
-        })
-}
-
 /// Parse a paragraph - one or more lines of text separated by newlines, ending with a blank line
 /// A paragraph is a catch-all that matches when nothing else does.
 ///
@@ -495,89 +467,6 @@ fn annotation_header(
 
         (label_span, params)
     })
-}
-
-/// Parse annotation - ACCEPTS content_parser parameter
-/// This is the new parameterized version that doesn't have its own recursive() block.
-/// The content_parser is provided from above and defines what elements are allowed
-/// inside block-form annotations.
-///
-/// Forms:
-/// 1. Marker: `:: label ::\n` - No content
-/// 2. Single-line: `:: label :: text\n` - Text after :: captured as paragraph
-/// 3. Block: `:: label \n<indent>content<dedent>::` - Uses provided content_parser
-#[allow(dead_code)] // Will be used in Phase 4.5 when we update build_content_parser
-fn annotation_with_content(
-    content_parser: impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone + 'static,
-) -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone {
-    // Parse the header: :: <bounded region> ::
-    let header = token(Token::TxxtMarker)
-        .ignore_then(annotation_header())
-        .then_ignore(token(Token::TxxtMarker));
-
-    // Block form: :: label params :: \n <indent>content<dedent> ::
-    // Uses the provided content_parser for block content
-    let block_form = header
-        .clone()
-        .then_ignore(token(Token::Newline))
-        .then(
-            token(Token::IndentLevel)
-                .ignore_then(content_parser.repeated().at_least(1))
-                .then_ignore(token(Token::DedentLevel)),
-        )
-        .then_ignore(token(Token::TxxtMarker)) // Closing :: after content
-        .map(|((label_span, parameters), content)| AnnotationWithSpans {
-            label_span,
-            parameters,
-            content,
-        })
-        .then_ignore(token(Token::Newline).repeated());
-
-    // Single-line and marker forms (unchanged - don't use content_parser)
-    let single_line_or_marker = header
-        .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
-        .map(|((label_span, parameters), content_span)| {
-            let content = content_span
-                .map(|span| {
-                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
-                        line_spans: vec![span],
-                    })]
-                })
-                .unwrap_or_default();
-
-            AnnotationWithSpans {
-                label_span,
-                parameters,
-                content,
-            }
-        })
-        .then_ignore(token(Token::Newline).repeated());
-
-    block_form.or(single_line_or_marker)
-}
-
-/// Parse a definition - ACCEPTS content_parser parameter
-/// This is the new parameterized version that doesn't have its own recursive() block.
-/// The content_parser is provided from above (from build_content_parser) and defines what
-/// elements are allowed inside this definition.
-///
-/// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
-/// Grammar: <definition> = <definition-subject> <newline> <indent> <content>+ <dedent>
-#[allow(dead_code)] // Will be used in Phase 4.5 when we update build_content_parser
-fn definition_with_content(
-    content_parser: impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone + 'static,
-) -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
-    definition_subject()
-        .then(
-            // Must immediately see IndentLevel (no blank line)
-            token(Token::IndentLevel)
-                .ignore_then(content_parser.repeated().at_least(1))
-                .then_ignore(token(Token::DedentLevel)),
-        )
-        .map(|(subject_spans, content)| DefinitionWithSpans {
-            subject_spans,
-            content,
-        })
 }
 
 /// Helper to reconstruct raw content from token spans
