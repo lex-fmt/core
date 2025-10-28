@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn test_simple_indentation() {
         let input = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Newline,
             Token::Indent,
             Token::Dash,
@@ -248,7 +248,7 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("a".to_string()),
                 Token::Newline,
                 Token::IndentLevel,
                 Token::Dash,
@@ -261,14 +261,14 @@ mod tests {
     #[test]
     fn test_multiple_indent_levels() {
         let input = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Newline,
             Token::Indent,
             Token::Indent,
             Token::Dash,
             Token::Newline,
             Token::Indent,
-            Token::Text,
+            Token::Text("b".to_string()),
             Token::Newline,
         ];
 
@@ -277,14 +277,14 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("a".to_string()),
                 Token::Newline,
                 Token::IndentLevel,
                 Token::IndentLevel,
                 Token::Dash,
                 Token::Newline,
                 Token::DedentLevel,
-                Token::Text,
+                Token::Text("b".to_string()),
                 Token::Newline,
                 Token::DedentLevel, // Dedent from level 1 to level 0
             ]
@@ -295,39 +295,39 @@ mod tests {
     fn test_nested_structure() {
         let input = vec![
             // Line 1: "1. Session"
-            Token::Number,
+            Token::Number("1".to_string()),
             Token::Period,
             Token::Whitespace,
-            Token::Text,
+            Token::Text("Session".to_string()),
             Token::Newline,
             // Line 2: "    - Item 1"
             Token::Indent,
             Token::Dash,
             Token::Whitespace,
-            Token::Text,
+            Token::Text("Item".to_string()),
             Token::Whitespace,
-            Token::Number,
+            Token::Number("1".to_string()),
             Token::Newline,
             // Line 3: "    - Item 2"
             Token::Indent,
             Token::Dash,
             Token::Whitespace,
-            Token::Text,
+            Token::Text("Item".to_string()),
             Token::Whitespace,
-            Token::Number,
+            Token::Number("2".to_string()),
             Token::Newline,
             // Line 4: "        - Nested"
             Token::Indent,
             Token::Indent,
             Token::Dash,
             Token::Whitespace,
-            Token::Text,
+            Token::Text("Nested".to_string()),
             Token::Newline,
             // Line 5: "2. Another"
-            Token::Number,
+            Token::Number("2".to_string()),
             Token::Period,
             Token::Whitespace,
-            Token::Text,
+            Token::Text("Another".to_string()),
             Token::Newline,
         ];
 
@@ -338,39 +338,39 @@ mod tests {
             result,
             vec![
                 // Line 1
-                Token::Number,
+                Token::Number("1".to_string()),
                 Token::Period,
                 Token::Whitespace,
-                Token::Text,
+                Token::Text("Session".to_string()),
                 Token::Newline,
                 // Line 2
                 Token::IndentLevel,
                 Token::Dash,
                 Token::Whitespace,
-                Token::Text,
+                Token::Text("Item".to_string()),
                 Token::Whitespace,
-                Token::Number,
+                Token::Number("1".to_string()),
                 Token::Newline,
                 // Line 3
                 Token::Dash,
                 Token::Whitespace,
-                Token::Text,
+                Token::Text("Item".to_string()),
                 Token::Whitespace,
-                Token::Number,
+                Token::Number("2".to_string()),
                 Token::Newline,
                 // Line 4
                 Token::IndentLevel,
                 Token::Dash,
                 Token::Whitespace,
-                Token::Text,
+                Token::Text("Nested".to_string()),
                 Token::Newline,
                 // Line 5
                 Token::DedentLevel,
                 Token::DedentLevel,
-                Token::Number,
+                Token::Number("2".to_string()),
                 Token::Period,
                 Token::Whitespace,
-                Token::Text,
+                Token::Text("Another".to_string()),
                 Token::Newline,
             ]
         );
@@ -378,7 +378,12 @@ mod tests {
 
     #[test]
     fn test_no_indentation() {
-        let input = vec![Token::Text, Token::Newline, Token::Text, Token::Newline];
+        let input = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Text("b".to_string()),
+            Token::Newline,
+        ];
 
         let result = transform_indentation(input.clone());
 
@@ -395,16 +400,16 @@ mod tests {
 
     #[test]
     fn test_single_line() {
-        let input = vec![Token::Text];
+        let input = vec![Token::Text("a".to_string())];
         let result = transform_indentation(input);
-        assert_eq!(result, vec![Token::Text]);
+        assert_eq!(result, vec![Token::Text("a".to_string())]);
     }
 
     #[test]
     fn test_blank_lines() {
         // Test case: blank lines should not affect indentation level
         let input = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Newline,
             Token::Indent,
             Token::Dash,
@@ -419,7 +424,7 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("a".to_string()),
                 Token::Newline,
                 Token::IndentLevel,
                 Token::Dash,
@@ -436,7 +441,7 @@ mod tests {
     fn test_blank_lines_with_indentation() {
         // Test case: blank lines with indentation should be ignored
         let input = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Newline,
             Token::Indent,
             Token::Dash,
@@ -452,7 +457,7 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("a".to_string()),
                 Token::Newline,
                 Token::IndentLevel,
                 Token::Dash,
@@ -471,7 +476,7 @@ mod tests {
         let input = vec![
             Token::Indent,
             Token::Indent,
-            Token::Text, // This represents "  hello" (2 spaces + text)
+            Token::Text("  hello".to_string()), // This represents "  hello" (2 spaces + text)
             Token::Newline,
         ];
 
@@ -482,7 +487,7 @@ mod tests {
             vec![
                 Token::IndentLevel,
                 Token::IndentLevel,
-                Token::Text,
+                Token::Text("  hello".to_string()),
                 Token::Newline,
                 Token::DedentLevel, // Dedent from level 2 to level 1
                 Token::DedentLevel, // Dedent from level 1 to level 0
@@ -494,14 +499,14 @@ mod tests {
     fn test_file_ending_while_indented() {
         // Test case: file ending while indented should emit proper dedents
         let input = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Newline,
             Token::Indent,
             Token::Dash,
             Token::Newline,
             Token::Indent,
             Token::Indent,
-            Token::Text,
+            Token::Text("b".to_string()),
             // File ends here without explicit dedents
         ];
 
@@ -510,13 +515,13 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("a".to_string()),
                 Token::Newline,
                 Token::IndentLevel,
                 Token::Dash,
                 Token::Newline,
                 Token::IndentLevel,
-                Token::Text,
+                Token::Text("b".to_string()),
                 Token::DedentLevel, // Should dedent from level 2 to level 1
                 Token::DedentLevel, // Should dedent from level 1 to level 0
             ]
@@ -527,14 +532,14 @@ mod tests {
     fn test_sharp_drop_in_indentation() {
         // Test case: sharp drop from level 3 to level 0
         let input = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Newline,
             Token::Indent,
             Token::Indent,
             Token::Indent,
             Token::Dash,
             Token::Newline,
-            Token::Text, // Back to level 0
+            Token::Text("b".to_string()), // Back to level 0
             Token::Newline,
         ];
 
@@ -543,7 +548,7 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("a".to_string()),
                 Token::Newline,
                 Token::IndentLevel,
                 Token::IndentLevel,
@@ -553,7 +558,7 @@ mod tests {
                 Token::DedentLevel, // Dedent from level 3 to level 2
                 Token::DedentLevel, // Dedent from level 2 to level 1
                 Token::DedentLevel, // Dedent from level 1 to level 0
-                Token::Text,
+                Token::Text("b".to_string()),
                 Token::Newline,
             ]
         );
@@ -563,7 +568,7 @@ mod tests {
     fn test_multiple_blank_lines_between_sections() {
         // Test case: multiple blank lines between indented sections
         let input = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Newline,
             Token::Indent,
             Token::Dash,
@@ -580,7 +585,7 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("a".to_string()),
                 Token::Newline,
                 Token::IndentLevel,
                 Token::Dash,
@@ -599,11 +604,11 @@ mod tests {
     fn test_file_with_no_indentation() {
         // Test case: file with no indentation at all
         let input = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Newline,
-            Token::Text,
+            Token::Text("b".to_string()),
             Token::Newline,
-            Token::Text,
+            Token::Text("c".to_string()),
         ];
 
         let result = transform_indentation(input);
@@ -611,18 +616,23 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("a".to_string()),
                 Token::Newline,
-                Token::Text,
+                Token::Text("b".to_string()),
                 Token::Newline,
-                Token::Text,
+                Token::Text("c".to_string()),
             ]
         );
     }
 
     #[test]
     fn test_count_line_indent_steps() {
-        let tokens = vec![Token::Indent, Token::Indent, Token::Dash, Token::Text];
+        let tokens = vec![
+            Token::Indent,
+            Token::Indent,
+            Token::Dash,
+            Token::Text("a".to_string()),
+        ];
 
         assert_eq!(count_line_indent_steps(&tokens, 0), 2);
         assert_eq!(count_line_indent_steps(&tokens, 2), 0);
@@ -630,7 +640,12 @@ mod tests {
 
     #[test]
     fn test_find_line_start() {
-        let tokens = vec![Token::Text, Token::Newline, Token::Indent, Token::Dash];
+        let tokens = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Indent,
+            Token::Dash,
+        ];
 
         assert_eq!(find_line_start(&tokens, 0), 0);
         assert_eq!(find_line_start(&tokens, 2), 2);
@@ -650,12 +665,12 @@ mod tests {
             // Line 1: "        Foo" (2 indent levels)
             Token::Indent,
             Token::Indent,
-            Token::Text,
+            Token::Text("Foo".to_string()),
             Token::Newline,
             // Line 2: "        Foo2" (2 indent levels)
             Token::Indent,
             Token::Indent,
-            Token::Text,
+            Token::Text("Foo2".to_string()),
             Token::Newline,
             // Line 3: "    " (1 indent level BUT NO CONTENT - should be ignored)
             Token::Indent,
@@ -663,7 +678,7 @@ mod tests {
             // Line 4: "        Bar" (2 indent levels)
             Token::Indent,
             Token::Indent,
-            Token::Text,
+            Token::Text("Bar".to_string()),
             Token::Newline,
         ];
 
@@ -676,15 +691,15 @@ mod tests {
                 // Line 1
                 Token::IndentLevel, // From 0 to 1
                 Token::IndentLevel, // From 1 to 2
-                Token::Text,
+                Token::Text("Foo".to_string()),
                 Token::Newline,
                 // Line 2
-                Token::Text, // Still at level 2, no change
+                Token::Text("Foo2".to_string()), // Still at level 2, no change
                 Token::Newline,
                 // Line 3 (blank with spaces)
                 Token::Newline, // Just newline, no dedent!
                 // Line 4
-                Token::Text, // Still at level 2, no dedent/re-indent!
+                Token::Text("Bar".to_string()), // Still at level 2, no dedent/re-indent!
                 Token::Newline,
                 // EOF
                 Token::DedentLevel, // From 2 to 1

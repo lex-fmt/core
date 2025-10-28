@@ -1,189 +1,346 @@
 ---
 source: tests/lexer_proptest.rs
-assertion_line: 25
 expression: tokens
 ---
 [
     DocStart,
-    Text,
+    Text(
+        "Simple",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "Paragraphs",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "Test",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "{{paragraph}}",
+    ),
     Newline,
     BlankLine,
-    Text,
+    Text(
+        "This",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "is",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "a",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "simple",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "paragraph",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "with",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "just",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "one",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "line",
+    ),
     Period,
     Whitespace,
-    Text,
+    Text(
+        "{{paragraph}}",
+    ),
     Newline,
     BlankLine,
-    Text,
+    Text(
+        "This",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "is",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "a",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "multi",
+    ),
     Dash,
-    Text,
+    Text(
+        "line",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "paragraph",
+    ),
     Period,
     Newline,
-    Text,
+    Text(
+        "It",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "continues",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "on",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "the",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "second",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "line",
+    ),
     Period,
     Newline,
-    Text,
+    Text(
+        "And",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "even",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "has",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "a",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "third",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "line",
+    ),
     Period,
     Whitespace,
-    Text,
+    Text(
+        "{{paragraph}}",
+    ),
     Newline,
     BlankLine,
-    Text,
+    Text(
+        "Another",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "paragraph",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "follows",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "after",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "a",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "blank",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "line",
+    ),
     Period,
     Whitespace,
-    Text,
+    Text(
+        "{{paragraph}}",
+    ),
     Newline,
     BlankLine,
-    Text,
+    Text(
+        "This",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "paragraph",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "has",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "some",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "special",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "characters",
+    ),
     Colon,
     Whitespace,
-    Text,
+    Text(
+        "!@#$%^&*",
+    ),
     OpenParen,
     CloseParen,
-    Text,
+    Text(
+        "_+",
+    ),
     Dash,
     Equals,
-    Text,
+    Text(
+        "[]{}|;'",
+    ),
     Colon,
     Quote,
     Comma,
     Period,
-    Text,
+    Text(
+        "/<>?",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "{{paragraph}}",
+    ),
     Newline,
     BlankLine,
-    Text,
+    Text(
+        "Paragraphs",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "can",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "contain",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "numbers",
+    ),
     Colon,
     Whitespace,
-    Number,
+    Number(
+        "123",
+    ),
     Comma,
     Whitespace,
-    Number,
+    Number(
+        "456",
+    ),
     Comma,
     Whitespace,
-    Number,
+    Number(
+        "789",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "{{paragraph}}",
+    ),
     Newline,
     BlankLine,
-    Text,
+    Text(
+        "And",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "they",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "can",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "have",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "mixed",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "content",
+    ),
     Colon,
     Whitespace,
-    Text,
+    Text(
+        "The",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "quick",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "brown",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "fox",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "jumps",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "over",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "the",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "lazy",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "dog",
+    ),
     Period,
     Whitespace,
-    Number,
+    Number(
+        "123",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "ABC",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "def!",
+    ),
     Whitespace,
-    Text,
+    Text(
+        "{{paragraph}}",
+    ),
     Newline,
     DocEnd,
 ]

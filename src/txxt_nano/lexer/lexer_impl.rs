@@ -43,7 +43,7 @@ fn process_whitespace_remainders(tokens_with_spans: Vec<(Token, logos::Span)>) -
                 // skip this whitespace token (it will be considered part of the text)
                 if indent_count > 0
                     && i + 1 < tokens_with_spans.len()
-                    && matches!(tokens_with_spans[i + 1].0, Token::Text)
+                    && matches!(tokens_with_spans[i + 1].0, Token::Text(_))
                 {
                     // Skip this whitespace token
                     i += 1;
@@ -87,30 +87,30 @@ mod tests {
         let tokens = tokenize(input);
 
         // Expected tokens for "1. Session Title"
-        assert_eq!(tokens[0], Token::Number); // "1"
+        assert_eq!(tokens[0], Token::Number("1".to_string())); // "1"
         assert_eq!(tokens[1], Token::Period); // "."
         assert_eq!(tokens[2], Token::Whitespace); // " "
-        assert_eq!(tokens[3], Token::Text); // "Session"
+        assert_eq!(tokens[3], Token::Text("Session".to_string())); // "Session"
         assert_eq!(tokens[4], Token::Whitespace); // " "
-        assert_eq!(tokens[5], Token::Text); // "Title"
+        assert_eq!(tokens[5], Token::Text("Title".to_string())); // "Title"
         assert_eq!(tokens[6], Token::Newline); // "\n"
 
         // Expected tokens for "    - Item 1"
         assert_eq!(tokens[7], Token::Indent); // "    "
         assert_eq!(tokens[8], Token::Dash); // "-"
         assert_eq!(tokens[9], Token::Whitespace); // " "
-        assert_eq!(tokens[10], Token::Text); // "Item"
+        assert_eq!(tokens[10], Token::Text("Item".to_string())); // "Item"
         assert_eq!(tokens[11], Token::Whitespace); // " "
-        assert_eq!(tokens[12], Token::Number); // "1"
+        assert_eq!(tokens[12], Token::Number("1".to_string())); // "1"
         assert_eq!(tokens[13], Token::Newline); // "\n"
 
         // Expected tokens for "    - Item 2"
         assert_eq!(tokens[14], Token::Indent); // "    "
         assert_eq!(tokens[15], Token::Dash); // "-"
         assert_eq!(tokens[16], Token::Whitespace); // " "
-        assert_eq!(tokens[17], Token::Text); // "Item"
+        assert_eq!(tokens[17], Token::Text("Item".to_string())); // "Item"
         assert_eq!(tokens[18], Token::Whitespace); // " "
-        assert_eq!(tokens[19], Token::Number); // "2"
+        assert_eq!(tokens[19], Token::Number("2".to_string())); // "2"
     }
 
     #[test]
@@ -119,9 +119,9 @@ mod tests {
         assert_eq!(tokens_with_spans.len(), 3);
 
         // Check that tokens are correct (spans are not preserved in current implementation)
-        assert_eq!(tokens_with_spans[0].0, Token::Text);
+        assert_eq!(tokens_with_spans[0].0, Token::Text("hello".to_string()));
         assert_eq!(tokens_with_spans[1].0, Token::Whitespace);
-        assert_eq!(tokens_with_spans[2].0, Token::Text);
+        assert_eq!(tokens_with_spans[2].0, Token::Text("world".to_string()));
     }
 
     #[test]
@@ -152,6 +152,6 @@ mod tests {
         assert_eq!(tokens.len(), 3); // Should be: [Indent, Indent, Text("  hello")]
         assert_eq!(tokens[0], Token::Indent);
         assert_eq!(tokens[1], Token::Indent);
-        assert_eq!(tokens[2], Token::Text);
+        assert_eq!(tokens[2], Token::Text("hello".to_string()));
     }
 }
