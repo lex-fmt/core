@@ -882,11 +882,36 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
                 .collect::<Vec<_>>()
         });
 
+    // Parse closing annotation marker (:: label params :: with optional text after for marker form)
+    let closing_annotation_parser = token(Token::TxxtMarker)
+        .ignore_then(annotation_header())
+        .then_ignore(token(Token::TxxtMarker))
+        .then(
+            // Optional single-line text content after closing :: (for marker form)
+            token(Token::Whitespace).ignore_then(text_line()).or_not(),
+        )
+        .map(|((label_span, parameters), content_span)| {
+            // Text after :: becomes paragraph content (annotation single-line form)
+            let content = content_span
+                .map(|span| {
+                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
+                        line_spans: vec![span],
+                    })]
+                })
+                .unwrap_or_default();
+
+            AnnotationWithSpans {
+                label_span,
+                parameters,
+                content,
+            }
+        });
+
     subject_parser
         .then_ignore(token(Token::Newline).or_not()) // Consume optional blank line after subject (marker form)
         .then(with_content.or_not()) // Content is optional
         // Don't consume DedentLevel before annotation - content parser handles them
-        .then(annotation())
+        .then(closing_annotation_parser)
         // Don't consume newlines after annotation - they belong to document-level parsing
         .map(
             |((subject_spans, content_spans), closing_annotation)| ForeignBlockWithSpans {
