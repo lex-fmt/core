@@ -13,7 +13,8 @@ use std::ops::Range;
 
 #[allow(unused_imports)] // convert_paragraph is used in tests
 use super::ast_conversion::convert_paragraph;
-use crate::txxt_nano::ast::Document;
+#[allow(unused_imports)] // Container is used in tests
+use crate::txxt_nano::ast::{Container, Document};
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -23,199 +24,25 @@ type TokenSpan = (Token, Range<usize>);
 type ParserError = Simple<TokenSpan>;
 
 // WithSpans structures are now imported from intermediate_ast.rs (single source of truth)
-use super::intermediate_ast::{
-    AnnotationWithSpans, ContentItemWithSpans, DefinitionWithSpans, DocumentWithSpans,
-    ListItemWithSpans, ListWithSpans, ParagraphWithSpans, SessionWithSpans,
-};
-// Parser combinators are now imported from combinators.rs (single source of truth)
-use super::combinators::{
-    annotation_header, definition_subject, foreign_block, list_item_line, paragraph, session_title,
-    text_line, token,
-};
+use super::intermediate_ast::DocumentWithSpans;
+// Parser combinators - kept for test support if needed
+#[allow(unused_imports)]
+use super::combinators::paragraph;
 
 // Parser combinator functions (text_line, token, list_item_line, definition_subject, session_title,
 // annotation_header, foreign_block) are imported from combinators.rs
 
-/// Build the Multi-Parser Bundle for document-level content parsing.
-///
-/// Uses manual recursion to build repetition without .repeated()
-/// This avoids the recursive() + .repeated() interaction issue in Chumsky
-///
-/// ## Structure
-/// This function builds several sub-parsers for different element types:
-/// - **Session parser**: Title followed by indented content
-/// - **Definition parser**: Subject line (text + colon) followed by indented content
-/// - **List parser**: Multiple list items with optional nested content
-/// - **Annotation parser**: Header between `::` markers, with optional indented content or single-line text
-/// - **Single item parser**: Choice of all the above, plus foreign blocks and paragraphs
-/// - **Content parser**: Handles blank line separation and recursive composition of items
-fn build_document_content_parser(
-) -> impl Parser<TokenSpan, Vec<ContentItemWithSpans>, Error = ParserError> + Clone {
-    // HACK: Build repetition through recursion itself, not .repeated()
-    // This avoids the problematic recursive() + .repeated() pattern
+// Import Phase 3b refactored document parser from document module
+use super::document as document_module;
 
-    recursive(|items| {
-        // Session parser - parses title followed by indented content
-        let session_parser = session_title()
-            .then(
-                token(Token::IndentLevel)
-                    .ignore_then(items.clone())
-                    .then_ignore(token(Token::DedentLevel)),
-            )
-            .map(|(title_spans, content)| {
-                ContentItemWithSpans::Session(SessionWithSpans {
-                    title_spans,
-                    content,
-                })
-            });
-
-        // Definition parser - parses subject line followed by indented content
-        let definition_parser = definition_subject()
-            .then(
-                token(Token::IndentLevel)
-                    .ignore_then(items.clone())
-                    .then_ignore(token(Token::DedentLevel)),
-            )
-            .map(|(subject_spans, content)| {
-                ContentItemWithSpans::Definition(DefinitionWithSpans {
-                    subject_spans,
-                    content,
-                })
-            });
-
-        // List parser - parses multiple list items, each with optional indented content
-        let list_parser = {
-            let single_list_item = list_item_line()
-                .then_ignore(token(Token::Newline))
-                .then(
-                    token(Token::IndentLevel)
-                        .ignore_then(items.clone())
-                        .then_ignore(token(Token::DedentLevel))
-                        .or_not(),
-                )
-                .map(|(text_spans, maybe_content)| ListItemWithSpans {
-                    text_spans,
-                    content: maybe_content.unwrap_or_default(),
-                });
-
-            single_list_item
-                .repeated()
-                .at_least(2)
-                .map(|items| ContentItemWithSpans::List(ListWithSpans { items }))
-        };
-
-        // Annotation parser - parses header between :: markers with optional content
-        let annotation_parser = {
-            let header = token(Token::TxxtMarker)
-                .ignore_then(annotation_header())
-                .then_ignore(token(Token::TxxtMarker));
-
-            // Block form: :: label params :: \n <indent>content<dedent> ::
-            let block_form = header
-                .clone()
-                .then_ignore(token(Token::Newline))
-                .then(
-                    token(Token::IndentLevel)
-                        .ignore_then(items.clone())
-                        .then_ignore(token(Token::DedentLevel)),
-                )
-                .then_ignore(token(Token::TxxtMarker))
-                .then_ignore(token(Token::Newline).or_not())
-                .map(|((label_span, parameters), content)| AnnotationWithSpans {
-                    label_span,
-                    parameters,
-                    content,
-                });
-
-            // Single-line and marker forms: :: header :: optional_text
-            let single_line_or_marker = header
-                .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
-                .then_ignore(token(Token::Newline).or_not())
-                .map(|((label_span, parameters), content_span)| {
-                    let content = content_span
-                        .map(|span| {
-                            vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
-                                line_spans: vec![span],
-                            })]
-                        })
-                        .unwrap_or_default();
-
-                    AnnotationWithSpans {
-                        label_span,
-                        parameters,
-                        content,
-                    }
-                });
-
-            block_form
-                .or(single_line_or_marker)
-                .map(ContentItemWithSpans::Annotation)
-        };
-
-        // Single item parser - choice of all element types in parsing order
-        // Order from docs/parsing.txxt
-        let single_item = choice((
-            foreign_block().map(ContentItemWithSpans::ForeignBlock),
-            annotation_parser,
-            list_parser,
-            definition_parser,
-            session_parser,
-            paragraph().map(ContentItemWithSpans::Paragraph),
-        ));
-
-        // Content parser - handles blank line separation and recursive composition
-        // BlankLine tokens separate block-level elements
-        choice((
-            // Skip any leading blank lines, then try to parse item
-            token(Token::BlankLine)
-                .repeated()
-                .at_least(1)
-                .ignore_then(choice((
-                    // After blank lines, check for boundary
-                    filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
-                        .rewind()
-                        .to(vec![]),
-                    // Or continue with more items
-                    items.clone(),
-                ))),
-            // Parse item without leading blank lines
-            single_item
-                .then(items.clone().or_not())
-                .map(|(first, rest)| {
-                    let mut result = vec![first];
-                    if let Some(mut rest_items) = rest {
-                        result.append(&mut rest_items);
-                    }
-                    result
-                }),
-            // Base case: At a boundary (DocEnd or DedentLevel)
-            filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
-                .rewind()
-                .to(vec![]),
-        ))
-    })
-}
-
-/// Parse a document - a sequence of annotations, paragraphs, lists, sessions, and definitions
-/// Returns intermediate AST with spans
-///
-/// Documents are conceptually SessionContainers - they parse content the same way sessions do.
-/// The only difference is that documents don't have a title and aren't indented.
-#[allow(private_interfaces)] // DocumentWithSpans is internal implementation detail
+/// Parse a document - delegated to document module
+/// Phase 3b: The document parser now requires source text for inline type conversion
+#[allow(private_interfaces)]
 pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
-    // Use the Multi-Parser Bundle for document-level content parsing
-    // This ensures definitions use content_content parser (which excludes sessions)
-    let content_item = build_document_content_parser();
-
-    // Parse document content using the manual recursive approach
-    // This returns a Vec<ContentItemWithSpans> directly
-    token(Token::DocStart)
-        .ignore_then(content_item)
-        .then_ignore(token(Token::DocEnd))
-        .map(|content| DocumentWithSpans {
-            metadata: Vec::new(), // TODO: Parse document-level metadata
-            content,
-        })
+    // This function is kept for backward compatibility but delegates to document_module::document(source)
+    // Since this function doesn't have access to source, it uses an empty string.
+    // For proper position tracking, use parse_with_source_positions or parse_with_source instead.
+    document_module::document("")
 }
 
 /// Parse with source text - extracts actual content from spans
@@ -276,7 +103,7 @@ mod tests {
         // Verify actual content is preserved
         let para = convert_paragraph(input, para_with_spans);
         assert_eq!(para.lines.len(), 1);
-        assert_eq!(para.lines[0], "Hello world");
+        assert_eq!(para.lines[0].as_string(), "Hello world");
     }
 
     #[test]
@@ -388,7 +215,7 @@ mod tests {
                             println!(
                                 "  {}: Session '{}' with {} children",
                                 i,
-                                s.title,
+                                s.label(),
                                 s.content.len()
                             );
                         }
@@ -399,7 +226,7 @@ mod tests {
                             println!(
                                 "  {}: Definition '{}' with {} children",
                                 i,
-                                d.subject,
+                                d.label(),
                                 d.content.len()
                             );
                         }
@@ -415,8 +242,8 @@ mod tests {
                             println!(
                                 "  {}: ForeignBlock '{}' with {} chars, closing: {}",
                                 i,
-                                fb.subject,
-                                fb.content.len(),
+                                fb.subject.as_string(),
+                                fb.content.as_string().len(),
                                 fb.closing_annotation.label.value
                             );
                         }
@@ -475,7 +302,7 @@ mod tests {
                             println!(
                                 "  {}: Session '{}' with {} children",
                                 i,
-                                s.title,
+                                s.label(),
                                 s.content.len()
                             );
                         }
@@ -486,7 +313,7 @@ mod tests {
                             println!(
                                 "  {}: Definition '{}' with {} children",
                                 i,
-                                d.subject,
+                                d.label(),
                                 d.content.len()
                             );
                         }
@@ -502,8 +329,8 @@ mod tests {
                             println!(
                                 "  {}: ForeignBlock '{}' with {} chars, closing: {}",
                                 i,
-                                fb.subject,
-                                fb.content.len(),
+                                fb.subject.as_string(),
+                                fb.content.as_string().len(),
                                 fb.closing_annotation.label.value
                             );
                         }
@@ -1649,7 +1476,7 @@ mod tests {
         let outer_def = doc.content[0]
             .as_definition()
             .expect("Should be a definition");
-        assert_eq!(outer_def.subject, "Outer");
+        assert_eq!(outer_def.label(), "Outer");
         assert_eq!(
             outer_def.content.len(),
             1,
@@ -1660,14 +1487,14 @@ mod tests {
         let inner_def = outer_def.content[0]
             .as_definition()
             .expect("Inner should be a definition");
-        assert_eq!(inner_def.subject, "Inner");
+        assert_eq!(inner_def.label(), "Inner");
         assert_eq!(inner_def.content.len(), 1, "Inner should have content");
 
         // Check nested content
         let nested_para = inner_def.content[0]
             .as_paragraph()
             .expect("Should be a paragraph");
-        assert_eq!(nested_para.lines[0], "Nested content");
+        assert_eq!(nested_para.lines[0].as_string(), "Nested content");
     }
 
     #[test]
@@ -1693,7 +1520,9 @@ mod tests {
                 ContentItem::Paragraph(p) => {
                     println!("  Item {}: Paragraph with {} lines", i, p.lines.len())
                 }
-                ContentItem::Definition(d) => println!("  Item {}: Definition '{}'", i, d.subject),
+                ContentItem::Definition(d) => {
+                    println!("  Item {}: Definition '{}'", i, d.subject.as_string())
+                }
                 _ => println!("  Item {}: Other", i),
             }
         }
@@ -2104,9 +1933,15 @@ mod tests {
 
         assert_eq!(doc.content.len(), 1);
         let foreign_block = doc.content[0].as_foreign_block().unwrap();
-        assert_eq!(foreign_block.subject, "Code Example");
-        assert!(foreign_block.content.contains("function hello()"));
-        assert!(foreign_block.content.contains("return \"world\""));
+        assert_eq!(foreign_block.subject.as_string(), "Code Example");
+        assert!(foreign_block
+            .content
+            .as_string()
+            .contains("function hello()"));
+        assert!(foreign_block
+            .content
+            .as_string()
+            .contains("return \"world\""));
         assert_eq!(foreign_block.closing_annotation.label.value, "javascript");
         assert_eq!(foreign_block.closing_annotation.parameters.len(), 1);
         assert_eq!(
@@ -2127,8 +1962,8 @@ mod tests {
 
         assert_eq!(doc.content.len(), 1);
         let foreign_block = doc.content[0].as_foreign_block().unwrap();
-        assert_eq!(foreign_block.subject, "Image Reference");
-        assert_eq!(foreign_block.content, ""); // No content in marker form
+        assert_eq!(foreign_block.subject.as_string(), "Image Reference");
+        assert_eq!(foreign_block.content.as_string(), ""); // No content in marker form
         assert_eq!(foreign_block.closing_annotation.label.value, "image");
         assert_eq!(foreign_block.closing_annotation.parameters.len(), 2);
         assert_eq!(foreign_block.closing_annotation.parameters[0].key, "type");
@@ -2150,8 +1985,11 @@ mod tests {
         let doc = parse_with_source(tokens, source).unwrap();
 
         let foreign_block = doc.content[0].as_foreign_block().unwrap();
-        assert!(foreign_block.content.contains("    multiple    spaces")); // Preserves multiple spaces
-        assert!(foreign_block.content.contains("    \n")); // Preserves blank lines
+        assert!(foreign_block
+            .content
+            .as_string()
+            .contains("    multiple    spaces")); // Preserves multiple spaces
+        assert!(foreign_block.content.as_string().contains("    \n")); // Preserves blank lines
     }
 
     #[test]
@@ -2167,13 +2005,13 @@ mod tests {
         assert_eq!(doc.content.len(), 2);
 
         let first_block = doc.content[0].as_foreign_block().unwrap();
-        assert_eq!(first_block.subject, "First Block");
-        assert!(first_block.content.contains("code1"));
+        assert_eq!(first_block.subject.as_string(), "First Block");
+        assert!(first_block.content.as_string().contains("code1"));
         assert_eq!(first_block.closing_annotation.label.value, "lang1");
 
         let second_block = doc.content[1].as_foreign_block().unwrap();
-        assert_eq!(second_block.subject, "Second Block");
-        assert!(second_block.content.contains("code2"));
+        assert_eq!(second_block.subject.as_string(), "Second Block");
+        assert!(second_block.content.as_string().contains("code2"));
         assert_eq!(second_block.closing_annotation.label.value, "lang2");
     }
 
@@ -2207,9 +2045,9 @@ mod tests {
             })
             .expect("Should contain JavaScript foreign block");
         let js = js_block.as_foreign_block().unwrap();
-        assert_eq!(js.subject, "Code Example");
-        assert!(js.content.contains("function hello()"));
-        assert!(js.content.contains("console.log"));
+        assert_eq!(js.subject.as_string(), "Code Example");
+        assert!(js.content.as_string().contains("function hello()"));
+        assert!(js.content.as_string().contains("console.log"));
         assert_eq!(js.closing_annotation.parameters.len(), 1);
         assert_eq!(js.closing_annotation.parameters[0].key, "caption");
 
@@ -2224,9 +2062,9 @@ mod tests {
             })
             .expect("Should contain Python foreign block");
         let py = py_block.as_foreign_block().unwrap();
-        assert_eq!(py.subject, "Another Code Block");
-        assert!(py.content.contains("def fibonacci"));
-        assert!(py.content.contains("for i in range"));
+        assert_eq!(py.subject.as_string(), "Another Code Block");
+        assert!(py.content.as_string().contains("def fibonacci"));
+        assert!(py.content.as_string().contains("for i in range"));
 
         // Find SQL block
         let sql_block = doc
@@ -2239,9 +2077,9 @@ mod tests {
             })
             .expect("Should contain SQL foreign block");
         let sql = sql_block.as_foreign_block().unwrap();
-        assert_eq!(sql.subject, "SQL Example");
-        assert!(sql.content.contains("SELECT"));
-        assert!(sql.content.contains("FROM users"));
+        assert_eq!(sql.subject.as_string(), "SQL Example");
+        assert!(sql.content.as_string().contains("SELECT"));
+        assert!(sql.content.as_string().contains("FROM users"));
     }
 
     #[test]
@@ -2262,8 +2100,8 @@ mod tests {
             })
             .expect("Should contain image foreign block");
         let image = image_block.as_foreign_block().unwrap();
-        assert_eq!(image.subject, "Image Reference");
-        assert_eq!(image.content, ""); // No content in marker form
+        assert_eq!(image.subject.as_string(), "Image Reference");
+        assert_eq!(image.content.as_string(), ""); // No content in marker form
         assert_eq!(image.closing_annotation.parameters.len(), 2);
         assert_eq!(image.closing_annotation.parameters[0].key, "type");
         assert_eq!(
@@ -2282,8 +2120,8 @@ mod tests {
             })
             .expect("Should contain binary foreign block");
         let binary = binary_block.as_foreign_block().unwrap();
-        assert_eq!(binary.subject, "Binary File Reference");
-        assert_eq!(binary.content, "");
+        assert_eq!(binary.subject.as_string(), "Binary File Reference");
+        assert_eq!(binary.content.as_string(), "");
         assert_eq!(binary.closing_annotation.parameters.len(), 2);
         assert_eq!(binary.closing_annotation.parameters[0].key, "type");
         assert_eq!(
@@ -2455,11 +2293,15 @@ mod tests {
         let para_old = doc_old.content[0].as_paragraph().unwrap();
         let para_new = doc_new.content[0].as_paragraph().unwrap();
 
-        // Text should be the same
-        assert_eq!(para_old.lines, para_new.lines);
+        // Text content should be the same (ignoring span information)
+        assert_eq!(para_old.lines.len(), para_new.lines.len());
+        for (line_old, line_new) in para_old.lines.iter().zip(para_new.lines.iter()) {
+            assert_eq!(line_old.as_string(), line_new.as_string());
+        }
 
-        // But new version should have positions
+        // But new version should have positions on the paragraph and text
         assert!(para_new.span.is_some());
+        assert!(para_new.lines[0].span.is_some());
     }
 
     #[test]

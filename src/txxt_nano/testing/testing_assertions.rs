@@ -394,15 +394,18 @@ pub struct DefinitionAssertion<'a> {
 
 impl<'a> DefinitionAssertion<'a> {
     pub fn subject(self, expected: &str) -> Self {
-        TextMatch::Exact(expected.to_string()).assert(&self.definition.subject, &self.context);
+        TextMatch::Exact(expected.to_string())
+            .assert(self.definition.subject.as_string(), &self.context);
         self
     }
     pub fn subject_starts_with(self, prefix: &str) -> Self {
-        TextMatch::StartsWith(prefix.to_string()).assert(&self.definition.subject, &self.context);
+        TextMatch::StartsWith(prefix.to_string())
+            .assert(self.definition.subject.as_string(), &self.context);
         self
     }
     pub fn subject_contains(self, substring: &str) -> Self {
-        TextMatch::Contains(substring.to_string()).assert(&self.definition.subject, &self.context);
+        TextMatch::Contains(substring.to_string())
+            .assert(self.definition.subject.as_string(), &self.context);
         self
     }
     pub fn child_count(self, expected: usize) -> Self {
@@ -548,7 +551,7 @@ pub struct ForeignBlockAssertion<'a> {
 
 impl<'a> ForeignBlockAssertion<'a> {
     pub fn subject(self, expected: &str) -> Self {
-        let actual = &self.foreign_block.subject;
+        let actual = self.foreign_block.subject.as_string();
         assert_eq!(
             actual, expected,
             "{}: Expected foreign block subject to be '{}', but got '{}'",
@@ -557,7 +560,7 @@ impl<'a> ForeignBlockAssertion<'a> {
         self
     }
     pub fn content_contains(self, substring: &str) -> Self {
-        let actual = &self.foreign_block.content;
+        let actual = self.foreign_block.content.as_string();
         assert!(
             actual.contains(substring),
             "{}: Expected foreign block content to contain '{}', but got '{}'",
@@ -568,7 +571,7 @@ impl<'a> ForeignBlockAssertion<'a> {
         self
     }
     pub fn is_marker_form(self) -> Self {
-        let actual = &self.foreign_block.content;
+        let actual = self.foreign_block.content.as_string();
         assert!(
             actual.is_empty(),
             "{}: Expected foreign block to be marker form (empty content), but got '{}'",

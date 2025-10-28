@@ -5,6 +5,7 @@
 //! access to node information.
 
 use super::span::{Position, Span};
+use super::text_content::TextContent;
 use std::fmt;
 
 // ============================================================================
@@ -27,7 +28,7 @@ pub trait Container: AstNode {
 /// Trait for leaf nodes that contain text
 pub trait TextNode: AstNode {
     fn text(&self) -> String;
-    fn lines(&self) -> &[String];
+    fn lines(&self) -> &[TextContent];
 }
 
 // ============================================================================
@@ -53,13 +54,13 @@ pub enum ContentItem {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
-    pub lines: Vec<String>,
+    pub lines: Vec<TextContent>,
     pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Session {
-    pub title: String,
+    pub title: TextContent,
     pub content: Vec<ContentItem>,
     pub span: Option<Span>,
 }
@@ -72,22 +73,22 @@ pub struct List {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
-    text: Vec<String>,
+    text: Vec<TextContent>,
     pub content: Vec<ContentItem>,
     pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Definition {
-    pub subject: String,
+    pub subject: TextContent,
     pub content: Vec<ContentItem>,
     pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ForeignBlock {
-    pub subject: String,
-    pub content: String,
+    pub subject: TextContent,
+    pub content: TextContent,
     pub closing_annotation: Annotation,
     pub span: Option<Span>,
 }
@@ -192,12 +193,12 @@ impl Default for Document {
 }
 
 impl Paragraph {
-    pub fn new(lines: Vec<String>) -> Self {
+    pub fn new(lines: Vec<TextContent>) -> Self {
         Self { lines, span: None }
     }
     pub fn from_line(line: String) -> Self {
         Self {
-            lines: vec![line],
+            lines: vec![TextContent::from_string(line, None)],
             span: None,
         }
     }
@@ -206,12 +207,16 @@ impl Paragraph {
         self
     }
     pub fn text(&self) -> String {
-        self.lines.join("\n")
+        self.lines
+            .iter()
+            .map(|line| line.as_string().to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }
 
 impl Session {
-    pub fn new(title: String, content: Vec<ContentItem>) -> Self {
+    pub fn new(title: TextContent, content: Vec<ContentItem>) -> Self {
         Self {
             title,
             content,
@@ -220,7 +225,7 @@ impl Session {
     }
     pub fn with_title(title: String) -> Self {
         Self {
-            title,
+            title: TextContent::from_string(title, None),
             content: Vec::new(),
             span: None,
         }
@@ -244,14 +249,22 @@ impl List {
 impl ListItem {
     pub fn new(text: String) -> Self {
         Self {
-            text: vec![text],
+            text: vec![TextContent::from_string(text, None)],
             content: Vec::new(),
             span: None,
         }
     }
     pub fn with_content(text: String, content: Vec<ContentItem>) -> Self {
         Self {
-            text: vec![text],
+            text: vec![TextContent::from_string(text, None)],
+            content,
+            span: None,
+        }
+    }
+    /// Create a ListItem with TextContent that may have span information
+    pub fn with_text_content(text_content: TextContent, content: Vec<ContentItem>) -> Self {
+        Self {
+            text: vec![text_content],
             content,
             span: None,
         }
@@ -261,12 +274,12 @@ impl ListItem {
         self
     }
     pub fn text(&self) -> &str {
-        &self.text[0]
+        self.text[0].as_string()
     }
 }
 
 impl Definition {
-    pub fn new(subject: String, content: Vec<ContentItem>) -> Self {
+    pub fn new(subject: TextContent, content: Vec<ContentItem>) -> Self {
         Self {
             subject,
             content,
@@ -275,7 +288,7 @@ impl Definition {
     }
     pub fn with_subject(subject: String) -> Self {
         Self {
-            subject,
+            subject: TextContent::from_string(subject, None),
             content: Vec::new(),
             span: None,
         }
@@ -289,16 +302,16 @@ impl Definition {
 impl ForeignBlock {
     pub fn new(subject: String, content: String, closing_annotation: Annotation) -> Self {
         Self {
-            subject,
-            content,
+            subject: TextContent::from_string(subject, None),
+            content: TextContent::from_string(content, None),
             closing_annotation,
             span: None,
         }
     }
     pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
         Self {
-            subject,
-            content: String::new(),
+            subject: TextContent::from_string(subject, None),
+            content: TextContent::from_string(String::new(), None),
             closing_annotation,
             span: None,
         }
@@ -400,11 +413,21 @@ impl fmt::Display for ContentItem {
         match self {
             ContentItem::Paragraph(p) => write!(f, "Paragraph({} lines)", p.lines.len()),
             ContentItem::Session(s) => {
-                write!(f, "Session('{}', {} items)", s.title, s.content.len())
+                write!(
+                    f,
+                    "Session('{}', {} items)",
+                    s.title.as_string(),
+                    s.content.len()
+                )
             }
             ContentItem::List(l) => write!(f, "List({} items)", l.items.len()),
             ContentItem::Definition(d) => {
-                write!(f, "Definition('{}', {} items)", d.subject, d.content.len())
+                write!(
+                    f,
+                    "Definition('{}', {} items)",
+                    d.subject.as_string(),
+                    d.content.len()
+                )
             }
             ContentItem::Annotation(a) => write!(
                 f,
@@ -413,7 +436,9 @@ impl fmt::Display for ContentItem {
                 a.parameters.len(),
                 a.content.len()
             ),
-            ContentItem::ForeignBlock(fb) => write!(f, "ForeignBlock('{}')", fb.subject),
+            ContentItem::ForeignBlock(fb) => {
+                write!(f, "ForeignBlock('{}')", fb.subject.as_string())
+            }
         }
     }
 }
@@ -426,7 +451,12 @@ impl fmt::Display for Paragraph {
 
 impl fmt::Display for Session {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Session('{}', {} items)", self.title, self.content.len())
+        write!(
+            f,
+            "Session('{}', {} items)",
+            self.title.as_string(),
+            self.content.len()
+        )
     }
 }
 
@@ -447,7 +477,7 @@ impl fmt::Display for Definition {
         write!(
             f,
             "Definition('{}', {} items)",
-            self.subject,
+            self.subject.as_string(),
             self.content.len()
         )
     }
@@ -485,8 +515,8 @@ impl fmt::Display for ForeignBlock {
         write!(
             f,
             "ForeignBlock('{}', {} chars, closing: {})",
-            self.subject,
-            self.content.len(),
+            self.subject.as_string(),
+            self.content.as_string().len(),
             self.closing_annotation.label.value
         )
     }
@@ -512,9 +542,13 @@ impl AstNode for Paragraph {
 
 impl TextNode for Paragraph {
     fn text(&self) -> String {
-        self.lines.join("\n")
+        self.lines
+            .iter()
+            .map(|line| line.as_string().to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
     }
-    fn lines(&self) -> &[String] {
+    fn lines(&self) -> &[TextContent] {
         &self.lines
     }
 }
@@ -524,13 +558,13 @@ impl AstNode for Session {
         "Session"
     }
     fn display_label(&self) -> String {
-        self.title.clone()
+        self.title.as_string().to_string()
     }
 }
 
 impl Container for Session {
     fn label(&self) -> &str {
-        &self.title
+        self.title.as_string()
     }
     fn children(&self) -> &[ContentItem] {
         &self.content
@@ -565,7 +599,7 @@ impl AstNode for ListItem {
 
 impl Container for ListItem {
     fn label(&self) -> &str {
-        &self.text[0]
+        self.text[0].as_string()
     }
     fn children(&self) -> &[ContentItem] {
         &self.content
@@ -580,17 +614,18 @@ impl AstNode for Definition {
         "Definition"
     }
     fn display_label(&self) -> String {
-        if self.subject.len() > 50 {
-            format!("{}...", &self.subject[..50])
+        let subject_text = self.subject.as_string();
+        if subject_text.len() > 50 {
+            format!("{}...", &subject_text[..50])
         } else {
-            self.subject.clone()
+            subject_text.to_string()
         }
     }
 }
 
 impl Container for Definition {
     fn label(&self) -> &str {
-        &self.subject
+        self.subject.as_string()
     }
     fn children(&self) -> &[ContentItem] {
         &self.content
@@ -630,10 +665,11 @@ impl AstNode for ForeignBlock {
         "ForeignBlock"
     }
     fn display_label(&self) -> String {
-        if self.subject.len() > 50 {
-            format!("{}...", &self.subject[..50])
+        let subject_text = self.subject.as_string();
+        if subject_text.len() > 50 {
+            format!("{}...", &subject_text[..50])
         } else {
-            self.subject.clone()
+            subject_text.to_string()
         }
     }
 }
@@ -666,7 +702,7 @@ impl ContentItem {
             ContentItem::Session(s) => Some(s.label()),
             ContentItem::Definition(d) => Some(d.label()),
             ContentItem::Annotation(a) => Some(a.label()),
-            ContentItem::ForeignBlock(fb) => Some(&fb.subject),
+            ContentItem::ForeignBlock(fb) => Some(fb.subject.as_string()),
             _ => None,
         }
     }
@@ -844,20 +880,23 @@ mod tests {
 
     #[test]
     fn test_paragraph_creation() {
-        let para = Paragraph::new(vec!["Hello".to_string(), "World".to_string()]);
+        let para = Paragraph::new(vec![
+            TextContent::from_string("Hello".to_string(), None),
+            TextContent::from_string("World".to_string(), None),
+        ]);
         assert_eq!(para.lines.len(), 2);
         assert_eq!(para.text(), "Hello\nWorld");
     }
 
     #[test]
     fn test_session_creation() {
-        let session = Session::new(
-            "Introduction".to_string(),
-            vec![ContentItem::Paragraph(Paragraph::from_line(
+        let mut session = Session::with_title("Introduction".to_string());
+        session
+            .children_mut()
+            .push(ContentItem::Paragraph(Paragraph::from_line(
                 "Content".to_string(),
-            ))],
-        );
-        assert_eq!(session.title, "Introduction");
+            )));
+        assert_eq!(session.label(), "Introduction");
         assert_eq!(session.content.len(), 1);
     }
 
@@ -1007,8 +1046,11 @@ mod tests {
     fn test_elements_at_nested_session() {
         let para = Paragraph::from_line("Nested".to_string())
             .with_span(Some(Span::new(Position::new(1, 0), Position::new(1, 6))));
-        let session = Session::new("Section".to_string(), vec![ContentItem::Paragraph(para)])
-            .with_span(Some(Span::new(Position::new(0, 0), Position::new(2, 0))));
+        let session = Session::new(
+            TextContent::from_string("Section".to_string(), None),
+            vec![ContentItem::Paragraph(para)],
+        )
+        .with_span(Some(Span::new(Position::new(0, 0), Position::new(2, 0))));
         let item = ContentItem::Session(session);
 
         let pos = Position::new(1, 3);
@@ -1050,7 +1092,8 @@ mod tests {
     fn test_builder_methods() {
         let span = Span::new(Position::new(1, 0), Position::new(1, 10));
 
-        let para = Paragraph::new(vec!["Test".to_string()]).with_span(Some(span));
+        let para = Paragraph::new(vec![TextContent::from_string("Test".to_string(), None)])
+            .with_span(Some(span));
         assert_eq!(para.span, Some(span));
 
         let session = Session::with_title("Title".to_string()).with_span(Some(span));

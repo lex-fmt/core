@@ -1,4 +1,4 @@
-use crate::txxt_nano::ast::ContentItem;
+use crate::txxt_nano::ast::{Container, ContentItem};
 use crate::txxt_nano::lexer::{lex, lex_with_spans, Token};
 use crate::txxt_nano::parser::api::parse;
 use crate::txxt_nano::parser::ast_conversion::convert_paragraph;
@@ -22,7 +22,7 @@ fn test_simple_paragraph() {
     // Verify actual content is preserved
     let para = convert_paragraph(input, para_with_spans);
     assert_eq!(para.lines.len(), 1);
-    assert_eq!(para.lines[0], "Hello world");
+    assert_eq!(para.lines[0].as_string(), "Hello world");
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn test_session_title_followed_by_bare_indent_level() {
                         println!(
                             "  {}: Session '{}' with {} children",
                             i,
-                            s.title,
+                            s.label(),
                             s.content.len()
                         );
                     }
