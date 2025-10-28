@@ -5,4 +5,3 @@
 
 pub mod basic;
 pub mod helpers;
-pub mod text;
