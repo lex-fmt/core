@@ -153,8 +153,8 @@ fn get_content_item_span(item: &ContentItem) -> Option<Span> {
 /// Get the label of a content item
 fn get_content_item_label(item: &ContentItem) -> Option<String> {
     match item {
-        ContentItem::Session(s) => Some(s.title.clone()),
-        ContentItem::Definition(d) => Some(d.subject.clone()),
+        ContentItem::Session(s) => Some(s.title.as_string().to_string()),
+        ContentItem::Definition(d) => Some(d.subject.as_string().to_string()),
         ContentItem::Annotation(a) => Some(a.label.value.clone()),
         ContentItem::Paragraph(p) => Some(p.display_label()),
         _ => None,

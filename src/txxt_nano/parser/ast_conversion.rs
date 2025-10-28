@@ -146,8 +146,9 @@ pub(crate) fn convert_paragraph(source: &str, para: ParagraphWithSpans) -> Parag
 }
 
 pub(crate) fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
+    let title_text = extract_line_text(source, &sess.title_spans);
     Session {
-        title: extract_line_text(source, &sess.title_spans),
+        title: TextContent::from_string(title_text, None),
         content: sess
             .content
             .into_iter()
@@ -159,10 +160,10 @@ pub(crate) fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
 
 pub(crate) fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
     // Extract subject (colon already excluded from spans by definition_subject parser)
-    let subject = extract_line_text(source, &def.subject_spans);
+    let subject_text = extract_line_text(source, &def.subject_spans);
 
     Definition {
-        subject,
+        subject: TextContent::from_string(subject_text, None),
         content: def
             .content
             .into_iter()
@@ -315,8 +316,9 @@ pub(crate) fn convert_session_with_positions(
         None
     };
 
+    let title_text = extract_line_text(source, &sess.title_spans);
     Session {
-        title: extract_line_text(source, &sess.title_spans),
+        title: TextContent::from_string(title_text, None),
         content: sess
             .content
             .into_iter()
@@ -345,8 +347,9 @@ pub(crate) fn convert_definition_with_positions(
         None
     };
 
+    let subject_text = extract_line_text(source, &def.subject_spans);
     Definition {
-        subject: extract_line_text(source, &def.subject_spans),
+        subject: TextContent::from_string(subject_text, None),
         content: def
             .content
             .into_iter()
