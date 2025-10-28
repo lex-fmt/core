@@ -15,6 +15,7 @@ pub mod ast_position;
 pub mod ast_tag_serializer;
 pub mod ast_treeviz;
 pub mod combinators;
+pub mod conversion;
 pub mod document;
 pub mod intermediate_ast;
 pub mod labels;
