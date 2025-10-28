@@ -261,6 +261,14 @@ impl ListItem {
             span: None,
         }
     }
+    /// Create a ListItem with TextContent that may have span information
+    pub fn with_text_content(text_content: TextContent, content: Vec<ContentItem>) -> Self {
+        Self {
+            text: vec![text_content],
+            content,
+            span: None,
+        }
+    }
     pub fn with_span(mut self, span: Option<Span>) -> Self {
         self.span = span;
         self
