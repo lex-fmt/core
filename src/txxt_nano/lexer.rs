@@ -28,14 +28,45 @@ pub use tokens::Token;
 
 /// Main lexer function that returns fully processed tokens (tokenize + indentation transform)
 pub fn lex(source: &str) -> Vec<Token> {
-    let raw_tokens = tokenize(source);
-    transform_indentation(raw_tokens)
+    // HACK: Ensure source ends with newline to work around Chumsky recursive/.repeated() issue
+    // This helps when a paragraph is the last element in a recursive context
+    let source_with_newline = if !source.is_empty() && !source.ends_with('\n') {
+        format!("{}\n", source)
+    } else {
+        source.to_string()
+    };
+
+    let raw_tokens = tokenize(&source_with_newline);
+    let mut tokens = transform_indentation(raw_tokens);
+
+    // HACK: Add document boundary tokens to solve recursive/.repeated() EOF issue
+    tokens.insert(0, Token::DocStart);
+    tokens.push(Token::DocEnd);
+
+    tokens
 }
 
 /// Lexing function that preserves source spans for parser
 /// Returns tokens with their corresponding source spans
-/// Synthetic tokens (IndentLevel, DedentLevel) have empty spans (0..0)
+/// Synthetic tokens (IndentLevel, DedentLevel, DocStart, DocEnd) have empty spans (0..0)
 pub fn lex_with_spans(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
-    let raw_tokens_with_spans = tokenize_with_spans(source);
-    transform_indentation_with_spans(raw_tokens_with_spans)
+    // HACK: Ensure source ends with newline to work around Chumsky recursive/.repeated() issue
+    // This helps when a paragraph is the last element in a recursive context
+    let source_with_newline = if !source.is_empty() && !source.ends_with('\n') {
+        format!("{}\n", source)
+    } else {
+        source.to_string()
+    };
+
+    let raw_tokens_with_spans = tokenize_with_spans(&source_with_newline);
+    let mut tokens = transform_indentation_with_spans(raw_tokens_with_spans);
+
+    // HACK: Add document boundary tokens to solve recursive/.repeated() EOF issue
+    // DocStart at beginning, DocEnd at end
+    // The recursive content parser will stop when it hits DocEnd (which it can't parse)
+    // The document parser then consumes DocEnd to complete parsing
+    tokens.insert(0, (Token::DocStart, 0..0));
+    tokens.push((Token::DocEnd, 0..0));
+
+    tokens
 }
