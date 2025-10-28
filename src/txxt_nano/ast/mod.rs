@@ -17,6 +17,7 @@ pub mod lookup;
 pub mod node;
 pub mod position;
 pub mod span;
+pub mod text_content;
 
 // Re-export commonly used types at module root
 pub use error::PositionLookupError;
@@ -27,3 +28,4 @@ pub use node::{
 };
 pub use position::SourceLocation;
 pub use span::{Position, Span};
+pub use text_content::TextContent;

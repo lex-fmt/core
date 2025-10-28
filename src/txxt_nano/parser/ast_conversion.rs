@@ -8,7 +8,7 @@ use super::intermediate_ast::{
 use super::parameters::convert_parameter;
 use crate::txxt_nano::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
-    Session, SourceLocation, Span,
+    Session, SourceLocation, Span, TextContent,
 };
 
 /// Helper to extract text from source using a span
@@ -36,6 +36,35 @@ pub(crate) fn extract_line_text(source: &str, spans: &[std::ops::Range<usize>]) 
     }
 
     source[start..end].trim().to_string()
+}
+
+/// Helper to extract and concatenate text from multiple spans, returning both text and byte range
+fn extract_line_text_with_byte_range(
+    source: &str,
+    spans: &[std::ops::Range<usize>],
+) -> (String, Option<std::ops::Range<usize>>) {
+    if spans.is_empty() {
+        return (String::new(), None);
+    }
+
+    // Find the overall span from first to last
+    let start = spans.first().map(|s| s.start).unwrap_or(0);
+    let end = spans.last().map(|s| s.end).unwrap_or(0);
+
+    if start >= end || end > source.len() {
+        return (String::new(), None);
+    }
+
+    let text = source[start..end].trim().to_string();
+    (text, Some(start..end))
+}
+
+/// Helper to convert a byte range to a Span using SourceLocation
+fn byte_range_to_span(source_loc: &SourceLocation, range: &std::ops::Range<usize>) -> Span {
+    Span::new(
+        source_loc.byte_to_position(range.start),
+        source_loc.byte_to_position(range.end),
+    )
 }
 
 /// Helper to reconstruct raw content from token spans
@@ -76,6 +105,7 @@ pub(crate) fn reconstruct_raw_content(source: &str, spans: &[std::ops::Range<usi
 }
 
 /// Convert intermediate AST with spans to final AST with extracted text
+/// Phase 3b: Content is already converted to final types at parse time
 pub(crate) fn convert_document(source: &str, doc_with_spans: DocumentWithSpans) -> Document {
     Document {
         metadata: doc_with_spans
@@ -83,35 +113,39 @@ pub(crate) fn convert_document(source: &str, doc_with_spans: DocumentWithSpans) 
             .into_iter()
             .map(|ann| convert_annotation(source, ann))
             .collect(),
-        content: doc_with_spans
-            .content
-            .into_iter()
-            .map(|item| convert_content_item(source, item))
-            .collect(),
+        content: doc_with_spans.content, // Already converted at parse time
         span: None,
     }
 }
 
 /// Convert intermediate AST with spans to final AST, preserving position information
+/// Phase 3b: Content is already converted to final types at parse time
 pub(crate) fn convert_document_with_positions(
     source: &str,
     doc_with_spans: DocumentWithSpans,
 ) -> Document {
-    let source_loc = SourceLocation::new(source);
-
     Document {
         metadata: doc_with_spans
             .metadata
             .into_iter()
-            .map(|ann| convert_annotation_with_positions(source, &source_loc, ann))
+            .map(|ann| convert_annotation_with_positions(source, &SourceLocation::new(source), ann))
             .collect(),
-        content: doc_with_spans
-            .content
-            .into_iter()
-            .map(|item| convert_content_item_with_positions(source, &source_loc, item))
-            .collect(),
+        content: doc_with_spans.content, // Already converted at parse time
         span: None,
     }
+}
+
+/// Convert a vector of intermediate content items to final types, preserving position information
+/// Phase 3b: This version preserves span information for all content items
+pub(crate) fn convert_content_items(
+    source: &str,
+    items: Vec<ContentItemWithSpans>,
+) -> Vec<ContentItem> {
+    let source_loc = SourceLocation::new(source);
+    items
+        .into_iter()
+        .map(|item| convert_content_item_with_positions(source, &source_loc, item))
+        .collect()
 }
 
 pub(crate) fn convert_content_item(source: &str, item: ContentItemWithSpans) -> ContentItem {
@@ -136,15 +170,19 @@ pub(crate) fn convert_paragraph(source: &str, para: ParagraphWithSpans) -> Parag
         lines: para
             .line_spans
             .iter()
-            .map(|spans| extract_line_text(source, spans))
+            .map(|spans| {
+                let text = extract_line_text(source, spans);
+                TextContent::from_string(text, None)
+            })
             .collect(),
         span: None,
     }
 }
 
 pub(crate) fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
+    let title_text = extract_line_text(source, &sess.title_spans);
     Session {
-        title: extract_line_text(source, &sess.title_spans),
+        title: TextContent::from_string(title_text, None),
         content: sess
             .content
             .into_iter()
@@ -156,10 +194,10 @@ pub(crate) fn convert_session(source: &str, sess: SessionWithSpans) -> Session {
 
 pub(crate) fn convert_definition(source: &str, def: DefinitionWithSpans) -> Definition {
     // Extract subject (colon already excluded from spans by definition_subject parser)
-    let subject = extract_line_text(source, &def.subject_spans);
+    let subject_text = extract_line_text(source, &def.subject_spans);
 
     Definition {
-        subject,
+        subject: TextContent::from_string(subject_text, None),
         content: def
             .content
             .into_iter()
@@ -284,7 +322,11 @@ pub(crate) fn convert_paragraph_with_positions(
         lines: para
             .line_spans
             .iter()
-            .map(|spans| extract_line_text(source, spans))
+            .map(|spans| {
+                let (text, byte_range) = extract_line_text_with_byte_range(source, spans);
+                let line_span = byte_range.map(|range| byte_range_to_span(source_loc, &range));
+                TextContent::from_string(text, line_span)
+            })
             .collect(),
         span,
     }
@@ -309,8 +351,11 @@ pub(crate) fn convert_session_with_positions(
         None
     };
 
+    let (title_text, title_byte_range) =
+        extract_line_text_with_byte_range(source, &sess.title_spans);
+    let title_span = title_byte_range.map(|range| byte_range_to_span(source_loc, &range));
     Session {
-        title: extract_line_text(source, &sess.title_spans),
+        title: TextContent::from_string(title_text, title_span),
         content: sess
             .content
             .into_iter()
@@ -339,8 +384,11 @@ pub(crate) fn convert_definition_with_positions(
         None
     };
 
+    let (subject_text, subject_byte_range) =
+        extract_line_text_with_byte_range(source, &def.subject_spans);
+    let subject_span = subject_byte_range.map(|range| byte_range_to_span(source_loc, &range));
     Definition {
-        subject: extract_line_text(source, &def.subject_spans),
+        subject: TextContent::from_string(subject_text, subject_span),
         content: def
             .content
             .into_iter()
@@ -422,8 +470,11 @@ pub(crate) fn convert_list_item_with_positions(
         None
     };
 
-    ListItem::with_content(
-        extract_line_text(source, &item.text_spans),
+    let (text, text_byte_range) = extract_line_text_with_byte_range(source, &item.text_spans);
+    let text_span = text_byte_range.map(|range| byte_range_to_span(source_loc, &range));
+
+    ListItem::with_text_content(
+        TextContent::from_string(text, text_span),
         item.content
             .into_iter()
             .map(|content_item| {
@@ -453,13 +504,33 @@ pub(crate) fn convert_foreign_block_with_positions(
         None
     };
 
-    let subject = extract_line_text(source, &fb.subject_spans);
-    let content = fb
+    let (subject_text, subject_byte_range) =
+        extract_line_text_with_byte_range(source, &fb.subject_spans);
+    let subject_span = subject_byte_range.map(|range| byte_range_to_span(source_loc, &range));
+
+    let (content_text, content_byte_range) = fb
         .content_spans
-        .map(|spans| reconstruct_raw_content(source, &spans))
-        .unwrap_or_default();
+        .as_ref()
+        .map(|spans| {
+            let raw_content = reconstruct_raw_content(source, spans);
+            // For foreign block content, compute the byte range from the first and last spans
+            let start = spans.first().map(|s| s.start).unwrap_or(0);
+            let end = spans.last().map(|s| s.end).unwrap_or(0);
+            (
+                raw_content,
+                if start < end { Some(start..end) } else { None },
+            )
+        })
+        .unwrap_or_else(|| (String::new(), None));
+    let content_span = content_byte_range.map(|range| byte_range_to_span(source_loc, &range));
+
     let closing_annotation =
         convert_annotation_with_positions(source, source_loc, fb.closing_annotation);
 
-    ForeignBlock::new(subject, content, closing_annotation).with_span(span)
+    ForeignBlock {
+        subject: TextContent::from_string(subject_text, subject_span),
+        content: TextContent::from_string(content_text, content_span),
+        closing_annotation,
+        span,
+    }
 }

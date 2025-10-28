@@ -1,7 +1,12 @@
 //! Intermediate AST structures that hold spans instead of extracted text
 //! These are converted to final AST structures after parsing completes
+//!
+//! ## Phase 3b Note
+//! The content field of DocumentWithSpans is now converted to final ContentItem types at parse time,
+//! skipping the intermediate WithSpans types. This is achieved by passing source text through the parser.
 
 use super::parameters::ParameterWithSpans;
+use crate::txxt_nano::ast::ContentItem;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)] // Used internally in parser, may not be directly constructed elsewhere
@@ -67,5 +72,6 @@ pub(crate) enum ContentItemWithSpans {
 #[allow(dead_code)]
 pub(crate) struct DocumentWithSpans {
     pub(crate) metadata: Vec<AnnotationWithSpans>,
-    pub(crate) content: Vec<ContentItemWithSpans>,
+    /// Phase 3b: Content is converted to final ContentItem types at parse time
+    pub(crate) content: Vec<ContentItem>,
 }
