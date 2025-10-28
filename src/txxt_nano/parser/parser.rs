@@ -545,11 +545,14 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
         });
 
     subject_parser
-        .then_ignore(token(Token::Newline).or_not()) // Consume optional blank line after subject (marker form)
+        // definition_subject() already consumed the Newline after the colon
+        // Optionally skip blank lines before content or closing annotation
+        .then_ignore(token(Token::BlankLine).repeated())
         .then(with_content.or_not()) // Content is optional
         // Don't consume DedentLevel before annotation - content parser handles them
         .then(closing_annotation_parser)
-        // Don't consume newlines after annotation - they belong to document-level parsing
+        // Consume the newline after closing annotation (the line ends with the closing ::)
+        .then_ignore(token(Token::Newline).or_not())
         .map(
             |((subject_spans, content_spans), closing_annotation)| ForeignBlockWithSpans {
                 subject_spans,
