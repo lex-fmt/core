@@ -17,12 +17,9 @@ use super::ast::{
 };
 #[allow(unused_imports)] // convert_paragraph is used in tests
 use super::conversion::basic::{convert_document, convert_paragraph};
-use super::conversion::helpers::{
-    is_text_token, nested_spans_to_span_position, spans_to_span_position,
-};
+use super::conversion::helpers::{nested_spans_to_span_position, spans_to_span_position};
 use super::conversion::text::{extract_line_text, extract_text, reconstruct_raw_content};
-use super::labels::parse_label_from_tokens;
-use super::parameters::{convert_parameter, parse_parameters_from_tokens, ParameterWithSpans};
+use super::parameters::convert_parameter;
 use super::source_location::SourceLocation;
 use crate::txxt_nano::lexer::Token;
 
@@ -36,6 +33,11 @@ type ParserError = Simple<TokenSpan>;
 use super::intermediate_ast::{
     AnnotationWithSpans, ContentItemWithSpans, DefinitionWithSpans, DocumentWithSpans,
     ForeignBlockWithSpans, ListItemWithSpans, ListWithSpans, ParagraphWithSpans, SessionWithSpans,
+};
+// Parser combinators are now imported from combinators.rs (single source of truth)
+use super::combinators::{
+    annotation_header, definition_subject, foreign_block, list_item_line, paragraph, session_title,
+    text_line, token,
 };
 
 // ============================================================================
@@ -231,61 +233,7 @@ fn convert_foreign_block_with_positions(
     ForeignBlock::new(subject, content, closing_annotation).with_span(span)
 }
 
-/// Parse a text line (sequence of text and whitespace tokens)
-/// Returns the collected spans for this line
-fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
-    filter(|(t, _span): &TokenSpan| is_text_token(t))
-        .repeated()
-        .at_least(1)
-        .map(|tokens_with_spans: Vec<TokenSpan>| {
-            // Collect all spans for this line
-            tokens_with_spans.into_iter().map(|(_, s)| s).collect()
-        })
-}
-
-/// Helper: match a specific token type, ignoring the span
-fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError> + Clone {
-    filter(move |(tok, _)| tok == &t).ignored()
-}
-
-/// Parse a list item line - a line that starts with a list marker
-/// Grammar: <list-item-line> = <plain-marker> <text>+ | <ordered-marker> <text>+
-/// Where: <plain-marker> = "-" " "
-///        <ordered-marker> = (<number> | <letter> | <roman>) ("|"|")") " "
-fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
-    // Just check that the line starts with a valid list marker, then collect all tokens
-    // We validate the marker and collect the full line content
-    let rest_of_line = filter(|(t, _span): &TokenSpan| is_text_token(t)).repeated();
-
-    // Pattern 1: Dash + whitespace + rest
-    let dash_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Dash))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
-        .chain(rest_of_line);
-
-    // Pattern 2: Number/Text + Period/CloseParen + whitespace + rest
-    let ordered_pattern =
-        filter(|(t, _): &TokenSpan| matches!(t, Token::Number(_) | Token::Text(_)))
-            .then(filter(|(t, _): &TokenSpan| {
-                matches!(t, Token::Period | Token::CloseParen)
-            }))
-            .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
-            .chain(rest_of_line);
-
-    // Pattern 3: OpenParen + Number + CloseParen + whitespace + rest
-    let paren_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::OpenParen))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Number(_))))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::CloseParen)))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
-        .chain(rest_of_line);
-
-    // Try each pattern and collect all spans
-    dash_pattern
-        .or(ordered_pattern)
-        .or(paren_pattern)
-        .map(|tokens_with_spans: Vec<TokenSpan>| {
-            tokens_with_spans.into_iter().map(|(_, s)| s).collect()
-        })
-}
+// Parser combinator functions (text_line, token, list_item_line) are imported from combinators.rs
 
 /// Container types that define what content elements are allowed
 ///
@@ -307,29 +255,8 @@ enum ContainerType {
     Annotation,
 }
 
-/// Parse a paragraph - one or more lines of text separated by newlines, ending with a blank line
-/// A paragraph is a catch-all that matches when nothing else does.
-///
-/// Simplified rule: Paragraphs can contain ANYTHING (including single list-item-lines).
-/// Lists require a blank line before them, so disambiguation is handled by parse order:
-/// 1. Try list first (needs blank line + 2+ items)
-/// 2. Try session (needs title + blank + indent)
-/// 3. Try paragraph (catches everything else)
-fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone {
-    // Parse a paragraph - consecutive non-blank text lines
-    // Simplified to work in both document and recursive contexts
-
-    // A paragraph is one or more text lines followed by newlines
-    // We stop at blank lines (double newlines) which separate paragraphs
-    text_line()
-        .then_ignore(token(Token::Newline))
-        .repeated()
-        .at_least(1)
-        // Don't consume trailing blank lines - they're element boundaries!
-        .map(|line_spans| ParagraphWithSpans { line_spans })
-}
-
 /// Parse a paragraph for use in recursive contexts (simplified)
+// Note: main paragraph() function is imported from combinators.rs
 #[allow(dead_code)] // Kept for future improvements
 fn paragraph_recursive() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone
 {
@@ -359,147 +286,9 @@ fn paragraph_recursive() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = P
         .then_ignore(token(Token::Newline).or_not()) // Consume trailing blank line if present
 }
 
-/// Parse a definition subject - a line of text ending with colon, followed immediately by newline (no blank line)
-/// The key difference from session_title is the absence of a blank line before indented content
-fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
-    // Parse text tokens before the colon (explicitly excluding colon from subject spans)
-    filter(|(t, _span): &TokenSpan| !matches!(t, Token::Colon | Token::Newline))
-        .repeated()
-        .at_least(1)
-        .map(|tokens_with_spans: Vec<TokenSpan>| {
-            // Collect spans for the subject text (without colon)
-            tokens_with_spans.into_iter().map(|(_, s)| s).collect()
-        })
-        // Explicitly consume the colon and newline
-        .then_ignore(token(Token::Colon))
-        .then_ignore(token(Token::Newline))
-}
+// Parser combinator functions (definition_subject, session_title) are imported from combinators.rs
 
-/// Parse a session title - a line of text followed by a newline and blank line
-/// Format: "<Title>\n<BlankLine>"
-/// The blank line (represented as a BlankLine token) distinguishes sessions from definitions
-fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
-    text_line()
-        .then_ignore(token(Token::Newline))
-        .then_ignore(token(Token::BlankLine))
-}
-
-/// Parse the bounded region between :: markers
-/// Format: :: <label>? <params>? ::
-///
-/// Strategy: Collect all tokens between :: markers, then parse them to determine:
-/// - If first word has no '=' after it → it's a label
-/// - Everything else → parameters (comma-separated key=value pairs)
-fn annotation_header(
-) -> impl Parser<TokenSpan, (Option<Range<usize>>, Vec<ParameterWithSpans>), Error = ParserError> + Clone
-{
-    // Collect all tokens between opening :: and closing ::
-    let bounded_region =
-        filter(|(t, _): &TokenSpan| !matches!(t, Token::TxxtMarker | Token::Newline))
-            .repeated()
-            .at_least(1);
-
-    bounded_region.validate(|tokens, span, emit| {
-        if tokens.is_empty() {
-            emit(ParserError::expected_input_found(span, None, None));
-            return (None, Vec::new());
-        }
-
-        // Parse label from tokens
-        let (label_span, mut i) = parse_label_from_tokens(&tokens);
-
-        // If no label was found and i is 0, we need to restart parsing for parameters
-        if label_span.is_none() && i == 0 {
-            // Reset to start for parameter parsing
-            while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-                i += 1;
-            }
-        }
-
-        // Parse remaining tokens as parameters
-        let params = parse_parameters_from_tokens(&tokens[i..]);
-
-        (label_span, params)
-    })
-}
-
-/// Parse a foreign block - subject line, optional content, closing annotation
-/// Uses "Indentation Wall" rule: content must be indented deeper than subject,
-/// closing annotation must be at same level as subject
-///
-/// Token sequence with content:
-/// definition_subject (which includes Colon and Newline) IndentLevel content... DedentLevel+ :: label :: \n
-/// Token sequence without content:
-/// definition_subject (which includes Colon and Newline) Newline :: label :: \n
-fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = ParserError> + Clone {
-    let subject_parser = definition_subject(); // This consumes: text... Colon Newline
-
-    // Content: everything except TxxtMarker (stops naturally when hitting ::)
-    let content_token = filter(|(t, _span): &TokenSpan| !matches!(t, Token::TxxtMarker));
-
-    // Content block: IndentLevel + content, returns Vec<Range>
-    let with_content = token(Token::IndentLevel)
-        .ignore_then(content_token.repeated().at_least(1))
-        .map(|tokens: Vec<TokenSpan>| {
-            // Remove trailing structural tokens (DedentLevel, BlankLine, Newline)
-            // These are delimiters, not content
-            let mut content_tokens = tokens;
-            while content_tokens
-                .last()
-                .map(|(t, _)| matches!(t, Token::DedentLevel | Token::BlankLine | Token::Newline))
-                .unwrap_or(false)
-            {
-                content_tokens.pop();
-            }
-
-            content_tokens
-                .into_iter()
-                .map(|(_, s)| s)
-                .collect::<Vec<_>>()
-        });
-
-    // Parse closing annotation marker (:: label params :: with optional text after for marker form)
-    let closing_annotation_parser = token(Token::TxxtMarker)
-        .ignore_then(annotation_header())
-        .then_ignore(token(Token::TxxtMarker))
-        .then(
-            // Optional single-line text content after closing :: (for marker form)
-            token(Token::Whitespace).ignore_then(text_line()).or_not(),
-        )
-        .map(|((label_span, parameters), content_span)| {
-            // Text after :: becomes paragraph content (annotation single-line form)
-            let content = content_span
-                .map(|span| {
-                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
-                        line_spans: vec![span],
-                    })]
-                })
-                .unwrap_or_default();
-
-            AnnotationWithSpans {
-                label_span,
-                parameters,
-                content,
-            }
-        });
-
-    subject_parser
-        // definition_subject() already consumed the Newline after the colon
-        // Optionally skip blank lines before content or closing annotation
-        .then_ignore(token(Token::BlankLine).repeated())
-        .then(with_content.or_not()) // Content is optional
-        // Don't consume DedentLevel before annotation - content parser handles them
-        .then(closing_annotation_parser)
-        // Consume the newline after closing annotation (the line ends with the closing ::)
-        .then_ignore(token(Token::Newline).or_not())
-        .map(
-            |((subject_spans, content_spans), closing_annotation)| ForeignBlockWithSpans {
-                subject_spans,
-                content_spans,
-                closing_annotation,
-            },
-        )
-}
+// Parser combinator functions (annotation_header, foreign_block) are imported from combinators.rs
 
 /// Build the Multi-Parser Bundle for document-level content parsing.
 ///
