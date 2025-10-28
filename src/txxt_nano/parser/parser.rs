@@ -383,75 +383,6 @@ fn list_item_with_content(
         })
 }
 
-/// Parse a single list item with optional indented content - OLD VERSION (temporary wrapper)
-/// This is kept temporarily for compatibility. It uses the old recursive approach.
-/// Will be removed once build_content_parser is updated to use list_item_with_content.
-///
-/// Grammar: <list-item> = <list-item-line> (<indent> <list-item-content>+ <dedent>)?
-#[allow(dead_code)] // To be removed in next step
-fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
-    recursive(|list_item_parser| {
-        // Define nested list parser that uses the recursive list_item_parser
-        let nested_list = list_item_parser
-            .clone()
-            .repeated()
-            .at_least(2) // Lists require at least 2 items
-            .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
-            .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List);
-
-        // Content inside list items: paragraphs and nested lists (NO sessions)
-        let list_item_content = nested_list.or(paragraph().map(ContentItemWithSpans::Paragraph));
-
-        // Parse the list item line, then optionally parse indented content
-        list_item_line()
-            .then_ignore(token(Token::Newline))
-            .then(
-                // Optional indented block
-                token(Token::IndentLevel)
-                    .ignore_then(
-                        // Use recursive pattern similar to main document parser
-                        recursive(|content_items| {
-                            choice((
-                                // Skip any leading blank lines, then check what comes next
-                                token(Token::Newline)
-                                    .repeated()
-                                    .at_least(1)
-                                    .ignore_then(choice((
-                                        // After blank lines, check for DedentLevel (end of content)
-                                        filter(|(t, _)| matches!(t, Token::DedentLevel))
-                                            .rewind()
-                                            .to(vec![]),
-                                        // Or continue with more content
-                                        content_items.clone(),
-                                    ))),
-                                // Parse content item and continue
-                                list_item_content.clone().then(content_items.or_not()).map(
-                                    |(first, rest)| {
-                                        let mut result = vec![first];
-                                        if let Some(mut rest_items) = rest {
-                                            result.append(&mut rest_items);
-                                        }
-                                        result
-                                    },
-                                ),
-                                // Base case: at DedentLevel
-                                filter(|(t, _)| matches!(t, Token::DedentLevel))
-                                    .rewind()
-                                    .to(vec![]),
-                            ))
-                        }),
-                    )
-                    .then_ignore(token(Token::DedentLevel))
-                    .or_not(),
-            )
-            .map(|(text_spans, maybe_content)| ListItemWithSpans {
-                text_spans,
-                content: maybe_content.unwrap_or_default(),
-            })
-    })
-}
-
 /// Parse a paragraph - one or more lines of text separated by newlines, ending with a blank line
 /// A paragraph is a catch-all that matches when nothing else does.
 ///
@@ -641,41 +572,6 @@ fn definition_with_content(
             // Must immediately see IndentLevel (no blank line)
             token(Token::IndentLevel)
                 .ignore_then(content_parser.repeated().at_least(1))
-                .then_ignore(token(Token::DedentLevel)),
-        )
-        .map(|(subject_spans, content)| DefinitionWithSpans {
-            subject_spans,
-            content,
-        })
-}
-
-/// Parse a definition - OLD VERSION (temporary wrapper)
-/// This is kept temporarily for compatibility. It uses the old recursive approach.
-/// Will be removed once build_content_parser is updated to use definition_with_content.
-///
-/// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
-/// Content can include paragraphs and lists, but NOT sessions
-#[allow(dead_code)] // To be removed in next step
-fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
-    // Content parser for definitions - excludes sessions, only paragraphs and lists
-    let definition_content = recursive(|_definition_content_parser| {
-        // Nested list parser
-        let nested_list = list_item()
-            .repeated()
-            .at_least(2)
-            .then_ignore(token(Token::Newline).or_not())
-            .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List);
-
-        // Definition content can contain lists and paragraphs (NO sessions)
-        nested_list.or(paragraph().map(ContentItemWithSpans::Paragraph))
-    });
-
-    definition_subject()
-        .then(
-            // Must immediately see IndentLevel (no blank line)
-            token(Token::IndentLevel)
-                .ignore_then(definition_content.repeated().at_least(1))
                 .then_ignore(token(Token::DedentLevel)),
         )
         .map(|(subject_spans, content)| DefinitionWithSpans {
