@@ -30,7 +30,11 @@ pub(crate) fn convert_parameter(source: &str, param: ParameterWithSpans) -> Para
         .value_span
         .map(|value_span| extract_text(source, &value_span).to_string());
 
-    Parameter { key, value }
+    Parameter {
+        key,
+        value,
+        span: None,
+    }
 }
 
 /// Extract text from source using a span range

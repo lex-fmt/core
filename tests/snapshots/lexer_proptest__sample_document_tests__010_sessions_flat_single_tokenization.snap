@@ -28,7 +28,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "This",
     ),
@@ -94,7 +94,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Number(
         "1",
     ),
@@ -112,7 +112,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "This",
@@ -196,7 +196,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "The",
     ),
@@ -254,7 +254,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Text(
         "This",
@@ -309,7 +309,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Another",
     ),
@@ -326,7 +326,7 @@ expression: tokens
         "title}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     IndentLevel,
     Text(
         "This",
@@ -385,7 +385,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     DedentLevel,
     Text(
         "Final",

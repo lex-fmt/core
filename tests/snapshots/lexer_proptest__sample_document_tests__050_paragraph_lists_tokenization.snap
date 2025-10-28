@@ -28,7 +28,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "This",
     ),
@@ -83,7 +83,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Single",
     ),
@@ -150,7 +150,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Single",
     ),
@@ -224,7 +224,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Lists",
     ),
@@ -290,7 +290,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Paragraph",
     ),
@@ -330,7 +330,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -387,7 +387,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "List",
     ),
@@ -421,7 +421,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -466,7 +466,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "This",
     ),
@@ -495,7 +495,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Blank",
     ),
@@ -558,7 +558,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -573,7 +573,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Proper",
     ),
@@ -607,7 +607,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Dash,
     Whitespace,
     Text(
@@ -660,7 +660,7 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Paragraph",
     ),
@@ -682,7 +682,7 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    Newline,
+    BlankLine,
     Text(
         "Valid",
     ),
