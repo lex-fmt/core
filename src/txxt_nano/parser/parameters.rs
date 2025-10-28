@@ -64,7 +64,9 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
 
         // Parse key: identifier tokens (Text, Dash, Number)
         let key_start = i;
-        while i < tokens.len() && matches!(tokens[i].0, Token::Text | Token::Dash | Token::Number) {
+        while i < tokens.len()
+            && matches!(tokens[i].0, Token::Text(_) | Token::Dash | Token::Number(_))
+        {
             i += 1;
         }
 

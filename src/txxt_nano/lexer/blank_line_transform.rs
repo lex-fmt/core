@@ -106,94 +106,139 @@ mod tests {
 
     #[test]
     fn test_single_newline_unchanged() {
-        let input = vec![Token::Text, Token::Newline, Token::Text];
+        let input = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Text("b".to_string()),
+        ];
         let result = transform_blank_lines(input);
-        assert_eq!(result, vec![Token::Text, Token::Newline, Token::Text]);
+        assert_eq!(
+            result,
+            vec![
+                Token::Text("a".to_string()),
+                Token::Newline,
+                Token::Text("b".to_string()),
+            ]
+        );
     }
 
     #[test]
     fn test_double_newline_becomes_newline_then_blank_line() {
-        let input = vec![Token::Text, Token::Newline, Token::Newline, Token::Text];
+        let input = vec![
+            Token::Text("t".to_string()),
+            Token::Newline,
+            Token::Newline,
+            Token::Text("t".to_string()),
+        ];
         let result = transform_blank_lines(input);
         assert_eq!(
             result,
-            vec![Token::Text, Token::Newline, Token::BlankLine, Token::Text]
+            vec![
+                Token::Text("t".to_string()),
+                Token::Newline,
+                Token::BlankLine,
+                Token::Text("t".to_string())
+            ]
         );
     }
 
     #[test]
     fn test_triple_newline_becomes_newline_then_blank_line() {
         let input = vec![
-            Token::Text,
+            Token::Text("t".to_string()),
             Token::Newline,
             Token::Newline,
             Token::Newline,
-            Token::Text,
+            Token::Text("t".to_string()),
         ];
         let result = transform_blank_lines(input);
         assert_eq!(
             result,
-            vec![Token::Text, Token::Newline, Token::BlankLine, Token::Text]
+            vec![
+                Token::Text("t".to_string()),
+                Token::Newline,
+                Token::BlankLine,
+                Token::Text("t".to_string())
+            ]
         );
     }
 
     #[test]
     fn test_multiple_blank_lines() {
         let input = vec![
-            Token::Text,
+            Token::Text("t".to_string()),
             Token::Newline,
             Token::Newline,
-            Token::Text,
+            Token::Text("t".to_string()),
             Token::Newline,
             Token::Newline,
             Token::Newline,
-            Token::Text,
+            Token::Text("t".to_string()),
         ];
         let result = transform_blank_lines(input);
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("t".to_string()),
                 Token::Newline,
                 Token::BlankLine,
-                Token::Text,
+                Token::Text("t".to_string()),
                 Token::Newline,
                 Token::BlankLine,
-                Token::Text
+                Token::Text("t".to_string())
             ]
         );
     }
 
     #[test]
     fn test_blank_line_at_end() {
-        let input = vec![Token::Text, Token::Newline, Token::Newline];
+        let input = vec![Token::Text("t".to_string()), Token::Newline, Token::Newline];
         let result = transform_blank_lines(input);
-        assert_eq!(result, vec![Token::Text, Token::Newline, Token::BlankLine]);
+        assert_eq!(
+            result,
+            vec![
+                Token::Text("t".to_string()),
+                Token::Newline,
+                Token::BlankLine
+            ]
+        );
     }
 
     #[test]
     fn test_blank_line_at_start() {
-        let input = vec![Token::Newline, Token::Newline, Token::Text];
+        let input = vec![Token::Newline, Token::Newline, Token::Text("t".to_string())];
         let result = transform_blank_lines(input);
-        assert_eq!(result, vec![Token::Newline, Token::BlankLine, Token::Text]);
+        assert_eq!(
+            result,
+            vec![
+                Token::Newline,
+                Token::BlankLine,
+                Token::Text("t".to_string())
+            ]
+        );
     }
 
     #[test]
     fn test_consecutive_blank_lines() {
         // Multiple consecutive newlines (4) become Newline + BlankLine
         let input = vec![
-            Token::Text,
+            Token::Text("t".to_string()),
             Token::Newline,
             Token::Newline,
             Token::Newline,
             Token::Newline,
-            Token::Text,
+            Token::Text("t".to_string()),
         ];
         let result = transform_blank_lines(input);
         // 4 consecutive newlines become Newline (ends line) + BlankLine (blank lines)
         assert_eq!(
             result,
-            vec![Token::Text, Token::Newline, Token::BlankLine, Token::Text]
+            vec![
+                Token::Text("t".to_string()),
+                Token::Newline,
+                Token::BlankLine,
+                Token::Text("t".to_string())
+            ]
         );
     }
 
@@ -214,27 +259,27 @@ mod tests {
     #[test]
     fn test_preserves_other_tokens() {
         let input = vec![
-            Token::Text,
+            Token::Text("t".to_string()),
             Token::Whitespace,
             Token::Newline,
             Token::Dash,
             Token::Whitespace,
             Token::Newline,
             Token::Newline,
-            Token::Text,
+            Token::Text("t".to_string()),
         ];
         let result = transform_blank_lines(input);
         assert_eq!(
             result,
             vec![
-                Token::Text,
+                Token::Text("t".to_string()),
                 Token::Whitespace,
                 Token::Newline,
                 Token::Dash,
                 Token::Whitespace,
                 Token::Newline,
                 Token::BlankLine,
-                Token::Text
+                Token::Text("t".to_string())
             ]
         );
     }
@@ -242,19 +287,19 @@ mod tests {
     #[test]
     fn test_blank_line_with_spans() {
         let input = vec![
-            (Token::Text, 0..4),
+            (Token::Text("t".to_string()), 0..4),
             (Token::Newline, 4..5),
             (Token::Newline, 5..6),
-            (Token::Text, 6..10),
+            (Token::Text("t".to_string()), 6..10),
         ];
         let result = transform_blank_lines_with_spans(input);
         assert_eq!(
             result,
             vec![
-                (Token::Text, 0..4),
+                (Token::Text("t".to_string()), 0..4),
                 (Token::Newline, 4..5),
                 (Token::BlankLine, 0..0),
-                (Token::Text, 6..10),
+                (Token::Text("t".to_string()), 6..10),
             ]
         );
     }

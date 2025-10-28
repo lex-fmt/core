@@ -61,16 +61,22 @@ mod tests {
         assert_eq!(format!("{}", Token::OpenParen), "<open-paren>");
         assert_eq!(format!("{}", Token::CloseParen), "<close-paren>");
         assert_eq!(format!("{}", Token::Colon), "<colon>");
-        assert_eq!(format!("{}", Token::Number), "<number>");
-        assert_eq!(format!("{}", Token::Text), "<text>");
+        assert_eq!(
+            format!("{}", Token::Number("123".to_string())),
+            "<number:123>"
+        );
+        assert_eq!(
+            format!("{}", Token::Text("hello".to_string())),
+            "<text:hello>"
+        );
     }
 
     #[test]
     fn test_token_simple_formatting() {
         let tokens = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Whitespace,
-            Token::Text,
+            Token::Text("b".to_string()),
             Token::Newline,
             Token::Indent,
             Token::Dash,
@@ -82,13 +88,17 @@ mod tests {
         };
 
         let result = process_file_with_tokens(&tokens, &spec).unwrap();
-        let expected = "<text><whitespace><text><newline>\n<indent><dash>";
+        let expected = "<text:a><whitespace><text:b><newline>\n<indent><dash>";
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_token_json_formatting() {
-        let tokens = vec![Token::Text, Token::Whitespace, Token::Newline];
+        let tokens = vec![
+            Token::Text("a".to_string()),
+            Token::Whitespace,
+            Token::Newline,
+        ];
 
         let spec = ProcessingSpec {
             stage: ProcessingStage::Token,
@@ -115,9 +125,9 @@ mod tests {
         let spec = ProcessingSpec::from_string("token-simple").unwrap();
         let result = process_file(test_file, &spec).unwrap();
 
-        assert!(result.contains("<number>"));
+        assert!(result.contains("<number:"));
         assert!(result.contains("<period>"));
-        assert!(result.contains("<text>"));
+        assert!(result.contains("<text:"));
         assert!(result.contains("<newline>"));
         assert!(result.contains("<indent-level>"));
         assert!(result.contains("<dash>"));
@@ -180,11 +190,11 @@ mod tests {
     #[test]
     fn test_line_break_handling_in_simple_format() {
         let tokens = vec![
-            Token::Text,
+            Token::Text("a".to_string()),
             Token::Newline,
-            Token::Text,
+            Token::Text("b".to_string()),
             Token::Newline,
-            Token::Text,
+            Token::Text("c".to_string()),
         ];
 
         let spec = ProcessingSpec {
@@ -197,9 +207,9 @@ mod tests {
 
         // Should have 3 lines (2 newlines + 1 final line)
         assert_eq!(lines.len(), 3);
-        assert_eq!(lines[0], "<text><newline>");
-        assert_eq!(lines[1], "<text><newline>");
-        assert_eq!(lines[2], "<text>");
+        assert_eq!(lines[0], "<text:a><newline>");
+        assert_eq!(lines[1], "<text:b><newline>");
+        assert_eq!(lines[2], "<text:c>");
     }
 
     // Helper function to test formatting without file I/O

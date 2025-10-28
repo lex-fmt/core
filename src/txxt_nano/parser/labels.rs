@@ -53,7 +53,7 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenSpan]) -> (Option<Range<usi
     while i < tokens.len()
         && matches!(
             tokens[i].0,
-            Token::Text | Token::Dash | Token::Number | Token::Period
+            Token::Text(_) | Token::Dash | Token::Number(_) | Token::Period
         )
     {
         i += 1;

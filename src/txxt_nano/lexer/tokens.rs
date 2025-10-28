@@ -60,12 +60,12 @@ pub enum Token {
     Equals,
 
     // Numbers (for ordered lists and session titles)
-    #[regex(r"[0-9]+", priority = 2)]
-    Number,
+    #[regex(r"[0-9]+", |lex| lex.slice().to_owned(), priority = 2)]
+    Number(String),
 
     // Text content (catch-all for non-special characters, excluding numbers and special chars)
-    #[regex(r#"[^\s\n\t\-\.\(\):0-9,="']+"#)]
-    Text,
+    #[regex(r#"[^\s\n\t\-\.\(\):0-9,=""]+"#, |lex| lex.slice().to_owned())]
+    Text(String),
 }
 
 impl fmt::Display for Token {
@@ -86,8 +86,8 @@ impl fmt::Display for Token {
             Token::Comma => "comma",
             Token::Quote => "quote",
             Token::Equals => "equals",
-            Token::Number => "number",
-            Token::Text => "text",
+            Token::Number(s) => return write!(f, "<number:{}>", s),
+            Token::Text(s) => return write!(f, "<text:{}>", s),
             Token::DocStart => "doc-start",
             Token::DocEnd => "doc-end",
         };
@@ -134,12 +134,12 @@ impl Token {
 
     /// Check if this token is a number
     pub fn is_number(&self) -> bool {
-        matches!(self, Token::Number)
+        matches!(self, Token::Number(_))
     }
 
     /// Check if this token is text content
     pub fn is_text(&self) -> bool {
-        matches!(self, Token::Text)
+        matches!(self, Token::Text(_))
     }
 }
 
@@ -191,7 +191,14 @@ mod tests {
     #[test]
     fn test_text_tokens() {
         let tokens = tokenize("hello world");
-        assert_eq!(tokens, vec![Token::Text, Token::Whitespace, Token::Text]);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Text("hello".to_string()),
+                Token::Whitespace,
+                Token::Text("world".to_string())
+            ]
+        );
     }
 
     #[test]
@@ -206,19 +213,19 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Number,     // "1"
-                Token::Period,     // "."
-                Token::Whitespace, // " "
-                Token::Text,       // "Hello"
-                Token::Whitespace, // " "
-                Token::Text,       // "world"
-                Token::Newline,    // "\n"
-                Token::Indent,     // "    "
-                Token::Dash,       // "-"
-                Token::Whitespace, // " "
-                Token::Text,       // "Item"
-                Token::Whitespace, // " "
-                Token::Number      // "1"
+                Token::Number("1".to_string()),
+                Token::Period,
+                Token::Whitespace,
+                Token::Text("Hello".to_string()),
+                Token::Whitespace,
+                Token::Text("world".to_string()),
+                Token::Newline,
+                Token::Indent,
+                Token::Dash,
+                Token::Whitespace,
+                Token::Text("Item".to_string()),
+                Token::Whitespace,
+                Token::Number("1".to_string()),
             ]
         );
     }
@@ -228,7 +235,11 @@ mod tests {
         let tokens = tokenize("123 456");
         assert_eq!(
             tokens,
-            vec![Token::Number, Token::Whitespace, Token::Number]
+            vec![
+                Token::Number("123".to_string()),
+                Token::Whitespace,
+                Token::Number("456".to_string())
+            ]
         );
     }
 
@@ -237,7 +248,7 @@ mod tests {
         assert!(Token::Indent.is_indent());
         assert!(Token::IndentLevel.is_indent_level());
         assert!(Token::DedentLevel.is_dedent_level());
-        assert!(!Token::Text.is_indent());
+        assert!(!Token::Text("".to_string()).is_indent());
 
         assert!(Token::Indent.is_whitespace());
         assert!(Token::IndentLevel.is_whitespace());
@@ -245,19 +256,19 @@ mod tests {
         assert!(Token::BlankLine.is_whitespace());
         assert!(Token::Whitespace.is_whitespace());
         assert!(Token::Newline.is_whitespace());
-        assert!(!Token::Text.is_whitespace());
+        assert!(!Token::Text("".to_string()).is_whitespace());
 
         assert!(Token::Dash.is_sequence_marker());
         assert!(Token::Period.is_sequence_marker());
-        assert!(!Token::Text.is_sequence_marker());
-        assert!(!Token::Number.is_sequence_marker());
+        assert!(!Token::Text("".to_string()).is_sequence_marker());
+        assert!(!Token::Number("".to_string()).is_sequence_marker());
 
-        assert!(Token::Text.is_text());
+        assert!(Token::Text("".to_string()).is_text());
         assert!(!Token::Dash.is_text());
-        assert!(!Token::Number.is_text());
+        assert!(!Token::Number("".to_string()).is_text());
 
-        assert!(Token::Number.is_number());
-        assert!(!Token::Text.is_number());
+        assert!(Token::Number("".to_string()).is_number());
+        assert!(!Token::Text("".to_string()).is_number());
         assert!(!Token::Dash.is_number());
     }
 }
