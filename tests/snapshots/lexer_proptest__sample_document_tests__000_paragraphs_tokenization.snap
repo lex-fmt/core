@@ -1,5 +1,6 @@
 ---
 source: tests/lexer_proptest.rs
+assertion_line: 25
 expression: tokens
 ---
 [
@@ -12,7 +13,7 @@ expression: tokens
     Whitespace,
     Text,
     Newline,
-    Newline,
+    BlankLine,
     Text,
     Whitespace,
     Text,
@@ -34,7 +35,7 @@ expression: tokens
     Whitespace,
     Text,
     Newline,
-    Newline,
+    BlankLine,
     Text,
     Whitespace,
     Text,
@@ -76,7 +77,7 @@ expression: tokens
     Whitespace,
     Text,
     Newline,
-    Newline,
+    BlankLine,
     Text,
     Whitespace,
     Text,
@@ -94,7 +95,7 @@ expression: tokens
     Whitespace,
     Text,
     Newline,
-    Newline,
+    BlankLine,
     Text,
     Whitespace,
     Text,
@@ -123,7 +124,7 @@ expression: tokens
     Whitespace,
     Text,
     Newline,
-    Newline,
+    BlankLine,
     Text,
     Whitespace,
     Text,
@@ -143,7 +144,7 @@ expression: tokens
     Whitespace,
     Text,
     Newline,
-    Newline,
+    BlankLine,
     Text,
     Whitespace,
     Text,

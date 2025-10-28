@@ -18,15 +18,22 @@
 //!   transformation step, separate from all other tokenization, which helps a lot.
 //! - At some point in the spec, we will handle blocks much like markdown's fenced blocks,that display non-txxt strings. In these cases, while we may parse (for indentation)the lines, we never want to emit the indent and dedent tokens. Having this happen two stages gives us more flexibility on how to handle these cases.
 
+pub mod blank_line_transform;
 pub mod indentation_transform;
 pub mod lexer_impl;
 pub mod tokens;
 
+pub use blank_line_transform::{transform_blank_lines, transform_blank_lines_with_spans};
 pub use indentation_transform::{transform_indentation, transform_indentation_with_spans};
 pub use lexer_impl::{tokenize, tokenize_with_spans};
 pub use tokens::Token;
 
-/// Main lexer function that returns fully processed tokens (tokenize + indentation transform)
+/// Main lexer function that returns fully processed tokens
+/// Processing pipeline:
+/// 1. tokenize() - creates raw tokens with Indent and Newline tokens
+/// 2. transform_indentation() - converts Indent tokens to semantic IndentLevel/DedentLevel tokens
+/// 3. transform_blank_lines() - converts consecutive Newline tokens to BlankLine tokens
+/// 4. Add document boundary tokens
 pub fn lex(source: &str) -> Vec<Token> {
     // HACK: Ensure source ends with newline to work around Chumsky recursive/.repeated() issue
     // This helps when a paragraph is the last element in a recursive context
@@ -37,7 +44,8 @@ pub fn lex(source: &str) -> Vec<Token> {
     };
 
     let raw_tokens = tokenize(&source_with_newline);
-    let mut tokens = transform_indentation(raw_tokens);
+    let tokens = transform_indentation(raw_tokens);
+    let mut tokens = transform_blank_lines(tokens);
 
     // HACK: Add document boundary tokens to solve recursive/.repeated() EOF issue
     tokens.insert(0, Token::DocStart);
@@ -48,7 +56,12 @@ pub fn lex(source: &str) -> Vec<Token> {
 
 /// Lexing function that preserves source spans for parser
 /// Returns tokens with their corresponding source spans
-/// Synthetic tokens (IndentLevel, DedentLevel, DocStart, DocEnd) have empty spans (0..0)
+/// Synthetic tokens (IndentLevel, DedentLevel, BlankLine, DocStart, DocEnd) have empty spans (0..0)
+/// Processing pipeline:
+/// 1. tokenize_with_spans() - creates raw tokens with spans
+/// 2. transform_indentation_with_spans() - converts Indent tokens to semantic IndentLevel/DedentLevel tokens
+/// 3. transform_blank_lines_with_spans() - converts consecutive Newline tokens to BlankLine tokens
+/// 4. Add document boundary tokens
 pub fn lex_with_spans(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
     // HACK: Ensure source ends with newline to work around Chumsky recursive/.repeated() issue
     // This helps when a paragraph is the last element in a recursive context
@@ -59,7 +72,8 @@ pub fn lex_with_spans(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
     };
 
     let raw_tokens_with_spans = tokenize_with_spans(&source_with_newline);
-    let mut tokens = transform_indentation_with_spans(raw_tokens_with_spans);
+    let tokens = transform_indentation_with_spans(raw_tokens_with_spans);
+    let mut tokens = transform_blank_lines_with_spans(tokens);
 
     // HACK: Add document boundary tokens to solve recursive/.repeated() EOF issue
     // DocStart at beginning, DocEnd at end
