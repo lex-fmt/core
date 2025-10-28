@@ -25,6 +25,7 @@
 //! ```
 
 use crate::txxt_nano::lexer::{lex, tokenize, Token};
+use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -46,6 +47,7 @@ pub enum OutputFormat {
     Xml,    // Future: XML output
     AstTag, // AST XML-like tag format
     AstTreeviz,
+    AstPosition, // AST position lookup format
 }
 
 /// Represents a complete processing specification
@@ -77,6 +79,7 @@ impl ProcessingSpec {
             "xml" => return Err(ProcessingError::InvalidFormatType("xml".to_string())), // XML not implemented yet
             "tag" => OutputFormat::AstTag,
             "treeviz" => OutputFormat::AstTreeviz,
+            "position" => OutputFormat::AstPosition,
             _ => return Err(ProcessingError::InvalidFormatType(parts[1..].join("-"))),
         };
 
@@ -84,9 +87,10 @@ impl ProcessingSpec {
         match (&stage, &format) {
             (ProcessingStage::Ast, OutputFormat::AstTag) => {} // Valid
             (ProcessingStage::Ast, OutputFormat::AstTreeviz) => {} // Valid
+            (ProcessingStage::Ast, OutputFormat::AstPosition) => {} // Valid
             (ProcessingStage::Ast, _) => {
                 return Err(ProcessingError::InvalidFormatType(format!(
-                    "Format '{:?}' not supported for AST stage (only 'tag' and 'treeviz' are supported)",
+                    "Format '{:?}' not supported for AST stage (only 'tag', 'treeviz', and 'position' are supported)",
                     format
                 )))
             }
@@ -98,6 +102,11 @@ impl ProcessingSpec {
             (ProcessingStage::Token, OutputFormat::AstTreeviz) => {
                 return Err(ProcessingError::InvalidFormatType(
                     "Format 'treeviz' only works with AST stage".to_string(),
+                ))
+            }
+            (ProcessingStage::Token, OutputFormat::AstPosition) => {
+                return Err(ProcessingError::InvalidFormatType(
+                    "Format 'position' only works with AST stage".to_string(),
                 ))
             }
             _ => {} // Token stage with other formats is fine
@@ -132,6 +141,10 @@ impl ProcessingSpec {
             ProcessingSpec {
                 stage: ProcessingStage::Ast,
                 format: OutputFormat::AstTreeviz,
+            },
+            ProcessingSpec {
+                stage: ProcessingStage::Ast,
+                format: OutputFormat::AstPosition,
             },
         ]
     }
@@ -168,6 +181,15 @@ pub fn process_file<P: AsRef<Path>>(
     file_path: P,
     spec: &ProcessingSpec,
 ) -> Result<String, ProcessingError> {
+    process_file_with_extras(file_path, spec, HashMap::new())
+}
+
+/// Process a txxt file according to the given specification with format-specific extras
+pub fn process_file_with_extras<P: AsRef<Path>>(
+    file_path: P,
+    spec: &ProcessingSpec,
+    extras: HashMap<String, String>,
+) -> Result<String, ProcessingError> {
     let file_path = file_path.as_ref();
 
     // Read the file
@@ -184,29 +206,60 @@ pub fn process_file<P: AsRef<Path>>(
             format_tokens(&tokens, &spec.format)
         }
         ProcessingStage::Ast => {
-            // Parse the document
-            let doc = crate::txxt_nano::parser::parse_document(&content).map_err(|errs| {
-                let error_details = errs
-                    .iter()
-                    .map(|e| {
-                        format!(
-                            "  Parse error at span {:?}: reason={:?}, found={:?}",
-                            e.span(),
-                            e.reason(),
-                            e.found()
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                ProcessingError::IoError(format!("Failed to parse document:\n{}", error_details))
-            })?;
+            // Parse the document with position tracking enabled for ast-position format
+            let doc = if matches!(spec.format, OutputFormat::AstPosition) {
+                crate::txxt_nano::parser::parse_with_source_positions(
+                    crate::txxt_nano::lexer::lex_with_spans(&content),
+                    &content,
+                )
+                .map_err(|errs| {
+                    let error_details = errs
+                        .iter()
+                        .map(|e| {
+                            format!(
+                                "  Parse error at span {:?}: reason={:?}, found={:?}",
+                                e.span(),
+                                e.reason(),
+                                e.found()
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    ProcessingError::IoError(format!(
+                        "Failed to parse document:\n{}",
+                        error_details
+                    ))
+                })?
+            } else {
+                crate::txxt_nano::parser::parse_document(&content).map_err(|errs| {
+                    let error_details = errs
+                        .iter()
+                        .map(|e| {
+                            format!(
+                                "  Parse error at span {:?}: reason={:?}, found={:?}",
+                                e.span(),
+                                e.reason(),
+                                e.found()
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    ProcessingError::IoError(format!(
+                        "Failed to parse document:\n{}",
+                        error_details
+                    ))
+                })?
+            };
 
             // Format according to output format
             match spec.format {
                 OutputFormat::AstTag => Ok(crate::txxt_nano::parser::serialize_ast_tag(&doc)),
                 OutputFormat::AstTreeviz => Ok(crate::txxt_nano::parser::to_treeviz_str(&doc)),
+                OutputFormat::AstPosition => {
+                    crate::txxt_nano::parser::ast_position::format_at_position(&doc, &extras)
+                }
                 _ => Err(ProcessingError::InvalidFormatType(
-                    "Only ast-tag and ast-treeviz formats are supported for AST stage".to_string(),
+                    "Only ast-tag, ast-treeviz, and ast-position formats are supported for AST stage".to_string(),
                 )),
             }
         }
@@ -244,6 +297,9 @@ fn format_tokens(tokens: &[Token], format: &OutputFormat) -> Result<String, Proc
         OutputFormat::AstTreeviz => Err(ProcessingError::InvalidFormatType(
             "ast-treeviz format only works with ast stage".to_string(),
         )),
+        OutputFormat::AstPosition => Err(ProcessingError::InvalidFormatType(
+            "ast-position format only works with ast stage".to_string(),
+        )),
     }
 }
 
@@ -266,6 +322,7 @@ pub fn available_formats() -> Vec<String> {
                     OutputFormat::Xml => "xml",
                     OutputFormat::AstTag => "tag",
                     OutputFormat::AstTreeviz => "treeviz",
+                    OutputFormat::AstPosition => "position",
                 }
             )
         })
@@ -425,6 +482,29 @@ pub mod txxt_sources {
         pub line_count: usize,
         pub char_count: usize,
         pub description: Option<String>,
+    }
+
+    #[test]
+    fn test_position_tracking_enabled() {
+        let content = r#"First paragraph
+Second paragraph"#;
+
+        let tokens = crate::txxt_nano::lexer::lex_with_spans(content);
+        let doc = crate::txxt_nano::parser::parse_with_source_positions(tokens, content).unwrap();
+
+        // Check if spans are populated
+        if let Some(first_item) = doc.content.first() {
+            // The first paragraph should have a span
+            match first_item {
+                crate::txxt_nano::parser::ContentItem::Paragraph(p) => {
+                    assert!(
+                        p.span.is_some(),
+                        "Paragraph should have position information"
+                    );
+                }
+                _ => panic!("Expected first item to be a paragraph"),
+            }
+        }
     }
 
     #[cfg(test)]

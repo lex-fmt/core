@@ -9,6 +9,7 @@
 //! for comprehensive documentation on using verified txxt sources and AST assertions.
 
 pub mod ast;
+pub mod ast_position;
 pub mod ast_tag_serializer;
 pub mod ast_treeviz;
 pub mod labels;
@@ -18,6 +19,7 @@ pub mod parser;
 pub mod source_location;
 
 pub use ast::{ContentItem, Document, List, ListItem, Paragraph, Position, Session, Span};
+pub use ast_position::format_at_position;
 pub use ast_tag_serializer::serialize_document as serialize_ast_tag;
 pub use ast_treeviz::to_treeviz_str;
 pub use parser::{document, parse, parse_with_source, parse_with_source_positions};

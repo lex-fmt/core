@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn test_available_specs() {
         let specs = ProcessingSpec::available_specs();
-        assert_eq!(specs.len(), 6);
+        assert_eq!(specs.len(), 7); // Added ast-position
 
         let token_simple = specs
             .iter()
@@ -47,6 +47,11 @@ mod tests {
             .iter()
             .find(|s| s.stage == ProcessingStage::Token && s.format == OutputFormat::Json);
         assert!(token_json.is_some());
+
+        let ast_position = specs
+            .iter()
+            .find(|s| s.stage == ProcessingStage::Ast && s.format == OutputFormat::AstPosition);
+        assert!(ast_position.is_some());
     }
 
     #[test]
@@ -240,6 +245,9 @@ mod tests {
                 )),
                 OutputFormat::AstTreeviz => Err(ProcessingError::InvalidFormatType(
                     "ast-treeviz format only works with ast stage".to_string(),
+                )),
+                OutputFormat::AstPosition => Err(ProcessingError::InvalidFormatType(
+                    "ast-position format only works with ast stage".to_string(),
                 )),
             },
             ProcessingStage::Ast => Err(ProcessingError::InvalidStage("ast".to_string())),
