@@ -22,7 +22,7 @@
 //! Use the `TxxtSources` library to access verified, curated txxt sample files.
 //! This ensures only vetted sources are used and makes writing tests much easier.
 //!
-//! ```rust,ignore
+//! ```rust-example
 //! use crate::txxt_nano::processor::txxt_sources::TxxtSources;
 //! use crate::txxt_nano::parser::parse_document;
 //!
@@ -62,7 +62,9 @@
 //!
 //! Testing a nested session traditionally looks like this:
 //!
-//! ```rust,ignore
+//! ```rust-example
+//! use crate::txxt_nano::ast::ContentItem;
+//!
 //! match &doc.content[0] {
 //!     ContentItem::Session(s) => {
 //!         assert_eq!(s.title, "Introduction");
@@ -86,7 +88,7 @@
 
 //! With the `assert_ast` fluent API, the same test becomes:
 
-//! ```rust,ignore
+//! ```rust-example
 //! use crate::txxt_nano::testing::assert_ast;
 //!
 //! assert_ast(&doc)
@@ -121,7 +123,11 @@
 //! To add support for a new container node type:
 //!
 //! 1. **Implement the traits** in `ast.rs`:
-//!    ```rust,ignore
+//!    ```rust-example
+//!    use crate::txxt_nano::ast::{Container, ContentItem};
+//!
+//!    struct NewNode { content: Vec<ContentItem>, label: String }
+//!
 //!    impl Container for NewNode {
 //!        fn label(&self) -> &str { &self.label }
 //!        fn children(&self) -> &[ContentItem] { &self.content }
@@ -132,16 +138,17 @@
 //! 2. **Add to ContentItem enum** and implement helper methods
 //!
 //! 3. **Add assertion type** in `testing_assertions.rs`:
-//!    ```rust,ignore
+//!    ```rust-example
 //!    pub struct NewNodeAssertion<'a> { /* ... */ }
-//!    impl NewNodeAssertion {
+//!
+//!    impl NewNodeAssertion<'_> {
 //!        pub fn custom_field(self, expected: &str) -> Self { /* ... */ }
 //!        pub fn child_count(self, expected: usize) -> Self { /* ... */ }
 //!    }
 //!    ```
 //!
 //! 4. **Add to ContentItemAssertion** and export in `testing.rs`:
-//!    ```rust,ignore
+//!    ```rust-example
 //!    pub fn assert_new_node(self) -> NewNodeAssertion<'a> { /* ... */ }
 //!    ```
 
