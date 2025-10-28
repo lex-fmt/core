@@ -312,12 +312,13 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
         .chain(rest_of_line);
 
     // Pattern 2: Number/Text + Period/CloseParen + whitespace + rest
-    let ordered_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Number(_) | Token::Text(_)))
-        .then(filter(|(t, _): &TokenSpan| {
-            matches!(t, Token::Period | Token::CloseParen)
-        }))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
-        .chain(rest_of_line);
+    let ordered_pattern =
+        filter(|(t, _): &TokenSpan| matches!(t, Token::Number(_) | Token::Text(_)))
+            .then(filter(|(t, _): &TokenSpan| {
+                matches!(t, Token::Period | Token::CloseParen)
+            }))
+            .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
+            .chain(rest_of_line);
 
     // Pattern 3: OpenParen + Number + CloseParen + whitespace + rest
     let paren_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::OpenParen))
