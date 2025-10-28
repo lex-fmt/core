@@ -503,7 +503,7 @@ fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError
         .then_ignore(token(Token::Newline))
         .repeated()
         .at_least(1)
-        .then_ignore(token(Token::Newline).or_not()) // Consume trailing blank line if present
+        // Don't consume trailing blank lines - they're element boundaries!
         .map(|line_spans| ParagraphWithSpans { line_spans })
 }
 
@@ -920,21 +920,50 @@ fn build_document_content_parser(
             ))
         };
 
-        // Now build repetition through recursion (cons pattern)
-        // Either parse one item and then more items, or parse nothing
-        single_item
-            .then(items.or_not())
-            .map(|(first, rest)| {
-                let mut result = vec![first];
-                if let Some(mut rest_items) = rest {
-                    result.append(&mut rest_items);
-                }
-                result
-            })
-            // Base case: if we see DocEnd, return empty vec
-            .or(filter(|(t, _)| matches!(t, Token::DocEnd))
+        // Parse a single item and continue, or handle end conditions
+        choice((
+            // Parse item and continue recursion
+            single_item
+                .then(
+                    // After parsing an item, handle what comes next
+                    choice((
+                        // Blank lines followed by boundary = stop
+                        token(Token::Newline)
+                            .repeated()
+                            .at_least(1)
+                            .then(
+                                filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
+                                    .rewind(),
+                            )
+                            .to(vec![]),
+                        // Blank lines followed by more items
+                        token(Token::Newline)
+                            .repeated()
+                            .at_least(1)
+                            .ignore_then(items.clone()),
+                        // Direct continuation (no blank lines)
+                        items.clone(),
+                    ))
+                    .or_not(), // Make the continuation optional
+                )
+                .map(|(first, rest)| {
+                    let mut result = vec![first];
+                    if let Some(mut rest_items) = rest {
+                        result.append(&mut rest_items);
+                    }
+                    result
+                }),
+            // Base case: At a boundary (DocEnd or DedentLevel)
+            filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
                 .rewind()
-                .map(|_| vec![]))
+                .to(vec![]),
+            // Base case: Blank lines before a boundary
+            token(Token::Newline)
+                .repeated()
+                .at_least(1)
+                .then(filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel)).rewind())
+                .to(vec![]),
+        ))
     })
 }
 
