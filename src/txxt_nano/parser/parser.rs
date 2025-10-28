@@ -788,132 +788,130 @@ fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = Pars
 ///
 /// Uses manual recursion to build repetition without .repeated()
 /// This avoids the recursive() + .repeated() interaction issue in Chumsky
+///
+/// ## Structure
+/// This function builds several sub-parsers for different element types:
+/// - **Session parser**: Title followed by indented content
+/// - **Definition parser**: Subject line (text + colon) followed by indented content
+/// - **List parser**: Multiple list items with optional nested content
+/// - **Annotation parser**: Header between `::` markers, with optional indented content or single-line text
+/// - **Single item parser**: Choice of all the above, plus foreign blocks and paragraphs
+/// - **Content parser**: Handles blank line separation and recursive composition of items
 fn build_document_content_parser(
 ) -> impl Parser<TokenSpan, Vec<ContentItemWithSpans>, Error = ParserError> + Clone {
     // HACK: Build repetition through recursion itself, not .repeated()
     // This avoids the problematic recursive() + .repeated() pattern
 
     recursive(|items| {
-        // First, define the single item parser (not recursive yet)
-        let single_item = {
-            // For sessions, we need nested recursion
-            let session_parser = session_title()
+        // Session parser - parses title followed by indented content
+        let session_parser = session_title()
+            .then(
+                token(Token::IndentLevel)
+                    .ignore_then(items.clone())
+                    .then_ignore(token(Token::DedentLevel)),
+            )
+            .map(|(title_spans, content)| {
+                ContentItemWithSpans::Session(SessionWithSpans {
+                    title_spans,
+                    content,
+                })
+            });
+
+        // Definition parser - parses subject line followed by indented content
+        let definition_parser = definition_subject()
+            .then(
+                token(Token::IndentLevel)
+                    .ignore_then(items.clone())
+                    .then_ignore(token(Token::DedentLevel)),
+            )
+            .map(|(subject_spans, content)| {
+                ContentItemWithSpans::Definition(DefinitionWithSpans {
+                    subject_spans,
+                    content,
+                })
+            });
+
+        // List parser - parses multiple list items, each with optional indented content
+        let list_parser = {
+            let single_list_item = list_item_line()
+                .then_ignore(token(Token::Newline))
                 .then(
                     token(Token::IndentLevel)
-                        .ignore_then(items.clone()) // Sessions contain multiple items recursively
-                        .then_ignore(token(Token::DedentLevel)),
+                        .ignore_then(items.clone())
+                        .then_ignore(token(Token::DedentLevel))
+                        .or_not(),
                 )
-                .map(|(title_spans, content)| {
-                    ContentItemWithSpans::Session(SessionWithSpans {
-                        title_spans,
-                        content,
-                    })
+                .map(|(text_spans, maybe_content)| ListItemWithSpans {
+                    text_spans,
+                    content: maybe_content.unwrap_or_default(),
                 });
 
-            // Definitions also need recursion for their content
-            let definition_parser = definition_subject()
+            single_list_item
+                .repeated()
+                .at_least(2)
+                .map(|items| ContentItemWithSpans::List(ListWithSpans { items }))
+        };
+
+        // Annotation parser - parses header between :: markers with optional content
+        let annotation_parser = {
+            let header = token(Token::TxxtMarker)
+                .ignore_then(annotation_header())
+                .then_ignore(token(Token::TxxtMarker));
+
+            // Block form: :: label params :: \n <indent>content<dedent> ::
+            let block_form = header
+                .clone()
+                .then_ignore(token(Token::Newline))
                 .then(
                     token(Token::IndentLevel)
-                        .ignore_then(items.clone()) // Definitions contain items recursively
+                        .ignore_then(items.clone())
                         .then_ignore(token(Token::DedentLevel)),
                 )
-                .map(|(subject_spans, content)| {
-                    ContentItemWithSpans::Definition(DefinitionWithSpans {
-                        subject_spans,
-                        content,
-                    })
+                .then_ignore(token(Token::TxxtMarker))
+                .then_ignore(token(Token::Newline).or_not())
+                .map(|((label_span, parameters), content)| AnnotationWithSpans {
+                    label_span,
+                    parameters,
+                    content,
                 });
 
-            // Lists - now using unified recursion for full content support
-            let list_parser = {
-                // Parse a single list item with optional recursive content
-                let single_list_item = list_item_line()
-                    .then_ignore(token(Token::Newline))
-                    .then(
-                        // Optional indented block with full recursive content
-                        token(Token::IndentLevel)
-                            .ignore_then(items.clone()) // List items can contain any element recursively
-                            .then_ignore(token(Token::DedentLevel))
-                            .or_not(),
-                    )
-                    .map(|(text_spans, maybe_content)| ListItemWithSpans {
-                        text_spans,
-                        content: maybe_content.unwrap_or_default(),
-                    });
+            // Single-line and marker forms: :: header :: optional_text
+            let single_line_or_marker = header
+                .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
+                .then_ignore(token(Token::Newline).or_not())
+                .map(|((label_span, parameters), content_span)| {
+                    let content = content_span
+                        .map(|span| {
+                            vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
+                                line_spans: vec![span],
+                            })]
+                        })
+                        .unwrap_or_default();
 
-                // Lists require at least 2 items
-                single_list_item
-                    .repeated()
-                    .at_least(2)
-                    // Don't consume trailing newlines - the content parser handles separators via BlankLine tokens
-                    .map(|items| ContentItemWithSpans::List(ListWithSpans { items }))
-            };
-
-            // Annotations - now using unified recursion for full content support
-            let annotation_parser = {
-                // Parse the header: :: <bounded region> ::
-                let header = token(Token::TxxtMarker)
-                    .ignore_then(annotation_header())
-                    .then_ignore(token(Token::TxxtMarker));
-
-                // Block form: :: label params :: \n <indent>content<dedent> ::
-                let block_form = header
-                    .clone()
-                    .then_ignore(token(Token::Newline))
-                    .then(
-                        token(Token::IndentLevel)
-                            .ignore_then(items.clone()) // Annotations can contain any element recursively
-                            .then_ignore(token(Token::DedentLevel)),
-                    )
-                    .then_ignore(token(Token::TxxtMarker)) // Second closing :: after content
-                    .then_ignore(token(Token::Newline).or_not()) // Consume optional newline after closing ::
-                    .map(|((label_span, parameters), content)| AnnotationWithSpans {
+                    AnnotationWithSpans {
                         label_span,
                         parameters,
                         content,
-                    });
+                    }
+                });
 
-                // Single-line and marker forms: :: header :: optional_text
-                let single_line_or_marker = header
-                    .then(
-                        // Optional single-line text content after closing ::
-                        token(Token::Whitespace).ignore_then(text_line()).or_not(),
-                    )
-                    .then_ignore(token(Token::Newline).or_not()) // Consume optional newline after annotation
-                    .map(|((label_span, parameters), content_span)| {
-                        // Text after :: becomes paragraph content (annotation single-line form)
-                        let content = content_span
-                            .map(|span| {
-                                vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
-                                    line_spans: vec![span],
-                                })]
-                            })
-                            .unwrap_or_default();
-
-                        AnnotationWithSpans {
-                            label_span,
-                            parameters,
-                            content,
-                        }
-                    });
-
-                block_form
-                    .or(single_line_or_marker)
-                    .map(ContentItemWithSpans::Annotation)
-            };
-
-            // Parse order from docs/parsing.txxt
-            choice((
-                foreign_block().map(ContentItemWithSpans::ForeignBlock),
-                annotation_parser,
-                list_parser,
-                definition_parser,
-                session_parser,
-                paragraph().map(ContentItemWithSpans::Paragraph),
-            ))
+            block_form
+                .or(single_line_or_marker)
+                .map(ContentItemWithSpans::Annotation)
         };
 
-        // Parse content, with optional leading/trailing blank lines
+        // Single item parser - choice of all element types in parsing order
+        // Order from docs/parsing.txxt
+        let single_item = choice((
+            foreign_block().map(ContentItemWithSpans::ForeignBlock),
+            annotation_parser,
+            list_parser,
+            definition_parser,
+            session_parser,
+            paragraph().map(ContentItemWithSpans::Paragraph),
+        ));
+
+        // Content parser - handles blank line separation and recursive composition
         // BlankLine tokens separate block-level elements
         choice((
             // Skip any leading blank lines, then try to parse item
