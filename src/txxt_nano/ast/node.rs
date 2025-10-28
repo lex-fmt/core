@@ -4,8 +4,8 @@
 //! structure of a txxt document, along with the traits for uniform
 //! access to node information.
 
-use std::fmt;
 use super::span::{Position, Span};
+use std::fmt;
 
 // ============================================================================
 // AST Traits - Common interfaces for uniform node access
