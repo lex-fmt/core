@@ -978,9 +978,58 @@ fn build_document_content_parser(
                     .map(|items| ContentItemWithSpans::List(ListWithSpans { items }))
             };
 
-            // Annotations - use the simpler version for now
-            // TODO: Support recursive content in annotations
-            let annotation_parser = annotation().map(ContentItemWithSpans::Annotation);
+            // Annotations - now using unified recursion for full content support
+            let annotation_parser = {
+                // Parse the header: :: <bounded region> ::
+                let header = token(Token::TxxtMarker)
+                    .ignore_then(annotation_header())
+                    .then_ignore(token(Token::TxxtMarker));
+
+                // Block form: :: label params :: \n <indent>content<dedent> ::
+                let block_form = header
+                    .clone()
+                    .then_ignore(token(Token::Newline))
+                    .then(
+                        token(Token::IndentLevel)
+                            .ignore_then(items.clone()) // Annotations can contain any element recursively
+                            .then_ignore(token(Token::DedentLevel)),
+                    )
+                    .then_ignore(token(Token::TxxtMarker)) // Second closing :: after content
+                    .map(|((label_span, parameters), content)| AnnotationWithSpans {
+                        label_span,
+                        parameters,
+                        content,
+                    })
+                    .then_ignore(token(Token::Newline).repeated());
+
+                // Single-line and marker forms
+                let single_line_or_marker = header
+                    .then(
+                        // Optional single-line text content after closing ::
+                        token(Token::Whitespace).ignore_then(text_line()).or_not(),
+                    )
+                    .map(|((label_span, parameters), content_span)| {
+                        // Text after :: becomes paragraph content (annotation single-line form)
+                        let content = content_span
+                            .map(|span| {
+                                vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
+                                    line_spans: vec![span],
+                                })]
+                            })
+                            .unwrap_or_default();
+
+                        AnnotationWithSpans {
+                            label_span,
+                            parameters,
+                            content,
+                        }
+                    })
+                    .then_ignore(token(Token::Newline).repeated());
+
+                block_form
+                    .or(single_line_or_marker)
+                    .map(ContentItemWithSpans::Annotation)
+            };
 
             // Parse order from docs/parsing.txxt
             choice((
