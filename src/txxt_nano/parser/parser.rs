@@ -357,67 +357,6 @@ enum ContainerType {
 
 /// Build the unified content parser that implements the canonical parse order.
 ///
-/// NOTE: This function is NOT currently used. The unified recursive parser in
-/// build_document_content_parser() handles all recursion without container
-/// restrictions. Kept for future enhancement if container restrictions are needed.
-///
-/// Parse order (from docs/parsing.txxt):
-/// 1. Foreign block first (requires subject + closing annotation)
-/// 2. Annotation second (requires :: markers)
-/// 3. List third (requires 2+ list-item-lines)
-/// 4. Definition fourth (requires subject ending with colon + NO blank line + indent)
-/// 5. Session fifth (requires title + blank line + indent)
-/// 6. Paragraph last (catch-all, including single list-item-lines)
-///
-/// KNOWN ISSUE: Multiple sibling definitions incorrectly nest inside each other.
-/// This is a pre-existing bug that requires implementing the full Multi-Parser Bundle
-/// pattern to fix. The pattern would create separate parsers for different container
-/// types to enforce that definitions/lists cannot contain sessions at the same level.
-///
-/// Parameters:
-/// - session_parser: The parser to use for sessions (either recursive ref or the full session parser)
-/// - container_type: What type of container this is (determines what content is allowed)
-#[allow(dead_code)] // Kept for reference, replaced by build_document_content_parser
-fn build_content_parser(
-    session_parser: impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone + 'static,
-    container_type: ContainerType,
-) -> impl Parser<TokenSpan, ContentItemWithSpans, Error = ParserError> + Clone {
-    // Build the base parser chain
-    let mut parser = foreign_block()
-        .map(ContentItemWithSpans::ForeignBlock)
-        .boxed();
-
-    // Annotations allowed in Session and Content containers, but NOT in Annotation containers
-    if container_type != ContainerType::Annotation {
-        parser = parser
-            .or(annotation().map(ContentItemWithSpans::Annotation))
-            .boxed();
-    }
-
-    // Lists, definitions, and paragraphs allowed in all container types
-    parser = parser
-        .or(list_item()
-            .repeated()
-            .at_least(2)
-            .then_ignore(token(Token::Newline).or_not())
-            .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List))
-        .or(definition().map(ContentItemWithSpans::Definition))
-        .boxed();
-
-    // Sessions only allowed in Session containers
-    if container_type == ContainerType::Session {
-        parser = parser
-            .or(session_parser.map(ContentItemWithSpans::Session))
-            .boxed();
-    }
-
-    // Paragraph is the catch-all (always last)
-    parser
-        .or(paragraph().map(ContentItemWithSpans::Paragraph))
-        .boxed()
-}
-
 /// Parse a single list item with optional indented content - ACCEPTS content_parser parameter
 /// This is the new parameterized version that doesn't have its own recursive() block.
 /// The content_parser is provided from above (from build_content_parser) and defines what
@@ -449,6 +388,7 @@ fn list_item_with_content(
 /// Will be removed once build_content_parser is updated to use list_item_with_content.
 ///
 /// Grammar: <list-item> = <list-item-line> (<indent> <list-item-content>+ <dedent>)?
+#[allow(dead_code)] // To be removed in next step
 fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError> + Clone {
     recursive(|list_item_parser| {
         // Define nested list parser that uses the recursive list_item_parser
@@ -685,97 +625,6 @@ fn annotation_with_content(
     block_form.or(single_line_or_marker)
 }
 
-/// Parse annotation - OLD VERSION (temporary wrapper)
-/// This is kept temporarily for compatibility. It uses the old recursive approach.
-/// Will be removed once build_content_parser is updated to use annotation_with_content.
-///
-/// Forms:
-/// 1. Marker: `:: label ::\n` - No content, newline NOT consumed (left for document parser)
-/// 2. Single-line: `:: label :: text\n` - Text after :: captured as paragraph
-/// 3. Block: `:: label \n<indent>content<dedent>::` - Newline consumed, indented content
-///
-/// The key fix: We parse the bounded region between :: markers explicitly,
-/// which prevents parameters from consuming text after the closing ::.
-fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserError> + Clone {
-    // Content parser for annotations - excludes sessions and nested annotations
-    let annotation_content = recursive(|_annotation_content_parser| {
-        // Annotation content can contain lists and paragraphs (NO sessions or nested annotations)
-        let nested_list = list_item()
-            .repeated()
-            .at_least(2)
-            .then_ignore(token(Token::Newline).or_not())
-            .map(|items| ListWithSpans { items })
-            .map(ContentItemWithSpans::List);
-
-        nested_list.or(paragraph().map(ContentItemWithSpans::Paragraph))
-    });
-
-    // Parse the header: :: <bounded region> ::
-    let header = token(Token::TxxtMarker)
-        .ignore_then(annotation_header())
-        .then_ignore(token(Token::TxxtMarker));
-
-    // Block form: :: label params :: \n <indent>content<dedent> ::
-    // Note: There are TWO closing :: markers:
-    //   1. First :: right after label/params on opening line
-    //   2. Second :: after the indented content block
-    // The header already consumed the first closing ::, so we just need the second one
-    let block_form = header
-        .clone()
-        .then_ignore(token(Token::Newline))
-        .then(
-            token(Token::IndentLevel)
-                .ignore_then(
-                    // Allow blank lines between content items in annotation block
-                    choice((
-                        // Skip blank lines then parse content
-                        token(Token::Newline)
-                            .repeated()
-                            .at_least(1)
-                            .ignore_then(annotation_content.clone()),
-                        // Parse content directly
-                        annotation_content.clone(),
-                    ))
-                    .repeated()
-                    .at_least(1),
-                )
-                .then_ignore(token(Token::DedentLevel)),
-        )
-        .then_ignore(token(Token::TxxtMarker)) // Second closing :: after content
-        .map(|((label_span, parameters), content)| AnnotationWithSpans {
-            label_span,
-            parameters,
-            content,
-        })
-        .then_ignore(token(Token::Newline).repeated()); // Consume trailing newlines
-
-    // Single-line and marker forms
-    let single_line_or_marker = header
-        .then(
-            // Optional single-line text content after closing ::
-            token(Token::Whitespace).ignore_then(text_line()).or_not(),
-        )
-        .map(|((label_span, parameters), content_span)| {
-            // Text after :: becomes paragraph content (annotation single-line form)
-            let content = content_span
-                .map(|span| {
-                    vec![ContentItemWithSpans::Paragraph(ParagraphWithSpans {
-                        line_spans: vec![span],
-                    })]
-                })
-                .unwrap_or_default();
-
-            AnnotationWithSpans {
-                label_span,
-                parameters,
-                content,
-            }
-        })
-        .then_ignore(token(Token::Newline).repeated()); // Consume trailing newlines
-
-    block_form.or(single_line_or_marker)
-}
-
 /// Parse a definition - ACCEPTS content_parser parameter
 /// This is the new parameterized version that doesn't have its own recursive() block.
 /// The content_parser is provided from above (from build_content_parser) and defines what
@@ -806,6 +655,7 @@ fn definition_with_content(
 ///
 /// IMPORTANT: NO blank line between subject and indented content (unlike sessions)
 /// Content can include paragraphs and lists, but NOT sessions
+#[allow(dead_code)] // To be removed in next step
 fn definition() -> impl Parser<TokenSpan, DefinitionWithSpans, Error = ParserError> + Clone {
     // Content parser for definitions - excludes sessions, only paragraphs and lists
     let definition_content = recursive(|_definition_content_parser| {
@@ -1080,30 +930,6 @@ fn build_document_content_parser(
                 .rewind()
                 .to(vec![]),
         ))
-    })
-}
-
-/// Parse a session - a title followed by indented content
-/// IMPORTANT: Once we match a session title, we MUST see IndentLevel or fail
-/// This prevents backtracking to paragraph parser when session content is malformed
-#[allow(dead_code)] // Kept for reference, replaced by inline logic in build_document_content_parser
-fn session() -> impl Parser<TokenSpan, SessionWithSpans, Error = ParserError> + Clone {
-    recursive(|session_parser| {
-        // Use the unified content parser with the recursive session reference
-        // Sessions are SessionContainers - they can contain everything
-        let content_item = build_content_parser(session_parser, ContainerType::Session);
-
-        session_title()
-            .then(
-                // Once we have a session title, we're committed - must see IndentLevel
-                token(Token::IndentLevel)
-                    .ignore_then(content_item.repeated().at_least(1)) // Sessions must have content
-                    .then_ignore(token(Token::DedentLevel)),
-            )
-            .map(|(title_spans, content)| SessionWithSpans {
-                title_spans,
-                content,
-            })
     })
 }
 
