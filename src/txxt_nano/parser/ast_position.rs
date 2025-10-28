@@ -77,14 +77,16 @@ fn find_and_format_at_position(
         if i > 0 {
             result.push('\n');
         }
-        result.push_str(&format!("{}. {}\n", i + 1, item.node_type()));
 
+        // Element line with span in parentheses
+        let span_str = get_content_item_span(item)
+            .map(|s| format!(" ({})", s))
+            .unwrap_or_default();
+        result.push_str(&format!("{}. {}{}\n", i + 1, item.node_type(), span_str));
+
+        // Label line if available
         if let Some(label) = get_content_item_label(item) {
             result.push_str(&format!("   Label: {}\n", label));
-        }
-
-        if let Some(span) = get_content_item_span(item) {
-            result.push_str(&format!("   Span: {}\n", span));
         }
     }
 
