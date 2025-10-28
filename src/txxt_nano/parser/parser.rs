@@ -512,22 +512,6 @@ fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError>
     })
 }
 
-/// Parse a list - two or more consecutive list items
-/// Grammar: <list> = <blank-line> <list-item>{2,*}
-///
-/// IMPORTANT: Lists require a preceding blank line for disambiguation.
-/// The blank line has already been consumed by the previous element's ending newline.
-/// Blank lines between list items are NOT allowed (would terminate the list).
-#[allow(dead_code)]
-fn list() -> impl Parser<TokenSpan, ListWithSpans, Error = ParserError> + Clone {
-    // Expect to start right at first list-item-line (blank line already consumed)
-    list_item()
-        .repeated()
-        .at_least(2) // Lists require at least 2 items
-        .then_ignore(token(Token::Newline).or_not()) // Optional blank line at end
-        .map(|items| ListWithSpans { items })
-}
-
 /// Parse a paragraph - one or more lines of text separated by newlines, ending with a blank line
 /// A paragraph is a catch-all that matches when nothing else does.
 ///
