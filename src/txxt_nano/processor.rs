@@ -450,7 +450,7 @@ pub mod txxt_sources {
         fn test_get_processed_sample() {
             let processed =
                 TxxtSources::get_processed("050-paragraph-lists.txxt", "token-simple").unwrap();
-            assert!(processed.contains("<text>"));
+            assert!(processed.contains("<text:"));
             assert!(processed.contains("<newline>"));
         }
 
@@ -517,10 +517,18 @@ mod tests {
 
     #[test]
     fn test_token_formatting() {
-        let tokens = vec![Token::Text, Token::Whitespace, Token::Text, Token::Newline];
+        let tokens = vec![
+            Token::Text("hello".to_string()),
+            Token::Whitespace,
+            Token::Text("world".to_string()),
+            Token::Newline,
+        ];
 
         let simple = format_tokens(&tokens, &OutputFormat::Simple).unwrap();
-        assert_eq!(simple, "<text><whitespace><text><newline>\n");
+        assert_eq!(
+            simple,
+            "<text:hello><whitespace><text:world><newline>\n"
+        );
 
         let json = format_tokens(&tokens, &OutputFormat::Json).unwrap();
         assert!(json.contains("\"Text\""));
