@@ -21,8 +21,6 @@ type TokenSpan = (Token, Range<usize>);
 /// Type alias for parser error
 type ParserError = Simple<TokenSpan>;
 
-// WithSpans structures are now imported from intermediate_ast.rs (single source of truth)
-use super::intermediate_ast::DocumentWithSpans;
 // Parser combinators - kept for test support if needed
 #[allow(unused_imports)]
 use super::combinators::paragraph;
@@ -34,9 +32,8 @@ use super::combinators::paragraph;
 use super::document as document_module;
 
 /// Parse a document - delegated to document module
-/// Phase 3b: The document parser now requires source text for inline type conversion
-#[allow(private_interfaces)]
-pub fn document() -> impl Parser<TokenSpan, DocumentWithSpans, Error = ParserError> {
+/// Phase 5: The document parser requires source text to populate span information
+pub fn document() -> impl Parser<TokenSpan, Document, Error = ParserError> {
     // This function is kept for backward compatibility but delegates to document_module::document(source)
     // Since this function doesn't have access to source, it uses an empty string.
     // For proper position tracking, use parse_with_source_positions or parse_with_source instead.
