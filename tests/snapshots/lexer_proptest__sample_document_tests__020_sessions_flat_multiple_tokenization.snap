@@ -355,10 +355,7 @@ expression: tokens
     ),
     Whitespace,
     Text(
-        "don",
-    ),
-    Text(
-        "t",
+        "don't",
     ),
     Whitespace,
     Text(

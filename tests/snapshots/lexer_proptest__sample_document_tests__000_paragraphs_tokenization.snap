@@ -213,7 +213,7 @@ expression: tokens
     Dash,
     Equals,
     Text(
-        "[]{}|;",
+        "[]{}|;'",
     ),
     Colon,
     Quote,
