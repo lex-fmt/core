@@ -33,62 +33,8 @@ use super::combinators::{
     text_line, token,
 };
 
-// Parser combinator functions (text_line, token, list_item_line) are imported from combinators.rs
-
-/// Container types that define what content elements are allowed
-///
-/// NOTE: Container restrictions are NOT currently enforced - all containers
-/// allow all element types in the unified recursive parser. This enum and
-/// associated logic in build_content_parser() are kept for future enhancement
-/// but are not active in the current implementation.
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)] // Not currently used - kept for future container restriction implementation
-enum ContainerType {
-    /// Session containers - can contain everything (sessions, definitions, lists, paragraphs, annotations, foreign blocks)
-    /// (Currently: no restrictions enforced)
-    Session,
-    /// Content containers - used by definitions and list items (cannot contain sessions)
-    /// (Currently: no restrictions enforced, sessions are allowed)
-    Content,
-    /// Annotation containers - used by annotation block content (cannot contain sessions or nested annotations)
-    /// (Currently: no restrictions enforced, all elements allowed)
-    Annotation,
-}
-
-/// Parse a paragraph for use in recursive contexts (simplified)
-// Note: main paragraph() function is imported from combinators.rs
-#[allow(dead_code)] // Kept for future improvements
-fn paragraph_recursive() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone
-{
-    // In recursive contexts, collect consecutive non-blank text lines
-    // A blank line (double newline) ends the paragraph
-
-    // Parse lines that are NOT followed by blank lines
-    let paragraph_line = text_line().then_ignore(token(Token::Newline));
-
-    // Collect consecutive lines, stopping at a blank line
-    paragraph_line
-        .then_ignore(
-            // Continue only if NOT followed by another newline (which would be a blank line)
-            token(Token::Newline).not().rewind(),
-        )
-        .repeated()
-        .then(
-            // Last line might not have continuation check
-            text_line().then_ignore(token(Token::Newline)).or_not(),
-        )
-        .map(|(mut lines, last)| {
-            if let Some(last_line) = last {
-                lines.push(last_line);
-            }
-            ParagraphWithSpans { line_spans: lines }
-        })
-        .then_ignore(token(Token::Newline).or_not()) // Consume trailing blank line if present
-}
-
-// Parser combinator functions (definition_subject, session_title) are imported from combinators.rs
-
-// Parser combinator functions (annotation_header, foreign_block) are imported from combinators.rs
+// Parser combinator functions (text_line, token, list_item_line, definition_subject, session_title,
+// annotation_header, foreign_block) are imported from combinators.rs
 
 /// Build the Multi-Parser Bundle for document-level content parsing.
 ///
