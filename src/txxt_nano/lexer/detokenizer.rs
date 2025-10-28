@@ -3,6 +3,9 @@
 //! This module provides functionality to convert a stream of tokens back into a string.
 use crate::txxt_nano::lexer::tokens::Token;
 
+#[cfg(test)]
+use insta;
+
 impl ToTxxtString for Token {
     fn to_txxt_string(&self) -> String {
         match self {
@@ -110,21 +113,23 @@ mod tests {
         assert_eq!(detokenized, source);
     }
 
-    // ===== Round-trip tests =====
-    // These tests verify that tokenizing and detokenizing produces the original source
-    // (or an equivalent representation for indentation normalization).
+    // ===== Round-trip tests with snapshot verification =====
+    // These tests verify that tokenizing and detokenizing produces the original source.
+    // When differences occur, the snapshot provides a clear line-by-line diff that shows
+    // exactly where whitespace or content differs, making debugging much easier than
+    // a simple "strings don't match" message.
 
-    fn test_roundtrip_raw_tokens(source: &str, _label: &str) {
+    fn test_roundtrip_raw_tokens(source: &str, snapshot_name: &str) {
         let tokens = tokenize(source);
         let detokenized = detokenize(&tokens);
-        assert_eq!(detokenized, source);
+        insta::assert_snapshot!(snapshot_name, detokenized);
     }
 
-    fn test_roundtrip_semantic_tokens(source: &str, _label: &str) {
+    fn test_roundtrip_semantic_tokens(source: &str, snapshot_name: &str) {
         let raw_tokens = tokenize(source);
         let tokens = transform_indentation(raw_tokens);
         let detokenized = detokenize(&tokens);
-        assert_eq!(detokenized, source);
+        insta::assert_snapshot!(snapshot_name, detokenized);
     }
 
     #[test]
