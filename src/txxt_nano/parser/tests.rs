@@ -22,7 +22,7 @@ fn test_simple_paragraph() {
     // Verify actual content is preserved
     let para = convert_paragraph(input, para_with_spans);
     assert_eq!(para.lines.len(), 1);
-    assert_eq!(para.lines[0], "Hello world");
+    assert_eq!(para.lines[0].as_string(), "Hello world");
 }
 
 #[test]

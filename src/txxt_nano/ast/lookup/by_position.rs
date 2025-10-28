@@ -165,6 +165,7 @@ fn get_content_item_label(item: &ContentItem) -> Option<String> {
 mod tests {
     use super::*;
     use crate::txxt_nano::ast::node::{Document as DocumentType, Paragraph};
+    use crate::txxt_nano::ast::TextContent;
 
     #[test]
     fn test_parse_position_valid() {
@@ -218,8 +219,11 @@ mod tests {
 
     #[test]
     fn test_find_position_with_span() {
-        let para = Paragraph::new(vec!["Test paragraph".to_string()])
-            .with_span(Some(Span::new(Position::new(0, 0), Position::new(0, 14))));
+        let para = Paragraph::new(vec![TextContent::from_string(
+            "Test paragraph".to_string(),
+            None,
+        )])
+        .with_span(Some(Span::new(Position::new(0, 0), Position::new(0, 14))));
 
         let doc = DocumentType::with_content(vec![ContentItem::Paragraph(para)]);
 

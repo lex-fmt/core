@@ -276,7 +276,7 @@ mod tests {
         // Verify actual content is preserved
         let para = convert_paragraph(input, para_with_spans);
         assert_eq!(para.lines.len(), 1);
-        assert_eq!(para.lines[0], "Hello world");
+        assert_eq!(para.lines[0].as_string(), "Hello world");
     }
 
     #[test]
@@ -1667,7 +1667,7 @@ mod tests {
         let nested_para = inner_def.content[0]
             .as_paragraph()
             .expect("Should be a paragraph");
-        assert_eq!(nested_para.lines[0], "Nested content");
+        assert_eq!(nested_para.lines[0].as_string(), "Nested content");
     }
 
     #[test]
