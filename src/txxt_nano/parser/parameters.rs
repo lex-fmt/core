@@ -9,7 +9,6 @@
 use crate::txxt_nano::ast::Parameter;
 use crate::txxt_nano::lexer::Token;
 use std::ops::Range;
-use txxt_ast::Parameter;
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);

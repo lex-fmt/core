@@ -592,10 +592,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "txxt_ast"
-version = "0.1.0"
-
-[[package]]
 name = "txxt_nano"
 version = "0.1.0"
 dependencies = [
@@ -606,7 +602,6 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
- "txxt_ast",
 ]
 
 [[package]]

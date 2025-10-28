@@ -15,7 +15,6 @@ use std::ops::Range;
 use super::conversion::basic::{convert_document, convert_paragraph};
 use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
-use txxt_ast::Document;
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);
@@ -314,7 +313,6 @@ mod tests {
     use crate::txxt_nano::ast::{ContentItem, Position};
     use crate::txxt_nano::lexer::{lex, lex_with_spans};
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
-    use txxt_ast::{ContentItem, Position};
 
     #[test]
     fn test_simple_paragraph() {

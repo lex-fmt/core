@@ -4,7 +4,6 @@ use crate::txxt_nano::parser::api::parse;
 use crate::txxt_nano::parser::ast_conversion::convert_paragraph;
 use crate::txxt_nano::parser::combinators::paragraph;
 use chumsky::Parser;
-use txxt_ast::ContentItem;
 
 #[test]
 fn test_simple_paragraph() {
