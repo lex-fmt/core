@@ -137,6 +137,9 @@ pub(crate) fn convert_document_with_positions(
 
 /// Convert a vector of intermediate content items to final types, preserving position information
 /// Phase 3b: This version preserves span information for all content items
+/// Note: This function is no longer used in Phase 4 as content items are converted to final types
+/// during parsing. It will be removed in Phase 5 when intermediate types are deleted.
+#[allow(dead_code)]
 pub(crate) fn convert_content_items(
     source: &str,
     items: Vec<ContentItemWithSpans>,
