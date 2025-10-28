@@ -6,6 +6,7 @@
 //! Grammar: `<parameters> = <parameter> ("," <parameter>)*`
 //! Where: `<parameter> = <key> "=" <value>`
 
+use crate::txxt_nano::ast::Parameter;
 use crate::txxt_nano::lexer::Token;
 use std::ops::Range;
 use txxt_ast::Parameter;

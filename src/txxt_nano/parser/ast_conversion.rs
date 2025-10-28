@@ -6,7 +6,7 @@ use super::intermediate_ast::{
     ForeignBlockWithSpans, ListItemWithSpans, ListWithSpans, ParagraphWithSpans, SessionWithSpans,
 };
 use super::parameters::convert_parameter;
-use txxt_ast::{
+use crate::txxt_nano::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
     Session, SourceLocation, Span,
 };

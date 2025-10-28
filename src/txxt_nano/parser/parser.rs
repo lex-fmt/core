@@ -13,6 +13,7 @@ use std::ops::Range;
 
 #[allow(unused_imports)] // convert_paragraph is used in tests
 use super::conversion::basic::{convert_document, convert_paragraph};
+use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
 use txxt_ast::Document;
 
@@ -310,6 +311,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Document, Vec<Simple<Token>>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::txxt_nano::ast::{ContentItem, Position};
     use crate::txxt_nano::lexer::{lex, lex_with_spans};
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
     use txxt_ast::{ContentItem, Position};
