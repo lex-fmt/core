@@ -2480,7 +2480,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Issue #35: recursive() doesn't work well with .repeated() at document level"]
+    // Previously ignored for issue #35 - now testing if fixed
     fn test_unified_parser_paragraph_then_definition() {
         // Test paragraph followed by definition - similar to failing test
         let source = "Simple paragraph\n\nAnother paragraph\n\nFirst Definition:\n    Definition content\n\nSecond Definition:\n    More content\n";
@@ -2514,7 +2514,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Issue #35: recursive() doesn't work well with .repeated() at document level"]
+    // Previously ignored for issue #35 - now testing if fixed
     fn test_verified_definitions_simple() {
         use crate::txxt_nano::testing::assert_ast;
 
@@ -2621,7 +2621,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Known issue with unified recursive parser - paragraph EOF handling"]
+    #[ignore = "Still failing - needs investigation"]
     fn test_verified_definitions_mixed_content() {
         use crate::txxt_nano::testing::assert_ast;
 
@@ -2716,7 +2716,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Known issue with unified recursive parser - paragraph EOF handling"]
+    #[ignore = "Still failing - needs investigation"]
     fn test_verified_ensemble_with_definitions() {
         // Comprehensive ensemble test with all core elements including definitions
         use crate::txxt_nano::testing::assert_ast;
