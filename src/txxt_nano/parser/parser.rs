@@ -336,19 +336,30 @@ fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserE
 }
 
 /// Container types that define what content elements are allowed
+///
+/// NOTE: Container restrictions are NOT currently enforced - all containers
+/// allow all element types in the unified recursive parser. This enum and
+/// associated logic in build_content_parser() are kept for future enhancement
+/// but are not active in the current implementation.
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)] // Content and Annotation will be used when we update definition() and annotation()
+#[allow(dead_code)] // Not currently used - kept for future container restriction implementation
 enum ContainerType {
     /// Session containers - can contain everything (sessions, definitions, lists, paragraphs, annotations, foreign blocks)
+    /// (Currently: no restrictions enforced)
     Session,
     /// Content containers - used by definitions and list items (cannot contain sessions)
+    /// (Currently: no restrictions enforced, sessions are allowed)
     Content,
     /// Annotation containers - used by annotation block content (cannot contain sessions or nested annotations)
+    /// (Currently: no restrictions enforced, all elements allowed)
     Annotation,
 }
 
 /// Build the unified content parser that implements the canonical parse order.
-/// This is used by sessions, documents, definitions, list items, and annotations.
+///
+/// NOTE: This function is NOT currently used. The unified recursive parser in
+/// build_document_content_parser() handles all recursion without container
+/// restrictions. Kept for future enhancement if container restrictions are needed.
 ///
 /// Parse order (from docs/parsing.txxt):
 /// 1. Foreign block first (requires subject + closing annotation)
@@ -942,13 +953,30 @@ fn build_document_content_parser(
                     })
                 });
 
-            // Lists - use the simpler version for now
-            // TODO: Support recursive content in list items
-            let list_parser = list_item()
-                .repeated()
-                .at_least(2)
-                .then_ignore(token(Token::Newline).or_not())
-                .map(|items| ContentItemWithSpans::List(ListWithSpans { items }));
+            // Lists - now using unified recursion for full content support
+            let list_parser = {
+                // Parse a single list item with optional recursive content
+                let single_list_item = list_item_line()
+                    .then_ignore(token(Token::Newline))
+                    .then(
+                        // Optional indented block with full recursive content
+                        token(Token::IndentLevel)
+                            .ignore_then(items.clone()) // List items can contain any element recursively
+                            .then_ignore(token(Token::DedentLevel))
+                            .or_not(),
+                    )
+                    .map(|(text_spans, maybe_content)| ListItemWithSpans {
+                        text_spans,
+                        content: maybe_content.unwrap_or_default(),
+                    });
+
+                // Lists require at least 2 items
+                single_list_item
+                    .repeated()
+                    .at_least(2)
+                    .then_ignore(token(Token::Newline).or_not())
+                    .map(|items| ContentItemWithSpans::List(ListWithSpans { items }))
+            };
 
             // Annotations - use the simpler version for now
             // TODO: Support recursive content in annotations
