@@ -60,79 +60,79 @@ fn find_and_format_at_position(
     doc: &Document,
     target_pos: Position,
 ) -> Result<String, ProcessingError> {
-    // Recursively search for the smallest node containing the position
-    if let Some(node_info) = find_node_at_position(&doc.content, target_pos) {
-        Ok(format_node_info(&node_info))
-    } else {
-        Err(ProcessingError::InvalidFormatType(format!(
+    // Find all elements in the hierarchy containing this position
+    let mut elements = Vec::new();
+    find_elements_at_position(&doc.content, target_pos, &mut elements);
+
+    if elements.is_empty() {
+        return Err(ProcessingError::InvalidFormatType(format!(
             "No element found at position {}:{}",
             target_pos.line, target_pos.column
-        )))
+        )));
     }
+
+    // Format all elements in the hierarchy
+    let mut result = String::new();
+    for (i, item) in elements.iter().enumerate() {
+        if i > 0 {
+            result.push('\n');
+        }
+        result.push_str(&format!("{}. {}\n", i + 1, item.node_type()));
+
+        if let Some(label) = get_content_item_label(item) {
+            result.push_str(&format!("   Label: {}\n", label));
+        }
+
+        if let Some(span) = get_content_item_span(item) {
+            result.push_str(&format!("   Span: {}\n", span));
+        }
+    }
+
+    Ok(result)
 }
 
-/// Information about a found node
-#[derive(Debug, Clone)]
-struct NodeInfo {
-    node_type: String,
-    label: Option<String>,
-    span: Option<Span>,
-    depth: usize,
-}
-
-/// Find the deepest (smallest) node containing the target position
-fn find_node_at_position(items: &[ContentItem], target_pos: Position) -> Option<NodeInfo> {
-    let mut best_match: Option<NodeInfo> = None;
-
+/// Recursively find all elements in the hierarchy containing the target position
+fn find_elements_at_position<'a>(
+    items: &'a [ContentItem],
+    target_pos: Position,
+    path: &mut Vec<&'a ContentItem>,
+) -> bool {
     for item in items {
+        // Check if this item contains the position
         if let Some(span) = get_content_item_span(item) {
             if span.contains(target_pos) {
-                // This item contains the target position
-                let depth = get_content_item_depth(item);
-
-                // Check if this is a better match than what we've found
-                let should_update = best_match
-                    .as_ref()
-                    .map(|best| depth > best.depth)
-                    .unwrap_or(true);
-
-                if should_update {
-                    // Recursively search children for an even better match
-                    let children = get_content_item_children(item);
-                    if let Some(child_match) = find_node_at_position(children, target_pos) {
-                        best_match = Some(child_match);
-                    } else {
-                        // No better match in children, use this item
-                        best_match = Some(NodeInfo {
-                            node_type: item.node_type().to_string(),
-                            label: get_content_item_label(item),
-                            span: Some(span),
-                            depth,
-                        });
-                    }
-                }
+                // Found it - add to path and return
+                path.push(item);
+                return true;
             }
         }
 
-        // Always check children of container nodes, even if the span doesn't contain the position
-        // This is because container spans (like Sessions) may only cover the header line,
-        // not the entire nested content
-        let children = get_content_item_children(item);
-        if !children.is_empty() {
-            if let Some(child_match) = find_node_at_position(children, target_pos) {
-                // Only use this match if it's better than what we've found
-                if best_match
-                    .as_ref()
-                    .map(|best| child_match.depth > best.depth)
-                    .unwrap_or(true)
-                {
-                    best_match = Some(child_match);
+        // Always check children of container nodes for nested content
+        // even if the container's span doesn't contain the target position
+        match item {
+            ContentItem::Session(s) => {
+                if find_elements_at_position(&s.content, target_pos, path) {
+                    path.insert(0, item);
+                    return true;
                 }
             }
+            ContentItem::Definition(d) => {
+                if find_elements_at_position(&d.content, target_pos, path) {
+                    path.insert(0, item);
+                    return true;
+                }
+            }
+            ContentItem::Annotation(a) => {
+                if find_elements_at_position(&a.content, target_pos, path) {
+                    path.insert(0, item);
+                    return true;
+                }
+            }
+            _ => {}
         }
     }
 
-    best_match
+    false
 }
 
 /// Get the span of a content item
@@ -147,20 +147,6 @@ fn get_content_item_span(item: &ContentItem) -> Option<Span> {
     }
 }
 
-/// Get the children of a content item
-fn get_content_item_children(item: &ContentItem) -> &[ContentItem] {
-    match item {
-        ContentItem::Session(s) => &s.content,
-        ContentItem::Definition(d) => &d.content,
-        ContentItem::Annotation(a) => &a.content,
-        ContentItem::List(_) => {
-            // Lists don't have content items as children, they have ListItems
-            &[]
-        }
-        _ => &[],
-    }
-}
-
 /// Get the label of a content item
 fn get_content_item_label(item: &ContentItem) -> Option<String> {
     match item {
@@ -170,32 +156,6 @@ fn get_content_item_label(item: &ContentItem) -> Option<String> {
         ContentItem::Paragraph(p) => Some(p.display_label()),
         _ => None,
     }
-}
-
-/// Get the depth (nesting level) of a content item - higher means deeper nesting
-fn get_content_item_depth(item: &ContentItem) -> usize {
-    match item {
-        ContentItem::Session(_) | ContentItem::Definition(_) | ContentItem::Annotation(_) => 1,
-        ContentItem::List(_) => 1,
-        ContentItem::Paragraph(_) | ContentItem::ForeignBlock(_) => 0,
-    }
-}
-
-/// Format node information for output
-fn format_node_info(info: &NodeInfo) -> String {
-    let mut result = String::new();
-
-    result.push_str(&format!("Type: {}\n", info.node_type));
-
-    if let Some(label) = &info.label {
-        result.push_str(&format!("Label: {}\n", label));
-    }
-
-    if let Some(span) = info.span {
-        result.push_str(&format!("Span: {}\n", span));
-    }
-
-    result
 }
 
 #[cfg(test)]
