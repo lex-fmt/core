@@ -8,7 +8,7 @@ use super::intermediate_ast::{
 use super::parameters::convert_parameter;
 use crate::txxt_nano::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
-    Session, SourceLocation, Span,
+    Session, SourceLocation, Span, TextContent,
 };
 
 /// Helper to extract text from source using a span
@@ -136,7 +136,10 @@ pub(crate) fn convert_paragraph(source: &str, para: ParagraphWithSpans) -> Parag
         lines: para
             .line_spans
             .iter()
-            .map(|spans| extract_line_text(source, spans))
+            .map(|spans| {
+                let text = extract_line_text(source, spans);
+                TextContent::from_string(text, None)
+            })
             .collect(),
         span: None,
     }
@@ -284,7 +287,10 @@ pub(crate) fn convert_paragraph_with_positions(
         lines: para
             .line_spans
             .iter()
-            .map(|spans| extract_line_text(source, spans))
+            .map(|spans| {
+                let text = extract_line_text(source, spans);
+                TextContent::from_string(text, None)
+            })
             .collect(),
         span,
     }

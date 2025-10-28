@@ -5,6 +5,7 @@
 //! access to node information.
 
 use super::span::{Position, Span};
+use super::text_content::TextContent;
 use std::fmt;
 
 // ============================================================================
@@ -27,7 +28,7 @@ pub trait Container: AstNode {
 /// Trait for leaf nodes that contain text
 pub trait TextNode: AstNode {
     fn text(&self) -> String;
-    fn lines(&self) -> &[String];
+    fn lines(&self) -> &[TextContent];
 }
 
 // ============================================================================
@@ -53,7 +54,7 @@ pub enum ContentItem {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
-    pub lines: Vec<String>,
+    pub lines: Vec<TextContent>,
     pub span: Option<Span>,
 }
 
@@ -192,12 +193,12 @@ impl Default for Document {
 }
 
 impl Paragraph {
-    pub fn new(lines: Vec<String>) -> Self {
+    pub fn new(lines: Vec<TextContent>) -> Self {
         Self { lines, span: None }
     }
     pub fn from_line(line: String) -> Self {
         Self {
-            lines: vec![line],
+            lines: vec![TextContent::from_string(line, None)],
             span: None,
         }
     }
@@ -206,7 +207,11 @@ impl Paragraph {
         self
     }
     pub fn text(&self) -> String {
-        self.lines.join("\n")
+        self.lines
+            .iter()
+            .map(|line| line.as_string().to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }
 
@@ -512,9 +517,13 @@ impl AstNode for Paragraph {
 
 impl TextNode for Paragraph {
     fn text(&self) -> String {
-        self.lines.join("\n")
+        self.lines
+            .iter()
+            .map(|line| line.as_string().to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
     }
-    fn lines(&self) -> &[String] {
+    fn lines(&self) -> &[TextContent] {
         &self.lines
     }
 }
@@ -844,7 +853,10 @@ mod tests {
 
     #[test]
     fn test_paragraph_creation() {
-        let para = Paragraph::new(vec!["Hello".to_string(), "World".to_string()]);
+        let para = Paragraph::new(vec![
+            TextContent::from_string("Hello".to_string(), None),
+            TextContent::from_string("World".to_string(), None),
+        ]);
         assert_eq!(para.lines.len(), 2);
         assert_eq!(para.text(), "Hello\nWorld");
     }
@@ -1050,7 +1062,8 @@ mod tests {
     fn test_builder_methods() {
         let span = Span::new(Position::new(1, 0), Position::new(1, 10));
 
-        let para = Paragraph::new(vec!["Test".to_string()]).with_span(Some(span));
+        let para = Paragraph::new(vec![TextContent::from_string("Test".to_string(), None)])
+            .with_span(Some(span));
         assert_eq!(para.span, Some(span));
 
         let session = Session::with_title("Title".to_string()).with_span(Some(span));
