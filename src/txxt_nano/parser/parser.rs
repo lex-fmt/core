@@ -416,8 +416,8 @@ mod tests {
                             println!(
                                 "  {}: ForeignBlock '{}' with {} chars, closing: {}",
                                 i,
-                                fb.subject,
-                                fb.content.len(),
+                                fb.subject.as_string(),
+                                fb.content.as_string().len(),
                                 fb.closing_annotation.label.value
                             );
                         }
@@ -503,8 +503,8 @@ mod tests {
                             println!(
                                 "  {}: ForeignBlock '{}' with {} chars, closing: {}",
                                 i,
-                                fb.subject,
-                                fb.content.len(),
+                                fb.subject.as_string(),
+                                fb.content.as_string().len(),
                                 fb.closing_annotation.label.value
                             );
                         }
@@ -2107,9 +2107,15 @@ mod tests {
 
         assert_eq!(doc.content.len(), 1);
         let foreign_block = doc.content[0].as_foreign_block().unwrap();
-        assert_eq!(foreign_block.subject, "Code Example");
-        assert!(foreign_block.content.contains("function hello()"));
-        assert!(foreign_block.content.contains("return \"world\""));
+        assert_eq!(foreign_block.subject.as_string(), "Code Example");
+        assert!(foreign_block
+            .content
+            .as_string()
+            .contains("function hello()"));
+        assert!(foreign_block
+            .content
+            .as_string()
+            .contains("return \"world\""));
         assert_eq!(foreign_block.closing_annotation.label.value, "javascript");
         assert_eq!(foreign_block.closing_annotation.parameters.len(), 1);
         assert_eq!(
@@ -2130,8 +2136,8 @@ mod tests {
 
         assert_eq!(doc.content.len(), 1);
         let foreign_block = doc.content[0].as_foreign_block().unwrap();
-        assert_eq!(foreign_block.subject, "Image Reference");
-        assert_eq!(foreign_block.content, ""); // No content in marker form
+        assert_eq!(foreign_block.subject.as_string(), "Image Reference");
+        assert_eq!(foreign_block.content.as_string(), ""); // No content in marker form
         assert_eq!(foreign_block.closing_annotation.label.value, "image");
         assert_eq!(foreign_block.closing_annotation.parameters.len(), 2);
         assert_eq!(foreign_block.closing_annotation.parameters[0].key, "type");
@@ -2153,8 +2159,11 @@ mod tests {
         let doc = parse_with_source(tokens, source).unwrap();
 
         let foreign_block = doc.content[0].as_foreign_block().unwrap();
-        assert!(foreign_block.content.contains("    multiple    spaces")); // Preserves multiple spaces
-        assert!(foreign_block.content.contains("    \n")); // Preserves blank lines
+        assert!(foreign_block
+            .content
+            .as_string()
+            .contains("    multiple    spaces")); // Preserves multiple spaces
+        assert!(foreign_block.content.as_string().contains("    \n")); // Preserves blank lines
     }
 
     #[test]
@@ -2170,13 +2179,13 @@ mod tests {
         assert_eq!(doc.content.len(), 2);
 
         let first_block = doc.content[0].as_foreign_block().unwrap();
-        assert_eq!(first_block.subject, "First Block");
-        assert!(first_block.content.contains("code1"));
+        assert_eq!(first_block.subject.as_string(), "First Block");
+        assert!(first_block.content.as_string().contains("code1"));
         assert_eq!(first_block.closing_annotation.label.value, "lang1");
 
         let second_block = doc.content[1].as_foreign_block().unwrap();
-        assert_eq!(second_block.subject, "Second Block");
-        assert!(second_block.content.contains("code2"));
+        assert_eq!(second_block.subject.as_string(), "Second Block");
+        assert!(second_block.content.as_string().contains("code2"));
         assert_eq!(second_block.closing_annotation.label.value, "lang2");
     }
 
@@ -2210,9 +2219,9 @@ mod tests {
             })
             .expect("Should contain JavaScript foreign block");
         let js = js_block.as_foreign_block().unwrap();
-        assert_eq!(js.subject, "Code Example");
-        assert!(js.content.contains("function hello()"));
-        assert!(js.content.contains("console.log"));
+        assert_eq!(js.subject.as_string(), "Code Example");
+        assert!(js.content.as_string().contains("function hello()"));
+        assert!(js.content.as_string().contains("console.log"));
         assert_eq!(js.closing_annotation.parameters.len(), 1);
         assert_eq!(js.closing_annotation.parameters[0].key, "caption");
 
@@ -2227,9 +2236,9 @@ mod tests {
             })
             .expect("Should contain Python foreign block");
         let py = py_block.as_foreign_block().unwrap();
-        assert_eq!(py.subject, "Another Code Block");
-        assert!(py.content.contains("def fibonacci"));
-        assert!(py.content.contains("for i in range"));
+        assert_eq!(py.subject.as_string(), "Another Code Block");
+        assert!(py.content.as_string().contains("def fibonacci"));
+        assert!(py.content.as_string().contains("for i in range"));
 
         // Find SQL block
         let sql_block = doc
@@ -2242,9 +2251,9 @@ mod tests {
             })
             .expect("Should contain SQL foreign block");
         let sql = sql_block.as_foreign_block().unwrap();
-        assert_eq!(sql.subject, "SQL Example");
-        assert!(sql.content.contains("SELECT"));
-        assert!(sql.content.contains("FROM users"));
+        assert_eq!(sql.subject.as_string(), "SQL Example");
+        assert!(sql.content.as_string().contains("SELECT"));
+        assert!(sql.content.as_string().contains("FROM users"));
     }
 
     #[test]
@@ -2265,8 +2274,8 @@ mod tests {
             })
             .expect("Should contain image foreign block");
         let image = image_block.as_foreign_block().unwrap();
-        assert_eq!(image.subject, "Image Reference");
-        assert_eq!(image.content, ""); // No content in marker form
+        assert_eq!(image.subject.as_string(), "Image Reference");
+        assert_eq!(image.content.as_string(), ""); // No content in marker form
         assert_eq!(image.closing_annotation.parameters.len(), 2);
         assert_eq!(image.closing_annotation.parameters[0].key, "type");
         assert_eq!(
@@ -2285,8 +2294,8 @@ mod tests {
             })
             .expect("Should contain binary foreign block");
         let binary = binary_block.as_foreign_block().unwrap();
-        assert_eq!(binary.subject, "Binary File Reference");
-        assert_eq!(binary.content, "");
+        assert_eq!(binary.subject.as_string(), "Binary File Reference");
+        assert_eq!(binary.content.as_string(), "");
         assert_eq!(binary.closing_annotation.parameters.len(), 2);
         assert_eq!(binary.closing_annotation.parameters[0].key, "type");
         assert_eq!(

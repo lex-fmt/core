@@ -73,7 +73,7 @@ pub struct List {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
-    text: Vec<String>,
+    text: Vec<TextContent>,
     pub content: Vec<ContentItem>,
     pub span: Option<Span>,
 }
@@ -87,8 +87,8 @@ pub struct Definition {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ForeignBlock {
-    pub subject: String,
-    pub content: String,
+    pub subject: TextContent,
+    pub content: TextContent,
     pub closing_annotation: Annotation,
     pub span: Option<Span>,
 }
@@ -249,14 +249,14 @@ impl List {
 impl ListItem {
     pub fn new(text: String) -> Self {
         Self {
-            text: vec![text],
+            text: vec![TextContent::from_string(text, None)],
             content: Vec::new(),
             span: None,
         }
     }
     pub fn with_content(text: String, content: Vec<ContentItem>) -> Self {
         Self {
-            text: vec![text],
+            text: vec![TextContent::from_string(text, None)],
             content,
             span: None,
         }
@@ -266,7 +266,7 @@ impl ListItem {
         self
     }
     pub fn text(&self) -> &str {
-        &self.text[0]
+        self.text[0].as_string()
     }
 }
 
@@ -294,16 +294,16 @@ impl Definition {
 impl ForeignBlock {
     pub fn new(subject: String, content: String, closing_annotation: Annotation) -> Self {
         Self {
-            subject,
-            content,
+            subject: TextContent::from_string(subject, None),
+            content: TextContent::from_string(content, None),
             closing_annotation,
             span: None,
         }
     }
     pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
         Self {
-            subject,
-            content: String::new(),
+            subject: TextContent::from_string(subject, None),
+            content: TextContent::from_string(String::new(), None),
             closing_annotation,
             span: None,
         }
@@ -428,7 +428,9 @@ impl fmt::Display for ContentItem {
                 a.parameters.len(),
                 a.content.len()
             ),
-            ContentItem::ForeignBlock(fb) => write!(f, "ForeignBlock('{}')", fb.subject),
+            ContentItem::ForeignBlock(fb) => {
+                write!(f, "ForeignBlock('{}')", fb.subject.as_string())
+            }
         }
     }
 }
@@ -505,8 +507,8 @@ impl fmt::Display for ForeignBlock {
         write!(
             f,
             "ForeignBlock('{}', {} chars, closing: {})",
-            self.subject,
-            self.content.len(),
+            self.subject.as_string(),
+            self.content.as_string().len(),
             self.closing_annotation.label.value
         )
     }
@@ -589,7 +591,7 @@ impl AstNode for ListItem {
 
 impl Container for ListItem {
     fn label(&self) -> &str {
-        &self.text[0]
+        self.text[0].as_string()
     }
     fn children(&self) -> &[ContentItem] {
         &self.content
@@ -655,10 +657,11 @@ impl AstNode for ForeignBlock {
         "ForeignBlock"
     }
     fn display_label(&self) -> String {
-        if self.subject.len() > 50 {
-            format!("{}...", &self.subject[..50])
+        let subject_text = self.subject.as_string();
+        if subject_text.len() > 50 {
+            format!("{}...", &subject_text[..50])
         } else {
-            self.subject.clone()
+            subject_text.to_string()
         }
     }
 }
@@ -691,7 +694,7 @@ impl ContentItem {
             ContentItem::Session(s) => Some(s.label()),
             ContentItem::Definition(d) => Some(d.label()),
             ContentItem::Annotation(a) => Some(a.label()),
-            ContentItem::ForeignBlock(fb) => Some(&fb.subject),
+            ContentItem::ForeignBlock(fb) => Some(fb.subject.as_string()),
             _ => None,
         }
     }
