@@ -11,16 +11,9 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-use super::ast::{
-    Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
-    Session, Span,
-};
+use super::ast::{ContentItem, Document};
 #[allow(unused_imports)] // convert_paragraph is used in tests
 use super::conversion::basic::{convert_document, convert_paragraph};
-use super::conversion::helpers::{nested_spans_to_span_position, spans_to_span_position};
-use super::conversion::text::{extract_line_text, extract_text, reconstruct_raw_content};
-use super::parameters::convert_parameter;
-use super::source_location::SourceLocation;
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -32,7 +25,7 @@ type ParserError = Simple<TokenSpan>;
 // WithSpans structures are now imported from intermediate_ast.rs (single source of truth)
 use super::intermediate_ast::{
     AnnotationWithSpans, ContentItemWithSpans, DefinitionWithSpans, DocumentWithSpans,
-    ForeignBlockWithSpans, ListItemWithSpans, ListWithSpans, ParagraphWithSpans, SessionWithSpans,
+    ListItemWithSpans, ListWithSpans, ParagraphWithSpans, SessionWithSpans,
 };
 // Parser combinators are now imported from combinators.rs (single source of truth)
 use super::combinators::{
@@ -40,198 +33,8 @@ use super::combinators::{
     text_line, token,
 };
 
-// ============================================================================
-// Position-Preserving Conversion Functions
-// ============================================================================
-
-/// Convert intermediate AST with spans to final AST, preserving position information
-fn convert_document_with_positions(source: &str, doc_with_spans: DocumentWithSpans) -> Document {
-    let source_loc = SourceLocation::new(source);
-
-    Document {
-        metadata: doc_with_spans
-            .metadata
-            .into_iter()
-            .map(|ann| convert_annotation_with_positions(source, &source_loc, ann))
-            .collect(),
-        content: doc_with_spans
-            .content
-            .into_iter()
-            .map(|item| convert_content_item_with_positions(source, &source_loc, item))
-            .collect(),
-        span: None,
-    }
-}
-
-fn convert_content_item_with_positions(
-    source: &str,
-    source_loc: &SourceLocation,
-    item: ContentItemWithSpans,
-) -> ContentItem {
-    match item {
-        ContentItemWithSpans::Paragraph(p) => {
-            ContentItem::Paragraph(convert_paragraph_with_positions(source, source_loc, p))
-        }
-        ContentItemWithSpans::Session(s) => {
-            ContentItem::Session(convert_session_with_positions(source, source_loc, s))
-        }
-        ContentItemWithSpans::List(l) => {
-            ContentItem::List(convert_list_with_positions(source, source_loc, l))
-        }
-        ContentItemWithSpans::Definition(d) => {
-            ContentItem::Definition(convert_definition_with_positions(source, source_loc, d))
-        }
-        ContentItemWithSpans::Annotation(a) => {
-            ContentItem::Annotation(convert_annotation_with_positions(source, source_loc, a))
-        }
-        ContentItemWithSpans::ForeignBlock(fb) => {
-            ContentItem::ForeignBlock(convert_foreign_block_with_positions(source, source_loc, fb))
-        }
-    }
-}
-
-fn convert_paragraph_with_positions(
-    source: &str,
-    source_loc: &SourceLocation,
-    para: ParagraphWithSpans,
-) -> Paragraph {
-    let span = nested_spans_to_span_position(&para.line_spans, source_loc);
-
-    Paragraph {
-        lines: para
-            .line_spans
-            .iter()
-            .map(|spans| extract_line_text(source, spans))
-            .collect(),
-        span,
-    }
-}
-
-fn convert_session_with_positions(
-    source: &str,
-    source_loc: &SourceLocation,
-    sess: SessionWithSpans,
-) -> Session {
-    let span = spans_to_span_position(&sess.title_spans, source_loc);
-
-    Session {
-        title: extract_line_text(source, &sess.title_spans),
-        content: sess
-            .content
-            .into_iter()
-            .map(|item| convert_content_item_with_positions(source, source_loc, item))
-            .collect(),
-        span,
-    }
-}
-
-fn convert_definition_with_positions(
-    source: &str,
-    source_loc: &SourceLocation,
-    def: DefinitionWithSpans,
-) -> Definition {
-    let span = spans_to_span_position(&def.subject_spans, source_loc);
-
-    Definition {
-        subject: extract_line_text(source, &def.subject_spans),
-        content: def
-            .content
-            .into_iter()
-            .map(|item| convert_content_item_with_positions(source, source_loc, item))
-            .collect(),
-        span,
-    }
-}
-
-fn convert_annotation_with_positions(
-    source: &str,
-    source_loc: &SourceLocation,
-    ann: AnnotationWithSpans,
-) -> Annotation {
-    let label_text = ann
-        .label_span
-        .as_ref()
-        .map(|span| extract_text(source, span).trim().to_string())
-        .unwrap_or_default();
-    let label_span = ann.label_span.as_ref().map(|range| {
-        Span::new(
-            source_loc.byte_to_position(range.start),
-            source_loc.byte_to_position(range.end),
-        )
-    });
-    let label = Label::new(label_text).with_span(label_span);
-
-    let parameters = ann
-        .parameters
-        .into_iter()
-        .map(|param| convert_parameter(source, param))
-        .collect();
-
-    let content = ann
-        .content
-        .into_iter()
-        .map(|item| convert_content_item_with_positions(source, source_loc, item))
-        .collect();
-
-    Annotation {
-        label,
-        parameters,
-        content,
-        span: None,
-    }
-}
-
-fn convert_list_with_positions(
-    source: &str,
-    source_loc: &SourceLocation,
-    list: ListWithSpans,
-) -> List {
-    List {
-        items: list
-            .items
-            .into_iter()
-            .map(|item| convert_list_item_with_positions(source, source_loc, item))
-            .collect(),
-        span: None,
-    }
-}
-
-fn convert_list_item_with_positions(
-    source: &str,
-    source_loc: &SourceLocation,
-    item: ListItemWithSpans,
-) -> ListItem {
-    let span = spans_to_span_position(&item.text_spans, source_loc);
-
-    ListItem::with_content(
-        extract_line_text(source, &item.text_spans),
-        item.content
-            .into_iter()
-            .map(|content_item| {
-                convert_content_item_with_positions(source, source_loc, content_item)
-            })
-            .collect(),
-    )
-    .with_span(span)
-}
-
-fn convert_foreign_block_with_positions(
-    source: &str,
-    source_loc: &SourceLocation,
-    fb: ForeignBlockWithSpans,
-) -> ForeignBlock {
-    let span = spans_to_span_position(&fb.subject_spans, source_loc);
-
-    let subject = extract_line_text(source, &fb.subject_spans);
-    let content = fb
-        .content_spans
-        .map(|spans| reconstruct_raw_content(source, &spans))
-        .unwrap_or_default();
-    let closing_annotation =
-        convert_annotation_with_positions(source, source_loc, fb.closing_annotation);
-
-    ForeignBlock::new(subject, content, closing_annotation).with_span(span)
-}
+// Position-preserving conversion functions are re-exported from conversion::positions
+use super::conversion::positions::convert_document_with_positions;
 
 // Parser combinator functions (text_line, token, list_item_line) are imported from combinators.rs
 
