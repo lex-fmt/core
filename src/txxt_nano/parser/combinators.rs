@@ -7,8 +7,8 @@ use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::intermediate_ast::{
     AnnotationWithSpans, ContentItemWithSpans, ForeignBlockWithSpans, ParagraphWithSpans,
 };
-use crate::txxt_nano::parser::parameters::{parse_parameters_from_tokens, ParameterWithSpans};
 use crate::txxt_nano::parser::labels::parse_label_from_tokens;
+use crate::txxt_nano::parser::parameters::{parse_parameters_from_tokens, ParameterWithSpans};
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);
@@ -23,7 +23,8 @@ pub(crate) fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError>
 
 /// Parse a text line (sequence of text and whitespace tokens)
 /// Returns the collected spans for this line
-pub(crate) fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+pub(crate) fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone
+{
     filter(|(t, _span): &TokenSpan| {
         matches!(
             t,
@@ -49,7 +50,8 @@ pub(crate) fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = P
 }
 
 /// Parse a list item line - a line that starts with a list marker
-pub(crate) fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+pub(crate) fn list_item_line(
+) -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
     let rest_of_line = filter(|(t, _span): &TokenSpan| {
         matches!(
             t,
@@ -95,7 +97,8 @@ pub(crate) fn list_item_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Erro
 }
 
 /// Parse a paragraph
-pub(crate) fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone {
+pub(crate) fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = ParserError> + Clone
+{
     text_line()
         .then_ignore(token(Token::Newline))
         .repeated()
@@ -104,7 +107,8 @@ pub(crate) fn paragraph() -> impl Parser<TokenSpan, ParagraphWithSpans, Error = 
 }
 
 /// Parse a definition subject
-pub(crate) fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+pub(crate) fn definition_subject(
+) -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
     filter(|(t, _span): &TokenSpan| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
@@ -116,7 +120,8 @@ pub(crate) fn definition_subject() -> impl Parser<TokenSpan, Vec<Range<usize>>, 
 }
 
 /// Parse a session title
-pub(crate) fn session_title() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
+pub(crate) fn session_title(
+) -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::BlankLine))
@@ -152,7 +157,8 @@ pub(crate) fn annotation_header(
 }
 
 /// Parse a foreign block
-pub(crate) fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = ParserError> + Clone {
+pub(crate) fn foreign_block(
+) -> impl Parser<TokenSpan, ForeignBlockWithSpans, Error = ParserError> + Clone {
     let subject_parser = definition_subject();
 
     let content_token = filter(|(t, _span): &TokenSpan| !matches!(t, Token::TxxtMarker));
@@ -178,9 +184,7 @@ pub(crate) fn foreign_block() -> impl Parser<TokenSpan, ForeignBlockWithSpans, E
     let closing_annotation_parser = token(Token::TxxtMarker)
         .ignore_then(annotation_header())
         .then_ignore(token(Token::TxxtMarker))
-        .then(
-            token(Token::Whitespace).ignore_then(text_line()).or_not(),
-        )
+        .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
         .map(|((label_span, parameters), content_span)| {
             let content = content_span
                 .map(|span| {

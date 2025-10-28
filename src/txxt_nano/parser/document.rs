@@ -5,8 +5,8 @@ use std::ops::Range;
 
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{
-    annotation_header, definition_subject, foreign_block, list_item_line, paragraph,
-    session_title, token,
+    annotation_header, definition_subject, foreign_block, list_item_line, paragraph, session_title,
+    token,
 };
 use crate::txxt_nano::parser::intermediate_ast::{
     AnnotationWithSpans, ContentItemWithSpans, DefinitionWithSpans, DocumentWithSpans,
@@ -94,9 +94,7 @@ pub(crate) fn build_document_content_parser(
                 let single_line_or_marker = header
                     .then(
                         token(Token::Whitespace)
-                            .ignore_then(
-                                crate::txxt_nano::parser::combinators::text_line(),
-                            )
+                            .ignore_then(crate::txxt_nano::parser::combinators::text_line())
                             .or_not(),
                     )
                     .then_ignore(token(Token::Newline).or_not())

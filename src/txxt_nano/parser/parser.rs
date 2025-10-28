@@ -15,6 +15,7 @@ use super::ast::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
     Session, Span,
 };
+use super::conversion::text::{extract_line_text, extract_text, reconstruct_raw_content};
 use super::labels::parse_label_from_tokens;
 use super::parameters::{convert_parameter, parse_parameters_from_tokens, ParameterWithSpans};
 use super::source_location::SourceLocation;
@@ -94,33 +95,6 @@ pub(crate) enum ContentItemWithSpans {
 pub(crate) struct DocumentWithSpans {
     metadata: Vec<AnnotationWithSpans>,
     content: Vec<ContentItemWithSpans>,
-}
-
-/// Helper to extract text from source using a span
-#[allow(dead_code)] // Reserved for future use
-fn extract_text(source: &str, span: &Range<usize>) -> String {
-    if span.start >= span.end || span.end > source.len() {
-        // Empty or synthetic span (like for IndentLevel/DedentLevel)
-        return String::new();
-    }
-    source[span.start..span.end].to_string()
-}
-
-/// Helper to extract and concatenate text from multiple spans
-fn extract_line_text(source: &str, spans: &[Range<usize>]) -> String {
-    if spans.is_empty() {
-        return String::new();
-    }
-
-    // Find the overall span from first to last
-    let start = spans.first().map(|s| s.start).unwrap_or(0);
-    let end = spans.last().map(|s| s.end).unwrap_or(0);
-
-    if start >= end || end > source.len() {
-        return String::new();
-    }
-
-    source[start..end].trim().to_string()
 }
 
 /// Convert intermediate AST with spans to final AST with extracted text
@@ -730,43 +704,6 @@ fn annotation_header(
 
         (label_span, params)
     })
-}
-
-/// Helper to reconstruct raw content from token spans
-/// For foreign blocks, this includes the leading indentation that comes before the first token
-fn reconstruct_raw_content(source: &str, spans: &[Range<usize>]) -> String {
-    if spans.is_empty() {
-        return String::new();
-    }
-    // Find the overall span from first to last
-    let first_start = spans.first().map(|s| s.start).unwrap_or(0);
-    let last_end = spans.last().map(|s| s.end).unwrap_or(0);
-
-    if first_start >= last_end || last_end > source.len() {
-        return String::new();
-    }
-
-    // For foreign blocks, we need to include the leading indentation.
-    // Look backwards from first_start to find the previous newline.
-    // Everything from after the newline to last_end is the content.
-    let mut start = first_start;
-
-    // Scan backwards to find the beginning of this line (after previous newline)
-    if first_start > 0 {
-        let bytes = source.as_bytes();
-        // Look for the previous newline
-        for i in (0..first_start).rev() {
-            if bytes[i] == b'\n' {
-                // Found the newline, content starts after it
-                start = i + 1;
-                break;
-            }
-        }
-        // If no newline found, start from the beginning of the source
-        // (This handles the first line case)
-    }
-
-    source[start..last_end].to_string()
 }
 
 /// Parse a foreign block - subject line, optional content, closing annotation
