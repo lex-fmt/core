@@ -60,7 +60,7 @@ pub struct Paragraph {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Session {
-    pub title: String,
+    pub title: TextContent,
     pub content: Vec<ContentItem>,
     pub span: Option<Span>,
 }
@@ -80,7 +80,7 @@ pub struct ListItem {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Definition {
-    pub subject: String,
+    pub subject: TextContent,
     pub content: Vec<ContentItem>,
     pub span: Option<Span>,
 }
@@ -216,7 +216,7 @@ impl Paragraph {
 }
 
 impl Session {
-    pub fn new(title: String, content: Vec<ContentItem>) -> Self {
+    pub fn new(title: TextContent, content: Vec<ContentItem>) -> Self {
         Self {
             title,
             content,
@@ -225,7 +225,7 @@ impl Session {
     }
     pub fn with_title(title: String) -> Self {
         Self {
-            title,
+            title: TextContent::from_string(title, None),
             content: Vec::new(),
             span: None,
         }
@@ -271,7 +271,7 @@ impl ListItem {
 }
 
 impl Definition {
-    pub fn new(subject: String, content: Vec<ContentItem>) -> Self {
+    pub fn new(subject: TextContent, content: Vec<ContentItem>) -> Self {
         Self {
             subject,
             content,
@@ -280,7 +280,7 @@ impl Definition {
     }
     pub fn with_subject(subject: String) -> Self {
         Self {
-            subject,
+            subject: TextContent::from_string(subject, None),
             content: Vec::new(),
             span: None,
         }
@@ -405,11 +405,21 @@ impl fmt::Display for ContentItem {
         match self {
             ContentItem::Paragraph(p) => write!(f, "Paragraph({} lines)", p.lines.len()),
             ContentItem::Session(s) => {
-                write!(f, "Session('{}', {} items)", s.title, s.content.len())
+                write!(
+                    f,
+                    "Session('{}', {} items)",
+                    s.title.as_string(),
+                    s.content.len()
+                )
             }
             ContentItem::List(l) => write!(f, "List({} items)", l.items.len()),
             ContentItem::Definition(d) => {
-                write!(f, "Definition('{}', {} items)", d.subject, d.content.len())
+                write!(
+                    f,
+                    "Definition('{}', {} items)",
+                    d.subject.as_string(),
+                    d.content.len()
+                )
             }
             ContentItem::Annotation(a) => write!(
                 f,
@@ -431,7 +441,12 @@ impl fmt::Display for Paragraph {
 
 impl fmt::Display for Session {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Session('{}', {} items)", self.title, self.content.len())
+        write!(
+            f,
+            "Session('{}', {} items)",
+            self.title.as_string(),
+            self.content.len()
+        )
     }
 }
 
@@ -452,7 +467,7 @@ impl fmt::Display for Definition {
         write!(
             f,
             "Definition('{}', {} items)",
-            self.subject,
+            self.subject.as_string(),
             self.content.len()
         )
     }
@@ -533,13 +548,13 @@ impl AstNode for Session {
         "Session"
     }
     fn display_label(&self) -> String {
-        self.title.clone()
+        self.title.as_string().to_string()
     }
 }
 
 impl Container for Session {
     fn label(&self) -> &str {
-        &self.title
+        self.title.as_string()
     }
     fn children(&self) -> &[ContentItem] {
         &self.content
@@ -589,17 +604,18 @@ impl AstNode for Definition {
         "Definition"
     }
     fn display_label(&self) -> String {
-        if self.subject.len() > 50 {
-            format!("{}...", &self.subject[..50])
+        let subject_text = self.subject.as_string();
+        if subject_text.len() > 50 {
+            format!("{}...", &subject_text[..50])
         } else {
-            self.subject.clone()
+            subject_text.to_string()
         }
     }
 }
 
 impl Container for Definition {
     fn label(&self) -> &str {
-        &self.subject
+        self.subject.as_string()
     }
     fn children(&self) -> &[ContentItem] {
         &self.content
@@ -863,13 +879,13 @@ mod tests {
 
     #[test]
     fn test_session_creation() {
-        let session = Session::new(
-            "Introduction".to_string(),
-            vec![ContentItem::Paragraph(Paragraph::from_line(
+        let mut session = Session::with_title("Introduction".to_string());
+        session
+            .children_mut()
+            .push(ContentItem::Paragraph(Paragraph::from_line(
                 "Content".to_string(),
-            ))],
-        );
-        assert_eq!(session.title, "Introduction");
+            )));
+        assert_eq!(session.label(), "Introduction");
         assert_eq!(session.content.len(), 1);
     }
 
@@ -1019,8 +1035,11 @@ mod tests {
     fn test_elements_at_nested_session() {
         let para = Paragraph::from_line("Nested".to_string())
             .with_span(Some(Span::new(Position::new(1, 0), Position::new(1, 6))));
-        let session = Session::new("Section".to_string(), vec![ContentItem::Paragraph(para)])
-            .with_span(Some(Span::new(Position::new(0, 0), Position::new(2, 0))));
+        let session = Session::new(
+            TextContent::from_string("Section".to_string(), None),
+            vec![ContentItem::Paragraph(para)],
+        )
+        .with_span(Some(Span::new(Position::new(0, 0), Position::new(2, 0))));
         let item = ContentItem::Session(session);
 
         let pos = Position::new(1, 3);

@@ -1,4 +1,4 @@
-use crate::txxt_nano::ast::ContentItem;
+use crate::txxt_nano::ast::{Container, ContentItem};
 use crate::txxt_nano::lexer::{lex, lex_with_spans, Token};
 use crate::txxt_nano::parser::api::parse;
 use crate::txxt_nano::parser::ast_conversion::convert_paragraph;
@@ -117,7 +117,7 @@ fn test_session_title_followed_by_bare_indent_level() {
                         println!(
                             "  {}: Session '{}' with {} children",
                             i,
-                            s.title,
+                            s.label(),
                             s.content.len()
                         );
                     }

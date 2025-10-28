@@ -80,7 +80,7 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
         ContentItem::Definition(d) => {
             // <definition>subject<content>...</content></definition>
             output.push_str(&format!("{}<definition>", indent));
-            output.push_str(&escape_xml(&d.subject));
+            output.push_str(&escape_xml(d.subject.as_string()));
 
             if d.children().is_empty() {
                 // Empty definition
@@ -179,7 +179,7 @@ fn escape_xml(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt_nano::ast::{Paragraph, Session};
+    use crate::txxt_nano::ast::{Paragraph, Session, TextContent};
 
     #[test]
     fn test_serialize_simple_paragraph() {
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn test_serialize_session_with_paragraph() {
         let doc = Document::with_content(vec![ContentItem::Session(Session::new(
-            "Introduction".to_string(),
+            TextContent::from_string("Introduction".to_string(), None),
             vec![ContentItem::Paragraph(Paragraph::from_line(
                 "Welcome".to_string(),
             ))],
@@ -211,11 +211,11 @@ mod tests {
     #[test]
     fn test_serialize_nested_sessions() {
         let doc = Document::with_content(vec![ContentItem::Session(Session::new(
-            "Root".to_string(),
+            TextContent::from_string("Root".to_string(), None),
             vec![
                 ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
                 ContentItem::Session(Session::new(
-                    "Nested".to_string(),
+                    TextContent::from_string("Nested".to_string(), None),
                     vec![ContentItem::Paragraph(Paragraph::from_line(
                         "Nested para".to_string(),
                     ))],

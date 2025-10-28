@@ -13,7 +13,8 @@ use std::ops::Range;
 
 #[allow(unused_imports)] // convert_paragraph is used in tests
 use super::ast_conversion::convert_paragraph;
-use crate::txxt_nano::ast::Document;
+#[allow(unused_imports)] // Container is used in tests
+use crate::txxt_nano::ast::{Container, Document};
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -388,7 +389,7 @@ mod tests {
                             println!(
                                 "  {}: Session '{}' with {} children",
                                 i,
-                                s.title,
+                                s.label(),
                                 s.content.len()
                             );
                         }
@@ -399,7 +400,7 @@ mod tests {
                             println!(
                                 "  {}: Definition '{}' with {} children",
                                 i,
-                                d.subject,
+                                d.label(),
                                 d.content.len()
                             );
                         }
@@ -475,7 +476,7 @@ mod tests {
                             println!(
                                 "  {}: Session '{}' with {} children",
                                 i,
-                                s.title,
+                                s.label(),
                                 s.content.len()
                             );
                         }
@@ -486,7 +487,7 @@ mod tests {
                             println!(
                                 "  {}: Definition '{}' with {} children",
                                 i,
-                                d.subject,
+                                d.label(),
                                 d.content.len()
                             );
                         }
@@ -1649,7 +1650,7 @@ mod tests {
         let outer_def = doc.content[0]
             .as_definition()
             .expect("Should be a definition");
-        assert_eq!(outer_def.subject, "Outer");
+        assert_eq!(outer_def.label(), "Outer");
         assert_eq!(
             outer_def.content.len(),
             1,
@@ -1660,7 +1661,7 @@ mod tests {
         let inner_def = outer_def.content[0]
             .as_definition()
             .expect("Inner should be a definition");
-        assert_eq!(inner_def.subject, "Inner");
+        assert_eq!(inner_def.label(), "Inner");
         assert_eq!(inner_def.content.len(), 1, "Inner should have content");
 
         // Check nested content
@@ -1693,7 +1694,9 @@ mod tests {
                 ContentItem::Paragraph(p) => {
                     println!("  Item {}: Paragraph with {} lines", i, p.lines.len())
                 }
-                ContentItem::Definition(d) => println!("  Item {}: Definition '{}'", i, d.subject),
+                ContentItem::Definition(d) => {
+                    println!("  Item {}: Definition '{}'", i, d.subject.as_string())
+                }
                 _ => println!("  Item {}: Other", i),
             }
         }
