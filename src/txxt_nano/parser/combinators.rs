@@ -4,6 +4,7 @@ use chumsky::prelude::*;
 use std::ops::Range;
 
 use crate::txxt_nano::lexer::Token;
+use crate::txxt_nano::parser::conversion::helpers::is_text_token;
 use crate::txxt_nano::parser::intermediate_ast::{
     AnnotationWithSpans, ContentItemWithSpans, ForeignBlockWithSpans, ParagraphWithSpans,
 };
@@ -25,50 +26,19 @@ pub(crate) fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError>
 /// Returns the collected spans for this line
 pub(crate) fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone
 {
-    filter(|(t, _span): &TokenSpan| {
-        matches!(
-            t,
-            Token::Text(_)
-                | Token::Whitespace
-                | Token::Number(_)
-                | Token::Dash
-                | Token::Period
-                | Token::OpenParen
-                | Token::CloseParen
-                | Token::Colon
-                | Token::Comma
-                | Token::Quote
-                | Token::Equals
-        )
-    })
-    .repeated()
-    .at_least(1)
-    .map(|tokens_with_spans: Vec<TokenSpan>| {
-        // Collect all spans for this line
-        tokens_with_spans.into_iter().map(|(_, s)| s).collect()
-    })
+    filter(|(t, _span): &TokenSpan| is_text_token(t))
+        .repeated()
+        .at_least(1)
+        .map(|tokens_with_spans: Vec<TokenSpan>| {
+            // Collect all spans for this line
+            tokens_with_spans.into_iter().map(|(_, s)| s).collect()
+        })
 }
 
 /// Parse a list item line - a line that starts with a list marker
 pub(crate) fn list_item_line(
 ) -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone {
-    let rest_of_line = filter(|(t, _span): &TokenSpan| {
-        matches!(
-            t,
-            Token::Text(_)
-                | Token::Whitespace
-                | Token::Number(_)
-                | Token::Dash
-                | Token::Period
-                | Token::OpenParen
-                | Token::CloseParen
-                | Token::Colon
-                | Token::Comma
-                | Token::Quote
-                | Token::Equals
-        )
-    })
-    .repeated();
+    let rest_of_line = filter(|(t, _span): &TokenSpan| is_text_token(t)).repeated();
 
     let dash_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Dash))
         .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
