@@ -7,8 +7,8 @@
 //! Where: `<parameter> = <key> "=" <value>`
 
 use crate::txxt_nano::lexer::Token;
-use crate::txxt_nano::parser::ast::Parameter;
 use std::ops::Range;
+use txxt_ast::Parameter;
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);

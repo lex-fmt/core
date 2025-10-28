@@ -5,7 +5,7 @@
 
 // Re-export conversion functions from ast_conversion.rs to consolidate duplication
 #[allow(unused_imports)]
-pub(crate) use super::super::ast_conversion::{
+pub(crate) use crate::txxt_nano::parser::ast_conversion::{
     convert_annotation_with_positions, convert_content_item_with_positions,
     convert_definition_with_positions, convert_document_with_positions,
     convert_foreign_block_with_positions, convert_list_item_with_positions,

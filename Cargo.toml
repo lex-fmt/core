@@ -1,5 +1,9 @@
+[workspace]
+members = [".", "txxt_ast"]
+resolver = "2"
+
 [package]
-name = "txxt-nano"
+name = "txxt_nano"
 version = "0.1.0"
 edition = "2021"
 authors = ["txxt-nano contributors"]
@@ -14,6 +18,7 @@ name = "txxt"
 path = "src/bin/txxt.rs"
 
 [dependencies]
+txxt_ast = { path = "./txxt_ast" }
 logos = "0.14"
 clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
