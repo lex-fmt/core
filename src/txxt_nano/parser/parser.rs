@@ -458,7 +458,20 @@ fn list_item() -> impl Parser<TokenSpan, ListItemWithSpans, Error = ParserError>
             .then(
                 // Optional indented block
                 token(Token::IndentLevel)
-                    .ignore_then(list_item_content.repeated().at_least(1))
+                    .ignore_then(
+                        // Allow blank lines between content items in list
+                        choice((
+                            // Skip blank lines then parse content
+                            token(Token::Newline)
+                                .repeated()
+                                .at_least(1)
+                                .ignore_then(list_item_content.clone()),
+                            // Parse content directly
+                            list_item_content.clone(),
+                        ))
+                        .repeated()
+                        .at_least(1)
+                    )
                     .then_ignore(token(Token::DedentLevel))
                     .or_not(),
             )
@@ -698,7 +711,20 @@ fn annotation() -> impl Parser<TokenSpan, AnnotationWithSpans, Error = ParserErr
         .then_ignore(token(Token::Newline))
         .then(
             token(Token::IndentLevel)
-                .ignore_then(annotation_content.repeated().at_least(1))
+                .ignore_then(
+                    // Allow blank lines between content items in annotation block
+                    choice((
+                        // Skip blank lines then parse content
+                        token(Token::Newline)
+                            .repeated()
+                            .at_least(1)
+                            .ignore_then(annotation_content.clone()),
+                        // Parse content directly
+                        annotation_content.clone(),
+                    ))
+                    .repeated()
+                    .at_least(1)
+                )
                 .then_ignore(token(Token::DedentLevel)),
         )
         .then_ignore(token(Token::TxxtMarker)) // Second closing :: after content
@@ -920,32 +946,25 @@ fn build_document_content_parser(
             ))
         };
 
-        // Parse a single item and continue, or handle end conditions
+        // Parse content, with optional leading/trailing blank lines
         choice((
-            // Parse item and continue recursion
-            single_item
-                .then(
-                    // After parsing an item, handle what comes next
+            // Skip any leading blank lines, then try to parse item
+            token(Token::Newline)
+                .repeated()
+                .at_least(1)
+                .ignore_then(
                     choice((
-                        // Blank lines followed by boundary = stop
-                        token(Token::Newline)
-                            .repeated()
-                            .at_least(1)
-                            .then(
-                                filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
-                                    .rewind(),
-                            )
+                        // After blank lines, check for boundary
+                        filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
+                            .rewind()
                             .to(vec![]),
-                        // Blank lines followed by more items
-                        token(Token::Newline)
-                            .repeated()
-                            .at_least(1)
-                            .ignore_then(items.clone()),
-                        // Direct continuation (no blank lines)
+                        // Or continue with more items
                         items.clone(),
                     ))
-                    .or_not(), // Make the continuation optional
-                )
+                ),
+            // Parse item without leading blank lines
+            single_item
+                .then(items.clone().or_not())
                 .map(|(first, rest)| {
                     let mut result = vec![first];
                     if let Some(mut rest_items) = rest {
@@ -956,12 +975,6 @@ fn build_document_content_parser(
             // Base case: At a boundary (DocEnd or DedentLevel)
             filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
                 .rewind()
-                .to(vec![]),
-            // Base case: Blank lines before a boundary
-            token(Token::Newline)
-                .repeated()
-                .at_least(1)
-                .then(filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel)).rewind())
                 .to(vec![]),
         ))
     })
