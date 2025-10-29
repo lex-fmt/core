@@ -76,6 +76,18 @@ pub(crate) fn extract_text_from_spans(source: &str, spans: &[Range<usize>]) -> S
     source[start..end].trim().to_string()
 }
 
+/// Helper: extract tokens to text and byte range span
+/// Converts a vector of token-span pairs to (extracted_text, byte_range)
+pub(crate) fn extract_tokens_to_text_and_span(
+    source: &str,
+    tokens: Vec<TokenSpan>,
+) -> (String, Range<usize>) {
+    let spans: Vec<Range<usize>> = tokens.into_iter().map(|(_, s)| s).collect();
+    let text = extract_text_from_spans(source, &spans);
+    let span = compute_byte_range_bounds(&spans);
+    (text, span)
+}
+
 /// Helper: match a specific token type, ignoring the span
 pub(crate) fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError> + Clone {
     filter(move |(tok, _)| tok == &t).ignored()
@@ -120,21 +132,10 @@ pub(crate) fn list_item_line(
         .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
         .chain(rest_of_line);
 
-    dash_pattern.or(ordered_pattern).or(paren_pattern).map(
-        move |tokens_with_spans: Vec<TokenSpan>| {
-            let spans: Vec<Range<usize>> = tokens_with_spans.into_iter().map(|(_, s)| s).collect();
-            let text = extract_text_from_spans(&source, &spans);
-            // Compute span from token ranges
-            let span = if spans.is_empty() {
-                0..0
-            } else {
-                let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
-                let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
-                start..end
-            };
-            (text, span)
-        },
-    )
+    dash_pattern
+        .or(ordered_pattern)
+        .or(paren_pattern)
+        .map(move |tokens_with_spans| extract_tokens_to_text_and_span(&source, tokens_with_spans))
 }
 
 /// Parse a paragraph
@@ -187,19 +188,7 @@ pub(crate) fn definition_subject(
     filter(|(t, _span): &TokenSpan| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
-        .map(move |tokens_with_spans: Vec<TokenSpan>| {
-            let spans: Vec<Range<usize>> = tokens_with_spans.into_iter().map(|(_, s)| s).collect();
-            let text = extract_text_from_spans(&source, &spans);
-            // Compute span from token ranges
-            let span = if spans.is_empty() {
-                0..0
-            } else {
-                let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
-                let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
-                start..end
-            };
-            (text, span)
-        })
+        .map(move |tokens_with_spans| extract_tokens_to_text_and_span(&source, tokens_with_spans))
         .then_ignore(token(Token::Colon))
         .then_ignore(token(Token::Newline))
 }
@@ -215,14 +204,7 @@ pub(crate) fn session_title(
         .then_ignore(token(Token::BlankLine))
         .map(move |spans| {
             let text = extract_text_from_spans(&source, &spans);
-            // Compute span from token ranges
-            let span = if spans.is_empty() {
-                0..0
-            } else {
-                let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
-                let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
-                start..end
-            };
+            let span = compute_byte_range_bounds(&spans);
             (text, span)
         })
 }
