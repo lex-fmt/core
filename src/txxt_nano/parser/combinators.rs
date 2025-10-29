@@ -2,6 +2,7 @@
 
 use chumsky::prelude::*;
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
 use crate::txxt_nano::ast::{
@@ -79,7 +80,7 @@ pub(crate) fn extract_text_from_spans(source: &str, spans: &[Range<usize>]) -> S
 /// Helper: extract tokens to text and byte range span
 /// Converts a vector of token-span pairs to (extracted_text, byte_range)
 pub(crate) fn extract_tokens_to_text_and_span(
-    source: &str,
+    source: &Arc<String>,
     tokens: Vec<TokenSpan>,
 ) -> (String, Range<usize>) {
     let spans: Vec<Range<usize>> = tokens.into_iter().map(|(_, s)| s).collect();
@@ -109,9 +110,8 @@ pub(crate) fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = P
 /// Parse a list item line - a line that starts with a list marker
 /// Phase 5: Now returns extracted text with span information
 pub(crate) fn list_item_line(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
-    let source = source.to_string();
     let rest_of_line = filter(|(t, _span): &TokenSpan| is_text_token(t)).repeated();
 
     let dash_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Dash))
@@ -141,9 +141,8 @@ pub(crate) fn list_item_line(
 /// Parse a paragraph
 /// Phase 5: Now populates span information
 pub(crate) fn paragraph(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, Paragraph, Error = ParserError> + Clone {
-    let source = source.to_string();
     text_line()
         .then_ignore(token(Token::Newline))
         .repeated()
@@ -182,9 +181,8 @@ pub(crate) fn paragraph(
 /// Parse a definition subject
 /// Phase 5: Now returns extracted text with span information
 pub(crate) fn definition_subject(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
-    let source = source.to_string();
     filter(|(t, _span): &TokenSpan| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
@@ -196,9 +194,8 @@ pub(crate) fn definition_subject(
 /// Parse a session title
 /// Phase 5: Now returns extracted text with span information
 pub(crate) fn session_title(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
-    let source = source.to_string();
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::BlankLine))
@@ -212,13 +209,12 @@ pub(crate) fn session_title(
 /// Parse the bounded region between :: markers
 /// Phase 5: Now returns extracted label text, label span, and final Parameter types
 pub(crate) fn annotation_header(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<
     TokenSpan,
     (Option<String>, Option<Range<usize>>, Vec<Parameter>),
     Error = ParserError,
 > + Clone {
-    let source = source.to_string();
     let bounded_region =
         filter(|(t, _): &TokenSpan| !matches!(t, Token::TxxtMarker | Token::Newline))
             .repeated()
@@ -263,10 +259,9 @@ pub(crate) fn annotation_header(
 /// Parse a foreign block
 /// Phase 4: Now builds final ForeignBlock type directly
 pub(crate) fn foreign_block(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, ForeignBlock, Error = ParserError> + Clone {
-    let source = source.to_string();
-    let subject_parser = definition_subject(&source.clone());
+    let subject_parser = definition_subject(source.clone());
 
     let content_token = filter(|(t, _span): &TokenSpan| !matches!(t, Token::TxxtMarker));
 
@@ -290,7 +285,7 @@ pub(crate) fn foreign_block(
 
     let source_for_annotation = source.clone();
     let closing_annotation_parser = token(Token::TxxtMarker)
-        .ignore_then(annotation_header(&source_for_annotation.clone()))
+        .ignore_then(annotation_header(source_for_annotation.clone()))
         .then_ignore(token(Token::TxxtMarker))
         .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
         .map(
