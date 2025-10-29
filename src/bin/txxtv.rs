@@ -146,13 +146,30 @@ impl App {
             .collect()
     }
 
+    fn render_info_panel(&self) -> Vec<Line<'_>> {
+        vec![
+            Line::from(format!(
+                "Position: Row {}, Col {}",
+                self.cursor_row, self.cursor_col
+            )),
+            Line::from(""),
+            Line::from("Controls:"),
+            Line::from("  ↑↓←→  Navigate"),
+            Line::from("  q     Quit"),
+        ]
+    }
+
     fn draw(&self, frame: &mut Frame) {
         let area = frame.area();
 
-        // Create layout: title bar and file viewer
+        // Create layout: title bar, file viewer, and info panel
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Min(0)])
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Min(0),
+                Constraint::Length(6),
+            ])
             .split(area);
 
         // Title bar
@@ -170,6 +187,16 @@ impl App {
         let file_viewer = Paragraph::new(rendered_lines)
             .block(Block::default().borders(Borders::ALL).title("File Content"));
         frame.render_widget(file_viewer, chunks[1]);
+
+        // Info panel at the bottom
+        let info_lines = self.render_info_panel();
+        let info_panel = Paragraph::new(info_lines).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Info")
+                .style(Style::default().fg(Color::Black).bg(Color::Gray)),
+        );
+        frame.render_widget(info_panel, chunks[2]);
     }
 }
 
@@ -404,6 +431,53 @@ mod tests {
         // Quit still works
         let quit_event = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE);
         assert!(handle_key_event(quit_event, &mut app));
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_info_panel_rendering() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_info.txt");
+        fs::write(&test_file, "Line 1\nLine 2\nLine 3").unwrap();
+
+        let mut app = App::new(test_file.clone()).unwrap();
+
+        // Move cursor to position 2,3
+        app.cursor_row = 2;
+        app.cursor_col = 3;
+
+        // Render info panel and verify content
+        let info_lines = app.render_info_panel();
+        assert!(!info_lines.is_empty());
+
+        // The first line should contain position info
+        let first_line_text = format!("{:?}", info_lines[0]);
+        assert!(first_line_text.contains("2") && first_line_text.contains("3"));
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_full_layout_with_info_panel() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_layout.txt");
+        fs::write(&test_file, "Content\nwith\nmultiple\nlines").unwrap();
+
+        let app = App::new(test_file.clone()).unwrap();
+
+        // Create a test backend with a size that accommodates all three sections
+        let backend = TestBackend::new(60, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Draw to the test backend - should render title, file viewer, and info panel
+        terminal
+            .draw(|frame| {
+                app.draw(frame);
+            })
+            .unwrap();
 
         // Clean up
         fs::remove_file(test_file).unwrap();
