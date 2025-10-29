@@ -31,6 +31,31 @@ fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
     Some(source_loc.range_to_span(range))
 }
 
+/// Build a session parser
+fn build_session_parser<P>(
+    source: Arc<String>,
+    items: P,
+) -> impl Parser<TokenSpan, ContentItem, Error = ParserError> + Clone
+where
+    P: Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
+{
+    let source_for_session = source.clone();
+    session_title(source.clone())
+        .then(
+            token(Token::IndentLevel)
+                .ignore_then(items)
+                .then_ignore(token(Token::DedentLevel)),
+        )
+        .map(move |((title_text, title_span), content)| {
+            let span = byte_range_to_span(&source_for_session, &title_span);
+            ContentItem::Session(Session {
+                title: TextContent::from_string(title_text, None),
+                content,
+                span,
+            })
+        })
+}
+
 /// Build the Multi-Parser Bundle for document-level content parsing.
 ///
 /// Phase 4: This parser now builds final ContentItem types directly using refactored combinators.
@@ -44,23 +69,7 @@ pub(crate) fn build_document_content_parser(
         let source = source.clone();
         let single_item = {
             // Session parser - now builds final Session type with span
-            let session_parser = {
-                let source_for_session = source.clone();
-                session_title(source.clone())
-                    .then(
-                        token(Token::IndentLevel)
-                            .ignore_then(items.clone())
-                            .then_ignore(token(Token::DedentLevel)),
-                    )
-                    .map(move |((title_text, title_span), content)| {
-                        let span = byte_range_to_span(&source_for_session, &title_span);
-                        ContentItem::Session(Session {
-                            title: TextContent::from_string(title_text, None),
-                            content,
-                            span,
-                        })
-                    })
-            };
+            let session_parser = build_session_parser(source.clone(), items.clone());
 
             // Definition parser - now builds final Definition type with span
             let definition_parser = {
