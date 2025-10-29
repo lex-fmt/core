@@ -2,6 +2,7 @@
 
 use chumsky::prelude::*;
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
 use crate::txxt_nano::ast::{
@@ -27,6 +28,40 @@ fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
     Some(source_loc.range_to_span(range))
 }
 
+/// Helper: compute span bounds from multiple spans
+pub(crate) fn compute_span_from_spans(spans: &[Span]) -> Span {
+    use crate::txxt_nano::ast::span::Position;
+    let start_line = spans.iter().map(|sp| sp.start.line).min().unwrap_or(0);
+    let start_col = spans.iter().map(|sp| sp.start.column).min().unwrap_or(0);
+    let end_line = spans.iter().map(|sp| sp.end.line).max().unwrap_or(0);
+    let end_col = spans.iter().map(|sp| sp.end.column).max().unwrap_or(0);
+    Span::new(
+        Position::new(start_line, start_col),
+        Position::new(end_line, end_col),
+    )
+}
+
+/// Helper: compute span bounds from multiple optional spans
+pub(crate) fn compute_span_from_optional_spans(spans: &[Option<Span>]) -> Option<Span> {
+    let actual_spans: Vec<Span> = spans.iter().filter_map(|s| *s).collect();
+    if actual_spans.is_empty() {
+        None
+    } else {
+        Some(compute_span_from_spans(&actual_spans))
+    }
+}
+
+/// Helper: compute span bounds from byte ranges
+pub(crate) fn compute_byte_range_bounds(ranges: &[Range<usize>]) -> Range<usize> {
+    if ranges.is_empty() {
+        0..0
+    } else {
+        let start = ranges.iter().map(|r| r.start).min().unwrap_or(0);
+        let end = ranges.iter().map(|r| r.end).max().unwrap_or(0);
+        start..end
+    }
+}
+
 /// Helper: extract text from multiple spans
 pub(crate) fn extract_text_from_spans(source: &str, spans: &[Range<usize>]) -> String {
     if spans.is_empty() {
@@ -40,6 +75,18 @@ pub(crate) fn extract_text_from_spans(source: &str, spans: &[Range<usize>]) -> S
     }
 
     source[start..end].trim().to_string()
+}
+
+/// Helper: extract tokens to text and byte range span
+/// Converts a vector of token-span pairs to (extracted_text, byte_range)
+pub(crate) fn extract_tokens_to_text_and_span(
+    source: &Arc<String>,
+    tokens: Vec<TokenSpan>,
+) -> (String, Range<usize>) {
+    let spans: Vec<Range<usize>> = tokens.into_iter().map(|(_, s)| s).collect();
+    let text = extract_text_from_spans(source, &spans);
+    let span = compute_byte_range_bounds(&spans);
+    (text, span)
 }
 
 /// Helper: match a specific token type, ignoring the span
@@ -63,9 +110,8 @@ pub(crate) fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = P
 /// Parse a list item line - a line that starts with a list marker
 /// Phase 5: Now returns extracted text with span information
 pub(crate) fn list_item_line(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
-    let source = source.to_string();
     let rest_of_line = filter(|(t, _span): &TokenSpan| is_text_token(t)).repeated();
 
     let dash_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Dash))
@@ -86,29 +132,17 @@ pub(crate) fn list_item_line(
         .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
         .chain(rest_of_line);
 
-    dash_pattern.or(ordered_pattern).or(paren_pattern).map(
-        move |tokens_with_spans: Vec<TokenSpan>| {
-            let spans: Vec<Range<usize>> = tokens_with_spans.into_iter().map(|(_, s)| s).collect();
-            let text = extract_text_from_spans(&source, &spans);
-            // Compute span from token ranges
-            let span = if spans.is_empty() {
-                0..0
-            } else {
-                let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
-                let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
-                start..end
-            };
-            (text, span)
-        },
-    )
+    dash_pattern
+        .or(ordered_pattern)
+        .or(paren_pattern)
+        .map(move |tokens_with_spans| extract_tokens_to_text_and_span(&source, tokens_with_spans))
 }
 
 /// Parse a paragraph
 /// Phase 5: Now populates span information
 pub(crate) fn paragraph(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, Paragraph, Error = ParserError> + Clone {
-    let source = source.to_string();
     text_line()
         .then_ignore(token(Token::Newline))
         .repeated()
@@ -122,9 +156,8 @@ pub(crate) fn paragraph(
                     let line_span = if spans.is_empty() {
                         None
                     } else {
-                        let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
-                        let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
-                        byte_range_to_span(&source, &(start..end))
+                        let range = compute_byte_range_bounds(spans);
+                        byte_range_to_span(&source, &range)
                     };
                     TextContent::from_string(text, line_span)
                 })
@@ -136,9 +169,8 @@ pub(crate) fn paragraph(
                 if all_spans.is_empty() {
                     None
                 } else {
-                    let start = all_spans.iter().map(|r| r.start).min().unwrap_or(0);
-                    let end = all_spans.iter().map(|r| r.end).max().unwrap_or(0);
-                    byte_range_to_span(&source, &(start..end))
+                    let range = compute_byte_range_bounds(&all_spans);
+                    byte_range_to_span(&source, &range)
                 }
             };
 
@@ -149,25 +181,12 @@ pub(crate) fn paragraph(
 /// Parse a definition subject
 /// Phase 5: Now returns extracted text with span information
 pub(crate) fn definition_subject(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
-    let source = source.to_string();
     filter(|(t, _span): &TokenSpan| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
-        .map(move |tokens_with_spans: Vec<TokenSpan>| {
-            let spans: Vec<Range<usize>> = tokens_with_spans.into_iter().map(|(_, s)| s).collect();
-            let text = extract_text_from_spans(&source, &spans);
-            // Compute span from token ranges
-            let span = if spans.is_empty() {
-                0..0
-            } else {
-                let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
-                let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
-                start..end
-            };
-            (text, span)
-        })
+        .map(move |tokens_with_spans| extract_tokens_to_text_and_span(&source, tokens_with_spans))
         .then_ignore(token(Token::Colon))
         .then_ignore(token(Token::Newline))
 }
@@ -175,22 +194,14 @@ pub(crate) fn definition_subject(
 /// Parse a session title
 /// Phase 5: Now returns extracted text with span information
 pub(crate) fn session_title(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
-    let source = source.to_string();
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::BlankLine))
         .map(move |spans| {
             let text = extract_text_from_spans(&source, &spans);
-            // Compute span from token ranges
-            let span = if spans.is_empty() {
-                0..0
-            } else {
-                let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
-                let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
-                start..end
-            };
+            let span = compute_byte_range_bounds(&spans);
             (text, span)
         })
 }
@@ -198,13 +209,12 @@ pub(crate) fn session_title(
 /// Parse the bounded region between :: markers
 /// Phase 5: Now returns extracted label text, label span, and final Parameter types
 pub(crate) fn annotation_header(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<
     TokenSpan,
     (Option<String>, Option<Range<usize>>, Vec<Parameter>),
     Error = ParserError,
 > + Clone {
-    let source = source.to_string();
     let bounded_region =
         filter(|(t, _): &TokenSpan| !matches!(t, Token::TxxtMarker | Token::Newline))
             .repeated()
@@ -249,10 +259,9 @@ pub(crate) fn annotation_header(
 /// Parse a foreign block
 /// Phase 4: Now builds final ForeignBlock type directly
 pub(crate) fn foreign_block(
-    source: &str,
+    source: Arc<String>,
 ) -> impl Parser<TokenSpan, ForeignBlock, Error = ParserError> + Clone {
-    let source = source.to_string();
-    let subject_parser = definition_subject(&source.clone());
+    let subject_parser = definition_subject(source.clone());
 
     let content_token = filter(|(t, _span): &TokenSpan| !matches!(t, Token::TxxtMarker));
 
@@ -276,7 +285,7 @@ pub(crate) fn foreign_block(
 
     let source_for_annotation = source.clone();
     let closing_annotation_parser = token(Token::TxxtMarker)
-        .ignore_then(annotation_header(&source_for_annotation.clone()))
+        .ignore_then(annotation_header(source_for_annotation.clone()))
         .then_ignore(token(Token::TxxtMarker))
         .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
         .map(

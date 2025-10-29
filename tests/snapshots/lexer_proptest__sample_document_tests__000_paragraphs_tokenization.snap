@@ -1,9 +1,9 @@
 ---
 source: tests/lexer_proptest.rs
+assertion_line: 25
 expression: tokens
 ---
 [
-    DocStart,
     Text(
         "Simple",
     ),
@@ -342,5 +342,4 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    DocEnd,
 ]
