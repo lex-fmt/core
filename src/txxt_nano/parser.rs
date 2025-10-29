@@ -12,6 +12,7 @@ pub mod api;
 pub mod combinators;
 pub mod conversion;
 pub mod document;
+pub mod elements;
 pub mod labels;
 pub mod parameters;
 #[allow(clippy::module_inception)]

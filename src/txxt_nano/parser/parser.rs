@@ -12,7 +12,7 @@ use chumsky::prelude::*;
 use std::ops::Range;
 
 #[allow(unused_imports)] // Container is used in tests
-use crate::txxt_nano::ast::{Container, Document};
+use crate::txxt_nano::ast::{Container, ContentItem, Document};
 use crate::txxt_nano::lexer::Token;
 
 /// Type alias for token with span
@@ -25,8 +25,72 @@ type ParserError = Simple<TokenSpan>;
 #[allow(unused_imports)]
 use super::combinators::paragraph;
 
-// Parser combinator functions (text_line, token, list_item_line, definition_subject, session_title,
-// annotation_header, foreign_block) are imported from combinators.rs
+// Import parser builders from document module
+use super::combinators::token;
+use super::document::{build_definition_parser, build_list_parser, build_session_parser};
+use super::elements::annotations::build_annotation_parser;
+use super::elements::foreign::foreign_block;
+use std::sync::Arc;
+
+/// Build the Multi-Parser Bundle for document-level content parsing.
+///
+/// This parser builds final ContentItem types directly using refactored combinators.
+/// All combinators now take source parameter and return final types.
+pub(crate) fn build_document_content_parser(
+    source: &str,
+) -> impl Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone {
+    let source = Arc::new(source.to_string());
+
+    recursive(move |items| {
+        let source = source.clone();
+        let single_item = {
+            // Session parser - now builds final Session type with span
+            let session_parser = build_session_parser(source.clone(), items.clone());
+
+            // Definition parser - now builds final Definition type with span
+            let definition_parser = build_definition_parser(source.clone(), items.clone());
+
+            // List parser - now builds final List type with span
+            let list_parser = build_list_parser(source.clone(), items.clone());
+
+            // Annotation parser - now builds final Annotation type with span
+            let annotation_parser = build_annotation_parser(source.clone(), items.clone());
+
+            choice((
+                foreign_block(source.clone()).map(ContentItem::ForeignBlock),
+                annotation_parser,
+                list_parser,
+                definition_parser,
+                session_parser,
+                paragraph(source.clone()).map(ContentItem::Paragraph),
+            ))
+        };
+
+        choice((
+            token(Token::BlankLine)
+                .repeated()
+                .at_least(1)
+                .ignore_then(choice((
+                    filter(|(t, _)| matches!(t, Token::DedentLevel))
+                        .rewind()
+                        .to(vec![]),
+                    items.clone(),
+                ))),
+            single_item
+                .then(items.clone().or_not())
+                .map(|(first, rest)| {
+                    let mut result = vec![first];
+                    if let Some(mut rest_items) = rest {
+                        result.append(&mut rest_items);
+                    }
+                    result
+                }),
+            filter(|(t, _)| matches!(t, Token::DedentLevel))
+                .rewind()
+                .to(vec![]),
+        ))
+    })
+}
 
 // Import Phase 3b refactored document parser from document module
 use super::document as document_module;
@@ -1703,351 +1767,9 @@ mod tests {
         });
     }
 
-    // ==================== ANNOTATION TESTS ====================
-    // Testing the Annotation element
-    //
-    #[test]
-    fn test_annotation_marker_minimal() {
-        let source = "Para one. {{paragraph}}\n\n:: note ::\n\nPara two. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
-        assert!(doc.content[1].is_annotation());
-    }
-
-    #[test]
-    fn test_annotation_single_line() {
-        let source = "Para one. {{paragraph}}\n\n:: note :: This is inline text\n\nPara two. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
-        let annotation = doc.content[1].as_annotation().unwrap();
-        assert_eq!(annotation.label.value, "note");
-        assert_eq!(annotation.content.len(), 1); // One paragraph with inline text
-        assert!(annotation.content[0].is_paragraph());
-    }
-
-    #[test]
-    fn test_verified_annotations_simple() {
-        let source = TxxtSources::get_string("120-annotations-simple.txxt")
-            .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
-
-        // Verify document parses successfully and contains expected structure
-
-        // Find and verify :: note :: annotation
-        let note_annotation = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_annotation() //
-                    .map(|a| a.label.value == "note")
-                    .unwrap_or(false)
-            })
-            .expect("Should contain :: note :: annotation");
-        assert!(note_annotation
-            .as_annotation()
-            .unwrap()
-            .parameters
-            .is_empty());
-        assert!(note_annotation.as_annotation().unwrap().content.is_empty());
-
-        // Find and verify :: warning severity=high :: annotation
-        let warning_annotation = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_annotation()
-                    .map(|a| a.label.value == "warning")
-                    .unwrap_or(false)
-            })
-            .expect("Should contain :: warning :: annotation");
-        let warning = warning_annotation.as_annotation().unwrap();
-        assert_eq!(warning.parameters.len(), 1);
-        assert_eq!(warning.parameters[0].key, "severity");
-        assert_eq!(warning.parameters[0].value, Some("high".to_string()));
-
-        // Find and verify :: python.typing :: annotation (namespaced label)
-        let python_annotation = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_annotation()
-                    .map(|a| a.label.value.contains("python"))
-                    .unwrap_or(false)
-            })
-            .expect("Should contain :: python.typing :: annotation");
-        assert_eq!(
-            python_annotation.as_annotation().unwrap().label.value,
-            "python.typing"
-        );
-    }
-
-    #[test]
-    fn test_verified_annotations_block_content() {
-        let source = TxxtSources::get_string("130-annotations-block-content.txxt")
-            .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
-
-        // Find and verify :: note author="Jane Doe" :: annotation with block content
-        let note_annotation = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_annotation()
-                    .map(|a| a.label.value == "note")
-                    .unwrap_or(false)
-            })
-            .expect("Should contain :: note :: annotation");
-        let note = note_annotation.as_annotation().unwrap();
-        assert_eq!(note.parameters.len(), 2);
-        assert_eq!(note.parameters[0].key, "author");
-        assert_eq!(note.parameters[0].value, Some("Jane Doe".to_string()));
-        assert_eq!(note.parameters[1].key, "date");
-        assert_eq!(note.parameters[1].value, Some("2025-01-15".to_string()));
-        assert_eq!(note.content.len(), 2); // Two paragraphs
-        assert!(note.content[0].is_paragraph());
-        assert!(note.content[1].is_paragraph());
-
-        // Find and verify :: warning severity=critical :: annotation with list
-        let warning_annotation = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_annotation()
-                    .map(|a| a.label.value == "warning")
-                    .unwrap_or(false)
-            })
-            .expect("Should contain :: warning :: annotation");
-        let warning = warning_annotation.as_annotation().unwrap();
-        assert_eq!(warning.parameters.len(), 3);
-        assert_eq!(warning.parameters[0].key, "severity");
-        assert_eq!(warning.parameters[0].value, Some("critical".to_string()));
-        assert_eq!(warning.parameters[1].key, "priority");
-        assert_eq!(warning.parameters[1].value, Some("high".to_string()));
-        assert_eq!(warning.parameters[2].key, "reviewer");
-        assert_eq!(warning.parameters[2].value, Some("Alice Smith".to_string()));
-        assert_eq!(warning.content.len(), 2); // Paragraph + List
-        assert!(warning.content[0].is_paragraph());
-        assert!(warning.content[1].is_list());
-
-        // Verify the list has 3 items
-        let list = warning.content[1].as_list().unwrap();
-        assert_eq!(list.items.len(), 3);
-    }
-
-    // ==================== FOREIGN BLOCK TESTS ====================
-    // Testing the Foreign Block element
-
-    #[test]
-    fn test_foreign_block_simple_with_content() {
-        let source = "Code Example:\n    function hello() {\n        return \"world\";\n    }\n:: javascript caption=\"Hello World\" ::\n\n";
-        let tokens = lex_with_spans(source);
-        println!("Tokens: {:?}", tokens);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        assert_eq!(doc.content.len(), 1);
-        let foreign_block = doc.content[0].as_foreign_block().unwrap();
-        assert_eq!(foreign_block.subject.as_string(), "Code Example");
-        assert!(foreign_block
-            .content
-            .as_string()
-            .contains("function hello()"));
-        assert!(foreign_block
-            .content
-            .as_string()
-            .contains("return \"world\""));
-        assert_eq!(foreign_block.closing_annotation.label.value, "javascript");
-        assert_eq!(foreign_block.closing_annotation.parameters.len(), 1);
-        assert_eq!(
-            foreign_block.closing_annotation.parameters[0].key,
-            "caption"
-        );
-        assert_eq!(
-            foreign_block.closing_annotation.parameters[0].value,
-            Some("Hello World".to_string())
-        );
-    }
-
-    #[test]
-    fn test_foreign_block_marker_form() {
-        let source = "Image Reference:\n\n:: image type=jpg, src=sunset.jpg :: As the sun sets, we see a colored sea bed.\n\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        assert_eq!(doc.content.len(), 1);
-        let foreign_block = doc.content[0].as_foreign_block().unwrap();
-        assert_eq!(foreign_block.subject.as_string(), "Image Reference");
-        assert_eq!(foreign_block.content.as_string(), ""); // No content in marker form
-        assert_eq!(foreign_block.closing_annotation.label.value, "image");
-        assert_eq!(foreign_block.closing_annotation.parameters.len(), 2);
-        assert_eq!(foreign_block.closing_annotation.parameters[0].key, "type");
-        assert_eq!(
-            foreign_block.closing_annotation.parameters[0].value,
-            Some("jpg".to_string())
-        );
-        assert_eq!(foreign_block.closing_annotation.parameters[1].key, "src");
-        assert_eq!(
-            foreign_block.closing_annotation.parameters[1].value,
-            Some("sunset.jpg".to_string())
-        );
-    }
-
-    #[test]
-    fn test_foreign_block_preserves_whitespace() {
-        let source = "Indented Code:\n\n    // This has    multiple    spaces\n    const regex = /[a-z]+/g;\n    \n    console.log(\"Hello, World!\");\n\n:: javascript ::\n\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        let foreign_block = doc.content[0].as_foreign_block().unwrap();
-        assert!(foreign_block
-            .content
-            .as_string()
-            .contains("    multiple    spaces")); // Preserves multiple spaces
-        assert!(foreign_block.content.as_string().contains("    \n")); // Preserves blank lines
-    }
-
-    #[test]
-    fn test_foreign_block_multiple_blocks() {
-        // Fixed by reordering parsers: foreign_block before session
-        // Since foreign blocks have stricter requirements (must have closing annotation),
-        // trying them first resolves the ambiguity
-
-        let source = "First Block:\n\n    code1\n\n:: lang1 ::\n\nSecond Block:\n\n    code2\n\n:: lang2 ::\n\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        assert_eq!(doc.content.len(), 2);
-
-        let first_block = doc.content[0].as_foreign_block().unwrap();
-        assert_eq!(first_block.subject.as_string(), "First Block");
-        assert!(first_block.content.as_string().contains("code1"));
-        assert_eq!(first_block.closing_annotation.label.value, "lang1");
-
-        let second_block = doc.content[1].as_foreign_block().unwrap();
-        assert_eq!(second_block.subject.as_string(), "Second Block");
-        assert!(second_block.content.as_string().contains("code2"));
-        assert_eq!(second_block.closing_annotation.label.value, "lang2");
-    }
-
-    #[test]
-    fn test_foreign_block_with_paragraphs() {
-        let source = "Intro paragraph.\n\nCode Block:\n\n    function test() {\n        return true;\n    }\n\n:: javascript ::\n\nOutro paragraph.\n\n";
-        let tokens = lex_with_spans(source);
-        let doc = parse_with_source(tokens, source).unwrap();
-
-        assert_eq!(doc.content.len(), 3);
-        assert!(doc.content[0].is_paragraph());
-        assert!(doc.content[1].is_foreign_block());
-        assert!(doc.content[2].is_paragraph());
-    }
-
-    #[test]
-    fn test_verified_foreign_blocks_simple() {
-        let source = TxxtSources::get_string("140-foreign-blocks-simple.txxt")
-            .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
-
-        // Find JavaScript code block
-        let js_block = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_foreign_block()
-                    .map(|fb| fb.closing_annotation.label.value == "javascript")
-                    .unwrap_or(false)
-            })
-            .expect("Should contain JavaScript foreign block");
-        let js = js_block.as_foreign_block().unwrap();
-        assert_eq!(js.subject.as_string(), "Code Example");
-        assert!(js.content.as_string().contains("function hello()"));
-        assert!(js.content.as_string().contains("console.log"));
-        assert_eq!(js.closing_annotation.parameters.len(), 1);
-        assert_eq!(js.closing_annotation.parameters[0].key, "caption");
-
-        // Find Python code block
-        let py_block = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_foreign_block()
-                    .map(|fb| fb.closing_annotation.label.value == "python")
-                    .unwrap_or(false)
-            })
-            .expect("Should contain Python foreign block");
-        let py = py_block.as_foreign_block().unwrap();
-        assert_eq!(py.subject.as_string(), "Another Code Block");
-        assert!(py.content.as_string().contains("def fibonacci"));
-        assert!(py.content.as_string().contains("for i in range"));
-
-        // Find SQL block
-        let sql_block = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_foreign_block()
-                    .map(|fb| fb.closing_annotation.label.value == "sql")
-                    .unwrap_or(false)
-            })
-            .expect("Should contain SQL foreign block");
-        let sql = sql_block.as_foreign_block().unwrap();
-        assert_eq!(sql.subject.as_string(), "SQL Example");
-        assert!(sql.content.as_string().contains("SELECT"));
-        assert!(sql.content.as_string().contains("FROM users"));
-    }
-
-    #[test]
-    fn test_verified_foreign_blocks_no_content() {
-        let source = TxxtSources::get_string("150-foreign-blocks-no-content.txxt")
-            .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
-
-        // Find image reference
-        let image_block = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_foreign_block()
-                    .map(|fb| fb.closing_annotation.label.value == "image")
-                    .unwrap_or(false)
-            })
-            .expect("Should contain image foreign block");
-        let image = image_block.as_foreign_block().unwrap();
-        assert_eq!(image.subject.as_string(), "Image Reference");
-        assert_eq!(image.content.as_string(), ""); // No content in marker form
-        assert_eq!(image.closing_annotation.parameters.len(), 2);
-        assert_eq!(image.closing_annotation.parameters[0].key, "type");
-        assert_eq!(
-            image.closing_annotation.parameters[0].value,
-            Some("jpg".to_string())
-        );
-
-        // Find binary file reference
-        let binary_block = doc
-            .content
-            .iter()
-            .find(|item| {
-                item.as_foreign_block()
-                    .map(|fb| fb.closing_annotation.label.value == "binary")
-                    .unwrap_or(false)
-            })
-            .expect("Should contain binary foreign block");
-        let binary = binary_block.as_foreign_block().unwrap();
-        assert_eq!(binary.subject.as_string(), "Binary File Reference");
-        assert_eq!(binary.content.as_string(), "");
-        assert_eq!(binary.closing_annotation.parameters.len(), 2);
-        assert_eq!(binary.closing_annotation.parameters[0].key, "type");
-        assert_eq!(
-            binary.closing_annotation.parameters[0].value,
-            Some("pdf".to_string())
-        );
-    }
+    // Annotation and foreign block tests have been moved to their respective element modules:
+    // - elements/annotations.rs for annotation tests
+    // - elements/foreign.rs for foreign block tests
 
     #[test]
     #[ignore = "Regression: parser fails when definition with list is followed by another definition"]
@@ -2175,23 +1897,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_label_position_preservation() {
-        let input = ":: warning severity=high ::\n\nContent\n\n";
-        let tokens = lex_with_spans(input);
-        let doc =
-            parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
-
-        // First item should be an annotation
-        let annotation = doc.content[0].as_annotation().unwrap();
-
-        // Label should have position information
-        assert!(
-            annotation.label.span.is_some(),
-            "Label should have position"
-        );
-        assert_eq!(annotation.label.value, "warning");
-    }
+    // Annotation position test moved to elements/annotations.rs
 
     #[test]
     fn test_backward_compatibility_without_positions() {
