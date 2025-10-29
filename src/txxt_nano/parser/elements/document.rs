@@ -18,7 +18,7 @@ type ParserError = Simple<TokenSpan>;
 /// This function is focused on document-level parsing and delegates to parser.rs
 /// for the actual document content parsing logic.
 pub fn document(source: &str) -> impl Parser<TokenSpan, Document, Error = ParserError> + Clone {
-    super::parser::build_document_content_parser(source).map(|content| Document {
+    crate::txxt_nano::parser::parser::build_document_content_parser(source).map(|content| Document {
         metadata: Vec::new(),
         content,
         span: None,

@@ -94,8 +94,8 @@ pub(crate) fn build_document_content_parser(
     })
 }
 
-// Import Phase 3b refactored document parser from document module
-use super::document as document_module;
+// Import Phase 3b refactored document parser from elements::document module
+use super::elements::document as document_module;
 
 /// Parse a document - delegated to document module
 /// Phase 5: The document parser requires source text to populate span information
