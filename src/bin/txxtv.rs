@@ -6,10 +6,13 @@ use ratatui::prelude::*;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
+use txxt_nano::txxt_nano::ast::lookup::by_position::format_at_position;
+use txxt_nano::txxt_nano::parser::{parse_document, Document};
 
 #[derive(Parser)]
 #[command(name = "txxtv")]
@@ -25,6 +28,8 @@ struct App {
     file_name: String,
     cursor_row: usize,
     cursor_col: usize,
+    document: Option<Document>,
+    parse_error: Option<String>,
 }
 
 impl App {
@@ -36,11 +41,19 @@ impl App {
             .unwrap_or("unknown")
             .to_string();
 
+        // Try to parse the document
+        let (document, parse_error) = match parse_document(&content) {
+            Ok(doc) => (Some(doc), None),
+            Err(_) => (None, Some("Failed to parse txxt document".to_string())),
+        };
+
         Ok(App {
             content,
             file_name,
             cursor_row: 0,
             cursor_col: 0,
+            document,
+            parse_error,
         })
     }
 
@@ -147,16 +160,50 @@ impl App {
     }
 
     fn render_info_panel(&self) -> Vec<Line<'_>> {
-        vec![
-            Line::from(format!(
-                "Position: Row {}, Col {}",
-                self.cursor_row, self.cursor_col
-            )),
-            Line::from(""),
-            Line::from("Controls:"),
-            Line::from("  ↑↓←→  Navigate"),
-            Line::from("  q     Quit"),
-        ]
+        let mut lines = vec![];
+
+        // Position info
+        lines.push(Line::from(format!(
+            "Position: Row {}, Col {}",
+            self.cursor_row, self.cursor_col
+        )));
+
+        // AST info if available
+        if let Some(doc) = &self.document {
+            let mut extras = HashMap::new();
+            extras.insert(
+                "position".to_string(),
+                format!("{}:{}", self.cursor_row, self.cursor_col),
+            );
+
+            match format_at_position(doc, &extras) {
+                Ok(ast_info) => {
+                    lines.push(Line::from(""));
+                    // Parse the first line of AST info (the element breadcrumb)
+                    let ast_lines: Vec<&str> = ast_info.lines().collect();
+                    if !ast_lines.is_empty() {
+                        lines.push(Line::from(ast_lines[0].to_string()));
+                    }
+                    // Parse the label line if it exists
+                    for line in ast_lines.iter().skip(1) {
+                        if line.starts_with("   Label:") {
+                            let label = line.trim_start_matches("   Label: ");
+                            lines.push(Line::from(format!("  {}", label)));
+                            break;
+                        }
+                    }
+                }
+                Err(_) => {
+                    lines.push(Line::from(""));
+                    lines.push(Line::from("(No AST info at cursor)"));
+                }
+            }
+        } else if let Some(error) = &self.parse_error {
+            lines.push(Line::from(""));
+            lines.push(Line::from(format!("Parse error: {}", error)));
+        }
+
+        lines
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -478,6 +525,51 @@ mod tests {
                 app.draw(frame);
             })
             .unwrap();
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_ast_parsing_integration() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_ast.txxt");
+        // Create a simple txxt document with a paragraph
+        fs::write(&test_file, "This is a simple paragraph").unwrap();
+
+        let app = App::new(test_file.clone()).unwrap();
+
+        // Check that document was parsed successfully
+        assert!(app.document.is_some(), "Document should be parsed");
+        assert!(app.parse_error.is_none(), "Should have no parse error");
+
+        // Render info panel and verify it includes position info
+        let info_lines = app.render_info_panel();
+        assert!(!info_lines.is_empty(), "Info panel should have content");
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_ast_panel_with_cursor_movement() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_ast_cursor.txxt");
+        fs::write(&test_file, "First paragraph\nSecond paragraph").unwrap();
+
+        let mut app = App::new(test_file.clone()).unwrap();
+
+        // Initially at position 0,0
+        let info_lines_start = app.render_info_panel();
+        assert!(info_lines_start[0]
+            .to_string()
+            .contains("Position: Row 0, Col 0"));
+
+        // Move cursor and verify position updates
+        app.move_cursor_right();
+        app.move_cursor_right();
+        let info_lines_moved = app.render_info_panel();
+        assert!(info_lines_moved[0].to_string().contains("Row 0, Col 2"));
 
         // Clean up
         fs::remove_file(test_file).unwrap();
