@@ -56,6 +56,31 @@ where
         })
 }
 
+/// Build a definition parser
+fn build_definition_parser<P>(
+    source: Arc<String>,
+    items: P,
+) -> impl Parser<TokenSpan, ContentItem, Error = ParserError> + Clone
+where
+    P: Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
+{
+    let source_for_definition = source.clone();
+    definition_subject(source.clone())
+        .then(
+            token(Token::IndentLevel)
+                .ignore_then(items)
+                .then_ignore(token(Token::DedentLevel)),
+        )
+        .map(move |((subject_text, subject_span), content)| {
+            let span = byte_range_to_span(&source_for_definition, &subject_span);
+            ContentItem::Definition(Definition {
+                subject: TextContent::from_string(subject_text, None),
+                content,
+                span,
+            })
+        })
+}
+
 /// Build the Multi-Parser Bundle for document-level content parsing.
 ///
 /// Phase 4: This parser now builds final ContentItem types directly using refactored combinators.
@@ -72,23 +97,7 @@ pub(crate) fn build_document_content_parser(
             let session_parser = build_session_parser(source.clone(), items.clone());
 
             // Definition parser - now builds final Definition type with span
-            let definition_parser = {
-                let source_for_definition = source.clone();
-                definition_subject(source.clone())
-                    .then(
-                        token(Token::IndentLevel)
-                            .ignore_then(items.clone())
-                            .then_ignore(token(Token::DedentLevel)),
-                    )
-                    .map(move |((subject_text, subject_span), content)| {
-                        let span = byte_range_to_span(&source_for_definition, &subject_span);
-                        ContentItem::Definition(Definition {
-                            subject: TextContent::from_string(subject_text, None),
-                            content,
-                            span,
-                        })
-                    })
-            };
+            let definition_parser = build_definition_parser(source.clone(), items.clone());
 
             // List parser - now builds final List type with span
             let list_parser = {
