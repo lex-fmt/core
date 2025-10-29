@@ -7,7 +7,6 @@ use std::sync::Arc;
 use crate::txxt_nano::ast::position::SourceLocation;
 use crate::txxt_nano::ast::{Paragraph, Parameter, Span, TextContent};
 use crate::txxt_nano::lexer::Token;
-use crate::txxt_nano::parser::conversion::helpers::is_text_token;
 use crate::txxt_nano::parser::labels::parse_label_from_tokens;
 use crate::txxt_nano::parser::parameters::{convert_parameter, parse_parameters_from_tokens};
 
@@ -16,6 +15,26 @@ type TokenSpan = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenSpan>;
+
+/// Check if a token is a text-like token (content that can appear in lines)
+///
+/// This includes: Text, Whitespace, Numbers, Punctuation, and common symbols
+pub(crate) fn is_text_token(token: &Token) -> bool {
+    matches!(
+        token,
+        Token::Text(_)
+            | Token::Whitespace
+            | Token::Number(_)
+            | Token::Dash
+            | Token::Period
+            | Token::OpenParen
+            | Token::CloseParen
+            | Token::Colon
+            | Token::Comma
+            | Token::Quote
+            | Token::Equals
+    )
+}
 
 /// Helper: convert a byte range to a Span using source location
 fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {

@@ -4,4 +4,7 @@
 //! Each element type has its own module with its parser implementation and tests.
 
 pub mod annotations;
+pub mod definitions;
 pub mod foreign;
+pub mod lists;
+pub mod sessions;
