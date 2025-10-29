@@ -5,9 +5,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
-use crate::txxt_nano::ast::{
-    Annotation, ContentItem, ForeignBlock, Label, Paragraph, Parameter, Span, TextContent,
-};
+use crate::txxt_nano::ast::{Paragraph, Parameter, Span, TextContent};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::conversion::helpers::is_text_token;
 use crate::txxt_nano::parser::labels::parse_label_from_tokens;
@@ -254,81 +252,4 @@ pub(crate) fn annotation_header(
 
         (label, label_span, params)
     })
-}
-
-/// Parse a foreign block
-/// Phase 4: Now builds final ForeignBlock type directly
-pub(crate) fn foreign_block(
-    source: Arc<String>,
-) -> impl Parser<TokenSpan, ForeignBlock, Error = ParserError> + Clone {
-    let subject_parser = definition_subject(source.clone());
-
-    let content_token = filter(|(t, _span): &TokenSpan| !matches!(t, Token::TxxtMarker));
-
-    let with_content = token(Token::IndentLevel)
-        .ignore_then(content_token.repeated().at_least(1))
-        .map(|tokens: Vec<TokenSpan>| {
-            let mut content_tokens = tokens;
-            while content_tokens
-                .last()
-                .map(|(t, _)| matches!(t, Token::DedentLevel | Token::BlankLine | Token::Newline))
-                .unwrap_or(false)
-            {
-                content_tokens.pop();
-            }
-
-            content_tokens
-                .into_iter()
-                .map(|(_, s)| s)
-                .collect::<Vec<_>>()
-        });
-
-    let source_for_annotation = source.clone();
-    let closing_annotation_parser = token(Token::TxxtMarker)
-        .ignore_then(annotation_header(source_for_annotation.clone()))
-        .then_ignore(token(Token::TxxtMarker))
-        .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
-        .map(
-            move |((label_opt, _label_span, parameters), content_span)| {
-                // Build Annotation from extracted label and parameters
-                let label = Label::new(label_opt.unwrap_or_default());
-
-                let content = content_span
-                    .map(|spans| {
-                        let text = extract_text_from_spans(&source_for_annotation, &spans);
-                        vec![ContentItem::Paragraph(Paragraph {
-                            lines: vec![TextContent::from_string(text, None)],
-                            span: None,
-                        })]
-                    })
-                    .unwrap_or_default();
-
-                Annotation {
-                    label,
-                    parameters,
-                    content,
-                    span: None,
-                }
-            },
-        );
-
-    subject_parser
-        .then_ignore(token(Token::BlankLine).repeated())
-        .then(with_content.or_not())
-        .then(closing_annotation_parser)
-        .then_ignore(token(Token::Newline).or_not())
-        .map(
-            move |(((subject_text, _subject_span), content_spans), closing_annotation)| {
-                let content = content_spans
-                    .map(|spans| extract_text_from_spans(&source, &spans))
-                    .unwrap_or_default();
-
-                ForeignBlock {
-                    subject: TextContent::from_string(subject_text, None),
-                    content: TextContent::from_string(content, None),
-                    closing_annotation,
-                    span: None,
-                }
-            },
-        )
 }
