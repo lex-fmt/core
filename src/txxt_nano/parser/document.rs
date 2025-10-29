@@ -110,6 +110,109 @@ where
     })
 }
 
+/// Build an annotation parser
+fn build_annotation_parser<P>(
+    source: Arc<String>,
+    items: P,
+) -> impl Parser<TokenSpan, ContentItem, Error = ParserError> + Clone
+where
+    P: Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
+{
+    let source_for_header = source.clone();
+    let header = token(Token::TxxtMarker)
+        .ignore_then(annotation_header(source_for_header))
+        .then_ignore(token(Token::TxxtMarker));
+
+    let block_form = {
+        let source_for_block = source.clone();
+        let header_for_block = header.clone();
+        header_for_block
+            .then_ignore(token(Token::Newline))
+            .then(
+                token(Token::IndentLevel)
+                    .ignore_then(items.clone())
+                    .then_ignore(token(Token::DedentLevel)),
+            )
+            .then_ignore(token(Token::TxxtMarker))
+            .then_ignore(token(Token::Newline).or_not())
+            .map(move |((label_opt, label_span, parameters), content)| {
+                let label_text = label_opt.unwrap_or_default();
+                let label_position =
+                    label_span.and_then(|s| byte_range_to_span(&source_for_block, &s));
+                let label = Label::new(label_text).with_span(label_position);
+                // Compute overall span from content spans if available
+                let span = if !content.is_empty() {
+                    let content_spans: Vec<Span> = content
+                        .iter()
+                        .filter_map(|item| match item {
+                            ContentItem::Paragraph(p) => p.span,
+                            ContentItem::Session(s) => s.span,
+                            ContentItem::Definition(d) => d.span,
+                            ContentItem::List(l) => l.span,
+                            ContentItem::Annotation(a) => a.span,
+                            ContentItem::ForeignBlock(f) => f.span,
+                        })
+                        .collect();
+                    if !content_spans.is_empty() {
+                        Some(compute_span_from_spans(&content_spans))
+                    } else {
+                        None
+                    }
+                } else {
+                    label_position
+                };
+                ContentItem::Annotation(Annotation {
+                    label,
+                    parameters,
+                    content,
+                    span,
+                })
+            })
+    };
+
+    let single_line_or_marker = {
+        let source_for_single_line = source.clone();
+        let header_for_single = header.clone();
+        header_for_single
+            .then(
+                token(Token::Whitespace)
+                    .ignore_then(crate::txxt_nano::parser::combinators::text_line())
+                    .or_not(),
+            )
+            .then_ignore(token(Token::Newline).or_not())
+            .map(move |((label_opt, label_span, parameters), content_span)| {
+                let label_text = label_opt.unwrap_or_default();
+                let label_position =
+                    label_span.and_then(|s| byte_range_to_span(&source_for_single_line, &s));
+                let label = Label::new(label_text).with_span(label_position);
+
+                // Handle content if present
+                let content = if let Some(spans) = content_span {
+                    let text = crate::txxt_nano::parser::combinators::extract_text_from_spans(
+                        &source_for_single_line,
+                        &spans,
+                    );
+                    vec![ContentItem::Paragraph(Paragraph {
+                        lines: vec![TextContent::from_string(text, None)],
+                        span: None,
+                    })]
+                } else {
+                    vec![]
+                };
+                let span = label_position; // For single-line, span is just the label
+
+                ContentItem::Annotation(Annotation {
+                    label,
+                    parameters,
+                    content,
+                    span,
+                })
+            })
+    };
+
+    block_form.or(single_line_or_marker)
+}
+
 /// Build the Multi-Parser Bundle for document-level content parsing.
 ///
 /// Phase 4: This parser now builds final ContentItem types directly using refactored combinators.
@@ -132,101 +235,7 @@ pub(crate) fn build_document_content_parser(
             let list_parser = build_list_parser(source.clone(), items.clone());
 
             // Annotation parser - now builds final Annotation type with span
-            let annotation_parser = {
-                let source = source.clone();
-                let header = token(Token::TxxtMarker)
-                    .ignore_then(annotation_header(source.clone()))
-                    .then_ignore(token(Token::TxxtMarker));
-
-                let block_form = {
-                    let source_for_block = source.clone();
-                    header
-                        .clone()
-                        .then_ignore(token(Token::Newline))
-                        .then(
-                            token(Token::IndentLevel)
-                                .ignore_then(items.clone())
-                                .then_ignore(token(Token::DedentLevel)),
-                        )
-                        .then_ignore(token(Token::TxxtMarker))
-                        .then_ignore(token(Token::Newline).or_not())
-                        .map(move |((label_opt, label_span, parameters), content)| {
-                            let label_text = label_opt.unwrap_or_default();
-                            let label_position =
-                                label_span.and_then(|s| byte_range_to_span(&source_for_block, &s));
-                            let label = Label::new(label_text).with_span(label_position);
-                            // Compute overall span from content spans if available
-                            let span = if !content.is_empty() {
-                                let content_spans: Vec<Span> = content
-                                    .iter()
-                                    .filter_map(|item| match item {
-                                        ContentItem::Paragraph(p) => p.span,
-                                        ContentItem::Session(s) => s.span,
-                                        ContentItem::Definition(d) => d.span,
-                                        ContentItem::List(l) => l.span,
-                                        ContentItem::Annotation(a) => a.span,
-                                        ContentItem::ForeignBlock(f) => f.span,
-                                    })
-                                    .collect();
-                                if !content_spans.is_empty() {
-                                    Some(compute_span_from_spans(&content_spans))
-                                } else {
-                                    None
-                                }
-                            } else {
-                                label_position
-                            };
-                            ContentItem::Annotation(Annotation {
-                                label,
-                                parameters,
-                                content,
-                                span,
-                            })
-                        })
-                };
-
-                let single_line_or_marker = {
-                    let source_for_single_line = source.clone();
-                    header
-                        .then(
-                            token(Token::Whitespace)
-                                .ignore_then(crate::txxt_nano::parser::combinators::text_line())
-                                .or_not(),
-                        )
-                        .then_ignore(token(Token::Newline).or_not())
-                        .map(move |((label_opt, label_span, parameters), content_span)| {
-                            let label_text = label_opt.unwrap_or_default();
-                            let label_position = label_span
-                                .and_then(|s| byte_range_to_span(&source_for_single_line, &s));
-                            let label = Label::new(label_text).with_span(label_position);
-
-                            // Handle content if present
-                            let content = if let Some(spans) = content_span {
-                                let text =
-                                    crate::txxt_nano::parser::combinators::extract_text_from_spans(
-                                        &source_for_single_line,
-                                        &spans,
-                                    );
-                                vec![ContentItem::Paragraph(Paragraph {
-                                    lines: vec![TextContent::from_string(text, None)],
-                                    span: None,
-                                })]
-                            } else {
-                                vec![]
-                            };
-                            let span = label_position; // For single-line, span is just the label
-
-                            ContentItem::Annotation(Annotation {
-                                label,
-                                parameters,
-                                content,
-                                span,
-                            })
-                        })
-                };
-
-                block_form.or(single_line_or_marker)
-            };
+            let annotation_parser = build_annotation_parser(source.clone(), items.clone());
 
             choice((
                 foreign_block(source.clone()).map(ContentItem::ForeignBlock),
