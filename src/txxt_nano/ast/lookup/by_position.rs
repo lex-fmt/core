@@ -3,8 +3,9 @@
 //! This module provides functionality to find and display AST nodes at a given
 //! position (line:column) in the source code.
 
-use super::super::node::{AstNode, ContentItem, Document};
+use super::super::elements::{ContentItem, Document};
 use super::super::span::{Position, Span};
+use super::super::traits::AstNode;
 use crate::txxt_nano::processor::ProcessingError;
 use std::collections::HashMap;
 
@@ -164,7 +165,7 @@ fn get_content_item_label(item: &ContentItem) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt_nano::ast::node::{Document as DocumentType, Paragraph};
+    use crate::txxt_nano::ast::elements::{Document as DocumentType, Paragraph};
     use crate::txxt_nano::ast::TextContent;
 
     #[test]

@@ -54,7 +54,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt_nano::ast::node::Container;
+    use crate::txxt_nano::ast::Container;
     use crate::txxt_nano::ast::ContentItem;
     use crate::txxt_nano::lexer::{lex, Token};
     use crate::txxt_nano::parser::parser::parse;
