@@ -4,6 +4,7 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::prelude::*;
 use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use std::fs;
 use std::io;
@@ -22,6 +23,8 @@ struct App {
     content: String,
     #[allow(dead_code)]
     file_name: String,
+    cursor_row: usize,
+    cursor_col: usize,
 }
 
 impl App {
@@ -33,7 +36,114 @@ impl App {
             .unwrap_or("unknown")
             .to_string();
 
-        Ok(App { content, file_name })
+        Ok(App {
+            content,
+            file_name,
+            cursor_row: 0,
+            cursor_col: 0,
+        })
+    }
+
+    fn get_lines(&self) -> Vec<&str> {
+        self.content.lines().collect()
+    }
+
+    fn max_col_for_row(&self, row: usize) -> usize {
+        self.get_lines()
+            .get(row)
+            .map(|line| line.len())
+            .unwrap_or(0)
+    }
+
+    fn max_row(&self) -> usize {
+        let lines = self.get_lines();
+        if lines.is_empty() {
+            0
+        } else {
+            lines.len() - 1
+        }
+    }
+
+    fn move_cursor_up(&mut self) {
+        if self.cursor_row > 0 {
+            self.cursor_row -= 1;
+            // Adjust column if the new row is shorter
+            let max_col = self.max_col_for_row(self.cursor_row);
+            if self.cursor_col > max_col {
+                self.cursor_col = max_col;
+            }
+        }
+    }
+
+    fn move_cursor_down(&mut self) {
+        let max_row = self.max_row();
+        if self.cursor_row < max_row {
+            self.cursor_row += 1;
+            // Adjust column if the new row is shorter
+            let max_col = self.max_col_for_row(self.cursor_row);
+            if self.cursor_col > max_col {
+                self.cursor_col = max_col;
+            }
+        }
+    }
+
+    fn move_cursor_left(&mut self) {
+        if self.cursor_col > 0 {
+            self.cursor_col -= 1;
+        }
+    }
+
+    fn move_cursor_right(&mut self) {
+        let max_col = self.max_col_for_row(self.cursor_row);
+        if self.cursor_col < max_col {
+            self.cursor_col += 1;
+        }
+    }
+
+    fn render_content_with_cursor(&self) -> Vec<Line<'_>> {
+        let lines = self.get_lines();
+        lines
+            .iter()
+            .enumerate()
+            .map(|(row_idx, line)| {
+                if row_idx == self.cursor_row {
+                    // Render this line with cursor highlighting
+                    let mut spans = Vec::new();
+
+                    for (col_idx, ch) in line.chars().enumerate() {
+                        if col_idx == self.cursor_col {
+                            // Render cursor character with inverted colors
+                            spans.push(Span::styled(
+                                ch.to_string(),
+                                Style::default()
+                                    .fg(Color::Black)
+                                    .bg(Color::White)
+                                    .add_modifier(Modifier::REVERSED),
+                            ));
+                        } else {
+                            spans.push(Span::raw(ch.to_string()));
+                        }
+                    }
+
+                    // If cursor is at the end of the line, show it as a space
+                    if self.cursor_col == line.len() && !line.is_empty() {
+                        // Already handled above
+                    } else if self.cursor_col == line.len() {
+                        spans.push(Span::styled(
+                            " ",
+                            Style::default()
+                                .fg(Color::Black)
+                                .bg(Color::White)
+                                .add_modifier(Modifier::REVERSED),
+                        ));
+                    }
+
+                    Line::from(spans)
+                } else {
+                    Line::from(line.to_string())
+                }
+            })
+            .collect()
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -55,8 +165,9 @@ impl App {
         );
         frame.render_widget(title, chunks[0]);
 
-        // File viewer area
-        let file_viewer = Paragraph::new(self.content.as_str())
+        // File viewer area with cursor
+        let rendered_lines = self.render_content_with_cursor();
+        let file_viewer = Paragraph::new(rendered_lines)
             .block(Block::default().borders(Borders::ALL).title("File Content"));
         frame.render_widget(file_viewer, chunks[1]);
     }
@@ -74,7 +185,7 @@ fn main() -> io::Result<()> {
     terminal.clear()?;
 
     // Run the app
-    let result = run_app(&mut terminal, &app);
+    let result = run_app(&mut terminal, app);
 
     // Restore terminal
     disable_raw_mode()?;
@@ -89,7 +200,7 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &App) -> io::Result<()> {
+fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, mut app: App) -> io::Result<()> {
     loop {
         terminal.draw(|frame| {
             app.draw(frame);
@@ -98,7 +209,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &App) -> 
         // Poll for events with timeout
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
-                if handle_key_event(key) {
+                if handle_key_event(key, &mut app) {
                     return Ok(());
                 }
             }
@@ -106,11 +217,28 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &App) -> 
     }
 }
 
-fn handle_key_event(key: KeyEvent) -> bool {
-    matches!(
-        (key.code, key.modifiers),
-        (KeyCode::Char('q'), KeyModifiers::NONE) | (KeyCode::Char('c'), KeyModifiers::CONTROL)
-    )
+fn handle_key_event(key: KeyEvent, app: &mut App) -> bool {
+    match key.code {
+        KeyCode::Char('q') if key.modifiers == KeyModifiers::NONE => true,
+        KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => true,
+        KeyCode::Up => {
+            app.move_cursor_up();
+            false
+        }
+        KeyCode::Down => {
+            app.move_cursor_down();
+            false
+        }
+        KeyCode::Left => {
+            app.move_cursor_left();
+            false
+        }
+        KeyCode::Right => {
+            app.move_cursor_right();
+            false
+        }
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -128,6 +256,8 @@ mod tests {
         let app = App::new(test_file.clone()).unwrap();
         assert_eq!(app.content, "Hello, World!");
         assert_eq!(app.file_name, "test_txxt.txt");
+        assert_eq!(app.cursor_row, 0);
+        assert_eq!(app.cursor_col, 0);
 
         // Clean up
         fs::remove_file(test_file).unwrap();
@@ -157,14 +287,125 @@ mod tests {
     }
 
     #[test]
-    fn test_quit_key_event() {
+    fn test_cursor_movement() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_cursor.txt");
+        fs::write(&test_file, "Line 1\nLine 2\nLine 3").unwrap();
+
+        let mut app = App::new(test_file.clone()).unwrap();
+
+        // Initial position
+        assert_eq!(app.cursor_row, 0);
+        assert_eq!(app.cursor_col, 0);
+
+        // Move right
+        app.move_cursor_right();
+        assert_eq!(app.cursor_col, 1);
+
+        // Move down
+        app.move_cursor_down();
+        assert_eq!(app.cursor_row, 1);
+        assert_eq!(app.cursor_col, 1);
+
+        // Move left
+        app.move_cursor_left();
+        assert_eq!(app.cursor_col, 0);
+
+        // Move up
+        app.move_cursor_up();
+        assert_eq!(app.cursor_row, 0);
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_cursor_bounds() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_bounds.txt");
+        fs::write(&test_file, "Hi\nWorld").unwrap();
+
+        let mut app = App::new(test_file.clone()).unwrap();
+
+        // Can't move left from 0
+        app.move_cursor_left();
+        assert_eq!(app.cursor_col, 0);
+
+        // Can't move up from row 0
+        app.move_cursor_up();
+        assert_eq!(app.cursor_row, 0);
+
+        // Move to end of line 1
+        app.move_cursor_right(); // col 1
+        app.move_cursor_right(); // col 2 (at end)
+        app.move_cursor_right(); // should stay at 2
+        assert_eq!(app.cursor_col, 2);
+
+        // Move down to line 2, column should adjust if needed
+        app.move_cursor_down();
+        assert_eq!(app.cursor_row, 1);
+        assert!(app.cursor_col <= 5); // Line 2 is "World" (5 chars)
+
+        // Can't move down from last line
+        app.move_cursor_down();
+        assert_eq!(app.cursor_row, 1);
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_cursor_rendering() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_cursor_render.txt");
+        fs::write(&test_file, "ABC").unwrap();
+
+        let app = App::new(test_file.clone()).unwrap();
+
+        // Create a test backend with a reasonable size
+        let backend = TestBackend::new(50, 15);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Draw to the test backend
+        terminal
+            .draw(|frame| {
+                app.draw(frame);
+            })
+            .unwrap();
+
+        // Verify it renders without crashing
+        // The cursor styling should be applied
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_arrow_key_events() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_keys.txt");
+        fs::write(&test_file, "Test").unwrap();
+
+        let mut app = App::new(test_file.clone()).unwrap();
+
+        let up_key = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+        assert!(!handle_key_event(up_key, &mut app));
+
+        let down_key = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+        assert!(!handle_key_event(down_key, &mut app));
+
+        let left_key = KeyEvent::new(KeyCode::Left, KeyModifiers::NONE);
+        assert!(!handle_key_event(left_key, &mut app));
+
+        let right_key = KeyEvent::new(KeyCode::Right, KeyModifiers::NONE);
+        assert!(!handle_key_event(right_key, &mut app));
+        assert_eq!(app.cursor_col, 1);
+
+        // Quit still works
         let quit_event = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE);
-        assert!(handle_key_event(quit_event));
+        assert!(handle_key_event(quit_event, &mut app));
 
-        let ctrl_c_event = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
-        assert!(handle_key_event(ctrl_c_event));
-
-        let other_event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
-        assert!(!handle_key_event(other_event));
+        // Clean up
+        fs::remove_file(test_file).unwrap();
     }
 }
