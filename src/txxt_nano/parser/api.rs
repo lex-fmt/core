@@ -5,7 +5,7 @@ use std::ops::Range;
 
 use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
-use crate::txxt_nano::parser::document::document;
+use crate::txxt_nano::parser::elements::document::document;
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);

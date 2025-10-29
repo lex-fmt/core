@@ -5,6 +5,9 @@
 
 pub mod annotations;
 pub mod definitions;
+pub mod document;
 pub mod foreign;
+pub mod labels;
 pub mod lists;
+pub mod parameters;
 pub mod sessions;

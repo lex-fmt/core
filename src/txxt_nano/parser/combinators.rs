@@ -7,8 +7,10 @@ use std::sync::Arc;
 use crate::txxt_nano::ast::position::SourceLocation;
 use crate::txxt_nano::ast::{Paragraph, Parameter, Span, TextContent};
 use crate::txxt_nano::lexer::Token;
-use crate::txxt_nano::parser::labels::parse_label_from_tokens;
-use crate::txxt_nano::parser::parameters::{convert_parameter, parse_parameters_from_tokens};
+use crate::txxt_nano::parser::elements::labels::parse_label_from_tokens;
+use crate::txxt_nano::parser::elements::parameters::{
+    convert_parameter, parse_parameters_from_tokens,
+};
 
 /// Type alias for token with span
 type TokenSpan = (Token, Range<usize>);

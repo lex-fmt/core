@@ -10,10 +10,7 @@
 
 pub mod api;
 pub mod combinators;
-pub mod document;
 pub mod elements;
-pub mod labels;
-pub mod parameters;
 #[allow(clippy::module_inception)]
 pub mod parser;
 #[cfg(test)]
@@ -27,7 +24,7 @@ pub use crate::txxt_nano::ast::{
 };
 
 pub use crate::txxt_nano::formats::{serialize_ast_tag, to_treeviz_str};
-pub use document::document;
+pub use elements::document::document;
 pub use parser::{parse, parse_with_source, parse_with_source_positions};
 
 /// Type alias for parse result with spanned tokens
