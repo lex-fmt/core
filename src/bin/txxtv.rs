@@ -197,12 +197,6 @@ impl App {
     fn render_info_panel(&self) -> Vec<Line<'_>> {
         let mut lines = vec![];
 
-        // Position info - simplified format
-        lines.push(Line::from(format!(
-            "pos: {},{}",
-            self.cursor_row, self.cursor_col
-        )));
-
         // AST info if available
         if let Some(doc) = &self.document {
             let mut extras = HashMap::new();
@@ -213,7 +207,6 @@ impl App {
 
             match format_at_position(doc, &extras) {
                 Ok(ast_info) => {
-                    lines.push(Line::from(""));
                     // Parse and display AST hierarchy
                     let parsed = self.parse_ast_info(&ast_info);
                     for line in parsed {
@@ -221,12 +214,10 @@ impl App {
                     }
                 }
                 Err(_) => {
-                    lines.push(Line::from(""));
                     lines.push(Line::from("(No AST info at cursor)"));
                 }
             }
         } else if let Some(error) = &self.parse_error {
-            lines.push(Line::from(""));
             lines.push(Line::from(format!("Parse error: {}", error)));
         }
 
@@ -242,7 +233,7 @@ impl App {
             .constraints([
                 Constraint::Length(1),
                 Constraint::Min(0),
-                Constraint::Length(6),
+                Constraint::Length(11),
             ])
             .split(area);
 
@@ -262,12 +253,13 @@ impl App {
             .block(Block::default().borders(Borders::ALL).title("File Content"));
         frame.render_widget(file_viewer, chunks[1]);
 
-        // Info panel at the bottom
+        // Info panel at the bottom with position in title
         let info_lines = self.render_info_panel();
+        let panel_title = format!("pos: {},{}", self.cursor_row, self.cursor_col);
         let info_panel = Paragraph::new(info_lines).block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Info")
+                .title(panel_title)
                 .style(Style::default().fg(Color::Black).bg(Color::Gray)),
         );
         frame.render_widget(info_panel, chunks[2]);
@@ -524,11 +516,11 @@ mod tests {
 
         // Render info panel and verify content
         let info_lines = app.render_info_panel();
-        assert!(!info_lines.is_empty());
+        assert!(!info_lines.is_empty(), "Info panel should have content");
 
-        // The first line should contain position info
-        let first_line_text = format!("{:?}", info_lines[0]);
-        assert!(first_line_text.contains("2") && first_line_text.contains("3"));
+        // Verify cursor position is correct
+        assert_eq!(app.cursor_row, 2);
+        assert_eq!(app.cursor_col, 3);
 
         // Clean up
         fs::remove_file(test_file).unwrap();
@@ -586,15 +578,19 @@ mod tests {
 
         let mut app = App::new(test_file.clone()).unwrap();
 
-        // Initially at position 0,0
-        let info_lines_start = app.render_info_panel();
-        assert!(info_lines_start[0].to_string().contains("pos: 0,0"));
+        // Verify cursor position is in app state
+        assert_eq!(app.cursor_row, 0);
+        assert_eq!(app.cursor_col, 0);
 
         // Move cursor and verify position updates
         app.move_cursor_right();
         app.move_cursor_right();
-        let info_lines_moved = app.render_info_panel();
-        assert!(info_lines_moved[0].to_string().contains("pos: 0,2"));
+        assert_eq!(app.cursor_row, 0);
+        assert_eq!(app.cursor_col, 2);
+
+        // Render info panel and verify it has content
+        let info_lines = app.render_info_panel();
+        assert!(!info_lines.is_empty(), "Info panel should have content");
 
         // Clean up
         fs::remove_file(test_file).unwrap();
