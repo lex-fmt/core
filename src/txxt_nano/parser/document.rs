@@ -2,6 +2,7 @@
 
 use chumsky::prelude::*;
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
 use crate::txxt_nano::ast::Document;
@@ -37,7 +38,7 @@ fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
 pub(crate) fn build_document_content_parser(
     source: &str,
 ) -> impl Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone {
-    let source = source.to_string();
+    let source = Arc::new(source.to_string());
 
     recursive(move |items| {
         let source = source.clone();
@@ -45,7 +46,7 @@ pub(crate) fn build_document_content_parser(
             // Session parser - now builds final Session type with span
             let session_parser = {
                 let source_for_session = source.clone();
-                session_title(&source)
+                session_title(source.clone())
                     .then(
                         token(Token::IndentLevel)
                             .ignore_then(items.clone())
@@ -64,7 +65,7 @@ pub(crate) fn build_document_content_parser(
             // Definition parser - now builds final Definition type with span
             let definition_parser = {
                 let source_for_definition = source.clone();
-                definition_subject(&source)
+                definition_subject(source.clone())
                     .then(
                         token(Token::IndentLevel)
                             .ignore_then(items.clone())
@@ -83,7 +84,7 @@ pub(crate) fn build_document_content_parser(
             // List parser - now builds final List type with span
             let list_parser = {
                 let source = source.clone();
-                let single_list_item = list_item_line(&source)
+                let single_list_item = list_item_line(source.clone())
                     .then_ignore(token(Token::Newline))
                     .then(
                         token(Token::IndentLevel)
@@ -109,7 +110,7 @@ pub(crate) fn build_document_content_parser(
             let annotation_parser = {
                 let source = source.clone();
                 let header = token(Token::TxxtMarker)
-                    .ignore_then(annotation_header(&source))
+                    .ignore_then(annotation_header(source.clone()))
                     .then_ignore(token(Token::TxxtMarker));
 
                 let block_form = {
@@ -203,12 +204,12 @@ pub(crate) fn build_document_content_parser(
             };
 
             choice((
-                foreign_block(&source).map(ContentItem::ForeignBlock),
+                foreign_block(source.clone()).map(ContentItem::ForeignBlock),
                 annotation_parser,
                 list_parser,
                 definition_parser,
                 session_parser,
-                paragraph(&source).map(ContentItem::Paragraph),
+                paragraph(source.clone()).map(ContentItem::Paragraph),
             ))
         };
 

@@ -3,13 +3,14 @@ use crate::txxt_nano::lexer::{lex, lex_with_spans, Token};
 use crate::txxt_nano::parser::api::parse;
 use crate::txxt_nano::parser::combinators::paragraph;
 use chumsky::Parser;
+use std::sync::Arc;
 
 #[test]
 fn test_simple_paragraph() {
     let input = "Hello world\n\n";
     let tokens_with_spans = lex_with_spans(input);
 
-    let result = paragraph(input).parse(tokens_with_spans);
+    let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_spans);
     assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
 
     let para = result.unwrap();
