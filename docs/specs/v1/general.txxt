@@ -24,7 +24,6 @@ The txxt language
 
     Since txxt aims to be flexible and forgiving, lines that have space remainders (as in 10 spaces, which converts to 2 tab stops with 2 spaces remaining) will be parsed with no error. Only two indentation level tokens will be generated, and the remaining whitespaces will be considered part of the text.
 
-
 3. Elements
 
     1. Annotations

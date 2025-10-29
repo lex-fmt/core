@@ -1,6 +1,6 @@
 use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::prelude::*;
 use ratatui::style::{Modifier, Style};
@@ -28,6 +28,7 @@ struct App {
     file_name: String,
     cursor_row: usize,
     cursor_col: usize,
+    scroll_offset: usize,
     document: Option<Document>,
     parse_error: Option<String>,
 }
@@ -52,9 +53,27 @@ impl App {
             file_name,
             cursor_row: 0,
             cursor_col: 0,
+            scroll_offset: 0,
             document,
             parse_error,
         })
+    }
+
+    fn ensure_cursor_visible(&mut self, viewport_height: usize) {
+        if viewport_height == 0 {
+            return;
+        }
+
+        // If cursor is above the scroll offset, scroll up
+        if self.cursor_row < self.scroll_offset {
+            self.scroll_offset = self.cursor_row;
+        }
+
+        // If cursor is below the visible area, scroll down
+        let visible_bottom = self.scroll_offset + viewport_height - 1;
+        if self.cursor_row > visible_bottom {
+            self.scroll_offset = self.cursor_row.saturating_sub(viewport_height - 1);
+        }
     }
 
     fn get_lines(&self) -> Vec<&str> {
@@ -113,11 +132,14 @@ impl App {
         }
     }
 
-    fn render_content_with_cursor(&self) -> Vec<Line<'_>> {
+    fn render_content_with_cursor(&self, viewport_height: usize) -> Vec<Line<'_>> {
         let lines = self.get_lines();
+
         lines
             .iter()
             .enumerate()
+            .skip(self.scroll_offset)
+            .take(viewport_height)
             .map(|(row_idx, line)| {
                 if row_idx == self.cursor_row {
                     // Render this line with cursor highlighting
@@ -248,7 +270,9 @@ impl App {
         frame.render_widget(title, chunks[0]);
 
         // File viewer area with cursor
-        let rendered_lines = self.render_content_with_cursor();
+        // Calculate viewport height (accounting for borders)
+        let viewport_height = chunks[1].height.saturating_sub(2) as usize;
+        let rendered_lines = self.render_content_with_cursor(viewport_height);
         let file_viewer = Paragraph::new(rendered_lines)
             .block(Block::default().borders(Borders::ALL).title("File Content"));
         frame.render_widget(file_viewer, chunks[1]);
@@ -295,6 +319,14 @@ fn main() -> io::Result<()> {
 
 fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, mut app: App) -> io::Result<()> {
     loop {
+        // Calculate viewport height for cursor visibility checks
+        let (_, terminal_height) = size()?;
+        let file_viewer_height = terminal_height.saturating_sub(1 + 11) as usize;
+        let viewport_height = file_viewer_height.saturating_sub(2); // Account for borders
+
+        // Ensure cursor is visible in viewport
+        app.ensure_cursor_visible(viewport_height);
+
         terminal.draw(|frame| {
             app.draw(frame);
         })?;
@@ -591,6 +623,79 @@ mod tests {
         // Render info panel and verify it has content
         let info_lines = app.render_info_panel();
         assert!(!info_lines.is_empty(), "Info panel should have content");
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_scrolling() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_scroll.txt");
+        // Create a file with many lines
+        let content = (0..50)
+            .map(|i| format!("Line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&test_file, content).unwrap();
+
+        let mut app = App::new(test_file.clone()).unwrap();
+        let viewport_height = 10;
+
+        // Initially at top, scroll_offset should be 0
+        assert_eq!(app.scroll_offset, 0);
+
+        // Move cursor beyond viewport
+        app.cursor_row = 15;
+        app.ensure_cursor_visible(viewport_height);
+
+        // Scroll offset should have updated to keep cursor visible
+        assert!(
+            app.scroll_offset > 0,
+            "Should scroll down when cursor is below viewport"
+        );
+        assert!(
+            app.cursor_row >= app.scroll_offset,
+            "Cursor should be within visible area"
+        );
+        assert!(
+            app.cursor_row < app.scroll_offset + viewport_height,
+            "Cursor should be within visible area"
+        );
+
+        // Move cursor to top
+        app.cursor_row = 0;
+        app.ensure_cursor_visible(viewport_height);
+        assert_eq!(app.scroll_offset, 0, "Should scroll to top");
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_rendering_with_scroll_offset() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_scroll_render.txt");
+        let content = (0..20)
+            .map(|i| format!("Line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&test_file, content).unwrap();
+
+        let mut app = App::new(test_file.clone()).unwrap();
+        app.scroll_offset = 5;
+        app.cursor_row = 5;
+
+        // Render with a small viewport
+        let rendered_lines = app.render_content_with_cursor(5);
+
+        // Should render lines starting from scroll_offset
+        assert!(!rendered_lines.is_empty(), "Should have rendered lines");
+        // The number of rendered lines should not exceed viewport_height
+        assert!(
+            rendered_lines.len() <= 5,
+            "Should not render more than viewport height"
+        );
 
         // Clean up
         fs::remove_file(test_file).unwrap();
