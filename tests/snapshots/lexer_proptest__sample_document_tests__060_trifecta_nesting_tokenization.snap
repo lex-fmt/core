@@ -1,9 +1,9 @@
 ---
 source: tests/lexer_proptest.rs
+assertion_line: 86
 expression: tokens
 ---
 [
-    DocStart,
     Text(
         "Trifecta",
     ),
@@ -1063,5 +1063,4 @@ expression: tokens
         "{{paragraph}}",
     ),
     Newline,
-    DocEnd,
 ]
