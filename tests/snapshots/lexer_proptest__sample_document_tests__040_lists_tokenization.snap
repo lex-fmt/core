@@ -1,9 +1,9 @@
 ---
 source: tests/lexer_proptest.rs
+assertion_line: 62
 expression: tokens
 ---
 [
-    DocStart,
     Text(
         "Lists",
     ),
@@ -847,5 +847,4 @@ expression: tokens
         "item}}",
     ),
     Newline,
-    DocEnd,
 ]

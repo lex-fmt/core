@@ -25,9 +25,7 @@ impl ToTxxtString for Token {
             Token::Number(s) => s.clone(),
             Token::Text(s) => s.clone(),
             // The following tokens are synthetic and should not be part of the detokenized output
-            Token::IndentLevel | Token::DedentLevel | Token::DocStart | Token::DocEnd => {
-                String::new()
-            }
+            Token::IndentLevel | Token::DedentLevel => String::new(),
         }
     }
 }

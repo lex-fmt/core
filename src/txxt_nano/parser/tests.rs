@@ -7,10 +7,7 @@ use chumsky::Parser;
 #[test]
 fn test_simple_paragraph() {
     let input = "Hello world\n\n";
-    let mut tokens_with_spans = lex_with_spans(input);
-
-    // Skip DocStart and DocEnd tokens for direct paragraph test
-    tokens_with_spans.retain(|(t, _)| !matches!(t, Token::DocStart | Token::DocEnd));
+    let tokens_with_spans = lex_with_spans(input);
 
     let result = paragraph(input).parse(tokens_with_spans);
     assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);

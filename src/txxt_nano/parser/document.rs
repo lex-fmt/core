@@ -269,7 +269,7 @@ pub(crate) fn build_document_content_parser(
                 .repeated()
                 .at_least(1)
                 .ignore_then(choice((
-                    filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
+                    filter(|(t, _)| matches!(t, Token::DedentLevel))
                         .rewind()
                         .to(vec![]),
                     items.clone(),
@@ -283,7 +283,7 @@ pub(crate) fn build_document_content_parser(
                     }
                     result
                 }),
-            filter(|(t, _)| matches!(t, Token::DocEnd | Token::DedentLevel))
+            filter(|(t, _)| matches!(t, Token::DedentLevel))
                 .rewind()
                 .to(vec![]),
         ))
@@ -292,16 +292,11 @@ pub(crate) fn build_document_content_parser(
 
 /// Parse a document
 ///
-/// Phase 5: Returns final Document directly with no intermediate conversion.
+/// Parses the entire token stream as document content.
 pub fn document(source: &str) -> impl Parser<TokenSpan, Document, Error = ParserError> + Clone {
-    let content_item = build_document_content_parser(source);
-
-    token(Token::DocStart)
-        .ignore_then(content_item)
-        .then_ignore(token(Token::DocEnd))
-        .map(|content| Document {
-            metadata: Vec::new(),
-            content,
-            span: None,
-        })
+    build_document_content_parser(source).map(|content| Document {
+        metadata: Vec::new(),
+        content,
+        span: None,
+    })
 }
