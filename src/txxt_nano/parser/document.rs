@@ -81,6 +81,35 @@ where
         })
 }
 
+/// Build a list parser
+fn build_list_parser<P>(
+    source: Arc<String>,
+    items: P,
+) -> impl Parser<TokenSpan, ContentItem, Error = ParserError> + Clone
+where
+    P: Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
+{
+    let source_for_list = source.clone();
+    let single_list_item = list_item_line(source.clone())
+        .then_ignore(token(Token::Newline))
+        .then(
+            token(Token::IndentLevel)
+                .ignore_then(items)
+                .then_ignore(token(Token::DedentLevel))
+                .or_not(),
+        )
+        .map(move |((text, text_span), maybe_content)| {
+            let span = byte_range_to_span(&source_for_list, &text_span);
+            ListItem::with_content(text, maybe_content.unwrap_or_default()).with_span(span)
+        });
+
+    single_list_item.repeated().at_least(2).map(|items| {
+        let spans: Vec<Option<Span>> = items.iter().map(|item| item.span).collect();
+        let span = compute_span_from_optional_spans(&spans);
+        ContentItem::List(List { items, span })
+    })
+}
+
 /// Build the Multi-Parser Bundle for document-level content parsing.
 ///
 /// Phase 4: This parser now builds final ContentItem types directly using refactored combinators.
@@ -100,29 +129,7 @@ pub(crate) fn build_document_content_parser(
             let definition_parser = build_definition_parser(source.clone(), items.clone());
 
             // List parser - now builds final List type with span
-            let list_parser = {
-                let source = source.clone();
-                let single_list_item = list_item_line(source.clone())
-                    .then_ignore(token(Token::Newline))
-                    .then(
-                        token(Token::IndentLevel)
-                            .ignore_then(items.clone())
-                            .then_ignore(token(Token::DedentLevel))
-                            .or_not(),
-                    )
-                    .map(move |((text, text_span), maybe_content)| {
-                        let span = byte_range_to_span(&source, &text_span);
-                        ListItem::with_content(text, maybe_content.unwrap_or_default())
-                            .with_span(span)
-                    });
-
-                single_list_item.repeated().at_least(2).map(|items| {
-                    // Compute span from all list item spans
-                    let spans: Vec<Option<Span>> = items.iter().map(|item| item.span).collect();
-                    let span = compute_span_from_optional_spans(&spans);
-                    ContentItem::List(List { items, span })
-                })
-            };
+            let list_parser = build_list_parser(source.clone(), items.clone());
 
             // Annotation parser - now builds final Annotation type with span
             let annotation_parser = {
