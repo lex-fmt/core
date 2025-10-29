@@ -1,3 +1,19 @@
+//! Terminal UI viewer for txxt documents
+//!
+//! This is a terminal UI viewer for txxt documents. It is a simple viewer that allows you to view txxt documents in a terminal, and it's main role is to support the development of the txxt language and its tools.
+//!
+//! Usage:
+//!     txxtv <file>
+//! This wil open an interactive viewer for the txxt document.
+//! <q> will quit the viewer.
+//!
+//! The interface has:
+//! [ title bar] The title bar displays the file name and the current position in the document.
+//! [ file viewer ] The file's input txxt is displayed. An interactive cursor is displayed to allow you to navigate the document.
+//! [ info panel ] The info panel displays the AST hierarchy of the document at the current position.
+//!
+//! The panel and title has static heights, and the file viewer is the remaining height.
+//! Internally, all the core logic is from the txxt library, and the UI is built using the ratatui library.
 use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, size};
