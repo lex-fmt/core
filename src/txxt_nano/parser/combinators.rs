@@ -27,6 +27,40 @@ fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
     Some(source_loc.range_to_span(range))
 }
 
+/// Helper: compute span bounds from multiple spans
+pub(crate) fn compute_span_from_spans(spans: &[Span]) -> Span {
+    use crate::txxt_nano::ast::span::Position;
+    let start_line = spans.iter().map(|sp| sp.start.line).min().unwrap_or(0);
+    let start_col = spans.iter().map(|sp| sp.start.column).min().unwrap_or(0);
+    let end_line = spans.iter().map(|sp| sp.end.line).max().unwrap_or(0);
+    let end_col = spans.iter().map(|sp| sp.end.column).max().unwrap_or(0);
+    Span::new(
+        Position::new(start_line, start_col),
+        Position::new(end_line, end_col),
+    )
+}
+
+/// Helper: compute span bounds from multiple optional spans
+pub(crate) fn compute_span_from_optional_spans(spans: &[Option<Span>]) -> Option<Span> {
+    let actual_spans: Vec<Span> = spans.iter().filter_map(|s| *s).collect();
+    if actual_spans.is_empty() {
+        None
+    } else {
+        Some(compute_span_from_spans(&actual_spans))
+    }
+}
+
+/// Helper: compute span bounds from byte ranges
+pub(crate) fn compute_byte_range_bounds(ranges: &[Range<usize>]) -> Range<usize> {
+    if ranges.is_empty() {
+        0..0
+    } else {
+        let start = ranges.iter().map(|r| r.start).min().unwrap_or(0);
+        let end = ranges.iter().map(|r| r.end).max().unwrap_or(0);
+        start..end
+    }
+}
+
 /// Helper: extract text from multiple spans
 pub(crate) fn extract_text_from_spans(source: &str, spans: &[Range<usize>]) -> String {
     if spans.is_empty() {
@@ -122,9 +156,8 @@ pub(crate) fn paragraph(
                     let line_span = if spans.is_empty() {
                         None
                     } else {
-                        let start = spans.iter().map(|r| r.start).min().unwrap_or(0);
-                        let end = spans.iter().map(|r| r.end).max().unwrap_or(0);
-                        byte_range_to_span(&source, &(start..end))
+                        let range = compute_byte_range_bounds(spans);
+                        byte_range_to_span(&source, &range)
                     };
                     TextContent::from_string(text, line_span)
                 })
@@ -136,9 +169,8 @@ pub(crate) fn paragraph(
                 if all_spans.is_empty() {
                     None
                 } else {
-                    let start = all_spans.iter().map(|r| r.start).min().unwrap_or(0);
-                    let end = all_spans.iter().map(|r| r.end).max().unwrap_or(0);
-                    byte_range_to_span(&source, &(start..end))
+                    let range = compute_byte_range_bounds(&all_spans);
+                    byte_range_to_span(&source, &range)
                 }
             };
 

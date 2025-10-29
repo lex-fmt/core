@@ -11,8 +11,8 @@ use crate::txxt_nano::ast::{
 };
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{
-    annotation_header, definition_subject, foreign_block, list_item_line, paragraph, session_title,
-    token,
+    annotation_header, compute_span_from_optional_spans, compute_span_from_spans,
+    definition_subject, foreign_block, list_item_line, paragraph, session_title, token,
 };
 
 /// Type alias for token with span
@@ -100,35 +100,7 @@ pub(crate) fn build_document_content_parser(
                 single_list_item.repeated().at_least(2).map(|items| {
                     // Compute span from all list item spans
                     let spans: Vec<Option<Span>> = items.iter().map(|item| item.span).collect();
-                    let span = if spans.iter().any(|s| s.is_some()) {
-                        let start_line = spans
-                            .iter()
-                            .filter_map(|s| s.map(|sp| sp.start.line))
-                            .min()
-                            .unwrap_or(0);
-                        let start_col = spans
-                            .iter()
-                            .filter_map(|s| s.map(|sp| sp.start.column))
-                            .min()
-                            .unwrap_or(0);
-                        let end_line = spans
-                            .iter()
-                            .filter_map(|s| s.map(|sp| sp.end.line))
-                            .max()
-                            .unwrap_or(0);
-                        let end_col = spans
-                            .iter()
-                            .filter_map(|s| s.map(|sp| sp.end.column))
-                            .max()
-                            .unwrap_or(0);
-                        use crate::txxt_nano::ast::span::Position;
-                        Some(Span::new(
-                            Position::new(start_line, start_col),
-                            Position::new(end_line, end_col),
-                        ))
-                    } else {
-                        None
-                    };
+                    let span = compute_span_from_optional_spans(&spans);
                     ContentItem::List(List { items, span })
                 })
             };
@@ -171,31 +143,7 @@ pub(crate) fn build_document_content_parser(
                                     })
                                     .collect();
                                 if !content_spans.is_empty() {
-                                    let start_line = content_spans
-                                        .iter()
-                                        .map(|sp| sp.start.line)
-                                        .min()
-                                        .unwrap_or(0);
-                                    let start_col = content_spans
-                                        .iter()
-                                        .map(|sp| sp.start.column)
-                                        .min()
-                                        .unwrap_or(0);
-                                    let end_line = content_spans
-                                        .iter()
-                                        .map(|sp| sp.end.line)
-                                        .max()
-                                        .unwrap_or(0);
-                                    let end_col = content_spans
-                                        .iter()
-                                        .map(|sp| sp.end.column)
-                                        .max()
-                                        .unwrap_or(0);
-                                    use crate::txxt_nano::ast::span::Position;
-                                    Some(Span::new(
-                                        Position::new(start_line, start_col),
-                                        Position::new(end_line, end_col),
-                                    ))
+                                    Some(compute_span_from_spans(&content_spans))
                                 } else {
                                     None
                                 }
