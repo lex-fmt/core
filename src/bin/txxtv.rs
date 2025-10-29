@@ -159,12 +159,47 @@ impl App {
             .collect()
     }
 
+    fn parse_ast_info(&self, ast_info: &str) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut current_num = 0;
+        let mut current_element: Option<String> = None;
+        let mut current_label: Option<String> = None;
+
+        for line in ast_info.lines() {
+            // Parse lines like "1. Session (0:0..0:17)"
+            if let Some(rest) = line.strip_prefix(&format!("{}. ", current_num + 1)) {
+                // Found next element
+                if let (Some(elem), Some(label)) = (&current_element, &current_label) {
+                    result.push(format!("{}. {}: {}", current_num, elem, label));
+                }
+
+                current_num += 1;
+                // Extract element type (before the parenthesis)
+                if let Some(elem_name) = rest.split('(').next() {
+                    current_element = Some(elem_name.trim().to_string());
+                }
+                current_label = None;
+            } else if line.starts_with("   Label:") {
+                // Extract label
+                let label = line.trim_start_matches("   Label: ");
+                current_label = Some(label.to_string());
+            }
+        }
+
+        // Add the last element
+        if let (Some(elem), Some(label)) = (current_element, current_label) {
+            result.push(format!("{}. {}: {}", current_num, elem, label));
+        }
+
+        result
+    }
+
     fn render_info_panel(&self) -> Vec<Line<'_>> {
         let mut lines = vec![];
 
-        // Position info
+        // Position info - simplified format
         lines.push(Line::from(format!(
-            "Position: Row {}, Col {}",
+            "pos: {},{}",
             self.cursor_row, self.cursor_col
         )));
 
@@ -179,18 +214,10 @@ impl App {
             match format_at_position(doc, &extras) {
                 Ok(ast_info) => {
                     lines.push(Line::from(""));
-                    // Parse the first line of AST info (the element breadcrumb)
-                    let ast_lines: Vec<&str> = ast_info.lines().collect();
-                    if !ast_lines.is_empty() {
-                        lines.push(Line::from(ast_lines[0].to_string()));
-                    }
-                    // Parse the label line if it exists
-                    for line in ast_lines.iter().skip(1) {
-                        if line.starts_with("   Label:") {
-                            let label = line.trim_start_matches("   Label: ");
-                            lines.push(Line::from(format!("  {}", label)));
-                            break;
-                        }
+                    // Parse and display AST hierarchy
+                    let parsed = self.parse_ast_info(&ast_info);
+                    for line in parsed {
+                        lines.push(Line::from(line));
                     }
                 }
                 Err(_) => {
@@ -561,15 +588,13 @@ mod tests {
 
         // Initially at position 0,0
         let info_lines_start = app.render_info_panel();
-        assert!(info_lines_start[0]
-            .to_string()
-            .contains("Position: Row 0, Col 0"));
+        assert!(info_lines_start[0].to_string().contains("pos: 0,0"));
 
         // Move cursor and verify position updates
         app.move_cursor_right();
         app.move_cursor_right();
         let info_lines_moved = app.render_info_panel();
-        assert!(info_lines_moved[0].to_string().contains("Row 0, Col 2"));
+        assert!(info_lines_moved[0].to_string().contains("pos: 0,2"));
 
         // Clean up
         fs::remove_file(test_file).unwrap();
