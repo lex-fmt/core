@@ -1016,7 +1016,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "txxt_nano"
+name = "txxt"
 version = "0.1.0"
 dependencies = [
  "chumsky",
