@@ -107,6 +107,31 @@ impl TestApp {
             node_id.path()
         );
     }
+
+    /// Get the ancestors of a node
+    pub fn ancestors(&self, node_id: NodeId) -> Vec<NodeId> {
+        self.model.get_ancestors(node_id)
+    }
+
+    /// Assert that ancestors match expected
+    pub fn assert_ancestors(&self, node_id: NodeId, expected_paths: &[&[usize]]) {
+        let ancestors = self.ancestors(node_id);
+        assert_eq!(
+            ancestors.len(),
+            expected_paths.len(),
+            "Expected {} ancestors, got {}",
+            expected_paths.len(),
+            ancestors.len()
+        );
+        for (i, &expected_path) in expected_paths.iter().enumerate() {
+            assert_eq!(
+                ancestors[i].path(),
+                expected_path,
+                "Ancestor {} mismatch",
+                i
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -184,5 +209,38 @@ mod unit_tests {
 
         let back_to_parent = child.parent();
         assert_eq!(back_to_parent, Some(parent));
+    }
+
+    #[test]
+    fn test_ancestors() {
+        let app = TestApp::new();
+        let node_id = TestApp::node_id(&[0, 1, 2]);
+
+        app.assert_ancestors(
+            node_id,
+            &[&[], &[0], &[0, 1]],
+        );
+    }
+
+    #[test]
+    fn test_ancestors_root_child() {
+        let app = TestApp::new();
+        let node_id = TestApp::node_id(&[0]);
+
+        app.assert_ancestors(
+            node_id,
+            &[&[]],
+        );
+    }
+
+    #[test]
+    fn test_ancestors_deep_nesting() {
+        let app = TestApp::new();
+        let node_id = TestApp::node_id(&[2, 0, 1, 3]);
+
+        app.assert_ancestors(
+            node_id,
+            &[&[], &[2], &[2, 0], &[2, 0, 1]],
+        );
     }
 }
