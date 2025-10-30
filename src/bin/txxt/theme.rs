@@ -44,6 +44,9 @@ pub struct PresentationStyles {
     /// Normal content (regular text, unselected nodes)
     pub normal: Style,
 
+    /// Muted/disabled elements (collapsed nodes, inactive content)
+    pub muted: Style,
+
     /// Label text (field names in info panel)
     pub label: Style,
 
@@ -106,6 +109,12 @@ impl Theme {
     /// Semantic: normal element (same as file_viewer_text)
     pub fn tree_viewer_normal(&self) -> Style {
         self.presentation.normal
+    }
+
+    /// Styling for collapsed/muted nodes in the tree viewer
+    /// Semantic: muted/disabled element
+    pub fn tree_viewer_collapsed(&self) -> Style {
+        self.presentation.muted
     }
 
     /// Styling for labels in the info panel
@@ -205,6 +214,9 @@ pub struct ThemeConfig {
     /// Normal content (regular text, unselected nodes)
     pub normal: Option<StyleConfig>,
 
+    /// Muted/disabled elements (collapsed nodes, inactive content)
+    pub muted: Option<StyleConfig>,
+
     /// Label text (field names in info panel)
     pub label: Option<StyleConfig>,
 
@@ -260,6 +272,11 @@ impl ThemeConfig {
                     .as_ref()
                     .map(|s| s.to_style())
                     .unwrap_or(default_presentation.normal),
+                muted: self
+                    .muted
+                    .as_ref()
+                    .map(|s| s.to_style())
+                    .unwrap_or(default_presentation.muted),
                 label: self
                     .label
                     .as_ref()
@@ -419,6 +436,10 @@ impl Default for Theme {
                 // SEMANTIC: Normal content - Default style
                 // Includes: file_viewer_text, tree_viewer_normal
                 normal: Style::default(),
+
+                // SEMANTIC: Muted/disabled elements - Dim gray text
+                // Includes: tree_viewer_collapsed
+                muted: Style::default().fg(Color::Gray).add_modifier(Modifier::DIM),
 
                 // SEMANTIC: Label text - Yellow text
                 // Includes: info_panel_label
