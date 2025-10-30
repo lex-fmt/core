@@ -11,7 +11,8 @@ use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{AstNode, ContentItem, Location, Session, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    compute_location_from_optional_locations, session_title, token,
+    compute_byte_range_bounds, compute_location_from_optional_locations,
+    extract_text_from_locations, text_line, token,
 };
 
 /// Type alias for token with location
@@ -19,6 +20,21 @@ type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
+
+/// Parse a session title
+/// Phase 5: Now returns extracted text with location information
+pub(crate) fn session_title(
+    source: Arc<String>,
+) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
+    text_line()
+        .then_ignore(token(Token::Newline))
+        .then_ignore(token(Token::BlankLine))
+        .map(move |locations| {
+            let text = extract_text_from_locations(&source, &locations);
+            let location = compute_byte_range_bounds(&locations);
+            (text, location)
+        })
+}
 
 /// Helper: convert a byte range to a location using source location
 fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {

@@ -4,6 +4,7 @@
 //! Lists are sequences of list items with optional nested content.
 
 use chumsky::prelude::*;
+use chumsky::primitive::filter;
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -11,7 +12,8 @@ use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{AstNode, ContentItem, List, ListItem, Location, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    compute_location_from_optional_locations, list_item_line, token,
+    compute_location_from_optional_locations, extract_tokens_to_text_and_location, is_text_token,
+    token,
 };
 
 /// Type alias for token with location
@@ -19,6 +21,49 @@ type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
+
+/// Parse a list item line - a line that starts with a list marker
+/// Phase 5: Now returns extracted text with location information
+pub(crate) fn list_item_line(
+    source: Arc<String>,
+) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
+    let rest_of_line = filter(|(t, _location): &TokenLocation| is_text_token(t)).repeated();
+
+    let dash_pattern = filter(|(t, _): &TokenLocation| matches!(t, Token::Dash))
+        .then(filter(|(t, _): &TokenLocation| {
+            matches!(t, Token::Whitespace)
+        }))
+        .chain(rest_of_line);
+
+    let ordered_pattern =
+        filter(|(t, _): &TokenLocation| matches!(t, Token::Number(_) | Token::Text(_)))
+            .then(filter(|(t, _): &TokenLocation| {
+                matches!(t, Token::Period | Token::CloseParen)
+            }))
+            .then(filter(|(t, _): &TokenLocation| {
+                matches!(t, Token::Whitespace)
+            }))
+            .chain(rest_of_line);
+
+    let paren_pattern = filter(|(t, _): &TokenLocation| matches!(t, Token::OpenParen))
+        .then(filter(|(t, _): &TokenLocation| {
+            matches!(t, Token::Number(_))
+        }))
+        .then(filter(|(t, _): &TokenLocation| {
+            matches!(t, Token::CloseParen)
+        }))
+        .then(filter(|(t, _): &TokenLocation| {
+            matches!(t, Token::Whitespace)
+        }))
+        .chain(rest_of_line);
+
+    dash_pattern
+        .or(ordered_pattern)
+        .or(paren_pattern)
+        .map(move |tokens_with_locations| {
+            extract_tokens_to_text_and_location(&source, tokens_with_locations)
+        })
+}
 
 /// Helper: convert a byte range to a location using source location
 fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {

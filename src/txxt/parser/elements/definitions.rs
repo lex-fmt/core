@@ -4,6 +4,7 @@
 //! Definitions have a subject (label) followed by a colon and indented content.
 
 use chumsky::prelude::*;
+use chumsky::primitive::filter;
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -11,7 +12,7 @@ use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{AstNode, ContentItem, Definition, Location, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    compute_location_from_optional_locations, definition_subject, token,
+    compute_location_from_optional_locations, extract_tokens_to_text_and_location, token,
 };
 
 /// Type alias for token with location
@@ -19,6 +20,21 @@ type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
+
+/// Parse a definition subject
+/// Phase 5: Now returns extracted text with location information
+pub(crate) fn definition_subject(
+    source: Arc<String>,
+) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
+    filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::Newline))
+        .repeated()
+        .at_least(1)
+        .map(move |tokens_with_locations| {
+            extract_tokens_to_text_and_location(&source, tokens_with_locations)
+        })
+        .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
+        .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Newline)).ignored())
+}
 
 /// Helper: convert a byte range to a location using source location
 fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {

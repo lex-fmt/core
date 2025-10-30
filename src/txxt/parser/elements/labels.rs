@@ -44,7 +44,6 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range
     let whitespace = filter(|(token, _): &TokenLocation| matches!(token, Token::Whitespace));
 
     let leading_whitespace = whitespace
-        .clone()
         .repeated()
         .map(|items: Vec<TokenLocation>| items.len());
 
@@ -64,14 +63,12 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range
     });
 
     let trailing_whitespace = whitespace
-        .clone()
         .repeated()
         .map(|items: Vec<TokenLocation>| items.len());
 
     let parser = leading_whitespace
-        .clone()
         .then(identifier)
-        .then(trailing_whitespace.clone())
+        .then(trailing_whitespace)
         .map(
             |((leading_count, (label_range, label_len)), trailing_count)| {
                 (leading_count, label_range, label_len, trailing_count)

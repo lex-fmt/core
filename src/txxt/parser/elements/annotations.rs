@@ -4,6 +4,7 @@
 //! Annotations are marked with :: markers and can appear in single-line or block form.
 
 use chumsky::prelude::*;
+use chumsky::primitive::filter;
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -11,15 +12,88 @@ use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{Annotation, AstNode, ContentItem, Label, Location, Paragraph, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    annotation_header, compute_byte_range_bounds, compute_location_from_optional_locations,
-    extract_text_from_locations, text_line, token, AnnotationHeader,
+    compute_byte_range_bounds, compute_location_from_optional_locations,
+    extract_text_from_locations, text_line, token,
 };
+use crate::txxt::parser::elements::labels::parse_label_from_tokens;
+use crate::txxt::parser::elements::parameters::{convert_parameter, parse_parameters_from_tokens};
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
+
+/// Parse the bounded region between :: markers
+/// Phase 5: Now returns extracted label text, label location, and final Parameter types
+#[derive(Clone, Debug)]
+pub(crate) struct AnnotationHeader {
+    pub label: Option<String>,
+    pub label_range: Option<Range<usize>>,
+    pub parameters: Vec<crate::txxt::ast::Parameter>,
+    pub header_range: Range<usize>,
+}
+
+pub(crate) fn annotation_header(
+    source: Arc<String>,
+) -> impl Parser<TokenLocation, AnnotationHeader, Error = ParserError> + Clone {
+    let bounded_region =
+        filter(|(t, _): &TokenLocation| !matches!(t, Token::TxxtMarker | Token::Newline))
+            .repeated()
+            .at_least(1);
+
+    bounded_region.validate(move |tokens, location, emit| {
+        if tokens.is_empty() {
+            emit(ParserError::expected_input_found(location, None, None));
+            return AnnotationHeader {
+                label: None,
+                label_range: None,
+                parameters: Vec::new(),
+                header_range: 0..0,
+            };
+        }
+
+        let (label_location, mut i) = parse_label_from_tokens(&tokens);
+
+        if label_location.is_none() && i == 0 {
+            while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
+                i += 1;
+            }
+        }
+
+        let params_with_locations = parse_parameters_from_tokens(&tokens[i..]);
+
+        let header_range_start = tokens.first().map(|(_, span)| span.start).unwrap_or(0);
+        let header_range_end = tokens
+            .last()
+            .map(|(_, span)| span.end)
+            .unwrap_or(header_range_start);
+        let header_range = header_range_start..header_range_end;
+
+        // Extract label text if present
+        let label = label_location.as_ref().map(|location| {
+            let text = if location.start < location.end && location.end <= source.len() {
+                source[location.start..location.end].trim().to_string()
+            } else {
+                String::new()
+            };
+            text
+        });
+
+        // Convert parameters to final types
+        let params = params_with_locations
+            .into_iter()
+            .map(|p| convert_parameter(&source, p))
+            .collect();
+
+        AnnotationHeader {
+            label,
+            label_range: label_location,
+            parameters: params,
+            header_range,
+        }
+    })
+}
 
 /// Helper: convert a byte range to a location using source location
 fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
