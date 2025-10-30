@@ -111,13 +111,10 @@ echo "🎨 Checking and fixing code formatting..."
 if ! cargo fmt -- --check >/dev/null 2>&1; then
     echo "🔧 Auto-fixing formatting issues..."
     cargo fmt
-    if [ "$ALL_MODE" = "false" ]; then
-        # Re-stage files that were formatted
-        echo "$STAGED_FILES" | xargs git add
-        echo "✅ Code formatting fixed and files re-staged"
-    else
-        echo "✅ Code formatting fixed"
-    fi
+    # IMPORTANT: Always re-stage files after formatting (in both --all and normal mode)
+    # to prevent them from being left as unstaged changes after commit
+    echo "$STAGED_FILES" | xargs git add 2>/dev/null || true
+    echo "✅ Code formatting fixed and files re-staged"
 else
     echo "✅ Code formatting is correct"
 fi
@@ -125,14 +122,18 @@ fi
 # 2. Run Clippy lints with auto-fix
 echo ""
 echo "🔍 Running Clippy lints with auto-fix..."
-# First try to auto-fix what we can
+# Get list of modified files before clippy
+MODIFIED_BEFORE=$(git status --porcelain 2>/dev/null | grep '^ M' | wc -l)
+
+# Try to auto-fix what we can
 if cargo clippy --fix --all-targets --all-features --allow-dirty --allow-staged 2>/dev/null; then
-    if [ "$ALL_MODE" = "false" ] && [ -n "$STAGED_FILES" ]; then
-        # Re-stage files that were fixed
-        echo "$STAGED_FILES" | xargs git add 2>/dev/null || true
+    # Check if clippy actually made changes
+    MODIFIED_AFTER=$(git status --porcelain 2>/dev/null | grep '^ M' | wc -l)
+
+    if [ "$MODIFIED_AFTER" -gt "$MODIFIED_BEFORE" ]; then
+        # Clippy made actual changes - re-stage all modified files
+        git add -A 2>/dev/null || true
         echo "🔧 Auto-fixed some Clippy issues and re-staged files"
-    else
-        echo "🔧 Auto-fixed some Clippy issues"
     fi
 fi
 
@@ -202,8 +203,11 @@ fi
 
 # 8. Check for TODO/FIXME comments in files (optional warning)
 if [ -n "$STAGED_FILES" ]; then
-    TODO_COUNT=$(echo "$STAGED_FILES" | xargs grep -n "TODO\|FIXME" 2>/dev/null || true | wc -l)
-    if [ "$TODO_COUNT" -gt 0 ]; then
+    # Use grep -h to suppress filenames and get a clean line count
+    TODO_COUNT=$(echo "$STAGED_FILES" | xargs grep -h "TODO\|FIXME" 2>/dev/null | wc -l)
+    TODO_COUNT=$(echo "$TODO_COUNT" | xargs)  # Trim whitespace to ensure it's a valid integer
+
+    if [ "$TODO_COUNT" -gt 0 ] 2>/dev/null; then
         echo ""
         if [ "$ALL_MODE" = "true" ]; then
             echo "⚠️  Found $TODO_COUNT TODO/FIXME comments in project files:"
