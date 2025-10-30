@@ -48,7 +48,8 @@ mod tests {
         let document = Document::with_content(vec![ContentItem::Session(session)]);
         let nodes = find_nodes_at_position(&document, Position::new(2, 5));
         assert_eq!(nodes.len(), 2);
-        assert_eq!(nodes[0].node_type(), "Session");
-        assert_eq!(nodes[1].node_type(), "Paragraph");
+        // Results are returned deepest to shallowest, so paragraph (nested) comes first
+        assert_eq!(nodes[0].node_type(), "Paragraph");
+        assert_eq!(nodes[1].node_type(), "Session");
     }
 }

@@ -143,7 +143,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Document, Vec<Simple<Token>>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt_nano::ast::Position;
+    use crate::txxt_nano::ast::{AstNode, Position};
     use crate::txxt_nano::lexer::lex_with_spans;
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
     use std::sync::Arc;
@@ -642,7 +642,49 @@ mod tests {
         // Should contain end
         assert!(span.contains(span.end));
 
-        // Should not contain position after end
+        // Shouldมี contain position after end
         assert!(!span.contains(Position::new(0, 11)));
+    }
+
+    #[test]
+    fn test_nested_paragraph_has_span() {
+        // Test that nested paragraphs inside sessions have span information
+        let input = "Title\n\n1. Session Title\n\n    Nested paragraph\n\n";
+        let tokens = lex_with_spans(input);
+        let doc =
+            parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
+
+        assert!(doc.content.len() >= 2);
+
+        // Find the session
+        let session = doc
+            .content
+            .iter()
+            .find(|item| item.is_session())
+            .expect("Should have a session");
+
+        assert!(session.span().is_some(), "Session should have span");
+
+        // Get nested content
+        if let Some(children) = session.children() {
+            assert!(!children.is_empty(), "Session should have children");
+
+            // Check if first child is a paragraph
+            if let Some(para_item) = children.first() {
+                if para_item.is_paragraph() {
+                    let para = para_item.as_paragraph().unwrap();
+                    assert!(
+                        para.span.is_some(),
+                        "Nested paragraph should have span, but got {:?}",
+                        para.span
+                    );
+
+                    if let Some(span) = para.span {
+                        println!("Nested paragraph span: {:?} to {:?}", span.start, span.end);
+                        assert_eq!(span.start.line, 4, "Paragraph should be at line 4");
+                    }
+                }
+            }
+        }
     }
 }
