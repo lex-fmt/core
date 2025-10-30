@@ -318,11 +318,18 @@ impl Default for TreeViewer {
 
 impl Viewer for TreeViewer {
     fn render(&self, frame: &mut Frame, area: Rect, model: &Model) {
+        use crate::model::Selection;
         use ratatui::style::{Color, Modifier, Style};
 
         // Get the flattened tree for rendering
         let flattened = model.flattened_tree();
-        let selected_node_id = model.get_selected_node_id();
+
+        // Determine which node should be highlighted
+        // This handles both TreeSelection and TextSelection types
+        let highlighted_node_id = match model.selection() {
+            Selection::TreeSelection(node_id) => Some(node_id),
+            Selection::TextSelection(row, col) => model.get_node_at_position(row, col),
+        };
 
         // Build lines from the flattened tree
         let lines: Vec<Line> = flattened
@@ -342,8 +349,8 @@ impl Viewer for TreeViewer {
 
                 let text = format!("{}{}{}", indent, prefix, node.label);
 
-                // Style the line - highlight if selected
-                if Some(node.node_id) == selected_node_id {
+                // Style the line - highlight if it matches the current selection
+                if Some(node.node_id) == highlighted_node_id {
                     Line::from(text).style(
                         Style::default()
                             .bg(Color::Blue)
