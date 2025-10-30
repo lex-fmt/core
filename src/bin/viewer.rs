@@ -1,8 +1,12 @@
 //! Rich terminal viewer app for txxt
 #[path = "viewer/app.rs"]
 pub mod app;
+#[path = "viewer/fileviewer.rs"]
+pub mod fileviewer;
 #[path = "viewer/model.rs"]
 pub mod model;
+#[path = "viewer/treeviewer.rs"]
+pub mod treeviewer;
 #[path = "viewer/ui.rs"]
 pub mod ui;
 #[allow(clippy::module_inception)]
