@@ -7,6 +7,7 @@
 //! - Global key handling (quit, focus switching, delegating to viewers)
 
 use crate::model::{Focus, Model};
+use crate::theme::Theme;
 use crate::viewer::{FileViewer, TreeViewer, Viewer, ViewerEvent};
 use crossterm::event::KeyEvent;
 
@@ -30,10 +31,14 @@ pub struct App {
     /// The raw file content
     #[allow(dead_code)]
     pub file_content: String,
+
+    /// Theme configuration
+    pub theme: Theme,
 }
 
 impl App {
     /// Create a new application with a model and file content
+    #[allow(dead_code)]
     pub fn new(model: Model, content: String) -> Self {
         App {
             model,
@@ -42,6 +47,21 @@ impl App {
             focus: Focus::default(),
             should_quit: false,
             file_content: content,
+            theme: Theme::default(),
+        }
+    }
+
+    /// Create a new application with a custom theme
+    #[allow(dead_code)]
+    pub fn with_theme(model: Model, content: String, theme: Theme) -> Self {
+        App {
+            model,
+            file_viewer: FileViewer::new(content.clone()),
+            tree_viewer: TreeViewer::new(),
+            focus: Focus::default(),
+            should_quit: false,
+            file_content: content,
+            theme,
         }
     }
 
