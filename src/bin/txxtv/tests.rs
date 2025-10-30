@@ -16,7 +16,8 @@
 //! - Is small (35 lines) so tests can reason about the entire structure
 //! - Tests both flat and nested navigation
 
-use crate::model::{Model, NodeId, Selection};
+use crate::app::App;
+use crate::model::{Model, NodeId, Selection, Focus};
 use crate::viewer::{FileViewer, TreeViewer, Viewer, ViewerEvent};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::backend::TestBackend;
@@ -26,6 +27,7 @@ use std::fs;
 /// Test application harness
 pub struct TestApp {
     pub model: Model,
+    pub app: App,
     pub terminal: Terminal<TestBackend>,
 }
 
@@ -40,13 +42,14 @@ impl TestApp {
             .expect("Failed to parse test document");
 
         let model = Model::new(document);
+        let app = App::new(model.clone());
 
         // Create a test terminal with reasonable dimensions
         // Standard terminal is ~80x24, we use 80x30 to give enough space
         let backend = TestBackend::new(80, 30);
         let terminal = Terminal::new(backend).expect("Failed to create test terminal");
 
-        TestApp { model, terminal }
+        TestApp { model, app, terminal }
     }
 
     /// Create a NodeId from a path for testing
@@ -242,6 +245,50 @@ impl TestApp {
             event
         );
     }
+
+    // ========== Focus management ==========
+
+    /// Get the current focus
+    pub fn focused_viewer(&self) -> Focus {
+        self.app.focus
+    }
+
+    /// Toggle focus
+    pub fn toggle_focus(&mut self) {
+        self.app.toggle_focus();
+    }
+
+    /// Assert that the focused viewer matches expected
+    pub fn assert_focused_viewer(&self, expected: Focus) {
+        assert_eq!(
+            self.app.focus, expected,
+            "Expected focus on {:?}, got {:?}",
+            expected, self.app.focus
+        );
+    }
+
+    /// Send a Tab key to the app (focus toggle)
+    pub fn send_tab(&mut self) -> bool {
+        let key_event = Self::create_key_event(KeyCode::Tab);
+        self.app.handle_key(key_event)
+    }
+
+    /// Send a 'q' key to the app (quit)
+    pub fn send_quit(&mut self) -> bool {
+        let key_event = Self::create_key_event(KeyCode::Char('q'));
+        self.app.handle_key(key_event)
+    }
+
+    /// Check if app should quit
+    pub fn should_quit(&self) -> bool {
+        self.app.should_quit
+    }
+
+    /// Send a key to the app and get whether it changed state
+    pub fn app_handle_key(&mut self, key: KeyCode) -> bool {
+        let key_event = Self::create_key_event(key);
+        self.app.handle_key(key_event)
+    }
 }
 
 #[cfg(test)]
@@ -415,5 +462,58 @@ mod unit_tests {
         let event3 = ViewerEvent::SelectNode(node_id);
         let event4 = ViewerEvent::SelectNode(node_id);
         assert_eq!(event3, event4);
+    }
+
+    #[test]
+    fn test_app_initial_focus() {
+        let app = TestApp::new();
+        app.assert_focused_viewer(Focus::FileViewer);
+    }
+
+    #[test]
+    fn test_app_focus_toggle() {
+        let mut app = TestApp::new();
+
+        app.assert_focused_viewer(Focus::FileViewer);
+
+        let changed = app.send_tab();
+        assert!(changed);
+        app.assert_focused_viewer(Focus::TreeViewer);
+
+        let changed = app.send_tab();
+        assert!(changed);
+        app.assert_focused_viewer(Focus::FileViewer);
+    }
+
+    #[test]
+    fn test_app_quit() {
+        let mut app = TestApp::new();
+        assert!(!app.should_quit());
+
+        let changed = app.send_quit();
+        assert!(changed);
+        assert!(app.should_quit());
+    }
+
+    #[test]
+    fn test_app_quit_with_ctrl_c() {
+        let mut app = TestApp::new();
+        assert!(!app.should_quit());
+
+        let key_event = KeyEvent {
+            code: KeyCode::Char('c'),
+            modifiers: KeyModifiers::CONTROL,
+            kind: crossterm::event::KeyEventKind::Press,
+            state: crossterm::event::KeyEventState::empty(),
+        };
+        let changed = app.app.handle_key(key_event);
+        assert!(changed);
+        assert!(app.should_quit());
+    }
+
+    #[test]
+    fn test_focus_enum_default() {
+        let focus: Focus = Default::default();
+        assert_eq!(focus, Focus::FileViewer);
     }
 }

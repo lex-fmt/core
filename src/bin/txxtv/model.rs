@@ -13,6 +13,31 @@ use txxt_nano::txxt_nano::ast::span::{Position, Span};
 use txxt_nano::txxt_nano::ast::elements::content_item::ContentItem;
 use txxt_nano::txxt_nano::parser::Document;
 
+/// Which viewer currently has keyboard focus
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Focus {
+    /// File viewer (text) has focus
+    FileViewer,
+    /// Tree viewer (AST) has focus
+    TreeViewer,
+}
+
+impl Focus {
+    /// Toggle focus to the other viewer
+    pub fn toggle(&self) -> Focus {
+        match self {
+            Focus::FileViewer => Focus::TreeViewer,
+            Focus::TreeViewer => Focus::FileViewer,
+        }
+    }
+}
+
+impl Default for Focus {
+    fn default() -> Self {
+        Focus::FileViewer
+    }
+}
+
 /// Stable identifier for an AST node.
 ///
 /// A NodeId is a path through the tree, represented as a Vec<usize>.
@@ -79,6 +104,7 @@ pub enum Selection {
 }
 
 /// The core data model
+#[derive(Clone)]
 pub struct Model {
     /// The parsed AST document
     pub document: Document,
