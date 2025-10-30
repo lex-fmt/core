@@ -4,7 +4,7 @@
 //! from our sample collection without panicking or producing invalid tokens.
 
 use proptest::prelude::*;
-use txxt::txxt::lexer::{lex, tokenize, Token};
+use txxt::txxt::lexer::{lex, Token};
 
 /// Sample document snapshot tests
 #[cfg(test)]
@@ -174,13 +174,13 @@ mod proptest_tests {
         #[test]
         fn test_tokenize_never_panics(input in txxt_document_strategy()) {
             // The lexer should never panic on any valid txxt input
-            let _tokens = tokenize(&input);
+            let _tokens = lex(&input);
         }
 
         #[test]
         fn test_tokenize_produces_valid_tokens(input in txxt_document_strategy()) {
             // All tokens should be valid Token variants
-            let tokens = tokenize(&input);
+            let tokens = lex(&input);
             for token in tokens {
                 match token {
                     Token::TxxtMarker | Token::Indent | Token::IndentLevel | Token::DedentLevel |
@@ -195,28 +195,49 @@ mod proptest_tests {
 
         #[test]
         fn test_indentation_tokenization(input in indentation_strategy()) {
-            // Indentation should produce appropriate Indent tokens
-            let tokens = tokenize(&input);
-            let indent_count = tokens.iter().filter(|t| t.is_indent()).count();
+            // Indentation should produce appropriate indentation-related tokens
+            // Note: lex() transforms Indent tokens to IndentLevel/DedentLevel
+            let tokens = lex(&input);
 
-            // Count expected indent levels based on input
-            let expected_indents = if input.is_empty() {
-                0
+            // After lex(), indentation tokens are transformed:
+            // - Indent tokens become IndentLevel tokens (only if line has content after indentation)
+            // - Blank lines (indentation followed only by newline) don't produce IndentLevel
+            // - At end of file, DedentLevel tokens close the indentation
+
+            if input.is_empty() {
+                // No indentation means no indent/dedent tokens
+                let indent_related_count = tokens.iter().filter(|t| {
+                    matches!(t, Token::IndentLevel | Token::DedentLevel | Token::Indent)
+                }).count();
+                assert_eq!(indent_related_count, 0);
+            } else if !input.chars().any(|c| !c.is_whitespace()) {
+                // Pure whitespace (with or without indentation) becomes a blank line
+                // Blank lines don't produce IndentLevel tokens
+                let indent_related_count = tokens.iter().filter(|t| {
+                    matches!(t, Token::IndentLevel | Token::DedentLevel | Token::Indent)
+                }).count();
+                assert_eq!(indent_related_count, 0);
             } else {
-                // Count tabs (each tab = 1 indent)
-                let tab_count = input.matches('\t').count();
-                // Count groups of 4 spaces (each group = 1 indent)
-                let space_count = input.split('\t').map(|s| s.len() / 4).sum::<usize>();
-                tab_count + space_count
-            };
+                // Input has actual content after indentation
+                let indent_level_count = tokens.iter().filter(|t| matches!(t, Token::IndentLevel)).count();
 
-            assert_eq!(indent_count, expected_indents);
+                // Count expected indent levels based on input
+                let expected_indents = {
+                    // Count tabs (each tab = 1 indent)
+                    let tab_count = input.matches('\t').count();
+                    // Count groups of 4 spaces (each group = 1 indent)
+                    let space_count = input.split('\t').map(|s| s.len() / 4).sum::<usize>();
+                    tab_count + space_count
+                };
+
+                assert_eq!(indent_level_count, expected_indents);
+            }
         }
 
         #[test]
         fn test_list_item_tokenization(input in list_item_strategy()) {
             // List items should contain appropriate markers
-            let tokens = tokenize(&input);
+            let tokens = lex(&input);
 
             if input.starts_with('-') {
                 assert!(tokens.iter().any(|t| matches!(t, Token::Dash)));
@@ -232,7 +253,7 @@ mod proptest_tests {
         #[test]
         fn test_session_title_tokenization(input in session_title_strategy()) {
             // Session titles should contain appropriate markers
-            let tokens = tokenize(&input);
+            let tokens = lex(&input);
 
             if input.contains(':') {
                 assert!(tokens.iter().any(|t| matches!(t, Token::Colon)));
@@ -245,7 +266,7 @@ mod proptest_tests {
         #[test]
         fn test_multiline_tokenization(input in txxt_text_strategy()) {
             // Multiline text should contain Newline tokens
-            let tokens = tokenize(&input);
+            let tokens = lex(&input);
 
             if input.contains('\n') {
                 assert!(tokens.iter().any(|t| matches!(t, Token::Newline)));
@@ -255,14 +276,14 @@ mod proptest_tests {
         #[test]
         fn test_empty_input_tokenization(input in "") {
             // Empty input should produce no tokens
-            let tokens = tokenize(&input);
+            let tokens = lex(&input);
             assert!(tokens.is_empty());
         }
 
         #[test]
         fn test_whitespace_only_tokenization(input in "[ ]{0,10}") {
             // Whitespace-only input should produce appropriate tokens
-            let tokens = tokenize(&input);
+            let tokens = lex(&input);
 
             if input.is_empty() {
                 assert!(tokens.is_empty());
@@ -284,9 +305,10 @@ mod integration_tests {
     #[test]
     fn test_paragraph_pattern() {
         let input = "This is a paragraph.\nIt has multiple lines.";
-        let tokens = tokenize(input);
+        let tokens = lex(input);
 
         // Exact token sequence validation
+        // lex() adds a trailing newline and applies full transformations
         assert_eq!(
             tokens,
             vec![
@@ -307,6 +329,7 @@ mod integration_tests {
                 Token::Whitespace,                    // " "
                 Token::Text("lines".to_string()),     // "lines"
                 Token::Period,                        // "."
+                Token::Newline,                       // "\n" (added by lex)
             ]
         );
     }
@@ -314,9 +337,10 @@ mod integration_tests {
     #[test]
     fn test_list_pattern() {
         let input = "- First item\n- Second item";
-        let tokens = tokenize(input);
+        let tokens = lex(input);
 
         // Exact token sequence validation
+        // lex() adds a trailing newline and applies full transformations
         assert_eq!(
             tokens,
             vec![
@@ -331,6 +355,7 @@ mod integration_tests {
                 Token::Text("Second".to_string()), // "Second"
                 Token::Whitespace,                 // " "
                 Token::Text("item".to_string()),   // "item"
+                Token::Newline,                    // "\n" (added by lex)
             ]
         );
     }
@@ -338,9 +363,10 @@ mod integration_tests {
     #[test]
     fn test_session_pattern() {
         let input = "1. Session Title\n    Content here";
-        let tokens = tokenize(input);
+        let tokens = lex(input);
 
         // Exact token sequence validation
+        // lex() transforms Indent -> IndentLevel and adds trailing newline
         assert_eq!(
             tokens,
             vec![
@@ -351,10 +377,12 @@ mod integration_tests {
                 Token::Whitespace,                  // " "
                 Token::Text("Title".to_string()),   // "Title"
                 Token::Newline,                     // "\n"
-                Token::Indent,                      // "    "
+                Token::IndentLevel,                 // IndentLevel (was Indent)
                 Token::Text("Content".to_string()), // "Content"
                 Token::Whitespace,                  // " "
                 Token::Text("here".to_string()),    // "here"
+                Token::Newline,                     // "\n" (added by lex)
+                Token::DedentLevel,                 // DedentLevel (closes indentation)
             ]
         );
     }
@@ -362,9 +390,10 @@ mod integration_tests {
     #[test]
     fn test_txxt_marker_pattern() {
         let input = "Some text :: marker";
-        let tokens = tokenize(input);
+        let tokens = lex(input);
 
         // Exact token sequence validation
+        // lex() adds a trailing newline
         assert_eq!(
             tokens,
             vec![
@@ -375,6 +404,7 @@ mod integration_tests {
                 Token::TxxtMarker,                 // "::"
                 Token::Whitespace,                 // " "
                 Token::Text("marker".to_string()), // "marker"
+                Token::Newline,                    // "\n" (added by lex)
             ]
         );
     }
@@ -382,9 +412,10 @@ mod integration_tests {
     #[test]
     fn test_mixed_content_pattern() {
         let input = "1. Session\n    - Item 1\n    - Item 2\n\nParagraph after.";
-        let tokens = tokenize(input);
+        let tokens = lex(input);
 
         // Exact token sequence validation
+        // lex() transforms Indent -> IndentLevel and consecutive Newlines -> BlankLine
         assert_eq!(
             tokens,
             vec![
@@ -393,25 +424,26 @@ mod integration_tests {
                 Token::Whitespace,                    // " "
                 Token::Text("Session".to_string()),   // "Session"
                 Token::Newline,                       // "\n"
-                Token::Indent,                        // "    "
+                Token::IndentLevel,                   // IndentLevel (was Indent)
                 Token::Dash,                          // "-"
                 Token::Whitespace,                    // " "
                 Token::Text("Item".to_string()),      // "Item"
                 Token::Whitespace,                    // " "
                 Token::Number("1".to_string()),       // "1"
                 Token::Newline,                       // "\n"
-                Token::Indent,                        // "    "
                 Token::Dash,                          // "-"
                 Token::Whitespace,                    // " "
                 Token::Text("Item".to_string()),      // "Item"
                 Token::Whitespace,                    // " "
                 Token::Number("2".to_string()),       // "2"
                 Token::Newline,                       // "\n"
-                Token::Newline,                       // "\n"
+                Token::BlankLine,                     // BlankLine (was 2nd Newline)
+                Token::DedentLevel,                   // DedentLevel (from indent back to 0)
                 Token::Text("Paragraph".to_string()), // "Paragraph"
                 Token::Whitespace,                    // " "
                 Token::Text("after".to_string()),     // "after"
                 Token::Period,                        // "."
+                Token::Newline,                       // "\n" (added by lex)
             ]
         );
     }

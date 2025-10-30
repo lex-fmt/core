@@ -24,7 +24,7 @@
 //! let processed = TxxtSources::get_processed("050-paragraph-lists.txxt", "token-simple").unwrap();
 //! ```
 
-use crate::txxt::lexer::{lex, tokenize, Token};
+use crate::txxt::lexer::{lex, Token};
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -199,10 +199,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     // Process according to stage
     match spec.stage {
         ProcessingStage::Token => {
-            let tokens = match spec.format {
-                OutputFormat::RawSimple | OutputFormat::RawJson => tokenize(&content),
-                _ => lex(&content),
-            };
+            let tokens = lex(&content);
             format_tokens(&tokens, &spec.format)
         }
         ProcessingStage::Ast => {
