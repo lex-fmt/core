@@ -6,8 +6,10 @@
 //! - Focus management (which viewer has keyboard focus)
 //! - Global key handling (quit, focus switching, delegating to viewers)
 
+use super::fileviewer::FileViewer;
 use super::model::{Focus, Model};
-use super::viewer::{FileViewer, TreeViewer, Viewer, ViewerEvent};
+use super::treeviewer::TreeViewer;
+use super::viewer::{Viewer, ViewerEvent};
 use crossterm::event::KeyEvent;
 
 /// The main application
