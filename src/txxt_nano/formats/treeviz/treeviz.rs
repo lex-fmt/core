@@ -1,4 +1,44 @@
 //! Treeviz formatter for AST nodes
+//!
+//! Treeviz is a visual representation of the AST, design specifically for document trees.
+//! It features a one line per node format, which enables quick scanning of the tree, and is specially
+//! helpful for formats that are primarely line oriented (like text).
+
+//! Icons
+//!     Core elements:
+//!         Document: ⧉
+//!         Session: §
+//!         SessionTitle: ⊤
+//!         Annotation: '"'
+//!         Paragraph: ¶
+//!         List: ☰
+//!         ListItem: •
+//!         Foreign: 𝒱
+//!         ForeingLine: ℣
+//!         Definition: ≔
+//!     Container elements:
+//!         SessionContainer: Ψ
+//!         ContentContainer: ➔
+//!         Content: ⊤
+//!     Spans:
+//!         Text: ◦
+//!         TextLine: ↵
+//!     Inlines (not yet implemented, leave here for now)
+//!         Italic: 𝐼
+//!         Bold: 𝐁
+//!         Code: ƒ
+//!         Math (not yet implemented, leave here for now)
+//!         Math: √
+//!     References (not yet implemented, leave here for now)
+//!         Reference: ⊕
+//!         ReferenceFile: /
+//!         ReferenceCitation: †
+//!         ReferenceCitationAuthor: "@"
+//!         ReferenceCitationPage: ◫
+//!         ReferenceToCome: ⋯
+//!         ReferenceUnknown: ∅
+//!         ReferenceFootnote: ³
+//!         ReferenceSession: #
 
 use crate::txxt_nano::ast::{AstNode, Container, ContentItem, Document, ListItem};
 
