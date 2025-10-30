@@ -80,7 +80,7 @@ pub(crate) fn parse_parameters_from_tokens(
         matches!(token, Token::Whitespace)
     })
     .ignored();
-    let whitespace0 = whitespace_token.clone().repeated().ignored();
+    let whitespace0 = whitespace_token.repeated().ignored();
 
     let key_segment = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
         matches!(token, Token::Text(_) | Token::Dash | Token::Number(_))
@@ -107,7 +107,6 @@ pub(crate) fn parse_parameters_from_tokens(
 
     let unquoted_value =
         unquoted_value_segment
-            .clone()
             .repeated()
             .at_least(1)
             .map(|segments: Vec<Range<usize>>| {
@@ -135,7 +134,7 @@ pub(crate) fn parse_parameters_from_tokens(
         matches!(token, Token::Quote)
     })
     .map(|(_, span)| span.clone())
-    .then(quoted_inner.clone().then(closing_quote.clone().or_not()))
+    .then(quoted_inner.then(closing_quote.or_not()))
     .map(|(opening_span, (inner_segments, closing_span))| {
         let location = if inner_segments.is_empty() {
             Some(0..0)
@@ -162,10 +161,9 @@ pub(crate) fn parse_parameters_from_tokens(
     let value = quoted_value.or(unquoted_value);
 
     let parameter = key_segment
-        .clone()
-        .then_ignore(whitespace0.clone())
-        .then_ignore(equals.clone())
-        .then_ignore(whitespace0.clone())
+        .then_ignore(whitespace0)
+        .then_ignore(equals)
+        .then_ignore(whitespace0)
         .then(value)
         .map(|(key_location, parsed_value)| {
             let ParsedValue {
@@ -192,14 +190,12 @@ pub(crate) fn parse_parameters_from_tokens(
     })
     .ignored();
     let parameter_with_separator = parameter
-        .clone()
-        .then_ignore(whitespace0.clone())
-        .then_ignore(comma.clone().then_ignore(whitespace0.clone()).or_not());
+        .then_ignore(whitespace0)
+        .then_ignore(comma.then_ignore(whitespace0).or_not());
 
     let parser = whitespace0
-        .clone()
         .ignore_then(parameter_with_separator.repeated())
-        .then_ignore(whitespace0.clone());
+        .then_ignore(whitespace0);
 
     let stream = Stream::from_iter(
         0..0,

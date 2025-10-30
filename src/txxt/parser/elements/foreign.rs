@@ -13,9 +13,11 @@ use crate::txxt::ast::{
 };
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    annotation_header, compute_byte_range_bounds, compute_location_from_optional_locations,
-    definition_subject, extract_text_from_locations, text_line, token, AnnotationHeader,
+    compute_byte_range_bounds, compute_location_from_optional_locations,
+    extract_text_from_locations, text_line, token,
 };
+use crate::txxt::parser::elements::annotations::{annotation_header, AnnotationHeader};
+use crate::txxt::parser::elements::definitions::definition_subject;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
