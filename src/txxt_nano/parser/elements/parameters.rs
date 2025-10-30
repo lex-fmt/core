@@ -11,7 +11,7 @@ use crate::txxt_nano::lexer::Token;
 use std::ops::Range;
 
 /// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+type TokenLocation = (Token, Range<usize>);
 
 /// Parameter with source text spans for later extraction
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ fn extract_text<'a>(source: &'a str, span: &Range<usize>) -> &'a str {
 /// 1. Split by comma
 /// 2. For each segment, split by '=' to get key/value
 /// 3. Whitespace around parameters is ignored
-pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<ParameterWithSpans> {
+pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenLocation]) -> Vec<ParameterWithSpans> {
     let mut params = Vec::new();
     let mut i = 0;
 

@@ -13,10 +13,10 @@ use crate::txxt_nano::parser::elements::parameters::{
 };
 
 /// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
-type ParserError = Simple<TokenSpan>;
+type ParserError = Simple<TokenLocation>;
 
 /// Check if a token is a text-like token (content that can appear in lines)
 ///
@@ -102,7 +102,7 @@ pub(crate) fn extract_text_from_locations(source: &str, spans: &[Range<usize>]) 
 /// Converts a vector of token-span pairs to (extracted_text, byte_range)
 pub(crate) fn extract_tokens_to_text_and_location(
     source: &Arc<String>,
-    tokens: Vec<TokenSpan>,
+    tokens: Vec<TokenLocation>,
 ) -> (String, Range<usize>) {
     let spans: Vec<Range<usize>> = tokens.into_iter().map(|(_, s)| s).collect();
     let text = extract_text_from_locations(source, &spans);
@@ -111,18 +111,18 @@ pub(crate) fn extract_tokens_to_text_and_location(
 }
 
 /// Helper: match a specific token type, ignoring the span
-pub(crate) fn token(t: Token) -> impl Parser<TokenSpan, (), Error = ParserError> + Clone {
+pub(crate) fn token(t: Token) -> impl Parser<TokenLocation, (), Error = ParserError> + Clone {
     filter(move |(tok, _)| tok == &t).ignored()
 }
 
 /// Parse a text line (sequence of text and whitespace tokens)
 /// Returns the collected spans for this line
-pub(crate) fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = ParserError> + Clone
-{
-    filter(|(t, _location): &TokenSpan| is_text_token(t))
+pub(crate) fn text_line(
+) -> impl Parser<TokenLocation, Vec<Range<usize>>, Error = ParserError> + Clone {
+    filter(|(t, _location): &TokenLocation| is_text_token(t))
         .repeated()
         .at_least(1)
-        .map(|tokens_with_locations: Vec<TokenSpan>| {
+        .map(|tokens_with_locations: Vec<TokenLocation>| {
             // Collect all spans for this line
             tokens_with_locations.into_iter().map(|(_, s)| s).collect()
         })
@@ -132,25 +132,35 @@ pub(crate) fn text_line() -> impl Parser<TokenSpan, Vec<Range<usize>>, Error = P
 /// Phase 5: Now returns extracted text with span information
 pub(crate) fn list_item_line(
     source: Arc<String>,
-) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
-    let rest_of_line = filter(|(t, _location): &TokenSpan| is_text_token(t)).repeated();
+) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
+    let rest_of_line = filter(|(t, _location): &TokenLocation| is_text_token(t)).repeated();
 
-    let dash_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::Dash))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
+    let dash_pattern = filter(|(t, _): &TokenLocation| matches!(t, Token::Dash))
+        .then(filter(|(t, _): &TokenLocation| {
+            matches!(t, Token::Whitespace)
+        }))
         .chain(rest_of_line);
 
     let ordered_pattern =
-        filter(|(t, _): &TokenSpan| matches!(t, Token::Number(_) | Token::Text(_)))
-            .then(filter(|(t, _): &TokenSpan| {
+        filter(|(t, _): &TokenLocation| matches!(t, Token::Number(_) | Token::Text(_)))
+            .then(filter(|(t, _): &TokenLocation| {
                 matches!(t, Token::Period | Token::CloseParen)
             }))
-            .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
+            .then(filter(|(t, _): &TokenLocation| {
+                matches!(t, Token::Whitespace)
+            }))
             .chain(rest_of_line);
 
-    let paren_pattern = filter(|(t, _): &TokenSpan| matches!(t, Token::OpenParen))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Number(_))))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::CloseParen)))
-        .then(filter(|(t, _): &TokenSpan| matches!(t, Token::Whitespace)))
+    let paren_pattern = filter(|(t, _): &TokenLocation| matches!(t, Token::OpenParen))
+        .then(filter(|(t, _): &TokenLocation| {
+            matches!(t, Token::Number(_))
+        }))
+        .then(filter(|(t, _): &TokenLocation| {
+            matches!(t, Token::CloseParen)
+        }))
+        .then(filter(|(t, _): &TokenLocation| {
+            matches!(t, Token::Whitespace)
+        }))
         .chain(rest_of_line);
 
     dash_pattern
@@ -165,7 +175,7 @@ pub(crate) fn list_item_line(
 /// Phase 5: Now populates span information
 pub(crate) fn paragraph(
     source: Arc<String>,
-) -> impl Parser<TokenSpan, Paragraph, Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, Paragraph, Error = ParserError> + Clone {
     text_line()
         .then_ignore(token(Token::Newline))
         .repeated()
@@ -206,8 +216,8 @@ pub(crate) fn paragraph(
 /// Phase 5: Now returns extracted text with span information
 pub(crate) fn definition_subject(
     source: Arc<String>,
-) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
-    filter(|(t, _location): &TokenSpan| !matches!(t, Token::Colon | Token::Newline))
+) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
+    filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
         .map(move |tokens_with_locations| {
@@ -221,7 +231,7 @@ pub(crate) fn definition_subject(
 /// Phase 5: Now returns extracted text with span information
 pub(crate) fn session_title(
     source: Arc<String>,
-) -> impl Parser<TokenSpan, (String, Range<usize>), Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::BlankLine))
@@ -237,12 +247,12 @@ pub(crate) fn session_title(
 pub(crate) fn annotation_header(
     source: Arc<String>,
 ) -> impl Parser<
-    TokenSpan,
+    TokenLocation,
     (Option<String>, Option<Range<usize>>, Vec<Parameter>),
     Error = ParserError,
 > + Clone {
     let bounded_region =
-        filter(|(t, _): &TokenSpan| !matches!(t, Token::TxxtMarker | Token::Newline))
+        filter(|(t, _): &TokenLocation| !matches!(t, Token::TxxtMarker | Token::Newline))
             .repeated()
             .at_least(1);
 

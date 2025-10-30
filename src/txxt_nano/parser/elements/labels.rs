@@ -12,7 +12,7 @@ use crate::txxt_nano::lexer::Token;
 use std::ops::Range;
 
 /// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+type TokenLocation = (Token, Range<usize>);
 
 /// Parse label from a token slice
 ///
@@ -33,7 +33,7 @@ type TokenSpan = (Token, Range<usize>);
 /// :: note key=val ::   -> Some(label_location for "note")
 /// :: key=val ::        -> None (this is a parameter, not a label)
 /// ```
-pub(crate) fn parse_label_from_tokens(tokens: &[TokenSpan]) -> (Option<Range<usize>>, usize) {
+pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range<usize>>, usize) {
     let mut i = 0;
 
     // Skip leading whitespace

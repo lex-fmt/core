@@ -152,16 +152,16 @@ mod tests {
 
     #[test]
     fn test_location_overlaps() {
-        let span1 = Location::new(Position::new(0, 0), Position::new(1, 5));
-        let span2 = Location::new(Position::new(1, 0), Position::new(2, 5));
-        let span3 = Location::new(Position::new(3, 0), Position::new(4, 5));
+        let location1 = Location::new(Position::new(0, 0), Position::new(1, 5));
+        let location2 = Location::new(Position::new(1, 0), Position::new(2, 5));
+        let location3 = Location::new(Position::new(3, 0), Position::new(4, 5));
 
-        // Overlapping spans
-        assert!(span1.overlaps(span2));
-        assert!(span2.overlaps(span1));
+        // Overlapping locations
+        assert!(location1.overlaps(location2));
+        assert!(location2.overlaps(location1));
 
-        // Non-overlapping spans
-        assert!(!span1.overlaps(span3));
-        assert!(!span3.overlaps(span1));
+        // Non-overlapping locations
+        assert!(!location1.overlaps(location3));
+        assert!(!location3.overlaps(location1));
     }
 }
