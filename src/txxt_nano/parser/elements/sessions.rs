@@ -19,12 +19,12 @@ type TokenSpan = (Token, Range<usize>);
 type ParserError = Simple<TokenSpan>;
 
 /// Helper: convert a byte range to a Span using source location
-fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Location> {
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
     }
     let source_loc = SourceLocation::new(source);
-    Some(source_loc.range_to_span(range))
+    Some(source_loc.range_to_location(range))
 }
 
 /// Build a session parser
@@ -42,8 +42,8 @@ where
                 .ignore_then(items)
                 .then_ignore(token(Token::DedentLevel)),
         )
-        .map(move |((title_text, title_span), content)| {
-            let span = byte_range_to_span(&source_for_session, &title_span);
+        .map(move |((title_text, title_location), content)| {
+            let span = byte_range_to_location(&source_for_session, &title_location);
             ContentItem::Session(Session {
                 title: TextContent::from_string(title_text, None),
                 content,

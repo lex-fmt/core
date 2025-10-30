@@ -19,12 +19,12 @@ type TokenSpan = (Token, Range<usize>);
 type ParserError = Simple<TokenSpan>;
 
 /// Helper: convert a byte range to a Span using source location
-fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Location> {
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
     }
     let source_loc = SourceLocation::new(source);
-    Some(source_loc.range_to_span(range))
+    Some(source_loc.range_to_location(range))
 }
 
 /// Build a definition parser
@@ -42,8 +42,8 @@ where
                 .ignore_then(items)
                 .then_ignore(token(Token::DedentLevel)),
         )
-        .map(move |((subject_text, subject_span), content)| {
-            let span = byte_range_to_span(&source_for_definition, &subject_span);
+        .map(move |((subject_text, subject_location), content)| {
+            let span = byte_range_to_location(&source_for_definition, &subject_location);
             ContentItem::Definition(Definition {
                 subject: TextContent::from_string(subject_text, None),
                 content,

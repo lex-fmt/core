@@ -82,7 +82,7 @@ mod tests {
     }
 
     #[test]
-    fn test_span_creation() {
+    fn test_location_creation() {
         let start = Position::new(0, 0);
         let end = Position::new(2, 5);
         let location = Location::new(start, end);
@@ -92,7 +92,7 @@ mod tests {
     }
 
     #[test]
-    fn test_span_contains_single_line() {
+    fn test_location_contains_single_line() {
         let location = Location::new(Position::new(0, 0), Position::new(0, 10));
 
         assert!(location.contains(Position::new(0, 0)));
@@ -104,7 +104,7 @@ mod tests {
     }
 
     #[test]
-    fn test_span_contains_multiline() {
+    fn test_location_contains_multiline() {
         let location = Location::new(Position::new(1, 5), Position::new(2, 10));
 
         // Before location
@@ -123,7 +123,7 @@ mod tests {
     }
 
     #[test]
-    fn test_span_overlaps() {
+    fn test_location_overlaps() {
         let span1 = Location::new(Position::new(0, 0), Position::new(1, 5));
         let span2 = Location::new(Position::new(1, 0), Position::new(2, 5));
         let span3 = Location::new(Position::new(3, 0), Position::new(4, 5));
@@ -141,7 +141,7 @@ mod tests {
     }
 
     #[test]
-    fn test_span_display() {
+    fn test_location_display() {
         let location = Location::new(Position::new(1, 0), Position::new(2, 5));
         assert_eq!(format!("{}", location), "1:0..2:5");
     }

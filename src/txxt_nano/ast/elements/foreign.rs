@@ -32,7 +32,7 @@ impl ForeignBlock {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Location>) -> Self {
+    pub fn with_location(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }

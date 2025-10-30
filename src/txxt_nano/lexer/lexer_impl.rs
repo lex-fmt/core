@@ -8,8 +8,8 @@ use logos::Logos;
 
 /// Convenience function to tokenize a string and collect all tokens
 pub fn tokenize(source: &str) -> Vec<Token> {
-    let tokens_with_spans = tokenize_with_locations(source);
-    process_whitespace_remainders(tokens_with_spans)
+    let tokens_with_locations = tokenize_with_locations(source);
+    process_whitespace_remainders(tokens_with_locations)
 }
 
 /// Process whitespace remainders according to txxt specification
@@ -20,12 +20,12 @@ pub fn tokenize(source: &str) -> Vec<Token> {
 ///
 /// This function removes Whitespace tokens that follow Indent tokens and precede Text tokens,
 /// effectively merging the whitespace remainder into the text content.
-fn process_whitespace_remainders(tokens_with_spans: Vec<(Token, logos::Span)>) -> Vec<Token> {
+fn process_whitespace_remainders(tokens_with_locations: Vec<(Token, logos::Span)>) -> Vec<Token> {
     let mut result = Vec::new();
     let mut i = 0;
 
-    while i < tokens_with_spans.len() {
-        let (token, _span) = &tokens_with_spans[i];
+    while i < tokens_with_locations.len() {
+        let (token, _location) = &tokens_with_locations[i];
 
         match token {
             Token::Whitespace => {
@@ -34,7 +34,7 @@ fn process_whitespace_remainders(tokens_with_spans: Vec<(Token, logos::Span)>) -
                 let mut j = i;
 
                 // Count consecutive Indent tokens before this Whitespace
-                while j > 0 && matches!(tokens_with_spans[j - 1].0, Token::Indent) {
+                while j > 0 && matches!(tokens_with_locations[j - 1].0, Token::Indent) {
                     indent_count += 1;
                     j -= 1;
                 }
@@ -42,8 +42,8 @@ fn process_whitespace_remainders(tokens_with_spans: Vec<(Token, logos::Span)>) -
                 // If we have indentation and this whitespace is followed by text,
                 // skip this whitespace token (it will be considered part of the text)
                 if indent_count > 0
-                    && i + 1 < tokens_with_spans.len()
-                    && matches!(tokens_with_spans[i + 1].0, Token::Text(_))
+                    && i + 1 < tokens_with_locations.len()
+                    && matches!(tokens_with_locations[i + 1].0, Token::Text(_))
                 {
                     // Skip this whitespace token
                     i += 1;

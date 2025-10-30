@@ -8,9 +8,9 @@ use std::sync::Arc;
 #[test]
 fn test_simple_paragraph() {
     let input = "Hello world\n\n";
-    let tokens_with_spans = lex_with_locations(input);
+    let tokens_with_locations = lex_with_locations(input);
 
-    let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_spans);
+    let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_locations);
     assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
 
     let para = result.unwrap();

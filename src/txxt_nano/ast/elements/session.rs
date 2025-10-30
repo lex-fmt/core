@@ -29,7 +29,7 @@ impl Session {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Location>) -> Self {
+    pub fn with_location(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -88,12 +88,12 @@ mod tests {
     }
 
     #[test]
-    fn test_session_with_span() {
+    fn test_session_with_location() {
         let span = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let session = Session::with_title("Title".to_string()).with_span(Some(span));
+        let session = Session::with_title("Title".to_string()).with_location(Some(span));
         assert_eq!(session.span, Some(span));
     }
 }
