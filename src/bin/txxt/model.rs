@@ -1,4 +1,4 @@
-//! Data model for txxtv
+//! Data model for txxt
 //!
 //! The Model struct holds the pure application state:
 //! - The parsed AST (Document)
