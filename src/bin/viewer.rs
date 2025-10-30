@@ -1,3 +1,4 @@
+//! Rich terminal viewer app for txxt
 #[path = "viewer/app.rs"]
 pub mod app;
 #[path = "viewer/model.rs"]
