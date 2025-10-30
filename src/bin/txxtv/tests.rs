@@ -664,3 +664,51 @@ fn test_tree_viewer_leaf_nodes_have_alignment_spacing() {
     // This is verified by the rendering logic showing "  " (two spaces)
     // The actual visual verification is manual, but the structure is correct
 }
+
+#[test]
+fn test_theme_initialization() {
+    // Verify that the theme is initialized with the default theme
+    let app = TestApp::with_content("test");
+
+    // App should have a theme
+    assert_eq!(
+        app.app().theme.title_bar_style,
+        crate::theme::Theme::default().title_bar_style
+    );
+    assert_eq!(
+        app.app().theme.file_viewer_cursor_style,
+        crate::theme::Theme::default().file_viewer_cursor_style
+    );
+    assert_eq!(
+        app.app().theme.tree_selected_style,
+        crate::theme::Theme::default().tree_selected_style
+    );
+    assert_eq!(
+        app.app().theme.info_panel_bg_style,
+        crate::theme::Theme::default().info_panel_bg_style
+    );
+}
+
+#[test]
+fn test_custom_theme_creation() {
+    // Verify that a custom theme can be created
+    use ratatui::style::{Color, Style};
+
+    let custom_theme = crate::theme::Theme::new(
+        Style::default().fg(Color::Red),     // title_bar_style
+        Style::default().fg(Color::Green),   // file_viewer_cursor_style
+        Style::default(),                    // file_viewer_normal_style
+        Style::default(),                    // tree_normal_style
+        Style::default().fg(Color::Magenta), // tree_selected_style
+        Style::default().bg(Color::Black),   // info_panel_bg_style
+        Style::default(),                    // info_panel_label_style
+        Style::default(),                    // info_panel_mode_tree_style
+        Style::default(),                    // info_panel_mode_text_style
+        Style::default(),                    // error_style
+        Style::default(),                    // border_style
+    );
+
+    assert_eq!(custom_theme.title_bar_style.fg, Some(Color::Red));
+    assert_eq!(custom_theme.file_viewer_cursor_style.fg, Some(Color::Green));
+    assert_eq!(custom_theme.tree_selected_style.fg, Some(Color::Magenta));
+}

@@ -12,6 +12,7 @@ use txxt_nano::txxt_nano::parser::parse_document;
 // Use the modular code
 mod app;
 mod model;
+mod theme;
 mod ui;
 mod viewer;
 
