@@ -42,6 +42,9 @@ impl AstNode for Session {
     fn display_label(&self) -> String {
         self.title.as_string().to_string()
     }
+    fn span(&self) -> Option<Span> {
+        self.span
+    }
 }
 
 impl Container for Session {
