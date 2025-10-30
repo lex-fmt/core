@@ -227,10 +227,13 @@ impl Model {
     /// Get the span for a node
     ///
     /// Returns the text range (start and end position) for the given node.
-    #[allow(dead_code)]
-    pub fn get_span_for_node(&self, _node_id: NodeId) -> Option<Span> {
-        // TODO: Implement span lookup for ContentItem enum variants
-        None
+    /// The span indicates where in the source text this node is located.
+    pub fn get_span_for_node(&self, node_id: NodeId) -> Option<Span> {
+        use txxt_nano::txxt_nano::ast::traits::AstNode;
+        self.get_node(node_id).and_then(|(item, _depth)| {
+            // Use the AstNode trait to get the span
+            item.span()
+        })
     }
 
     /// Get the ancestors of a node (path from root to node, not including the node itself)

@@ -121,9 +121,29 @@ impl App {
     /// Synchronize viewer states after a selection change
     ///
     /// This ensures that when the model selection changes, the viewers are updated accordingly.
+    /// Each viewer reads the model.selection and syncs its UI state to reflect it.
     fn sync_viewers_after_selection(&mut self) {
-        // For now, this is a placeholder for future bi-directional sync
-        // The viewers query the model during render to get the correct highlighting
+        use crate::model::Selection;
+
+        match self.model.selection() {
+            Selection::TreeSelection(node_id) => {
+                // User selected a node in tree
+                // FileViewer's cursor should move to the node's text location
+                if let Some(span) = self.model.get_span_for_node(node_id) {
+                    self.file_viewer
+                        .sync_cursor_to_position(span.start.line, span.start.column);
+                }
+            }
+            Selection::TextSelection(row, col) => {
+                // User moved cursor in text
+                // FileViewer's cursor is already at this position (it moved itself)
+                // Just ensure consistency
+                self.file_viewer.sync_cursor_to_position(row, col);
+            }
+        }
+
+        // TreeViewer doesn't need explicit sync - it highlights based on model selection
+        // during render() by calling model.get_selected_node_id()
     }
 }
 
