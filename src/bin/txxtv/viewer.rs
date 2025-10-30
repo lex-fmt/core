@@ -335,19 +335,23 @@ impl Viewer for TreeViewer {
         let lines: Vec<Line> = flattened
             .iter()
             .map(|node| {
-                // Build indentation based on depth
+                // Build indentation based on depth (2 spaces per level)
                 let indent = "  ".repeat(node.depth);
 
-                // Build the node label with tree characters
-                // Note: In Step 9.5, this will be refined to show different prefixes
-                // based on expansion state (e.g., "▼ " vs "▶ " for expanded/collapsed)
-                let prefix = if node.has_children {
-                    "├─ "
+                // Build the expand/collapse indicator
+                // Nodes with children show ▼ (expanded) or ▶ (collapsed)
+                // Leaf nodes show two spaces for alignment
+                let indicator = if node.has_children {
+                    if node.is_expanded {
+                        "▼ "
+                    } else {
+                        "▶ "
+                    }
                 } else {
-                    "└─ "
+                    "  " // Two spaces for alignment with nodes that have indicators
                 };
 
-                let text = format!("{}{}{}", indent, prefix, node.label);
+                let text = format!("{}{}{}", indent, indicator, node.label);
 
                 // Style the line - highlight if it matches the current selection
                 if Some(node.node_id) == highlighted_node_id {
