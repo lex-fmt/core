@@ -8,9 +8,11 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::{ContentItem, Definition, Location, TextContent};
+use crate::txxt::ast::{AstNode, ContentItem, Definition, Location, TextContent};
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::combinators::{definition_subject, token};
+use crate::txxt::parser::combinators::{
+    compute_location_from_optional_locations, definition_subject, token,
+};
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
@@ -43,9 +45,16 @@ where
                 .then_ignore(token(Token::DedentLevel)),
         )
         .map(move |((subject_text, subject_location), content)| {
-            let location = byte_range_to_location(&source_for_definition, &subject_location);
+            let subject_location =
+                byte_range_to_location(&source_for_definition, &subject_location);
+            let subject = TextContent::from_string(subject_text, subject_location);
+
+            let mut location_sources = vec![subject_location];
+            location_sources.extend(content.iter().map(|item| item.location()));
+            let location = compute_location_from_optional_locations(&location_sources);
+
             ContentItem::Definition(Definition {
-                subject: TextContent::from_string(subject_text, None),
+                subject,
                 content,
                 location,
             })

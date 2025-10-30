@@ -8,9 +8,11 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::{ContentItem, Location, Session, TextContent};
+use crate::txxt::ast::{AstNode, ContentItem, Location, Session, TextContent};
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::combinators::{session_title, token};
+use crate::txxt::parser::combinators::{
+    compute_location_from_optional_locations, session_title, token,
+};
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
@@ -43,9 +45,15 @@ where
                 .then_ignore(token(Token::DedentLevel)),
         )
         .map(move |((title_text, title_location), content)| {
-            let location = byte_range_to_location(&source_for_session, &title_location);
+            let title_location = byte_range_to_location(&source_for_session, &title_location);
+            let title = TextContent::from_string(title_text, title_location);
+
+            let mut location_sources = vec![title_location];
+            location_sources.extend(content.iter().map(|item| item.location()));
+            let location = compute_location_from_optional_locations(&location_sources);
+
             ContentItem::Session(Session {
-                title: TextContent::from_string(title_text, None),
+                title,
                 content,
                 location,
             })

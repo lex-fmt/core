@@ -6,7 +6,8 @@
 //! Grammar: `<parameters> = <parameter> ("," <parameter>)*`
 //! Where: `<parameter> = <key> "=" <value>`
 
-use crate::txxt::ast::Parameter;
+use crate::txxt::ast::location::SourceLocation;
+use crate::txxt::ast::{Location, Parameter};
 use crate::txxt::lexer::Token;
 use std::ops::Range;
 
@@ -18,6 +19,7 @@ type TokenLocation = (Token, Range<usize>);
 pub(crate) struct ParameterWithLocations {
     pub(crate) key_location: Range<usize>,
     pub(crate) value_location: Option<Range<usize>>,
+    pub(crate) range: Range<usize>,
 }
 
 /// Convert a parameter from locations to final AST
@@ -30,16 +32,27 @@ pub(crate) fn convert_parameter(source: &str, param: ParameterWithLocations) -> 
         .value_location
         .map(|value_location| extract_text(source, &value_location).to_string());
 
+    let location = byte_range_to_location(source, &param.range);
+
     Parameter {
         key,
         value,
-        location: None,
+        location,
     }
 }
 
 /// Extract text from source using a location range
 fn extract_text<'a>(source: &'a str, location: &Range<usize>) -> &'a str {
     &source[location.start..location.end]
+}
+
+/// Helper: convert a byte range to a location using source location
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
+    if range.start > range.end {
+        return None;
+    }
+    let source_loc = SourceLocation::new(source);
+    Some(source_loc.range_to_location(range))
 }
 
 /// Helper function to parse parameters from a token slice
@@ -159,9 +172,26 @@ pub(crate) fn parse_parameters_from_tokens(
             }
         };
 
+        let range_end = if let Some(value_location) = &value_location {
+            if value_location.end > key_location.start {
+                value_location.end
+            } else if i > 0 {
+                tokens[i - 1].1.end
+            } else {
+                key_location.end
+            }
+        } else if i > 0 {
+            tokens[i - 1].1.end
+        } else {
+            key_location.end
+        };
+
+        let range_start = key_location.start;
+
         params.push(ParameterWithLocations {
             key_location,
             value_location,
+            range: range_start..range_end,
         });
 
         // Skip trailing whitespace
