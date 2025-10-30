@@ -50,6 +50,9 @@ impl AstNode for ForeignBlock {
             subject_text.to_string()
         }
     }
+    fn span(&self) -> Option<Span> {
+        self.span
+    }
 }
 
 impl fmt::Display for ForeignBlock {
