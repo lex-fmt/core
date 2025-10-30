@@ -80,8 +80,8 @@ where
 mod tests {
     use crate::txxt::ast::Container;
     use crate::txxt::ast::ContentItem;
-    use crate::txxt::lexer::{lex, Token};
-    use crate::txxt::parser::parser::parse;
+    use crate::txxt::lexer::{lex, lex_with_locations, Token};
+    use crate::txxt::parser::api::parse_with_source;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
 
@@ -102,7 +102,8 @@ mod tests {
         println!("Input: {:?}", input);
         println!("Tokens: {:?}", tokens);
 
-        let result = parse(tokens.clone());
+        let tokens_with_locations = lex_with_locations(input);
+        let result = parse_with_source(tokens_with_locations, input);
 
         match &result {
             Ok(doc) => {
@@ -145,7 +146,8 @@ mod tests {
         println!("\n=== Test: Session with empty content ===");
         println!("Tokens: {:?}", tokens);
 
-        let result = parse(tokens.clone());
+        let tokens_with_locations: Vec<_> = tokens.into_iter().map(|t| (t, 0..0)).collect();
+        let result = parse_with_source(tokens_with_locations, "");
 
         match &result {
             Ok(doc) => {
@@ -209,9 +211,9 @@ mod tests {
     fn test_verified_single_session_sample() {
         let source = TxxtSources::get_string("010-paragraphs-sessions-flat-single.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex(&source);
+        let tokens = lex_with_locations(&source);
 
-        let result = parse(tokens.clone());
+        let result = parse_with_source(tokens, &source);
         assert!(
             result.is_ok(),
             "Failed to parse 010-paragraphs-sessions-flat-single.txxt: {:?}",
@@ -266,9 +268,9 @@ mod tests {
     fn test_verified_multiple_sessions_sample() {
         let source = TxxtSources::get_string("020-paragraphs-sessions-flat-multiple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex(&source);
+        let tokens = lex_with_locations(&source);
 
-        let result = parse(tokens.clone());
+        let result = parse_with_source(tokens, &source);
         assert!(
             result.is_ok(),
             "Failed to parse 020-paragraphs-sessions-flat-multiple.txxt: {:?}",
@@ -342,9 +344,9 @@ mod tests {
     fn test_verified_nested_sessions_sample() {
         let source = TxxtSources::get_string("030-paragraphs-sessions-nested-multiple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex(&source);
+        let tokens = lex_with_locations(&source);
 
-        let result = parse(tokens.clone());
+        let result = parse_with_source(tokens, &source);
         assert!(
             result.is_ok(),
             "Failed to parse 030-paragraphs-sessions-nested-multiple.txxt: {:?}",

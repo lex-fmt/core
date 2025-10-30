@@ -1,6 +1,6 @@
 use crate::txxt::ast::{AstNode, Container, ContentItem};
-use crate::txxt::lexer::{lex, lex_with_locations, Token};
-use crate::txxt::parser::api::{parse, parse_with_source};
+use crate::txxt::lexer::{lex_with_locations, Token};
+use crate::txxt::parser::api::parse_with_source;
 use crate::txxt::parser::combinators::paragraph;
 use crate::txxt::processor::txxt_sources::TxxtSources;
 use chumsky::Parser;
@@ -56,13 +56,17 @@ fn test_real_content_extraction() {
 #[test]
 fn test_malformed_session_title_with_indent_but_no_content() {
     let input = "This looks like a session title\n\n    \n"; // Title + blank + indented newline
-    let tokens = lex(input);
+    let tokens_with_locations = lex_with_locations(input);
+    let tokens: Vec<_> = tokens_with_locations
+        .iter()
+        .map(|(t, _)| t.clone())
+        .collect();
 
     println!("\n=== Test: Session title pattern with IndentLevel but no parseable content ===");
     println!("Input: {:?}", input);
     println!("Tokens: {:?}", tokens);
 
-    let result = parse(tokens.clone());
+    let result = parse_with_source(tokens_with_locations, input);
 
     match &result {
         Ok(doc) => {
@@ -100,7 +104,8 @@ fn test_session_title_followed_by_bare_indent_level() {
     println!("\n=== Test: Session with empty content ===");
     println!("Tokens: {:?}", tokens);
 
-    let result = parse(tokens.clone());
+    let tokens_with_locations: Vec<_> = tokens.clone().into_iter().map(|t| (t, 0..0)).collect();
+    let result = parse_with_source(tokens_with_locations, "");
 
     match &result {
         Ok(doc) => {
