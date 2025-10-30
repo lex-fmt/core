@@ -8,7 +8,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::{ContentItem, List, ListItem, Location};
+use crate::txxt::ast::{AstNode, ContentItem, List, ListItem, Location, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
     compute_location_from_optional_locations, list_item_line, token,
@@ -47,8 +47,15 @@ where
                 .or_not(),
         )
         .map(move |((text, text_location), maybe_content)| {
-            let location = byte_range_to_location(&source_for_list, &text_location);
-            ListItem::with_content(text, maybe_content.unwrap_or_default()).with_location(location)
+            let content = maybe_content.unwrap_or_default();
+            let line_location = byte_range_to_location(&source_for_list, &text_location);
+            let text_content = TextContent::from_string(text, line_location);
+
+            let mut location_sources = vec![line_location];
+            location_sources.extend(content.iter().map(|item| item.location()));
+            let location = compute_location_from_optional_locations(&location_sources);
+
+            ListItem::with_text_content(text_content, content).with_location(location)
         });
 
     single_list_item.repeated().at_least(2).map(|items| {
