@@ -74,7 +74,11 @@ fn test_malformed_session_title_with_indent_but_no_content() {
         Err(errors) => {
             println!("\n✗ Parse failed with errors:");
             for error in errors {
-                println!("  Error at span {:?}: {:?}", error.span(), error.reason());
+                println!(
+                    "  Error at location {:?}: {:?}",
+                    error.span(),
+                    error.reason()
+                );
                 println!("  Found: {:?}", error.found());
             }
         }
@@ -121,7 +125,11 @@ fn test_session_title_followed_by_bare_indent_level() {
         Err(errors) => {
             println!("\n✗ Parse failed:");
             for error in errors {
-                println!("  Error at span {:?}: {:?}", error.span(), error.reason());
+                println!(
+                    "  Error at location {:?}: {:?}",
+                    error.span(),
+                    error.reason()
+                );
             }
         }
     }
