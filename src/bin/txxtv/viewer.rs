@@ -48,6 +48,8 @@ pub trait Viewer {
 /// a SelectPosition event so the model can track which AST node is selected.
 #[derive(Debug)]
 pub struct FileViewer {
+    /// The raw file content
+    content: String,
     /// Current cursor row (0-indexed)
     cursor_row: usize,
     /// Current cursor column (0-indexed)
@@ -57,9 +59,10 @@ pub struct FileViewer {
 }
 
 impl FileViewer {
-    /// Create a new file viewer
-    pub fn new() -> Self {
+    /// Create a new file viewer with content
+    pub fn new(content: String) -> Self {
         FileViewer {
+            content,
             cursor_row: 0,
             cursor_col: 0,
             scroll_offset: 0,
@@ -77,22 +80,22 @@ impl FileViewer {
     }
 
     /// Move cursor up
-    fn move_cursor_up(&mut self, content: &str) {
+    fn move_cursor_up(&mut self) {
         if self.cursor_row > 0 {
             self.cursor_row -= 1;
             // Adjust column if necessary for shorter lines
-            self.clamp_cursor_column(content);
+            self.clamp_cursor_column();
             self.ensure_cursor_visible();
         }
     }
 
     /// Move cursor down
-    fn move_cursor_down(&mut self, content: &str) {
-        let lines: Vec<&str> = content.lines().collect();
+    fn move_cursor_down(&mut self) {
+        let lines: Vec<&str> = self.content.lines().collect();
         if self.cursor_row < lines.len().saturating_sub(1) {
             self.cursor_row += 1;
             // Adjust column if necessary for shorter lines
-            self.clamp_cursor_column(content);
+            self.clamp_cursor_column();
             self.ensure_cursor_visible();
         }
     }
@@ -105,8 +108,8 @@ impl FileViewer {
     }
 
     /// Move cursor right
-    fn move_cursor_right(&mut self, content: &str) {
-        let lines: Vec<&str> = content.lines().collect();
+    fn move_cursor_right(&mut self) {
+        let lines: Vec<&str> = self.content.lines().collect();
         if self.cursor_row < lines.len() {
             let line_len = lines[self.cursor_row].len();
             if self.cursor_col < line_len {
@@ -116,8 +119,8 @@ impl FileViewer {
     }
 
     /// Clamp cursor column to valid range for current line
-    fn clamp_cursor_column(&mut self, content: &str) {
-        let lines: Vec<&str> = content.lines().collect();
+    fn clamp_cursor_column(&mut self) {
+        let lines: Vec<&str> = self.content.lines().collect();
         if self.cursor_row < lines.len() {
             let line_len = lines[self.cursor_row].len();
             if self.cursor_col > line_len {
@@ -147,16 +150,13 @@ impl Viewer for FileViewer {
     }
 
     fn handle_key(&mut self, key: KeyEvent, _model: &Model) -> Option<ViewerEvent> {
-        // TODO: Get actual document content once we have access to it
-        let dummy_content = "";
-
         match key.code {
             KeyCode::Up => {
-                self.move_cursor_up(dummy_content);
+                self.move_cursor_up();
                 Some(ViewerEvent::SelectPosition(self.cursor_row, self.cursor_col))
             }
             KeyCode::Down => {
-                self.move_cursor_down(dummy_content);
+                self.move_cursor_down();
                 Some(ViewerEvent::SelectPosition(self.cursor_row, self.cursor_col))
             }
             KeyCode::Left => {
@@ -164,7 +164,7 @@ impl Viewer for FileViewer {
                 Some(ViewerEvent::SelectPosition(self.cursor_row, self.cursor_col))
             }
             KeyCode::Right => {
-                self.move_cursor_right(dummy_content);
+                self.move_cursor_right();
                 Some(ViewerEvent::SelectPosition(self.cursor_row, self.cursor_col))
             }
             _ => Some(ViewerEvent::NoChange),
