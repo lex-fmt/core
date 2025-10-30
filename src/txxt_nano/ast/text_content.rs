@@ -21,8 +21,8 @@ use super::location::Location;
 /// Currently stores plain text; future versions will support parsed inline nodes.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextContent {
-    /// Span in the source covering this text
-    pub span: Option<Location>,
+    /// Location in the source covering this text
+    pub location: Option<Location>,
     /// Internal representation (evolves over time)
     inner: TextRepresentation,
 }
@@ -42,19 +42,19 @@ enum TextRepresentation {
 }
 
 impl TextContent {
-    /// Create TextContent from a string and optional source span.
+    /// Create TextContent from a string and optional source location.
     ///
     /// # Arguments
     /// * `text` - The raw text content
-    /// * `span` - Optional source location of this text
+    /// * `location` - Optional source location of this text
     ///
     /// # Example
     /// ```ignore
-    /// let content = TextContent::from_string("Hello world".to_string(), Some(span));
+    /// let content = TextContent::from_string("Hello world".to_string(), Some(location));
     /// ```
-    pub fn from_string(text: String, span: Option<Location>) -> Self {
+    pub fn from_string(text: String, location: Option<Location>) -> Self {
         Self {
-            span,
+            location,
             inner: TextRepresentation::Text(text),
         }
     }
@@ -62,7 +62,7 @@ impl TextContent {
     /// Create empty TextContent.
     pub fn empty() -> Self {
         Self {
-            span: None,
+            location: None,
             inner: TextRepresentation::Text(String::new()),
         }
     }
@@ -173,9 +173,9 @@ mod tests {
 
     #[test]
     fn test_with_location() {
-        let span = Location::new(Position::new(0, 0), Position::new(0, 5));
-        let content = TextContent::from_string("Hello".to_string(), Some(span));
-        assert_eq!(content.span, Some(span));
+        let location = Location::new(Position::new(0, 0), Position::new(0, 5));
+        let content = TextContent::from_string("Hello".to_string(), Some(location));
+        assert_eq!(content.location, Some(location));
     }
 
     #[test]

@@ -14,16 +14,16 @@ use crate::txxt_nano::parser::combinators::{
 };
 
 /// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
-type ParserError = Simple<TokenSpan>;
+type ParserError = Simple<TokenLocation>;
 
 /// Parse a foreign block
 /// Phase 4: Now builds final ForeignBlock type directly
 pub(crate) fn foreign_block(
     source: Arc<String>,
-) -> impl Parser<TokenSpan, ForeignBlock, Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, ForeignBlock, Error = ParserError> + Clone {
     let subject_parser = definition_subject(source.clone());
 
     // Parse content that handles nested indentation structures.
@@ -38,13 +38,13 @@ pub(crate) fn foreign_block(
         .ignore_then(recursive(|nested_content| {
             choice((
                 // Handle nested indentation: properly matched pairs
-                // Return a dummy TokenSpan to match the filter branch type
+                // Return a dummy TokenLocation to match the filter branch type
                 token(Token::IndentLevel)
                     .ignore_then(nested_content.clone())
                     .then_ignore(token(Token::DedentLevel))
                     .map(|_| (Token::IndentLevel, 0..0)), // Dummy token, won't be used
                 // Regular content token (not TxxtMarker, not DedentLevel)
-                filter(|(t, _location): &TokenSpan| {
+                filter(|(t, _location): &TokenLocation| {
                     !matches!(t, Token::TxxtMarker | Token::DedentLevel)
                 }),
             ))
@@ -52,7 +52,7 @@ pub(crate) fn foreign_block(
             .at_least(1)
         }))
         .then_ignore(token(Token::DedentLevel))
-        .map(|tokens: Vec<TokenSpan>| {
+        .map(|tokens: Vec<TokenLocation>| {
             tokens
                 .into_iter()
                 .map(|(_, s)| s)

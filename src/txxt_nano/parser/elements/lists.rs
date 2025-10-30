@@ -15,10 +15,10 @@ use crate::txxt_nano::parser::combinators::{
 };
 
 /// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
-type ParserError = Simple<TokenSpan>;
+type ParserError = Simple<TokenLocation>;
 
 /// Helper: convert a byte range to a Span using source location
 fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
@@ -33,9 +33,9 @@ fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location
 pub(crate) fn build_list_parser<P>(
     source: Arc<String>,
     items: P,
-) -> impl Parser<TokenSpan, ContentItem, Error = ParserError> + Clone
+) -> impl Parser<TokenLocation, ContentItem, Error = ParserError> + Clone
 where
-    P: Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
+    P: Parser<TokenLocation, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
 {
     let source_for_list = source.clone();
     let single_list_item = list_item_line(source.clone())
