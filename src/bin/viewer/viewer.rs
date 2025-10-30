@@ -379,21 +379,32 @@ impl Viewer for TreeViewer {
                 let text = format!("{}{} {}", indent, icon, node.label);
 
                 // Style the line based on selection and expansion state
-                if Some(node.node_id) == highlighted_node_id {
+                let is_collapsed = !node.is_expanded && node.has_children;
+                let is_highlighted = Some(node.node_id) == highlighted_node_id;
+
+                if is_highlighted {
+                    // Highlighted node: blue background, but muted text if collapsed
+                    let text_color = if is_collapsed {
+                        Color::Gray
+                    } else {
+                        Color::White
+                    };
+
                     Line::from(text).style(
                         Style::default()
                             .bg(Color::Blue)
-                            .fg(Color::White)
+                            .fg(text_color)
                             .add_modifier(Modifier::BOLD),
                     )
-                } else if !node.is_expanded && node.has_children {
-                    // Apply muted style to collapsed nodes that have children
+                } else if is_collapsed {
+                    // Collapsed node (not highlighted): muted gray text
                     Line::from(text).style(
                         Style::default()
                             .fg(Color::Gray)
                             .add_modifier(Modifier::DIM),
                     )
                 } else {
+                    // Normal node: default styling
                     Line::from(text)
                 }
             })
