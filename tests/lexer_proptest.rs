@@ -4,7 +4,7 @@
 //! from our sample collection without panicking or producing invalid tokens.
 
 use proptest::prelude::*;
-use txxt_nano::txxt_nano::lexer::{lex, tokenize, Token};
+use txxt::txxt::lexer::{lex, tokenize, Token};
 
 /// Sample document snapshot tests
 #[cfg(test)]

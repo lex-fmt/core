@@ -1,8 +1,8 @@
 //! Unit tests for the txxt processor API
 
 use std::fs;
-use txxt_nano::txxt_nano::lexer::Token;
-use txxt_nano::txxt_nano::processor::{
+use txxt::txxt::lexer::Token;
+use txxt::txxt::processor::{
     process_file, OutputFormat, ProcessingError, ProcessingSpec, ProcessingStage,
 };
 

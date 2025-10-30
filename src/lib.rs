@@ -4,10 +4,10 @@
 //!
 //! ## Testing
 //!
-//! For comprehensive testing guidelines, see the [testing module](txxt_nano::testing).
+//! For comprehensive testing guidelines, see the [testing module](txxt::testing).
 //! All parser tests must follow strict rules using verified txxt sources and AST assertions.
 
-pub mod txxt_nano;
+pub mod txxt;
 
 /// A simple function to demonstrate the library works
 pub fn hello() -> &'static str {

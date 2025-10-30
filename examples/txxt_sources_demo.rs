@@ -3,7 +3,7 @@
 //! This demonstrates how to use the txxt_sources library to access
 //! verified txxt sample files for testing.
 
-use txxt_nano::txxt_nano::processor::txxt_sources::TxxtSources;
+use txxt::txxt::processor::txxt_sources::TxxtSources;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Txxt Sources Library Demo ===\n");

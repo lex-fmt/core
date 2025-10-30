@@ -1,0 +1,18 @@
+---
+source: src/txxt/lexer/detokenizer.rs
+expression: detokenized
+---
+Foo 
+
+Code Example:
+
+    // This is JavaScript code
+    function hello() {
+        return "world";
+    }
+
+    // Comments and special characters are preserved
+    const regex = /[a-z]+/g;
+    console.log("Hello, World!");
+
+:: javascript caption="Hello World in JavaScript" ::
