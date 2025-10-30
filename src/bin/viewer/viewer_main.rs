@@ -63,15 +63,26 @@ fn run_app(
     file_name: &str,
 ) -> io::Result<()> {
     loop {
+        // Render the full UI every frame
         terminal.draw(|frame| {
             ui::render(frame, app, file_name);
         })?;
 
         // Poll for events with timeout
         if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                if handle_key_event(key, app) {
-                    return Ok(());
+            match event::read()? {
+                Event::Key(key) => {
+                    if handle_key_event(key, app) {
+                        return Ok(());
+                    }
+                }
+                // On terminal resize, the next loop iteration will re-render with new dimensions
+                Event::Resize(_, _) => {
+                    // Terminal resize event - the next draw() call will use the new dimensions
+                    // No explicit action needed, just continue the loop
+                }
+                _ => {
+                    // Ignore other events (mouse, focus, etc.)
                 }
             }
         }
