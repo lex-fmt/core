@@ -130,7 +130,7 @@ fn handle_process_command(path: &str, format_str: &str) {
 /// Handle the view command
 fn handle_view_command(path: &str) {
     let file_path = PathBuf::from(path);
-    match viewer::viewer_main::run_viewer(file_path) {
+    match viewer::viewer::run_viewer(file_path) {
         Ok(_) => {}
         Err(e) => {
             eprintln!("Error: {}", e);
