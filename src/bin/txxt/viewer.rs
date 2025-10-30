@@ -368,9 +368,12 @@ impl Viewer for TreeViewer {
 
                 let text = format!("{}{} {}", indent, icon, node.label);
 
-                // Style the line - highlight if it matches the current selection
+                // Style the line based on selection and expansion state
                 if Some(node.node_id) == highlighted_node_id {
                     Line::from(text).style(theme.tree_viewer_selected())
+                } else if !node.is_expanded && node.has_children {
+                    // Apply muted style to collapsed nodes that have children
+                    Line::from(text).style(theme.tree_viewer_collapsed())
                 } else {
                     Line::from(text).style(theme.tree_viewer_normal())
                 }
