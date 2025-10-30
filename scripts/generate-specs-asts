@@ -47,6 +47,18 @@ fi
 echo "📝 Found $TXXT_COUNT .txxt file(s) to process"
 echo ""
 
+# Clean up existing .ast.xml files
+echo "🧹 Cleaning up existing .ast.xml files..."
+AST_XML_COUNT=$(find "$SPECS_DIR" -type f -name "*.ast.xml" 2>/dev/null | wc -l | tr -d ' ')
+
+if [ "$AST_XML_COUNT" -gt "0" ]; then
+    find "$SPECS_DIR" -type f -name "*.ast.xml" -delete
+    echo "   Removed $AST_XML_COUNT existing .ast.xml file(s)"
+else
+    echo "   No existing .ast.xml files to remove"
+fi
+echo ""
+
 # Change to project root to run cargo commands
 cd "$PROJECT_ROOT"
 
