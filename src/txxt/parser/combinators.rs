@@ -8,9 +8,7 @@ use crate::txxt::ast::position::SourceLocation;
 use crate::txxt::ast::{Location, Paragraph, Parameter, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::elements::labels::parse_label_from_tokens;
-use crate::txxt::parser::elements::parameters::{
-    convert_parameter, parse_parameters_from_tokens,
-};
+use crate::txxt::parser::elements::parameters::{convert_parameter, parse_parameters_from_tokens};
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
