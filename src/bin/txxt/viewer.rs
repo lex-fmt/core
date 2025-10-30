@@ -328,20 +328,10 @@ impl Viewer for TreeViewer {
                 // Build indentation based on depth (2 spaces per level)
                 let indent = "  ".repeat(node.depth);
 
-                // Build the expand/collapse indicator
-                // Nodes with children show ▼ (expanded) or ▶ (collapsed)
-                // Leaf nodes show two spaces for alignment
-                let indicator = if node.has_children {
-                    if node.is_expanded {
-                        "▼ "
-                    } else {
-                        "▶ "
-                    }
-                } else {
-                    "  " // Two spaces for alignment with nodes that have indicators
-                };
+                // Build the icon for the node (single icon for all nodes)
+                let icon = "◦ ";
 
-                let text = format!("{}{}{}", indent, indicator, node.label);
+                let text = format!("{}{}{}", indent, icon, node.label);
 
                 // Style the line - highlight if it matches the current selection
                 if Some(node.node_id) == highlighted_node_id {
