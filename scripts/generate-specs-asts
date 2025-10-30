@@ -16,6 +16,7 @@ set -uo pipefail
 
 # Parse command line arguments
 FORMAT="ast-tag"
+REMOVE_ALL=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -23,12 +24,17 @@ while [[ $# -gt 0 ]]; do
             FORMAT="$2"
             shift 2
             ;;
+        --remove-all)
+            REMOVE_ALL=true
+            shift
+            ;;
         --help|-h)
-            echo "Usage: $0 [--format FORMAT]"
+            echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --format FORMAT    Output format (default: ast-tag)"
             echo "                     Examples: ast-tag, ast-treeviz, ast-position"
+            echo "  --remove-all       Remove all *.ast.* files (both xml and treeviz)"
             exit 0
             ;;
         *)
@@ -40,16 +46,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Convert format to file extension
-# ast-tag -> .ast.xml
-# ast-treeviz -> .treeviz
-# Other formats -> .txt (e.g., ast-position -> ast-position.txt)
-if [ "$FORMAT" = "ast-tag" ]; then
-    EXTENSION=".ast.xml"
-elif [ "$FORMAT" = "ast-treeviz" ]; then
-    EXTENSION=".ast.treeviz"
+# Pattern: <original>.ast.<format>
+# ast-tag -> format is "xml" -> .ast.xml
+# ast-treeviz -> format is "treeviz" -> .ast.treeviz
+# ast-position -> format is "position" -> .ast.position
+if [[ "$FORMAT" =~ ^ast- ]]; then
+    # Extract the part after "ast-"
+    FORMAT_SUFFIX="${FORMAT#ast-}"
+    # Special case: tag -> xml
+    if [ "$FORMAT_SUFFIX" = "tag" ]; then
+        FORMAT_SUFFIX="xml"
+    fi
+    EXTENSION=".ast.${FORMAT_SUFFIX}"
 else
-    # For all other formats, use .txt extension
-    EXTENSION=".${FORMAT}.txt"
+    # Fallback: use the format as-is
+    EXTENSION=".ast.${FORMAT}"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -91,15 +102,28 @@ fi
 echo "📝 Found $TXXT_COUNT .txxt file(s) to process"
 echo ""
 
-# Clean up existing files with the target extension
-echo "🧹 Cleaning up existing *${EXTENSION} files..."
-AST_XML_COUNT=$(find "$SPECS_DIR" -type f -name "*${EXTENSION}" 2>/dev/null | wc -l | tr -d ' ')
-
-if [ "$AST_XML_COUNT" -gt "0" ]; then
-    find "$SPECS_DIR" -type f -name "*${EXTENSION}" -delete
-    echo "   Removed $AST_XML_COUNT existing *${EXTENSION} file(s)"
+# Clean up existing files
+if [ "$REMOVE_ALL" = true ]; then
+    echo "🧹 Removing all *.ast.* files..."
+    ALL_AST_COUNT=$(find "$SPECS_DIR" -type f -name "*.ast.*" 2>/dev/null | wc -l | tr -d ' ')
+    
+    if [ "$ALL_AST_COUNT" -gt "0" ]; then
+        find "$SPECS_DIR" -type f -name "*.ast.*" -delete
+        echo "   Removed $ALL_AST_COUNT existing *.ast.* file(s)"
+    else
+        echo "   No existing *.ast.* files to remove"
+    fi
 else
-    echo "   No existing *${EXTENSION} files to remove"
+    # Clean up existing files with the target extension only
+    echo "🧹 Cleaning up existing *${EXTENSION} files..."
+    AST_XML_COUNT=$(find "$SPECS_DIR" -type f -name "*${EXTENSION}" 2>/dev/null | wc -l | tr -d ' ')
+    
+    if [ "$AST_XML_COUNT" -gt "0" ]; then
+        find "$SPECS_DIR" -type f -name "*${EXTENSION}" -delete
+        echo "   Removed $AST_XML_COUNT existing *${EXTENSION} file(s)"
+    else
+        echo "   No existing *${EXTENSION} files to remove"
+    fi
 fi
 echo ""
 
