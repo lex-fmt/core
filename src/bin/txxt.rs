@@ -1,7 +1,10 @@
 //! Command-line interface for txxt-nano
 
+mod viewer;
+
 use clap::{Arg, Command};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use txxt_nano::txxt_nano::processor::{available_formats, ProcessingError};
 
 fn main() {
@@ -29,7 +32,7 @@ fn main() {
         )
         .arg(
             Arg::new("format")
-                .help("Output format (e.g., token-simple, token-json)")
+                .help("Output format (e.g., token-simple, token-json, app)")
                 .required_unless_present("list-formats")
                 .index(2),
         )
@@ -55,6 +58,19 @@ fn main() {
 
     let path = matches.get_one::<String>("path").unwrap();
     let format_str = matches.get_one::<String>("format").unwrap();
+
+    // Handle "app" format - launch the viewer
+    if format_str == "app" {
+        let file_path = PathBuf::from(path);
+        match viewer::viewer_main::run_viewer(file_path) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
 
     // Parse extras from raw arguments (everything after format that starts with --extras-)
     let extras = parse_extras_from_args();
