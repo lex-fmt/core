@@ -246,13 +246,17 @@ pub(crate) fn session_title(
 
 /// Parse the bounded region between :: markers
 /// Phase 5: Now returns extracted label text, label location, and final Parameter types
+#[derive(Clone, Debug)]
+pub(crate) struct AnnotationHeader {
+    pub label: Option<String>,
+    pub label_range: Option<Range<usize>>,
+    pub parameters: Vec<Parameter>,
+    pub header_range: Range<usize>,
+}
+
 pub(crate) fn annotation_header(
     source: Arc<String>,
-) -> impl Parser<
-    TokenLocation,
-    (Option<String>, Option<Range<usize>>, Vec<Parameter>),
-    Error = ParserError,
-> + Clone {
+) -> impl Parser<TokenLocation, AnnotationHeader, Error = ParserError> + Clone {
     let bounded_region =
         filter(|(t, _): &TokenLocation| !matches!(t, Token::TxxtMarker | Token::Newline))
             .repeated()
@@ -261,7 +265,12 @@ pub(crate) fn annotation_header(
     bounded_region.validate(move |tokens, location, emit| {
         if tokens.is_empty() {
             emit(ParserError::expected_input_found(location, None, None));
-            return (None, None, Vec::new());
+            return AnnotationHeader {
+                label: None,
+                label_range: None,
+                parameters: Vec::new(),
+                header_range: 0..0,
+            };
         }
 
         let (label_location, mut i) = parse_label_from_tokens(&tokens);
@@ -273,6 +282,13 @@ pub(crate) fn annotation_header(
         }
 
         let params_with_locations = parse_parameters_from_tokens(&tokens[i..]);
+
+        let header_range_start = tokens.first().map(|(_, span)| span.start).unwrap_or(0);
+        let header_range_end = tokens
+            .last()
+            .map(|(_, span)| span.end)
+            .unwrap_or(header_range_start);
+        let header_range = header_range_start..header_range_end;
 
         // Extract label text if present
         let label = label_location.as_ref().map(|location| {
@@ -290,6 +306,11 @@ pub(crate) fn annotation_header(
             .map(|p| convert_parameter(&source, p))
             .collect();
 
-        (label, label_location, params)
+        AnnotationHeader {
+            label,
+            label_range: label_location,
+            parameters: params,
+            header_range,
+        }
     })
 }

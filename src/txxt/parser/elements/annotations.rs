@@ -8,11 +8,11 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::{Annotation, ContentItem, Label, Location, Paragraph, TextContent};
+use crate::txxt::ast::{Annotation, AstNode, ContentItem, Label, Location, Paragraph, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    annotation_header, compute_location_from_locations, extract_text_from_locations, text_line,
-    token,
+    annotation_header, compute_byte_range_bounds, compute_location_from_optional_locations,
+    extract_text_from_locations, text_line, token, AnnotationHeader,
 };
 
 /// Type alias for token with location
@@ -55,32 +55,27 @@ where
             )
             .then_ignore(token(Token::TxxtMarker))
             .then_ignore(token(Token::Newline).or_not())
-            .map(move |((label_opt, label_location, parameters), content)| {
-                let label_text = label_opt.unwrap_or_default();
+            .map(move |(header_info, content)| {
+                let AnnotationHeader {
+                    label,
+                    label_range,
+                    parameters,
+                    header_range,
+                } = header_info;
+
+                let label_text = label.unwrap_or_default();
                 let label_position =
-                    label_location.and_then(|s| byte_range_to_location(&source_for_block, &s));
+                    label_range.and_then(|s| byte_range_to_location(&source_for_block, &s));
                 let label = Label::new(label_text).with_location(label_position);
-                // Compute overall location from content locations if available
-                let location = if !content.is_empty() {
-                    let content_locations: Vec<Location> = content
-                        .iter()
-                        .filter_map(|item| match item {
-                            ContentItem::Paragraph(p) => p.location,
-                            ContentItem::Session(s) => s.location,
-                            ContentItem::Definition(d) => d.location,
-                            ContentItem::List(l) => l.location,
-                            ContentItem::Annotation(a) => a.location,
-                            ContentItem::ForeignBlock(f) => f.location,
-                        })
-                        .collect();
-                    if !content_locations.is_empty() {
-                        Some(compute_location_from_locations(&content_locations))
-                    } else {
-                        None
-                    }
-                } else {
-                    label_position
-                };
+
+                let header_location = byte_range_to_location(&source_for_block, &header_range);
+
+                // Collect locations from header and content to compute overall annotation span
+                let mut location_sources: Vec<Option<Location>> = vec![header_location];
+                location_sources.extend(content.iter().map(|item| item.location()));
+                location_sources.push(label_position);
+                let location = compute_location_from_optional_locations(&location_sources);
+
                 ContentItem::Annotation(Annotation {
                     label,
                     parameters,
@@ -96,33 +91,48 @@ where
         header_for_single
             .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
             .then_ignore(token(Token::Newline).or_not())
-            .map(
-                move |((label_opt, label_location, parameters), content_location)| {
-                    let label_text = label_opt.unwrap_or_default();
-                    let label_position = label_location
-                        .and_then(|s| byte_range_to_location(&source_for_single_line, &s));
-                    let label = Label::new(label_text).with_location(label_position);
+            .map(move |(header_info, content_location)| {
+                let AnnotationHeader {
+                    label,
+                    label_range,
+                    parameters,
+                    header_range,
+                } = header_info;
 
-                    // Handle content if present
-                    let content = if let Some(locations) = content_location {
-                        let text = extract_text_from_locations(&source_for_single_line, &locations);
-                        vec![ContentItem::Paragraph(Paragraph {
-                            lines: vec![TextContent::from_string(text, None)],
-                            location: None,
-                        })]
-                    } else {
-                        vec![]
+                let label_text = label.unwrap_or_default();
+                let label_position =
+                    label_range.and_then(|s| byte_range_to_location(&source_for_single_line, &s));
+                let label = Label::new(label_text).with_location(label_position);
+
+                // Handle content if present and compute paragraph location
+                let (content, paragraph_location) = if let Some(locations) = content_location {
+                    let text = extract_text_from_locations(&source_for_single_line, &locations);
+                    let range = compute_byte_range_bounds(&locations);
+                    let paragraph_location =
+                        byte_range_to_location(&source_for_single_line, &range);
+                    let text_content = TextContent::from_string(text, paragraph_location);
+                    let paragraph = Paragraph {
+                        lines: vec![text_content],
+                        location: paragraph_location,
                     };
-                    let location = label_position; // For single-line, location is just the label
+                    (vec![ContentItem::Paragraph(paragraph)], paragraph_location)
+                } else {
+                    (vec![], None)
+                };
 
-                    ContentItem::Annotation(Annotation {
-                        label,
-                        parameters,
-                        content,
-                        location,
-                    })
-                },
-            )
+                let header_location =
+                    byte_range_to_location(&source_for_single_line, &header_range);
+
+                let location_sources = vec![header_location, label_position, paragraph_location];
+                let location = compute_location_from_optional_locations(&location_sources);
+
+                ContentItem::Annotation(Annotation {
+                    label,
+                    parameters,
+                    content,
+                    location,
+                })
+            })
     };
 
     block_form.or(single_line_or_marker)
