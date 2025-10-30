@@ -232,16 +232,10 @@ impl ContentItem {
             ContentItem::ForeignBlock(fb) => fb.span,
         };
 
-        if let Some(span) = span {
-            if !span.contains(pos) {
-                return None;
-            }
-        }
-
-        // Position is in this item, now check children
-        let mut results = vec![self];
-
-        // Check nested items
+        // Check nested items first - even if parent span doesn't contain position,
+        // nested elements might. This is important because parent spans (like sessions)
+        // may only cover their title, not their nested content.
+        let mut results = Vec::new();
         let children = self.children();
         if let Some(children) = children {
             for child in children {
@@ -252,7 +246,28 @@ impl ContentItem {
             }
         }
 
-        Some(results)
+        // If we found nested results, include this parent if its span contains the position
+        // or if the parent has no span (legacy behavior: items with no span match any position)
+        if !results.is_empty() {
+            // Found nested elements - add parent if it has no span or if span contains position
+            match span {
+                Some(span) if span.contains(pos) => results.push(self),
+                None => results.push(self), // No span means match any position (legacy behavior)
+                _ => {} // Span exists but doesn't contain position - don't add parent
+            }
+            // Results are currently [deepest...shallowest], which is correct order
+            Some(results)
+        } else if let Some(span) = span {
+            // No nested results - check if this item contains the position
+            if span.contains(pos) {
+                Some(vec![self])
+            } else {
+                None
+            }
+        } else {
+            // No span and no nested results - legacy behavior: items with no span match any position
+            Some(vec![self])
+        }
     }
 }
 
@@ -355,8 +370,9 @@ mod tests {
         let pos = Position::new(1, 3);
         if let Some(results) = item.elements_at(pos) {
             assert_eq!(results.len(), 2);
-            assert!(results[0].is_session());
-            assert!(results[1].is_paragraph());
+            // Results are returned deepest to shallowest, so paragraph (deepest) comes first
+            assert!(results[0].is_paragraph());
+            assert!(results[1].is_session());
         } else {
             panic!("Expected to find session and paragraph");
         }

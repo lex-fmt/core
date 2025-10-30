@@ -15,7 +15,7 @@ path = "src/bin/txxt.rs"
 
 [[bin]]
 name = "txxtv"
-path = "src/bin/txxtv.rs"
+path = "src/bin/txxtv/main.rs"
 
 [dependencies]
 logos = "0.14"
