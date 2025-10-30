@@ -60,15 +60,21 @@ pub fn transform_indentation(tokens: Vec<Token>) -> Vec<Token> {
         let target_level = line_indent_level;
 
         // Generate appropriate IndentLevel/DedentLevel tokens
-        if target_level > current_level {
-            // Need to indent: add IndentLevel tokens for each additional level
-            for _ in 0..(target_level - current_level) {
-                result.push(Token::IndentLevel);
+        match target_level.cmp(&current_level) {
+            std::cmp::Ordering::Greater => {
+                // Need to indent: add IndentLevel tokens for each additional level
+                for _ in 0..(target_level - current_level) {
+                    result.push(Token::IndentLevel);
+                }
             }
-        } else if target_level < current_level {
-            // Need to dedent: add DedentLevel tokens for each reduced level
-            for _ in 0..(current_level - target_level) {
-                result.push(Token::DedentLevel);
+            std::cmp::Ordering::Less => {
+                // Need to dedent: add DedentLevel tokens for each reduced level
+                for _ in 0..(current_level - target_level) {
+                    result.push(Token::DedentLevel);
+                }
+            }
+            std::cmp::Ordering::Equal => {
+                // No indentation change needed
             }
         }
 
@@ -185,13 +191,19 @@ pub fn transform_indentation_with_spans(
         let target_level = line_indent_level;
 
         // Generate appropriate IndentLevel/DedentLevel tokens with empty spans
-        if target_level > current_level {
-            for _ in 0..(target_level - current_level) {
-                result.push((Token::IndentLevel, 0..0));
+        match target_level.cmp(&current_level) {
+            std::cmp::Ordering::Greater => {
+                for _ in 0..(target_level - current_level) {
+                    result.push((Token::IndentLevel, 0..0));
+                }
             }
-        } else if target_level < current_level {
-            for _ in 0..(current_level - target_level) {
-                result.push((Token::DedentLevel, 0..0));
+            std::cmp::Ordering::Less => {
+                for _ in 0..(current_level - target_level) {
+                    result.push((Token::DedentLevel, 0..0));
+                }
+            }
+            std::cmp::Ordering::Equal => {
+                // No indentation change needed
             }
         }
 
