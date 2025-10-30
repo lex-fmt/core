@@ -516,10 +516,11 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
                 use txxt_nano::txxt_nano::ast::span::Position;
                 let pos = Position::new(span.start.line, span.start.column);
                 let elements = app.app().model.document.elements_at(pos);
-                println!(
-                    "document.elements_at({:?}): {} elements found",
-                    pos,
-                    elements.len()
+                // Verify document.elements_at() now finds nested elements
+                assert!(
+                    !elements.is_empty(),
+                    "document.elements_at() should find nested elements at position {:?}",
+                    pos
                 );
 
                 // Switch back to file viewer
@@ -530,33 +531,19 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
                     .file_viewer
                     .sync_cursor_to_position(span.start.line, span.start.column);
 
-                // Try get_node_at_position
+                // Try get_node_at_position - should now find the nested element
                 let found_node = app
                     .app()
                     .model
                     .get_node_at_position(span.start.line, span.start.column);
 
-                println!(
-                    "get_node_at_position({}, {}): {:?}",
-                    span.start.line,
-                    span.start.column,
+                assert_eq!(
+                    found_node,
+                    Some(tree_selected),
+                    "Should find the same nested node by position. Expected {:?}, got {:?}",
+                    tree_selected.path(),
                     found_node.map(|n| n.path().to_vec())
                 );
-
-                // Note: This assertion fails because document.elements_at() doesn't return
-                // nested elements even though they have spans. This is a new parser issue.
-                // See: https://github.com/arthur-debert/txxt-nano/issues/65
-                println!("\n⚠️  ISSUE: Nested elements have spans but document.elements_at() doesn't find them!");
-                println!("   See: https://github.com/arthur-debert/txxt-nano/issues/65");
-
-                // For now, skip the assertion to document the issue
-                if found_node.is_some() {
-                    assert_eq!(
-                        found_node,
-                        Some(tree_selected),
-                        "Should find the same nested node by position after parser fix"
-                    );
-                }
             }
         } else {
             println!(
