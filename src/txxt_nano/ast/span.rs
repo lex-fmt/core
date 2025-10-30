@@ -26,12 +26,12 @@ impl fmt::Display for Position {
 
 /// Represents a span in source code (start and end positions)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Span {
+pub struct Location {
     pub start: Position,
     pub end: Position,
 }
 
-impl Span {
+impl Location {
     pub fn new(start: Position, end: Position) -> Self {
         Self { start, end }
     }
@@ -45,7 +45,7 @@ impl Span {
     }
 
     /// Check if another span overlaps with this span
-    pub fn overlaps(&self, other: Span) -> bool {
+    pub fn overlaps(&self, other: Location) -> bool {
         self.contains(other.start)
             || self.contains(other.end)
             || other.contains(self.start)
@@ -53,7 +53,7 @@ impl Span {
     }
 }
 
-impl fmt::Display for Span {
+impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}..{}", self.start, self.end)
     }
@@ -85,7 +85,7 @@ mod tests {
     fn test_span_creation() {
         let start = Position::new(0, 0);
         let end = Position::new(2, 5);
-        let span = Span::new(start, end);
+        let span = Location::new(start, end);
 
         assert_eq!(span.start, start);
         assert_eq!(span.end, end);
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn test_span_contains_single_line() {
-        let span = Span::new(Position::new(0, 0), Position::new(0, 10));
+        let span = Location::new(Position::new(0, 0), Position::new(0, 10));
 
         assert!(span.contains(Position::new(0, 0)));
         assert!(span.contains(Position::new(0, 5)));
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_span_contains_multiline() {
-        let span = Span::new(Position::new(1, 5), Position::new(2, 10));
+        let span = Location::new(Position::new(1, 5), Position::new(2, 10));
 
         // Before span
         assert!(!span.contains(Position::new(1, 4)));
@@ -124,9 +124,9 @@ mod tests {
 
     #[test]
     fn test_span_overlaps() {
-        let span1 = Span::new(Position::new(0, 0), Position::new(1, 5));
-        let span2 = Span::new(Position::new(1, 0), Position::new(2, 5));
-        let span3 = Span::new(Position::new(3, 0), Position::new(4, 5));
+        let span1 = Location::new(Position::new(0, 0), Position::new(1, 5));
+        let span2 = Location::new(Position::new(1, 0), Position::new(2, 5));
+        let span3 = Location::new(Position::new(3, 0), Position::new(4, 5));
 
         assert!(span1.overlaps(span2));
         assert!(span2.overlaps(span1));
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_span_display() {
-        let span = Span::new(Position::new(1, 0), Position::new(2, 5));
+        let span = Location::new(Position::new(1, 0), Position::new(2, 5));
         assert_eq!(format!("{}", span), "1:0..2:5");
     }
 }

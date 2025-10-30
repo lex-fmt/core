@@ -1,6 +1,6 @@
 //! ContentItem enum definition
 
-use super::super::span::{Position, Span};
+use super::super::span::{Location, Position};
 use super::super::traits::{AstNode, Container};
 use super::annotation::Annotation;
 use super::definition::Definition;
@@ -44,14 +44,14 @@ impl AstNode for ContentItem {
         }
     }
 
-    fn span(&self) -> Option<Span> {
+    fn location(&self) -> Option<Location> {
         match self {
-            ContentItem::Paragraph(p) => p.span(),
-            ContentItem::Session(s) => s.span(),
-            ContentItem::List(l) => l.span(),
-            ContentItem::Definition(d) => d.span(),
-            ContentItem::Annotation(a) => a.span(),
-            ContentItem::ForeignBlock(fb) => fb.span(),
+            ContentItem::Paragraph(p) => p.location(),
+            ContentItem::Session(s) => s.location(),
+            ContentItem::List(l) => l.location(),
+            ContentItem::Definition(d) => d.location(),
+            ContentItem::Annotation(a) => a.location(),
+            ContentItem::ForeignBlock(fb) => fb.location(),
         }
     }
 }
@@ -308,14 +308,16 @@ impl fmt::Display for ContentItem {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::span::{Position, Span};
+    use super::super::super::span::{Location, Position};
     use super::super::paragraph::Paragraph;
     use super::*;
 
     #[test]
     fn test_elements_at_simple_paragraph() {
-        let para = Paragraph::from_line("Test".to_string())
-            .with_span(Some(Span::new(Position::new(0, 0), Position::new(0, 4))));
+        let para = Paragraph::from_line("Test".to_string()).with_span(Some(Location::new(
+            Position::new(0, 0),
+            Position::new(0, 4),
+        )));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 2);
@@ -329,8 +331,10 @@ mod tests {
 
     #[test]
     fn test_elements_at_position_outside_span() {
-        let para = Paragraph::from_line("Test".to_string())
-            .with_span(Some(Span::new(Position::new(0, 0), Position::new(0, 4))));
+        let para = Paragraph::from_line("Test".to_string()).with_span(Some(Location::new(
+            Position::new(0, 0),
+            Position::new(0, 4),
+        )));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 10);
@@ -355,8 +359,10 @@ mod tests {
 
     #[test]
     fn test_elements_at_nested_session() {
-        let para = Paragraph::from_line("Nested".to_string())
-            .with_span(Some(Span::new(Position::new(1, 0), Position::new(1, 6))));
+        let para = Paragraph::from_line("Nested".to_string()).with_span(Some(Location::new(
+            Position::new(1, 0),
+            Position::new(1, 6),
+        )));
         let session = Session::new(
             super::super::super::text_content::TextContent::from_string(
                 "Section".to_string(),
@@ -364,7 +370,10 @@ mod tests {
             ),
             vec![ContentItem::Paragraph(para)],
         )
-        .with_span(Some(Span::new(Position::new(0, 0), Position::new(2, 0))));
+        .with_span(Some(Location::new(
+            Position::new(0, 0),
+            Position::new(2, 0),
+        )));
         let item = ContentItem::Session(session);
 
         let pos = Position::new(1, 3);

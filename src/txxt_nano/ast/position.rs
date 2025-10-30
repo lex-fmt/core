@@ -4,7 +4,7 @@
 //! to human-readable line and column positions, useful for error reporting
 //! and position tracking in AST nodes.
 
-use super::span::{Position, Span};
+use super::span::{Location, Position};
 use std::ops::Range;
 
 /// Provides fast conversion from byte offsets to line/column positions
@@ -40,8 +40,8 @@ impl SourceLocation {
     }
 
     /// Convert a byte range to a span
-    pub fn range_to_span(&self, range: &Range<usize>) -> Span {
-        Span::new(
+    pub fn range_to_span(&self, range: &Range<usize>) -> Location {
+        Location::new(
             self.byte_to_position(range.start),
             self.byte_to_position(range.end),
         )
@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_position_contains() {
-        let span = Span::new(Position::new(1, 5), Position::new(2, 10));
+        let span = Location::new(Position::new(1, 5), Position::new(2, 10));
 
         // Start position
         assert!(span.contains(Position::new(1, 5)));
@@ -152,9 +152,9 @@ mod tests {
 
     #[test]
     fn test_span_overlaps() {
-        let span1 = Span::new(Position::new(0, 0), Position::new(1, 5));
-        let span2 = Span::new(Position::new(1, 0), Position::new(2, 5));
-        let span3 = Span::new(Position::new(3, 0), Position::new(4, 5));
+        let span1 = Location::new(Position::new(0, 0), Position::new(1, 5));
+        let span2 = Location::new(Position::new(1, 0), Position::new(2, 5));
+        let span3 = Location::new(Position::new(3, 0), Position::new(4, 5));
 
         // Overlapping spans
         assert!(span1.overlaps(span2));

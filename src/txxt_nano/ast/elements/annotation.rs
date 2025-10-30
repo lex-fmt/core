@@ -1,6 +1,6 @@
 //! Annotation element definition
 
-use super::super::span::Span;
+use super::super::span::Location;
 use super::super::traits::{AstNode, Container};
 use super::content_item::ContentItem;
 use super::label::Label;
@@ -13,7 +13,7 @@ pub struct Annotation {
     pub label: Label,
     pub parameters: Vec<Parameter>,
     pub content: Vec<ContentItem>,
-    pub span: Option<Span>,
+    pub span: Option<Location>,
 }
 
 impl Annotation {
@@ -41,7 +41,7 @@ impl Annotation {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
+    pub fn with_span(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -58,7 +58,7 @@ impl AstNode for Annotation {
             format!("{} ({} params)", self.label.value, self.parameters.len())
         }
     }
-    fn span(&self) -> Option<Span> {
+    fn location(&self) -> Option<Location> {
         self.span
     }
 }
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn test_annotation_with_span() {
-        let span = super::super::super::span::Span::new(
+        let span = super::super::super::span::Location::new(
             super::super::super::span::Position::new(1, 0),
             super::super::super::span::Position::new(1, 10),
         );

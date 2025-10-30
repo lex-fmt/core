@@ -1,6 +1,6 @@
 //! Definition element definition
 
-use super::super::span::Span;
+use super::super::span::Location;
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container};
 use super::content_item::ContentItem;
@@ -11,7 +11,7 @@ use std::fmt;
 pub struct Definition {
     pub subject: TextContent,
     pub content: Vec<ContentItem>,
-    pub span: Option<Span>,
+    pub span: Option<Location>,
 }
 
 impl Definition {
@@ -29,7 +29,7 @@ impl Definition {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
+    pub fn with_span(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -47,7 +47,7 @@ impl AstNode for Definition {
             subject_text.to_string()
         }
     }
-    fn span(&self) -> Option<Span> {
+    fn location(&self) -> Option<Location> {
         self.span
     }
 }
@@ -81,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_definition_with_span() {
-        let span = super::super::super::span::Span::new(
+        let span = super::super::super::span::Location::new(
             super::super::super::span::Position::new(1, 0),
             super::super::super::span::Position::new(1, 10),
         );

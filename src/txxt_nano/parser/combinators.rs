@@ -5,7 +5,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
-use crate::txxt_nano::ast::{Paragraph, Parameter, Span, TextContent};
+use crate::txxt_nano::ast::{Location, Paragraph, Parameter, TextContent};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::elements::labels::parse_label_from_tokens;
 use crate::txxt_nano::parser::elements::parameters::{
@@ -39,7 +39,7 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
 }
 
 /// Helper: convert a byte range to a Span using source location
-fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
+fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
     }
@@ -48,21 +48,21 @@ fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
 }
 
 /// Helper: compute span bounds from multiple spans
-pub(crate) fn compute_span_from_spans(spans: &[Span]) -> Span {
+pub(crate) fn compute_span_from_spans(spans: &[Location]) -> Location {
     use crate::txxt_nano::ast::span::Position;
     let start_line = spans.iter().map(|sp| sp.start.line).min().unwrap_or(0);
     let start_col = spans.iter().map(|sp| sp.start.column).min().unwrap_or(0);
     let end_line = spans.iter().map(|sp| sp.end.line).max().unwrap_or(0);
     let end_col = spans.iter().map(|sp| sp.end.column).max().unwrap_or(0);
-    Span::new(
+    Location::new(
         Position::new(start_line, start_col),
         Position::new(end_line, end_col),
     )
 }
 
 /// Helper: compute span bounds from multiple optional spans
-pub(crate) fn compute_span_from_optional_spans(spans: &[Option<Span>]) -> Option<Span> {
-    let actual_spans: Vec<Span> = spans.iter().filter_map(|s| *s).collect();
+pub(crate) fn compute_span_from_optional_spans(spans: &[Option<Location>]) -> Option<Location> {
+    let actual_spans: Vec<Location> = spans.iter().filter_map(|s| *s).collect();
     if actual_spans.is_empty() {
         None
     } else {

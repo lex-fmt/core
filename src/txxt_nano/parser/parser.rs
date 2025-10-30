@@ -663,7 +663,7 @@ mod tests {
             .find(|item| item.is_session())
             .expect("Should have a session");
 
-        assert!(session.span().is_some(), "Session should have span");
+        assert!(session.location().is_some(), "Session should have span");
 
         // Get nested content
         if let Some(children) = session.children() {

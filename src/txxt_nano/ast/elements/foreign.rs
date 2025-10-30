@@ -1,6 +1,6 @@
 //! Foreign block element definition
 
-use super::super::span::Span;
+use super::super::span::Location;
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::annotation::Annotation;
@@ -12,7 +12,7 @@ pub struct ForeignBlock {
     pub subject: TextContent,
     pub content: TextContent,
     pub closing_annotation: Annotation,
-    pub span: Option<Span>,
+    pub span: Option<Location>,
 }
 
 impl ForeignBlock {
@@ -32,7 +32,7 @@ impl ForeignBlock {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
+    pub fn with_span(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -50,7 +50,7 @@ impl AstNode for ForeignBlock {
             subject_text.to_string()
         }
     }
-    fn span(&self) -> Option<Span> {
+    fn location(&self) -> Option<Location> {
         self.span
     }
 }

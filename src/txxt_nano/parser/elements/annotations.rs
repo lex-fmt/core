@@ -8,7 +8,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
-use crate::txxt_nano::ast::{Annotation, ContentItem, Label, Paragraph, Span, TextContent};
+use crate::txxt_nano::ast::{Annotation, ContentItem, Label, Location, Paragraph, TextContent};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{
     annotation_header, compute_span_from_spans, extract_text_from_spans, text_line, token,
@@ -21,7 +21,7 @@ type TokenSpan = (Token, Range<usize>);
 type ParserError = Simple<TokenSpan>;
 
 /// Helper: convert a byte range to a Span using source location
-fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
+fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
     }
@@ -61,7 +61,7 @@ where
                 let label = Label::new(label_text).with_span(label_position);
                 // Compute overall span from content spans if available
                 let span = if !content.is_empty() {
-                    let content_spans: Vec<Span> = content
+                    let content_spans: Vec<Location> = content
                         .iter()
                         .filter_map(|item| match item {
                             ContentItem::Paragraph(p) => p.span,
