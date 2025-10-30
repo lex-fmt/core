@@ -1,6 +1,6 @@
 //! Document element definition
 
-use super::super::span::{Location, Position};
+use super::super::location::{Location, Position};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
 use super::foreign::ForeignBlock;
@@ -108,7 +108,7 @@ impl fmt::Display for Document {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::span::Position;
+    use super::super::super::location::Position;
     use super::super::paragraph::Paragraph;
     use super::super::session::Session;
     use super::*;

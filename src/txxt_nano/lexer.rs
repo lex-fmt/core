@@ -24,10 +24,10 @@ pub mod indentation_transform;
 pub mod lexer_impl;
 pub mod tokens;
 
-pub use blank_line_transform::{transform_blank_lines, transform_blank_lines_with_spans};
+pub use blank_line_transform::{transform_blank_lines, transform_blank_lines_with_locations};
 pub use detokenizer::detokenize;
 pub use indentation_transform::{transform_indentation, transform_indentation_with_spans};
-pub use lexer_impl::{tokenize, tokenize_with_spans};
+pub use lexer_impl::{tokenize, tokenize_with_locations};
 pub use tokens::Token;
 
 /// Main lexer function that returns fully processed tokens
@@ -63,7 +63,7 @@ pub fn lex_with_spans(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
         source.to_string()
     };
 
-    let raw_tokens_with_spans = tokenize_with_spans(&source_with_newline);
+    let raw_tokens_with_spans = tokenize_with_locations(&source_with_newline);
     let tokens = transform_indentation_with_spans(raw_tokens_with_spans);
-    transform_blank_lines_with_spans(tokens)
+    transform_blank_lines_with_locations(tokens)
 }

@@ -10,7 +10,7 @@
 
 use std::collections::HashSet;
 use txxt_nano::txxt_nano::ast::elements::content_item::ContentItem;
-use txxt_nano::txxt_nano::ast::span::{Location, Position};
+use txxt_nano::txxt_nano::ast::location::{Location, Position};
 use txxt_nano::txxt_nano::parser::Document;
 
 /// Which viewer currently has keyboard focus

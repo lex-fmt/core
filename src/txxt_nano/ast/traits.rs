@@ -4,7 +4,7 @@
 //! to AST node information across all node types.
 
 use super::elements::ContentItem;
-use super::span::{Location, Position};
+use super::location::{Location, Position};
 use super::text_content::TextContent;
 
 /// Common interface for all AST nodes

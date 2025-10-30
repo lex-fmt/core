@@ -49,7 +49,7 @@ fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Location> {
 
 /// Helper: compute span bounds from multiple spans
 pub(crate) fn compute_span_from_spans(spans: &[Location]) -> Location {
-    use crate::txxt_nano::ast::span::Position;
+    use crate::txxt_nano::ast::location::Position;
     let start_line = spans.iter().map(|sp| sp.start.line).min().unwrap_or(0);
     let start_col = spans.iter().map(|sp| sp.start.column).min().unwrap_or(0);
     let end_line = spans.iter().map(|sp| sp.end.line).max().unwrap_or(0);

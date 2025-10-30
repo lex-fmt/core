@@ -919,7 +919,7 @@ mod tests {
         //            13..20 "Subitem", 20..21 " ", 21..22 "A", 22..23 "\n",
         //            23..27 "    ", 27..28 "-", 28..29 " ", 29..36 "Subitem", 36..37 " ", 37..38 "B"
 
-        let tokens_with_spans = crate::txxt_nano::lexer::tokenize_with_spans(source);
+        let tokens_with_spans = crate::txxt_nano::lexer::tokenize_with_locations(source);
         let result = transform_indentation_with_spans(tokens_with_spans);
 
         // Find the IndentLevel token

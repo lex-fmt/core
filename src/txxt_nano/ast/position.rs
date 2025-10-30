@@ -4,7 +4,7 @@
 //! to human-readable line and column positions, useful for error reporting
 //! and position tracking in AST nodes.
 
-use super::span::{Location, Position};
+use super::location::{Location, Position};
 use std::ops::Range;
 
 /// Provides fast conversion from byte offsets to line/column positions
@@ -39,7 +39,7 @@ impl SourceLocation {
         Position::new(line, column)
     }
 
-    /// Convert a byte range to a span
+    /// Convert a byte range to a location
     pub fn range_to_span(&self, range: &Range<usize>) -> Location {
         Location::new(
             self.byte_to_position(range.start),
@@ -98,19 +98,19 @@ mod tests {
     #[test]
     fn test_range_to_span_single_line() {
         let loc = SourceLocation::new("Hello World");
-        let span = loc.range_to_span(&(0..5));
+        let location = loc.range_to_span(&(0..5));
 
-        assert_eq!(span.start, Position::new(0, 0));
-        assert_eq!(span.end, Position::new(0, 5));
+        assert_eq!(location.start, Position::new(0, 0));
+        assert_eq!(location.end, Position::new(0, 5));
     }
 
     #[test]
     fn test_range_to_span_multiline() {
         let loc = SourceLocation::new("Hello\nWorld\nTest");
-        let span = loc.range_to_span(&(6..12));
+        let location = loc.range_to_span(&(6..12));
 
-        assert_eq!(span.start, Position::new(1, 0));
-        assert_eq!(span.end, Position::new(2, 0));
+        assert_eq!(location.start, Position::new(1, 0));
+        assert_eq!(location.end, Position::new(2, 0));
     }
 
     #[test]
@@ -132,22 +132,22 @@ mod tests {
 
     #[test]
     fn test_position_contains() {
-        let span = Location::new(Position::new(1, 5), Position::new(2, 10));
+        let location = Location::new(Position::new(1, 5), Position::new(2, 10));
 
         // Start position
-        assert!(span.contains(Position::new(1, 5)));
+        assert!(location.contains(Position::new(1, 5)));
 
         // End position
-        assert!(span.contains(Position::new(2, 10)));
+        assert!(location.contains(Position::new(2, 10)));
 
-        // Inside span
-        assert!(span.contains(Position::new(1, 8)));
-        assert!(span.contains(Position::new(2, 0)));
+        // Inside location
+        assert!(location.contains(Position::new(1, 8)));
+        assert!(location.contains(Position::new(2, 0)));
 
-        // Outside span
-        assert!(!span.contains(Position::new(1, 4)));
-        assert!(!span.contains(Position::new(2, 11)));
-        assert!(!span.contains(Position::new(0, 0)));
+        // Outside location
+        assert!(!location.contains(Position::new(1, 4)));
+        assert!(!location.contains(Position::new(2, 11)));
+        assert!(!location.contains(Position::new(0, 0)));
     }
 
     #[test]

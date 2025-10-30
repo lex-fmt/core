@@ -1,6 +1,6 @@
 //! ContentItem enum definition
 
-use super::super::span::{Location, Position};
+use super::super::location::{Location, Position};
 use super::super::traits::{AstNode, Container};
 use super::annotation::Annotation;
 use super::definition::Definition;
@@ -223,16 +223,16 @@ impl ContentItem {
     /// Returns elements in order from deepest to shallowest nesting
     pub fn elements_at(&self, pos: Position) -> Option<Vec<&ContentItem>> {
         // Check if this item contains the position
-        let span = match self {
-            ContentItem::Paragraph(p) => p.span,
-            ContentItem::Session(s) => s.span,
-            ContentItem::List(l) => l.span,
-            ContentItem::Definition(d) => d.span,
-            ContentItem::Annotation(a) => a.span,
-            ContentItem::ForeignBlock(fb) => fb.span,
+        let location = match self {
+            ContentItem::Paragraph(p) => p.location(),
+            ContentItem::Session(s) => s.location(),
+            ContentItem::List(l) => l.location(),
+            ContentItem::Definition(d) => d.location(),
+            ContentItem::Annotation(a) => a.location(),
+            ContentItem::ForeignBlock(fb) => fb.location(),
         };
 
-        // Check nested items first - even if parent span doesn't contain position,
+        // Check nested items first - even if parent location doesn't contain position,
         // nested elements might. This is important because parent spans (like sessions)
         // may only cover their title, not their nested content.
         let mut results = Vec::new();
@@ -246,26 +246,26 @@ impl ContentItem {
             }
         }
 
-        // If we found nested results, include this parent if its span contains the position
-        // or if the parent has no span (legacy behavior: items with no span match any position)
+        // If we found nested results, include this parent if its location contains the position
+        // or if the parent has no location (legacy behavior: items with no location match any position)
         if !results.is_empty() {
-            // Found nested elements - add parent if it has no span or if span contains position
-            match span {
-                Some(span) if span.contains(pos) => results.push(self),
-                None => results.push(self), // No span means match any position (legacy behavior)
-                _ => {} // Span exists but doesn't contain position - don't add parent
+            // Found nested elements - add parent if it has no location or if location contains position
+            match location {
+                Some(location) if location.contains(pos) => results.push(self),
+                None => results.push(self), // No location means match any position (legacy behavior)
+                _ => {} // location exists but doesn't contain position - don't add parent
             }
             // Results are currently [deepest...shallowest], which is correct order
             Some(results)
-        } else if let Some(span) = span {
+        } else if let Some(location) = location {
             // No nested results - check if this item contains the position
-            if span.contains(pos) {
+            if location.contains(pos) {
                 Some(vec![self])
             } else {
                 None
             }
         } else {
-            // No span and no nested results - legacy behavior: items with no span match any position
+            // No location and no nested results - legacy behavior: items with no location match any position
             Some(vec![self])
         }
     }
@@ -308,7 +308,7 @@ impl fmt::Display for ContentItem {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::span::{Location, Position};
+    use super::super::super::location::{Location, Position};
     use super::super::paragraph::Paragraph;
     use super::*;
 
@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn test_elements_at_no_span() {
-        // Item with no span should match any position
+        // Item with no location should match any position
         let para = Paragraph::from_line("Test".to_string());
         let item = ContentItem::Paragraph(para);
 
@@ -353,7 +353,7 @@ mod tests {
             assert_eq!(results.len(), 1);
             assert!(results[0].is_paragraph());
         } else {
-            panic!("Expected to find paragraph when no span is set");
+            panic!("Expected to find paragraph when no location is set");
         }
     }
 

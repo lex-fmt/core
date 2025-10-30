@@ -525,7 +525,7 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
                 );
 
                 // Try to find the node using document.elements_at
-                use txxt_nano::txxt_nano::ast::span::Position;
+                use txxt_nano::txxt_nano::ast::location::Position;
                 let pos = Position::new(span.start.line, span.start.column);
                 let elements = app.app().model.document.elements_at(pos);
                 // Verify document.elements_at() now finds nested elements

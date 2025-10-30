@@ -12,7 +12,7 @@
 //! (.as_string(), future: .as_inlines()), which work regardless of the
 //! internal representation.
 
-use super::span::Location;
+use super::location::Location;
 
 /// Represents user-provided text content with source position tracking.
 ///
@@ -185,5 +185,5 @@ mod tests {
         assert_eq!(content.as_string(), "World");
     }
 
-    use super::super::span::Position;
+    use super::super::location::Position;
 }
