@@ -398,11 +398,8 @@ impl Viewer for TreeViewer {
                     )
                 } else if is_collapsed {
                     // Collapsed node (not highlighted): muted gray text
-                    Line::from(text).style(
-                        Style::default()
-                            .fg(Color::Gray)
-                            .add_modifier(Modifier::DIM),
-                    )
+                    Line::from(text)
+                        .style(Style::default().fg(Color::Gray).add_modifier(Modifier::DIM))
                 } else {
                     // Normal node: default styling
                     Line::from(text)
