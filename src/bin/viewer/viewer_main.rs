@@ -1,5 +1,4 @@
-//! Terminal UI viewer for txxt documents
-use clap::Parser;
+//! Viewer main function that can be called from txxt.rs
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::prelude::*;
@@ -9,38 +8,15 @@ use std::path::PathBuf;
 use std::time::Duration;
 use txxt_nano::txxt_nano::parser::parse_document;
 
-// Use the modular code
-mod app;
-mod model;
-mod theme;
-mod ui;
-mod viewer;
+use super::app::App;
+use super::model::Model;
+use super::ui;
 
-#[cfg(test)]
-mod tests;
-
-use app::App;
-use model::Model;
-
-#[derive(Parser)]
-#[command(name = "txxtv")]
-#[command(about = "A terminal UI viewer for txxt documents")]
-struct Args {
-    /// Path to the txxt file to open
-    file: PathBuf,
-
-    /// Path to a custom theme YAML file
-    #[arg(long, short)]
-    theme: Option<PathBuf>,
-}
-
-fn main() -> io::Result<()> {
-    let args = Args::parse();
-
+/// Run the viewer for the given file path
+pub fn run_viewer(file_path: PathBuf) -> io::Result<()> {
     // Load the file
-    let content = fs::read_to_string(&args.file)?;
-    let file_name = args
-        .file
+    let content = fs::read_to_string(&file_path)?;
+    let file_name = file_path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown")
@@ -54,26 +30,9 @@ fn main() -> io::Result<()> {
         )
     })?;
 
-    // Load theme if provided, otherwise use default
-    let theme_result = if let Some(theme_path) = &args.theme {
-        theme::Theme::from_yaml_file(
-            theme_path
-                .to_str()
-                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "Invalid theme path"))?,
-        )
-        .map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("Failed to load theme: {}", e),
-            )
-        })?
-    } else {
-        theme::Theme::default()
-    };
-
     // Create the modular App
     let model = Model::new(document);
-    let mut app = App::with_theme(model, content, theme_result);
+    let mut app = App::new(model, content);
 
     // Setup terminal
     enable_raw_mode()?;

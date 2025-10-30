@@ -1,4 +1,4 @@
-//! Test infrastructure for txxtv
+//! Test infrastructure for txxt
 //!
 //! Provides utilities for testing the full application including:
 //! - TestApp: wrapper for testing the application
@@ -96,21 +96,21 @@ impl TestApp {
 
     /// Check if file viewer is focused
     pub fn is_file_viewer_focused(&self) -> bool {
-        self.app.focus == crate::model::Focus::FileViewer
+        self.app.focus == super::model::Focus::FileViewer
     }
 
     /// Check if tree viewer is focused
     pub fn is_tree_viewer_focused(&self) -> bool {
-        self.app.focus == crate::model::Focus::TreeViewer
+        self.app.focus == super::model::Focus::TreeViewer
     }
 
     /// Check if a node is expanded
-    pub fn is_node_expanded(&self, node_id: crate::model::NodeId) -> bool {
+    pub fn is_node_expanded(&self, node_id: super::model::NodeId) -> bool {
         self.app.model.is_node_expanded(node_id)
     }
 
     /// Get the currently selected node ID
-    pub fn selected_node_id(&self) -> Option<crate::model::NodeId> {
+    pub fn selected_node_id(&self) -> Option<super::model::NodeId> {
         self.app.model.get_selected_node_id()
     }
 
@@ -158,7 +158,7 @@ pub mod keyboard {
 }
 
 // Tests that can only run within this module (needs access to TestApp, etc)
-use crate::model::NodeId;
+use super::model::NodeId;
 
 #[test]
 fn tests_simple_sanity_check() {
@@ -430,7 +430,7 @@ fn test_tree_selection_emits_select_node_event() {
 #[test]
 fn test_nested_elements_have_span_information() {
     // ISSUE: The txxt_nano parser does not set span information on nested elements.
-    // This causes txxtv to be unable to highlight tree nodes when the cursor is on
+    // This causes txxt to be unable to highlight tree nodes when the cursor is on
     // their text in the file viewer, because get_node_at_position() relies on
     // document.elements_at() which depends on span information.
     //
@@ -663,53 +663,4 @@ fn test_tree_viewer_leaf_nodes_have_alignment_spacing() {
     // Leaf nodes don't show expand/collapse indicators, they show spacing
     // This is verified by the rendering logic showing "  " (two spaces)
     // The actual visual verification is manual, but the structure is correct
-}
-
-#[test]
-fn test_theme_semantic_grouping() {
-    // Verify the three-layer architecture: semantically related UI elements
-    // should use the same presentation style
-    let app = TestApp::with_content("test");
-    let theme = &app.app().theme;
-
-    // Active elements should look the same
-    assert_eq!(
-        theme.file_viewer_cursor(),
-        theme.tree_viewer_selected(),
-        "File cursor and tree selection should use the same 'active' style (semantic grouping)"
-    );
-
-    // Normal elements should look the same
-    assert_eq!(
-        theme.file_viewer_text(),
-        theme.tree_viewer_normal(),
-        "Normal text and normal tree nodes should use the same 'normal' style (semantic grouping)"
-    );
-}
-
-#[test]
-fn test_custom_theme_presentation_layer() {
-    // Verify that custom presentation styles can be used to create a theme
-    use ratatui::style::{Color, Style};
-
-    // Create a custom presentation layer
-    let custom_presentation = crate::theme::PresentationStyles {
-        active: Style::default().fg(Color::Red),
-        normal: Style::default(),
-        label: Style::default().fg(Color::Green),
-        mode_tree: Style::default(),
-        mode_text: Style::default(),
-        error: Style::default(),
-        title: Style::default().fg(Color::Blue),
-        panel_bg: Style::default(),
-        border: Style::default(),
-    };
-
-    let custom_theme = crate::theme::Theme::with_presentation(custom_presentation);
-
-    // Verify that the custom presentation is used
-    assert_eq!(custom_theme.file_viewer_cursor().fg, Some(Color::Red));
-    assert_eq!(custom_theme.tree_viewer_selected().fg, Some(Color::Red));
-    assert_eq!(custom_theme.info_panel_label().fg, Some(Color::Green));
-    assert_eq!(custom_theme.title_bar().fg, Some(Color::Blue));
 }

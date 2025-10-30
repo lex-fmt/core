@@ -13,10 +13,6 @@ categories = ["parsing", "text-processing"]
 name = "txxt"
 path = "src/bin/txxt.rs"
 
-[[bin]]
-name = "txxtv"
-path = "src/bin/txxtv/main.rs"
-
 [dependencies]
 logos = "0.14"
 clap = { version = "4.4", features = ["derive"] }
