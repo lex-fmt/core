@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn test_with_span() {
+    fn test_with_location() {
         let span = Location::new(Position::new(0, 0), Position::new(0, 5));
         let content = TextContent::from_string("Hello".to_string(), Some(span));
         assert_eq!(content.span, Some(span));

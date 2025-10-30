@@ -29,7 +29,7 @@ impl Definition {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Location>) -> Self {
+    pub fn with_location(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -80,12 +80,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_definition_with_span() {
+    fn test_definition_with_location() {
         let span = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let definition = Definition::with_subject("Subject".to_string()).with_span(Some(span));
+        let definition = Definition::with_subject("Subject".to_string()).with_location(Some(span));
         assert_eq!(definition.span, Some(span));
     }
 }

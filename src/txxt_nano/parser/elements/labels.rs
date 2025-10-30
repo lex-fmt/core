@@ -29,8 +29,8 @@ type TokenSpan = (Token, Range<usize>);
 ///
 /// # Examples
 /// ```text
-/// :: note ::           -> Some(label_span for "note")
-/// :: note key=val ::   -> Some(label_span for "note")
+/// :: note ::           -> Some(label_location for "note")
+/// :: note key=val ::   -> Some(label_location for "note")
 /// :: key=val ::        -> None (this is a parameter, not a label)
 /// ```
 pub(crate) fn parse_label_from_tokens(tokens: &[TokenSpan]) -> (Option<Range<usize>>, usize) {
@@ -76,16 +76,16 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenSpan]) -> (Option<Range<usi
         (None, 0) // Return 0 to indicate we should restart parsing from beginning
     } else {
         // This is a label
-        let first_span = &tokens[start].1;
-        let last_span = &tokens[i - 1].1;
-        let label_span = Some(first_span.start..last_span.end);
+        let first_location = &tokens[start].1;
+        let last_location = &tokens[i - 1].1;
+        let label_location = Some(first_location.start..last_location.end);
 
         // Skip trailing whitespace after label
         while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
             i += 1;
         }
 
-        (label_span, i)
+        (label_location, i)
     }
 }
 

@@ -40,7 +40,7 @@ impl SourceLocation {
     }
 
     /// Convert a byte range to a location
-    pub fn range_to_span(&self, range: &Range<usize>) -> Location {
+    pub fn range_to_location(&self, range: &Range<usize>) -> Location {
         Location::new(
             self.byte_to_position(range.start),
             self.byte_to_position(range.end),
@@ -96,18 +96,18 @@ mod tests {
     }
 
     #[test]
-    fn test_range_to_span_single_line() {
+    fn test_range_to_location_single_line() {
         let loc = SourceLocation::new("Hello World");
-        let location = loc.range_to_span(&(0..5));
+        let location = loc.range_to_location(&(0..5));
 
         assert_eq!(location.start, Position::new(0, 0));
         assert_eq!(location.end, Position::new(0, 5));
     }
 
     #[test]
-    fn test_range_to_span_multiline() {
+    fn test_range_to_location_multiline() {
         let loc = SourceLocation::new("Hello\nWorld\nTest");
-        let location = loc.range_to_span(&(6..12));
+        let location = loc.range_to_location(&(6..12));
 
         assert_eq!(location.start, Position::new(1, 0));
         assert_eq!(location.end, Position::new(2, 0));
@@ -151,7 +151,7 @@ mod tests {
     }
 
     #[test]
-    fn test_span_overlaps() {
+    fn test_location_overlaps() {
         let span1 = Location::new(Position::new(0, 0), Position::new(1, 5));
         let span2 = Location::new(Position::new(1, 0), Position::new(2, 5));
         let span3 = Location::new(Position::new(3, 0), Position::new(4, 5));

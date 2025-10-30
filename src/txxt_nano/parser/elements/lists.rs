@@ -11,7 +11,7 @@ use crate::txxt_nano::ast::position::SourceLocation;
 use crate::txxt_nano::ast::{ContentItem, List, ListItem, Location};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{
-    compute_span_from_optional_spans, list_item_line, token,
+    compute_location_from_optional_locations, list_item_line, token,
 };
 
 /// Type alias for token with span
@@ -21,12 +21,12 @@ type TokenSpan = (Token, Range<usize>);
 type ParserError = Simple<TokenSpan>;
 
 /// Helper: convert a byte range to a Span using source location
-fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Location> {
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
     }
     let source_loc = SourceLocation::new(source);
-    Some(source_loc.range_to_span(range))
+    Some(source_loc.range_to_location(range))
 }
 
 /// Build a list parser
@@ -46,14 +46,14 @@ where
                 .then_ignore(token(Token::DedentLevel))
                 .or_not(),
         )
-        .map(move |((text, text_span), maybe_content)| {
-            let span = byte_range_to_span(&source_for_list, &text_span);
-            ListItem::with_content(text, maybe_content.unwrap_or_default()).with_span(span)
+        .map(move |((text, text_location), maybe_content)| {
+            let span = byte_range_to_location(&source_for_list, &text_location);
+            ListItem::with_content(text, maybe_content.unwrap_or_default()).with_location(span)
         });
 
     single_list_item.repeated().at_least(2).map(|items| {
         let spans: Vec<Option<Location>> = items.iter().map(|item| item.span).collect();
-        let span = compute_span_from_optional_spans(&spans);
+        let span = compute_location_from_optional_locations(&spans);
         ContentItem::List(List { items, span })
     })
 }

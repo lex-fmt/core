@@ -42,7 +42,7 @@ impl Document {
         }
     }
 
-    pub fn with_span(mut self, span: Option<Location>) -> Self {
+    pub fn with_location(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -125,11 +125,11 @@ mod tests {
 
     #[test]
     fn test_document_elements_at() {
-        let para1 = Paragraph::from_line("First".to_string()).with_span(Some(Location::new(
+        let para1 = Paragraph::from_line("First".to_string()).with_location(Some(Location::new(
             Position::new(0, 0),
             Position::new(0, 5),
         )));
-        let para2 = Paragraph::from_line("Second".to_string()).with_span(Some(Location::new(
+        let para2 = Paragraph::from_line("Second".to_string()).with_location(Some(Location::new(
             Position::new(1, 0),
             Position::new(1, 6),
         )));

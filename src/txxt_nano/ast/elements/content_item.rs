@@ -314,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_elements_at_simple_paragraph() {
-        let para = Paragraph::from_line("Test".to_string()).with_span(Some(Location::new(
+        let para = Paragraph::from_line("Test".to_string()).with_location(Some(Location::new(
             Position::new(0, 0),
             Position::new(0, 4),
         )));
@@ -330,8 +330,8 @@ mod tests {
     }
 
     #[test]
-    fn test_elements_at_position_outside_span() {
-        let para = Paragraph::from_line("Test".to_string()).with_span(Some(Location::new(
+    fn test_elements_at_position_outside_location() {
+        let para = Paragraph::from_line("Test".to_string()).with_location(Some(Location::new(
             Position::new(0, 0),
             Position::new(0, 4),
         )));
@@ -343,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn test_elements_at_no_span() {
+    fn test_elements_at_no_location() {
         // Item with no location should match any position
         let para = Paragraph::from_line("Test".to_string());
         let item = ContentItem::Paragraph(para);
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_elements_at_nested_session() {
-        let para = Paragraph::from_line("Nested".to_string()).with_span(Some(Location::new(
+        let para = Paragraph::from_line("Nested".to_string()).with_location(Some(Location::new(
             Position::new(1, 0),
             Position::new(1, 6),
         )));
@@ -370,7 +370,7 @@ mod tests {
             ),
             vec![ContentItem::Paragraph(para)],
         )
-        .with_span(Some(Location::new(
+        .with_location(Some(Location::new(
             Position::new(0, 0),
             Position::new(2, 0),
         )));

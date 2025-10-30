@@ -110,10 +110,10 @@ pub fn document() -> impl Parser<TokenSpan, Document, Error = ParserError> {
 ///
 /// Re-exports the canonical implementation from api.rs
 pub fn parse_with_source(
-    tokens_with_spans: Vec<TokenSpan>,
+    tokens_with_locations: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    super::api::parse_with_source(tokens_with_spans, source)
+    super::api::parse_with_source(tokens_with_locations, source)
 }
 
 /// Parse a txxt document from tokens with source, preserving position information
@@ -124,19 +124,19 @@ pub fn parse_with_source(
 ///
 /// Re-exports the canonical implementation from api.rs
 pub fn parse_with_source_positions(
-    tokens_with_spans: Vec<TokenSpan>,
+    tokens_with_locations: Vec<TokenSpan>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    super::api::parse_with_source_positions(tokens_with_spans, source)
+    super::api::parse_with_source_positions(tokens_with_locations, source)
 }
 
 /// Parse a txxt document from a token stream (legacy - doesn't preserve source text)
 pub fn parse(tokens: Vec<Token>) -> Result<Document, Vec<Simple<Token>>> {
     // Convert tokens to token-span tuples with empty spans
-    let tokens_with_spans: Vec<TokenSpan> = tokens.into_iter().map(|t| (t, 0..0)).collect();
+    let tokens_with_locations: Vec<TokenSpan> = tokens.into_iter().map(|t| (t, 0..0)).collect();
 
     // Parse with empty source
-    parse_with_source(tokens_with_spans, "")
+    parse_with_source(tokens_with_locations, "")
         .map_err(|errs| errs.into_iter().map(|e| e.map(|(t, _)| t)).collect())
 }
 
@@ -151,9 +151,9 @@ mod tests {
     #[test]
     fn test_simple_paragraph() {
         let input = "Hello world\n\n";
-        let tokens_with_spans = lex_with_locations(input);
+        let tokens_with_locations = lex_with_locations(input);
 
-        let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_spans);
+        let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_locations);
         assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
 
         let para = result.unwrap();
@@ -624,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn test_span_boundary_containment() {
+    fn test_location_boundary_containment() {
         let input = "0123456789\n\n";
         let tokens = lex_with_locations(input);
         let doc =
@@ -647,7 +647,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_paragraph_has_span() {
+    fn test_nested_paragraph_has_location() {
         // Test that nested paragraphs inside sessions have span information
         let input = "Title\n\n1. Session Title\n\n    Nested paragraph\n\n";
         let tokens = lex_with_locations(input);

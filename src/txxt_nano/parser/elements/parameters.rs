@@ -16,19 +16,19 @@ type TokenSpan = (Token, Range<usize>);
 /// Parameter with source text spans for later extraction
 #[derive(Debug, Clone)]
 pub(crate) struct ParameterWithSpans {
-    pub(crate) key_span: Range<usize>,
-    pub(crate) value_span: Option<Range<usize>>,
+    pub(crate) key_location: Range<usize>,
+    pub(crate) value_location: Option<Range<usize>>,
 }
 
 /// Convert a parameter from spans to final AST
 ///
 /// Extracts the key and value text from the source using the stored spans
 pub(crate) fn convert_parameter(source: &str, param: ParameterWithSpans) -> Parameter {
-    let key = extract_text(source, &param.key_span).to_string();
+    let key = extract_text(source, &param.key_location).to_string();
 
     let value = param
-        .value_span
-        .map(|value_span| extract_text(source, &value_span).to_string());
+        .value_location
+        .map(|value_location| extract_text(source, &value_location).to_string());
 
     Parameter {
         key,
@@ -81,10 +81,10 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
             continue;
         }
 
-        let key_span = {
-            let first_span = &tokens[key_start].1;
-            let last_span = &tokens[i - 1].1;
-            first_span.start..last_span.end
+        let key_location = {
+            let first_location = &tokens[key_start].1;
+            let last_location = &tokens[i - 1].1;
+            first_location.start..last_location.end
         };
 
         // Skip whitespace before '='
@@ -112,7 +112,7 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
         }
 
         // Parse value - could be quoted or unquoted
-        let value_span = if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
+        let value_location = if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
             i += 1; // Skip opening quote
             let val_start = i;
 
@@ -121,10 +121,10 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
                 i += 1;
             }
 
-            let val_span = if val_start < i {
-                let first_span = &tokens[val_start].1;
-                let last_span = &tokens[i - 1].1;
-                Some(first_span.start..last_span.end)
+            let val_location = if val_start < i {
+                let first_location = &tokens[val_start].1;
+                let last_location = &tokens[i - 1].1;
+                Some(first_location.start..last_location.end)
             } else {
                 Some(0..0) // Empty quoted string
             };
@@ -133,7 +133,7 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
                 i += 1; // Skip closing quote
             }
 
-            val_span
+            val_location
         } else {
             // Unquoted value: collect until comma or whitespace
             let val_start = i;
@@ -142,9 +142,9 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
             }
 
             if val_start < i {
-                let first_span = &tokens[val_start].1;
-                let last_span = &tokens[i - 1].1;
-                Some(first_span.start..last_span.end)
+                let first_location = &tokens[val_start].1;
+                let last_location = &tokens[i - 1].1;
+                Some(first_location.start..last_location.end)
             } else {
                 // No value found, skip this parameter
                 while i < tokens.len() && !matches!(tokens[i].0, Token::Comma) {
@@ -158,8 +158,8 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
         };
 
         params.push(ParameterWithSpans {
-            key_span,
-            value_span,
+            key_location,
+            value_location,
         });
 
         // Skip trailing whitespace

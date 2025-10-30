@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crate::txxt_nano::ast::{Annotation, ContentItem, ForeignBlock, Label, Paragraph, TextContent};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{
-    annotation_header, definition_subject, extract_text_from_spans, text_line, token,
+    annotation_header, definition_subject, extract_text_from_locations, text_line, token,
 };
 
 /// Type alias for token with span
@@ -44,7 +44,7 @@ pub(crate) fn foreign_block(
                     .then_ignore(token(Token::DedentLevel))
                     .map(|_| (Token::IndentLevel, 0..0)), // Dummy token, won't be used
                 // Regular content token (not TxxtMarker, not DedentLevel)
-                filter(|(t, _span): &TokenSpan| {
+                filter(|(t, _location): &TokenSpan| {
                     !matches!(t, Token::TxxtMarker | Token::DedentLevel)
                 }),
             ))
@@ -66,13 +66,13 @@ pub(crate) fn foreign_block(
         .then_ignore(token(Token::TxxtMarker))
         .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
         .map(
-            move |((label_opt, _label_span, parameters), content_span)| {
+            move |((label_opt, _label_location, parameters), content_location)| {
                 // Build Annotation from extracted label and parameters
                 let label = Label::new(label_opt.unwrap_or_default());
 
-                let content = content_span
+                let content = content_location
                     .map(|spans| {
-                        let text = extract_text_from_spans(&source_for_annotation, &spans);
+                        let text = extract_text_from_locations(&source_for_annotation, &spans);
                         vec![ContentItem::Paragraph(Paragraph {
                             lines: vec![TextContent::from_string(text, None)],
                             span: None,
@@ -95,9 +95,9 @@ pub(crate) fn foreign_block(
         .then(closing_annotation_parser)
         .then_ignore(token(Token::Newline).or_not())
         .map(
-            move |(((subject_text, _subject_span), content_spans), closing_annotation)| {
-                let content = content_spans
-                    .map(|spans| extract_text_from_spans(&source, &spans))
+            move |(((subject_text, _subject_location), content_locations), closing_annotation)| {
+                let content = content_locations
+                    .map(|spans| extract_text_from_locations(&source, &spans))
                     .unwrap_or_default();
 
                 ForeignBlock {

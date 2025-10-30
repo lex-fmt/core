@@ -22,7 +22,7 @@ impl Paragraph {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Location>) -> Self {
+    pub fn with_location(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -86,12 +86,12 @@ mod tests {
     }
 
     #[test]
-    fn test_paragraph_with_span() {
+    fn test_paragraph_with_location() {
         let span = Location::new(
             super::super::super::location::Position::new(0, 0),
             super::super::super::location::Position::new(0, 5),
         );
-        let para = Paragraph::from_line("Hello".to_string()).with_span(Some(span));
+        let para = Paragraph::from_line("Hello".to_string()).with_location(Some(span));
 
         assert_eq!(para.span, Some(span));
     }
