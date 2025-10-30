@@ -35,4 +35,6 @@ local
 # Added by cargo
 
 /target
-*.ast.xml
+docs/specs/**/*.ast.*
+docs/specs/**/*.treeviz
+docs/specs/**/*.treeviz.*

@@ -199,15 +199,17 @@ pub fn transform_indentation_with_spans(
                 let indent_start_idx = line_start;
                 for level_idx in 0..(target_level - current_level) {
                     let indent_token_idx = indent_start_idx + current_level + level_idx;
-                    if indent_token_idx < tokens_with_spans.len() 
-                        && matches!(tokens_with_spans[indent_token_idx].0, Token::Indent) {
+                    if indent_token_idx < tokens_with_spans.len()
+                        && matches!(tokens_with_spans[indent_token_idx].0, Token::Indent)
+                    {
                         // Use the span of the Indent token
                         let span = tokens_with_spans[indent_token_idx].1.clone();
                         result.push((Token::IndentLevel, span));
                     } else {
                         // Fallback: use the span of the first content token on this line
                         let fallback_span = if line_start < tokens_with_spans.len() {
-                            tokens_with_spans[line_start].1.start..tokens_with_spans[line_start].1.start
+                            tokens_with_spans[line_start].1.start
+                                ..tokens_with_spans[line_start].1.start
                         } else {
                             0..0
                         };
@@ -231,7 +233,7 @@ pub fn transform_indentation_with_spans(
                     };
                     end..end
                 };
-                
+
                 for _ in 0..(current_level - target_level) {
                     result.push((Token::DedentLevel, dedent_span.clone()));
                 }
@@ -275,7 +277,7 @@ pub fn transform_indentation_with_spans(
     } else {
         0..0
     };
-    
+
     for _ in 0..current_level {
         result.push((Token::DedentLevel, eof_span.clone()));
     }
@@ -771,10 +773,10 @@ mod tests {
         // Test: IndentLevel tokens should have spans that correspond to the Indent tokens they represent
         // Input: "a\n    b" (a, newline, 4 spaces, b)
         let input = vec![
-            (Token::Text("a".to_string()), 0..1),  // "a" at position 0-1
-            (Token::Newline, 1..2),                 // "\n" at position 1-2
-            (Token::Indent, 2..6),                  // "    " (4 spaces) at position 2-6
-            (Token::Text("b".to_string()), 6..7),  // "b" at position 6-7
+            (Token::Text("a".to_string()), 0..1), // "a" at position 0-1
+            (Token::Newline, 1..2),               // "\n" at position 1-2
+            (Token::Indent, 2..6),                // "    " (4 spaces) at position 2-6
+            (Token::Text("b".to_string()), 6..7), // "b" at position 6-7
         ];
 
         let result = transform_indentation_with_spans(input);
@@ -785,15 +787,23 @@ mod tests {
         // - IndentLevel with span 2..6 (covers the Indent token)
         // - Text("b") with span 6..7
         // - DedentLevel with span 7..7 (at EOF)
-        
+
         assert_eq!(result.len(), 5);
         assert_eq!(result[0], (Token::Text("a".to_string()), 0..1));
         assert_eq!(result[1], (Token::Newline, 1..2));
         assert_eq!(result[2].0, Token::IndentLevel);
-        assert_eq!(result[2].1, 2..6, "IndentLevel should have span of its Indent token");
+        assert_eq!(
+            result[2].1,
+            2..6,
+            "IndentLevel should have span of its Indent token"
+        );
         assert_eq!(result[3], (Token::Text("b".to_string()), 6..7));
         assert_eq!(result[4].0, Token::DedentLevel);
-        assert_eq!(result[4].1, 7..7, "EOF DedentLevel should point to end of file");
+        assert_eq!(
+            result[4].1,
+            7..7,
+            "EOF DedentLevel should point to end of file"
+        );
     }
 
     #[test]
@@ -801,7 +811,7 @@ mod tests {
         // Test: Multiple IndentLevel tokens should each have spans of their respective Indent tokens
         // Input: "a\n        b" (a, newline, 8 spaces = 2 indent levels, b)
         let input = vec![
-            (Token::Text("a".to_string()), 0..1),  // "a"
+            (Token::Text("a".to_string()), 0..1),   // "a"
             (Token::Newline, 1..2),                 // "\n"
             (Token::Indent, 2..6),                  // first 4 spaces (indent level 1)
             (Token::Indent, 6..10),                 // second 4 spaces (indent level 2)
@@ -815,7 +825,11 @@ mod tests {
         assert_eq!(result[2].0, Token::IndentLevel);
         assert_eq!(result[2].1, 2..6, "First IndentLevel should have span 2..6");
         assert_eq!(result[3].0, Token::IndentLevel);
-        assert_eq!(result[3].1, 6..10, "Second IndentLevel should have span 6..10");
+        assert_eq!(
+            result[3].1,
+            6..10,
+            "Second IndentLevel should have span 6..10"
+        );
     }
 
     #[test]
@@ -823,12 +837,12 @@ mod tests {
         // Test: DedentLevel tokens should have spans at the position where dedentation occurs
         // Input: "a\n    b\nc" (a, newline, 4 spaces, b, newline, c)
         let input = vec![
-            (Token::Text("a".to_string()), 0..1),  // "a"
-            (Token::Newline, 1..2),                 // "\n"
-            (Token::Indent, 2..6),                  // "    "
-            (Token::Text("b".to_string()), 6..7),  // "b"
-            (Token::Newline, 7..8),                 // "\n"
-            (Token::Text("c".to_string()), 8..9),  // "c" (dedented back to level 0)
+            (Token::Text("a".to_string()), 0..1), // "a"
+            (Token::Newline, 1..2),               // "\n"
+            (Token::Indent, 2..6),                // "    "
+            (Token::Text("b".to_string()), 6..7), // "b"
+            (Token::Newline, 7..8),               // "\n"
+            (Token::Text("c".to_string()), 8..9), // "c" (dedented back to level 0)
         ];
 
         let result = transform_indentation_with_spans(input);
@@ -837,7 +851,11 @@ mod tests {
         // - Text("a"), Newline, IndentLevel, Text("b"), Newline, DedentLevel, Text("c")
         assert_eq!(result.len(), 7);
         assert_eq!(result[5].0, Token::DedentLevel);
-        assert_eq!(result[5].1, 8..8, "DedentLevel should point to start of dedented line");
+        assert_eq!(
+            result[5].1,
+            8..8,
+            "DedentLevel should point to start of dedented line"
+        );
     }
 
     #[test]
@@ -860,9 +878,17 @@ mod tests {
         // Should have 2 DedentLevel tokens before Text("c")
         assert_eq!(result.len(), 9);
         assert_eq!(result[6].0, Token::DedentLevel);
-        assert_eq!(result[6].1, 12..12, "First DedentLevel should point to position 12");
+        assert_eq!(
+            result[6].1,
+            12..12,
+            "First DedentLevel should point to position 12"
+        );
         assert_eq!(result[7].0, Token::DedentLevel);
-        assert_eq!(result[7].1, 12..12, "Second DedentLevel should point to position 12");
+        assert_eq!(
+            result[7].1,
+            12..12,
+            "Second DedentLevel should point to position 12"
+        );
         assert_eq!(result[8], (Token::Text("c".to_string()), 12..13));
     }
 
@@ -897,18 +923,27 @@ mod tests {
         let result = transform_indentation_with_spans(tokens_with_spans);
 
         // Find the IndentLevel token
-        let indent_level_pos = result.iter().position(|(t, _)| matches!(t, Token::IndentLevel)).unwrap();
+        let indent_level_pos = result
+            .iter()
+            .position(|(t, _)| matches!(t, Token::IndentLevel))
+            .unwrap();
         let (indent_token, indent_span) = &result[indent_level_pos];
-        
+
         assert_eq!(*indent_token, Token::IndentLevel);
         assert_ne!(*indent_span, 0..0, "IndentLevel should not have empty span");
-        assert_eq!(indent_span.start, 7, "IndentLevel should start at position 7");
+        assert_eq!(
+            indent_span.start, 7,
+            "IndentLevel should start at position 7"
+        );
         assert_eq!(indent_span.end, 11, "IndentLevel should end at position 11");
 
         // Find the DedentLevel token (should be at end)
-        let dedent_pos = result.iter().position(|(t, _)| matches!(t, Token::DedentLevel)).unwrap();
+        let dedent_pos = result
+            .iter()
+            .position(|(t, _)| matches!(t, Token::DedentLevel))
+            .unwrap();
         let (dedent_token, dedent_span) = &result[dedent_pos];
-        
+
         assert_eq!(*dedent_token, Token::DedentLevel);
         assert_ne!(*dedent_span, 0..0, "DedentLevel should not have empty span");
     }
@@ -927,7 +962,14 @@ mod tests {
         let result = transform_indentation_with_spans(input);
 
         // The IndentLevel should still have correct span
-        let indent_pos = result.iter().position(|(t, _)| matches!(t, Token::IndentLevel)).unwrap();
-        assert_eq!(result[indent_pos].1, 3..7, "IndentLevel span should be preserved");
+        let indent_pos = result
+            .iter()
+            .position(|(t, _)| matches!(t, Token::IndentLevel))
+            .unwrap();
+        assert_eq!(
+            result[indent_pos].1,
+            3..7,
+            "IndentLevel span should be preserved"
+        );
     }
 }

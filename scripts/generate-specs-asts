@@ -3,12 +3,65 @@
 # Generate AST files for all txxt specification files
 #
 # This script processes all .txxt files in docs/specs/v1 and generates
-# corresponding .ast.xml files containing the AST structure in tag format.
+# corresponding AST output files based on the specified format.
 #
 # Usage:
-#   ./scripts/generate-specs-asts
+#   ./scripts/generate-specs-asts [--format FORMAT]
+#
+# Options:
+#   --format FORMAT    Output format (default: ast-tag)
+#                      Examples: ast-tag, ast-treeviz, ast-position
 
 set -uo pipefail
+
+# Parse command line arguments
+FORMAT="ast-tag"
+REMOVE_ALL=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --format)
+            FORMAT="$2"
+            shift 2
+            ;;
+        --remove-all)
+            REMOVE_ALL=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --format FORMAT    Output format (default: ast-tag)"
+            echo "                     Examples: ast-tag, ast-treeviz, ast-position"
+            echo "  --remove-all       Remove all *.ast.* files (both xml and treeviz)"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Convert format to file extension
+# Pattern: <original>.ast.<format>
+# ast-tag -> format is "xml" -> .ast.xml
+# ast-treeviz -> format is "treeviz" -> .ast.treeviz
+# ast-position -> format is "position" -> .ast.position
+if [[ "$FORMAT" =~ ^ast- ]]; then
+    # Extract the part after "ast-"
+    FORMAT_SUFFIX="${FORMAT#ast-}"
+    # Special case: tag -> xml
+    if [ "$FORMAT_SUFFIX" = "tag" ]; then
+        FORMAT_SUFFIX="xml"
+    fi
+    EXTENSION=".ast.${FORMAT_SUFFIX}"
+else
+    # Fallback: use the format as-is
+    EXTENSION=".ast.${FORMAT}"
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -35,6 +88,8 @@ cleanup() {
 trap cleanup EXIT
 
 echo "🔍 Finding all .txxt files in docs/specs/v1..."
+echo "📋 Format: $FORMAT"
+echo ""
 
 # Count files first
 TXXT_COUNT=$(find "$SPECS_DIR" -type f -name "*.txxt" 2>/dev/null | wc -l | tr -d ' ')
@@ -47,15 +102,28 @@ fi
 echo "📝 Found $TXXT_COUNT .txxt file(s) to process"
 echo ""
 
-# Clean up existing .ast.xml files
-echo "🧹 Cleaning up existing .ast.xml files..."
-AST_XML_COUNT=$(find "$SPECS_DIR" -type f -name "*.ast.xml" 2>/dev/null | wc -l | tr -d ' ')
-
-if [ "$AST_XML_COUNT" -gt "0" ]; then
-    find "$SPECS_DIR" -type f -name "*.ast.xml" -delete
-    echo "   Removed $AST_XML_COUNT existing .ast.xml file(s)"
+# Clean up existing files
+if [ "$REMOVE_ALL" = true ]; then
+    echo "🧹 Removing all *.ast.* files..."
+    ALL_AST_COUNT=$(find "$SPECS_DIR" -type f -name "*.ast.*" 2>/dev/null | wc -l | tr -d ' ')
+    
+    if [ "$ALL_AST_COUNT" -gt "0" ]; then
+        find "$SPECS_DIR" -type f -name "*.ast.*" -delete
+        echo "   Removed $ALL_AST_COUNT existing *.ast.* file(s)"
+    else
+        echo "   No existing *.ast.* files to remove"
+    fi
 else
-    echo "   No existing .ast.xml files to remove"
+    # Clean up existing files with the target extension only
+    echo "🧹 Cleaning up existing *${EXTENSION} files..."
+    AST_XML_COUNT=$(find "$SPECS_DIR" -type f -name "*${EXTENSION}" 2>/dev/null | wc -l | tr -d ' ')
+    
+    if [ "$AST_XML_COUNT" -gt "0" ]; then
+        find "$SPECS_DIR" -type f -name "*${EXTENSION}" -delete
+        echo "   Removed $AST_XML_COUNT existing *${EXTENSION} file(s)"
+    else
+        echo "   No existing *${EXTENSION} files to remove"
+    fi
 fi
 echo ""
 
@@ -67,13 +135,13 @@ find "$SPECS_DIR" -type f -name "*.txxt" | sort | while read -r TXXT_FILE; do
     # Get relative path from project root
     REL_PATH="${TXXT_FILE#$PROJECT_ROOT/}"
     
-    # Calculate output path: same path but with .ast.xml extension
-    OUTPUT_FILE="${TXXT_FILE}.ast.xml"
+    # Calculate output path: same path but with the format-specific extension
+    OUTPUT_FILE="${TXXT_FILE}${EXTENSION}"
     
     echo -n "Processing: $REL_PATH ... "
     
     # Run the cargo command and capture output and exit code
-    OUTPUT=$(cargo run --bin txxt -- "$TXXT_FILE" ast-tag 2>&1) && EXIT_CODE=0 || EXIT_CODE=$?
+    OUTPUT=$(cargo run --bin txxt -- "$TXXT_FILE" "$FORMAT" 2>&1) && EXIT_CODE=0 || EXIT_CODE=$?
     
     if [ $EXIT_CODE -eq 0 ]; then
         # Command succeeded, save output to file
