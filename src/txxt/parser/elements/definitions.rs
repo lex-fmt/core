@@ -7,7 +7,7 @@ use chumsky::prelude::*;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::position::SourceLocation;
+use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{ContentItem, Definition, Location, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{definition_subject, token};
