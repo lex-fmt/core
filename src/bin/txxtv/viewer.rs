@@ -169,8 +169,7 @@ impl Viewer for FileViewer {
                     for (col_idx, ch) in chars.iter().enumerate() {
                         if col_idx == self.cursor_col {
                             // Highlight the cursor character
-                            spans
-                                .push(Span::styled(ch.to_string(), theme.file_viewer_cursor_style));
+                            spans.push(Span::styled(ch.to_string(), theme.file_viewer_cursor()));
                         } else {
                             spans.push(Span::raw(ch.to_string()));
                         }
@@ -178,7 +177,7 @@ impl Viewer for FileViewer {
 
                     // Handle case where cursor is at end of line
                     if self.cursor_col >= chars.len() {
-                        spans.push(Span::styled(" ", theme.file_viewer_cursor_style));
+                        spans.push(Span::styled(" ", theme.file_viewer_cursor()));
                     }
 
                     Line::from(spans)
@@ -189,7 +188,7 @@ impl Viewer for FileViewer {
             })
             .collect();
 
-        let paragraph = Paragraph::new(lines).style(theme.file_viewer_normal_style);
+        let paragraph = Paragraph::new(lines).style(theme.file_viewer_text());
         frame.render_widget(paragraph, area);
     }
 
@@ -346,9 +345,9 @@ impl Viewer for TreeViewer {
 
                 // Style the line - highlight if it matches the current selection
                 if Some(node.node_id) == highlighted_node_id {
-                    Line::from(text).style(theme.tree_selected_style)
+                    Line::from(text).style(theme.tree_viewer_selected())
                 } else {
-                    Line::from(text).style(theme.tree_normal_style)
+                    Line::from(text).style(theme.tree_viewer_normal())
                 }
             })
             .collect();

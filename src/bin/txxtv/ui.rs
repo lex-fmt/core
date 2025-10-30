@@ -53,13 +53,13 @@ fn render_error_too_narrow(frame: &mut Frame, area: Rect, theme: &Theme) {
         "Terminal too narrow: {} < {} chars",
         area.width, MIN_TERMINAL_WIDTH
     );
-    let paragraph = Paragraph::new(msg).style(theme.error_style);
+    let paragraph = Paragraph::new(msg).style(theme.error_message());
     frame.render_widget(paragraph, area);
 }
 
 fn render_title_bar(frame: &mut Frame, area: Rect, file_name: &str, theme: &Theme) {
     let title = format!("txxt:: {}", file_name);
-    let paragraph = Paragraph::new(title).style(theme.title_bar_style);
+    let paragraph = Paragraph::new(title).style(theme.title_bar());
     frame.render_widget(paragraph, area);
 }
 
@@ -131,15 +131,15 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
 
     match app.model.selection() {
         Selection::TreeSelection(node_id) => {
-            spans.push(Span::styled("MODE: ", theme.info_panel_mode_tree_style));
+            spans.push(Span::styled("MODE: ", theme.info_panel_mode_tree()));
             spans.push(Span::raw("Tree Selection\n"));
 
             let path = node_id.path();
             if path.is_empty() {
-                spans.push(Span::styled("Selection: ", theme.info_panel_label_style));
+                spans.push(Span::styled("Selection: ", theme.info_panel_label()));
                 spans.push(Span::raw("Root (Document)\n"));
             } else {
-                spans.push(Span::styled("Path: ", theme.info_panel_label_style));
+                spans.push(Span::styled("Path: ", theme.info_panel_label()));
                 let path_str = path
                     .iter()
                     .map(|i| i.to_string())
@@ -149,7 +149,7 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
 
                 // Show if node is expanded
                 let is_expanded = app.model.is_node_expanded(node_id);
-                spans.push(Span::styled("State: ", theme.info_panel_label_style));
+                spans.push(Span::styled("State: ", theme.info_panel_label()));
                 spans.push(Span::raw(if is_expanded {
                     "Expanded\n"
                 } else {
@@ -158,15 +158,15 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
             }
         }
         Selection::TextSelection(row, col) => {
-            spans.push(Span::styled("MODE: ", theme.info_panel_mode_text_style));
+            spans.push(Span::styled("MODE: ", theme.info_panel_mode_text()));
             spans.push(Span::raw("Text Selection\n"));
 
-            spans.push(Span::styled("Cursor: ", theme.info_panel_label_style));
+            spans.push(Span::styled("Cursor: ", theme.info_panel_label()));
             spans.push(Span::raw(format!("line {}, col {}\n", row, col)));
 
             if let Some(node_id) = app.model.get_node_at_position(row, col) {
                 let path = node_id.path();
-                spans.push(Span::styled("Node: ", theme.info_panel_label_style));
+                spans.push(Span::styled("Node: ", theme.info_panel_label()));
 
                 if path.is_empty() {
                     spans.push(Span::raw("Root (Document)\n"));
@@ -181,7 +181,7 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
 
                 // Show if node is expanded
                 let is_expanded = app.model.is_node_expanded(node_id);
-                spans.push(Span::styled("State: ", theme.info_panel_label_style));
+                spans.push(Span::styled("State: ", theme.info_panel_label()));
                 spans.push(Span::raw(if is_expanded {
                     "Expanded"
                 } else {
@@ -198,7 +198,7 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
                 .title(title)
                 .border_type(ratatui::widgets::BorderType::Rounded),
         )
-        .style(theme.info_panel_bg_style);
+        .style(theme.info_panel_bg());
 
     frame.render_widget(paragraph, area);
 }
