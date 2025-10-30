@@ -6,7 +6,7 @@
 //! - Middle section (responsive height):
 //!   - Tree viewer (30 chars, fixed width)
 //!   - File viewer (remaining space)
-//! - Info panel (11 lines, fixed)
+//! - Status line (1 line, fixed)
 
 use super::app::App;
 use super::model::Focus;
@@ -20,8 +20,8 @@ use ratatui::Frame;
 const MIN_TERMINAL_WIDTH: u16 = 50;
 /// Width allocated to the tree viewer
 const TREE_VIEWER_WIDTH: u16 = 30;
-/// Height of the info panel
-const INFO_PANEL_HEIGHT: u16 = 11;
+/// Height of the status line
+const STATUS_LINE_HEIGHT: u16 = 1;
 
 /// Render the entire UI
 pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
@@ -33,13 +33,13 @@ pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
         return;
     }
 
-    // Split layout vertically: title, middle (with tree|file), info panel
+    // Split layout vertically: title, middle (with tree|file), status line
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),                 // Title bar
-            Constraint::Min(3),                    // Middle (tree|file)
-            Constraint::Length(INFO_PANEL_HEIGHT), // Info panel
+            Constraint::Length(1),                  // Title bar
+            Constraint::Min(1),                     // Middle (tree|file) - expand to fill available space
+            Constraint::Length(STATUS_LINE_HEIGHT), // Status line
         ])
         .split(size);
 
@@ -229,8 +229,8 @@ mod tests {
     }
 
     #[test]
-    fn test_info_panel_height_constant() {
-        assert_eq!(INFO_PANEL_HEIGHT, 11);
+    fn test_status_line_height_constant() {
+        assert_eq!(STATUS_LINE_HEIGHT, 1);
     }
 
     #[test]
