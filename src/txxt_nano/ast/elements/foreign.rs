@@ -1,8 +1,8 @@
 //! Foreign block element definition
 
-use super::super::span::Span;
+use super::super::span::{Position, Span};
 use super::super::text_content::TextContent;
-use super::super::traits::AstNode;
+use super::super::traits::{AstNode, NodeStartLocation};
 use super::annotation::Annotation;
 use std::fmt;
 
@@ -49,6 +49,12 @@ impl AstNode for ForeignBlock {
         } else {
             subject_text.to_string()
         }
+    }
+}
+
+impl NodeStartLocation for ForeignBlock {
+    fn start_location(&self) -> Option<Position> {
+        self.span.map(|s| s.start)
     }
 }
 

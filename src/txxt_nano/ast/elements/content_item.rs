@@ -1,7 +1,7 @@
 //! ContentItem enum definition
 
 use super::super::span::Position;
-use super::super::traits::{AstNode, Container};
+use super::super::traits::{AstNode, Container, NodeStartLocation};
 use super::annotation::Annotation;
 use super::definition::Definition;
 use super::foreign::ForeignBlock;
@@ -218,6 +218,19 @@ impl ContentItem {
         }
 
         Some(results)
+    }
+}
+
+impl NodeStartLocation for ContentItem {
+    fn start_location(&self) -> Option<Position> {
+        match self {
+            ContentItem::Paragraph(p) => p.start_location(),
+            ContentItem::Session(s) => s.start_location(),
+            ContentItem::List(l) => l.start_location(),
+            ContentItem::Definition(d) => d.start_location(),
+            ContentItem::Annotation(a) => a.start_location(),
+            ContentItem::ForeignBlock(fb) => fb.start_location(),
+        }
     }
 }
 

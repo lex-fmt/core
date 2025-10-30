@@ -1,8 +1,8 @@
 //! Paragraph element definition
 
-use super::super::span::Span;
+use super::super::span::{Position, Span};
 use super::super::text_content::TextContent;
-use super::super::traits::{AstNode, TextNode};
+use super::super::traits::{AstNode, NodeStartLocation, TextNode};
 use std::fmt;
 
 /// A paragraph represents a block of text lines
@@ -59,6 +59,12 @@ impl TextNode for Paragraph {
     }
     fn lines(&self) -> &[TextContent] {
         &self.lines
+    }
+}
+
+impl NodeStartLocation for Paragraph {
+    fn start_location(&self) -> Option<Position> {
+        self.span.map(|s| s.start)
     }
 }
 

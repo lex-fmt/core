@@ -1,9 +1,10 @@
 //! List element definition
 
-use super::super::span::Span;
+use super::super::span::{Position, Span};
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
+use super::super::traits::NodeStartLocation;
 use super::content_item::ContentItem;
 use std::fmt;
 
@@ -38,6 +39,12 @@ impl AstNode for List {
     }
     fn display_label(&self) -> String {
         format!("{} items", self.items.len())
+    }
+}
+
+impl NodeStartLocation for List {
+    fn start_location(&self) -> Option<Position> {
+        self.span.map(|s| s.start)
     }
 }
 
@@ -102,6 +109,12 @@ impl Container for ListItem {
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
         &mut self.content
+    }
+}
+
+impl NodeStartLocation for ListItem {
+    fn start_location(&self) -> Option<Position> {
+        self.span.map(|s| s.start)
     }
 }
 

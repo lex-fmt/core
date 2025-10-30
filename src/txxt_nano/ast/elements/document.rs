@@ -1,6 +1,7 @@
 //! Document element definition
 
 use super::super::span::{Position, Span};
+use super::super::traits::NodeStartLocation;
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
 use super::foreign::ForeignBlock;
@@ -86,6 +87,12 @@ impl Document {
             }
         }
         results
+    }
+}
+
+impl NodeStartLocation for Document {
+    fn start_location(&self) -> Option<Position> {
+        self.span.map(|s| s.start)
     }
 }
 

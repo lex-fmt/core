@@ -1,7 +1,7 @@
 //! Annotation element definition
 
-use super::super::span::Span;
-use super::super::traits::{AstNode, Container};
+use super::super::span::{Position, Span};
+use super::super::traits::{AstNode, Container, NodeStartLocation};
 use super::content_item::ContentItem;
 use super::label::Label;
 use super::parameter::Parameter;
@@ -69,6 +69,12 @@ impl Container for Annotation {
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
         &mut self.content
+    }
+}
+
+impl NodeStartLocation for Annotation {
+    fn start_location(&self) -> Option<Position> {
+        self.span.map(|s| s.start)
     }
 }
 

@@ -1,8 +1,8 @@
 //! Session element definition
 
-use super::super::span::Span;
+use super::super::span::{Position, Span};
 use super::super::text_content::TextContent;
-use super::super::traits::{AstNode, Container};
+use super::super::traits::{AstNode, Container, NodeStartLocation};
 use super::content_item::ContentItem;
 use std::fmt;
 
@@ -53,6 +53,12 @@ impl Container for Session {
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
         &mut self.content
+    }
+}
+
+impl NodeStartLocation for Session {
+    fn start_location(&self) -> Option<Position> {
+        self.span.map(|s| s.start)
     }
 }
 

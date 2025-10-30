@@ -31,4 +31,4 @@ pub use lookup::format_at_position;
 pub use position::SourceLocation;
 pub use span::{Position, Span};
 pub use text_content::TextContent;
-pub use traits::{AstNode, Container, TextNode};
+pub use traits::{AstNode, Container, NodeStartLocation, TextNode};
