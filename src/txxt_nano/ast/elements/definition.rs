@@ -47,6 +47,9 @@ impl AstNode for Definition {
             subject_text.to_string()
         }
     }
+    fn span(&self) -> Option<Span> {
+        self.span
+    }
 }
 
 impl Container for Definition {
