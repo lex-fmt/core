@@ -26,17 +26,21 @@ pub struct App {
 
     /// Whether the app should quit
     pub should_quit: bool,
+
+    /// The raw file content
+    pub file_content: String,
 }
 
 impl App {
-    /// Create a new application with a model
-    pub fn new(model: Model) -> Self {
+    /// Create a new application with a model and file content
+    pub fn new(model: Model, content: String) -> Self {
         App {
             model,
-            file_viewer: FileViewer::new(),
+            file_viewer: FileViewer::new(content.clone()),
             tree_viewer: TreeViewer::new(),
             focus: Focus::default(),
             should_quit: false,
+            file_content: content,
         }
     }
 
@@ -116,9 +120,10 @@ mod tests {
 
     #[test]
     fn test_app_creation() {
-        let doc = txxt_nano::txxt_nano::parser::parse_document("test").unwrap();
+        let content = "test".to_string();
+        let doc = txxt_nano::txxt_nano::parser::parse_document(&content).unwrap();
         let model = Model::new(doc);
-        let app = App::new(model);
+        let app = App::new(model, content);
 
         assert_eq!(app.focus, Focus::FileViewer);
         assert!(!app.should_quit);
@@ -126,9 +131,10 @@ mod tests {
 
     #[test]
     fn test_focus_toggle() {
-        let doc = txxt_nano::txxt_nano::parser::parse_document("test").unwrap();
+        let content = "test".to_string();
+        let doc = txxt_nano::txxt_nano::parser::parse_document(&content).unwrap();
         let model = Model::new(doc);
-        let mut app = App::new(model);
+        let mut app = App::new(model, content);
 
         assert_eq!(app.focus, Focus::FileViewer);
 
