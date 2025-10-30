@@ -7,10 +7,14 @@ use chumsky::prelude::*;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::{Annotation, ContentItem, ForeignBlock, Label, Paragraph, TextContent};
+use crate::txxt::ast::location::SourceLocation;
+use crate::txxt::ast::{
+    Annotation, ContentItem, ForeignBlock, Label, Location, Paragraph, TextContent,
+};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    annotation_header, definition_subject, extract_text_from_locations, text_line, token,
+    annotation_header, compute_byte_range_bounds, compute_location_from_optional_locations,
+    definition_subject, extract_text_from_locations, text_line, token, AnnotationHeader,
 };
 
 /// Type alias for token with location
@@ -18,6 +22,15 @@ type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
+
+/// Helper: convert a byte range to a location using source location
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
+    if range.start > range.end {
+        return None;
+    }
+    let source_loc = SourceLocation::new(source);
+    Some(source_loc.range_to_location(range))
+}
 
 /// Parse a foreign block
 /// Phase 4: Now builds final ForeignBlock type directly
@@ -65,29 +78,45 @@ pub(crate) fn foreign_block(
         .ignore_then(annotation_header(source_for_annotation.clone()))
         .then_ignore(token(Token::TxxtMarker))
         .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
-        .map(
-            move |((label_opt, _label_location, parameters), content_location)| {
-                // Build Annotation from extracted label and parameters
-                let label = Label::new(label_opt.unwrap_or_default());
+        .map(move |(header_info, content_location)| {
+            let AnnotationHeader {
+                label,
+                label_range,
+                parameters,
+                header_range,
+            } = header_info;
 
-                let content = content_location
-                    .map(|locations| {
-                        let text = extract_text_from_locations(&source_for_annotation, &locations);
-                        vec![ContentItem::Paragraph(Paragraph {
-                            lines: vec![TextContent::from_string(text, None)],
-                            location: None,
-                        })]
-                    })
-                    .unwrap_or_default();
+            let label_text = label.unwrap_or_default();
+            let label_location = label_range
+                .and_then(|range| byte_range_to_location(&source_for_annotation, &range));
+            let label = Label::new(label_text).with_location(label_location);
 
-                Annotation {
-                    label,
-                    parameters,
-                    content,
-                    location: None,
-                }
-            },
-        );
+            let (content, paragraph_location) = if let Some(locations) = content_location {
+                let text = extract_text_from_locations(&source_for_annotation, &locations);
+                let range = compute_byte_range_bounds(&locations);
+                let paragraph_location = byte_range_to_location(&source_for_annotation, &range);
+                let text_content = TextContent::from_string(text, paragraph_location);
+                let paragraph = Paragraph {
+                    lines: vec![text_content],
+                    location: paragraph_location,
+                };
+                (vec![ContentItem::Paragraph(paragraph)], paragraph_location)
+            } else {
+                (vec![], None)
+            };
+
+            let header_location = byte_range_to_location(&source_for_annotation, &header_range);
+
+            let location_sources = vec![header_location, label_location, paragraph_location];
+            let location = compute_location_from_optional_locations(&location_sources);
+
+            Annotation {
+                label,
+                parameters,
+                content,
+                location,
+            }
+        });
 
     subject_parser
         .then_ignore(token(Token::BlankLine).repeated())
@@ -95,16 +124,36 @@ pub(crate) fn foreign_block(
         .then(closing_annotation_parser)
         .then_ignore(token(Token::Newline).or_not())
         .map(
-            move |(((subject_text, _subject_location), content_locations), closing_annotation)| {
-                let content = content_locations
-                    .map(|locations| extract_text_from_locations(&source, &locations))
-                    .unwrap_or_default();
+            move |(((subject_text, subject_location), content_locations), closing_annotation)| {
+                let subject_location = byte_range_to_location(&source, &subject_location);
+                let subject = TextContent::from_string(subject_text, subject_location);
+
+                let (content_text, content_location) = if let Some(locations) = content_locations {
+                    if locations.is_empty() {
+                        (String::new(), None)
+                    } else {
+                        let text = extract_text_from_locations(&source, &locations);
+                        let range = compute_byte_range_bounds(&locations);
+                        let location = byte_range_to_location(&source, &range);
+                        (text, location)
+                    }
+                } else {
+                    (String::new(), None)
+                };
+
+                let content = TextContent::from_string(content_text, content_location);
+                let location_sources = vec![
+                    subject_location,
+                    content_location,
+                    closing_annotation.location,
+                ];
+                let location = compute_location_from_optional_locations(&location_sources);
 
                 ForeignBlock {
-                    subject: TextContent::from_string(subject_text, None),
-                    content: TextContent::from_string(content, None),
+                    subject,
+                    content,
                     closing_annotation,
-                    location: None,
+                    location,
                 }
             },
         )
