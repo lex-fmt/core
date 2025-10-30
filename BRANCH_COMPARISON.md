@@ -53,8 +53,8 @@ pub fn format_at_position(
 
 **Removed Files:**
 
-- `src/txxt_nano/ast/lookup/by_position.rs` (281 lines)
-- `src/txxt_nano/ast/lookup/mod.rs` (7 lines)
+- `src/txxt/ast/lookup/by_position.rs` (281 lines)
+- `src/txxt/ast/lookup/mod.rs` (7 lines)
 
 **Functions Removed:**
 

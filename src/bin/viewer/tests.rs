@@ -28,8 +28,8 @@ impl TestApp {
 
     /// Create a test app with specific content
     pub fn with_content(content: &str) -> Self {
-        let document = txxt_nano::txxt_nano::parser::parse_document(content)
-            .expect("Failed to parse test document");
+        let document =
+            txxt::txxt::parser::parse_document(content).expect("Failed to parse test document");
         let model = Model::new(document);
         let app = App::new(model, content.to_string());
 
@@ -441,7 +441,7 @@ fn test_tree_selection_emits_select_node_event() {
 
 #[test]
 fn test_nested_elements_have_location_information() {
-    // ISSUE: The txxt_nano parser does not set location information on nested elements.
+    // ISSUE: The txxt parser does not set location information on nested elements.
     // This causes txxt to be unable to highlight tree nodes when the cursor is on
     // their text in the file viewer, because get_node_at_position() relies on
     // document.elements_at() which depends on location information.
@@ -484,7 +484,7 @@ fn test_nested_elements_have_location_information() {
         assert!(
             child_location.is_some(),
             "Nested element {:?} should have location information, but it doesn't. \
-             This is a txxt_nano parser issue: location information is not set on nested elements.",
+             This is a txxt parser issue: location information is not set on nested elements.",
             child_node_id.path()
         );
     } else {
@@ -528,7 +528,7 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
                 );
 
                 // Try to find the node using document.elements_at
-                use txxt_nano::txxt_nano::ast::location::Position;
+                use txxt::txxt::ast::location::Position;
                 let pos = Position::new(location.start.line, location.start.column);
                 let elements = app.app().model.document.elements_at(pos);
                 // Verify document.elements_at() now finds nested elements

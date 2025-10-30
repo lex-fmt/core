@@ -18,7 +18,7 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
-use txxt_nano::txxt_nano::parser::parse_document;
+use txxt::txxt::parser::parse_document;
 
 use super::model::NodeId;
 

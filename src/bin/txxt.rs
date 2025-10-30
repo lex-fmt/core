@@ -11,7 +11,7 @@ mod viewer;
 use clap::{Arg, Command};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use txxt_nano::txxt_nano::processor::{available_formats, ProcessingError};
+use txxt::txxt::processor::{available_formats, ProcessingError};
 
 fn main() {
     // Parse arguments manually to handle --extras-* arguments that clap doesn't know about
@@ -175,6 +175,6 @@ fn process_file_with_format(
     format_str: &str,
     extras: HashMap<String, String>,
 ) -> Result<String, ProcessingError> {
-    let spec = txxt_nano::txxt_nano::processor::ProcessingSpec::from_string(format_str)?;
-    txxt_nano::txxt_nano::processor::process_file_with_extras(path, &spec, extras)
+    let spec = txxt::txxt::processor::ProcessingSpec::from_string(format_str)?;
+    txxt::txxt::processor::process_file_with_extras(path, &spec, extras)
 }
