@@ -13,7 +13,6 @@ use ratatui::layout::Rect;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
 use ratatui::Frame;
-use txxt_nano::txxt_nano::formats::treeviz::to_treeviz_str;
 
 /// Events that can be emitted by viewers
 ///
@@ -145,14 +144,48 @@ impl FileViewer {
 
 impl Viewer for FileViewer {
     fn render(&self, frame: &mut Frame, area: Rect, _model: &Model) {
-        // Display the file content line by line
+        use ratatui::style::{Color, Modifier, Style};
+        use ratatui::text::Span;
+
+        // Display the file content line by line, highlighting cursor position
         let lines: Vec<Line> = self
             .content
             .lines()
-            .map(|line_text| {
-                // For now, just display the text
-                // Cursor highlighting will be added in a future step
-                Line::from(line_text.to_string())
+            .enumerate()
+            .map(|(row_idx, line_text)| {
+                if row_idx == self.cursor_row {
+                    // This is the row with the cursor - render with cursor highlight
+                    let mut spans = Vec::new();
+                    let chars: Vec<char> = line_text.chars().collect();
+
+                    for (col_idx, ch) in chars.iter().enumerate() {
+                        if col_idx == self.cursor_col {
+                            // Highlight the cursor character
+                            spans.push(Span::styled(
+                                ch.to_string(),
+                                Style::default()
+                                    .bg(Color::Yellow)
+                                    .fg(Color::Black)
+                                    .add_modifier(Modifier::BOLD),
+                            ));
+                        } else {
+                            spans.push(Span::raw(ch.to_string()));
+                        }
+                    }
+
+                    // Handle case where cursor is at end of line
+                    if self.cursor_col >= chars.len() {
+                        spans.push(Span::styled(
+                            " ",
+                            Style::default().bg(Color::Yellow).fg(Color::Black),
+                        ));
+                    }
+
+                    Line::from(spans)
+                } else {
+                    // Regular line without cursor
+                    Line::from(line_text.to_string())
+                }
             })
             .collect();
 
@@ -277,13 +310,42 @@ impl Default for TreeViewer {
 
 impl Viewer for TreeViewer {
     fn render(&self, frame: &mut Frame, area: Rect, model: &Model) {
-        // Use treeviz to render the document as an ASCII tree
-        let tree_str = to_treeviz_str(&model.document);
+        use ratatui::style::{Color, Modifier, Style};
 
-        // Convert tree string to lines for rendering
-        let lines: Vec<Line> = tree_str
-            .lines()
-            .map(|line_text| Line::from(line_text.to_string()))
+        // Get the flattened tree for rendering
+        let flattened = model.flattened_tree();
+        let selected_node_id = model.get_selected_node_id();
+
+        // Build lines from the flattened tree
+        let lines: Vec<Line> = flattened
+            .iter()
+            .map(|node| {
+                // Build indentation based on depth
+                let indent = "  ".repeat(node.depth);
+
+                // Build the node label with tree characters
+                // Note: In Step 9.5, this will be refined to show different prefixes
+                // based on expansion state (e.g., "▼ " vs "▶ " for expanded/collapsed)
+                let prefix = if node.has_children {
+                    "├─ "
+                } else {
+                    "└─ "
+                };
+
+                let text = format!("{}{}{}", indent, prefix, node.label);
+
+                // Style the line - highlight if selected
+                if Some(node.node_id) == selected_node_id {
+                    Line::from(text).style(
+                        Style::default()
+                            .bg(Color::Blue)
+                            .fg(Color::White)
+                            .add_modifier(Modifier::BOLD),
+                    )
+                } else {
+                    Line::from(text)
+                }
+            })
             .collect();
 
         // Create a paragraph widget to display the tree
