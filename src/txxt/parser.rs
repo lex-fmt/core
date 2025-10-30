@@ -25,7 +25,7 @@ pub use crate::txxt::ast::{
 
 pub use crate::txxt::formats::{serialize_ast_tag, to_treeviz_str};
 pub use elements::document::document;
-pub use parser::{parse, parse_with_source, parse_with_source_positions};
+pub use parser::parse_with_source;
 
 /// Type alias for parse result with spanned tokens
 type ParseResult = Result<

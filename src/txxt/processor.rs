@@ -203,9 +203,9 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
             format_tokens(&tokens, &spec.format)
         }
         ProcessingStage::Ast => {
-            // Parse the document with position tracking enabled for ast-position format
+            // Parse the document - all documents now include full location information
             let doc = if matches!(spec.format, OutputFormat::AstPosition) {
-                crate::txxt::parser::parse_with_source_positions(
+                crate::txxt::parser::parse_with_source(
                     crate::txxt::lexer::lex_with_locations(&content),
                     &content,
                 )
@@ -504,7 +504,7 @@ pub mod txxt_sources {
 Second paragraph"#;
 
         let tokens = crate::txxt::lexer::lex_with_locations(content);
-        let doc = crate::txxt::parser::parse_with_source_positions(tokens, content).unwrap();
+        let doc = crate::txxt::parser::parse_with_source(tokens, content).unwrap();
 
         // Check if locations are populated
         if let Some(first_item) = doc.content.first() {
