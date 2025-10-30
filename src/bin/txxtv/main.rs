@@ -15,6 +15,9 @@ mod model;
 mod ui;
 mod viewer;
 
+#[cfg(test)]
+mod tests;
+
 use app::App;
 use model::Model;
 
