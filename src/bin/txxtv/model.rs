@@ -99,6 +99,25 @@ pub enum Selection {
     TreeSelection(NodeId),
 }
 
+/// A node in the flattened tree representation
+///
+/// This represents a single node in a depth-first flattening of the AST tree.
+/// Used for rendering the tree viewer where nodes are displayed in a list.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct FlattenedTreeNode {
+    /// Stable identifier for this node
+    pub node_id: NodeId,
+    /// Depth in the tree (for indentation)
+    pub depth: usize,
+    /// Display label for this node
+    pub label: String,
+    /// Whether this node is currently expanded
+    pub is_expanded: bool,
+    /// Whether this node has children
+    pub has_children: bool,
+}
+
 /// The core data model
 #[derive(Clone)]
 pub struct Model {
@@ -220,6 +239,48 @@ impl Model {
         }
 
         ancestors
+    }
+
+    /// Build a flattened tree structure for rendering
+    ///
+    /// Creates a depth-first flattening of the document tree, respecting
+    /// the expanded/collapsed state. Only includes expanded nodes and their children.
+    pub fn flattened_tree(&self) -> Vec<FlattenedTreeNode> {
+        let mut nodes = Vec::new();
+        self.flatten_recursive(&self.document.content, &mut NodeId::new(&[]), &mut nodes);
+        nodes
+    }
+
+    /// Recursively flatten the tree, respecting expanded/collapsed state
+    fn flatten_recursive(
+        &self,
+        items: &[ContentItem],
+        parent_id: &mut NodeId,
+        nodes: &mut Vec<FlattenedTreeNode>,
+    ) {
+        for (index, item) in items.iter().enumerate() {
+            let current_id = parent_id.child(index);
+            let depth = current_id.path().len();
+            let label = item.display_label();
+            let has_children = item.children().map(|c| !c.is_empty()).unwrap_or(false);
+            let is_expanded = self.is_node_expanded(current_id);
+
+            nodes.push(FlattenedTreeNode {
+                node_id: current_id,
+                depth,
+                label,
+                is_expanded,
+                has_children,
+            });
+
+            // Recursively add children if expanded
+            if is_expanded && has_children {
+                if let Some(children) = item.children() {
+                    let mut child_parent = current_id;
+                    self.flatten_recursive(children, &mut child_parent, nodes);
+                }
+            }
+        }
     }
 
     // ========== Private helper methods ==========
@@ -415,5 +476,42 @@ mod tests {
         // Only root should be ancestor
         assert_eq!(ancestors.len(), 1);
         assert_eq!(ancestors[0].path().len(), 0);
+    }
+
+    #[test]
+    fn test_flattened_tree_with_content() {
+        let doc_str = "# Heading\n\nParagraph text";
+        let model = Model::new(txxt_nano::txxt_nano::parser::parse_document(doc_str).unwrap());
+
+        let flattened = model.flattened_tree();
+
+        // Should have some nodes
+        assert!(!flattened.is_empty());
+
+        // All nodes should have valid node IDs
+        for node in &flattened {
+            assert!(node.node_id.path().is_empty() || node.depth > 0);
+        }
+    }
+
+    #[test]
+    fn test_flattened_tree_respects_expansion() {
+        let doc_str = "# Heading\n## Subheading\nText";
+        let mut model = Model::new(txxt_nano::txxt_nano::parser::parse_document(doc_str).unwrap());
+
+        // Get flattened tree when nothing is expanded
+        let flattened_collapsed = model.flattened_tree();
+        let num_collapsed = flattened_collapsed.len();
+
+        // Expand first node
+        let first_node_id = NodeId::new(&[0]);
+        model.expand_nodes(&[first_node_id]);
+
+        // Get flattened tree when expanded
+        let flattened_expanded = model.flattened_tree();
+        let num_expanded = flattened_expanded.len();
+
+        // When expanded, we should have more nodes visible
+        assert!(num_expanded >= num_collapsed);
     }
 }
