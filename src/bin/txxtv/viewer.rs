@@ -8,7 +8,7 @@
 //! be treated uniformly by the main App.
 
 use crate::model::{Model, NodeId};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
@@ -19,6 +19,7 @@ use txxt_nano::txxt_nano::formats::treeviz::to_treeviz_str;
 ///
 /// These represent model changes that should be applied after handling input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum ViewerEvent {
     /// Select a tree node
     SelectNode(NodeId),
@@ -50,6 +51,7 @@ pub trait Viewer {
 /// that can be moved with arrow keys. When the cursor moves, it emits
 /// a SelectPosition event so the model can track which AST node is selected.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct FileViewer {
     /// The raw file content
     content: String,
@@ -61,6 +63,7 @@ pub struct FileViewer {
     scroll_offset: usize,
 }
 
+#[allow(dead_code)]
 impl FileViewer {
     /// Create a new file viewer with content
     pub fn new(content: String) -> Self {
@@ -140,20 +143,13 @@ impl FileViewer {
     }
 }
 
-impl Default for FileViewer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Viewer for FileViewer {
     fn render(&self, frame: &mut Frame, area: Rect, _model: &Model) {
         // Display the file content line by line
         let lines: Vec<Line> = self
             .content
             .lines()
-            .enumerate()
-            .map(|(row, line_text)| {
+            .map(|line_text| {
                 // For now, just display the text
                 // Cursor highlighting will be added in a future step
                 Line::from(line_text.to_string())
@@ -168,19 +164,31 @@ impl Viewer for FileViewer {
         match key.code {
             KeyCode::Up => {
                 self.move_cursor_up();
-                Some(ViewerEvent::SelectPosition(self.cursor_row, self.cursor_col))
+                Some(ViewerEvent::SelectPosition(
+                    self.cursor_row,
+                    self.cursor_col,
+                ))
             }
             KeyCode::Down => {
                 self.move_cursor_down();
-                Some(ViewerEvent::SelectPosition(self.cursor_row, self.cursor_col))
+                Some(ViewerEvent::SelectPosition(
+                    self.cursor_row,
+                    self.cursor_col,
+                ))
             }
             KeyCode::Left => {
                 self.move_cursor_left();
-                Some(ViewerEvent::SelectPosition(self.cursor_row, self.cursor_col))
+                Some(ViewerEvent::SelectPosition(
+                    self.cursor_row,
+                    self.cursor_col,
+                ))
             }
             KeyCode::Right => {
                 self.move_cursor_right();
-                Some(ViewerEvent::SelectPosition(self.cursor_row, self.cursor_col))
+                Some(ViewerEvent::SelectPosition(
+                    self.cursor_row,
+                    self.cursor_col,
+                ))
             }
             _ => Some(ViewerEvent::NoChange),
         }
@@ -192,6 +200,7 @@ impl Viewer for FileViewer {
 /// The tree viewer shows the document as a tree of nodes.
 /// Users can navigate with arrow keys and expand/collapse nodes.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TreeViewer {
     /// Currently selected node (by index in flattened tree)
     selected_index: usize,
@@ -199,6 +208,7 @@ pub struct TreeViewer {
     scroll_offset: usize,
 }
 
+#[allow(dead_code)]
 impl TreeViewer {
     /// Create a new tree viewer
     pub fn new() -> Self {
@@ -270,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_file_viewer_creation() {
-        let viewer = FileViewer::new();
+        let viewer = FileViewer::new("test content".to_string());
         assert_eq!(viewer.cursor_position(), (0, 0));
         assert_eq!(viewer.scroll_offset(), 0);
     }

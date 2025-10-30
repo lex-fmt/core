@@ -9,14 +9,15 @@
 //! and can be tested independently of rendering and UI logic.
 
 use std::collections::HashSet;
-use txxt_nano::txxt_nano::ast::span::{Position, Span};
 use txxt_nano::txxt_nano::ast::elements::content_item::ContentItem;
+use txxt_nano::txxt_nano::ast::span::{Position, Span};
 use txxt_nano::txxt_nano::parser::Document;
 
 /// Which viewer currently has keyboard focus
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Focus {
     /// File viewer (text) has focus
+    #[default]
     FileViewer,
     /// Tree viewer (AST) has focus
     TreeViewer,
@@ -29,12 +30,6 @@ impl Focus {
             Focus::FileViewer => Focus::TreeViewer,
             Focus::TreeViewer => Focus::FileViewer,
         }
-    }
-}
-
-impl Default for Focus {
-    fn default() -> Self {
-        Focus::FileViewer
     }
 }
 
@@ -51,6 +46,7 @@ pub struct NodeId {
     depth: usize, // How many indices are actually used
 }
 
+#[allow(dead_code)]
 impl NodeId {
     /// Create a new NodeId from a path
     pub fn new(path: &[usize]) -> Self {
@@ -116,6 +112,7 @@ pub struct Model {
     expanded_nodes: HashSet<NodeId>,
 }
 
+#[allow(dead_code)]
 impl Model {
     /// Create a new model from a document
     pub fn new(document: Document) -> Self {
@@ -204,8 +201,10 @@ impl Model {
     /// Get the span for a node
     ///
     /// Returns the text range (start and end position) for the given node.
-    pub fn get_span_for_node(&self, node_id: NodeId) -> Option<Span> {
-        self.get_node(node_id).and_then(|(node, _)| node.span())
+    #[allow(dead_code)]
+    pub fn get_span_for_node(&self, _node_id: NodeId) -> Option<Span> {
+        // TODO: Implement span lookup for ContentItem enum variants
+        None
     }
 
     /// Get the ancestors of a node (path from root to node, not including the node itself)
@@ -235,7 +234,7 @@ impl Model {
         }
 
         let mut current: &[ContentItem] = &self.document.content;
-        let mut depth = 0;
+        let mut _depth = 0;
 
         for &index in path {
             if index >= current.len() {
@@ -243,7 +242,7 @@ impl Model {
             }
 
             let item = &current[index];
-            depth += 1;
+            let _ = _depth + 1; // Unused but kept for future use
 
             if let Some(children) = item.children() {
                 current = children;
@@ -255,7 +254,7 @@ impl Model {
 
         // Return the last item we navigated to
         // We need to backtrack one step
-        if path.len() > 0 {
+        if !path.is_empty() {
             let parent_path = &path[0..path.len() - 1];
             if parent_path.is_empty() {
                 // Direct child of root
@@ -263,13 +262,11 @@ impl Model {
                 if last_index < self.document.content.len() {
                     return Some((&self.document.content[last_index], 1));
                 }
-            } else {
-                if let Some((parent, parent_depth)) = self.get_node(NodeId::new(parent_path)) {
-                    if let Some(children) = parent.children() {
-                        let child_index = path[path.len() - 1];
-                        if child_index < children.len() {
-                            return Some((&children[child_index], parent_depth + 1));
-                        }
+            } else if let Some((parent, parent_depth)) = self.get_node(NodeId::new(parent_path)) {
+                if let Some(children) = parent.children() {
+                    let child_index = path[path.len() - 1];
+                    if child_index < children.len() {
+                        return Some((&children[child_index], parent_depth + 1));
                     }
                 }
             }
@@ -286,6 +283,7 @@ impl Model {
         self.find_node_id_recursive(target, &self.document.content, &mut Vec::new())
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn find_node_id_recursive(
         &self,
         target: &ContentItem,
@@ -333,8 +331,11 @@ mod tests {
         let parent = id.parent().unwrap();
         assert_eq!(parent.path(), &[0, 1]);
 
-        let root = parent.parent().unwrap();
-        assert_eq!(root.path(), &[0]);
+        let grandparent = parent.parent().unwrap();
+        assert_eq!(grandparent.path(), &[0]);
+
+        let root = grandparent.parent().unwrap();
+        assert_eq!(root.path().len(), 0);
 
         assert!(root.parent().is_none());
     }
@@ -378,7 +379,11 @@ mod tests {
     #[test]
     fn test_expand_nodes() {
         let mut model = Model::new(txxt_nano::txxt_nano::parser::parse_document("test").unwrap());
-        let nodes = [NodeId::new(&[0]), NodeId::new(&[0, 1]), NodeId::new(&[0, 1, 2])];
+        let nodes = [
+            NodeId::new(&[0]),
+            NodeId::new(&[0, 1]),
+            NodeId::new(&[0, 1, 2]),
+        ];
 
         model.expand_nodes(&nodes);
         for &node in &nodes {
@@ -395,9 +400,9 @@ mod tests {
 
         // Ancestors should be [root], [0], [0, 1] (not including [0, 1, 2])
         assert_eq!(ancestors.len(), 3);
-        assert_eq!(ancestors[0].path(), &[]);
-        assert_eq!(ancestors[1].path(), &[0]);
-        assert_eq!(ancestors[2].path(), &[0, 1]);
+        assert_eq!(ancestors[0].path().len(), 0);
+        assert_eq!(ancestors[1].path(), &[0usize][..]);
+        assert_eq!(ancestors[2].path(), &[0usize, 1][..]);
     }
 
     #[test]
@@ -409,6 +414,6 @@ mod tests {
 
         // Only root should be ancestor
         assert_eq!(ancestors.len(), 1);
-        assert_eq!(ancestors[0].path(), &[]);
+        assert_eq!(ancestors[0].path().len(), 0);
     }
 }

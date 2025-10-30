@@ -10,9 +10,9 @@
 
 use crate::app::App;
 use crate::model::Focus;
+use crate::viewer::Viewer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 
@@ -25,7 +25,7 @@ const INFO_PANEL_HEIGHT: u16 = 11;
 
 /// Render the entire UI
 pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
-    let size = frame.size();
+    let size = frame.area();
 
     // Check minimum width
     if size.width < MIN_TERMINAL_WIDTH {
@@ -37,9 +37,9 @@ pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),                       // Title bar
-            Constraint::Min(3),                          // Middle (tree|file)
-            Constraint::Length(INFO_PANEL_HEIGHT),       // Info panel
+            Constraint::Length(1),                 // Title bar
+            Constraint::Min(3),                    // Middle (tree|file)
+            Constraint::Length(INFO_PANEL_HEIGHT), // Info panel
         ])
         .split(size);
 
@@ -53,11 +53,8 @@ fn render_error_too_narrow(frame: &mut Frame, area: Rect) {
         "Terminal too narrow: {} < {} chars",
         area.width, MIN_TERMINAL_WIDTH
     );
-    let paragraph = Paragraph::new(msg).style(
-        Style::default()
-            .fg(Color::Red)
-            .add_modifier(Modifier::BOLD),
-    );
+    let paragraph =
+        Paragraph::new(msg).style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
     frame.render_widget(paragraph, area);
 }
 
@@ -77,8 +74,8 @@ fn render_middle_section(frame: &mut Frame, area: Rect, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Length(TREE_VIEWER_WIDTH),  // Tree viewer
-            Constraint::Min(1),                      // File viewer
+            Constraint::Length(TREE_VIEWER_WIDTH), // Tree viewer
+            Constraint::Min(1),                    // File viewer
         ])
         .split(area);
 
@@ -94,9 +91,7 @@ fn render_tree_viewer(frame: &mut Frame, area: Rect, app: &App) {
     };
 
     let title = format!("Tree{}", focus_indicator);
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(title);
+    let block = Block::default().borders(Borders::ALL).title(title);
 
     // Get inner area for content (inside the border)
     let inner_area = block.inner(area);
@@ -116,9 +111,7 @@ fn render_file_viewer(frame: &mut Frame, area: Rect, app: &App) {
     };
 
     let title = format!("File{}", focus_indicator);
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(title);
+    let block = Block::default().borders(Borders::ALL).title(title);
 
     // Get inner area for content (inside the border)
     let inner_area = block.inner(area);
@@ -133,11 +126,7 @@ fn render_file_viewer(frame: &mut Frame, area: Rect, app: &App) {
 fn render_info_panel(frame: &mut Frame, area: Rect, _app: &App) {
     let title = "Info";
     let paragraph = Paragraph::new("")
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(title),
-        )
+        .block(Block::default().borders(Borders::ALL).title(title))
         .style(Style::default().bg(Color::Gray));
 
     frame.render_widget(paragraph, area);
