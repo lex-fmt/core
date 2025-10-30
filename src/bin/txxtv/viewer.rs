@@ -10,7 +10,10 @@
 use crate::model::{Model, NodeId};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::Rect;
+use ratatui::text::Line;
+use ratatui::widgets::Paragraph;
 use ratatui::Frame;
+use txxt_nano::txxt_nano::formats::treeviz::to_treeviz_str;
 
 /// Events that can be emitted by viewers
 ///
@@ -144,9 +147,21 @@ impl Default for FileViewer {
 }
 
 impl Viewer for FileViewer {
-    fn render(&self, _frame: &mut Frame, _area: Rect, _model: &Model) {
-        // TODO: implement rendering
-        // For now, this is a placeholder
+    fn render(&self, frame: &mut Frame, area: Rect, _model: &Model) {
+        // Display the file content line by line
+        let lines: Vec<Line> = self
+            .content
+            .lines()
+            .enumerate()
+            .map(|(row, line_text)| {
+                // For now, just display the text
+                // Cursor highlighting will be added in a future step
+                Line::from(line_text.to_string())
+            })
+            .collect();
+
+        let paragraph = Paragraph::new(lines);
+        frame.render_widget(paragraph, area);
     }
 
     fn handle_key(&mut self, key: KeyEvent, _model: &Model) -> Option<ViewerEvent> {
@@ -211,9 +226,19 @@ impl Default for TreeViewer {
 }
 
 impl Viewer for TreeViewer {
-    fn render(&self, _frame: &mut Frame, _area: Rect, _model: &Model) {
-        // TODO: implement rendering
-        // For now, this is a placeholder
+    fn render(&self, frame: &mut Frame, area: Rect, model: &Model) {
+        // Use treeviz to render the document as an ASCII tree
+        let tree_str = to_treeviz_str(&model.document);
+
+        // Convert tree string to lines for rendering
+        let lines: Vec<Line> = tree_str
+            .lines()
+            .map(|line_text| Line::from(line_text.to_string()))
+            .collect();
+
+        // Create a paragraph widget to display the tree
+        let paragraph = Paragraph::new(lines);
+        frame.render_widget(paragraph, area);
     }
 
     fn handle_key(&mut self, key: KeyEvent, _model: &Model) -> Option<ViewerEvent> {
