@@ -9,6 +9,7 @@
 //! immediately following it (after optional whitespace).
 
 use crate::txxt::lexer::Token;
+use chumsky::{prelude::*, Stream};
 use std::ops::Range;
 
 /// Type alias for token with location
@@ -34,58 +35,80 @@ type TokenLocation = (Token, Range<usize>);
 /// :: key=val ::        -> None (this is a parameter, not a label)
 /// ```
 pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range<usize>>, usize) {
-    let mut i = 0;
-
-    // Skip leading whitespace
-    while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-        i += 1;
+    if tokens.is_empty() {
+        return (None, 0);
     }
 
-    if i >= tokens.len() {
-        return (None, i);
-    }
+    type ParserError = Simple<TokenLocation>;
 
-    // Check if first word is a label by looking ahead for '='
-    // A label is: word(s) followed by whitespace/comma (NOT equals)
-    let start = i;
+    let whitespace = filter(|(token, _): &TokenLocation| matches!(token, Token::Whitespace));
 
-    // Collect identifier tokens (Text, Dash, Number, Period)
-    while i < tokens.len()
-        && matches!(
-            tokens[i].0,
+    let leading_whitespace = whitespace
+        .clone()
+        .repeated()
+        .map(|items: Vec<TokenLocation>| items.len());
+
+    let identifier = filter(|(token, _): &TokenLocation| {
+        matches!(
+            token,
             Token::Text(_) | Token::Dash | Token::Number(_) | Token::Period
         )
-    {
-        i += 1;
-    }
+    })
+    .repeated()
+    .at_least(1)
+    .map(|items: Vec<TokenLocation>| {
+        let start = items.first().map(|(_, span)| span.start).unwrap_or(0);
+        let end = items.last().map(|(_, span)| span.end).unwrap_or(start);
+        let count = items.len();
+        (start..end, count)
+    });
 
-    if i == start {
-        // No identifier found
-        return (None, i);
-    }
+    let trailing_whitespace = whitespace
+        .clone()
+        .repeated()
+        .map(|items: Vec<TokenLocation>| items.len());
 
-    // Check what comes after: if it's '=', this is NOT a label but a parameter key
-    // Skip optional whitespace to check
-    let mut peek = i;
-    while peek < tokens.len() && matches!(tokens[peek].0, Token::Whitespace) {
-        peek += 1;
-    }
+    let parser = leading_whitespace
+        .clone()
+        .then(identifier)
+        .then(trailing_whitespace.clone())
+        .map(
+            |((leading_count, (label_range, label_len)), trailing_count)| {
+                (leading_count, label_range, label_len, trailing_count)
+            },
+        )
+        .then(any::<TokenLocation, ParserError>().repeated());
 
-    if peek < tokens.len() && matches!(tokens[peek].0, Token::Equals) {
-        // This is a parameter key, not a label
-        (None, 0) // Return 0 to indicate we should restart parsing from beginning
-    } else {
-        // This is a label
-        let first_location = &tokens[start].1;
-        let last_location = &tokens[i - 1].1;
-        let label_location = Some(first_location.start..last_location.end);
+    let stream = Stream::from_iter(
+        0..0,
+        tokens
+            .iter()
+            .cloned()
+            .map(|(token, span)| ((token, span.clone()), span)),
+    );
 
-        // Skip trailing whitespace after label
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
+    match parser.parse(stream) {
+        Ok(((leading_count, label_range, label_len, trailing_count), remainder)) => {
+            let consumed = leading_count + label_len + trailing_count;
+
+            if remainder
+                .first()
+                .map(|(token, _)| matches!(token, Token::Equals))
+                .unwrap_or(false)
+            {
+                return (None, 0);
+            }
+
+            (Some(label_range), consumed)
         }
-
-        (label_location, i)
+        Err(_) => {
+            // Directly count leading whitespace tokens in the original slice
+            let leading_only = tokens
+                .iter()
+                .take_while(|(token, _)| matches!(token, Token::Whitespace))
+                .count();
+            (None, leading_only)
+        }
     }
 }
 

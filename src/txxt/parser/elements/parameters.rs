@@ -9,10 +9,12 @@
 use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{Location, Parameter};
 use crate::txxt::lexer::Token;
+use chumsky::{prelude::*, Stream};
 use std::ops::Range;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
+type ParserError = Simple<TokenLocation>;
 
 /// Parameter with source text locations for later extraction
 #[derive(Debug, Clone)]
@@ -64,148 +66,150 @@ fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location
 pub(crate) fn parse_parameters_from_tokens(
     tokens: &[TokenLocation],
 ) -> Vec<ParameterWithLocations> {
-    let mut params = Vec::new();
-    let mut i = 0;
-
-    while i < tokens.len() {
-        // Skip leading whitespace
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
-        }
-
-        if i >= tokens.len() {
-            break;
-        }
-
-        // Parse key: identifier tokens (Text, Dash, Number)
-        let key_start = i;
-        while i < tokens.len()
-            && matches!(tokens[i].0, Token::Text(_) | Token::Dash | Token::Number(_))
-        {
-            i += 1;
-        }
-
-        if i == key_start {
-            // No key found, skip to next comma
-            while i < tokens.len() && !matches!(tokens[i].0, Token::Comma) {
-                i += 1;
-            }
-            if i < tokens.len() {
-                i += 1; // Skip comma
-            }
-            continue;
-        }
-
-        let key_location = {
-            let first_location = &tokens[key_start].1;
-            let last_location = &tokens[i - 1].1;
-            first_location.start..last_location.end
-        };
-
-        // Skip whitespace before '='
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
-        }
-
-        // Require '=' sign (no boolean parameters)
-        if i >= tokens.len() || !matches!(tokens[i].0, Token::Equals) {
-            // Skip this malformed parameter and move to next comma
-            while i < tokens.len() && !matches!(tokens[i].0, Token::Comma) {
-                i += 1;
-            }
-            if i < tokens.len() {
-                i += 1; // Skip comma
-            }
-            continue;
-        }
-
-        i += 1; // Skip '='
-
-        // Skip whitespace after '='
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
-        }
-
-        // Parse value - could be quoted or unquoted
-        let value_location = if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
-            i += 1; // Skip opening quote
-            let val_start = i;
-
-            // Collect until closing quote
-            while i < tokens.len() && !matches!(tokens[i].0, Token::Quote) {
-                i += 1;
-            }
-
-            let val_location = if val_start < i {
-                let first_location = &tokens[val_start].1;
-                let last_location = &tokens[i - 1].1;
-                Some(first_location.start..last_location.end)
-            } else {
-                Some(0..0) // Empty quoted string
-            };
-
-            if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
-                i += 1; // Skip closing quote
-            }
-
-            val_location
-        } else {
-            // Unquoted value: collect until comma or whitespace
-            let val_start = i;
-            while i < tokens.len() && !matches!(tokens[i].0, Token::Comma | Token::Whitespace) {
-                i += 1;
-            }
-
-            if val_start < i {
-                let first_location = &tokens[val_start].1;
-                let last_location = &tokens[i - 1].1;
-                Some(first_location.start..last_location.end)
-            } else {
-                // No value found, skip this parameter
-                while i < tokens.len() && !matches!(tokens[i].0, Token::Comma) {
-                    i += 1;
-                }
-                if i < tokens.len() {
-                    i += 1; // Skip comma
-                }
-                continue;
-            }
-        };
-
-        let range_end = if let Some(value_location) = &value_location {
-            if value_location.end > key_location.start {
-                value_location.end
-            } else if i > 0 {
-                tokens[i - 1].1.end
-            } else {
-                key_location.end
-            }
-        } else if i > 0 {
-            tokens[i - 1].1.end
-        } else {
-            key_location.end
-        };
-
-        let range_start = key_location.start;
-
-        params.push(ParameterWithLocations {
-            key_location,
-            value_location,
-            range: range_start..range_end,
-        });
-
-        // Skip trailing whitespace
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-            i += 1;
-        }
-
-        // Skip comma separator
-        if i < tokens.len() && matches!(tokens[i].0, Token::Comma) {
-            i += 1;
-        }
+    if tokens.is_empty() {
+        return Vec::new();
     }
 
-    params
+    #[derive(Clone)]
+    struct ParsedValue {
+        location: Option<Range<usize>>,
+        last_consumed: Range<usize>,
+    }
+
+    let whitespace_token = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
+        matches!(token, Token::Whitespace)
+    })
+    .ignored();
+    let whitespace0 = whitespace_token.clone().repeated().ignored();
+
+    let key_segment = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
+        matches!(token, Token::Text(_) | Token::Dash | Token::Number(_))
+    })
+    .map(|(_, span)| span.clone())
+    .repeated()
+    .at_least(1)
+    .map(|segments: Vec<Range<usize>>| {
+        let start = segments.first().map(|range| range.start).unwrap_or(0);
+        let end = segments.last().map(|range| range.end).unwrap_or(start);
+        start..end
+    });
+
+    let equals = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
+        matches!(token, Token::Equals)
+    })
+    .ignored();
+
+    let unquoted_value_segment =
+        filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
+            !matches!(token, Token::Comma | Token::Whitespace)
+        })
+        .map(|(_, span)| span.clone());
+
+    let unquoted_value =
+        unquoted_value_segment
+            .clone()
+            .repeated()
+            .at_least(1)
+            .map(|segments: Vec<Range<usize>>| {
+                let start = segments.first().map(|range| range.start).unwrap_or(0);
+                let end = segments.last().map(|range| range.end).unwrap_or(start);
+                let last_consumed = segments.last().cloned().unwrap_or(start..end);
+                ParsedValue {
+                    location: Some(start..end),
+                    last_consumed,
+                }
+            });
+
+    let quoted_inner = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
+        !matches!(token, Token::Quote)
+    })
+    .map(|(_, span)| span.clone())
+    .repeated();
+
+    let closing_quote = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
+        matches!(token, Token::Quote)
+    })
+    .map(|(_, span)| span.clone());
+
+    let quoted_value = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
+        matches!(token, Token::Quote)
+    })
+    .map(|(_, span)| span.clone())
+    .then(quoted_inner.clone().then(closing_quote.clone().or_not()))
+    .map(|(opening_span, (inner_segments, closing_span))| {
+        let location = if inner_segments.is_empty() {
+            Some(0..0)
+        } else {
+            let start = inner_segments.first().map(|range| range.start).unwrap_or(0);
+            let end = inner_segments
+                .last()
+                .map(|range| range.end)
+                .unwrap_or(start);
+            Some(start..end)
+        };
+
+        let last_consumed = closing_span
+            .clone()
+            .or_else(|| inner_segments.last().cloned())
+            .unwrap_or_else(|| opening_span.clone());
+
+        ParsedValue {
+            location,
+            last_consumed,
+        }
+    });
+
+    let value = quoted_value.or(unquoted_value);
+
+    let parameter = key_segment
+        .clone()
+        .then_ignore(whitespace0.clone())
+        .then_ignore(equals.clone())
+        .then_ignore(whitespace0.clone())
+        .then(value)
+        .map(|(key_location, parsed_value)| {
+            let ParsedValue {
+                location,
+                last_consumed,
+            } = parsed_value;
+
+            let range_start = key_location.start;
+            let range_end = location
+                .as_ref()
+                .filter(|loc| loc.end > range_start)
+                .map(|loc| loc.end)
+                .unwrap_or(last_consumed.end);
+
+            ParameterWithLocations {
+                key_location,
+                value_location: location,
+                range: range_start..range_end,
+            }
+        });
+
+    let comma = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
+        matches!(token, Token::Comma)
+    })
+    .ignored();
+    let parameter_with_separator = parameter
+        .clone()
+        .then_ignore(whitespace0.clone())
+        .then_ignore(comma.clone().then_ignore(whitespace0.clone()).or_not());
+
+    let parser = whitespace0
+        .clone()
+        .ignore_then(parameter_with_separator.repeated())
+        .then_ignore(whitespace0.clone());
+
+    let stream = Stream::from_iter(
+        0..0,
+        tokens
+            .iter()
+            .cloned()
+            .map(|(token, span)| ((token, span.clone()), span)),
+    );
+
+    parser.parse(stream).unwrap_or_default()
 }
 
 #[cfg(test)]
