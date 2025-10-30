@@ -5,7 +5,7 @@
 //!   txxt process <path> <format>     - Process a file and output to stdout (explicit)
 //!   txxt <path> <format>             - Same as process (default command)
 //!   txxt view <path>                 - Open an interactive TUI viewer
-//!   txxt --list-formats              - List available formats
+//!   txxt formats                     - List all available formats
 mod viewer;
 
 use clap::{Arg, Command};
@@ -31,14 +31,7 @@ fn main() {
         .version(env!("CARGO_PKG_VERSION"))
         .about("A tool for inspecting and processing txxt files")
         .subcommand_required(false)
-        .arg_required_else_help(false)
-        // Global flag
-        .arg(
-            Arg::new("list-formats")
-                .long("list-formats")
-                .help("List all available formats")
-                .action(clap::ArgAction::SetTrue),
-        )
+        .arg_required_else_help(true)
         // Default command args (for backwards compatibility)
         .arg(
             Arg::new("path")
@@ -77,20 +70,12 @@ fn main() {
                         .index(1),
                 ),
         )
+        .subcommand(Command::new("formats").about("List all available output formats"))
         .try_get_matches_from(clap_args)
         .unwrap_or_else(|e| {
             eprintln!("{}", e);
             std::process::exit(1);
         });
-
-    // Handle global flags
-    if matches.get_flag("list-formats") {
-        println!("Available formats:");
-        for format in available_formats() {
-            println!("  {}", format);
-        }
-        return;
-    }
 
     // Handle subcommands or default command
     match matches.subcommand() {
@@ -103,6 +88,9 @@ fn main() {
             let path = view_matches.get_one::<String>("path").unwrap();
             handle_view_command(path);
         }
+        Some(("formats", _)) => {
+            handle_formats_command();
+        }
         None => {
             // Default command: treat as process
             let path = matches.get_one::<String>("path");
@@ -111,12 +99,8 @@ fn main() {
             match (path, format) {
                 (Some(p), Some(f)) => handle_process_command(p, f),
                 _ => {
-                    eprintln!("Error: missing arguments");
-                    eprintln!("\nUsage:");
-                    eprintln!("  txxt process <path> <format>    - Process a file");
-                    eprintln!("  txxt <path> <format>             - Same as process");
-                    eprintln!("  txxt view <path>                 - Open TUI viewer");
-                    eprintln!("  txxt --list-formats              - List formats");
+                    // This shouldn't happen because arg_required_else_help(true) will show help
+                    // if required args are missing. But just in case:
                     std::process::exit(1);
                 }
             }
@@ -134,6 +118,10 @@ fn handle_process_command(path: &str, format_str: &str) {
         Ok(output) => print!("{}", output),
         Err(e) => {
             eprintln!("Error: {}", e);
+            eprintln!("\nAvailable formats:");
+            for format in available_formats() {
+                eprintln!("  {}", format);
+            }
             std::process::exit(1);
         }
     }
@@ -148,6 +136,14 @@ fn handle_view_command(path: &str) {
             eprintln!("Error: {}", e);
             std::process::exit(1);
         }
+    }
+}
+
+/// Handle the formats command
+fn handle_formats_command() {
+    println!("Available formats:");
+    for format in available_formats() {
+        println!("  {}", format);
     }
 }
 
