@@ -38,7 +38,7 @@ pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),                  // Title bar
-            Constraint::Min(1),                     // Middle (tree|file) - expand to fill available space
+            Constraint::Min(1), // Middle (tree|file) - expand to fill available space
             Constraint::Length(STATUS_LINE_HEIGHT), // Status line
         ])
         .split(size);
@@ -142,7 +142,10 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
 
             let path = node_id.path();
             if path.is_empty() {
-                spans.push(Span::styled("Selection: ", Style::default().fg(Color::Yellow)));
+                spans.push(Span::styled(
+                    "Selection: ",
+                    Style::default().fg(Color::Yellow),
+                ));
                 spans.push(Span::raw("Root (Document)"));
             } else {
                 spans.push(Span::styled("Path: ", Style::default().fg(Color::Yellow)));

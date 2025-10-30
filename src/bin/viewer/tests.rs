@@ -76,7 +76,10 @@ impl TestApp {
     /// Get the current terminal output as a string
     fn terminal_output(&self) -> String {
         let backend = self.terminal.backend();
-        let (width, height) = (backend.size().unwrap().width, backend.size().unwrap().height);
+        let (width, height) = (
+            backend.size().unwrap().width,
+            backend.size().unwrap().height,
+        );
         let mut output = String::new();
 
         for y in 0..height {
@@ -769,9 +772,8 @@ fn test_status_line_shows_expanded_collapsed_state() {
     let output = app.render();
 
     // Status line may show Expanded or Collapsed depending on the node
-    let _has_state_info = output.contains("Expanded")
-        || output.contains("Collapsed")
-        || output.contains("State");
+    let _has_state_info =
+        output.contains("Expanded") || output.contains("Collapsed") || output.contains("State");
 
     // This test verifies that render doesn't panic with nested content
     // State info may or may not be shown depending on node type
@@ -789,7 +791,9 @@ fn test_status_line_no_borders() {
 
     // Count rounded border characters in last line (status line)
     let last_line = lines[23];
-    let has_borders = last_line.contains("╭") || last_line.contains("╮") || last_line.contains("╰")
+    let has_borders = last_line.contains("╭")
+        || last_line.contains("╮")
+        || last_line.contains("╰")
         || last_line.contains("╯");
 
     assert!(
