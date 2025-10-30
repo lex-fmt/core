@@ -85,7 +85,7 @@ fn main() {
 }
 
 /// Parse extras from raw command line arguments
-/// Expects arguments in the format --extras-<key>=<value>
+/// Expects arguments in the format --extras-<key> <value>
 fn parse_extras_from_args() -> HashMap<String, String> {
     let mut result = HashMap::new();
 
