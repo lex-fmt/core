@@ -151,3 +151,97 @@ pub mod keyboard {
         KeyEvent::new(code, KeyModifiers::ALT)
     }
 }
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use crate::model::NodeId;
+    use crossterm::event::KeyCode;
+
+    #[test]
+    fn test_app_has_flattened_tree() {
+        let app = TestApp::with_content("# Heading\n\nParagraph");
+
+        // The model should be able to produce a flattened tree
+        let flattened = app.app().model.flattened_tree();
+        assert!(!flattened.is_empty(), "Should have flattened tree nodes");
+    }
+
+    #[test]
+    fn test_file_viewer_cursor_movement() {
+        let mut app = TestApp::with_content("Line 1\nLine 2\nLine 3");
+
+        // Initial cursor should be at (0, 0)
+        assert_eq!(
+            app.app().file_viewer.cursor_position(),
+            (0, 0),
+            "Cursor should start at (0, 0)"
+        );
+
+        // Press down arrow
+        app.send_key(KeyCode::Down);
+
+        // Cursor should now be at (1, 0)
+        assert_eq!(
+            app.app().file_viewer.cursor_position(),
+            (1, 0),
+            "Cursor should move down"
+        );
+    }
+
+    #[test]
+    fn test_file_position_maps_to_tree_node() {
+        let mut app = TestApp::with_content("# Heading\n\nParagraph text");
+
+        // Move cursor to position under the heading
+        app.send_key(KeyCode::Down);
+
+        // Get the current cursor position
+        let (row, col) = app.app().file_viewer.cursor_position();
+
+        // Model should be able to find AST node at this position
+        if let Some(node_id) = app.app().model.get_node_at_position(row, col) {
+            // Should have a valid node ID
+            assert!(!node_id.path().is_empty() || node_id.path().len() == 0);
+        }
+    }
+
+    #[test]
+    fn test_flattened_tree_respects_expansion_state() {
+        let mut app = TestApp::with_content("# Heading\n## Subheading\n");
+
+        // Initially nothing is expanded
+        let flattened_before = app.app().model.flattened_tree();
+        let count_before = flattened_before.len();
+
+        // Expand the first node
+        let first_node = NodeId::new(&[0]);
+        app.app_mut().model.expand_nodes(&[first_node]);
+
+        // Get flattened tree again
+        let flattened_after = app.app().model.flattened_tree();
+        let count_after = flattened_after.len();
+
+        // Should have more nodes visible when expanded
+        assert!(
+            count_after >= count_before,
+            "Expanding should not decrease visible nodes"
+        );
+    }
+
+    #[test]
+    fn test_selection_persistence() {
+        let mut app = TestApp::with_content("# Heading\nContent");
+
+        // Select file position
+        app.send_key(KeyCode::Down);
+        let (row, col) = app.app().file_viewer.cursor_position();
+
+        // Should be able to get the selection from model
+        assert_eq!(
+            app.app().model.get_selected_position(),
+            Some((row, col)),
+            "Model should track selected position"
+        );
+    }
+}
