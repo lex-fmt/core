@@ -116,6 +116,8 @@ pub struct FlattenedTreeNode {
     pub is_expanded: bool,
     /// Whether this node has children
     pub has_children: bool,
+    /// The type of the AST node
+    pub node_type: &'static str,
 }
 
 /// The core data model
@@ -297,6 +299,7 @@ impl Model {
             let label = item.display_label();
             let has_children = item.children().map(|c| !c.is_empty()).unwrap_or(false);
             let is_expanded = self.is_node_expanded(current_id);
+            let node_type = item.node_type();
 
             nodes.push(FlattenedTreeNode {
                 node_id: current_id,
@@ -304,6 +307,7 @@ impl Model {
                 label,
                 is_expanded,
                 has_children,
+                node_type,
             });
 
             // Recursively add children if expanded
