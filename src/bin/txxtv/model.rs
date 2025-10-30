@@ -135,10 +135,33 @@ pub struct Model {
 impl Model {
     /// Create a new model from a document
     pub fn new(document: Document) -> Self {
-        Model {
+        let mut model = Model {
             document,
             selection: Selection::TextSelection(0, 0),
             expanded_nodes: HashSet::new(),
+        };
+        // Start with all nodes expanded
+        model.expand_all_nodes();
+        model
+    }
+
+    /// Expand all nodes in the document (for initial state)
+    fn expand_all_nodes(&mut self) {
+        let content = self.document.content.clone();
+        self.expand_all_recursive(&content, &NodeId::new(&[]));
+    }
+
+    /// Recursively expand all nodes
+    fn expand_all_recursive(&mut self, items: &[ContentItem], parent_id: &NodeId) {
+        for (index, item) in items.iter().enumerate() {
+            let node_id = parent_id.child(index);
+            self.expanded_nodes.insert(node_id);
+
+            // Recursively expand children
+            if let Some(children) = item.children() {
+                let children_clone = children.to_vec();
+                self.expand_all_recursive(&children_clone, &node_id);
+            }
         }
     }
 
