@@ -1,0 +1,42 @@
+# Minimal theme for txxtv
+# A clean, minimal theme focusing on clarity with muted colors
+
+# Active/selected elements - bold with underline
+active:
+  fg: blue
+  modifiers: [bold, underline]
+
+# Normal content - default colors (minimal styling)
+normal:
+  # Uses terminal default colors
+
+# Label text - just bold, no color
+label:
+  modifiers: [bold]
+
+# Tree selection mode indicator - subtle cyan
+mode_tree:
+  fg: cyan
+  modifiers: [bold]
+
+# Text selection mode indicator - subtle green
+mode_text:
+  fg: green
+  modifiers: [bold]
+
+# Error messages - red, bold
+error:
+  fg: red
+  modifiers: [bold]
+
+# Title/header bar - minimal styling, just bold
+title:
+  modifiers: [bold]
+
+# Info panel background - default colors
+panel_bg:
+  # Uses terminal default colors
+
+# Borders - default
+border:
+  # Uses terminal default colors

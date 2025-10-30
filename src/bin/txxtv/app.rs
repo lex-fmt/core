@@ -38,6 +38,7 @@ pub struct App {
 
 impl App {
     /// Create a new application with a model and file content
+    #[allow(dead_code)]
     pub fn new(model: Model, content: String) -> Self {
         App {
             model,

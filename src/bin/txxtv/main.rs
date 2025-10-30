@@ -28,6 +28,10 @@ use model::Model;
 struct Args {
     /// Path to the txxt file to open
     file: PathBuf,
+
+    /// Path to a custom theme YAML file
+    #[arg(long, short)]
+    theme: Option<PathBuf>,
 }
 
 fn main() -> io::Result<()> {
@@ -50,9 +54,26 @@ fn main() -> io::Result<()> {
         )
     })?;
 
+    // Load theme if provided, otherwise use default
+    let theme_result = if let Some(theme_path) = &args.theme {
+        theme::Theme::from_yaml_file(
+            theme_path
+                .to_str()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "Invalid theme path"))?,
+        )
+        .map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Failed to load theme: {}", e),
+            )
+        })?
+    } else {
+        theme::Theme::default()
+    };
+
     // Create the modular App
     let model = Model::new(document);
-    let mut app = App::new(model, content);
+    let mut app = App::with_theme(model, content, theme_result);
 
     // Setup terminal
     enable_raw_mode()?;
