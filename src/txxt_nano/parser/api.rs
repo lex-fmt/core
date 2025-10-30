@@ -7,13 +7,13 @@ use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::elements::document::document;
 
-/// Type alias for token with span
+/// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
 
-/// Parse with source text - returns final Document with full span information
+/// Parse with source text - returns final Document with full location information
 pub fn parse_with_source(
     tokens_with_locations: Vec<TokenLocation>,
     source: &str,
@@ -22,7 +22,7 @@ pub fn parse_with_source(
 }
 
 /// Parse a txxt document from tokens with source, preserving position information
-/// Note: All parsed documents now include complete span information automatically
+/// Note: All parsed documents now include complete location information automatically
 pub fn parse_with_source_positions(
     tokens_with_locations: Vec<TokenLocation>,
     source: &str,

@@ -11,12 +11,12 @@
 use crate::txxt_nano::lexer::Token;
 use std::ops::Range;
 
-/// Type alias for token with span
+/// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
 /// Parse label from a token slice
 ///
-/// Extracts a label span from the beginning of the token slice if present.
+/// Extracts a label location from the beginning of the token slice if present.
 /// A label is identified as an identifier (Text, Dash, Number, Period tokens)
 /// that is NOT followed by an equals sign.
 ///
@@ -24,7 +24,7 @@ type TokenLocation = (Token, Range<usize>);
 /// * `tokens` - Slice of tokens to parse
 ///
 /// # Returns
-/// * `Some(Range<usize>)` - The span of the label in the source text
+/// * `Some(Range<usize>)` - The location of the label in the source text
 /// * `None` - No label found (either no identifier, or identifier followed by '=')
 ///
 /// # Examples

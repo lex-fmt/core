@@ -233,7 +233,7 @@ impl ContentItem {
         };
 
         // Check nested items first - even if parent location doesn't contain position,
-        // nested elements might. This is important because parent spans (like sessions)
+        // nested elements might. This is important because parent locations (like sessions)
         // may only cover their title, not their nested content.
         let mut results = Vec::new();
         let children = self.children();

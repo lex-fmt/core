@@ -13,7 +13,7 @@ use crate::txxt_nano::parser::combinators::{
     annotation_header, definition_subject, extract_text_from_locations, text_line, token,
 };
 
-/// Type alias for token with span
+/// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
@@ -71,11 +71,11 @@ pub(crate) fn foreign_block(
                 let label = Label::new(label_opt.unwrap_or_default());
 
                 let content = content_location
-                    .map(|spans| {
-                        let text = extract_text_from_locations(&source_for_annotation, &spans);
+                    .map(|locations| {
+                        let text = extract_text_from_locations(&source_for_annotation, &locations);
                         vec![ContentItem::Paragraph(Paragraph {
                             lines: vec![TextContent::from_string(text, None)],
-                            span: None,
+                            location: None,
                         })]
                     })
                     .unwrap_or_default();
@@ -84,7 +84,7 @@ pub(crate) fn foreign_block(
                     label,
                     parameters,
                     content,
-                    span: None,
+                    location: None,
                 }
             },
         );
@@ -97,14 +97,14 @@ pub(crate) fn foreign_block(
         .map(
             move |(((subject_text, _subject_location), content_locations), closing_annotation)| {
                 let content = content_locations
-                    .map(|spans| extract_text_from_locations(&source, &spans))
+                    .map(|locations| extract_text_from_locations(&source, &locations))
                     .unwrap_or_default();
 
                 ForeignBlock {
                     subject: TextContent::from_string(subject_text, None),
                     content: TextContent::from_string(content, None),
                     closing_annotation,
-                    span: None,
+                    location: None,
                 }
             },
         )

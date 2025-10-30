@@ -11,7 +11,7 @@ use std::fmt;
 pub struct Session {
     pub title: TextContent,
     pub content: Vec<ContentItem>,
-    pub span: Option<Location>,
+    pub location: Option<Location>,
 }
 
 impl Session {
@@ -19,18 +19,18 @@ impl Session {
         Self {
             title,
             content,
-            span: None,
+            location: None,
         }
     }
     pub fn with_title(title: String) -> Self {
         Self {
             title: TextContent::from_string(title, None),
             content: Vec::new(),
-            span: None,
+            location: None,
         }
     }
-    pub fn with_location(mut self, span: Option<Location>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 }
@@ -43,7 +43,7 @@ impl AstNode for Session {
         self.title.as_string().to_string()
     }
     fn location(&self) -> Option<Location> {
-        self.span
+        self.location
     }
 }
 
@@ -89,11 +89,11 @@ mod tests {
 
     #[test]
     fn test_session_with_location() {
-        let span = super::super::super::location::Location::new(
+        let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let session = Session::with_title("Title".to_string()).with_location(Some(span));
-        assert_eq!(session.span, Some(span));
+        let session = Session::with_title("Title".to_string()).with_location(Some(location));
+        assert_eq!(session.location, Some(location));
     }
 }

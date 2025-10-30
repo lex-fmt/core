@@ -6,7 +6,7 @@ use std::ops::Range;
 use crate::txxt_nano::ast::Document;
 use crate::txxt_nano::lexer::Token;
 
-/// Type alias for token with span
+/// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
@@ -22,7 +22,7 @@ pub fn document(source: &str) -> impl Parser<TokenLocation, Document, Error = Pa
         Document {
             metadata: Vec::new(),
             content,
-            span: None,
+            location: None,
         }
     })
 }

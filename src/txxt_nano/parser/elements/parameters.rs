@@ -10,20 +10,20 @@ use crate::txxt_nano::ast::Parameter;
 use crate::txxt_nano::lexer::Token;
 use std::ops::Range;
 
-/// Type alias for token with span
+/// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
-/// Parameter with source text spans for later extraction
+/// Parameter with source text locations for later extraction
 #[derive(Debug, Clone)]
-pub(crate) struct ParameterWithSpans {
+pub(crate) struct ParameterWithLocations {
     pub(crate) key_location: Range<usize>,
     pub(crate) value_location: Option<Range<usize>>,
 }
 
-/// Convert a parameter from spans to final AST
+/// Convert a parameter from locations to final AST
 ///
-/// Extracts the key and value text from the source using the stored spans
-pub(crate) fn convert_parameter(source: &str, param: ParameterWithSpans) -> Parameter {
+/// Extracts the key and value text from the source using the stored locations
+pub(crate) fn convert_parameter(source: &str, param: ParameterWithLocations) -> Parameter {
     let key = extract_text(source, &param.key_location).to_string();
 
     let value = param
@@ -33,13 +33,13 @@ pub(crate) fn convert_parameter(source: &str, param: ParameterWithSpans) -> Para
     Parameter {
         key,
         value,
-        span: None,
+        location: None,
     }
 }
 
-/// Extract text from source using a span range
-fn extract_text<'a>(source: &'a str, span: &Range<usize>) -> &'a str {
-    &source[span.start..span.end]
+/// Extract text from source using a location range
+fn extract_text<'a>(source: &'a str, location: &Range<usize>) -> &'a str {
+    &source[location.start..location.end]
 }
 
 /// Helper function to parse parameters from a token slice
@@ -48,7 +48,9 @@ fn extract_text<'a>(source: &'a str, span: &Range<usize>) -> &'a str {
 /// 1. Split by comma
 /// 2. For each segment, split by '=' to get key/value
 /// 3. Whitespace around parameters is ignored
-pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenLocation]) -> Vec<ParameterWithSpans> {
+pub(crate) fn parse_parameters_from_tokens(
+    tokens: &[TokenLocation],
+) -> Vec<ParameterWithLocations> {
     let mut params = Vec::new();
     let mut i = 0;
 
@@ -157,7 +159,7 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenLocation]) -> Vec<Para
             }
         };
 
-        params.push(ParameterWithSpans {
+        params.push(ParameterWithLocations {
             key_location,
             value_location,
         });

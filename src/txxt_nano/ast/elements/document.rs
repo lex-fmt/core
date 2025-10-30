@@ -14,7 +14,7 @@ use std::fmt;
 pub struct Document {
     pub metadata: Vec<Annotation>,
     pub content: Vec<ContentItem>,
-    pub span: Option<Location>,
+    pub location: Option<Location>,
 }
 
 impl Document {
@@ -22,7 +22,7 @@ impl Document {
         Self {
             metadata: Vec::new(),
             content: Vec::new(),
-            span: None,
+            location: None,
         }
     }
 
@@ -30,7 +30,7 @@ impl Document {
         Self {
             metadata: Vec::new(),
             content,
-            span: None,
+            location: None,
         }
     }
 
@@ -38,12 +38,12 @@ impl Document {
         Self {
             metadata,
             content,
-            span: None,
+            location: None,
         }
     }
 
-    pub fn with_location(mut self, span: Option<Location>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 

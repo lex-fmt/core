@@ -9,21 +9,24 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
     pub lines: Vec<TextContent>,
-    pub span: Option<Location>,
+    pub location: Option<Location>,
 }
 
 impl Paragraph {
     pub fn new(lines: Vec<TextContent>) -> Self {
-        Self { lines, span: None }
+        Self {
+            lines,
+            location: None,
+        }
     }
     pub fn from_line(line: String) -> Self {
         Self {
             lines: vec![TextContent::from_string(line, None)],
-            span: None,
+            location: None,
         }
     }
-    pub fn with_location(mut self, span: Option<Location>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
     pub fn text(&self) -> String {
@@ -48,7 +51,7 @@ impl AstNode for Paragraph {
         }
     }
     fn location(&self) -> Option<Location> {
-        self.span
+        self.location
     }
 }
 
@@ -87,12 +90,12 @@ mod tests {
 
     #[test]
     fn test_paragraph_with_location() {
-        let span = Location::new(
+        let location = Location::new(
             super::super::super::location::Position::new(0, 0),
             super::super::super::location::Position::new(0, 5),
         );
-        let para = Paragraph::from_line("Hello".to_string()).with_location(Some(span));
+        let para = Paragraph::from_line("Hello".to_string()).with_location(Some(location));
 
-        assert_eq!(para.span, Some(span));
+        assert_eq!(para.location, Some(location));
     }
 }

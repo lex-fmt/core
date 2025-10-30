@@ -768,7 +768,7 @@ mod tests {
         );
     }
 
-    // ========== SPAN TESTS ==========
+    // ========== location TESTS ==========
     // Tests to verify that synthetic tokens (IndentLevel, DedentLevel) have correct locations
 
     #[test]

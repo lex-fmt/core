@@ -6,7 +6,7 @@
 //!
 //! ## Modules
 //!
-//! - `span` - Position and Span types for source code locations
+//! - `location` - Position and location types for source code locations
 //! - `elements` - AST node type definitions organized by element type
 //! - `traits` - Common traits for AST nodes
 //! - `position` - Source location utilities for converting byte offsets

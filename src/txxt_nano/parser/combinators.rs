@@ -12,7 +12,7 @@ use crate::txxt_nano::parser::elements::parameters::{
     convert_parameter, parse_parameters_from_tokens,
 };
 
-/// Type alias for token with span
+/// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
@@ -38,7 +38,7 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
     )
 }
 
-/// Helper: convert a byte range to a Span using source location
+/// Helper: convert a byte range to a location using source location
 fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
@@ -47,24 +47,28 @@ fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location
     Some(source_loc.range_to_location(range))
 }
 
-/// Helper: compute span bounds from multiple spans
-pub(crate) fn compute_location_from_locations(spans: &[Location]) -> Location {
+/// Helper: compute location bounds from multiple locations
+pub(crate) fn compute_location_from_locations(locations: &[Location]) -> Location {
     use crate::txxt_nano::ast::location::Position;
-    let start_line = spans.iter().map(|sp| sp.start.line).min().unwrap_or(0);
-    let start_col = spans.iter().map(|sp| sp.start.column).min().unwrap_or(0);
-    let end_line = spans.iter().map(|sp| sp.end.line).max().unwrap_or(0);
-    let end_col = spans.iter().map(|sp| sp.end.column).max().unwrap_or(0);
+    let start_line = locations.iter().map(|sp| sp.start.line).min().unwrap_or(0);
+    let start_col = locations
+        .iter()
+        .map(|sp| sp.start.column)
+        .min()
+        .unwrap_or(0);
+    let end_line = locations.iter().map(|sp| sp.end.line).max().unwrap_or(0);
+    let end_col = locations.iter().map(|sp| sp.end.column).max().unwrap_or(0);
     Location::new(
         Position::new(start_line, start_col),
         Position::new(end_line, end_col),
     )
 }
 
-/// Helper: compute span bounds from multiple optional spans
+/// Helper: compute location bounds from multiple optional locations
 pub(crate) fn compute_location_from_optional_locations(
-    spans: &[Option<Location>],
+    locations: &[Option<Location>],
 ) -> Option<Location> {
-    let actual_locations: Vec<Location> = spans.iter().filter_map(|s| *s).collect();
+    let actual_locations: Vec<Location> = locations.iter().filter_map(|s| *s).collect();
     if actual_locations.is_empty() {
         None
     } else {
@@ -72,7 +76,7 @@ pub(crate) fn compute_location_from_optional_locations(
     }
 }
 
-/// Helper: compute span bounds from byte ranges
+/// Helper: compute location bounds from byte ranges
 pub(crate) fn compute_byte_range_bounds(ranges: &[Range<usize>]) -> Range<usize> {
     if ranges.is_empty() {
         0..0
@@ -83,13 +87,13 @@ pub(crate) fn compute_byte_range_bounds(ranges: &[Range<usize>]) -> Range<usize>
     }
 }
 
-/// Helper: extract text from multiple spans
-pub(crate) fn extract_text_from_locations(source: &str, spans: &[Range<usize>]) -> String {
-    if spans.is_empty() {
+/// Helper: extract text from multiple locations
+pub(crate) fn extract_text_from_locations(source: &str, locations: &[Range<usize>]) -> String {
+    if locations.is_empty() {
         return String::new();
     }
-    let start = spans.first().map(|s| s.start).unwrap_or(0);
-    let end = spans.last().map(|s| s.end).unwrap_or(0);
+    let start = locations.first().map(|s| s.start).unwrap_or(0);
+    let end = locations.last().map(|s| s.end).unwrap_or(0);
 
     if start >= end || end > source.len() {
         return String::new();
@@ -98,38 +102,38 @@ pub(crate) fn extract_text_from_locations(source: &str, spans: &[Range<usize>]) 
     source[start..end].trim().to_string()
 }
 
-/// Helper: extract tokens to text and byte range span
-/// Converts a vector of token-span pairs to (extracted_text, byte_range)
+/// Helper: extract tokens to text and byte range location
+/// Converts a vector of token-location pairs to (extracted_text, byte_range)
 pub(crate) fn extract_tokens_to_text_and_location(
     source: &Arc<String>,
     tokens: Vec<TokenLocation>,
 ) -> (String, Range<usize>) {
-    let spans: Vec<Range<usize>> = tokens.into_iter().map(|(_, s)| s).collect();
-    let text = extract_text_from_locations(source, &spans);
-    let span = compute_byte_range_bounds(&spans);
-    (text, span)
+    let locations: Vec<Range<usize>> = tokens.into_iter().map(|(_, s)| s).collect();
+    let text = extract_text_from_locations(source, &locations);
+    let location = compute_byte_range_bounds(&locations);
+    (text, location)
 }
 
-/// Helper: match a specific token type, ignoring the span
+/// Helper: match a specific token type, ignoring the location
 pub(crate) fn token(t: Token) -> impl Parser<TokenLocation, (), Error = ParserError> + Clone {
     filter(move |(tok, _)| tok == &t).ignored()
 }
 
 /// Parse a text line (sequence of text and whitespace tokens)
-/// Returns the collected spans for this line
+/// Returns the collected locations for this line
 pub(crate) fn text_line(
 ) -> impl Parser<TokenLocation, Vec<Range<usize>>, Error = ParserError> + Clone {
     filter(|(t, _location): &TokenLocation| is_text_token(t))
         .repeated()
         .at_least(1)
         .map(|tokens_with_locations: Vec<TokenLocation>| {
-            // Collect all spans for this line
+            // Collect all locations for this line
             tokens_with_locations.into_iter().map(|(_, s)| s).collect()
         })
 }
 
 /// Parse a list item line - a line that starts with a list marker
-/// Phase 5: Now returns extracted text with span information
+/// Phase 5: Now returns extracted text with location information
 pub(crate) fn list_item_line(
     source: Arc<String>,
 ) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
@@ -172,7 +176,7 @@ pub(crate) fn list_item_line(
 }
 
 /// Parse a paragraph
-/// Phase 5: Now populates span information
+/// Phase 5: Now populates location information
 pub(crate) fn paragraph(
     source: Arc<String>,
 ) -> impl Parser<TokenLocation, Paragraph, Error = ParserError> + Clone {
@@ -183,21 +187,21 @@ pub(crate) fn paragraph(
         .map(move |line_locations_list: Vec<Vec<Range<usize>>>| {
             let lines = line_locations_list
                 .iter()
-                .map(|spans| {
-                    let text = extract_text_from_locations(&source, spans);
-                    // Compute span for this line
-                    let line_location = if spans.is_empty() {
+                .map(|locations| {
+                    let text = extract_text_from_locations(&source, locations);
+                    // Compute location for this line
+                    let line_location = if locations.is_empty() {
                         None
                     } else {
-                        let range = compute_byte_range_bounds(spans);
+                        let range = compute_byte_range_bounds(locations);
                         byte_range_to_location(&source, &range)
                     };
                     TextContent::from_string(text, line_location)
                 })
                 .collect();
 
-            // Compute overall span from all collected line spans
-            let span = {
+            // Compute overall location from all collected line locations
+            let location = {
                 let all_locations: Vec<Range<usize>> =
                     line_locations_list.into_iter().flatten().collect();
                 if all_locations.is_empty() {
@@ -208,12 +212,12 @@ pub(crate) fn paragraph(
                 }
             };
 
-            Paragraph { lines, span }
+            Paragraph { lines, location }
         })
 }
 
 /// Parse a definition subject
-/// Phase 5: Now returns extracted text with span information
+/// Phase 5: Now returns extracted text with location information
 pub(crate) fn definition_subject(
     source: Arc<String>,
 ) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
@@ -228,22 +232,22 @@ pub(crate) fn definition_subject(
 }
 
 /// Parse a session title
-/// Phase 5: Now returns extracted text with span information
+/// Phase 5: Now returns extracted text with location information
 pub(crate) fn session_title(
     source: Arc<String>,
 ) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::BlankLine))
-        .map(move |spans| {
-            let text = extract_text_from_locations(&source, &spans);
-            let span = compute_byte_range_bounds(&spans);
-            (text, span)
+        .map(move |locations| {
+            let text = extract_text_from_locations(&source, &locations);
+            let location = compute_byte_range_bounds(&locations);
+            (text, location)
         })
 }
 
 /// Parse the bounded region between :: markers
-/// Phase 5: Now returns extracted label text, label span, and final Parameter types
+/// Phase 5: Now returns extracted label text, label location, and final Parameter types
 pub(crate) fn annotation_header(
     source: Arc<String>,
 ) -> impl Parser<
@@ -256,9 +260,9 @@ pub(crate) fn annotation_header(
             .repeated()
             .at_least(1);
 
-    bounded_region.validate(move |tokens, span, emit| {
+    bounded_region.validate(move |tokens, location, emit| {
         if tokens.is_empty() {
-            emit(ParserError::expected_input_found(span, None, None));
+            emit(ParserError::expected_input_found(location, None, None));
             return (None, None, Vec::new());
         }
 
@@ -273,9 +277,9 @@ pub(crate) fn annotation_header(
         let params_with_locations = parse_parameters_from_tokens(&tokens[i..]);
 
         // Extract label text if present
-        let label = label_location.as_ref().map(|span| {
-            let text = if span.start < span.end && span.end <= source.len() {
-                source[span.start..span.end].trim().to_string()
+        let label = label_location.as_ref().map(|location| {
+            let text = if location.start < location.end && location.end <= source.len() {
+                source[location.start..location.end].trim().to_string()
             } else {
                 String::new()
             };

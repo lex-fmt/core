@@ -14,13 +14,13 @@ use crate::txxt_nano::parser::combinators::{
     compute_location_from_optional_locations, list_item_line, token,
 };
 
-/// Type alias for token with span
+/// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
 
-/// Helper: convert a byte range to a Span using source location
+/// Helper: convert a byte range to a location using source location
 fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
@@ -47,14 +47,14 @@ where
                 .or_not(),
         )
         .map(move |((text, text_location), maybe_content)| {
-            let span = byte_range_to_location(&source_for_list, &text_location);
-            ListItem::with_content(text, maybe_content.unwrap_or_default()).with_location(span)
+            let location = byte_range_to_location(&source_for_list, &text_location);
+            ListItem::with_content(text, maybe_content.unwrap_or_default()).with_location(location)
         });
 
     single_list_item.repeated().at_least(2).map(|items| {
-        let spans: Vec<Option<Location>> = items.iter().map(|item| item.span).collect();
-        let span = compute_location_from_optional_locations(&spans);
-        ContentItem::List(List { items, span })
+        let locations: Vec<Option<Location>> = items.iter().map(|item| item.location).collect();
+        let location = compute_location_from_optional_locations(&locations);
+        ContentItem::List(List { items, location })
     })
 }
 

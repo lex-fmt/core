@@ -525,7 +525,7 @@ mod tests {
         // Should have 2 lines
         assert_eq!(para.lines.len(), 2);
 
-        // Span should cover both lines
+        // Location should cover both lines
         let location = para.location().unwrap();
         assert_eq!(location.start.line, 0);
         assert_eq!(location.end.line, 1);

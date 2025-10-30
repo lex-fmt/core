@@ -15,13 +15,13 @@ use crate::txxt_nano::parser::combinators::{
     token,
 };
 
-/// Type alias for token with span
+/// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
 
-/// Helper: convert a byte range to a Span using source location
+/// Helper: convert a byte range to a location using source location
 fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
@@ -60,17 +60,17 @@ where
                 let label_position =
                     label_location.and_then(|s| byte_range_to_location(&source_for_block, &s));
                 let label = Label::new(label_text).with_location(label_position);
-                // Compute overall span from content spans if available
-                let span = if !content.is_empty() {
+                // Compute overall location from content locations if available
+                let location = if !content.is_empty() {
                     let content_locations: Vec<Location> = content
                         .iter()
                         .filter_map(|item| match item {
-                            ContentItem::Paragraph(p) => p.span,
-                            ContentItem::Session(s) => s.span,
-                            ContentItem::Definition(d) => d.span,
-                            ContentItem::List(l) => l.span,
-                            ContentItem::Annotation(a) => a.span,
-                            ContentItem::ForeignBlock(f) => f.span,
+                            ContentItem::Paragraph(p) => p.location,
+                            ContentItem::Session(s) => s.location,
+                            ContentItem::Definition(d) => d.location,
+                            ContentItem::List(l) => l.location,
+                            ContentItem::Annotation(a) => a.location,
+                            ContentItem::ForeignBlock(f) => f.location,
                         })
                         .collect();
                     if !content_locations.is_empty() {
@@ -85,7 +85,7 @@ where
                     label,
                     parameters,
                     content,
-                    span,
+                    location,
                 })
             })
     };
@@ -104,22 +104,22 @@ where
                     let label = Label::new(label_text).with_location(label_position);
 
                     // Handle content if present
-                    let content = if let Some(spans) = content_location {
-                        let text = extract_text_from_locations(&source_for_single_line, &spans);
+                    let content = if let Some(locations) = content_location {
+                        let text = extract_text_from_locations(&source_for_single_line, &locations);
                         vec![ContentItem::Paragraph(Paragraph {
                             lines: vec![TextContent::from_string(text, None)],
-                            span: None,
+                            location: None,
                         })]
                     } else {
                         vec![]
                     };
-                    let span = label_position; // For single-line, span is just the label
+                    let location = label_position; // For single-line, location is just the label
 
                     ContentItem::Annotation(Annotation {
                         label,
                         parameters,
                         content,
-                        span,
+                        location,
                     })
                 },
             )
