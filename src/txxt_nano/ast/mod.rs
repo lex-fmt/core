@@ -15,9 +15,9 @@
 
 pub mod elements;
 pub mod error;
+pub mod location;
 pub mod lookup;
 pub mod position;
-pub mod span;
 pub mod text_content;
 pub mod traits;
 
@@ -27,9 +27,9 @@ pub use elements::{
     Parameter, Session,
 };
 pub use error::PositionLookupError;
+pub use location::{Location, Position};
 pub use lookup::{find_nodes_at_position, format_at_position};
 pub use position::SourceLocation;
-pub use span::{Location, Position};
 pub use text_content::TextContent;
 pub use traits::{AstNode, Container, TextNode};
 #[cfg(test)]

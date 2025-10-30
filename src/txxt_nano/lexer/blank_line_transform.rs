@@ -61,45 +61,47 @@ pub fn transform_blank_lines(tokens: Vec<Token>) -> Vec<Token> {
     result
 }
 
-/// Transform blank lines while preserving source spans
+/// Transform blank lines while preserving source locations
 /// Blank lines (sequences of 2+ newlines) become Newline followed by BlankLine token
-/// The BlankLine token gets the span covering the extra newlines (from 2nd newline onwards)
-pub fn transform_blank_lines_with_spans(
-    tokens_with_spans: Vec<(Token, std::ops::Range<usize>)>,
+/// The BlankLine token gets the location covering the extra newlines (from 2nd newline onwards)
+pub fn transform_blank_lines_with_locations(
+    tokens_with_locations: Vec<(Token, std::ops::Range<usize>)>,
 ) -> Vec<(Token, std::ops::Range<usize>)> {
     let mut result = Vec::new();
     let mut i = 0;
 
-    while i < tokens_with_spans.len() {
-        if matches!(tokens_with_spans[i].0, Token::Newline) {
-            // Count consecutive Newline tokens and collect their spans
+    while i < tokens_with_locations.len() {
+        if matches!(tokens_with_locations[i].0, Token::Newline) {
+            // Count consecutive Newline tokens and collect their locations
             let mut newline_count = 0;
             let mut j = i;
-            while j < tokens_with_spans.len() && matches!(tokens_with_spans[j].0, Token::Newline) {
+            while j < tokens_with_locations.len()
+                && matches!(tokens_with_locations[j].0, Token::Newline)
+            {
                 newline_count += 1;
                 j += 1;
             }
 
-            // Emit the first Newline with its original span (ends the current line)
-            result.push((Token::Newline, tokens_with_spans[i].1.clone()));
+            // Emit the first Newline with its original location (ends the current line)
+            result.push((Token::Newline, tokens_with_locations[i].1.clone()));
 
             // If we have 2+ consecutive newlines, also emit a BlankLine token
-            // The BlankLine span covers all the extra newlines (from 2nd to last)
+            // The BlankLine location covers all the extra newlines (from 2nd to last)
             if newline_count >= 2 {
-                // Calculate the span covering the extra newlines
+                // Calculate the location covering the extra newlines
                 // Start from the second newline, end at the last newline
-                let blank_line_start = tokens_with_spans[i + 1].1.start;
-                let blank_line_end = tokens_with_spans[j - 1].1.end;
-                let blank_line_span = blank_line_start..blank_line_end;
+                let blank_line_start = tokens_with_locations[i + 1].1.start;
+                let blank_line_end = tokens_with_locations[j - 1].1.end;
+                let blank_line_location = blank_line_start..blank_line_end;
 
-                result.push((Token::BlankLine, blank_line_span));
+                result.push((Token::BlankLine, blank_line_location));
             }
 
             // Move past all the newlines we just processed
             i = j;
         } else {
-            // Non-newline token, just copy it with its span
-            result.push(tokens_with_spans[i].clone());
+            // Non-newline token, just copy it with its location
+            result.push(tokens_with_locations[i].clone());
             i += 1;
         }
     }
@@ -292,14 +294,14 @@ mod tests {
     }
 
     #[test]
-    fn test_blank_line_with_spans() {
+    fn test_blank_line_with_locations() {
         let input = vec![
             (Token::Text("t".to_string()), 0..4),
             (Token::Newline, 4..5),
             (Token::Newline, 5..6),
             (Token::Text("t".to_string()), 6..10),
         ];
-        let result = transform_blank_lines_with_spans(input);
+        let result = transform_blank_lines_with_locations(input);
         assert_eq!(
             result,
             vec![
@@ -311,12 +313,12 @@ mod tests {
         );
     }
 
-    // ========== SPAN TESTS ==========
-    // Tests to verify that BlankLine tokens have correct spans
+    // ========== location TESTS ==========
+    // Tests to verify that BlankLine tokens have correct locations
 
     #[test]
-    fn test_blank_line_token_has_correct_span_for_double_newline() {
-        // Test: BlankLine should cover the span of extra newlines (from 2nd onwards)
+    fn test_blank_line_token_has_correct_location_for_double_newline() {
+        // Test: BlankLine should cover the location of extra newlines (from 2nd onwards)
         // Input: "a\n\nb" where positions are: "a" 0..1, "\n" 1..2, "\n" 2..3, "b" 3..4
         let input = vec![
             (Token::Text("a".to_string()), 0..1),
@@ -325,7 +327,7 @@ mod tests {
             (Token::Text("b".to_string()), 3..4),
         ];
 
-        let result = transform_blank_lines_with_spans(input);
+        let result = transform_blank_lines_with_locations(input);
 
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
@@ -337,8 +339,8 @@ mod tests {
     }
 
     #[test]
-    fn test_blank_line_token_has_correct_span_for_triple_newline() {
-        // Test: BlankLine should cover the span from 2nd to last newline
+    fn test_blank_line_token_has_correct_location_for_triple_newline() {
+        // Test: BlankLine should cover the location from 2nd to last newline
         // Input: "a\n\n\nb" where positions are: "a" 0..1, "\n" 1..2, "\n" 2..3, "\n" 3..4, "b" 4..5
         let input = vec![
             (Token::Text("a".to_string()), 0..1),
@@ -348,7 +350,7 @@ mod tests {
             (Token::Text("b".to_string()), 4..5),
         ];
 
-        let result = transform_blank_lines_with_spans(input);
+        let result = transform_blank_lines_with_locations(input);
 
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
@@ -361,7 +363,7 @@ mod tests {
     }
 
     #[test]
-    fn test_blank_line_token_has_correct_span_for_many_newlines() {
+    fn test_blank_line_token_has_correct_location_for_many_newlines() {
         // Test: BlankLine should cover all extra newlines
         // Input: "a\n\n\n\n\nb" (5 newlines total)
         let input = vec![
@@ -374,7 +376,7 @@ mod tests {
             (Token::Text("b".to_string()), 6..7),
         ];
 
-        let result = transform_blank_lines_with_spans(input);
+        let result = transform_blank_lines_with_locations(input);
 
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
@@ -387,8 +389,8 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_blank_lines_each_have_correct_spans() {
-        // Test: Multiple BlankLine tokens should each have their own correct spans
+    fn test_multiple_blank_lines_each_have_correct_locations() {
+        // Test: Multiple BlankLine tokens should each have their own correct locations
         // Input: "a\n\nb\n\n\nc"
         let input = vec![
             (Token::Text("a".to_string()), 0..1),
@@ -401,7 +403,7 @@ mod tests {
             (Token::Text("c".to_string()), 7..8),
         ];
 
-        let result = transform_blank_lines_with_spans(input);
+        let result = transform_blank_lines_with_locations(input);
 
         // Expected: Text("a"), Newline, BlankLine, Text("b"), Newline, BlankLine, Text("c")
         assert_eq!(result.len(), 7);
@@ -416,7 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn test_blank_line_at_start_has_correct_span() {
+    fn test_blank_line_at_start_has_correct_location() {
         // Test: BlankLine at document start
         // Input: "\n\na" (starts with blank line)
         let input = vec![
@@ -425,7 +427,7 @@ mod tests {
             (Token::Text("a".to_string()), 2..3),
         ];
 
-        let result = transform_blank_lines_with_spans(input);
+        let result = transform_blank_lines_with_locations(input);
 
         // Expected: Newline, BlankLine, Text("a")
         assert_eq!(result.len(), 3);
@@ -435,7 +437,7 @@ mod tests {
     }
 
     #[test]
-    fn test_blank_line_at_end_has_correct_span() {
+    fn test_blank_line_at_end_has_correct_location() {
         // Test: BlankLine at document end
         // Input: "a\n\n" (ends with blank line)
         let input = vec![
@@ -444,7 +446,7 @@ mod tests {
             (Token::Newline, 2..3),
         ];
 
-        let result = transform_blank_lines_with_spans(input);
+        let result = transform_blank_lines_with_locations(input);
 
         // Expected: Text("a"), Newline, BlankLine
         assert_eq!(result.len(), 3);
@@ -453,13 +455,13 @@ mod tests {
     }
 
     #[test]
-    fn test_spans_with_real_txxt_content() {
+    fn test_locations_with_real_txxt_content() {
         // Test with actual txxt content
         let source = "First paragraph\n\nSecond paragraph";
         // Positions: "First paragraph" 0..15, "\n" 15..16, "\n" 16..17, "Second paragraph" 17..33
 
-        let tokens_with_spans = crate::txxt_nano::lexer::tokenize_with_spans(source);
-        let result = transform_blank_lines_with_spans(tokens_with_spans);
+        let tokens_with_locations = crate::txxt_nano::lexer::tokenize_with_locations(source);
+        let result = transform_blank_lines_with_locations(tokens_with_locations);
 
         // Find the BlankLine token
         let blank_line_pos = result
@@ -467,26 +469,33 @@ mod tests {
             .position(|(t, _)| matches!(t, Token::BlankLine));
         assert!(blank_line_pos.is_some(), "Should have a BlankLine token");
 
-        let (blank_token, blank_span) = &result[blank_line_pos.unwrap()];
+        let (blank_token, blank_location) = &result[blank_line_pos.unwrap()];
         assert_eq!(*blank_token, Token::BlankLine);
-        assert_ne!(*blank_span, 0..0, "BlankLine should not have empty span");
+        assert_ne!(
+            *blank_location,
+            0..0,
+            "BlankLine should not have empty location"
+        );
         assert_eq!(
-            blank_span.start, 16,
+            blank_location.start, 16,
             "BlankLine should start at position 16"
         );
-        assert_eq!(blank_span.end, 17, "BlankLine should end at position 17");
+        assert_eq!(
+            blank_location.end, 17,
+            "BlankLine should end at position 17"
+        );
     }
 
     #[test]
-    fn test_no_blank_line_preserves_all_spans() {
-        // Test: When there are no blank lines, all spans should be preserved
+    fn test_no_blank_line_preserves_all_locations() {
+        // Test: When there are no blank lines, all locations should be preserved
         let input = vec![
             (Token::Text("a".to_string()), 0..1),
             (Token::Newline, 1..2),
             (Token::Text("b".to_string()), 2..3),
         ];
 
-        let result = transform_blank_lines_with_spans(input.clone());
+        let result = transform_blank_lines_with_locations(input.clone());
 
         // Should be identical to input since no blank lines
         assert_eq!(result, input);

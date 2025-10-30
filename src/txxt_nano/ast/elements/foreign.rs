@@ -1,6 +1,6 @@
 //! Foreign block element definition
 
-use super::super::span::Location;
+use super::super::location::Location;
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::annotation::Annotation;

@@ -1,4 +1,4 @@
-//! Position and span tracking for source code locations
+//! Position and location tracking for source code locations
 //!
 //! This module defines the data structures for representing positions
 //! and spans in source code.
@@ -24,7 +24,7 @@ impl fmt::Display for Position {
     }
 }
 
-/// Represents a span in source code (start and end positions)
+/// Represents a location in source code (start and end positions)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Location {
     pub start: Position,
@@ -36,7 +36,7 @@ impl Location {
         Self { start, end }
     }
 
-    /// Check if a position is contained within this span
+    /// Check if a position is contained within this location
     pub fn contains(&self, pos: Position) -> bool {
         (self.start.line < pos.line
             || (self.start.line == pos.line && self.start.column <= pos.column))
@@ -44,7 +44,7 @@ impl Location {
                 || (self.end.line == pos.line && self.end.column >= pos.column))
     }
 
-    /// Check if another span overlaps with this span
+    /// Check if another location overlaps with this location
     pub fn overlaps(&self, other: Location) -> bool {
         self.contains(other.start)
             || self.contains(other.end)
@@ -85,41 +85,41 @@ mod tests {
     fn test_span_creation() {
         let start = Position::new(0, 0);
         let end = Position::new(2, 5);
-        let span = Location::new(start, end);
+        let location = Location::new(start, end);
 
-        assert_eq!(span.start, start);
-        assert_eq!(span.end, end);
+        assert_eq!(location.start, start);
+        assert_eq!(location.end, end);
     }
 
     #[test]
     fn test_span_contains_single_line() {
-        let span = Location::new(Position::new(0, 0), Position::new(0, 10));
+        let location = Location::new(Position::new(0, 0), Position::new(0, 10));
 
-        assert!(span.contains(Position::new(0, 0)));
-        assert!(span.contains(Position::new(0, 5)));
-        assert!(span.contains(Position::new(0, 10)));
+        assert!(location.contains(Position::new(0, 0)));
+        assert!(location.contains(Position::new(0, 5)));
+        assert!(location.contains(Position::new(0, 10)));
 
-        assert!(!span.contains(Position::new(0, 11)));
-        assert!(!span.contains(Position::new(1, 0)));
+        assert!(!location.contains(Position::new(0, 11)));
+        assert!(!location.contains(Position::new(1, 0)));
     }
 
     #[test]
     fn test_span_contains_multiline() {
-        let span = Location::new(Position::new(1, 5), Position::new(2, 10));
+        let location = Location::new(Position::new(1, 5), Position::new(2, 10));
 
-        // Before span
-        assert!(!span.contains(Position::new(1, 4)));
-        assert!(!span.contains(Position::new(0, 5)));
+        // Before location
+        assert!(!location.contains(Position::new(1, 4)));
+        assert!(!location.contains(Position::new(0, 5)));
 
-        // In span
-        assert!(span.contains(Position::new(1, 5)));
-        assert!(span.contains(Position::new(1, 10)));
-        assert!(span.contains(Position::new(2, 0)));
-        assert!(span.contains(Position::new(2, 10)));
+        // In location
+        assert!(location.contains(Position::new(1, 5)));
+        assert!(location.contains(Position::new(1, 10)));
+        assert!(location.contains(Position::new(2, 0)));
+        assert!(location.contains(Position::new(2, 10)));
 
-        // After span
-        assert!(!span.contains(Position::new(2, 11)));
-        assert!(!span.contains(Position::new(3, 0)));
+        // After location
+        assert!(!location.contains(Position::new(2, 11)));
+        assert!(!location.contains(Position::new(3, 0)));
     }
 
     #[test]
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_span_display() {
-        let span = Location::new(Position::new(1, 0), Position::new(2, 5));
-        assert_eq!(format!("{}", span), "1:0..2:5");
+        let location = Location::new(Position::new(1, 0), Position::new(2, 5));
+        assert_eq!(format!("{}", location), "1:0..2:5");
     }
 }

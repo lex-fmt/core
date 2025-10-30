@@ -1,6 +1,6 @@
 //! Annotation element definition
 
-use super::super::span::Location;
+use super::super::location::Location;
 use super::super::traits::{AstNode, Container};
 use super::content_item::ContentItem;
 use super::label::Label;
@@ -93,9 +93,9 @@ mod tests {
 
     #[test]
     fn test_annotation_with_span() {
-        let span = super::super::super::span::Location::new(
-            super::super::super::span::Position::new(1, 0),
-            super::super::super::span::Position::new(1, 10),
+        let span = super::super::super::location::Location::new(
+            super::super::super::location::Position::new(1, 0),
+            super::super::super::location::Position::new(1, 10),
         );
         let annotation = Annotation::marker(Label::new("test".to_string())).with_span(Some(span));
         assert_eq!(annotation.span, Some(span));

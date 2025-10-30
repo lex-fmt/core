@@ -2,14 +2,14 @@
 mod tests {
     use crate::txxt_nano::ast::{
         elements::Session,
-        span::{Location, Position},
+        location::{Location, Position},
         traits::{AstNode, Container},
     };
 
     #[test]
     fn test_get_location() {
-        let span = Location::new(Position::new(1, 0), Position::new(1, 10));
-        let session = Session::with_title("Title".to_string()).with_span(Some(span));
+        let location = Location::new(Position::new(1, 0), Position::new(1, 10));
+        let session = Session::with_title("Title".to_string()).with_span(Some(location));
         assert_eq!(session.get_location(), Some(Position::new(1, 0)));
     }
 
