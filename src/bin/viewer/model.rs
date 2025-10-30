@@ -226,7 +226,7 @@ impl Model {
 
     /// Find the innermost node at the given position
     ///
-    /// Uses the AST's span information to map a file position (line, col) to
+    /// Uses the AST's location information to map a file position (line, col) to
     /// the deepest AST node containing that position.
     ///
     /// This is the core of the line-to-node mapping: when the file viewer
@@ -238,7 +238,7 @@ impl Model {
     pub fn get_node_at_position(&self, row: usize, col: usize) -> Option<NodeId> {
         let pos = Position::new(row, col);
 
-        // Find all elements at this position (deepest first) using AST spans
+        // Find all elements at this position (deepest first) using AST locations
         let elements = self.document.elements_at(pos);
 
         // Return the first (deepest) element's NodeId
@@ -249,14 +249,14 @@ impl Model {
         }
     }
 
-    /// Get the span for a node
+    /// Get the location for a node
     ///
     /// Returns the text range (start and end position) for the given node.
-    /// The span indicates where in the source text this node is located.
-    pub fn get_span_for_node(&self, node_id: NodeId) -> Option<Location> {
+    /// The location indicates where in the source text this node is located.
+    pub fn get_location_for_node(&self, node_id: NodeId) -> Option<Location> {
         use txxt_nano::txxt_nano::ast::traits::AstNode;
         self.get_node(node_id).and_then(|(item, _depth)| {
-            // Use the AstNode trait to get the span
+            // Use the AstNode trait to get the location
             item.location()
         })
     }

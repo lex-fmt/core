@@ -131,9 +131,9 @@ impl App {
             Selection::TreeSelection(node_id) => {
                 // User selected a node in tree
                 // FileViewer's cursor should move to the node's text location
-                if let Some(span) = self.model.get_span_for_node(node_id) {
+                if let Some(location) = self.model.get_location_for_node(node_id) {
                     self.file_viewer
-                        .sync_cursor_to_position(span.start.line, span.start.column);
+                        .sync_cursor_to_position(location.start.line, location.start.column);
                 }
             }
             Selection::TextSelection(row, col) => {

@@ -154,7 +154,7 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
 /// Synthetic tokens (IndentLevel, DedentLevel) are given meaningful spans:
 /// - IndentLevel: span covers the Indent tokens it represents
 /// - DedentLevel: span at the start of the line where dedentation occurs
-pub fn transform_indentation_with_spans(
+pub fn transform_indentation_with_locations(
     tokens_with_spans: Vec<(Token, std::ops::Range<usize>)>,
 ) -> Vec<(Token, std::ops::Range<usize>)> {
     // Extract just the tokens for processing
@@ -779,7 +779,7 @@ mod tests {
             (Token::Text("b".to_string()), 6..7), // "b" at position 6-7
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // Expected:
         // - Text("a") with span 0..1
@@ -818,7 +818,7 @@ mod tests {
             (Token::Text("b".to_string()), 10..11), // "b"
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // Should have: Text, Newline, IndentLevel, IndentLevel, Text, DedentLevel, DedentLevel
         assert_eq!(result.len(), 7);
@@ -845,7 +845,7 @@ mod tests {
             (Token::Text("c".to_string()), 8..9), // "c" (dedented back to level 0)
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // Expected:
         // - Text("a"), Newline, IndentLevel, Text("b"), Newline, DedentLevel, Text("c")
@@ -872,7 +872,7 @@ mod tests {
             (Token::Text("c".to_string()), 12..13), // Back to level 0
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // Expected: Text("a"), Newline, IndentLevel, IndentLevel, Text("b"), Newline, DedentLevel, DedentLevel, Text("c")
         // Should have 2 DedentLevel tokens before Text("c")
@@ -903,7 +903,7 @@ mod tests {
             (Token::Text("b".to_string()), 6..7),
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // Last token should be DedentLevel with span at EOF (7..7)
         let last = result.last().unwrap();
@@ -920,7 +920,7 @@ mod tests {
         //            23..27 "    ", 27..28 "-", 28..29 " ", 29..36 "Subitem", 36..37 " ", 37..38 "B"
 
         let tokens_with_spans = crate::txxt_nano::lexer::tokenize_with_locations(source);
-        let result = transform_indentation_with_spans(tokens_with_spans);
+        let result = transform_indentation_with_locations(tokens_with_spans);
 
         // Find the IndentLevel token
         let indent_level_pos = result
@@ -959,7 +959,7 @@ mod tests {
             (Token::Text("b".to_string()), 7..8),
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // The IndentLevel should still have correct span
         let indent_pos = result

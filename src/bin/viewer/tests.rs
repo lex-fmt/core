@@ -440,14 +440,14 @@ fn test_tree_selection_emits_select_node_event() {
 }
 
 #[test]
-fn test_nested_elements_have_span_information() {
-    // ISSUE: The txxt_nano parser does not set span information on nested elements.
+fn test_nested_elements_have_location_information() {
+    // ISSUE: The txxt_nano parser does not set location information on nested elements.
     // This causes txxt to be unable to highlight tree nodes when the cursor is on
     // their text in the file viewer, because get_node_at_position() relies on
-    // document.elements_at() which depends on span information.
+    // document.elements_at() which depends on location information.
     //
     // This test verifies the issue: nested paragraph/list elements should have
-    // span information just like their parent session elements do.
+    // location information just like their parent session elements do.
 
     let app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
 
@@ -471,20 +471,20 @@ fn test_nested_elements_have_span_information() {
         let child_node = &flattened[child_idx];
         let child_node_id = child_node.node_id;
 
-        // Session should have a span
-        let session_span = app.app().model.get_span_for_node(*session_id);
+        // Session should have a location
+        let session_location = app.app().model.get_location_for_node(*session_id);
         assert!(
-            session_span.is_some(),
-            "Session {:?} should have span information",
+            session_location.is_some(),
+            "Session {:?} should have location information",
             session_id.path()
         );
 
-        // Child element should ALSO have span information
-        let child_span = app.app().model.get_span_for_node(child_node_id);
+        // Child element should ALSO have location information
+        let child_location = app.app().model.get_location_for_node(child_node_id);
         assert!(
-            child_span.is_some(),
-            "Nested element {:?} should have span information, but it doesn't. \
-             This is a txxt_nano parser issue: span information is not set on nested elements.",
+            child_location.is_some(),
+            "Nested element {:?} should have location information, but it doesn't. \
+             This is a txxt_nano parser issue: location information is not set on nested elements.",
             child_node_id.path()
         );
     } else {
@@ -494,7 +494,7 @@ fn test_nested_elements_have_span_information() {
 
 #[test]
 fn test_text_view_cursor_on_nested_element_updates_model() {
-    // Now that nested elements have spans, verify the full chain works:
+    // Now that nested elements have locations, verify the full chain works:
     // FileViewer cursor on nested element → get_node_at_position finds it →
     // emit event → model updates → tree should highlight
 
@@ -515,18 +515,21 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
             tree_path.len()
         );
 
-        // If it's nested, check if it has a span
+        // If it's nested, check if it has a location
         if tree_path.len() > 1 {
             println!("✓ Found a nested element!");
-            if let Some(span) = app.app().model.get_span_for_node(tree_selected) {
+            if let Some(location) = app.app().model.get_location_for_node(tree_selected) {
                 println!(
-                    "Nested node span: line {}-{}, col {}-{}",
-                    span.start.line, span.end.line, span.start.column, span.end.column
+                    "Nested node location: line {}-{}, col {}-{}",
+                    location.start.line,
+                    location.end.line,
+                    location.start.column,
+                    location.end.column
                 );
 
                 // Try to find the node using document.elements_at
                 use txxt_nano::txxt_nano::ast::location::Position;
-                let pos = Position::new(span.start.line, span.start.column);
+                let pos = Position::new(location.start.line, location.start.column);
                 let elements = app.app().model.document.elements_at(pos);
                 // Verify document.elements_at() now finds nested elements
                 assert!(
@@ -541,13 +544,13 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
                 // Move cursor to that position
                 app.app_mut()
                     .file_viewer
-                    .sync_cursor_to_position(span.start.line, span.start.column);
+                    .sync_cursor_to_position(location.start.line, location.start.column);
 
                 // Try get_node_at_position - should now find the nested element
                 let found_node = app
                     .app()
                     .model
-                    .get_node_at_position(span.start.line, span.start.column);
+                    .get_node_at_position(location.start.line, location.start.column);
 
                 assert_eq!(
                     found_node,

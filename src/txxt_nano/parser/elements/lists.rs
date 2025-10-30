@@ -60,7 +60,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt_nano::lexer::lex_with_spans;
+    use crate::txxt_nano::lexer::lex_with_locations;
     use crate::txxt_nano::parser::api::parse_with_source;
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
     use crate::txxt_nano::testing::assert_ast;
@@ -69,7 +69,7 @@ mod tests {
     fn test_simplest_dash_list() {
         // Simplest possible list: 2 dashed items
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Find the first list (after "Plain dash lists:" paragraph)
@@ -99,7 +99,7 @@ mod tests {
     fn test_numbered_list() {
         // Test numbered list: "1. ", "2. ", "3. "
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Numerical lists (item 5)
@@ -122,7 +122,7 @@ mod tests {
     fn test_alphabetical_list() {
         // Test alphabetical list: "a. ", "b. ", "c. "
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Alphabetical lists (item 7)
@@ -145,7 +145,7 @@ mod tests {
     fn test_mixed_decoration_list() {
         // Test mixed decorations: different markers in same list
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Mixed decoration lists (item 9)
@@ -168,7 +168,7 @@ mod tests {
     fn test_parenthetical_list() {
         // Test parenthetical numbering: "(1) ", "(2) ", "(3) "
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Parenthetical numbering (item 11)
@@ -191,7 +191,7 @@ mod tests {
     fn test_paragraph_list_disambiguation() {
         // Critical test: single list-like line becomes paragraph, 2+ with blank line become list
         let source = TxxtSources::get_string("050-paragraph-lists.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Items 2-4: Single list-item-lines merged into paragraphs
@@ -222,7 +222,7 @@ mod tests {
     fn test_verified_lists_document() {
         // Full document test with lists from TxxtSources
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Verify document structure: paragraphs + lists alternating
@@ -259,7 +259,7 @@ mod tests {
         // Critical test: Lists MUST have a preceding blank line for disambiguation
         // Without the blank line, consecutive list-item-lines should be parsed as paragraphs
         let source = "First paragraph\n- Item one\n- Item two\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         // Should be parsed as a single paragraph, NOT a paragraph + list
@@ -278,7 +278,7 @@ mod tests {
 
         // Now test the positive case: with blank line, it becomes separate items
         let source_with_blank = "First paragraph\n\n- Item one\n- Item two\n";
-        let tokens2 = lex_with_spans(source_with_blank);
+        let tokens2 = lex_with_locations(source_with_blank);
         let doc2 = parse_with_source(tokens2, source_with_blank).unwrap();
 
         // Should be parsed as paragraph + list
@@ -307,7 +307,7 @@ mod tests {
     fn test_verified_nested_lists_simple() {
         let source = TxxtSources::get_string("070-nested-lists-simple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
@@ -391,7 +391,7 @@ mod tests {
     fn test_verified_nested_lists_mixed_content() {
         let source = TxxtSources::get_string("080-nested-lists-mixed-content.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
