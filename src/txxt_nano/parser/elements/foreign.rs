@@ -26,23 +26,37 @@ pub(crate) fn foreign_block(
 ) -> impl Parser<TokenSpan, ForeignBlock, Error = ParserError> + Clone {
     let subject_parser = definition_subject(source.clone());
 
-    let content_token = filter(|(t, _span): &TokenSpan| !matches!(t, Token::TxxtMarker));
-
+    // Parse content that handles nested indentation structures.
+    // Content can be either:
+    // 1. Regular tokens (not TxxtMarker, not DedentLevel)
+    // 2. Nested indentation blocks: IndentLevel + [content] + DedentLevel
+    //
+    // This ensures that nested structures (like code with braces) are properly
+    // consumed, and DedentLevel tokens mark clear boundaries. This approach
+    // mirrors how lists.rs handles nested content with the `items` parser.
     let with_content = token(Token::IndentLevel)
-        .ignore_then(content_token.repeated().at_least(1))
+        .ignore_then(recursive(|nested_content| {
+            choice((
+                // Handle nested indentation: properly matched pairs
+                // Return a dummy TokenSpan to match the filter branch type
+                token(Token::IndentLevel)
+                    .ignore_then(nested_content.clone())
+                    .then_ignore(token(Token::DedentLevel))
+                    .map(|_| (Token::IndentLevel, 0..0)), // Dummy token, won't be used
+                // Regular content token (not TxxtMarker, not DedentLevel)
+                filter(|(t, _span): &TokenSpan| {
+                    !matches!(t, Token::TxxtMarker | Token::DedentLevel)
+                }),
+            ))
+            .repeated()
+            .at_least(1)
+        }))
+        .then_ignore(token(Token::DedentLevel))
         .map(|tokens: Vec<TokenSpan>| {
-            let mut content_tokens = tokens;
-            while content_tokens
-                .last()
-                .map(|(t, _)| matches!(t, Token::DedentLevel | Token::BlankLine | Token::Newline))
-                .unwrap_or(false)
-            {
-                content_tokens.pop();
-            }
-
-            content_tokens
+            tokens
                 .into_iter()
                 .map(|(_, s)| s)
+                .filter(|s| s.start < s.end) // Filter out dummy ranges (0..0)
                 .collect::<Vec<_>>()
         });
 
