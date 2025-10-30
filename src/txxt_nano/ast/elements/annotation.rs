@@ -58,6 +58,9 @@ impl AstNode for Annotation {
             format!("{} ({} params)", self.label.value, self.parameters.len())
         }
     }
+    fn span(&self) -> Option<Span> {
+        self.span
+    }
 }
 
 impl Container for Annotation {

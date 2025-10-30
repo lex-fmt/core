@@ -256,9 +256,24 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                 OutputFormat::AstTag => Ok(crate::txxt_nano::parser::serialize_ast_tag(&doc)),
                 OutputFormat::AstTreeviz => Ok(crate::txxt_nano::parser::to_treeviz_str(&doc)),
                 OutputFormat::AstPosition => {
-                    crate::txxt_nano::parser::format_at_position(&doc, &extras).map_err(|e| {
-                        ProcessingError::InvalidFormatType(e.to_string())
-                    })
+                    let line = extras
+                        .get("line")
+                        .and_then(|s| s.parse::<usize>().ok())
+                        .ok_or_else(|| {
+                            ProcessingError::InvalidFormatType("Missing or invalid 'line' extra".to_string())
+                        })?;
+                    let column = extras
+                        .get("column")
+                        .and_then(|s| s.parse::<usize>().ok())
+                        .ok_or_else(|| {
+                            ProcessingError::InvalidFormatType(
+                                "Missing or invalid 'column' extra".to_string(),
+                            )
+                        })?;
+                    Ok(crate::txxt_nano::parser::format_at_position(
+                        &doc,
+                        crate::txxt_nano::parser::Position::new(line, column),
+                    ))
                 }
                 _ => Err(ProcessingError::InvalidFormatType(
                     "Only ast-tag, ast-treeviz, and ast-position formats are supported for AST stage".to_string(),
