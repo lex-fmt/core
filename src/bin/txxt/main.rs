@@ -22,7 +22,7 @@ use app::App;
 use model::Model;
 
 #[derive(Parser)]
-#[command(name = "txxtv")]
+#[command(name = "txxt")]
 #[command(about = "A terminal UI viewer for txxt documents")]
 struct Args {
     /// Path to the txxt file to open
