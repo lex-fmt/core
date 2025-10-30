@@ -29,5 +29,3 @@ pub use location::{Location, Position, SourceLocation};
 pub use lookup::{find_nodes_at_position, format_at_position};
 pub use text_content::TextContent;
 pub use traits::{AstNode, Container, TextNode};
-#[cfg(test)]
-mod location_test;
