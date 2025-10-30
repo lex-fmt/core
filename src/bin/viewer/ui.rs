@@ -6,7 +6,7 @@
 //! - Middle section (responsive height):
 //!   - Tree viewer (30 chars, fixed width)
 //!   - File viewer (remaining space)
-//! - Info panel (11 lines, fixed)
+//! - Status line (1 line, fixed)
 
 use super::app::App;
 use super::model::Focus;
@@ -20,8 +20,8 @@ use ratatui::Frame;
 const MIN_TERMINAL_WIDTH: u16 = 50;
 /// Width allocated to the tree viewer
 const TREE_VIEWER_WIDTH: u16 = 30;
-/// Height of the info panel
-const INFO_PANEL_HEIGHT: u16 = 11;
+/// Height of the status line
+const STATUS_LINE_HEIGHT: u16 = 1;
 
 /// Render the entire UI
 pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
@@ -33,13 +33,13 @@ pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
         return;
     }
 
-    // Split layout vertically: title, middle (with tree|file), info panel
+    // Split layout vertically: title, middle (with tree|file), status line
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),                 // Title bar
-            Constraint::Min(3),                    // Middle (tree|file)
-            Constraint::Length(INFO_PANEL_HEIGHT), // Info panel
+            Constraint::Length(1),                  // Title bar
+            Constraint::Min(1), // Middle (tree|file) - expand to fill available space
+            Constraint::Length(STATUS_LINE_HEIGHT), // Status line
         ])
         .split(size);
 
@@ -127,20 +127,18 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
     use super::model::Selection;
     use ratatui::text::Span;
 
-    let title = "Info";
-
-    // Build info content based on current selection
+    // Build status line content as a single line
     let mut spans = Vec::new();
 
     match app.model.selection() {
         Selection::TreeSelection(node_id) => {
             spans.push(Span::styled(
-                "MODE: ",
+                "🌳 Tree",
                 Style::default()
                     .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
             ));
-            spans.push(Span::raw("Tree Selection\n"));
+            spans.push(Span::raw(" | "));
 
             let path = node_id.path();
             if path.is_empty() {
@@ -148,55 +146,58 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
                     "Selection: ",
                     Style::default().fg(Color::Yellow),
                 ));
-                spans.push(Span::raw("Root (Document)\n"));
+                spans.push(Span::raw("Root (Document)"));
             } else {
                 spans.push(Span::styled("Path: ", Style::default().fg(Color::Yellow)));
                 let path_str = path
                     .iter()
                     .map(|i| i.to_string())
                     .collect::<Vec<_>>()
-                    .join(" → ");
-                spans.push(Span::raw(format!("[{}]\n", path_str)));
+                    .join("→");
+                spans.push(Span::raw(format!("[{}]", path_str)));
 
                 // Show if node is expanded
                 let is_expanded = app.model.is_node_expanded(node_id);
+                spans.push(Span::raw(" | "));
                 spans.push(Span::styled("State: ", Style::default().fg(Color::Yellow)));
                 spans.push(Span::raw(if is_expanded {
-                    "Expanded\n"
+                    "Expanded"
                 } else {
-                    "Collapsed\n"
+                    "Collapsed"
                 }));
             }
         }
         Selection::TextSelection(row, col) => {
             spans.push(Span::styled(
-                "MODE: ",
+                "📝 Text",
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
             ));
-            spans.push(Span::raw("Text Selection\n"));
+            spans.push(Span::raw(" | "));
 
             spans.push(Span::styled("Cursor: ", Style::default().fg(Color::Yellow)));
-            spans.push(Span::raw(format!("line {}, col {}\n", row, col)));
+            spans.push(Span::raw(format!("Line {}, Col {}", row, col)));
 
             if let Some(node_id) = app.model.get_node_at_position(row, col) {
                 let path = node_id.path();
+                spans.push(Span::raw(" | "));
                 spans.push(Span::styled("Node: ", Style::default().fg(Color::Yellow)));
 
                 if path.is_empty() {
-                    spans.push(Span::raw("Root (Document)\n"));
+                    spans.push(Span::raw("Root (Document)"));
                 } else {
                     let path_str = path
                         .iter()
                         .map(|i| i.to_string())
                         .collect::<Vec<_>>()
-                        .join(" → ");
-                    spans.push(Span::raw(format!("[{}]\n", path_str)));
+                        .join("→");
+                    spans.push(Span::raw(format!("[{}]", path_str)));
                 }
 
                 // Show if node is expanded
                 let is_expanded = app.model.is_node_expanded(node_id);
+                spans.push(Span::raw(" | "));
                 spans.push(Span::styled("State: ", Style::default().fg(Color::Yellow)));
                 spans.push(Span::raw(if is_expanded {
                     "Expanded"
@@ -207,13 +208,8 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
         }
     }
 
+    // Render as a simple single-line status without borders
     let paragraph = Paragraph::new(ratatui::text::Line::from(spans))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(title)
-                .border_type(ratatui::widgets::BorderType::Rounded),
-        )
         .style(Style::default().bg(Color::Black).fg(Color::White));
 
     frame.render_widget(paragraph, area);
@@ -229,8 +225,8 @@ mod tests {
     }
 
     #[test]
-    fn test_info_panel_height_constant() {
-        assert_eq!(INFO_PANEL_HEIGHT, 11);
+    fn test_status_line_height_constant() {
+        assert_eq!(STATUS_LINE_HEIGHT, 1);
     }
 
     #[test]

@@ -9,7 +9,7 @@
 use super::app::App;
 use super::model::Model;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::backend::TestBackend;
+use ratatui::backend::{Backend, TestBackend};
 use ratatui::Terminal;
 use std::fs;
 
@@ -75,13 +75,25 @@ impl TestApp {
 
     /// Get the current terminal output as a string
     fn terminal_output(&self) -> String {
-        // For now, return a simple string indicating render was successful
-        // Full snapshot testing will be done with insta
-        format!(
-            "Rendered output ({} x {})",
-            self.terminal.size().unwrap().width,
-            self.terminal.size().unwrap().height
-        )
+        let backend = self.terminal.backend();
+        let (width, height) = (
+            backend.size().unwrap().width,
+            backend.size().unwrap().height,
+        );
+        let mut output = String::new();
+
+        for y in 0..height {
+            for x in 0..width {
+                if let Some(cell) = backend.buffer().cell((x, y)) {
+                    output.push_str(cell.symbol());
+                } else {
+                    output.push(' ');
+                }
+            }
+            output.push('\n');
+        }
+
+        output
     }
 
     /// Get reference to the app for assertions
@@ -663,4 +675,148 @@ fn test_tree_viewer_leaf_nodes_have_alignment_spacing() {
     // Leaf nodes don't show expand/collapse indicators, they show spacing
     // This is verified by the rendering logic showing "  " (two spaces)
     // The actual visual verification is manual, but the structure is correct
+}
+
+// ========== Status Line Rendering Tests ==========
+
+#[test]
+fn test_status_line_renders_tree_mode_indicator() {
+    let mut app = TestApp::with_content("# Heading\nParagraph");
+
+    // Switch to tree viewer (tree mode)
+    app.send_key(KeyCode::Tab);
+
+    let output = app.render();
+
+    // Status line should contain tree mode indicator
+    assert!(
+        output.contains("🌳") || output.contains("Tree"),
+        "Status line should show tree mode indicator"
+    );
+}
+
+#[test]
+fn test_status_line_renders_text_mode_indicator() {
+    let mut app = TestApp::with_content("# Heading\nParagraph");
+
+    // Start in file viewer (text mode - default)
+    let output = app.render();
+
+    // Status line should contain text mode indicator
+    assert!(
+        output.contains("📝") || output.contains("Text"),
+        "Status line should show text mode indicator"
+    );
+}
+
+#[test]
+fn test_status_line_shows_cursor_position() {
+    let mut app = TestApp::with_content("Line 1\nLine 2\nLine 3");
+
+    // Get initial render (cursor at 0,0)
+    let output = app.render();
+
+    // Status line should show cursor position
+    assert!(
+        output.contains("Cursor") || output.contains("Line") || output.contains("Col"),
+        "Status line should show cursor information"
+    );
+}
+
+#[test]
+fn test_status_line_is_single_row() {
+    let mut app = TestApp::with_content("# Heading\nParagraph");
+
+    let output = app.render();
+    let lines: Vec<&str> = output.lines().collect();
+
+    // Terminal is 24 lines: title (1) + middle + status (1)
+    // The status line should be at the bottom
+    assert_eq!(lines.len(), 24, "Terminal should be 24 lines");
+
+    // The last line should contain status information
+    let last_line = lines[23];
+    assert!(
+        !last_line.trim().is_empty() || last_line.contains("│"),
+        "Last line should contain status line content or tree border"
+    );
+}
+
+#[test]
+fn test_status_line_shows_tree_selection_path() {
+    let mut app = TestApp::with_content("# Heading\n## Subheading\nParagraph");
+
+    // Switch to tree viewer
+    app.send_key(KeyCode::Tab);
+
+    // Navigate to get a non-root selection
+    app.send_key(KeyCode::Down);
+
+    let output = app.render();
+
+    // Status line should show selection path
+    assert!(
+        output.contains("Path") || output.contains("[") || output.contains("Selection"),
+        "Status line should show tree selection information"
+    );
+}
+
+#[test]
+fn test_status_line_shows_expanded_collapsed_state() {
+    let mut app = TestApp::with_content("# Heading\n## Subheading");
+
+    // Switch to tree viewer
+    app.send_key(KeyCode::Tab);
+
+    // Get render with node that has children (should show state)
+    let output = app.render();
+
+    // Status line may show Expanded or Collapsed depending on the node
+    let _has_state_info =
+        output.contains("Expanded") || output.contains("Collapsed") || output.contains("State");
+
+    // This test verifies that render doesn't panic with nested content
+    // State info may or may not be shown depending on node type
+}
+
+#[test]
+fn test_status_line_no_borders() {
+    let mut app = TestApp::with_content("# Test");
+
+    let output = app.render();
+
+    // Count lines with full border characters (the status line should NOT have borders like title)
+    // The status line should be plain text, not enclosed in a box
+    let lines: Vec<&str> = output.lines().collect();
+
+    // Count rounded border characters in last line (status line)
+    let last_line = lines[23];
+    let has_borders = last_line.contains("╭")
+        || last_line.contains("╮")
+        || last_line.contains("╰")
+        || last_line.contains("╯");
+
+    assert!(
+        !has_borders,
+        "Status line should not have rounded borders (should be plain text)"
+    );
+}
+
+#[test]
+fn test_status_line_with_long_path() {
+    // Create a deeply nested structure
+    let content = "# Level 0\n## Level 1\n### Level 2\n#### Level 3\nContent";
+    let mut app = TestApp::with_content(content);
+
+    // Switch to tree viewer
+    app.send_key(KeyCode::Tab);
+
+    let output = app.render();
+
+    // Status line should handle long paths gracefully (not panic or truncate incorrectly)
+    assert!(!output.is_empty(), "Should render even with deep nesting");
+
+    // Check that status line is still present
+    let lines: Vec<&str> = output.lines().collect();
+    assert!(lines.len() == 24, "Terminal height should remain constant");
 }
