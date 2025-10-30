@@ -93,16 +93,19 @@ fn render_tree_viewer(frame: &mut Frame, area: Rect, app: &App) {
         ""
     };
 
-    let title = format!("Tree Viewer{}", focus_indicator);
-    let paragraph = Paragraph::new(title)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Tree"),
-        )
-        .style(Style::default());
+    let title = format!("Tree{}", focus_indicator);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title);
 
-    frame.render_widget(paragraph, area);
+    // Get inner area for content (inside the border)
+    let inner_area = block.inner(area);
+
+    // Render the border
+    frame.render_widget(block, area);
+
+    // Render the tree viewer's content
+    app.tree_viewer.render(frame, inner_area, &app.model);
 }
 
 fn render_file_viewer(frame: &mut Frame, area: Rect, app: &App) {
@@ -112,16 +115,19 @@ fn render_file_viewer(frame: &mut Frame, area: Rect, app: &App) {
         ""
     };
 
-    let title = format!("File Viewer{}", focus_indicator);
-    let paragraph = Paragraph::new("")
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(title),
-        )
-        .style(Style::default());
+    let title = format!("File{}", focus_indicator);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title);
 
-    frame.render_widget(paragraph, area);
+    // Get inner area for content (inside the border)
+    let inner_area = block.inner(area);
+
+    // Render the border
+    frame.render_widget(block, area);
+
+    // Render the file viewer's content
+    app.file_viewer.render(frame, inner_area, &app.model);
 }
 
 fn render_info_panel(frame: &mut Frame, area: Rect, _app: &App) {

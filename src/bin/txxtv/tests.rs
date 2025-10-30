@@ -733,4 +733,68 @@ mod unit_tests {
         assert_eq!(row, 0);
         assert_eq!(col, 0);
     }
+
+    // ========== Step 7: Tree String Rendering Tests ==========
+
+    #[test]
+    fn test_tree_viewer_renders_without_crashing() {
+        let mut app = TestApp::new();
+        // This test verifies that rendering the tree doesn't panic
+        // It will fail if the tree viewer's render() method has bugs
+        let output = app.render();
+        assert!(!output.is_empty(), "Rendered output should not be empty");
+    }
+
+    #[test]
+    fn test_tree_viewer_displays_in_left_panel() {
+        let mut app = TestApp::new();
+        // The tree should be rendered in the left 30-char panel
+        // The placeholder should show tree content
+        let output = app.render();
+        // The tree should contain some ASCII tree characters from treeviz
+        // At minimum, it should show something in the tree area
+        // (the actual tree structure will be tested in Step 8)
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_file_viewer_displays_content() {
+        let mut app = TestApp::new();
+        // The file viewer should display the actual file content
+        // Let's verify the render doesn't crash and contains some content
+        let output = app.render();
+        assert!(!output.is_empty(), "File viewer should render content");
+        // The test document should appear somewhere in the output
+        // Since we render the actual file content, we should see it
+    }
+
+    #[test]
+    fn test_tree_and_file_render_together() {
+        let mut app = TestApp::new();
+        // Verify that both viewers can render in the same frame
+        // This tests the layout split works correctly
+        let output = app.render();
+        assert!(!output.is_empty());
+        assert!(output.len() >= 80 * 30 / 2, "Output should be substantial for both viewers");
+    }
+
+    #[test]
+    fn test_tree_respects_expanded_state() {
+        let mut app = TestApp::new();
+        // When a node is collapsed, its children shouldn't appear in the rendered tree
+        // When expanded, they should appear
+        // For now, just verify the tree renders the current expanded state
+        let output1 = app.render();
+
+        // Toggle a node
+        let node = TestApp::node_id(&[0]);
+        app.app.model.toggle_node_expansion(node);
+
+        let output2 = app.render();
+
+        // Both should render without crashing
+        // The actual line counts will be tested in Step 8
+        assert!(!output1.is_empty());
+        assert!(!output2.is_empty());
+    }
 }

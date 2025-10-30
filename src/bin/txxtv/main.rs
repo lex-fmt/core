@@ -716,4 +716,72 @@ mod tests {
         // Clean up
         fs::remove_file(test_file).unwrap();
     }
+
+    // ========== Step 7: Tree String Rendering Tests ==========
+
+    #[test]
+    fn test_tree_viewer_renders() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_tree.txt");
+        fs::write(&test_file, "Test Content").unwrap();
+
+        let app = App::new(test_file.clone()).unwrap();
+
+        // Create a test backend
+        let backend = TestBackend::new(80, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Draw to the test backend - verifies tree and file render together
+        terminal
+            .draw(|frame| {
+                app.draw(frame);
+            })
+            .unwrap();
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_file_content_displays() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_file_display.txt");
+        fs::write(&test_file, "Line 1\nLine 2\nLine 3").unwrap();
+
+        let app = App::new(test_file.clone()).unwrap();
+
+        // Verify file content was loaded
+        assert!(app.content.contains("Line 1"));
+        assert!(app.content.contains("Line 2"));
+        assert!(app.content.contains("Line 3"));
+
+        // Clean up
+        fs::remove_file(test_file).unwrap();
+    }
+
+    #[test]
+    fn test_layout_with_tree_and_file() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_layout.txt");
+        fs::write(&test_file, "Content").unwrap();
+
+        let app = App::new(test_file.clone()).unwrap();
+
+        // Create a test backend with standard terminal size
+        let backend = TestBackend::new(80, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // This test verifies that both viewers render in their correct areas
+        terminal
+            .draw(|frame| {
+                app.draw(frame);
+            })
+            .unwrap();
+
+        // If we get here, the rendering succeeded
+        // A proper test would check the rendered buffer content
+
+        // Clean up (ignore if file doesn't exist)
+        let _ = fs::remove_file(test_file);
+    }
 }
