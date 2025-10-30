@@ -27,8 +27,10 @@ pub use elements::{
     Parameter, Session,
 };
 pub use error::PositionLookupError;
-pub use lookup::format_at_position;
+pub use lookup::{find_nodes_at_position, format_at_position};
 pub use position::SourceLocation;
 pub use span::{Position, Span};
 pub use text_content::TextContent;
 pub use traits::{AstNode, Container, TextNode};
+#[cfg(test)]
+mod location_test;

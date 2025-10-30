@@ -47,6 +47,9 @@ impl AstNode for Paragraph {
             text
         }
     }
+    fn span(&self) -> Option<Span> {
+        self.span
+    }
 }
 
 impl TextNode for Paragraph {

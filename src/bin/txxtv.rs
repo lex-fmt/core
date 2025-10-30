@@ -22,12 +22,11 @@ use ratatui::prelude::*;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
-use txxt_nano::txxt_nano::ast::lookup::by_position::format_at_position;
+use txxt_nano::txxt_nano::ast::lookup::format_at_position;
 use txxt_nano::txxt_nano::parser::{parse_document, Document};
 
 #[derive(Parser)]
@@ -198,38 +197,7 @@ impl App {
     }
 
     fn parse_ast_info(&self, ast_info: &str) -> Vec<String> {
-        let mut result = Vec::new();
-        let mut current_num = 0;
-        let mut current_element: Option<String> = None;
-        let mut current_label: Option<String> = None;
-
-        for line in ast_info.lines() {
-            // Parse lines like "1. Session (0:0..0:17)"
-            if let Some(rest) = line.strip_prefix(&format!("{}. ", current_num + 1)) {
-                // Found next element
-                if let (Some(elem), Some(label)) = (&current_element, &current_label) {
-                    result.push(format!("{}. {}: {}", current_num, elem, label));
-                }
-
-                current_num += 1;
-                // Extract element type (before the parenthesis)
-                if let Some(elem_name) = rest.split('(').next() {
-                    current_element = Some(elem_name.trim().to_string());
-                }
-                current_label = None;
-            } else if line.starts_with("   Label:") {
-                // Extract label
-                let label = line.trim_start_matches("   Label: ");
-                current_label = Some(label.to_string());
-            }
-        }
-
-        // Add the last element
-        if let (Some(elem), Some(label)) = (current_element, current_label) {
-            result.push(format!("{}. {}: {}", current_num, elem, label));
-        }
-
-        result
+        ast_info.lines().map(|s| s.to_string()).collect()
     }
 
     fn render_info_panel(&self) -> Vec<Line<'_>> {
@@ -237,23 +205,13 @@ impl App {
 
         // AST info if available
         if let Some(doc) = &self.document {
-            let mut extras = HashMap::new();
-            extras.insert(
-                "position".to_string(),
-                format!("{}:{}", self.cursor_row, self.cursor_col),
+            let ast_info = format_at_position(
+                doc,
+                txxt_nano::txxt_nano::ast::span::Position::new(self.cursor_row, self.cursor_col),
             );
-
-            match format_at_position(doc, &extras) {
-                Ok(ast_info) => {
-                    // Parse and display AST hierarchy
-                    let parsed = self.parse_ast_info(&ast_info);
-                    for line in parsed {
-                        lines.push(Line::from(line));
-                    }
-                }
-                Err(_) => {
-                    lines.push(Line::from("(No AST info at cursor)"));
-                }
+            let parsed = self.parse_ast_info(&ast_info);
+            for line in parsed {
+                lines.push(Line::from(line));
             }
         } else if let Some(error) = &self.parse_error {
             lines.push(Line::from(format!("Parse error: {}", error)));
