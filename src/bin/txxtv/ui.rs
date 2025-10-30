@@ -20,8 +20,8 @@ use ratatui::Frame;
 const MIN_TERMINAL_WIDTH: u16 = 50;
 /// Width allocated to the tree viewer
 const TREE_VIEWER_WIDTH: u16 = 30;
-/// Height of the info panel
-const INFO_PANEL_HEIGHT: u16 = 11;
+/// Height of the status line
+const STATUS_LINE_HEIGHT: u16 = 1;
 
 /// Render the entire UI
 pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
@@ -33,19 +33,19 @@ pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
         return;
     }
 
-    // Split layout vertically: title, middle (with tree|file), info panel
+    // Split layout vertically: title, middle (with tree|file), status line
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),                 // Title bar
-            Constraint::Min(3),                    // Middle (tree|file)
-            Constraint::Length(INFO_PANEL_HEIGHT), // Info panel
+            Constraint::Length(1),                  // Title bar
+            Constraint::Min(3),                     // Middle (tree|file)
+            Constraint::Length(STATUS_LINE_HEIGHT), // Status line
         ])
         .split(size);
 
     render_title_bar(frame, chunks[0], file_name, &app.theme);
     render_middle_section(frame, chunks[1], app);
-    render_info_panel(frame, chunks[2], app);
+    render_status_line(frame, chunks[2], app);
 }
 
 fn render_error_too_narrow(frame: &mut Frame, area: Rect, theme: &Theme) {
@@ -119,86 +119,56 @@ fn render_file_viewer(frame: &mut Frame, area: Rect, app: &App) {
         .render(frame, inner_area, &app.model, &app.theme);
 }
 
-fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
-    use crate::model::Selection;
+fn render_status_line(frame: &mut Frame, area: Rect, app: &App) {
     use ratatui::text::Span;
 
-    let title = "Info";
     let theme = &app.theme;
 
-    // Build info content based on current selection
-    let mut spans = Vec::new();
+    // Get cursor position and node at that position
+    let (row, col) = app.model.get_selected_position().unwrap_or((0, 0));
+    let mut status_text = format!("cursor: {},{}", row, col);
 
-    match app.model.selection() {
-        Selection::TreeSelection(node_id) => {
-            spans.push(Span::styled("MODE: ", theme.info_panel_mode_tree()));
-            spans.push(Span::raw("Tree Selection\n"));
+    // Get the breadcrumb path for the element at cursor position
+    if let Some(node_id) = app.model.get_node_at_position(row, col) {
+        let path = node_id.path();
 
-            let path = node_id.path();
-            if path.is_empty() {
-                spans.push(Span::styled("Selection: ", theme.info_panel_label()));
-                spans.push(Span::raw("Root (Document)\n"));
-            } else {
-                spans.push(Span::styled("Path: ", theme.info_panel_label()));
-                let path_str = path
-                    .iter()
-                    .map(|i| i.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" → ");
-                spans.push(Span::raw(format!("[{}]\n", path_str)));
+        // Build breadcrumb: element type > element type > ... > label
+        let mut breadcrumb = String::new();
+        let flattened = app.model.flattened_tree();
 
-                // Show if node is expanded
-                let is_expanded = app.model.is_node_expanded(node_id);
-                spans.push(Span::styled("State: ", theme.info_panel_label()));
-                spans.push(Span::raw(if is_expanded {
-                    "Expanded\n"
-                } else {
-                    "Collapsed\n"
-                }));
+        // Walk up the tree to build the path
+        for (depth, idx) in path.iter().enumerate() {
+            if !breadcrumb.is_empty() {
+                breadcrumb.push_str(" > ");
+            }
+
+            // Find the label for this node in the flattened tree
+            if let Some(node) = flattened
+                .iter()
+                .find(|n| n.node_id.path().len() == depth + 1 && n.node_id.path()[depth] == *idx)
+            {
+                breadcrumb.push_str(&node.label);
+            } else if depth == 0 && path.is_empty() {
+                breadcrumb.push_str("Document");
             }
         }
-        Selection::TextSelection(row, col) => {
-            spans.push(Span::styled("MODE: ", theme.info_panel_mode_text()));
-            spans.push(Span::raw("Text Selection\n"));
 
-            spans.push(Span::styled("Cursor: ", theme.info_panel_label()));
-            spans.push(Span::raw(format!("line {}, col {}\n", row, col)));
-
-            if let Some(node_id) = app.model.get_node_at_position(row, col) {
-                let path = node_id.path();
-                spans.push(Span::styled("Node: ", theme.info_panel_label()));
-
-                if path.is_empty() {
-                    spans.push(Span::raw("Root (Document)\n"));
-                } else {
-                    let path_str = path
-                        .iter()
-                        .map(|i| i.to_string())
-                        .collect::<Vec<_>>()
-                        .join(" → ");
-                    spans.push(Span::raw(format!("[{}]\n", path_str)));
-                }
-
-                // Show if node is expanded
-                let is_expanded = app.model.is_node_expanded(node_id);
-                spans.push(Span::styled("State: ", theme.info_panel_label()));
-                spans.push(Span::raw(if is_expanded {
-                    "Expanded"
-                } else {
-                    "Collapsed"
-                }));
-            }
+        if !breadcrumb.is_empty() {
+            status_text.push(' ');
+            status_text.push_str(&breadcrumb);
         }
     }
 
-    let paragraph = Paragraph::new(ratatui::text::Line::from(spans))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(title)
-                .border_type(ratatui::widgets::BorderType::Rounded),
-        )
-        .style(theme.info_panel_bg());
+    // Truncate if too long for the display area
+    let max_width = area.width as usize;
+    if status_text.len() > max_width {
+        status_text.truncate(max_width.saturating_sub(3));
+        status_text.push_str("...");
+    }
+
+    let spans = vec![Span::styled(status_text, theme.info_panel_bg())];
+    let line = ratatui::text::Line::from(spans);
+    let paragraph = Paragraph::new(line);
 
     frame.render_widget(paragraph, area);
 }
@@ -213,8 +183,8 @@ mod tests {
     }
 
     #[test]
-    fn test_info_panel_height_constant() {
-        assert_eq!(INFO_PANEL_HEIGHT, 11);
+    fn test_status_line_height_constant() {
+        assert_eq!(STATUS_LINE_HEIGHT, 1);
     }
 
     #[test]
