@@ -10,20 +10,20 @@ use std::sync::Arc;
 use crate::txxt_nano::ast::{Annotation, ContentItem, ForeignBlock, Label, Paragraph, TextContent};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{
-    annotation_header, definition_subject, extract_text_from_spans, text_line, token,
+    annotation_header, definition_subject, extract_text_from_locations, text_line, token,
 };
 
-/// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+/// Type alias for token with location
+type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
-type ParserError = Simple<TokenSpan>;
+type ParserError = Simple<TokenLocation>;
 
 /// Parse a foreign block
 /// Phase 4: Now builds final ForeignBlock type directly
 pub(crate) fn foreign_block(
     source: Arc<String>,
-) -> impl Parser<TokenSpan, ForeignBlock, Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, ForeignBlock, Error = ParserError> + Clone {
     let subject_parser = definition_subject(source.clone());
 
     // Parse content that handles nested indentation structures.
@@ -38,13 +38,13 @@ pub(crate) fn foreign_block(
         .ignore_then(recursive(|nested_content| {
             choice((
                 // Handle nested indentation: properly matched pairs
-                // Return a dummy TokenSpan to match the filter branch type
+                // Return a dummy TokenLocation to match the filter branch type
                 token(Token::IndentLevel)
                     .ignore_then(nested_content.clone())
                     .then_ignore(token(Token::DedentLevel))
                     .map(|_| (Token::IndentLevel, 0..0)), // Dummy token, won't be used
                 // Regular content token (not TxxtMarker, not DedentLevel)
-                filter(|(t, _span): &TokenSpan| {
+                filter(|(t, _location): &TokenLocation| {
                     !matches!(t, Token::TxxtMarker | Token::DedentLevel)
                 }),
             ))
@@ -52,7 +52,7 @@ pub(crate) fn foreign_block(
             .at_least(1)
         }))
         .then_ignore(token(Token::DedentLevel))
-        .map(|tokens: Vec<TokenSpan>| {
+        .map(|tokens: Vec<TokenLocation>| {
             tokens
                 .into_iter()
                 .map(|(_, s)| s)
@@ -66,16 +66,16 @@ pub(crate) fn foreign_block(
         .then_ignore(token(Token::TxxtMarker))
         .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
         .map(
-            move |((label_opt, _label_span, parameters), content_span)| {
+            move |((label_opt, _label_location, parameters), content_location)| {
                 // Build Annotation from extracted label and parameters
                 let label = Label::new(label_opt.unwrap_or_default());
 
-                let content = content_span
-                    .map(|spans| {
-                        let text = extract_text_from_spans(&source_for_annotation, &spans);
+                let content = content_location
+                    .map(|locations| {
+                        let text = extract_text_from_locations(&source_for_annotation, &locations);
                         vec![ContentItem::Paragraph(Paragraph {
                             lines: vec![TextContent::from_string(text, None)],
-                            span: None,
+                            location: None,
                         })]
                     })
                     .unwrap_or_default();
@@ -84,7 +84,7 @@ pub(crate) fn foreign_block(
                     label,
                     parameters,
                     content,
-                    span: None,
+                    location: None,
                 }
             },
         );
@@ -95,16 +95,16 @@ pub(crate) fn foreign_block(
         .then(closing_annotation_parser)
         .then_ignore(token(Token::Newline).or_not())
         .map(
-            move |(((subject_text, _subject_span), content_spans), closing_annotation)| {
-                let content = content_spans
-                    .map(|spans| extract_text_from_spans(&source, &spans))
+            move |(((subject_text, _subject_location), content_locations), closing_annotation)| {
+                let content = content_locations
+                    .map(|locations| extract_text_from_locations(&source, &locations))
                     .unwrap_or_default();
 
                 ForeignBlock {
                     subject: TextContent::from_string(subject_text, None),
                     content: TextContent::from_string(content, None),
                     closing_annotation,
-                    span: None,
+                    location: None,
                 }
             },
         )
@@ -112,14 +112,14 @@ pub(crate) fn foreign_block(
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt_nano::lexer::lex_with_spans;
+    use crate::txxt_nano::lexer::lex_with_locations;
     use crate::txxt_nano::parser::api::parse_with_source;
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
 
     #[test]
     fn test_foreign_block_simple_with_content() {
         let source = "Code Example:\n    function hello() {\n        return \"world\";\n    }\n:: javascript caption=\"Hello World\" ::\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         println!("Tokens: {:?}", tokens);
         let doc = parse_with_source(tokens, source).unwrap();
 
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn test_foreign_block_marker_form() {
         let source = "Image Reference:\n\n:: image type=jpg, src=sunset.jpg :: As the sun sets, we see a colored sea bed.\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.content.len(), 1);
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_foreign_block_preserves_whitespace() {
         let source = "Indented Code:\n\n    // This has    multiple    spaces\n    const regex = /[a-z]+/g;\n    \n    console.log(\"Hello, World!\");\n\n:: javascript ::\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let foreign_block = doc.content[0].as_foreign_block().unwrap();
@@ -191,7 +191,7 @@ mod tests {
         // trying them first resolves the ambiguity
 
         let source = "First Block:\n\n    code1\n\n:: lang1 ::\n\nSecond Block:\n\n    code2\n\n:: lang2 ::\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.content.len(), 2);
@@ -210,7 +210,7 @@ mod tests {
     #[test]
     fn test_foreign_block_with_paragraphs() {
         let source = "Intro paragraph.\n\nCode Block:\n\n    function test() {\n        return true;\n    }\n\n:: javascript ::\n\nOutro paragraph.\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.content.len(), 3);
@@ -223,7 +223,7 @@ mod tests {
     fn test_verified_foreign_blocks_simple() {
         let source = TxxtSources::get_string("140-foreign-blocks-simple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Find JavaScript code block
@@ -278,7 +278,7 @@ mod tests {
     fn test_verified_foreign_blocks_no_content() {
         let source = TxxtSources::get_string("150-foreign-blocks-no-content.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Find image reference

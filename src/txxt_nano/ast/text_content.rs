@@ -12,7 +12,7 @@
 //! (.as_string(), future: .as_inlines()), which work regardless of the
 //! internal representation.
 
-use super::span::Span;
+use super::location::Location;
 
 /// Represents user-provided text content with source position tracking.
 ///
@@ -21,8 +21,8 @@ use super::span::Span;
 /// Currently stores plain text; future versions will support parsed inline nodes.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextContent {
-    /// Span in the source covering this text
-    pub span: Option<Span>,
+    /// Location in the source covering this text
+    pub location: Option<Location>,
     /// Internal representation (evolves over time)
     inner: TextRepresentation,
 }
@@ -42,19 +42,19 @@ enum TextRepresentation {
 }
 
 impl TextContent {
-    /// Create TextContent from a string and optional source span.
+    /// Create TextContent from a string and optional source location.
     ///
     /// # Arguments
     /// * `text` - The raw text content
-    /// * `span` - Optional source location of this text
+    /// * `location` - Optional source location of this text
     ///
     /// # Example
     /// ```ignore
-    /// let content = TextContent::from_string("Hello world".to_string(), Some(span));
+    /// let content = TextContent::from_string("Hello world".to_string(), Some(location));
     /// ```
-    pub fn from_string(text: String, span: Option<Span>) -> Self {
+    pub fn from_string(text: String, location: Option<Location>) -> Self {
         Self {
-            span,
+            location,
             inner: TextRepresentation::Text(text),
         }
     }
@@ -62,7 +62,7 @@ impl TextContent {
     /// Create empty TextContent.
     pub fn empty() -> Self {
         Self {
-            span: None,
+            location: None,
             inner: TextRepresentation::Text(String::new()),
         }
     }
@@ -172,10 +172,10 @@ mod tests {
     }
 
     #[test]
-    fn test_with_span() {
-        let span = Span::new(Position::new(0, 0), Position::new(0, 5));
-        let content = TextContent::from_string("Hello".to_string(), Some(span));
-        assert_eq!(content.span, Some(span));
+    fn test_with_location() {
+        let location = Location::new(Position::new(0, 0), Position::new(0, 5));
+        let content = TextContent::from_string("Hello".to_string(), Some(location));
+        assert_eq!(content.location, Some(location));
     }
 
     #[test]
@@ -185,5 +185,5 @@ mod tests {
         assert_eq!(content.as_string(), "World");
     }
 
-    use super::super::span::Position;
+    use super::super::location::Position;
 }

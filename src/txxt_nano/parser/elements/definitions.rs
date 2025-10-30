@@ -8,32 +8,32 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
-use crate::txxt_nano::ast::{ContentItem, Definition, Span, TextContent};
+use crate::txxt_nano::ast::{ContentItem, Definition, Location, TextContent};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{definition_subject, token};
 
-/// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+/// Type alias for token with location
+type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
-type ParserError = Simple<TokenSpan>;
+type ParserError = Simple<TokenLocation>;
 
-/// Helper: convert a byte range to a Span using source location
-fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
+/// Helper: convert a byte range to a location using source location
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
     }
     let source_loc = SourceLocation::new(source);
-    Some(source_loc.range_to_span(range))
+    Some(source_loc.range_to_location(range))
 }
 
 /// Build a definition parser
 pub(crate) fn build_definition_parser<P>(
     source: Arc<String>,
     items: P,
-) -> impl Parser<TokenSpan, ContentItem, Error = ParserError> + Clone
+) -> impl Parser<TokenLocation, ContentItem, Error = ParserError> + Clone
 where
-    P: Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
+    P: Parser<TokenLocation, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
 {
     let source_for_definition = source.clone();
     definition_subject(source.clone())
@@ -42,12 +42,12 @@ where
                 .ignore_then(items)
                 .then_ignore(token(Token::DedentLevel)),
         )
-        .map(move |((subject_text, subject_span), content)| {
-            let span = byte_range_to_span(&source_for_definition, &subject_span);
+        .map(move |((subject_text, subject_location), content)| {
+            let location = byte_range_to_location(&source_for_definition, &subject_location);
             ContentItem::Definition(Definition {
                 subject: TextContent::from_string(subject_text, None),
                 content,
-                span,
+                location,
             })
         })
 }
@@ -56,7 +56,7 @@ where
 mod tests {
     use crate::txxt_nano::ast::Container;
     use crate::txxt_nano::ast::ContentItem;
-    use crate::txxt_nano::lexer::lex_with_spans;
+    use crate::txxt_nano::lexer::lex_with_locations;
     use crate::txxt_nano::parser::api::parse_with_source;
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
     use crate::txxt_nano::testing::assert_ast;
@@ -65,7 +65,7 @@ mod tests {
     fn test_unified_recursive_parser_simple() {
         // Minimal test for the unified recursive parser
         let source = "First paragraph\n\nDefinition:\n    Content of definition\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         println!("Testing simple definition with unified parser:");
         println!("Source: {:?}", source);
 
@@ -82,7 +82,7 @@ mod tests {
     fn test_unified_recursive_nested_definitions() {
         // Test nested definitions with the unified parser
         let source = "Outer:\n    Inner:\n        Nested content\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         println!("Testing nested definitions with unified parser:");
         println!("Source: {:?}", source);
 
@@ -125,7 +125,7 @@ mod tests {
     fn test_unified_parser_paragraph_then_definition() {
         // Test paragraph followed by definition - similar to failing test
         let source = "Simple paragraph\n\nAnother paragraph\n\nFirst Definition:\n    Definition content\n\nSecond Definition:\n    More content\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         println!("Testing paragraph then definition:");
         println!("Source: {:?}", source);
 
@@ -161,7 +161,7 @@ mod tests {
     fn test_verified_definitions_simple() {
         let source = TxxtSources::get_string("090-definitions-simple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
 
         // Debug: print first few tokens
         println!("First 10 tokens:");
@@ -266,7 +266,7 @@ mod tests {
     fn test_verified_definitions_mixed_content() {
         let source = TxxtSources::get_string("100-definitions-mixed-content.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs

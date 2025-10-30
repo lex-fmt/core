@@ -1,6 +1,6 @@
 //! Parameter element definition
 
-use super::super::span::Span;
+use super::super::location::Location;
 use std::fmt;
 
 /// A parameter represents a key-value pair, with optional value
@@ -8,7 +8,7 @@ use std::fmt;
 pub struct Parameter {
     pub key: String,
     pub value: Option<String>,
-    pub span: Option<Span>,
+    pub location: Option<Location>,
 }
 
 impl Parameter {
@@ -16,25 +16,25 @@ impl Parameter {
         Self {
             key,
             value,
-            span: None,
+            location: None,
         }
     }
     pub fn boolean(key: String) -> Self {
         Self {
             key,
             value: None,
-            span: None,
+            location: None,
         }
     }
     pub fn with_value(key: String, value: String) -> Self {
         Self {
             key,
             value: Some(value),
-            span: None,
+            location: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 }
@@ -53,13 +53,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parameter_with_span() {
-        let span = super::super::super::span::Span::new(
-            super::super::super::span::Position::new(1, 0),
-            super::super::super::span::Position::new(1, 10),
+    fn test_parameter_with_location() {
+        let location = super::super::super::location::Location::new(
+            super::super::super::location::Position::new(1, 0),
+            super::super::super::location::Position::new(1, 10),
         );
-        let param =
-            Parameter::new("key".to_string(), Some("value".to_string())).with_span(Some(span));
-        assert_eq!(param.span, Some(span));
+        let param = Parameter::new("key".to_string(), Some("value".to_string()))
+            .with_location(Some(location));
+        assert_eq!(param.location, Some(location));
     }
 }

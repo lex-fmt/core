@@ -1,5 +1,5 @@
 use crate::txxt_nano::ast::{Container, ContentItem};
-use crate::txxt_nano::lexer::{lex, lex_with_spans, Token};
+use crate::txxt_nano::lexer::{lex, lex_with_locations, Token};
 use crate::txxt_nano::parser::api::parse;
 use crate::txxt_nano::parser::combinators::paragraph;
 use chumsky::Parser;
@@ -8,9 +8,9 @@ use std::sync::Arc;
 #[test]
 fn test_simple_paragraph() {
     let input = "Hello world\n\n";
-    let tokens_with_spans = lex_with_spans(input);
+    let tokens_with_locations = lex_with_locations(input);
 
-    let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_spans);
+    let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_locations);
     assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
 
     let para = result.unwrap();
@@ -74,7 +74,11 @@ fn test_malformed_session_title_with_indent_but_no_content() {
         Err(errors) => {
             println!("\n✗ Parse failed with errors:");
             for error in errors {
-                println!("  Error at span {:?}: {:?}", error.span(), error.reason());
+                println!(
+                    "  Error at location {:?}: {:?}",
+                    error.span(),
+                    error.reason()
+                );
                 println!("  Found: {:?}", error.found());
             }
         }
@@ -121,7 +125,11 @@ fn test_session_title_followed_by_bare_indent_level() {
         Err(errors) => {
             println!("\n✗ Parse failed:");
             for error in errors {
-                println!("  Error at span {:?}: {:?}", error.span(), error.reason());
+                println!(
+                    "  Error at location {:?}: {:?}",
+                    error.span(),
+                    error.reason()
+                );
             }
         }
     }

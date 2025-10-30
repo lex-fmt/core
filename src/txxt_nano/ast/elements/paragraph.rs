@@ -1,6 +1,6 @@
 //! Paragraph element definition
 
-use super::super::span::Span;
+use super::super::location::Location;
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, TextNode};
 use std::fmt;
@@ -9,21 +9,24 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
     pub lines: Vec<TextContent>,
-    pub span: Option<Span>,
+    pub location: Option<Location>,
 }
 
 impl Paragraph {
     pub fn new(lines: Vec<TextContent>) -> Self {
-        Self { lines, span: None }
+        Self {
+            lines,
+            location: None,
+        }
     }
     pub fn from_line(line: String) -> Self {
         Self {
             lines: vec![TextContent::from_string(line, None)],
-            span: None,
+            location: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
     pub fn text(&self) -> String {
@@ -47,8 +50,8 @@ impl AstNode for Paragraph {
             text
         }
     }
-    fn span(&self) -> Option<Span> {
-        self.span
+    fn location(&self) -> Option<Location> {
+        self.location
     }
 }
 
@@ -86,13 +89,13 @@ mod tests {
     }
 
     #[test]
-    fn test_paragraph_with_span() {
-        let span = Span::new(
-            super::super::super::span::Position::new(0, 0),
-            super::super::super::span::Position::new(0, 5),
+    fn test_paragraph_with_location() {
+        let location = Location::new(
+            super::super::super::location::Position::new(0, 0),
+            super::super::super::location::Position::new(0, 5),
         );
-        let para = Paragraph::from_line("Hello".to_string()).with_span(Some(span));
+        let para = Paragraph::from_line("Hello".to_string()).with_location(Some(location));
 
-        assert_eq!(para.span, Some(span));
+        assert_eq!(para.location, Some(location));
     }
 }

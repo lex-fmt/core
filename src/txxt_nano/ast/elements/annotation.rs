@@ -1,6 +1,6 @@
 //! Annotation element definition
 
-use super::super::span::Span;
+use super::super::location::Location;
 use super::super::traits::{AstNode, Container};
 use super::content_item::ContentItem;
 use super::label::Label;
@@ -13,7 +13,7 @@ pub struct Annotation {
     pub label: Label,
     pub parameters: Vec<Parameter>,
     pub content: Vec<ContentItem>,
-    pub span: Option<Span>,
+    pub location: Option<Location>,
 }
 
 impl Annotation {
@@ -22,7 +22,7 @@ impl Annotation {
             label,
             parameters,
             content,
-            span: None,
+            location: None,
         }
     }
     pub fn marker(label: Label) -> Self {
@@ -30,7 +30,7 @@ impl Annotation {
             label,
             parameters: Vec::new(),
             content: Vec::new(),
-            span: None,
+            location: None,
         }
     }
     pub fn with_parameters(label: Label, parameters: Vec<Parameter>) -> Self {
@@ -38,11 +38,11 @@ impl Annotation {
             label,
             parameters,
             content: Vec::new(),
-            span: None,
+            location: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 }
@@ -58,8 +58,8 @@ impl AstNode for Annotation {
             format!("{} ({} params)", self.label.value, self.parameters.len())
         }
     }
-    fn span(&self) -> Option<Span> {
-        self.span
+    fn location(&self) -> Option<Location> {
+        self.location
     }
 }
 
@@ -92,12 +92,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_annotation_with_span() {
-        let span = super::super::super::span::Span::new(
-            super::super::super::span::Position::new(1, 0),
-            super::super::super::span::Position::new(1, 10),
+    fn test_annotation_with_location() {
+        let location = super::super::super::location::Location::new(
+            super::super::super::location::Position::new(1, 0),
+            super::super::super::location::Position::new(1, 10),
         );
-        let annotation = Annotation::marker(Label::new("test".to_string())).with_span(Some(span));
-        assert_eq!(annotation.span, Some(span));
+        let annotation =
+            Annotation::marker(Label::new("test".to_string())).with_location(Some(location));
+        assert_eq!(annotation.location, Some(location));
     }
 }

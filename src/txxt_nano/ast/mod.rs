@@ -6,7 +6,7 @@
 //!
 //! ## Modules
 //!
-//! - `span` - Position and Span types for source code locations
+//! - `location` - Position and location types for source code locations
 //! - `elements` - AST node type definitions organized by element type
 //! - `traits` - Common traits for AST nodes
 //! - `position` - Source location utilities for converting byte offsets
@@ -15,9 +15,9 @@
 
 pub mod elements;
 pub mod error;
+pub mod location;
 pub mod lookup;
 pub mod position;
-pub mod span;
 pub mod text_content;
 pub mod traits;
 
@@ -27,9 +27,9 @@ pub use elements::{
     Parameter, Session,
 };
 pub use error::PositionLookupError;
+pub use location::{Location, Position};
 pub use lookup::{find_nodes_at_position, format_at_position};
 pub use position::SourceLocation;
-pub use span::{Position, Span};
 pub use text_content::TextContent;
 pub use traits::{AstNode, Container, TextNode};
 #[cfg(test)]
