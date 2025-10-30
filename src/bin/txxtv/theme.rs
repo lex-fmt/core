@@ -110,18 +110,21 @@ impl Theme {
 
     /// Styling for labels in the info panel
     /// Semantic: label text
+    #[allow(dead_code)]
     pub fn info_panel_label(&self) -> Style {
         self.presentation.label
     }
 
     /// Styling for the tree mode indicator in info panel
     /// Semantic: tree mode indicator (distinct from other modes)
+    #[allow(dead_code)]
     pub fn info_panel_mode_tree(&self) -> Style {
         self.presentation.mode_tree
     }
 
     /// Styling for the text mode indicator in info panel
     /// Semantic: text mode indicator (distinct from other modes)
+    #[allow(dead_code)]
     pub fn info_panel_mode_text(&self) -> Style {
         self.presentation.mode_text
     }
