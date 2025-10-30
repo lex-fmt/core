@@ -144,14 +144,14 @@ pub fn parse(tokens: Vec<Token>) -> Result<Document, Vec<Simple<Token>>> {
 mod tests {
     use super::*;
     use crate::txxt_nano::ast::{AstNode, Position};
-    use crate::txxt_nano::lexer::lex_with_spans;
+    use crate::txxt_nano::lexer::lex_with_locations;
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
     use std::sync::Arc;
 
     #[test]
     fn test_simple_paragraph() {
         let input = "Hello world\n\n";
-        let tokens_with_spans = lex_with_spans(input);
+        let tokens_with_spans = lex_with_locations(input);
 
         let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_spans);
         assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
@@ -208,7 +208,7 @@ mod tests {
         use crate::txxt_nano::testing::assert_ast;
 
         let source = TxxtSources::get_string("050-trifecta-flat-simple.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
@@ -302,7 +302,7 @@ mod tests {
         use crate::txxt_nano::testing::assert_ast;
 
         let source = TxxtSources::get_string("060-trifecta-nesting.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
@@ -419,7 +419,7 @@ mod tests {
         use crate::txxt_nano::testing::assert_ast;
 
         let source = TxxtSources::get_string("110-ensemble-with-definitions.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
@@ -475,7 +475,7 @@ mod tests {
             "docs/specs/v1/regression-bugs/parser-definition-list-transition.txxt",
         )
         .expect("Failed to load regression test file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
 
         // This should parse successfully but currently fails with:
         // Parse error at span 14..15: reason=Unexpected, found=Some((Newline, 34..35))
@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn test_parse_with_source_positions_simple() {
         let input = "Hello world\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -515,7 +515,7 @@ mod tests {
     #[test]
     fn test_parse_with_source_positions_multiline() {
         let input = "First line\nSecond line\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn test_elements_at_query_on_parsed_document() {
         let input = "First paragraph\n\n2. Session Title\n\n    Session content\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -551,7 +551,7 @@ mod tests {
     #[test]
     fn test_elements_at_nested_position() {
         let input = "Title\n\n1. Item one\n\n    Nested content\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -569,7 +569,7 @@ mod tests {
     #[test]
     fn test_position_comparison_in_query() {
         let input = "Line 0\n\nLine 2\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -596,7 +596,7 @@ mod tests {
     #[test]
     fn test_backward_compatibility_without_positions() {
         let input = "Simple paragraph\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
 
         // Old parser should still work (without positions)
         let doc_old =
@@ -626,7 +626,7 @@ mod tests {
     #[test]
     fn test_span_boundary_containment() {
         let input = "0123456789\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -650,7 +650,7 @@ mod tests {
     fn test_nested_paragraph_has_span() {
         // Test that nested paragraphs inside sessions have span information
         let input = "Title\n\n1. Session Title\n\n    Nested paragraph\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 

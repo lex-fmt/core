@@ -128,39 +128,39 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
     use ratatui::text::Span;
 
     // Build status line content as a single line
-    let mut spans = Vec::new();
+    let mut locations = Vec::new();
 
     match app.model.selection() {
         Selection::TreeSelection(node_id) => {
-            spans.push(Span::styled(
+            locations.push(Span::styled(
                 "🌳 Tree",
                 Style::default()
                     .fg(Color::Cyan)
                     .add_modifier(Modifier::BOLD),
             ));
-            spans.push(Span::raw(" | "));
+            locations.push(Span::raw(" | "));
 
             let path = node_id.path();
             if path.is_empty() {
-                spans.push(Span::styled(
+                locations.push(Span::styled(
                     "Selection: ",
                     Style::default().fg(Color::Yellow),
                 ));
-                spans.push(Span::raw("Root (Document)"));
+                locations.push(Span::raw("Root (Document)"));
             } else {
-                spans.push(Span::styled("Path: ", Style::default().fg(Color::Yellow)));
+                locations.push(Span::styled("Path: ", Style::default().fg(Color::Yellow)));
                 let path_str = path
                     .iter()
                     .map(|i| i.to_string())
                     .collect::<Vec<_>>()
                     .join("→");
-                spans.push(Span::raw(format!("[{}]", path_str)));
+                locations.push(Span::raw(format!("[{}]", path_str)));
 
                 // Show if node is expanded
                 let is_expanded = app.model.is_node_expanded(node_id);
-                spans.push(Span::raw(" | "));
-                spans.push(Span::styled("State: ", Style::default().fg(Color::Yellow)));
-                spans.push(Span::raw(if is_expanded {
+                locations.push(Span::raw(" | "));
+                locations.push(Span::styled("State: ", Style::default().fg(Color::Yellow)));
+                locations.push(Span::raw(if is_expanded {
                     "Expanded"
                 } else {
                     "Collapsed"
@@ -168,38 +168,38 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
             }
         }
         Selection::TextSelection(row, col) => {
-            spans.push(Span::styled(
+            locations.push(Span::styled(
                 "📝 Text",
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
             ));
-            spans.push(Span::raw(" | "));
+            locations.push(Span::raw(" | "));
 
-            spans.push(Span::styled("Cursor: ", Style::default().fg(Color::Yellow)));
-            spans.push(Span::raw(format!("Line {}, Col {}", row, col)));
+            locations.push(Span::styled("Cursor: ", Style::default().fg(Color::Yellow)));
+            locations.push(Span::raw(format!("Line {}, Col {}", row, col)));
 
             if let Some(node_id) = app.model.get_node_at_position(row, col) {
                 let path = node_id.path();
-                spans.push(Span::raw(" | "));
-                spans.push(Span::styled("Node: ", Style::default().fg(Color::Yellow)));
+                locations.push(Span::raw(" | "));
+                locations.push(Span::styled("Node: ", Style::default().fg(Color::Yellow)));
 
                 if path.is_empty() {
-                    spans.push(Span::raw("Root (Document)"));
+                    locations.push(Span::raw("Root (Document)"));
                 } else {
                     let path_str = path
                         .iter()
                         .map(|i| i.to_string())
                         .collect::<Vec<_>>()
                         .join("→");
-                    spans.push(Span::raw(format!("[{}]", path_str)));
+                    locations.push(Span::raw(format!("[{}]", path_str)));
                 }
 
                 // Show if node is expanded
                 let is_expanded = app.model.is_node_expanded(node_id);
-                spans.push(Span::raw(" | "));
-                spans.push(Span::styled("State: ", Style::default().fg(Color::Yellow)));
-                spans.push(Span::raw(if is_expanded {
+                locations.push(Span::raw(" | "));
+                locations.push(Span::styled("State: ", Style::default().fg(Color::Yellow)));
+                locations.push(Span::raw(if is_expanded {
                     "Expanded"
                 } else {
                     "Collapsed"
@@ -209,7 +209,7 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     // Render as a simple single-line status without borders
-    let paragraph = Paragraph::new(ratatui::text::Line::from(spans))
+    let paragraph = Paragraph::new(ratatui::text::Line::from(locations))
         .style(Style::default().bg(Color::Black).fg(Color::White));
 
     frame.render_widget(paragraph, area);

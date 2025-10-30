@@ -26,7 +26,7 @@ pub mod tokens;
 
 pub use blank_line_transform::{transform_blank_lines, transform_blank_lines_with_locations};
 pub use detokenizer::detokenize;
-pub use indentation_transform::{transform_indentation, transform_indentation_with_spans};
+pub use indentation_transform::{transform_indentation, transform_indentation_with_locations};
 pub use lexer_impl::{tokenize, tokenize_with_locations};
 pub use tokens::Token;
 
@@ -48,14 +48,14 @@ pub fn lex(source: &str) -> Vec<Token> {
     transform_blank_lines(tokens)
 }
 
-/// Lexing function that preserves source spans for parser
-/// Returns tokens with their corresponding source spans
-/// Synthetic tokens (IndentLevel, DedentLevel, BlankLine) have empty spans (0..0)
+/// Lexing function that preserves source locations for parser
+/// Returns tokens with their corresponding source locations
+/// Synthetic tokens (IndentLevel, DedentLevel, BlankLine) have empty locations (0..0)
 /// Processing pipeline:
-/// 1. tokenize_with_spans() - creates raw tokens with spans
-/// 2. transform_indentation_with_spans() - converts Indent tokens to semantic IndentLevel/DedentLevel tokens
-/// 3. transform_blank_lines_with_spans() - converts consecutive Newline tokens to BlankLine tokens
-pub fn lex_with_spans(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
+/// 1. tokenize_with_locations() - creates raw tokens with locations
+/// 2. transform_indentation_with_locations() - converts Indent tokens to semantic IndentLevel/DedentLevel tokens
+/// 3. transform_blank_lines_with_locations() - converts consecutive Newline tokens to BlankLine tokens
+pub fn lex_with_locations(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
     // Ensure source ends with newline to help with paragraph parsing at EOF
     let source_with_newline = if !source.is_empty() && !source.ends_with('\n') {
         format!("{}\n", source)
@@ -63,7 +63,7 @@ pub fn lex_with_spans(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
         source.to_string()
     };
 
-    let raw_tokens_with_spans = tokenize_with_locations(&source_with_newline);
-    let tokens = transform_indentation_with_spans(raw_tokens_with_spans);
+    let raw_tokens_with_locations = tokenize_with_locations(&source_with_newline);
+    let tokens = transform_indentation_with_locations(raw_tokens_with_locations);
     transform_blank_lines_with_locations(tokens)
 }

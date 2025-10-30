@@ -112,14 +112,14 @@ pub(crate) fn foreign_block(
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt_nano::lexer::lex_with_spans;
+    use crate::txxt_nano::lexer::lex_with_locations;
     use crate::txxt_nano::parser::api::parse_with_source;
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
 
     #[test]
     fn test_foreign_block_simple_with_content() {
         let source = "Code Example:\n    function hello() {\n        return \"world\";\n    }\n:: javascript caption=\"Hello World\" ::\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         println!("Tokens: {:?}", tokens);
         let doc = parse_with_source(tokens, source).unwrap();
 
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn test_foreign_block_marker_form() {
         let source = "Image Reference:\n\n:: image type=jpg, src=sunset.jpg :: As the sun sets, we see a colored sea bed.\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.content.len(), 1);
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_foreign_block_preserves_whitespace() {
         let source = "Indented Code:\n\n    // This has    multiple    spaces\n    const regex = /[a-z]+/g;\n    \n    console.log(\"Hello, World!\");\n\n:: javascript ::\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let foreign_block = doc.content[0].as_foreign_block().unwrap();
@@ -191,7 +191,7 @@ mod tests {
         // trying them first resolves the ambiguity
 
         let source = "First Block:\n\n    code1\n\n:: lang1 ::\n\nSecond Block:\n\n    code2\n\n:: lang2 ::\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.content.len(), 2);
@@ -210,7 +210,7 @@ mod tests {
     #[test]
     fn test_foreign_block_with_paragraphs() {
         let source = "Intro paragraph.\n\nCode Block:\n\n    function test() {\n        return true;\n    }\n\n:: javascript ::\n\nOutro paragraph.\n\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.content.len(), 3);
@@ -223,7 +223,7 @@ mod tests {
     fn test_verified_foreign_blocks_simple() {
         let source = TxxtSources::get_string("140-foreign-blocks-simple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Find JavaScript code block
@@ -278,7 +278,7 @@ mod tests {
     fn test_verified_foreign_blocks_no_content() {
         let source = TxxtSources::get_string("150-foreign-blocks-no-content.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Find image reference

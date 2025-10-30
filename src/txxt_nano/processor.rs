@@ -209,7 +209,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
             // Parse the document with position tracking enabled for ast-position format
             let doc = if matches!(spec.format, OutputFormat::AstPosition) {
                 crate::txxt_nano::parser::parse_with_source_positions(
-                    crate::txxt_nano::lexer::lex_with_spans(&content),
+                    crate::txxt_nano::lexer::lex_with_locations(&content),
                     &content,
                 )
                 .map_err(|errs| {
@@ -506,7 +506,7 @@ pub mod txxt_sources {
         let content = r#"First paragraph
 Second paragraph"#;
 
-        let tokens = crate::txxt_nano::lexer::lex_with_spans(content);
+        let tokens = crate::txxt_nano::lexer::lex_with_locations(content);
         let doc = crate::txxt_nano::parser::parse_with_source_positions(tokens, content).unwrap();
 
         // Check if spans are populated

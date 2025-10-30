@@ -567,13 +567,13 @@ mod tests {
     #[test]
     fn test_serialize_nested_lists_from_sample_file() {
         // Integration test: Parse a sample file and verify nested lists are serialized correctly
-        use crate::txxt_nano::lexer::lex_with_spans;
+        use crate::txxt_nano::lexer::lex_with_locations;
         use crate::txxt_nano::parser::api::parse_with_source;
         use crate::txxt_nano::processor::txxt_sources::TxxtSources;
 
         let source = TxxtSources::get_string("070-nested-lists-simple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).expect("Failed to parse");
 
         let result = serialize_document(&doc);
@@ -596,13 +596,13 @@ mod tests {
     #[test]
     fn test_serialize_mixed_content_lists_from_sample_file() {
         // Integration test: Verify lists with paragraphs and nested lists are serialized correctly
-        use crate::txxt_nano::lexer::lex_with_spans;
+        use crate::txxt_nano::lexer::lex_with_locations;
         use crate::txxt_nano::parser::api::parse_with_source;
         use crate::txxt_nano::processor::txxt_sources::TxxtSources;
 
         let source = TxxtSources::get_string("080-nested-lists-mixed-content.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).expect("Failed to parse");
 
         let result = serialize_document(&doc);
