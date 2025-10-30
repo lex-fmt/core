@@ -28,6 +28,7 @@ pub struct App {
     pub should_quit: bool,
 
     /// The raw file content
+    #[allow(dead_code)]
     pub file_content: String,
 }
 
