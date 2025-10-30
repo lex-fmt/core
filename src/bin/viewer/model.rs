@@ -35,7 +35,7 @@ impl Focus {
 
 /// Stable identifier for an AST node.
 ///
-/// A NodeId is a path through the tree, represented as a Vec<usize>.
+/// A NodeId is a path through the tree, represented as a Vec <usize> .
 /// For example, [0, 1, 2] means: child 0 of root, then child 1 of that, then child 2 of that.
 /// This remains stable across re-renders, unlike raw references.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

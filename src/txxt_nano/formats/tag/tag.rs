@@ -35,7 +35,7 @@ pub fn serialize_document(doc: &Document) -> String {
 }
 
 /// Generic helper to serialize children of a container node
-/// 
+///
 /// This function provides a uniform way to serialize nested content for all
 /// container types (Session, Definition, Annotation, ListItem) using the Container trait.
 fn serialize_children(
@@ -61,14 +61,75 @@ fn serialize_list_item(item: &ListItem, indent_level: usize, output: &mut String
     let indent = "  ".repeat(indent_level);
     output.push_str(&format!("{}<item>", indent));
     output.push_str(&escape_xml(item.label())); // Uses Container trait
-    
+
     if item.children().is_empty() {
         // No nested content
         output.push_str("</item>\n");
     } else {
         // Has nested content - use generic serialization
-        serialize_children(item.children(), indent_level + 1, output, "children", &indent);
+        serialize_children(
+            item.children(),
+            indent_level + 1,
+            output,
+            "children",
+            &indent,
+        );
         output.push_str("</item>\n");
+    }
+}
+
+/// Serialize the first child of a definition, removing {{definition}} marker if present
+fn serialize_definition_first_child(item: &ContentItem, indent_level: usize, output: &mut String) {
+    let indent = "  ".repeat(indent_level);
+
+    match item {
+        ContentItem::Paragraph(p) => {
+            // Extract and remove {{definition}} marker from text
+            let text = p.text();
+            let (cleaned_text, _) = extract_definition_marker(&text);
+            output.push_str(&format!(
+                "{}<paragraph>{}</paragraph>\n",
+                indent,
+                escape_xml(&cleaned_text)
+            ));
+        }
+        ContentItem::List(l) => {
+            // For lists as first child, serialize normally but clean first item
+            output.push_str(&format!("{}<list>\n", indent));
+            for (i, list_item) in l.items.iter().enumerate() {
+                if i == 0 {
+                    // First item - remove {{definition}} marker if present
+                    let item_text = list_item.label();
+                    let (cleaned_text, _) = extract_list_item_definition_marker(item_text);
+                    let temp_indent = "  ".repeat(indent_level + 1);
+                    output.push_str(&format!(
+                        "{}<item>{}",
+                        temp_indent,
+                        escape_xml(&cleaned_text)
+                    ));
+
+                    if list_item.children().is_empty() {
+                        output.push_str("</item>\n");
+                    } else {
+                        serialize_children(
+                            list_item.children(),
+                            indent_level + 2,
+                            output,
+                            "children",
+                            &temp_indent,
+                        );
+                        output.push_str("</item>\n");
+                    }
+                } else {
+                    serialize_list_item(list_item, indent_level + 1, output);
+                }
+            }
+            output.push_str(&format!("{}</list>\n", indent));
+        }
+        _ => {
+            // For other types, serialize normally
+            serialize_content_item(item, indent_level, output);
+        }
     }
 }
 
@@ -109,15 +170,49 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
             output.push_str(&format!("{}</list>\n", indent));
         }
         ContentItem::Definition(d) => {
-            // <definition>subject<content>...</content></definition>
-            // Uses Container trait for generic child serialization
+            // <definition>subject {{definition}}<content>...</content></definition>
+            // Extract {{definition}} marker from first child if present
             output.push_str(&format!("{}<definition>", indent));
             output.push_str(&escape_xml(d.subject.as_string()));
+
+            // Check if first child has {{definition}} marker
+            let mut definition_marker = None;
+            if !d.children().is_empty() {
+                // Look for {{definition}} in first paragraph child
+                if let ContentItem::Paragraph(p) = &d.children()[0] {
+                    let text = p.text();
+                    let (_, marker) = extract_definition_marker(&text);
+                    definition_marker = marker;
+                } else if let ContentItem::List(l) = &d.children()[0] {
+                    // Check if first list item has {{definition}} marker
+                    if !l.items.is_empty() {
+                        let item_text = l.items[0].label();
+                        let (_, marker) = extract_list_item_definition_marker(item_text);
+                        definition_marker = marker;
+                    }
+                }
+            }
+
+            // Add marker to subject line if found
+            if let Some(marker) = definition_marker {
+                output.push(' ');
+                output.push_str(&escape_xml(&marker));
+            }
 
             if d.children().is_empty() {
                 output.push_str("</definition>\n");
             } else {
-                serialize_children(d.children(), indent_level + 1, output, "content", &indent);
+                // Serialize children with modified first child if marker was extracted
+                output.push_str("<content>\n");
+                for (i, child) in d.children().iter().enumerate() {
+                    if i == 0 {
+                        // First child - may need to remove {{definition}} marker
+                        serialize_definition_first_child(child, indent_level + 1, output);
+                    } else {
+                        serialize_content_item(child, indent_level + 1, output);
+                    }
+                }
+                output.push_str(&format!("{}</content>", indent));
                 output.push_str("</definition>\n");
             }
         }
@@ -185,6 +280,43 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
             output.push_str("</closing-annotation></foreign-block>\n");
         }
     }
+}
+
+/// Extract {{definition}} marker from text if present at the end
+/// Returns (text_without_marker, marker_if_found)
+fn extract_definition_marker(text: &str) -> (String, Option<String>) {
+    // Look for {{definition}} at the end of the text (possibly with other markers like {{paragraph}})
+    if let Some(pos) = text.rfind("{{definition}}") {
+        // Found {{definition}} marker
+        let mut cleaned_text = text[..pos].to_string();
+        let mut marker = "{{definition}}".to_string();
+
+        // Remove trailing whitespace after removing the marker
+        cleaned_text = cleaned_text.trim_end().to_string();
+
+        // Check if there's also a {{paragraph}} marker right before {{definition}}
+        // and include it in the marker if found
+        if cleaned_text.ends_with("{{paragraph}}") {
+            let para_pos = cleaned_text.rfind("{{paragraph}}").unwrap();
+            marker = format!("{{{{paragraph}}}} {}", marker);
+            cleaned_text = cleaned_text[..para_pos].trim_end().to_string();
+        }
+
+        return (cleaned_text, Some(marker));
+    }
+    (text.to_string(), None)
+}
+
+/// Extract {{list-item}} and {{definition}} markers from text if present at the end
+/// Returns (text_without_markers, markers_if_found)
+fn extract_list_item_definition_marker(text: &str) -> (String, Option<String>) {
+    // Look for {{list-item}} {{definition}} at the end
+    if text.ends_with("{{list-item}} {{definition}}") {
+        let pos = text.rfind("{{list-item}} {{definition}}").unwrap();
+        let cleaned_text = text[..pos].trim_end().to_string();
+        return (cleaned_text, Some("{{definition}}".to_string()));
+    }
+    (text.to_string(), None)
 }
 
 /// Escape XML special characters
@@ -316,16 +448,16 @@ mod tests {
         let doc = Document::with_content(vec![ContentItem::List(outer_list)]);
 
         let result = serialize_document(&doc);
-        
+
         // Verify outer list structure
         assert!(result.contains("<list>"));
         assert!(result.contains("- Outer item one<children>"));
         assert!(result.contains("</children></item>"));
-        
+
         // Verify nested list structure
         assert!(result.contains("- Inner item one</item>"));
         assert!(result.contains("- Inner item two</item>"));
-        
+
         // Verify second outer item (no children)
         assert!(result.contains("<item>- Outer item two</item>"));
     }
@@ -347,7 +479,7 @@ mod tests {
         let doc = Document::with_content(vec![ContentItem::List(list)]);
 
         let result = serialize_document(&doc);
-        
+
         assert!(result.contains("- First item<children>"));
         assert!(result.contains("<paragraph>This is a nested paragraph.</paragraph>"));
         assert!(result.contains("</children></item>"));
@@ -371,7 +503,9 @@ mod tests {
         let list = List::new(vec![ListItem::with_content(
             "1. First item".to_string(),
             vec![
-                ContentItem::Paragraph(Paragraph::from_line("Paragraph explaining the item.".to_string())),
+                ContentItem::Paragraph(Paragraph::from_line(
+                    "Paragraph explaining the item.".to_string(),
+                )),
                 ContentItem::List(nested_list),
                 ContentItem::Paragraph(Paragraph::from_line("Another paragraph.".to_string())),
             ],
@@ -380,7 +514,7 @@ mod tests {
         let doc = Document::with_content(vec![ContentItem::List(list)]);
 
         let result = serialize_document(&doc);
-        
+
         // Verify the structure
         assert!(result.contains("1. First item<children>"));
         assert!(result.contains("<paragraph>Paragraph explaining the item.</paragraph>"));
@@ -417,13 +551,13 @@ mod tests {
         let doc = Document::with_content(vec![ContentItem::List(outer_list)]);
 
         let result = serialize_document(&doc);
-        
+
         // Verify three levels of nesting
         assert!(result.contains("- Outer item<children>"));
         assert!(result.contains("- Middle item<children>"));
         assert!(result.contains("- Inner item one</item>"));
         assert!(result.contains("- Inner item two</item>"));
-        
+
         // Count closing tags to verify proper nesting
         let children_open = result.matches("<children>").count();
         let children_close = result.matches("</children>").count();
@@ -449,11 +583,11 @@ mod tests {
         assert!(result.contains("<item>- First nested item {{list-item}}</item>"));
         assert!(result.contains("<item>- Second nested item {{list-item}}</item>"));
         assert!(result.contains("</children></item>"));
-        
+
         // Verify second outer item also has nested content
         assert!(result.contains("<item>- Second outer item {{list-item}}<children>"));
         assert!(result.contains("<item>- Another nested item {{list-item}}</item>"));
-        
+
         // Verify numbered list with nested dashed list
         assert!(result.contains("<item>1. First numbered item {{list-item}}<children>"));
         assert!(result.contains("<item>- Nested dash item one {{list-item}}</item>"));
@@ -476,18 +610,20 @@ mod tests {
         // Verify list items with paragraph content
         assert!(result.contains("<item>- First item with nested paragraph {{list-item}}<children>"));
         assert!(result.contains("<paragraph>This is a paragraph nested inside the first list item"));
-        
+
         // Verify list items with multiple paragraphs
-        assert!(result.contains("<item>- Second item with multiple paragraphs {{list-item}}<children>"));
+        assert!(
+            result.contains("<item>- Second item with multiple paragraphs {{list-item}}<children>")
+        );
         assert!(result.contains("<paragraph>This is the first paragraph in the second item"));
         assert!(result.contains("<paragraph>This is a second paragraph"));
-        
+
         // Verify mixed content (para + list + para)
         assert!(result.contains("<item>1. First complex item {{list-item}}<children>"));
         assert!(result.contains("<paragraph>This is a paragraph explaining the first item"));
         assert!(result.contains("<item>- Nested list item one {{list-item}}</item>"));
         assert!(result.contains("<paragraph>Another paragraph after the nested list"));
-        
+
         // Verify deeply nested structure (list > list > list)
         assert!(result.contains("<item>- Outer item one {{list-item}}<children>"));
         assert!(result.contains("<item>- Middle item one {{list-item}}<children>"));
@@ -498,11 +634,14 @@ mod tests {
     fn test_all_nestable_elements_use_container_trait() {
         // Comprehensive test: Verify that all nestable elements (Session, Annotation, ListItem)
         // properly serialize their nested content using the generic Container trait approach
-        use crate::txxt_nano::ast::{Annotation, Definition, List, ListItem, Paragraph, Session, TextContent};
         use crate::txxt_nano::ast::elements::label::Label;
+        use crate::txxt_nano::ast::{
+            Annotation, Definition, List, ListItem, Paragraph, Session, TextContent,
+        };
 
         // Create a complex nested structure with all element types
-        let nested_paragraph = ContentItem::Paragraph(Paragraph::from_line("Nested paragraph".to_string()));
+        let nested_paragraph =
+            ContentItem::Paragraph(Paragraph::from_line("Nested paragraph".to_string()));
         let nested_list = ContentItem::List(List::new(vec![
             ListItem::new("- Item one".to_string()),
             ListItem::new("- Item two".to_string()),
@@ -528,12 +667,10 @@ mod tests {
         );
 
         // Test ListItem with nested content (list in list)
-        let outer_list = List::new(vec![
-            ListItem::with_content(
-                "Outer item".to_string(),
-                vec![nested_paragraph.clone(), nested_list.clone()],
-            ),
-        ]);
+        let outer_list = List::new(vec![ListItem::with_content(
+            "Outer item".to_string(),
+            vec![nested_paragraph.clone(), nested_list.clone()],
+        )]);
 
         let doc = Document::with_content(vec![
             ContentItem::Session(session),
@@ -561,8 +698,13 @@ mod tests {
         assert!(result.contains("</children></item>"));
 
         // Verify all have nested paragraph
-        let para_count = result.matches("<paragraph>Nested paragraph</paragraph>").count();
-        assert_eq!(para_count, 4, "Should have 4 nested paragraphs (one in each container)");
+        let para_count = result
+            .matches("<paragraph>Nested paragraph</paragraph>")
+            .count();
+        assert_eq!(
+            para_count, 4,
+            "Should have 4 nested paragraphs (one in each container)"
+        );
 
         // Verify all have nested lists
         let list_open_count = result.matches("<list>").count();

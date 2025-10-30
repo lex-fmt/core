@@ -91,7 +91,7 @@ pub fn transform_blank_lines_with_spans(
                 let blank_line_start = tokens_with_spans[i + 1].1.start;
                 let blank_line_end = tokens_with_spans[j - 1].1.end;
                 let blank_line_span = blank_line_start..blank_line_end;
-                
+
                 result.push((Token::BlankLine, blank_line_span));
             }
 
@@ -353,7 +353,11 @@ mod tests {
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
         assert_eq!(result[2].0, Token::BlankLine);
-        assert_eq!(result[2].1, 2..4, "BlankLine should cover 2nd and 3rd newlines (2..4)");
+        assert_eq!(
+            result[2].1,
+            2..4,
+            "BlankLine should cover 2nd and 3rd newlines (2..4)"
+        );
     }
 
     #[test]
@@ -375,7 +379,11 @@ mod tests {
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
         assert_eq!(result[2].0, Token::BlankLine);
-        assert_eq!(result[2].1, 2..6, "BlankLine should cover newlines 2-5 (positions 2..6)");
+        assert_eq!(
+            result[2].1,
+            2..6,
+            "BlankLine should cover newlines 2-5 (positions 2..6)"
+        );
     }
 
     #[test]
@@ -397,11 +405,11 @@ mod tests {
 
         // Expected: Text("a"), Newline, BlankLine, Text("b"), Newline, BlankLine, Text("c")
         assert_eq!(result.len(), 7);
-        
+
         // First BlankLine
         assert_eq!(result[2].0, Token::BlankLine);
         assert_eq!(result[2].1, 2..3, "First BlankLine should be at 2..3");
-        
+
         // Second BlankLine
         assert_eq!(result[5].0, Token::BlankLine);
         assert_eq!(result[5].1, 5..7, "Second BlankLine should be at 5..7");
@@ -454,13 +462,18 @@ mod tests {
         let result = transform_blank_lines_with_spans(tokens_with_spans);
 
         // Find the BlankLine token
-        let blank_line_pos = result.iter().position(|(t, _)| matches!(t, Token::BlankLine));
+        let blank_line_pos = result
+            .iter()
+            .position(|(t, _)| matches!(t, Token::BlankLine));
         assert!(blank_line_pos.is_some(), "Should have a BlankLine token");
-        
+
         let (blank_token, blank_span) = &result[blank_line_pos.unwrap()];
         assert_eq!(*blank_token, Token::BlankLine);
         assert_ne!(*blank_span, 0..0, "BlankLine should not have empty span");
-        assert_eq!(blank_span.start, 16, "BlankLine should start at position 16");
+        assert_eq!(
+            blank_span.start, 16,
+            "BlankLine should start at position 16"
+        );
         assert_eq!(blank_span.end, 17, "BlankLine should end at position 17");
     }
 
