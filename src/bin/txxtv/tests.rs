@@ -18,6 +18,7 @@
 
 use crate::app::App;
 use crate::model::{Model, NodeId, Selection, Focus};
+use crate::ui;
 use crate::viewer::{FileViewer, TreeViewer, Viewer, ViewerEvent};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::backend::TestBackend;
@@ -289,6 +290,71 @@ impl TestApp {
         let key_event = Self::create_key_event(key);
         self.app.handle_key(key_event)
     }
+
+    // ========== Rendering ==========
+
+    /// Render the UI and return it as a string for inspection
+    pub fn render(&mut self) -> String {
+        self.terminal
+            .draw(|frame| {
+                ui::render(frame, &self.app, "test.txxt");
+            })
+            .expect("Failed to draw");
+
+        // Extract the buffer content from the test backend
+        let backend = self.terminal.backend();
+        let mut output = String::new();
+        for cell in backend.content.iter() {
+            output.push(cell.symbol.chars().next().unwrap_or(' '));
+        }
+        output
+    }
+
+    /// Get the terminal size
+    pub fn terminal_size(&self) -> (u16, u16) {
+        let size = self.terminal.size().unwrap();
+        (size.width, size.height)
+    }
+
+    /// Assert that rendered output contains a substring
+    pub fn assert_render_contains(&mut self, text: &str) {
+        let output = self.render();
+        assert!(
+            output.contains(text),
+            "Expected output to contain '{}', but got:\n{}",
+            text,
+            output
+        );
+    }
+
+    /// Assert that layout has minimum width constraint
+    pub fn assert_minimum_width(&self, min_width: u16) {
+        let (width, _) = self.terminal_size();
+        assert!(
+            width >= min_width,
+            "Terminal width {} is less than minimum {}",
+            width,
+            min_width
+        );
+    }
+
+    /// Create a test app with specific terminal size
+    pub fn with_size(width: u16, height: u16) -> Self {
+        let content =
+            fs::read_to_string("docs/specs/v1/samples/030-paragraphs-sessions-nested-multiple.txxt")
+                .expect("Failed to load test document");
+
+        let document = txxt_nano::txxt_nano::parser::parse_document(&content)
+            .expect("Failed to parse test document");
+
+        let model = Model::new(document);
+        let app = App::new(model.clone());
+
+        let backend = TestBackend::new(width, height);
+        let terminal = Terminal::new(backend).expect("Failed to create test terminal");
+
+        TestApp { model, app, terminal }
+    }
 }
 
 #[cfg(test)]
@@ -515,5 +581,79 @@ mod unit_tests {
     fn test_focus_enum_default() {
         let focus: Focus = Default::default();
         assert_eq!(focus, Focus::FileViewer);
+    }
+
+    #[test]
+    fn test_render_title_bar() {
+        let mut app = TestApp::new();
+        app.assert_render_contains("txxt::");
+    }
+
+    #[test]
+    fn test_render_tree_viewer() {
+        let mut app = TestApp::new();
+        app.assert_render_contains("Tree");
+    }
+
+    #[test]
+    fn test_render_file_viewer() {
+        let mut app = TestApp::new();
+        app.assert_render_contains("File");
+    }
+
+    #[test]
+    fn test_render_info_panel() {
+        let mut app = TestApp::new();
+        app.assert_render_contains("Info");
+    }
+
+    #[test]
+    fn test_focus_indicator_in_file_viewer() {
+        let mut app = TestApp::new();
+        assert_eq!(app.app.focus, Focus::FileViewer);
+        app.assert_render_contains("FOCUSED");
+    }
+
+    #[test]
+    fn test_focus_indicator_in_tree_viewer() {
+        let mut app = TestApp::new();
+        app.send_tab();
+        assert_eq!(app.app.focus, Focus::TreeViewer);
+        app.assert_render_contains("FOCUSED");
+    }
+
+    #[test]
+    fn test_layout_with_standard_width() {
+        let app = TestApp::new();
+        let (width, height) = app.terminal_size();
+        assert_eq!(width, 80);
+        assert_eq!(height, 30);
+    }
+
+    #[test]
+    fn test_layout_with_custom_size() {
+        let app = TestApp::with_size(100, 40);
+        let (width, height) = app.terminal_size();
+        assert_eq!(width, 100);
+        assert_eq!(height, 40);
+    }
+
+    #[test]
+    fn test_minimum_width_constraint() {
+        let app = TestApp::new();
+        app.assert_minimum_width(50);
+    }
+
+    #[test]
+    fn test_narrow_terminal_shows_error() {
+        let mut app = TestApp::with_size(40, 20);
+        app.assert_render_contains("too narrow");
+    }
+
+    #[test]
+    fn test_wide_terminal_renders_normally() {
+        let mut app = TestApp::with_size(120, 30);
+        app.assert_render_contains("Tree");
+        app.assert_render_contains("File");
     }
 }
