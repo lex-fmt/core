@@ -12,13 +12,13 @@ use crate::txxt_nano::ast::{ContentItem, Location, Session, TextContent};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{session_title, token};
 
-/// Type alias for token with span
+/// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
 
-/// Helper: convert a byte range to a Span using source location
+/// Helper: convert a byte range to a location using source location
 fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
@@ -43,11 +43,11 @@ where
                 .then_ignore(token(Token::DedentLevel)),
         )
         .map(move |((title_text, title_location), content)| {
-            let span = byte_range_to_location(&source_for_session, &title_location);
+            let location = byte_range_to_location(&source_for_session, &title_location);
             ContentItem::Session(Session {
                 title: TextContent::from_string(title_text, None),
                 content,
-                span,
+                location,
             })
         })
 }

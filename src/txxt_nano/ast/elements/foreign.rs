@@ -12,7 +12,7 @@ pub struct ForeignBlock {
     pub subject: TextContent,
     pub content: TextContent,
     pub closing_annotation: Annotation,
-    pub span: Option<Location>,
+    pub location: Option<Location>,
 }
 
 impl ForeignBlock {
@@ -21,7 +21,7 @@ impl ForeignBlock {
             subject: TextContent::from_string(subject, None),
             content: TextContent::from_string(content, None),
             closing_annotation,
-            span: None,
+            location: None,
         }
     }
     pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
@@ -29,11 +29,11 @@ impl ForeignBlock {
             subject: TextContent::from_string(subject, None),
             content: TextContent::from_string(String::new(), None),
             closing_annotation,
-            span: None,
+            location: None,
         }
     }
-    pub fn with_location(mut self, span: Option<Location>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 }
@@ -51,7 +51,7 @@ impl AstNode for ForeignBlock {
         }
     }
     fn location(&self) -> Option<Location> {
-        self.span
+        self.location
     }
 }
 

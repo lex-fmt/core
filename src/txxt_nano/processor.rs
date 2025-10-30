@@ -509,13 +509,13 @@ Second paragraph"#;
         let tokens = crate::txxt_nano::lexer::lex_with_locations(content);
         let doc = crate::txxt_nano::parser::parse_with_source_positions(tokens, content).unwrap();
 
-        // Check if spans are populated
+        // Check if locations are populated
         if let Some(first_item) = doc.content.first() {
-            // The first paragraph should have a span
+            // The first paragraph should have a location
             match first_item {
                 crate::txxt_nano::parser::ContentItem::Paragraph(p) => {
                     assert!(
-                        p.span.is_some(),
+                        p.location.is_some(),
                         "Paragraph should have position information"
                     );
                 }

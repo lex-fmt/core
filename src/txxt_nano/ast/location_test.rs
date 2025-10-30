@@ -19,10 +19,10 @@ mod tests {
         use crate::txxt_nano::ast::elements::Document;
         use crate::txxt_nano::ast::find_nodes_at_position;
 
-        let span1 = Location::new(Position::new(1, 0), Position::new(1, 10));
-        let span2 = Location::new(Position::new(2, 0), Position::new(2, 10));
-        let session1 = Session::with_title("Title1".to_string()).with_location(Some(span1));
-        let session2 = Session::with_title("Title2".to_string()).with_location(Some(span2));
+        let location1 = Location::new(Position::new(1, 0), Position::new(1, 10));
+        let location2 = Location::new(Position::new(2, 0), Position::new(2, 10));
+        let session1 = Session::with_title("Title1".to_string()).with_location(Some(location1));
+        let session2 = Session::with_title("Title2".to_string()).with_location(Some(location2));
         let document = Document::with_content(vec![
             ContentItem::Session(session1),
             ContentItem::Session(session2),

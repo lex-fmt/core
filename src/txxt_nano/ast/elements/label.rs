@@ -7,21 +7,24 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Label {
     pub value: String,
-    pub span: Option<Location>,
+    pub location: Option<Location>,
 }
 
 impl Label {
     pub fn new(value: String) -> Self {
-        Self { value, span: None }
+        Self {
+            value,
+            location: None,
+        }
     }
     pub fn from_string(value: &str) -> Self {
         Self {
             value: value.to_string(),
-            span: None,
+            location: None,
         }
     }
-    pub fn with_location(mut self, span: Option<Location>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 }
@@ -38,11 +41,11 @@ mod tests {
 
     #[test]
     fn test_label_with_location() {
-        let span = super::super::super::location::Location::new(
+        let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let label = Label::new("test".to_string()).with_location(Some(span));
-        assert_eq!(label.span, Some(span));
+        let label = Label::new("test".to_string()).with_location(Some(location));
+        assert_eq!(label.location, Some(location));
     }
 }

@@ -63,7 +63,7 @@ fn process_whitespace_remainders(tokens_with_locations: Vec<(Token, logos::Span)
     result
 }
 
-/// Convenience function to tokenize a string and collect tokens with their spans
+/// Convenience function to tokenize a string and collect tokens with their locations
 pub fn tokenize_with_locations(source: &str) -> Vec<(Token, logos::Span)> {
     let mut lexer = Token::lexer(source);
     let mut tokens = Vec::new();
@@ -118,7 +118,7 @@ mod tests {
         let tokens_with_locations = tokenize_with_locations("hello world");
         assert_eq!(tokens_with_locations.len(), 3);
 
-        // Check that tokens are correct (spans are not preserved in current implementation)
+        // Check that tokens are correct (locations are not preserved in current implementation)
         assert_eq!(tokens_with_locations[0].0, Token::Text("hello".to_string()));
         assert_eq!(tokens_with_locations[1].0, Token::Whitespace);
         assert_eq!(tokens_with_locations[2].0, Token::Text("world".to_string()));

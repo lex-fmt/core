@@ -11,7 +11,7 @@ use std::fmt;
 pub struct Definition {
     pub subject: TextContent,
     pub content: Vec<ContentItem>,
-    pub span: Option<Location>,
+    pub location: Option<Location>,
 }
 
 impl Definition {
@@ -19,18 +19,18 @@ impl Definition {
         Self {
             subject,
             content,
-            span: None,
+            location: None,
         }
     }
     pub fn with_subject(subject: String) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
             content: Vec::new(),
-            span: None,
+            location: None,
         }
     }
-    pub fn with_location(mut self, span: Option<Location>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 }
@@ -48,7 +48,7 @@ impl AstNode for Definition {
         }
     }
     fn location(&self) -> Option<Location> {
-        self.span
+        self.location
     }
 }
 
@@ -81,11 +81,12 @@ mod tests {
 
     #[test]
     fn test_definition_with_location() {
-        let span = super::super::super::location::Location::new(
+        let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let definition = Definition::with_subject("Subject".to_string()).with_location(Some(span));
-        assert_eq!(definition.span, Some(span));
+        let definition =
+            Definition::with_subject("Subject".to_string()).with_location(Some(location));
+        assert_eq!(definition.location, Some(location));
     }
 }
