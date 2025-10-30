@@ -9,6 +9,8 @@
 //! and can be tested independently of rendering and UI logic.
 
 use std::collections::HashSet;
+use txxt_nano::txxt_nano::ast::span::{Position, Span};
+use txxt_nano::txxt_nano::ast::elements::content_item::ContentItem;
 use txxt_nano::txxt_nano::parser::Document;
 
 /// Stable identifier for an AST node.
@@ -154,6 +156,139 @@ impl Model {
     pub fn collapse_node(&mut self, node_id: NodeId) {
         self.expanded_nodes.remove(&node_id);
     }
+
+    /// Find the innermost node at the given position
+    ///
+    /// Returns the NodeId of the deepest node that contains the position.
+    /// If multiple nodes contain the position, returns the innermost (deepest) one.
+    pub fn get_node_at_position(&self, row: usize, col: usize) -> Option<NodeId> {
+        let pos = Position::new(row, col);
+
+        // Find all elements at this position (deepest first)
+        let elements = self.document.elements_at(pos);
+
+        // Return the first (deepest) element's NodeId
+        if let Some(element) = elements.first() {
+            self.find_node_id_for_element(element)
+        } else {
+            None
+        }
+    }
+
+    /// Get the span for a node
+    ///
+    /// Returns the text range (start and end position) for the given node.
+    pub fn get_span_for_node(&self, node_id: NodeId) -> Option<Span> {
+        self.get_node(node_id).and_then(|(node, _)| node.span())
+    }
+
+    /// Get the ancestors of a node (path from root to node, not including the node itself)
+    ///
+    /// Returns the NodeIds of all ancestors from root to parent.
+    pub fn get_ancestors(&self, node_id: NodeId) -> Vec<NodeId> {
+        let mut ancestors = Vec::new();
+        let path = node_id.path();
+
+        for i in 0..path.len() {
+            let ancestor_path = &path[0..i];
+            ancestors.push(NodeId::new(ancestor_path));
+        }
+
+        ancestors
+    }
+
+    // ========== Private helper methods ==========
+
+    /// Get a node by its ID and its depth
+    ///
+    /// Returns (element, depth) if found, or None if not found
+    fn get_node(&self, node_id: NodeId) -> Option<(&ContentItem, usize)> {
+        let path = node_id.path();
+        if path.is_empty() {
+            return None;
+        }
+
+        let mut current: &[ContentItem] = &self.document.content;
+        let mut depth = 0;
+
+        for &index in path {
+            if index >= current.len() {
+                return None;
+            }
+
+            let item = &current[index];
+            depth += 1;
+
+            if let Some(children) = item.children() {
+                current = children;
+            } else {
+                // We've reached a leaf node, but there's still more path
+                return None;
+            }
+        }
+
+        // Return the last item we navigated to
+        // We need to backtrack one step
+        if path.len() > 0 {
+            let parent_path = &path[0..path.len() - 1];
+            if parent_path.is_empty() {
+                // Direct child of root
+                let last_index = path[0];
+                if last_index < self.document.content.len() {
+                    return Some((&self.document.content[last_index], 1));
+                }
+            } else {
+                if let Some((parent, parent_depth)) = self.get_node(NodeId::new(parent_path)) {
+                    if let Some(children) = parent.children() {
+                        let child_index = path[path.len() - 1];
+                        if child_index < children.len() {
+                            return Some((&children[child_index], parent_depth + 1));
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Find the NodeId for an element by searching the tree
+    ///
+    /// This is a linear search through the tree to find the element.
+    /// In practice, this is fast enough since txxt documents are typically small.
+    fn find_node_id_for_element(&self, target: &ContentItem) -> Option<NodeId> {
+        self.find_node_id_recursive(target, &self.document.content, &mut Vec::new())
+    }
+
+    fn find_node_id_recursive(
+        &self,
+        target: &ContentItem,
+        items: &[ContentItem],
+        path: &mut Vec<usize>,
+    ) -> Option<NodeId> {
+        for (index, item) in items.iter().enumerate() {
+            path.push(index);
+
+            // Check if this is the target
+            if std::ptr::eq(item, target) {
+                let node_id = NodeId::new(path);
+                path.pop();
+                return Some(node_id);
+            }
+
+            // Search children
+            if let Some(children) = item.children() {
+                if let Some(node_id) = self.find_node_id_recursive(target, children, path) {
+                    path.pop();
+                    return Some(node_id);
+                }
+            }
+
+            path.pop();
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -223,5 +358,31 @@ mod tests {
         for &node in &nodes {
             assert!(model.is_node_expanded(node));
         }
+    }
+
+    #[test]
+    fn test_get_ancestors() {
+        let model = Model::new(txxt_nano::txxt_nano::parser::parse_document("test").unwrap());
+
+        let node = NodeId::new(&[0, 1, 2]);
+        let ancestors = model.get_ancestors(node);
+
+        // Ancestors should be [root], [0], [0, 1] (not including [0, 1, 2])
+        assert_eq!(ancestors.len(), 3);
+        assert_eq!(ancestors[0].path(), &[]);
+        assert_eq!(ancestors[1].path(), &[0]);
+        assert_eq!(ancestors[2].path(), &[0, 1]);
+    }
+
+    #[test]
+    fn test_get_ancestors_root_child() {
+        let model = Model::new(txxt_nano::txxt_nano::parser::parse_document("test").unwrap());
+
+        let node = NodeId::new(&[0]);
+        let ancestors = model.get_ancestors(node);
+
+        // Only root should be ancestor
+        assert_eq!(ancestors.len(), 1);
+        assert_eq!(ancestors[0].path(), &[]);
     }
 }
