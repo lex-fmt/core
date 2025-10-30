@@ -26,7 +26,7 @@
   This approach involves a three-step refactoring:
 
    1. Introduce a `BlankLine` Token: A new BlankLine variant will be added to the Token enum in 
-      src/txxt_nano/lexer/tokens.rs. This gives the parser a specific, semantic token to use as a separator.
+      src/txxt/lexer/tokens.rs. This gives the parser a specific, semantic token to use as a separator.
 
    2. Create a Lexer Transform: The logos-based lexer produces a raw stream of tokens. A new transformation 
       pass will be added after the initial lexing. This pass will scan the token stream and replace any 
@@ -36,7 +36,7 @@
       DedentLevel tokens.
 
    3. Simplify the Parser:
-       - The paragraph() parser in src/txxt_nano/parser/parser.rs will be modified to no longer consume any 
+       - The paragraph() parser in src/txxt/parser/parser.rs will be modified to no longer consume any 
          trailing Newline tokens. Its only job will be to parse a sequence of text lines.
        - The higher-level parsers (like document() and other functions that parse content blocks) will be 
          updated to use the new BlankLine token as the delimiter between elements. The rule will change from 
@@ -93,7 +93,7 @@
   This approach involves a three-step refactoring:
 
    1. Introduce a `BlankLine` Token: A new BlankLine variant will be added to the Token enum in 
-      src/txxt_nano/lexer/tokens.rs. This gives the parser a specific, semantic token to use as a separator.
+      src/txxt/lexer/tokens.rs. This gives the parser a specific, semantic token to use as a separator.
 
    2. Create a Lexer Transform: The logos-based lexer produces a raw stream of tokens. A new transformation 
       pass will be added after the initial lexing. This pass will scan the token stream and replace any 
@@ -103,7 +103,7 @@
       DedentLevel tokens.
 
    3. Simplify the Parser:
-       - The paragraph() parser in src/txxt_nano/parser/parser.rs will be modified to no longer consume any 
+       - The paragraph() parser in src/txxt/parser/parser.rs will be modified to no longer consume any 
          trailing Newline tokens. Its only job will be to parse a sequence of text lines.
        - The higher-level parsers (like document() and other functions that parse content blocks) will be 
          updated to use the new BlankLine token as the delimiter between elements. The rule will change from 
