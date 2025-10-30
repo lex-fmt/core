@@ -10,7 +10,7 @@ Root Definition:
     - Item 1 in definition {{list-item}}
     - Item 2 in definition {{list-item}}
 
-:: note ::
+
 This is a marker annotation at the root level, attached to the definition above.
 
 1. Primary Session {{session}}
