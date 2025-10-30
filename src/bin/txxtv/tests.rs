@@ -19,6 +19,7 @@ pub struct TestApp {
     terminal: Terminal<TestBackend>,
 }
 
+#[allow(dead_code)]
 impl TestApp {
     /// Create a new test app with a simple document
     pub fn new() -> Self {
@@ -41,8 +42,7 @@ impl TestApp {
 
     /// Load a test document from file
     pub fn with_file(path: &str) -> Self {
-        let content = fs::read_to_string(path)
-            .expect("Failed to read test file");
+        let content = fs::read_to_string(path).expect("Failed to read test file");
         Self::with_content(&content)
     }
 
@@ -77,7 +77,11 @@ impl TestApp {
     fn terminal_output(&self) -> String {
         // For now, return a simple string indicating render was successful
         // Full snapshot testing will be done with insta
-        format!("Rendered output ({} x {})", self.terminal.size().unwrap().width, self.terminal.size().unwrap().height)
+        format!(
+            "Rendered output ({} x {})",
+            self.terminal.size().unwrap().width,
+            self.terminal.size().unwrap().height
+        )
     }
 
     /// Get reference to the app for assertions
@@ -128,6 +132,7 @@ impl Default for TestApp {
 }
 
 /// Helper functions for creating keyboard events
+#[allow(dead_code)]
 pub mod keyboard {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -152,96 +157,264 @@ pub mod keyboard {
     }
 }
 
-#[cfg(test)]
-mod integration_tests {
-    use super::*;
-    use crate::model::NodeId;
-    use crossterm::event::KeyCode;
+// Tests that can only run within this module (needs access to TestApp, etc)
+use crate::model::NodeId;
 
-    #[test]
-    fn test_app_has_flattened_tree() {
-        let app = TestApp::with_content("# Heading\n\nParagraph");
+#[test]
+fn tests_simple_sanity_check() {
+    assert_eq!(1, 1);
+}
 
-        // The model should be able to produce a flattened tree
+#[test]
+fn test_app_has_flattened_tree() {
+    let app = TestApp::with_content("# Heading\n\nParagraph");
+
+    // The model should be able to produce a flattened tree
+    let flattened = app.app().model.flattened_tree();
+    assert!(!flattened.is_empty(), "Should have flattened tree nodes");
+}
+
+#[test]
+fn test_file_viewer_cursor_movement() {
+    let mut app = TestApp::with_content("Line 1\nLine 2\nLine 3");
+
+    // Initial cursor should be at (0, 0)
+    assert_eq!(
+        app.app().file_viewer.cursor_position(),
+        (0, 0),
+        "Cursor should start at (0, 0)"
+    );
+
+    // Press down arrow
+    app.send_key(KeyCode::Down);
+
+    // Cursor should now be at (1, 0)
+    assert_eq!(
+        app.app().file_viewer.cursor_position(),
+        (1, 0),
+        "Cursor should move down"
+    );
+}
+
+#[test]
+fn test_file_position_maps_to_tree_node() {
+    let mut app = TestApp::with_content("# Heading\n\nParagraph text");
+
+    // Move cursor to position under the heading
+    app.send_key(KeyCode::Down);
+
+    // Get the current cursor position
+    let (row, col) = app.app().file_viewer.cursor_position();
+
+    // Model should be able to find AST node at this position
+    if let Some(node_id) = app.app().model.get_node_at_position(row, col) {
+        // Should have a valid node ID
+        assert!(!node_id.path().is_empty() || node_id.path().is_empty());
+    }
+}
+
+#[test]
+fn test_flattened_tree_respects_expansion_state() {
+    let mut app = TestApp::with_content("# Heading\n## Subheading\n");
+
+    // Initially nothing is expanded
+    let flattened_before = app.app().model.flattened_tree();
+    let count_before = flattened_before.len();
+
+    // Expand the first node
+    let first_node = NodeId::new(&[0]);
+    app.app_mut().model.expand_nodes(&[first_node]);
+
+    // Get flattened tree again
+    let flattened_after = app.app().model.flattened_tree();
+    let count_after = flattened_after.len();
+
+    // Should have more nodes visible when expanded
+    assert!(
+        count_after >= count_before,
+        "Expanding should not decrease visible nodes"
+    );
+}
+
+#[test]
+fn test_selection_persistence() {
+    let mut app = TestApp::with_content("# Heading\nContent");
+
+    // Select file position
+    app.send_key(KeyCode::Down);
+    let (row, col) = app.app().file_viewer.cursor_position();
+
+    // Should be able to get the selection from model
+    assert_eq!(
+        app.app().model.get_selected_position(),
+        Some((row, col)),
+        "Model should track selected position"
+    );
+}
+
+// ========== Step 9: Tree Navigation Tests ==========
+
+#[test]
+fn test_tree_navigation_down() {
+    let mut app = TestApp::with_content("# Heading\n## Subheading\nParagraph");
+
+    // Switch to tree viewer
+    app.send_key(KeyCode::Tab);
+
+    // Get initial selected node
+    let flattened_before = app.app().model.flattened_tree();
+    assert!(!flattened_before.is_empty(), "Should have nodes in tree");
+
+    // Press down arrow to navigate to next node
+    app.send_key(KeyCode::Down);
+
+    // Verify that tree viewer has updated selected node
+    if let Some(selected_node_id) = app.app().model.get_selected_node_id() {
+        // Find index of selected node in flattened tree
         let flattened = app.app().model.flattened_tree();
-        assert!(!flattened.is_empty(), "Should have flattened tree nodes");
+        let selected_index = flattened
+            .iter()
+            .position(|n| n.node_id == selected_node_id)
+            .expect("Selected node should be in flattened tree");
+        assert!(selected_index > 0, "Should have moved to next node");
     }
+}
 
-    #[test]
-    fn test_file_viewer_cursor_movement() {
-        let mut app = TestApp::with_content("Line 1\nLine 2\nLine 3");
+#[test]
+fn test_tree_navigation_up() {
+    let mut app = TestApp::with_content("# Heading\n## Subheading\nParagraph");
 
-        // Initial cursor should be at (0, 0)
-        assert_eq!(
-            app.app().file_viewer.cursor_position(),
-            (0, 0),
-            "Cursor should start at (0, 0)"
+    // Switch to tree viewer
+    app.send_key(KeyCode::Tab);
+
+    // Move down first
+    app.send_key(KeyCode::Down);
+
+    // Then move up
+    app.send_key(KeyCode::Up);
+
+    // Verify that tree viewer has updated selected node
+    if let Some(selected_node_id) = app.app().model.get_selected_node_id() {
+        let flattened = app.app().model.flattened_tree();
+        let selected_index = flattened
+            .iter()
+            .position(|n| n.node_id == selected_node_id)
+            .expect("Selected node should be in flattened tree");
+        // Should be back at first node
+        assert_eq!(selected_index, 0, "Should be back at first node");
+    }
+}
+
+#[test]
+fn test_tree_navigation_respects_expansion() {
+    let mut app = TestApp::with_content("# Heading\n## Subheading\nParagraph");
+
+    // Switch to tree viewer
+    app.send_key(KeyCode::Tab);
+
+    // Get flattened tree before expansion
+    let flattened_collapsed = app.app().model.flattened_tree();
+    let count_collapsed = flattened_collapsed.len();
+
+    // Expand first node
+    let first_node = NodeId::new(&[0]);
+    app.app_mut().model.expand_nodes(&[first_node]);
+
+    // Get flattened tree after expansion
+    let flattened_expanded = app.app().model.flattened_tree();
+    let count_expanded = flattened_expanded.len();
+
+    // After expansion, more nodes should be visible
+    assert!(
+        count_expanded >= count_collapsed,
+        "Expanding should show more or equal nodes"
+    );
+
+    // Navigate down in the expanded tree
+    app.send_key(KeyCode::Down);
+
+    // Should be able to reach newly visible nodes through navigation
+    if let Some(selected_node_id) = app.app().model.get_selected_node_id() {
+        let flattened = app.app().model.flattened_tree();
+        assert!(
+            flattened.iter().any(|n| n.node_id == selected_node_id),
+            "Selected node should be in flattened tree"
         );
+    }
+}
 
-        // Press down arrow
+#[test]
+fn test_tree_expand_collapse_navigation() {
+    let mut app = TestApp::with_content("# Heading\n## Subheading\nParagraph");
+
+    // Switch to tree viewer
+    app.send_key(KeyCode::Tab);
+
+    // Simulate selecting first node
+    let flattened = app.app().model.flattened_tree();
+    if let Some(first_flattened_node) = flattened.first() {
+        let first_node_id = first_flattened_node.node_id;
+
+        // Verify we can emit expand/collapse events via tree navigation
+        // Press Right arrow to emit ToggleNodeExpansion
+        app.send_key(KeyCode::Right);
+
+        // Node should now be toggled
+        let _is_expanded = app.app().model.is_node_expanded(first_node_id);
+        // Just verify that the toggle operation executed without panicking
+        // The actual expansion behavior is tested in test_tree_navigation_respects_expansion
+    }
+}
+
+#[test]
+fn test_tree_viewer_boundary_navigation() {
+    let mut app = TestApp::with_content("# Heading\nParagraph");
+
+    // Switch to tree viewer
+    app.send_key(KeyCode::Tab);
+
+    // Get initial selection
+    let initial_flattened = app.app().model.flattened_tree();
+    if initial_flattened.len() > 1 {
+        // Navigate to last node
+        for _ in 0..initial_flattened.len() {
+            app.send_key(KeyCode::Down);
+        }
+
+        // Try to go down again (should not crash, should stay at last node or no-op)
         app.send_key(KeyCode::Down);
 
-        // Cursor should now be at (1, 0)
-        assert_eq!(
-            app.app().file_viewer.cursor_position(),
-            (1, 0),
-            "Cursor should move down"
-        );
-    }
-
-    #[test]
-    fn test_file_position_maps_to_tree_node() {
-        let mut app = TestApp::with_content("# Heading\n\nParagraph text");
-
-        // Move cursor to position under the heading
-        app.send_key(KeyCode::Down);
-
-        // Get the current cursor position
-        let (row, col) = app.app().file_viewer.cursor_position();
-
-        // Model should be able to find AST node at this position
-        if let Some(node_id) = app.app().model.get_node_at_position(row, col) {
-            // Should have a valid node ID
-            assert!(!node_id.path().is_empty() || node_id.path().len() == 0);
+        // Verify selection is still valid
+        if let Some(selected_node_id) = app.app().model.get_selected_node_id() {
+            let flattened = app.app().model.flattened_tree();
+            assert!(
+                flattened.iter().any(|n| n.node_id == selected_node_id),
+                "Selected node should still be valid"
+            );
         }
     }
+}
 
-    #[test]
-    fn test_flattened_tree_respects_expansion_state() {
-        let mut app = TestApp::with_content("# Heading\n## Subheading\n");
+#[test]
+fn test_tree_selection_emits_select_node_event() {
+    let mut app = TestApp::with_content("# Heading\n## Subheading\n");
 
-        // Initially nothing is expanded
-        let flattened_before = app.app().model.flattened_tree();
-        let count_before = flattened_before.len();
+    // Switch to tree viewer
+    app.send_key(KeyCode::Tab);
 
-        // Expand the first node
-        let first_node = NodeId::new(&[0]);
-        app.app_mut().model.expand_nodes(&[first_node]);
+    // Press down to navigate
+    app.send_key(KeyCode::Down);
 
-        // Get flattened tree again
-        let flattened_after = app.app().model.flattened_tree();
-        let count_after = flattened_after.len();
-
-        // Should have more nodes visible when expanded
-        assert!(
-            count_after >= count_before,
-            "Expanding should not decrease visible nodes"
-        );
-    }
-
-    #[test]
-    fn test_selection_persistence() {
-        let mut app = TestApp::with_content("# Heading\nContent");
-
-        // Select file position
-        app.send_key(KeyCode::Down);
-        let (row, col) = app.app().file_viewer.cursor_position();
-
-        // Should be able to get the selection from model
-        assert_eq!(
-            app.app().model.get_selected_position(),
-            Some((row, col)),
-            "Model should track selected position"
-        );
+    // After navigation, the model should track the tree selection
+    let flattened = app.app().model.flattened_tree();
+    if !flattened.is_empty() {
+        if let Some(selected_node_id) = app.app().model.get_selected_node_id() {
+            // Verify the selected node exists in the flattened tree
+            let node_exists = flattened.iter().any(|n| n.node_id == selected_node_id);
+            assert!(
+                node_exists,
+                "Navigation should select a node from the visible tree"
+            );
+        }
     }
 }

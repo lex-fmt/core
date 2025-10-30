@@ -202,8 +202,8 @@ impl Viewer for FileViewer {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct TreeViewer {
-    /// Currently selected node (by index in flattened tree)
-    selected_index: usize,
+    /// Currently selected node ID
+    selected_node_id: Option<NodeId>,
     /// How many items are scrolled off the top
     scroll_offset: usize,
 }
@@ -213,19 +213,59 @@ impl TreeViewer {
     /// Create a new tree viewer
     pub fn new() -> Self {
         TreeViewer {
-            selected_index: 0,
+            selected_node_id: None,
             scroll_offset: 0,
         }
     }
 
-    /// Get the currently selected node index
-    pub fn selected_index(&self) -> usize {
-        self.selected_index
+    /// Get the currently selected node ID
+    pub fn selected_node_id(&self) -> Option<NodeId> {
+        self.selected_node_id
     }
 
     /// Get the scroll offset
     pub fn scroll_offset(&self) -> usize {
         self.scroll_offset
+    }
+
+    /// Get the next visible node in the flattened tree
+    ///
+    /// Returns the NodeId of the next node considering only visible nodes
+    /// (respecting expansion state). Returns None if already at the last node.
+    pub fn get_next_visible_node(&self, current_node_id: NodeId, model: &Model) -> Option<NodeId> {
+        let flattened = model.flattened_tree();
+
+        // Find the current node in the flattened tree
+        if let Some(current_index) = flattened.iter().position(|n| n.node_id == current_node_id) {
+            // Return the next node if it exists
+            if current_index < flattened.len() - 1 {
+                return Some(flattened[current_index + 1].node_id);
+            }
+        }
+
+        None
+    }
+
+    /// Get the previous visible node in the flattened tree
+    ///
+    /// Returns the NodeId of the previous node considering only visible nodes
+    /// (respecting expansion state). Returns None if already at the first node.
+    pub fn get_previous_visible_node(
+        &self,
+        current_node_id: NodeId,
+        model: &Model,
+    ) -> Option<NodeId> {
+        let flattened = model.flattened_tree();
+
+        // Find the current node in the flattened tree
+        if let Some(current_index) = flattened.iter().position(|n| n.node_id == current_node_id) {
+            // Return the previous node if it exists
+            if current_index > 0 {
+                return Some(flattened[current_index - 1].node_id);
+            }
+        }
+
+        None
     }
 }
 
@@ -251,23 +291,45 @@ impl Viewer for TreeViewer {
         frame.render_widget(paragraph, area);
     }
 
-    fn handle_key(&mut self, key: KeyEvent, _model: &Model) -> Option<ViewerEvent> {
+    fn handle_key(&mut self, key: KeyEvent, model: &Model) -> Option<ViewerEvent> {
+        // Initialize selection to first visible node if not yet selected
+        if self.selected_node_id.is_none() {
+            let flattened = model.flattened_tree();
+            if !flattened.is_empty() {
+                self.selected_node_id = Some(flattened[0].node_id);
+            }
+        }
+
+        let Some(current_node_id) = self.selected_node_id else {
+            return Some(ViewerEvent::NoChange);
+        };
+
         match key.code {
             KeyCode::Up => {
-                // TODO: implement navigation through tree
-                Some(ViewerEvent::NoChange)
+                // Move to previous visible node
+                if let Some(prev_node_id) = self.get_previous_visible_node(current_node_id, model) {
+                    self.selected_node_id = Some(prev_node_id);
+                    Some(ViewerEvent::SelectNode(prev_node_id))
+                } else {
+                    Some(ViewerEvent::NoChange)
+                }
             }
             KeyCode::Down => {
-                // TODO: implement navigation through tree
-                Some(ViewerEvent::NoChange)
+                // Move to next visible node
+                if let Some(next_node_id) = self.get_next_visible_node(current_node_id, model) {
+                    self.selected_node_id = Some(next_node_id);
+                    Some(ViewerEvent::SelectNode(next_node_id))
+                } else {
+                    Some(ViewerEvent::NoChange)
+                }
             }
             KeyCode::Left => {
-                // TODO: implement collapse
-                Some(ViewerEvent::NoChange)
+                // Toggle collapse for the currently selected node
+                Some(ViewerEvent::ToggleNodeExpansion(current_node_id))
             }
             KeyCode::Right => {
-                // TODO: implement expand
-                Some(ViewerEvent::NoChange)
+                // Toggle expand for the currently selected node
+                Some(ViewerEvent::ToggleNodeExpansion(current_node_id))
             }
             _ => Some(ViewerEvent::NoChange),
         }
@@ -288,7 +350,7 @@ mod tests {
     #[test]
     fn test_tree_viewer_creation() {
         let viewer = TreeViewer::new();
-        assert_eq!(viewer.selected_index(), 0);
+        assert_eq!(viewer.selected_node_id(), None);
         assert_eq!(viewer.scroll_offset(), 0);
     }
 }
