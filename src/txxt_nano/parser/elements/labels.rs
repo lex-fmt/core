@@ -11,12 +11,12 @@
 use crate::txxt_nano::lexer::Token;
 use std::ops::Range;
 
-/// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+/// Type alias for token with location
+type TokenLocation = (Token, Range<usize>);
 
 /// Parse label from a token slice
 ///
-/// Extracts a label span from the beginning of the token slice if present.
+/// Extracts a label location from the beginning of the token slice if present.
 /// A label is identified as an identifier (Text, Dash, Number, Period tokens)
 /// that is NOT followed by an equals sign.
 ///
@@ -24,16 +24,16 @@ type TokenSpan = (Token, Range<usize>);
 /// * `tokens` - Slice of tokens to parse
 ///
 /// # Returns
-/// * `Some(Range<usize>)` - The span of the label in the source text
+/// * `Some(Range<usize>)` - The location of the label in the source text
 /// * `None` - No label found (either no identifier, or identifier followed by '=')
 ///
 /// # Examples
 /// ```text
-/// :: note ::           -> Some(label_span for "note")
-/// :: note key=val ::   -> Some(label_span for "note")
+/// :: note ::           -> Some(label_location for "note")
+/// :: note key=val ::   -> Some(label_location for "note")
 /// :: key=val ::        -> None (this is a parameter, not a label)
 /// ```
-pub(crate) fn parse_label_from_tokens(tokens: &[TokenSpan]) -> (Option<Range<usize>>, usize) {
+pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range<usize>>, usize) {
     let mut i = 0;
 
     // Skip leading whitespace
@@ -76,29 +76,29 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenSpan]) -> (Option<Range<usi
         (None, 0) // Return 0 to indicate we should restart parsing from beginning
     } else {
         // This is a label
-        let first_span = &tokens[start].1;
-        let last_span = &tokens[i - 1].1;
-        let label_span = Some(first_span.start..last_span.end);
+        let first_location = &tokens[start].1;
+        let last_location = &tokens[i - 1].1;
+        let label_location = Some(first_location.start..last_location.end);
 
         // Skip trailing whitespace after label
         while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
             i += 1;
         }
 
-        (label_span, i)
+        (label_location, i)
     }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use crate::txxt_nano::lexer::lex_with_spans;
+    use crate::txxt_nano::lexer::lex_with_locations;
     use crate::txxt_nano::parser::parse_with_source;
 
     #[test]
     fn test_annotation_with_label_only() {
         let source = ":: note ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.content[0].as_annotation().unwrap();
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn test_annotation_with_label_and_parameters() {
         let source = ":: warning severity=high ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.content[0].as_annotation().unwrap();
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_annotation_with_dotted_label() {
         let source = ":: python.typing ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.content[0].as_annotation().unwrap();
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn test_annotation_parameters_only_no_label() {
         let source = ":: version=3.11 ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.content[0].as_annotation().unwrap();
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn test_annotation_with_dashed_label() {
         let source = ":: code-review ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.content[0].as_annotation().unwrap();

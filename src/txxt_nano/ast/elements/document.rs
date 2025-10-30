@@ -1,6 +1,6 @@
 //! Document element definition
 
-use super::super::span::{Position, Span};
+use super::super::location::{Location, Position};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
 use super::foreign::ForeignBlock;
@@ -14,7 +14,7 @@ use std::fmt;
 pub struct Document {
     pub metadata: Vec<Annotation>,
     pub content: Vec<ContentItem>,
-    pub span: Option<Span>,
+    pub location: Option<Location>,
 }
 
 impl Document {
@@ -22,7 +22,7 @@ impl Document {
         Self {
             metadata: Vec::new(),
             content: Vec::new(),
-            span: None,
+            location: None,
         }
     }
 
@@ -30,7 +30,7 @@ impl Document {
         Self {
             metadata: Vec::new(),
             content,
-            span: None,
+            location: None,
         }
     }
 
@@ -38,12 +38,12 @@ impl Document {
         Self {
             metadata,
             content,
-            span: None,
+            location: None,
         }
     }
 
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 
@@ -108,7 +108,7 @@ impl fmt::Display for Document {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::span::Position;
+    use super::super::super::location::Position;
     use super::super::paragraph::Paragraph;
     use super::super::session::Session;
     use super::*;
@@ -125,10 +125,14 @@ mod tests {
 
     #[test]
     fn test_document_elements_at() {
-        let para1 = Paragraph::from_line("First".to_string())
-            .with_span(Some(Span::new(Position::new(0, 0), Position::new(0, 5))));
-        let para2 = Paragraph::from_line("Second".to_string())
-            .with_span(Some(Span::new(Position::new(1, 0), Position::new(1, 6))));
+        let para1 = Paragraph::from_line("First".to_string()).with_location(Some(Location::new(
+            Position::new(0, 0),
+            Position::new(0, 5),
+        )));
+        let para2 = Paragraph::from_line("Second".to_string()).with_location(Some(Location::new(
+            Position::new(1, 0),
+            Position::new(1, 6),
+        )));
 
         let doc = Document::with_content(vec![
             ContentItem::Paragraph(para1),

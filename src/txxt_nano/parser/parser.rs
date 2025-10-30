@@ -15,11 +15,11 @@ use std::ops::Range;
 use crate::txxt_nano::ast::{Container, ContentItem, Document};
 use crate::txxt_nano::lexer::Token;
 
-/// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+/// Type alias for token with location
+type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
-type ParserError = Simple<TokenSpan>;
+type ParserError = Simple<TokenLocation>;
 
 // Parser combinators - kept for test support if needed
 #[allow(unused_imports)]
@@ -40,22 +40,22 @@ use std::sync::Arc;
 /// All combinators now take source parameter and return final types.
 pub(crate) fn build_document_content_parser(
     source: &str,
-) -> impl Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, Vec<ContentItem>, Error = ParserError> + Clone {
     let source = Arc::new(source.to_string());
 
     recursive(move |items| {
         let source = source.clone();
         let single_item = {
-            // Session parser - now builds final Session type with span
+            // Session parser - now builds final Session type with location
             let session_parser = build_session_parser(source.clone(), items.clone());
 
-            // Definition parser - now builds final Definition type with span
+            // Definition parser - now builds final Definition type with location
             let definition_parser = build_definition_parser(source.clone(), items.clone());
 
-            // List parser - now builds final List type with span
+            // List parser - now builds final List type with location
             let list_parser = build_list_parser(source.clone(), items.clone());
 
-            // Annotation parser - now builds final Annotation type with span
+            // Annotation parser - now builds final Annotation type with location
             let annotation_parser = build_annotation_parser(source.clone(), items.clone());
 
             choice((
@@ -98,22 +98,22 @@ pub(crate) fn build_document_content_parser(
 use super::elements::document as document_module;
 
 /// Parse a document - delegated to document module
-/// Phase 5: The document parser requires source text to populate span information
-pub fn document() -> impl Parser<TokenSpan, Document, Error = ParserError> {
+/// Phase 5: The document parser requires source text to populate location information
+pub fn document() -> impl Parser<TokenLocation, Document, Error = ParserError> {
     // This function is kept for backward compatibility but delegates to document_module::document(source)
     // Since this function doesn't have access to source, it uses an empty string.
     // For proper position tracking, use parse_with_source_positions or parse_with_source instead.
     document_module::document("")
 }
 
-/// Parse with source text - extracts actual content from spans
+/// Parse with source text - extracts actual content from locations
 ///
 /// Re-exports the canonical implementation from api.rs
 pub fn parse_with_source(
-    tokens_with_spans: Vec<TokenSpan>,
+    tokens_with_locations: Vec<TokenLocation>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    super::api::parse_with_source(tokens_with_spans, source)
+    super::api::parse_with_source(tokens_with_locations, source)
 }
 
 /// Parse a txxt document from tokens with source, preserving position information
@@ -124,19 +124,19 @@ pub fn parse_with_source(
 ///
 /// Re-exports the canonical implementation from api.rs
 pub fn parse_with_source_positions(
-    tokens_with_spans: Vec<TokenSpan>,
+    tokens_with_locations: Vec<TokenLocation>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    super::api::parse_with_source_positions(tokens_with_spans, source)
+    super::api::parse_with_source_positions(tokens_with_locations, source)
 }
 
 /// Parse a txxt document from a token stream (legacy - doesn't preserve source text)
 pub fn parse(tokens: Vec<Token>) -> Result<Document, Vec<Simple<Token>>> {
-    // Convert tokens to token-span tuples with empty spans
-    let tokens_with_spans: Vec<TokenSpan> = tokens.into_iter().map(|t| (t, 0..0)).collect();
+    // Convert tokens to token-location tuples with empty locations
+    let tokens_with_locations: Vec<TokenLocation> = tokens.into_iter().map(|t| (t, 0..0)).collect();
 
     // Parse with empty source
-    parse_with_source(tokens_with_spans, "")
+    parse_with_source(tokens_with_locations, "")
         .map_err(|errs| errs.into_iter().map(|e| e.map(|(t, _)| t)).collect())
 }
 
@@ -144,16 +144,16 @@ pub fn parse(tokens: Vec<Token>) -> Result<Document, Vec<Simple<Token>>> {
 mod tests {
     use super::*;
     use crate::txxt_nano::ast::{AstNode, Position};
-    use crate::txxt_nano::lexer::lex_with_spans;
+    use crate::txxt_nano::lexer::lex_with_locations;
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
     use std::sync::Arc;
 
     #[test]
     fn test_simple_paragraph() {
         let input = "Hello world\n\n";
-        let tokens_with_spans = lex_with_spans(input);
+        let tokens_with_locations = lex_with_locations(input);
 
-        let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_spans);
+        let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_locations);
         assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
 
         let para = result.unwrap();
@@ -208,7 +208,7 @@ mod tests {
         use crate::txxt_nano::testing::assert_ast;
 
         let source = TxxtSources::get_string("050-trifecta-flat-simple.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
@@ -302,7 +302,7 @@ mod tests {
         use crate::txxt_nano::testing::assert_ast;
 
         let source = TxxtSources::get_string("060-trifecta-nesting.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
@@ -419,7 +419,7 @@ mod tests {
         use crate::txxt_nano::testing::assert_ast;
 
         let source = TxxtSources::get_string("110-ensemble-with-definitions.txxt").unwrap();
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
@@ -475,10 +475,10 @@ mod tests {
             "docs/specs/v1/regression-bugs/parser-definition-list-transition.txxt",
         )
         .expect("Failed to load regression test file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
 
         // This should parse successfully but currently fails with:
-        // Parse error at span 14..15: reason=Unexpected, found=Some((Newline, 34..35))
+        // Parse error at location 14..15: reason=Unexpected, found=Some((Newline, 34..35))
         let doc = parse_with_source(tokens, &source)
             .expect("Parser should handle definition with list followed by definition");
 
@@ -499,23 +499,23 @@ mod tests {
     #[test]
     fn test_parse_with_source_positions_simple() {
         let input = "Hello world\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
         assert_eq!(doc.content.len(), 1);
         let para = doc.content[0].as_paragraph().unwrap();
-        assert!(para.span.is_some(), "Paragraph should have span");
+        assert!(para.location().is_some(), "Paragraph should have location");
 
-        let span = para.span.unwrap();
-        assert_eq!(span.start.line, 0);
-        assert_eq!(span.start.column, 0);
+        let location = para.location().unwrap();
+        assert_eq!(location.start.line, 0);
+        assert_eq!(location.start.column, 0);
     }
 
     #[test]
     fn test_parse_with_source_positions_multiline() {
         let input = "First line\nSecond line\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -525,16 +525,16 @@ mod tests {
         // Should have 2 lines
         assert_eq!(para.lines.len(), 2);
 
-        // Span should cover both lines
-        let span = para.span.unwrap();
-        assert_eq!(span.start.line, 0);
-        assert_eq!(span.end.line, 1);
+        // Location should cover both lines
+        let location = para.location().unwrap();
+        assert_eq!(location.start.line, 0);
+        assert_eq!(location.end.line, 1);
     }
 
     #[test]
     fn test_elements_at_query_on_parsed_document() {
         let input = "First paragraph\n\n2. Session Title\n\n    Session content\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -551,7 +551,7 @@ mod tests {
     #[test]
     fn test_elements_at_nested_position() {
         let input = "Title\n\n1. Item one\n\n    Nested content\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -561,15 +561,15 @@ mod tests {
         // Query for position in the nested content
         let results = doc.elements_at(Position::new(4, 4));
 
-        // Should find elements at that position (or return empty if position is outside all spans)
-        // This is acceptable - position 4:4 might be outside all defined spans
+        // Should find elements at that position (or return empty if position is outside all locations)
+        // This is acceptable - position 4:4 might be outside all defined locations
         let _ = results;
     }
 
     #[test]
     fn test_position_comparison_in_query() {
         let input = "Line 0\n\nLine 2\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -578,15 +578,15 @@ mod tests {
 
         // First paragraph should be at line 0
         if let Some(para) = items.first().and_then(|item| item.as_paragraph()) {
-            if let Some(span) = para.span {
-                assert_eq!(span.start.line, 0);
+            if let Some(location) = para.location() {
+                assert_eq!(location.start.line, 0);
             }
         }
 
         // Second paragraph should be at line 2
         if let Some(para) = items.get(1).and_then(|item| item.as_paragraph()) {
-            if let Some(span) = para.span {
-                assert_eq!(span.start.line, 2);
+            if let Some(location) = para.location() {
+                assert_eq!(location.start.line, 2);
             }
         }
     }
@@ -596,7 +596,7 @@ mod tests {
     #[test]
     fn test_backward_compatibility_without_positions() {
         let input = "Simple paragraph\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
 
         // Old parser should still work (without positions)
         let doc_old =
@@ -612,45 +612,45 @@ mod tests {
         let para_old = doc_old.content[0].as_paragraph().unwrap();
         let para_new = doc_new.content[0].as_paragraph().unwrap();
 
-        // Text content should be the same (ignoring span information)
+        // Text content should be the same (ignoring location information)
         assert_eq!(para_old.lines.len(), para_new.lines.len());
         for (line_old, line_new) in para_old.lines.iter().zip(para_new.lines.iter()) {
             assert_eq!(line_old.as_string(), line_new.as_string());
         }
 
         // But new version should have positions on the paragraph and text
-        assert!(para_new.span.is_some());
-        assert!(para_new.lines[0].span.is_some());
+        assert!(para_new.location().is_some());
+        assert!(para_new.lines[0].location.is_some());
     }
 
     #[test]
-    fn test_span_boundary_containment() {
+    fn test_location_boundary_containment() {
         let input = "0123456789\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
         let para = doc.content[0].as_paragraph().unwrap();
-        let span = para.span.unwrap();
+        let location = para.location().unwrap();
 
         // Should contain position in the middle
-        assert!(span.contains(Position::new(0, 5)));
+        assert!(location.contains(Position::new(0, 5)));
 
         // Should contain start
-        assert!(span.contains(span.start));
+        assert!(location.contains(location.start));
 
         // Should contain end
-        assert!(span.contains(span.end));
+        assert!(location.contains(location.end));
 
         // Shouldมี contain position after end
-        assert!(!span.contains(Position::new(0, 11)));
+        assert!(!location.contains(Position::new(0, 11)));
     }
 
     #[test]
-    fn test_nested_paragraph_has_span() {
-        // Test that nested paragraphs inside sessions have span information
+    fn test_nested_paragraph_has_location() {
+        // Test that nested paragraphs inside sessions have location information
         let input = "Title\n\n1. Session Title\n\n    Nested paragraph\n\n";
-        let tokens = lex_with_spans(input);
+        let tokens = lex_with_locations(input);
         let doc =
             parse_with_source_positions(tokens, input).expect("Failed to parse with positions");
 
@@ -663,7 +663,7 @@ mod tests {
             .find(|item| item.is_session())
             .expect("Should have a session");
 
-        assert!(session.span().is_some(), "Session should have span");
+        assert!(session.location().is_some(), "Session should have location");
 
         // Get nested content
         if let Some(children) = session.children() {
@@ -674,14 +674,17 @@ mod tests {
                 if para_item.is_paragraph() {
                     let para = para_item.as_paragraph().unwrap();
                     assert!(
-                        para.span.is_some(),
-                        "Nested paragraph should have span, but got {:?}",
-                        para.span
+                        para.location().is_some(),
+                        "Nested paragraph should have location, but got {:?}",
+                        para.location()
                     );
 
-                    if let Some(span) = para.span {
-                        println!("Nested paragraph span: {:?} to {:?}", span.start, span.end);
-                        assert_eq!(span.start.line, 4, "Paragraph should be at line 4");
+                    if let Some(location) = para.location() {
+                        println!(
+                            "Nested paragraph location: {:?} to {:?}",
+                            location.start, location.end
+                        );
+                        assert_eq!(location.start.line, 4, "Paragraph should be at line 4");
                     }
                 }
             }

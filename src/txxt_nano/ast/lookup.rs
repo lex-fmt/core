@@ -1,5 +1,5 @@
 use super::elements::Document;
-use super::span::Position;
+use super::location::Position;
 use super::traits::AstNode;
 
 pub fn find_nodes_at_position(document: &Document, position: Position) -> Vec<&dyn AstNode> {

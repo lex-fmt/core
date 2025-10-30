@@ -8,34 +8,35 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
-use crate::txxt_nano::ast::{Annotation, ContentItem, Label, Paragraph, Span, TextContent};
+use crate::txxt_nano::ast::{Annotation, ContentItem, Label, Location, Paragraph, TextContent};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{
-    annotation_header, compute_span_from_spans, extract_text_from_spans, text_line, token,
+    annotation_header, compute_location_from_locations, extract_text_from_locations, text_line,
+    token,
 };
 
-/// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+/// Type alias for token with location
+type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
-type ParserError = Simple<TokenSpan>;
+type ParserError = Simple<TokenLocation>;
 
-/// Helper: convert a byte range to a Span using source location
-fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
+/// Helper: convert a byte range to a location using source location
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
     }
     let source_loc = SourceLocation::new(source);
-    Some(source_loc.range_to_span(range))
+    Some(source_loc.range_to_location(range))
 }
 
 /// Build an annotation parser
 pub(crate) fn build_annotation_parser<P>(
     source: Arc<String>,
     items: P,
-) -> impl Parser<TokenSpan, ContentItem, Error = ParserError> + Clone
+) -> impl Parser<TokenLocation, ContentItem, Error = ParserError> + Clone
 where
-    P: Parser<TokenSpan, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
+    P: Parser<TokenLocation, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
 {
     let source_for_header = source.clone();
     let header = token(Token::TxxtMarker)
@@ -54,26 +55,26 @@ where
             )
             .then_ignore(token(Token::TxxtMarker))
             .then_ignore(token(Token::Newline).or_not())
-            .map(move |((label_opt, label_span, parameters), content)| {
+            .map(move |((label_opt, label_location, parameters), content)| {
                 let label_text = label_opt.unwrap_or_default();
                 let label_position =
-                    label_span.and_then(|s| byte_range_to_span(&source_for_block, &s));
-                let label = Label::new(label_text).with_span(label_position);
-                // Compute overall span from content spans if available
-                let span = if !content.is_empty() {
-                    let content_spans: Vec<Span> = content
+                    label_location.and_then(|s| byte_range_to_location(&source_for_block, &s));
+                let label = Label::new(label_text).with_location(label_position);
+                // Compute overall location from content locations if available
+                let location = if !content.is_empty() {
+                    let content_locations: Vec<Location> = content
                         .iter()
                         .filter_map(|item| match item {
-                            ContentItem::Paragraph(p) => p.span,
-                            ContentItem::Session(s) => s.span,
-                            ContentItem::Definition(d) => d.span,
-                            ContentItem::List(l) => l.span,
-                            ContentItem::Annotation(a) => a.span,
-                            ContentItem::ForeignBlock(f) => f.span,
+                            ContentItem::Paragraph(p) => p.location,
+                            ContentItem::Session(s) => s.location,
+                            ContentItem::Definition(d) => d.location,
+                            ContentItem::List(l) => l.location,
+                            ContentItem::Annotation(a) => a.location,
+                            ContentItem::ForeignBlock(f) => f.location,
                         })
                         .collect();
-                    if !content_spans.is_empty() {
-                        Some(compute_span_from_spans(&content_spans))
+                    if !content_locations.is_empty() {
+                        Some(compute_location_from_locations(&content_locations))
                     } else {
                         None
                     }
@@ -84,7 +85,7 @@ where
                     label,
                     parameters,
                     content,
-                    span,
+                    location,
                 })
             })
     };
@@ -95,31 +96,33 @@ where
         header_for_single
             .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
             .then_ignore(token(Token::Newline).or_not())
-            .map(move |((label_opt, label_span, parameters), content_span)| {
-                let label_text = label_opt.unwrap_or_default();
-                let label_position =
-                    label_span.and_then(|s| byte_range_to_span(&source_for_single_line, &s));
-                let label = Label::new(label_text).with_span(label_position);
+            .map(
+                move |((label_opt, label_location, parameters), content_location)| {
+                    let label_text = label_opt.unwrap_or_default();
+                    let label_position = label_location
+                        .and_then(|s| byte_range_to_location(&source_for_single_line, &s));
+                    let label = Label::new(label_text).with_location(label_position);
 
-                // Handle content if present
-                let content = if let Some(spans) = content_span {
-                    let text = extract_text_from_spans(&source_for_single_line, &spans);
-                    vec![ContentItem::Paragraph(Paragraph {
-                        lines: vec![TextContent::from_string(text, None)],
-                        span: None,
-                    })]
-                } else {
-                    vec![]
-                };
-                let span = label_position; // For single-line, span is just the label
+                    // Handle content if present
+                    let content = if let Some(locations) = content_location {
+                        let text = extract_text_from_locations(&source_for_single_line, &locations);
+                        vec![ContentItem::Paragraph(Paragraph {
+                            lines: vec![TextContent::from_string(text, None)],
+                            location: None,
+                        })]
+                    } else {
+                        vec![]
+                    };
+                    let location = label_position; // For single-line, location is just the label
 
-                ContentItem::Annotation(Annotation {
-                    label,
-                    parameters,
-                    content,
-                    span,
-                })
-            })
+                    ContentItem::Annotation(Annotation {
+                        label,
+                        parameters,
+                        content,
+                        location,
+                    })
+                },
+            )
     };
 
     block_form.or(single_line_or_marker)
@@ -127,14 +130,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt_nano::lexer::lex_with_spans;
+    use crate::txxt_nano::lexer::lex_with_locations;
     use crate::txxt_nano::parser::api::parse_with_source;
     use crate::txxt_nano::processor::txxt_sources::TxxtSources;
 
     #[test]
     fn test_annotation_marker_minimal() {
         let source = "Para one. {{paragraph}}\n\n:: note ::\n\nPara two. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
@@ -144,7 +147,7 @@ mod tests {
     #[test]
     fn test_annotation_single_line() {
         let source = "Para one. {{paragraph}}\n\n:: note :: This is inline text\n\nPara two. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
@@ -158,7 +161,7 @@ mod tests {
     fn test_verified_annotations_simple() {
         let source = TxxtSources::get_string("120-annotations-simple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Verify document parses successfully and contains expected structure
@@ -215,7 +218,7 @@ mod tests {
     fn test_verified_annotations_block_content() {
         let source = TxxtSources::get_string("130-annotations-block-content.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_spans(&source);
+        let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Find and verify :: note author="Jane Doe" :: annotation with block content

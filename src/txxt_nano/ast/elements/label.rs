@@ -1,27 +1,30 @@
 //! Label element definition
 
-use super::super::span::Span;
+use super::super::location::Location;
 use std::fmt;
 
 /// A label represents a named identifier in txxt documents
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Label {
     pub value: String,
-    pub span: Option<Span>,
+    pub location: Option<Location>,
 }
 
 impl Label {
     pub fn new(value: String) -> Self {
-        Self { value, span: None }
+        Self {
+            value,
+            location: None,
+        }
     }
     pub fn from_string(value: &str) -> Self {
         Self {
             value: value.to_string(),
-            span: None,
+            location: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 }
@@ -37,12 +40,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_label_with_span() {
-        let span = super::super::super::span::Span::new(
-            super::super::super::span::Position::new(1, 0),
-            super::super::super::span::Position::new(1, 10),
+    fn test_label_with_location() {
+        let location = super::super::super::location::Location::new(
+            super::super::super::location::Position::new(1, 0),
+            super::super::super::location::Position::new(1, 10),
         );
-        let label = Label::new("test".to_string()).with_span(Some(span));
-        assert_eq!(label.span, Some(span));
+        let label = Label::new("test".to_string()).with_location(Some(location));
+        assert_eq!(label.location, Some(location));
     }
 }

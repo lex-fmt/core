@@ -1,6 +1,6 @@
 //! List element definition
 
-use super::super::span::Span;
+use super::super::location::Location;
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
@@ -11,7 +11,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
     pub items: Vec<ListItem>,
-    pub span: Option<Span>,
+    pub location: Option<Location>,
 }
 
 /// A list item has text and optional nested content
@@ -19,15 +19,18 @@ pub struct List {
 pub struct ListItem {
     pub(crate) text: Vec<TextContent>,
     pub content: Vec<ContentItem>,
-    pub span: Option<Span>,
+    pub location: Option<Location>,
 }
 
 impl List {
     pub fn new(items: Vec<ListItem>) -> Self {
-        Self { items, span: None }
+        Self {
+            items,
+            location: None,
+        }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
 }
@@ -39,8 +42,8 @@ impl AstNode for List {
     fn display_label(&self) -> String {
         format!("{} items", self.items.len())
     }
-    fn span(&self) -> Option<Span> {
-        self.span
+    fn location(&self) -> Option<Location> {
+        self.location
     }
 }
 
@@ -55,26 +58,26 @@ impl ListItem {
         Self {
             text: vec![TextContent::from_string(text, None)],
             content: Vec::new(),
-            span: None,
+            location: None,
         }
     }
     pub fn with_content(text: String, content: Vec<ContentItem>) -> Self {
         Self {
             text: vec![TextContent::from_string(text, None)],
             content,
-            span: None,
+            location: None,
         }
     }
-    /// Create a ListItem with TextContent that may have span information
+    /// Create a ListItem with TextContent that may have location information
     pub fn with_text_content(text_content: TextContent, content: Vec<ContentItem>) -> Self {
         Self {
             text: vec![text_content],
             content,
-            span: None,
+            location: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
-        self.span = span;
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
         self
     }
     pub fn text(&self) -> &str {
@@ -94,8 +97,8 @@ impl AstNode for ListItem {
             text.to_string()
         }
     }
-    fn span(&self) -> Option<Span> {
-        self.span
+    fn location(&self) -> Option<Location> {
+        self.location
     }
 }
 
@@ -122,12 +125,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_list_with_span() {
-        let span = super::super::super::span::Span::new(
-            super::super::super::span::Position::new(1, 0),
-            super::super::super::span::Position::new(1, 10),
+    fn test_list_with_location() {
+        let location = super::super::super::location::Location::new(
+            super::super::super::location::Position::new(1, 0),
+            super::super::super::location::Position::new(1, 10),
         );
-        let list = List::new(vec![]).with_span(Some(span));
-        assert_eq!(list.span, Some(span));
+        let list = List::new(vec![]).with_location(Some(location));
+        assert_eq!(list.location, Some(location));
     }
 }

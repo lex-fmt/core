@@ -10,36 +10,36 @@ use crate::txxt_nano::ast::Parameter;
 use crate::txxt_nano::lexer::Token;
 use std::ops::Range;
 
-/// Type alias for token with span
-type TokenSpan = (Token, Range<usize>);
+/// Type alias for token with location
+type TokenLocation = (Token, Range<usize>);
 
-/// Parameter with source text spans for later extraction
+/// Parameter with source text locations for later extraction
 #[derive(Debug, Clone)]
-pub(crate) struct ParameterWithSpans {
-    pub(crate) key_span: Range<usize>,
-    pub(crate) value_span: Option<Range<usize>>,
+pub(crate) struct ParameterWithLocations {
+    pub(crate) key_location: Range<usize>,
+    pub(crate) value_location: Option<Range<usize>>,
 }
 
-/// Convert a parameter from spans to final AST
+/// Convert a parameter from locations to final AST
 ///
-/// Extracts the key and value text from the source using the stored spans
-pub(crate) fn convert_parameter(source: &str, param: ParameterWithSpans) -> Parameter {
-    let key = extract_text(source, &param.key_span).to_string();
+/// Extracts the key and value text from the source using the stored locations
+pub(crate) fn convert_parameter(source: &str, param: ParameterWithLocations) -> Parameter {
+    let key = extract_text(source, &param.key_location).to_string();
 
     let value = param
-        .value_span
-        .map(|value_span| extract_text(source, &value_span).to_string());
+        .value_location
+        .map(|value_location| extract_text(source, &value_location).to_string());
 
     Parameter {
         key,
         value,
-        span: None,
+        location: None,
     }
 }
 
-/// Extract text from source using a span range
-fn extract_text<'a>(source: &'a str, span: &Range<usize>) -> &'a str {
-    &source[span.start..span.end]
+/// Extract text from source using a location range
+fn extract_text<'a>(source: &'a str, location: &Range<usize>) -> &'a str {
+    &source[location.start..location.end]
 }
 
 /// Helper function to parse parameters from a token slice
@@ -48,7 +48,9 @@ fn extract_text<'a>(source: &'a str, span: &Range<usize>) -> &'a str {
 /// 1. Split by comma
 /// 2. For each segment, split by '=' to get key/value
 /// 3. Whitespace around parameters is ignored
-pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<ParameterWithSpans> {
+pub(crate) fn parse_parameters_from_tokens(
+    tokens: &[TokenLocation],
+) -> Vec<ParameterWithLocations> {
     let mut params = Vec::new();
     let mut i = 0;
 
@@ -81,10 +83,10 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
             continue;
         }
 
-        let key_span = {
-            let first_span = &tokens[key_start].1;
-            let last_span = &tokens[i - 1].1;
-            first_span.start..last_span.end
+        let key_location = {
+            let first_location = &tokens[key_start].1;
+            let last_location = &tokens[i - 1].1;
+            first_location.start..last_location.end
         };
 
         // Skip whitespace before '='
@@ -112,7 +114,7 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
         }
 
         // Parse value - could be quoted or unquoted
-        let value_span = if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
+        let value_location = if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
             i += 1; // Skip opening quote
             let val_start = i;
 
@@ -121,10 +123,10 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
                 i += 1;
             }
 
-            let val_span = if val_start < i {
-                let first_span = &tokens[val_start].1;
-                let last_span = &tokens[i - 1].1;
-                Some(first_span.start..last_span.end)
+            let val_location = if val_start < i {
+                let first_location = &tokens[val_start].1;
+                let last_location = &tokens[i - 1].1;
+                Some(first_location.start..last_location.end)
             } else {
                 Some(0..0) // Empty quoted string
             };
@@ -133,7 +135,7 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
                 i += 1; // Skip closing quote
             }
 
-            val_span
+            val_location
         } else {
             // Unquoted value: collect until comma or whitespace
             let val_start = i;
@@ -142,9 +144,9 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
             }
 
             if val_start < i {
-                let first_span = &tokens[val_start].1;
-                let last_span = &tokens[i - 1].1;
-                Some(first_span.start..last_span.end)
+                let first_location = &tokens[val_start].1;
+                let last_location = &tokens[i - 1].1;
+                Some(first_location.start..last_location.end)
             } else {
                 // No value found, skip this parameter
                 while i < tokens.len() && !matches!(tokens[i].0, Token::Comma) {
@@ -157,9 +159,9 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
             }
         };
 
-        params.push(ParameterWithSpans {
-            key_span,
-            value_span,
+        params.push(ParameterWithLocations {
+            key_location,
+            value_location,
         });
 
         // Skip trailing whitespace
@@ -178,13 +180,13 @@ pub(crate) fn parse_parameters_from_tokens(tokens: &[TokenSpan]) -> Vec<Paramete
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt_nano::lexer::lex_with_spans;
+    use crate::txxt_nano::lexer::lex_with_locations;
     use crate::txxt_nano::parser::parse_with_source;
 
     #[test]
     fn test_annotation_comma_separated_parameters() {
         let source = ":: warning severity=high,priority=urgent ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.content[0].as_annotation().unwrap();
@@ -200,7 +202,7 @@ mod tests {
     fn test_annotation_quoted_string_values() {
         let source =
             ":: note author=\"Jane Doe\" title=\"Important Note\" ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.content[0].as_annotation().unwrap();
@@ -218,7 +220,7 @@ mod tests {
     #[test]
     fn test_annotation_mixed_separators_and_quotes() {
         let source = ":: task priority=high,status=\"in progress\",assigned=alice ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.content[0].as_annotation().unwrap();
@@ -238,7 +240,7 @@ mod tests {
     fn test_annotation_whitespace_around_commas() {
         // Test that whitespace around commas is properly ignored
         let source = ":: note key1=val1 , key2=val2 , key3=val3 ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_spans(source);
+        let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.content[0].as_annotation().unwrap();

@@ -2,14 +2,14 @@
 mod tests {
     use crate::txxt_nano::ast::{
         elements::Session,
-        span::{Position, Span},
+        location::{Location, Position},
         traits::{AstNode, Container},
     };
 
     #[test]
     fn test_get_location() {
-        let span = Span::new(Position::new(1, 0), Position::new(1, 10));
-        let session = Session::with_title("Title".to_string()).with_span(Some(span));
+        let location = Location::new(Position::new(1, 0), Position::new(1, 10));
+        let session = Session::with_title("Title".to_string()).with_location(Some(location));
         assert_eq!(session.get_location(), Some(Position::new(1, 0)));
     }
 
@@ -19,10 +19,10 @@ mod tests {
         use crate::txxt_nano::ast::elements::Document;
         use crate::txxt_nano::ast::find_nodes_at_position;
 
-        let span1 = Span::new(Position::new(1, 0), Position::new(1, 10));
-        let span2 = Span::new(Position::new(2, 0), Position::new(2, 10));
-        let session1 = Session::with_title("Title1".to_string()).with_span(Some(span1));
-        let session2 = Session::with_title("Title2".to_string()).with_span(Some(span2));
+        let location1 = Location::new(Position::new(1, 0), Position::new(1, 10));
+        let location2 = Location::new(Position::new(2, 0), Position::new(2, 10));
+        let session1 = Session::with_title("Title1".to_string()).with_location(Some(location1));
+        let session2 = Session::with_title("Title2".to_string()).with_location(Some(location2));
         let document = Document::with_content(vec![
             ContentItem::Session(session1),
             ContentItem::Session(session2),
@@ -38,10 +38,12 @@ mod tests {
         use crate::txxt_nano::ast::elements::{ContentItem, Document, Paragraph};
         use crate::txxt_nano::ast::find_nodes_at_position;
 
-        let para_span = Span::new(Position::new(2, 0), Position::new(2, 10));
-        let paragraph = Paragraph::from_line("Nested".to_string()).with_span(Some(para_span));
-        let session_span = Span::new(Position::new(1, 0), Position::new(3, 0));
-        let mut session = Session::with_title("Title".to_string()).with_span(Some(session_span));
+        let para_location = Location::new(Position::new(2, 0), Position::new(2, 10));
+        let paragraph =
+            Paragraph::from_line("Nested".to_string()).with_location(Some(para_location));
+        let session_location = Location::new(Position::new(1, 0), Position::new(3, 0));
+        let mut session =
+            Session::with_title("Title".to_string()).with_location(Some(session_location));
         session
             .children_mut()
             .push(ContentItem::Paragraph(paragraph));

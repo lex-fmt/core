@@ -150,15 +150,18 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
     count
 }
 
-/// Transform indentation while preserving source spans
-/// Synthetic tokens (IndentLevel, DedentLevel) are given meaningful spans:
-/// - IndentLevel: span covers the Indent tokens it represents
-/// - DedentLevel: span at the start of the line where dedentation occurs
-pub fn transform_indentation_with_spans(
-    tokens_with_spans: Vec<(Token, std::ops::Range<usize>)>,
+/// Transform indentation while preserving source locations
+/// Synthetic tokens (IndentLevel, DedentLevel) are given meaningful locations:
+/// - IndentLevel: location covers the Indent tokens it represents
+/// - DedentLevel: location at the start of the line where dedentation occurs
+pub fn transform_indentation_with_locations(
+    tokens_with_locations: Vec<(Token, std::ops::Range<usize>)>,
 ) -> Vec<(Token, std::ops::Range<usize>)> {
     // Extract just the tokens for processing
-    let tokens: Vec<Token> = tokens_with_spans.iter().map(|(t, _)| t.clone()).collect();
+    let tokens: Vec<Token> = tokens_with_locations
+        .iter()
+        .map(|(t, _)| t.clone())
+        .collect();
 
     let mut result = Vec::new();
     let mut current_level = 0;
@@ -181,8 +184,8 @@ pub fn transform_indentation_with_spans(
                 j += 1;
             }
             if j < tokens.len() && matches!(tokens[j], Token::Newline) {
-                // Preserve the newline span
-                result.push((Token::Newline, tokens_with_spans[j].1.clone()));
+                // Preserve the newline location
+                result.push((Token::Newline, tokens_with_locations[j].1.clone()));
                 j += 1;
             }
             i = j;
@@ -192,42 +195,42 @@ pub fn transform_indentation_with_spans(
         // Calculate the target indentation level for this line
         let target_level = line_indent_level;
 
-        // Generate appropriate IndentLevel/DedentLevel tokens with meaningful spans
+        // Generate appropriate IndentLevel/DedentLevel tokens with meaningful locations
         match target_level.cmp(&current_level) {
             std::cmp::Ordering::Greater => {
-                // IndentLevel tokens: each gets the span of its corresponding Indent token
+                // IndentLevel tokens: each gets the location of its corresponding Indent token
                 let indent_start_idx = line_start;
                 for level_idx in 0..(target_level - current_level) {
                     let indent_token_idx = indent_start_idx + current_level + level_idx;
-                    if indent_token_idx < tokens_with_spans.len()
-                        && matches!(tokens_with_spans[indent_token_idx].0, Token::Indent)
+                    if indent_token_idx < tokens_with_locations.len()
+                        && matches!(tokens_with_locations[indent_token_idx].0, Token::Indent)
                     {
-                        // Use the span of the Indent token
-                        let span = tokens_with_spans[indent_token_idx].1.clone();
-                        result.push((Token::IndentLevel, span));
+                        // Use the location of the Indent token
+                        let location = tokens_with_locations[indent_token_idx].1.clone();
+                        result.push((Token::IndentLevel, location));
                     } else {
-                        // Fallback: use the span of the first content token on this line
-                        let fallback_span = if line_start < tokens_with_spans.len() {
-                            tokens_with_spans[line_start].1.start
-                                ..tokens_with_spans[line_start].1.start
+                        // Fallback: use the location of the first content token on this line
+                        let fallback_location = if line_start < tokens_with_locations.len() {
+                            tokens_with_locations[line_start].1.start
+                                ..tokens_with_locations[line_start].1.start
                         } else {
                             0..0
                         };
-                        result.push((Token::IndentLevel, fallback_span));
+                        result.push((Token::IndentLevel, fallback_location));
                     }
                 }
             }
             std::cmp::Ordering::Less => {
-                // DedentLevel tokens: use the span at the start of the new line (where dedent occurs)
+                // DedentLevel tokens: use the location at the start of the new line (where dedent occurs)
                 // This represents the position where we "return" to a previous indentation level
-                let dedent_span = if line_start < tokens_with_spans.len() {
+                let dedent_location = if line_start < tokens_with_locations.len() {
                     // Point to the start of the first token on the new line
-                    let start = tokens_with_spans[line_start].1.start;
+                    let start = tokens_with_locations[line_start].1.start;
                     start..start
                 } else {
-                    // End of file: use empty span at the end
-                    let end = if !tokens_with_spans.is_empty() {
-                        tokens_with_spans.last().unwrap().1.end
+                    // End of file: use empty location at the end
+                    let end = if !tokens_with_locations.is_empty() {
+                        tokens_with_locations.last().unwrap().1.end
                     } else {
                         0
                     };
@@ -235,7 +238,7 @@ pub fn transform_indentation_with_spans(
                 };
 
                 for _ in 0..(current_level - target_level) {
-                    result.push((Token::DedentLevel, dedent_span.clone()));
+                    result.push((Token::DedentLevel, dedent_location.clone()));
                 }
             }
             std::cmp::Ordering::Equal => {
@@ -254,15 +257,15 @@ pub fn transform_indentation_with_spans(
             }
         }
 
-        // Process the rest of the line, keeping all remaining tokens with spans
+        // Process the rest of the line, keeping all remaining tokens with locations
         while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
-            result.push((tokens[j].clone(), tokens_with_spans[j].1.clone()));
+            result.push((tokens[j].clone(), tokens_with_locations[j].1.clone()));
             j += 1;
         }
 
         // Add the newline token if we haven't reached the end
         if j < tokens.len() && matches!(tokens[j], Token::Newline) {
-            result.push((Token::Newline, tokens_with_spans[j].1.clone()));
+            result.push((Token::Newline, tokens_with_locations[j].1.clone()));
             j += 1;
         }
 
@@ -271,15 +274,15 @@ pub fn transform_indentation_with_spans(
 
     // Add dedents to close all remaining indentation levels
     // These occur at the end of file, so use the end position
-    let eof_span = if !tokens_with_spans.is_empty() {
-        let end = tokens_with_spans.last().unwrap().1.end;
+    let eof_location = if !tokens_with_locations.is_empty() {
+        let end = tokens_with_locations.last().unwrap().1.end;
         end..end
     } else {
         0..0
     };
 
     for _ in 0..current_level {
-        result.push((Token::DedentLevel, eof_span.clone()));
+        result.push((Token::DedentLevel, eof_location.clone()));
     }
 
     result
@@ -765,12 +768,12 @@ mod tests {
         );
     }
 
-    // ========== SPAN TESTS ==========
-    // Tests to verify that synthetic tokens (IndentLevel, DedentLevel) have correct spans
+    // ========== location TESTS ==========
+    // Tests to verify that synthetic tokens (IndentLevel, DedentLevel) have correct locations
 
     #[test]
-    fn test_indent_level_tokens_have_correct_spans() {
-        // Test: IndentLevel tokens should have spans that correspond to the Indent tokens they represent
+    fn test_indent_level_tokens_have_correct_locations() {
+        // Test: IndentLevel tokens should have locations that correspond to the Indent tokens they represent
         // Input: "a\n    b" (a, newline, 4 spaces, b)
         let input = vec![
             (Token::Text("a".to_string()), 0..1), // "a" at position 0-1
@@ -779,14 +782,14 @@ mod tests {
             (Token::Text("b".to_string()), 6..7), // "b" at position 6-7
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // Expected:
-        // - Text("a") with span 0..1
-        // - Newline with span 1..2
-        // - IndentLevel with span 2..6 (covers the Indent token)
-        // - Text("b") with span 6..7
-        // - DedentLevel with span 7..7 (at EOF)
+        // - Text("a") with location 0..1
+        // - Newline with location 1..2
+        // - IndentLevel with location 2..6 (covers the Indent token)
+        // - Text("b") with location 6..7
+        // - DedentLevel with location 7..7 (at EOF)
 
         assert_eq!(result.len(), 5);
         assert_eq!(result[0], (Token::Text("a".to_string()), 0..1));
@@ -795,7 +798,7 @@ mod tests {
         assert_eq!(
             result[2].1,
             2..6,
-            "IndentLevel should have span of its Indent token"
+            "IndentLevel should have location of its Indent token"
         );
         assert_eq!(result[3], (Token::Text("b".to_string()), 6..7));
         assert_eq!(result[4].0, Token::DedentLevel);
@@ -807,8 +810,8 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_indent_levels_have_correct_spans() {
-        // Test: Multiple IndentLevel tokens should each have spans of their respective Indent tokens
+    fn test_multiple_indent_levels_have_correct_locations() {
+        // Test: Multiple IndentLevel tokens should each have locations of their respective Indent tokens
         // Input: "a\n        b" (a, newline, 8 spaces = 2 indent levels, b)
         let input = vec![
             (Token::Text("a".to_string()), 0..1),   // "a"
@@ -818,23 +821,27 @@ mod tests {
             (Token::Text("b".to_string()), 10..11), // "b"
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // Should have: Text, Newline, IndentLevel, IndentLevel, Text, DedentLevel, DedentLevel
         assert_eq!(result.len(), 7);
         assert_eq!(result[2].0, Token::IndentLevel);
-        assert_eq!(result[2].1, 2..6, "First IndentLevel should have span 2..6");
+        assert_eq!(
+            result[2].1,
+            2..6,
+            "First IndentLevel should have location 2..6"
+        );
         assert_eq!(result[3].0, Token::IndentLevel);
         assert_eq!(
             result[3].1,
             6..10,
-            "Second IndentLevel should have span 6..10"
+            "Second IndentLevel should have location 6..10"
         );
     }
 
     #[test]
-    fn test_dedent_level_tokens_have_correct_spans() {
-        // Test: DedentLevel tokens should have spans at the position where dedentation occurs
+    fn test_dedent_level_tokens_have_correct_locations() {
+        // Test: DedentLevel tokens should have locations at the position where dedentation occurs
         // Input: "a\n    b\nc" (a, newline, 4 spaces, b, newline, c)
         let input = vec![
             (Token::Text("a".to_string()), 0..1), // "a"
@@ -845,7 +852,7 @@ mod tests {
             (Token::Text("c".to_string()), 8..9), // "c" (dedented back to level 0)
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // Expected:
         // - Text("a"), Newline, IndentLevel, Text("b"), Newline, DedentLevel, Text("c")
@@ -859,8 +866,8 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_dedent_levels_have_correct_spans() {
-        // Test: Multiple DedentLevel tokens should all have the same span (position of dedentation)
+    fn test_multiple_dedent_levels_have_correct_locations() {
+        // Test: Multiple DedentLevel tokens should all have the same location (position of dedentation)
         // Input: "a\n        b\nc" (2 levels in, then 2 levels out)
         let input = vec![
             (Token::Text("a".to_string()), 0..1),
@@ -872,7 +879,7 @@ mod tests {
             (Token::Text("c".to_string()), 12..13), // Back to level 0
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
         // Expected: Text("a"), Newline, IndentLevel, IndentLevel, Text("b"), Newline, DedentLevel, DedentLevel, Text("c")
         // Should have 2 DedentLevel tokens before Text("c")
@@ -893,7 +900,7 @@ mod tests {
     }
 
     #[test]
-    fn test_eof_dedent_uses_correct_span() {
+    fn test_eof_dedent_uses_correct_location() {
         // Test: DedentLevel tokens at end of file should use the EOF position
         // Input: "a\n    b" (ends while indented)
         let input = vec![
@@ -903,54 +910,65 @@ mod tests {
             (Token::Text("b".to_string()), 6..7),
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
-        // Last token should be DedentLevel with span at EOF (7..7)
+        // Last token should be DedentLevel with location at EOF (7..7)
         let last = result.last().unwrap();
         assert_eq!(last.0, Token::DedentLevel);
         assert_eq!(last.1, 7..7, "EOF DedentLevel should use end position");
     }
 
     #[test]
-    fn test_spans_with_real_txxt_content() {
+    fn test_locations_with_real_txxt_content() {
         // Test with actual txxt content: a simple list
         let source = "Item 1\n    - Subitem A\n    - Subitem B";
         // Positions: 0..6 "Item 1", 6..7 "\n", 7..11 "    ", 11..12 "-", 12..13 " ",
         //            13..20 "Subitem", 20..21 " ", 21..22 "A", 22..23 "\n",
         //            23..27 "    ", 27..28 "-", 28..29 " ", 29..36 "Subitem", 36..37 " ", 37..38 "B"
 
-        let tokens_with_spans = crate::txxt_nano::lexer::tokenize_with_spans(source);
-        let result = transform_indentation_with_spans(tokens_with_spans);
+        let tokens_with_locations = crate::txxt_nano::lexer::tokenize_with_locations(source);
+        let result = transform_indentation_with_locations(tokens_with_locations);
 
         // Find the IndentLevel token
         let indent_level_pos = result
             .iter()
             .position(|(t, _)| matches!(t, Token::IndentLevel))
             .unwrap();
-        let (indent_token, indent_span) = &result[indent_level_pos];
+        let (indent_token, indent_location) = &result[indent_level_pos];
 
         assert_eq!(*indent_token, Token::IndentLevel);
-        assert_ne!(*indent_span, 0..0, "IndentLevel should not have empty span");
+        assert_ne!(
+            *indent_location,
+            0..0,
+            "IndentLevel should not have empty location"
+        );
         assert_eq!(
-            indent_span.start, 7,
+            indent_location.start, 7,
             "IndentLevel should start at position 7"
         );
-        assert_eq!(indent_span.end, 11, "IndentLevel should end at position 11");
+        assert_eq!(
+            indent_location.end, 11,
+            "IndentLevel should end at position 11"
+        );
 
         // Find the DedentLevel token (should be at end)
         let dedent_pos = result
             .iter()
             .position(|(t, _)| matches!(t, Token::DedentLevel))
             .unwrap();
-        let (dedent_token, dedent_span) = &result[dedent_pos];
+        let (dedent_token, dedent_location) = &result[dedent_pos];
 
         assert_eq!(*dedent_token, Token::DedentLevel);
-        assert_ne!(*dedent_span, 0..0, "DedentLevel should not have empty span");
+        assert_ne!(
+            *dedent_location,
+            0..0,
+            "DedentLevel should not have empty location"
+        );
     }
 
     #[test]
-    fn test_blank_lines_preserve_span_tracking() {
-        // Test that blank lines don't break span tracking for indentation
+    fn test_blank_lines_preserve_location_tracking() {
+        // Test that blank lines don't break location tracking for indentation
         let input = vec![
             (Token::Text("a".to_string()), 0..1),
             (Token::Newline, 1..2),
@@ -959,9 +977,9 @@ mod tests {
             (Token::Text("b".to_string()), 7..8),
         ];
 
-        let result = transform_indentation_with_spans(input);
+        let result = transform_indentation_with_locations(input);
 
-        // The IndentLevel should still have correct span
+        // The IndentLevel should still have correct location
         let indent_pos = result
             .iter()
             .position(|(t, _)| matches!(t, Token::IndentLevel))
@@ -969,7 +987,7 @@ mod tests {
         assert_eq!(
             result[indent_pos].1,
             3..7,
-            "IndentLevel span should be preserved"
+            "IndentLevel location should be preserved"
         );
     }
 }
