@@ -426,3 +426,70 @@ fn test_tree_selection_emits_select_node_event() {
         }
     }
 }
+
+#[test]
+#[ignore = "txxt_nano parser does not set span information on nested elements - see https://github.com/arthur-debert/txxt-nano/issues/64"]
+fn test_nested_elements_have_span_information() {
+    // ISSUE: The txxt_nano parser does not set span information on nested elements.
+    // This causes txxtv to be unable to highlight tree nodes when the cursor is on
+    // their text in the file viewer, because get_node_at_position() relies on
+    // document.elements_at() which depends on span information.
+    //
+    // This test verifies the issue: nested paragraph/list elements should have
+    // span information just like their parent session elements do.
+
+    let app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
+
+    let flattened = app.app().model.flattened_tree();
+
+    // Find a session with children
+    let mut session_with_children = None;
+    for (i, node) in flattened.iter().enumerate() {
+        if node.node_id.path().len() == 1 && node.has_children {
+            // This is a top-level session with children
+            // Check if the next node is a child
+            if i + 1 < flattened.len() && flattened[i + 1].node_id.path().len() > 1 {
+                session_with_children = Some((i, &node.node_id));
+                break;
+            }
+        }
+    }
+
+    if let Some((session_idx, session_id)) = session_with_children {
+        let child_idx = session_idx + 1;
+        let child_node = &flattened[child_idx];
+        let child_node_id = child_node.node_id;
+
+        // Session should have a span
+        let session_span = app.app().model.get_span_for_node(*session_id);
+        assert!(
+            session_span.is_some(),
+            "Session {:?} should have span information",
+            session_id.path()
+        );
+
+        // Child element should ALSO have span information (currently fails)
+        let child_span = app.app().model.get_span_for_node(child_node_id);
+        assert!(
+            child_span.is_some(),
+            "Nested element {:?} should have span information, but it doesn't. \
+             This is a txxt_nano parser issue: span information is not set on nested elements.",
+            child_node_id.path()
+        );
+
+        // If the child has a span, we should be able to find it by position
+        if let Some(span) = child_span {
+            let node_at_pos = app
+                .app()
+                .model
+                .get_node_at_position(span.start.line, span.start.column);
+            assert_eq!(
+                node_at_pos,
+                Some(child_node_id),
+                "Should be able to find nested element by its span position"
+            );
+        }
+    } else {
+        panic!("Test file should have a session with children");
+    }
+}
