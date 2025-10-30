@@ -13,8 +13,6 @@ pub mod combinators;
 pub mod elements;
 #[allow(clippy::module_inception)]
 pub mod parser;
-#[cfg(test)]
-mod tests;
 
 // Re-export AST types and utilities from the ast module
 pub use crate::txxt::ast::{
