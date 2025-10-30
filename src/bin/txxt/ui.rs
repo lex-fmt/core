@@ -6,7 +6,7 @@
 //! - Middle section (responsive height):
 //!   - Tree viewer (30 chars, fixed width)
 //!   - File viewer (remaining space)
-//! - Info panel (11 lines, fixed)
+//! - Status line (1 line, fixed)
 
 use crate::app::App;
 use crate::model::Focus;
