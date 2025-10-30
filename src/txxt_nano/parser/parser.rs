@@ -413,7 +413,6 @@ mod tests {
     // Definition tests have been moved to elements/definitions.rs
 
     #[test]
-    #[ignore = "Still failing - needs investigation"]
     fn test_verified_ensemble_with_definitions() {
         // Comprehensive ensemble test with all core elements including definitions
         use crate::txxt_nano::testing::assert_ast;
@@ -466,7 +465,6 @@ mod tests {
     // - elements/foreign.rs for foreign block tests
 
     #[test]
-    #[ignore = "Regression: parser fails when definition with list is followed by another definition"]
     fn test_regression_definition_with_list_followed_by_definition() {
         // Issue: https://github.com/arthur-debert/txxt-nano/issues/41
         // See: docs/specs/v1/regression-bugs/parser-definition-list-transition.txxt

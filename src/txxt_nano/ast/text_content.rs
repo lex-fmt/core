@@ -48,9 +48,6 @@ impl TextContent {
     /// * `text` - The raw text content
     /// * `location` - Optional source location of this text
     ///
-    /// # Example
-    /// ```ignore
-    /// let content = TextContent::from_string("Hello world".to_string(), Some(location));
     /// ```
     pub fn from_string(text: String, location: Option<Location>) -> Self {
         Self {
@@ -73,9 +70,6 @@ impl TextContent {
     /// stored string directly. In Phase 2, would flatten inline nodes to text.
     ///
     /// # Example
-    /// ```ignore
-    /// let text = content.as_string();
-    /// assert_eq!(text, "Hello world");
     /// ```
     pub fn as_string(&self) -> &str {
         match &self.inner {

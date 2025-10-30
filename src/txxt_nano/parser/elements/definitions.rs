@@ -262,7 +262,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Fails due to parser bug #41"]
     fn test_verified_definitions_mixed_content() {
         let source = TxxtSources::get_string("100-definitions-mixed-content.txxt")
             .expect("Failed to load sample file");
