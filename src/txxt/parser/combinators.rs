@@ -4,7 +4,7 @@ use chumsky::prelude::*;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::position::SourceLocation;
+use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{Location, Paragraph, Parameter, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::elements::labels::parse_label_from_tokens;

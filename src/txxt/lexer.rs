@@ -1,7 +1,12 @@
 //! Lexer module for the txxt format
 //!
-//! This module contains the tokenization logic for the txxt format,
-//! including token definitions and the lexer implementation.
+//! This module orchestrates the complete tokenization pipeline for the txxt format.
+//! The pipeline consists of:
+//! 1. Core tokenization using logos lexer
+//! 2. Transformation pipeline:
+//!    - Whitespace remainder processing
+//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel)
+//!    - Blank line transformation (consecutive Newlines -> BlankLine)
 //!
 //! Indentation Handling
 //!
@@ -18,23 +23,26 @@
 //!   transformation step, separate from all other tokenization, which helps a lot.
 //! - At some point in the spec, we will handle blocks much like markdown's fenced blocks,that display non-txxt strings. In these cases, while we may parse (for indentation)the lines, we never want to emit the indent and dedent tokens. Having this happen two stages gives us more flexibility on how to handle these cases.
 
-pub mod blank_line_transform;
 pub mod detokenizer;
-pub mod indentation_transform;
 pub mod lexer_impl;
 pub mod tokens;
+pub mod transformations;
 
-pub use blank_line_transform::{transform_blank_lines, transform_blank_lines_with_locations};
 pub use detokenizer::detokenize;
-pub use indentation_transform::{transform_indentation, transform_indentation_with_locations};
-pub use lexer_impl::{tokenize, tokenize_with_locations};
+pub use lexer_impl::tokenize_with_locations;
 pub use tokens::Token;
+pub use transformations::{
+    process_whitespace_remainders, process_whitespace_remainders_with_locations,
+    transform_blank_lines, transform_blank_lines_with_locations, transform_indentation,
+    transform_indentation_with_locations,
+};
 
 /// Main lexer function that returns fully processed tokens
 /// Processing pipeline:
-/// 1. tokenize() - creates raw tokens with Indent and Newline tokens
-/// 2. transform_indentation() - converts Indent tokens to semantic IndentLevel/DedentLevel tokens
-/// 3. transform_blank_lines() - converts consecutive Newline tokens to BlankLine tokens
+/// 1. tokenize_with_locations() - raw tokens with source locations
+/// 2. process_whitespace_remainders() - handle whitespace according to txxt spec
+/// 3. transform_indentation() - convert Indent tokens to semantic IndentLevel/DedentLevel tokens
+/// 4. transform_blank_lines() - convert consecutive Newline tokens to BlankLine tokens
 pub fn lex(source: &str) -> Vec<Token> {
     // Ensure source ends with newline to help with paragraph parsing at EOF
     let source_with_newline = if !source.is_empty() && !source.ends_with('\n') {
@@ -43,18 +51,20 @@ pub fn lex(source: &str) -> Vec<Token> {
         source.to_string()
     };
 
-    let raw_tokens = tokenize(&source_with_newline);
-    let tokens = transform_indentation(raw_tokens);
-    transform_blank_lines(tokens)
+    let tokens_with_locations = tokenize_with_locations(&source_with_newline);
+    let tokens_after_whitespace = process_whitespace_remainders(tokens_with_locations);
+    let tokens_after_indentation = transform_indentation(tokens_after_whitespace);
+    transform_blank_lines(tokens_after_indentation)
 }
 
 /// Lexing function that preserves source locations for parser
 /// Returns tokens with their corresponding source locations
-/// Synthetic tokens (IndentLevel, DedentLevel, BlankLine) have empty locations (0..0)
+/// Synthetic tokens (IndentLevel, DedentLevel, BlankLine) have meaningful locations
 /// Processing pipeline:
-/// 1. tokenize_with_locations() - creates raw tokens with locations
-/// 2. transform_indentation_with_locations() - converts Indent tokens to semantic IndentLevel/DedentLevel tokens
-/// 3. transform_blank_lines_with_locations() - converts consecutive Newline tokens to BlankLine tokens
+/// 1. tokenize_with_locations() - raw tokens with source locations
+/// 2. process_whitespace_remainders_with_locations() - handle whitespace with locations
+/// 3. transform_indentation_with_locations() - convert Indent tokens with location tracking
+/// 4. transform_blank_lines_with_locations() - convert Newline sequences with location tracking
 pub fn lex_with_locations(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
     // Ensure source ends with newline to help with paragraph parsing at EOF
     let source_with_newline = if !source.is_empty() && !source.ends_with('\n') {
@@ -63,7 +73,9 @@ pub fn lex_with_locations(source: &str) -> Vec<(Token, std::ops::Range<usize>)> 
         source.to_string()
     };
 
-    let raw_tokens_with_locations = tokenize_with_locations(&source_with_newline);
-    let tokens = transform_indentation_with_locations(raw_tokens_with_locations);
-    transform_blank_lines_with_locations(tokens)
+    let tokens_with_locations = tokenize_with_locations(&source_with_newline);
+    let tokens_after_whitespace =
+        process_whitespace_remainders_with_locations(tokens_with_locations);
+    let tokens_after_indentation = transform_indentation_with_locations(tokens_after_whitespace);
+    transform_blank_lines_with_locations(tokens_after_indentation)
 }

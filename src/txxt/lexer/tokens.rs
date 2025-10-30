@@ -139,32 +139,47 @@ impl Token {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::lexer::tokenize;
+    use crate::txxt::lexer::tokenize_with_locations;
 
     #[test]
     fn test_txxt_marker() {
-        let tokens = tokenize("::");
+        let tokens: Vec<_> = tokenize_with_locations("::")
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         assert_eq!(tokens, vec![Token::TxxtMarker]);
     }
 
     #[test]
     fn test_indentation_tokens() {
         // Test 4 spaces
-        let tokens = tokenize("    ");
+        let tokens: Vec<_> = tokenize_with_locations("    ")
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         assert_eq!(tokens, vec![Token::Indent]);
 
         // Test tab
-        let tokens = tokenize("\t");
+        let tokens: Vec<_> = tokenize_with_locations("\t")
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         assert_eq!(tokens, vec![Token::Indent]);
 
         // Test multiple indent levels
-        let tokens = tokenize("        "); // 8 spaces = 2 indent levels
+        let tokens: Vec<_> = tokenize_with_locations("        ")
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect(); // 8 spaces = 2 indent levels
         assert_eq!(tokens, vec![Token::Indent, Token::Indent]);
     }
 
     #[test]
     fn test_sequence_markers() {
-        let tokens = tokenize("- . ( ) :");
+        let tokens: Vec<_> = tokenize_with_locations("- . ( ) :")
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         assert_eq!(
             tokens,
             vec![
@@ -183,7 +198,10 @@ mod tests {
 
     #[test]
     fn test_text_tokens() {
-        let tokens = tokenize("hello world");
+        let tokens: Vec<_> = tokenize_with_locations("hello world")
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         assert_eq!(
             tokens,
             vec![
@@ -196,13 +214,19 @@ mod tests {
 
     #[test]
     fn test_newline_token() {
-        let tokens = tokenize("\n");
+        let tokens: Vec<_> = tokenize_with_locations("\n")
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         assert_eq!(tokens, vec![Token::Newline]);
     }
 
     #[test]
     fn test_mixed_content() {
-        let tokens = tokenize("1. Hello world\n    - Item 1");
+        let tokens: Vec<_> = tokenize_with_locations("1. Hello world\n    - Item 1")
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         assert_eq!(
             tokens,
             vec![
@@ -225,7 +249,10 @@ mod tests {
 
     #[test]
     fn test_number_tokens() {
-        let tokens = tokenize("123 456");
+        let tokens: Vec<_> = tokenize_with_locations("123 456")
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         assert_eq!(
             tokens,
             vec![

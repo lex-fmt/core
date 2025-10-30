@@ -64,14 +64,17 @@ pub fn detokenize(tokens: &[Token]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::lexer::{tokenize, transform_indentation};
+    use crate::txxt::lexer::{tokenize_with_locations, transform_indentation_with_locations};
 
     // ===== Stage 0/1: Basic detokenization with raw tokens (no indentation handling) =====
 
     #[test]
     fn test_detokenize_simple_paragraph() {
         let source = "Simple Paragraphs Test {{paragraph}}";
-        let tokens = tokenize(source);
+        let tokens: Vec<_> = tokenize_with_locations(source)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         assert_eq!(detokenized, source);
     }
@@ -79,7 +82,10 @@ mod tests {
     #[test]
     fn test_detokenize_multiline_paragraph() {
         let source = "This is a multi-line paragraph.\nIt continues on the second line.\nAnd even has a third line. {{paragraph}}";
-        let tokens = tokenize(source);
+        let tokens: Vec<_> = tokenize_with_locations(source)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         assert_eq!(detokenized, source);
     }
@@ -88,7 +94,10 @@ mod tests {
     fn test_detokenize_simple_list() {
         let source =
             "- First item {{list-item}}\n- Second item {{list-item}}\n- Third item {{list-item}}";
-        let tokens = tokenize(source);
+        let tokens: Vec<_> = tokenize_with_locations(source)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         assert_eq!(detokenized, source);
     }
@@ -96,7 +105,10 @@ mod tests {
     #[test]
     fn test_detokenize_session() {
         let source = "1. Introduction {{session-title}}\n\n    This is the content of the session. It contains a paragraph that is indented relative to the session title. {{paragraph}}";
-        let tokens = tokenize(source);
+        let tokens: Vec<_> = tokenize_with_locations(source)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         assert_eq!(detokenized, source);
     }
@@ -106,8 +118,9 @@ mod tests {
     #[test]
     fn test_detokenize_with_semantic_indentation() {
         let source = "1. Session\n    - Item 1\n        - Nested Item\n    - Item 2";
-        let raw_tokens = tokenize(source);
-        let tokens = transform_indentation(raw_tokens);
+        let raw_tokens_with_locations = tokenize_with_locations(source);
+        let tokens_with_locations = transform_indentation_with_locations(raw_tokens_with_locations);
+        let tokens: Vec<_> = tokens_with_locations.into_iter().map(|(t, _)| t).collect();
         let detokenized = detokenize(&tokens);
         assert_eq!(detokenized, source);
     }
@@ -119,14 +132,18 @@ mod tests {
     // a simple "strings don't match" message.
 
     fn test_roundtrip_raw_tokens(source: &str, snapshot_name: &str) {
-        let tokens = tokenize(source);
+        let tokens: Vec<_> = tokenize_with_locations(source)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         insta::assert_snapshot!(snapshot_name, detokenized);
     }
 
     fn test_roundtrip_semantic_tokens(source: &str, snapshot_name: &str) {
-        let raw_tokens = tokenize(source);
-        let tokens = transform_indentation(raw_tokens);
+        let raw_tokens_with_locations = tokenize_with_locations(source);
+        let tokens_with_locations = transform_indentation_with_locations(raw_tokens_with_locations);
+        let tokens: Vec<_> = tokens_with_locations.into_iter().map(|(t, _)| t).collect();
         let detokenized = detokenize(&tokens);
         insta::assert_snapshot!(snapshot_name, detokenized);
     }
