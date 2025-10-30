@@ -84,6 +84,14 @@ impl FileViewer {
         self.scroll_offset
     }
 
+    /// Sync cursor to a specific position (called when model selection changes)
+    pub fn sync_cursor_to_position(&mut self, row: usize, col: usize) {
+        self.cursor_row = row;
+        self.cursor_col = col;
+        self.clamp_cursor_column();
+        self.ensure_cursor_visible();
+    }
+
     /// Move cursor up
     fn move_cursor_up(&mut self) {
         if self.cursor_row > 0 {
@@ -193,37 +201,37 @@ impl Viewer for FileViewer {
         frame.render_widget(paragraph, area);
     }
 
-    fn handle_key(&mut self, key: KeyEvent, _model: &Model) -> Option<ViewerEvent> {
+    fn handle_key(&mut self, key: KeyEvent, model: &Model) -> Option<ViewerEvent> {
+        // Get the node at the current position before moving
+        let old_node = model.get_node_at_position(self.cursor_row, self.cursor_col);
+
         match key.code {
             KeyCode::Up => {
                 self.move_cursor_up();
-                Some(ViewerEvent::SelectPosition(
-                    self.cursor_row,
-                    self.cursor_col,
-                ))
             }
             KeyCode::Down => {
                 self.move_cursor_down();
-                Some(ViewerEvent::SelectPosition(
-                    self.cursor_row,
-                    self.cursor_col,
-                ))
             }
             KeyCode::Left => {
                 self.move_cursor_left();
-                Some(ViewerEvent::SelectPosition(
-                    self.cursor_row,
-                    self.cursor_col,
-                ))
             }
             KeyCode::Right => {
                 self.move_cursor_right();
-                Some(ViewerEvent::SelectPosition(
-                    self.cursor_row,
-                    self.cursor_col,
-                ))
             }
-            _ => Some(ViewerEvent::NoChange),
+            _ => return Some(ViewerEvent::NoChange),
+        }
+
+        // Get the node at the new position after moving
+        let new_node = model.get_node_at_position(self.cursor_row, self.cursor_col);
+
+        // Only emit event if the node actually changed
+        if old_node != new_node {
+            Some(ViewerEvent::SelectPosition(
+                self.cursor_row,
+                self.cursor_col,
+            ))
+        } else {
+            Some(ViewerEvent::NoChange)
         }
     }
 }
