@@ -125,47 +125,96 @@ fn render_file_viewer(frame: &mut Frame, area: Rect, app: &App) {
 
 fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
     use crate::model::Selection;
+    use ratatui::text::Span;
 
     let title = "Info";
 
     // Build info content based on current selection
-    let info_text = match app.model.selection() {
+    let mut spans = Vec::new();
+
+    match app.model.selection() {
         Selection::TreeSelection(node_id) => {
-            // Show path for tree selection
+            spans.push(Span::styled(
+                "MODE: ",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ));
+            spans.push(Span::raw("Tree Selection\n"));
+
             let path = node_id.path();
-            let path_str = path
-                .iter()
-                .map(|i| i.to_string())
-                .collect::<Vec<_>>()
-                .join(" → ");
-
             if path.is_empty() {
-                "Selected: Root (Document)".to_string()
+                spans.push(Span::styled(
+                    "Selection: ",
+                    Style::default().fg(Color::Yellow),
+                ));
+                spans.push(Span::raw("Root (Document)\n"));
             } else {
-                format!("Selected: [{}]", path_str)
-            }
-        }
-        Selection::TextSelection(row, col) => {
-            // Show position and the node at this position
-            let mut info = format!("Cursor: line {}, col {}", row, col);
-
-            if let Some(node_id) = app.model.get_node_at_position(row, col) {
-                let path = node_id.path();
+                spans.push(Span::styled("Path: ", Style::default().fg(Color::Yellow)));
                 let path_str = path
                     .iter()
                     .map(|i| i.to_string())
                     .collect::<Vec<_>>()
                     .join(" → ");
-                info.push_str(&format!("\nNode: [{}]", path_str));
+                spans.push(Span::raw(format!("[{}]\n", path_str)));
+
+                // Show if node is expanded
+                let is_expanded = app.model.is_node_expanded(node_id);
+                spans.push(Span::styled("State: ", Style::default().fg(Color::Yellow)));
+                spans.push(Span::raw(if is_expanded {
+                    "Expanded\n"
+                } else {
+                    "Collapsed\n"
+                }));
             }
-
-            info
         }
-    };
+        Selection::TextSelection(row, col) => {
+            spans.push(Span::styled(
+                "MODE: ",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ));
+            spans.push(Span::raw("Text Selection\n"));
 
-    let paragraph = Paragraph::new(info_text)
-        .block(Block::default().borders(Borders::ALL).title(title))
-        .style(Style::default().bg(Color::Gray));
+            spans.push(Span::styled("Cursor: ", Style::default().fg(Color::Yellow)));
+            spans.push(Span::raw(format!("line {}, col {}\n", row, col)));
+
+            if let Some(node_id) = app.model.get_node_at_position(row, col) {
+                let path = node_id.path();
+                spans.push(Span::styled("Node: ", Style::default().fg(Color::Yellow)));
+
+                if path.is_empty() {
+                    spans.push(Span::raw("Root (Document)\n"));
+                } else {
+                    let path_str = path
+                        .iter()
+                        .map(|i| i.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" → ");
+                    spans.push(Span::raw(format!("[{}]\n", path_str)));
+                }
+
+                // Show if node is expanded
+                let is_expanded = app.model.is_node_expanded(node_id);
+                spans.push(Span::styled("State: ", Style::default().fg(Color::Yellow)));
+                spans.push(Span::raw(if is_expanded {
+                    "Expanded"
+                } else {
+                    "Collapsed"
+                }));
+            }
+        }
+    }
+
+    let paragraph = Paragraph::new(ratatui::text::Line::from(spans))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(title)
+                .border_type(ratatui::widgets::BorderType::Rounded),
+        )
+        .style(Style::default().bg(Color::Black).fg(Color::White));
 
     frame.render_widget(paragraph, area);
 }
