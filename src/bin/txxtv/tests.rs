@@ -17,6 +17,8 @@
 //! - Tests both flat and nested navigation
 
 use crate::model::{Model, NodeId, Selection};
+use crate::viewer::{FileViewer, TreeViewer, Viewer, ViewerEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
 use std::fs;
@@ -132,6 +134,114 @@ impl TestApp {
             );
         }
     }
+
+    // ========== Keyboard handling ==========
+
+    /// Create a KeyEvent for testing
+    fn create_key_event(code: KeyCode) -> KeyEvent {
+        KeyEvent {
+            code,
+            modifiers: KeyModifiers::empty(),
+            kind: crossterm::event::KeyEventKind::Press,
+            state: crossterm::event::KeyEventState::empty(),
+        }
+    }
+
+    /// Create a KeyEvent with modifiers for testing
+    fn create_key_event_with_modifiers(code: KeyCode, modifiers: KeyModifiers) -> KeyEvent {
+        KeyEvent {
+            code,
+            modifiers,
+            kind: crossterm::event::KeyEventKind::Press,
+            state: crossterm::event::KeyEventState::empty(),
+        }
+    }
+
+    /// Send a key press to the FileViewer
+    pub fn file_viewer_key(&mut self, key: KeyCode) -> Option<ViewerEvent> {
+        let mut viewer = FileViewer::new();
+        let key_event = Self::create_key_event(key);
+        viewer.handle_key(key_event, &self.model)
+    }
+
+    /// Send a key press to the TreeViewer
+    pub fn tree_viewer_key(&mut self, key: KeyCode) -> Option<ViewerEvent> {
+        let mut viewer = TreeViewer::new();
+        let key_event = Self::create_key_event(key);
+        viewer.handle_key(key_event, &self.model)
+    }
+
+    /// Send Up arrow to FileViewer
+    pub fn file_viewer_key_up(&mut self) -> Option<ViewerEvent> {
+        self.file_viewer_key(KeyCode::Up)
+    }
+
+    /// Send Down arrow to FileViewer
+    pub fn file_viewer_key_down(&mut self) -> Option<ViewerEvent> {
+        self.file_viewer_key(KeyCode::Down)
+    }
+
+    /// Send Left arrow to FileViewer
+    pub fn file_viewer_key_left(&mut self) -> Option<ViewerEvent> {
+        self.file_viewer_key(KeyCode::Left)
+    }
+
+    /// Send Right arrow to FileViewer
+    pub fn file_viewer_key_right(&mut self) -> Option<ViewerEvent> {
+        self.file_viewer_key(KeyCode::Right)
+    }
+
+    /// Send Up arrow to TreeViewer
+    pub fn tree_viewer_key_up(&mut self) -> Option<ViewerEvent> {
+        self.tree_viewer_key(KeyCode::Up)
+    }
+
+    /// Send Down arrow to TreeViewer
+    pub fn tree_viewer_key_down(&mut self) -> Option<ViewerEvent> {
+        self.tree_viewer_key(KeyCode::Down)
+    }
+
+    /// Send Left arrow to TreeViewer (collapse)
+    pub fn tree_viewer_key_left(&mut self) -> Option<ViewerEvent> {
+        self.tree_viewer_key(KeyCode::Left)
+    }
+
+    /// Send Right arrow to TreeViewer (expand)
+    pub fn tree_viewer_key_right(&mut self) -> Option<ViewerEvent> {
+        self.tree_viewer_key(KeyCode::Right)
+    }
+
+    /// Assert that the event is SelectPosition
+    pub fn assert_event_select_position(&self, event: Option<ViewerEvent>, row: usize, col: usize) {
+        assert_eq!(
+            event,
+            Some(ViewerEvent::SelectPosition(row, col)),
+            "Expected SelectPosition({}, {}), got {:?}",
+            row,
+            col,
+            event
+        );
+    }
+
+    /// Assert that the event is SelectNode
+    pub fn assert_event_select_node(&self, event: Option<ViewerEvent>, node_id: NodeId) {
+        assert_eq!(
+            event,
+            Some(ViewerEvent::SelectNode(node_id)),
+            "Expected SelectNode({:?}), got {:?}",
+            node_id.path(),
+            event
+        );
+    }
+
+    /// Assert that the event is NoChange
+    pub fn assert_event_no_change(&self, event: Option<ViewerEvent>) {
+        assert_eq!(
+            event, Some(ViewerEvent::NoChange),
+            "Expected NoChange, got {:?}",
+            event
+        );
+    }
 }
 
 #[cfg(test)]
@@ -242,5 +352,68 @@ mod unit_tests {
             node_id,
             &[&[], &[2], &[2, 0], &[2, 0, 1]],
         );
+    }
+
+    #[test]
+    fn test_file_viewer_creation() {
+        let viewer = FileViewer::new();
+        assert_eq!(viewer.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_tree_viewer_creation() {
+        let viewer = TreeViewer::new();
+        assert_eq!(viewer.selected_index(), 0);
+    }
+
+    #[test]
+    fn test_file_viewer_key_up_returns_select_position() {
+        let mut app = TestApp::new();
+        let event = app.file_viewer_key_up();
+        // Event should be SelectPosition with initial cursor position
+        assert!(matches!(event, Some(ViewerEvent::SelectPosition(_, _))));
+    }
+
+    #[test]
+    fn test_file_viewer_key_down_returns_select_position() {
+        let mut app = TestApp::new();
+        let event = app.file_viewer_key_down();
+        // Event should be SelectPosition with cursor position
+        assert!(matches!(event, Some(ViewerEvent::SelectPosition(_, _))));
+    }
+
+    #[test]
+    fn test_file_viewer_key_left_returns_select_position() {
+        let mut app = TestApp::new();
+        let event = app.file_viewer_key_left();
+        // Event should be SelectPosition with cursor position
+        assert!(matches!(event, Some(ViewerEvent::SelectPosition(_, _))));
+    }
+
+    #[test]
+    fn test_file_viewer_key_right_returns_select_position() {
+        let mut app = TestApp::new();
+        let event = app.file_viewer_key_right();
+        // Event should be SelectPosition with cursor position
+        assert!(matches!(event, Some(ViewerEvent::SelectPosition(_, _))));
+    }
+
+    #[test]
+    fn test_tree_viewer_keys_return_no_change() {
+        let mut app = TestApp::new();
+        let event = app.tree_viewer_key_up();
+        app.assert_event_no_change(event);
+    }
+
+    #[test]
+    fn test_viewer_event_equality() {
+        let event1 = ViewerEvent::SelectPosition(5, 10);
+        let event2 = ViewerEvent::SelectPosition(5, 10);
+        assert_eq!(event1, event2);
+
+        let node_id = TestApp::node_id(&[0, 1]);
+        let event3 = ViewerEvent::SelectNode(node_id);
+        let event4 = ViewerEvent::SelectNode(node_id);
+        assert_eq!(event3, event4);
     }
 }
