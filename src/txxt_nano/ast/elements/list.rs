@@ -39,6 +39,9 @@ impl AstNode for List {
     fn display_label(&self) -> String {
         format!("{} items", self.items.len())
     }
+    fn span(&self) -> Option<Span> {
+        self.span
+    }
 }
 
 impl fmt::Display for List {
@@ -90,6 +93,9 @@ impl AstNode for ListItem {
         } else {
             text.to_string()
         }
+    }
+    fn span(&self) -> Option<Span> {
+        self.span
     }
 }
 

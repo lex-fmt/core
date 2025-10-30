@@ -1,6 +1,6 @@
 //! ContentItem enum definition
 
-use super::super::span::Position;
+use super::super::span::{Position, Span};
 use super::super::traits::{AstNode, Container};
 use super::annotation::Annotation;
 use super::definition::Definition;
@@ -19,6 +19,41 @@ pub enum ContentItem {
     Definition(Definition),
     Annotation(Annotation),
     ForeignBlock(ForeignBlock),
+}
+
+impl AstNode for ContentItem {
+    fn node_type(&self) -> &'static str {
+        match self {
+            ContentItem::Paragraph(p) => p.node_type(),
+            ContentItem::Session(s) => s.node_type(),
+            ContentItem::List(l) => l.node_type(),
+            ContentItem::Definition(d) => d.node_type(),
+            ContentItem::Annotation(a) => a.node_type(),
+            ContentItem::ForeignBlock(fb) => fb.node_type(),
+        }
+    }
+
+    fn display_label(&self) -> String {
+        match self {
+            ContentItem::Paragraph(p) => p.display_label(),
+            ContentItem::Session(s) => s.display_label(),
+            ContentItem::List(l) => l.display_label(),
+            ContentItem::Definition(d) => d.display_label(),
+            ContentItem::Annotation(a) => a.display_label(),
+            ContentItem::ForeignBlock(fb) => fb.display_label(),
+        }
+    }
+
+    fn span(&self) -> Option<Span> {
+        match self {
+            ContentItem::Paragraph(p) => p.span(),
+            ContentItem::Session(s) => s.span(),
+            ContentItem::List(l) => l.span(),
+            ContentItem::Definition(d) => d.span(),
+            ContentItem::Annotation(a) => a.span(),
+            ContentItem::ForeignBlock(fb) => fb.span(),
+        }
+    }
 }
 
 impl ContentItem {
