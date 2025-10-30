@@ -1,6 +1,6 @@
 //! Document element definition
 
-use super::super::span::{Position, Span};
+use super::super::span::{Location, Position};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
 use super::foreign::ForeignBlock;
@@ -14,7 +14,7 @@ use std::fmt;
 pub struct Document {
     pub metadata: Vec<Annotation>,
     pub content: Vec<ContentItem>,
-    pub span: Option<Span>,
+    pub span: Option<Location>,
 }
 
 impl Document {
@@ -42,7 +42,7 @@ impl Document {
         }
     }
 
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
+    pub fn with_span(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -125,10 +125,14 @@ mod tests {
 
     #[test]
     fn test_document_elements_at() {
-        let para1 = Paragraph::from_line("First".to_string())
-            .with_span(Some(Span::new(Position::new(0, 0), Position::new(0, 5))));
-        let para2 = Paragraph::from_line("Second".to_string())
-            .with_span(Some(Span::new(Position::new(1, 0), Position::new(1, 6))));
+        let para1 = Paragraph::from_line("First".to_string()).with_span(Some(Location::new(
+            Position::new(0, 0),
+            Position::new(0, 5),
+        )));
+        let para2 = Paragraph::from_line("Second".to_string()).with_span(Some(Location::new(
+            Position::new(1, 0),
+            Position::new(1, 6),
+        )));
 
         let doc = Document::with_content(vec![
             ContentItem::Paragraph(para1),

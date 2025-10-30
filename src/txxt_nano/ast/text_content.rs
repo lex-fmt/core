@@ -12,7 +12,7 @@
 //! (.as_string(), future: .as_inlines()), which work regardless of the
 //! internal representation.
 
-use super::span::Span;
+use super::span::Location;
 
 /// Represents user-provided text content with source position tracking.
 ///
@@ -22,7 +22,7 @@ use super::span::Span;
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextContent {
     /// Span in the source covering this text
-    pub span: Option<Span>,
+    pub span: Option<Location>,
     /// Internal representation (evolves over time)
     inner: TextRepresentation,
 }
@@ -52,7 +52,7 @@ impl TextContent {
     /// ```ignore
     /// let content = TextContent::from_string("Hello world".to_string(), Some(span));
     /// ```
-    pub fn from_string(text: String, span: Option<Span>) -> Self {
+    pub fn from_string(text: String, span: Option<Location>) -> Self {
         Self {
             span,
             inner: TextRepresentation::Text(text),
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_with_span() {
-        let span = Span::new(Position::new(0, 0), Position::new(0, 5));
+        let span = Location::new(Position::new(0, 0), Position::new(0, 5));
         let content = TextContent::from_string("Hello".to_string(), Some(span));
         assert_eq!(content.span, Some(span));
     }

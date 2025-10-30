@@ -19,8 +19,8 @@ mod tests;
 // Re-export AST types and utilities from the ast module
 pub use crate::txxt_nano::ast::{
     format_at_position, Annotation, AstNode, Container, ContentItem, Definition, Document,
-    ForeignBlock, Label, List, ListItem, Paragraph, Parameter, Position, Session, SourceLocation,
-    Span, TextNode,
+    ForeignBlock, Label, List, ListItem, Location, Paragraph, Parameter, Position, Session,
+    SourceLocation, TextNode,
 };
 
 pub use crate::txxt_nano::formats::{serialize_ast_tag, to_treeviz_str};

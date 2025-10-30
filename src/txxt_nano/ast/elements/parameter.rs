@@ -1,6 +1,6 @@
 //! Parameter element definition
 
-use super::super::span::Span;
+use super::super::span::Location;
 use std::fmt;
 
 /// A parameter represents a key-value pair, with optional value
@@ -8,7 +8,7 @@ use std::fmt;
 pub struct Parameter {
     pub key: String,
     pub value: Option<String>,
-    pub span: Option<Span>,
+    pub span: Option<Location>,
 }
 
 impl Parameter {
@@ -33,7 +33,7 @@ impl Parameter {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
+    pub fn with_span(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -54,7 +54,7 @@ mod tests {
 
     #[test]
     fn test_parameter_with_span() {
-        let span = super::super::super::span::Span::new(
+        let span = super::super::super::span::Location::new(
             super::super::super::span::Position::new(1, 0),
             super::super::super::span::Position::new(1, 10),
         );

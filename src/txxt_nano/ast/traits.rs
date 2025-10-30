@@ -4,16 +4,16 @@
 //! to AST node information across all node types.
 
 use super::elements::ContentItem;
-use super::span::{Position, Span};
+use super::span::{Location, Position};
 use super::text_content::TextContent;
 
 /// Common interface for all AST nodes
 pub trait AstNode {
     fn node_type(&self) -> &'static str;
     fn display_label(&self) -> String;
-    fn span(&self) -> Option<Span>;
+    fn location(&self) -> Option<Location>;
     fn get_location(&self) -> Option<Position> {
-        self.span().map(|s| s.start)
+        self.location().map(|s| s.start)
     }
 }
 

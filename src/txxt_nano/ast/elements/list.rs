@@ -1,6 +1,6 @@
 //! List element definition
 
-use super::super::span::Span;
+use super::super::span::Location;
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
@@ -11,7 +11,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
     pub items: Vec<ListItem>,
-    pub span: Option<Span>,
+    pub span: Option<Location>,
 }
 
 /// A list item has text and optional nested content
@@ -19,14 +19,14 @@ pub struct List {
 pub struct ListItem {
     pub(crate) text: Vec<TextContent>,
     pub content: Vec<ContentItem>,
-    pub span: Option<Span>,
+    pub span: Option<Location>,
 }
 
 impl List {
     pub fn new(items: Vec<ListItem>) -> Self {
         Self { items, span: None }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
+    pub fn with_span(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -39,7 +39,7 @@ impl AstNode for List {
     fn display_label(&self) -> String {
         format!("{} items", self.items.len())
     }
-    fn span(&self) -> Option<Span> {
+    fn location(&self) -> Option<Location> {
         self.span
     }
 }
@@ -73,7 +73,7 @@ impl ListItem {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
+    pub fn with_span(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -94,7 +94,7 @@ impl AstNode for ListItem {
             text.to_string()
         }
     }
-    fn span(&self) -> Option<Span> {
+    fn location(&self) -> Option<Location> {
         self.span
     }
 }
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn test_list_with_span() {
-        let span = super::super::super::span::Span::new(
+        let span = super::super::super::span::Location::new(
             super::super::super::span::Position::new(1, 0),
             super::super::super::span::Position::new(1, 10),
         );

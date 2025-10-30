@@ -1,13 +1,13 @@
 //! Label element definition
 
-use super::super::span::Span;
+use super::super::span::Location;
 use std::fmt;
 
 /// A label represents a named identifier in txxt documents
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Label {
     pub value: String,
-    pub span: Option<Span>,
+    pub span: Option<Location>,
 }
 
 impl Label {
@@ -20,7 +20,7 @@ impl Label {
             span: None,
         }
     }
-    pub fn with_span(mut self, span: Option<Span>) -> Self {
+    pub fn with_span(mut self, span: Option<Location>) -> Self {
         self.span = span;
         self
     }
@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn test_label_with_span() {
-        let span = super::super::super::span::Span::new(
+        let span = super::super::super::span::Location::new(
             super::super::super::span::Position::new(1, 0),
             super::super::super::span::Position::new(1, 10),
         );

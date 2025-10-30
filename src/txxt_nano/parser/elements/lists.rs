@@ -8,7 +8,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
-use crate::txxt_nano::ast::{ContentItem, List, ListItem, Span};
+use crate::txxt_nano::ast::{ContentItem, List, ListItem, Location};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{
     compute_span_from_optional_spans, list_item_line, token,
@@ -21,7 +21,7 @@ type TokenSpan = (Token, Range<usize>);
 type ParserError = Simple<TokenSpan>;
 
 /// Helper: convert a byte range to a Span using source location
-fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
+fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
     }
@@ -52,7 +52,7 @@ where
         });
 
     single_list_item.repeated().at_least(2).map(|items| {
-        let spans: Vec<Option<Span>> = items.iter().map(|item| item.span).collect();
+        let spans: Vec<Option<Location>> = items.iter().map(|item| item.span).collect();
         let span = compute_span_from_optional_spans(&spans);
         ContentItem::List(List { items, span })
     })

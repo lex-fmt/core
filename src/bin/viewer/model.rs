@@ -10,7 +10,7 @@
 
 use std::collections::HashSet;
 use txxt_nano::txxt_nano::ast::elements::content_item::ContentItem;
-use txxt_nano::txxt_nano::ast::span::{Position, Span};
+use txxt_nano::txxt_nano::ast::span::{Location, Position};
 use txxt_nano::txxt_nano::parser::Document;
 
 /// Which viewer currently has keyboard focus
@@ -253,11 +253,11 @@ impl Model {
     ///
     /// Returns the text range (start and end position) for the given node.
     /// The span indicates where in the source text this node is located.
-    pub fn get_span_for_node(&self, node_id: NodeId) -> Option<Span> {
+    pub fn get_span_for_node(&self, node_id: NodeId) -> Option<Location> {
         use txxt_nano::txxt_nano::ast::traits::AstNode;
         self.get_node(node_id).and_then(|(item, _depth)| {
             // Use the AstNode trait to get the span
-            item.span()
+            item.location()
         })
     }
 

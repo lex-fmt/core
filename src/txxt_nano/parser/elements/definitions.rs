@@ -8,7 +8,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt_nano::ast::position::SourceLocation;
-use crate::txxt_nano::ast::{ContentItem, Definition, Span, TextContent};
+use crate::txxt_nano::ast::{ContentItem, Definition, Location, TextContent};
 use crate::txxt_nano::lexer::Token;
 use crate::txxt_nano::parser::combinators::{definition_subject, token};
 
@@ -19,7 +19,7 @@ type TokenSpan = (Token, Range<usize>);
 type ParserError = Simple<TokenSpan>;
 
 /// Helper: convert a byte range to a Span using source location
-fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Span> {
+fn byte_range_to_span(source: &str, range: &Range<usize>) -> Option<Location> {
     if range.start > range.end {
         return None;
     }

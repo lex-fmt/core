@@ -29,7 +29,7 @@ pub use elements::{
 pub use error::PositionLookupError;
 pub use lookup::{find_nodes_at_position, format_at_position};
 pub use position::SourceLocation;
-pub use span::{Position, Span};
+pub use span::{Location, Position};
 pub use text_content::TextContent;
 pub use traits::{AstNode, Container, TextNode};
 #[cfg(test)]
