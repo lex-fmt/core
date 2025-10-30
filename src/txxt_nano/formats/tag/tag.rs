@@ -21,7 +21,7 @@
 //! </children></session>
 //! ```
 
-use crate::txxt_nano::ast::{Container, ContentItem, Document};
+use crate::txxt_nano::ast::{Container, ContentItem, Document, ListItem};
 
 /// Serialize a document to AST tag format
 pub fn serialize_document(doc: &Document) -> String {
@@ -32,6 +32,44 @@ pub fn serialize_document(doc: &Document) -> String {
     }
     result.push_str("</document>");
     result
+}
+
+/// Generic helper to serialize children of a container node
+/// 
+/// This function provides a uniform way to serialize nested content for all
+/// container types (Session, Definition, Annotation, ListItem) using the Container trait.
+fn serialize_children(
+    children: &[ContentItem],
+    indent_level: usize,
+    output: &mut String,
+    wrapper_tag: &str,
+    parent_indent: &str,
+) {
+    if children.is_empty() {
+        return;
+    }
+
+    output.push_str(&format!("<{wrapper_tag}>\n"));
+    for child in children {
+        serialize_content_item(child, indent_level, output);
+    }
+    output.push_str(&format!("{}</{wrapper_tag}>", parent_indent));
+}
+
+/// Serialize a list item with its nested content
+fn serialize_list_item(item: &ListItem, indent_level: usize, output: &mut String) {
+    let indent = "  ".repeat(indent_level);
+    output.push_str(&format!("{}<item>", indent));
+    output.push_str(&escape_xml(item.label())); // Uses Container trait
+    
+    if item.children().is_empty() {
+        // No nested content
+        output.push_str("</item>\n");
+    } else {
+        // Has nested content - use generic serialization
+        serialize_children(item.children(), indent_level + 1, output, "children", &indent);
+        output.push_str("</item>\n");
+    }
 }
 
 /// Serialize a content item (recursive)
@@ -50,52 +88,42 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
         }
         ContentItem::Session(s) => {
             // <session>label<children>...</children></session>
+            // Uses Container trait for generic child serialization
             output.push_str(&format!("{}<session>", indent));
-            output.push_str(&escape_xml(s.label()));
+            output.push_str(&escape_xml(s.label())); // Uses Container trait
 
             if s.children().is_empty() {
-                // Empty session
                 output.push_str("</session>\n");
             } else {
-                // Session with children
-                output.push_str("<children>\n");
-                for child in s.children() {
-                    serialize_content_item(child, indent_level + 1, output);
-                }
-                output.push_str(&format!("{}</children></session>\n", indent));
+                serialize_children(s.children(), indent_level + 1, output, "children", &indent);
+                output.push_str("</session>\n");
             }
         }
         ContentItem::List(l) => {
-            // <list><item>text</item><item>text</item>...</list>
+            // <list><item>...</item>...</list>
+            // Each item uses Container trait for nested content
             output.push_str(&format!("{}<list>\n", indent));
             for item in &l.items {
-                output.push_str(&format!(
-                    "{}<item>{}</item>\n",
-                    "  ".repeat(indent_level + 1),
-                    escape_xml(item.text())
-                ));
+                serialize_list_item(item, indent_level + 1, output);
             }
             output.push_str(&format!("{}</list>\n", indent));
         }
         ContentItem::Definition(d) => {
             // <definition>subject<content>...</content></definition>
+            // Uses Container trait for generic child serialization
             output.push_str(&format!("{}<definition>", indent));
             output.push_str(&escape_xml(d.subject.as_string()));
 
             if d.children().is_empty() {
-                // Empty definition
                 output.push_str("</definition>\n");
             } else {
-                // Definition with children
-                output.push_str("<content>\n");
-                for child in d.children() {
-                    serialize_content_item(child, indent_level + 1, output);
-                }
-                output.push_str(&format!("{}</content></definition>\n", indent));
+                serialize_children(d.children(), indent_level + 1, output, "content", &indent);
+                output.push_str("</definition>\n");
             }
         }
         ContentItem::Annotation(a) => {
             // <annotation>label<parameters>...</parameters><content>...</content></annotation>
+            // Uses Container trait for generic child serialization
             output.push_str(&format!("{}<annotation>", indent));
             output.push_str(&escape_xml(&a.label.value));
 
@@ -116,37 +144,29 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
             }
 
             if a.children().is_empty() {
-                // Empty annotation (marker or single-line form)
                 output.push_str("</annotation>\n");
             } else {
-                // Annotation with content (block form)
-                output.push_str("<content>\n");
-                for child in a.children() {
-                    serialize_content_item(child, indent_level + 1, output);
-                }
-                output.push_str(&format!("{}</content></annotation>\n", indent));
+                serialize_children(a.children(), indent_level + 1, output, "content", &indent);
+                output.push_str("</annotation>\n");
             }
         }
         ContentItem::ForeignBlock(fb) => {
             // <foreign-block>subject<content>raw content</content><closing-annotation>...</closing-annotation></foreign-block>
+            // ForeignBlock has raw content, not structured children, so no Container trait usage
             output.push_str(&format!("{}<foreign-block>", indent));
             output.push_str(&escape_xml(fb.subject.as_string()));
 
             if fb.content.is_empty() {
-                // Marker form - no content
                 output.push_str("<content></content>");
             } else {
-                // Block form - raw content
                 output.push_str("<content>");
                 output.push_str(&escape_xml(fb.content.as_string()));
                 output.push_str("</content>");
             }
 
-            // Add closing annotation
             output.push_str("<closing-annotation>");
             output.push_str(&escape_xml(&fb.closing_annotation.label.value));
 
-            // Add parameters if present
             if !fb.closing_annotation.parameters.is_empty() {
                 output.push_str("<parameters>");
                 for (i, param) in fb.closing_annotation.parameters.iter().enumerate() {
@@ -251,5 +271,302 @@ mod tests {
         let result = serialize_document(&doc);
         assert!(result.contains("<session>Empty</session>"));
         assert!(!result.contains("<children>"));
+    }
+
+    #[test]
+    fn test_serialize_simple_list() {
+        use crate::txxt_nano::ast::{List, ListItem};
+
+        let doc = Document::with_content(vec![ContentItem::List(List::new(vec![
+            ListItem::new("- First item".to_string()),
+            ListItem::new("- Second item".to_string()),
+        ]))]);
+
+        let result = serialize_document(&doc);
+        assert!(result.contains("<list>"));
+        assert!(result.contains("<item>- First item</item>"));
+        assert!(result.contains("<item>- Second item</item>"));
+        assert!(result.contains("</list>"));
+        // Simple items should not have <children>
+        assert!(!result.contains("<children>"));
+    }
+
+    #[test]
+    fn test_serialize_nested_list() {
+        use crate::txxt_nano::ast::{List, ListItem};
+
+        // Create a nested list structure:
+        // - Outer item one
+        //   - Inner item one
+        //   - Inner item two
+        // - Outer item two
+        let inner_list = List::new(vec![
+            ListItem::new("- Inner item one".to_string()),
+            ListItem::new("- Inner item two".to_string()),
+        ]);
+
+        let outer_list = List::new(vec![
+            ListItem::with_content(
+                "- Outer item one".to_string(),
+                vec![ContentItem::List(inner_list)],
+            ),
+            ListItem::new("- Outer item two".to_string()),
+        ]);
+
+        let doc = Document::with_content(vec![ContentItem::List(outer_list)]);
+
+        let result = serialize_document(&doc);
+        
+        // Verify outer list structure
+        assert!(result.contains("<list>"));
+        assert!(result.contains("- Outer item one<children>"));
+        assert!(result.contains("</children></item>"));
+        
+        // Verify nested list structure
+        assert!(result.contains("- Inner item one</item>"));
+        assert!(result.contains("- Inner item two</item>"));
+        
+        // Verify second outer item (no children)
+        assert!(result.contains("<item>- Outer item two</item>"));
+    }
+
+    #[test]
+    fn test_serialize_list_with_paragraph_content() {
+        use crate::txxt_nano::ast::{List, ListItem, Paragraph};
+
+        // Create a list with paragraph content:
+        // - First item
+        //   This is a nested paragraph.
+        let list = List::new(vec![ListItem::with_content(
+            "- First item".to_string(),
+            vec![ContentItem::Paragraph(Paragraph::from_line(
+                "This is a nested paragraph.".to_string(),
+            ))],
+        )]);
+
+        let doc = Document::with_content(vec![ContentItem::List(list)]);
+
+        let result = serialize_document(&doc);
+        
+        assert!(result.contains("- First item<children>"));
+        assert!(result.contains("<paragraph>This is a nested paragraph.</paragraph>"));
+        assert!(result.contains("</children></item>"));
+    }
+
+    #[test]
+    fn test_serialize_list_with_mixed_content() {
+        use crate::txxt_nano::ast::{List, ListItem, Paragraph};
+
+        // Create a list with mixed content:
+        // 1. First item
+        //    Paragraph explaining the item.
+        //    - Nested list item one
+        //    - Nested list item two
+        //    Another paragraph.
+        let nested_list = List::new(vec![
+            ListItem::new("- Nested list item one".to_string()),
+            ListItem::new("- Nested list item two".to_string()),
+        ]);
+
+        let list = List::new(vec![ListItem::with_content(
+            "1. First item".to_string(),
+            vec![
+                ContentItem::Paragraph(Paragraph::from_line("Paragraph explaining the item.".to_string())),
+                ContentItem::List(nested_list),
+                ContentItem::Paragraph(Paragraph::from_line("Another paragraph.".to_string())),
+            ],
+        )]);
+
+        let doc = Document::with_content(vec![ContentItem::List(list)]);
+
+        let result = serialize_document(&doc);
+        
+        // Verify the structure
+        assert!(result.contains("1. First item<children>"));
+        assert!(result.contains("<paragraph>Paragraph explaining the item.</paragraph>"));
+        assert!(result.contains("- Nested list item one</item>"));
+        assert!(result.contains("- Nested list item two</item>"));
+        assert!(result.contains("<paragraph>Another paragraph.</paragraph>"));
+        assert!(result.contains("</children></item>"));
+    }
+
+    #[test]
+    fn test_serialize_deeply_nested_lists() {
+        use crate::txxt_nano::ast::{List, ListItem};
+
+        // Create deeply nested structure:
+        // - Outer item
+        //   - Middle item
+        //     - Inner item one
+        //     - Inner item two
+        let inner_list = List::new(vec![
+            ListItem::new("- Inner item one".to_string()),
+            ListItem::new("- Inner item two".to_string()),
+        ]);
+
+        let middle_list = List::new(vec![ListItem::with_content(
+            "- Middle item".to_string(),
+            vec![ContentItem::List(inner_list)],
+        )]);
+
+        let outer_list = List::new(vec![ListItem::with_content(
+            "- Outer item".to_string(),
+            vec![ContentItem::List(middle_list)],
+        )]);
+
+        let doc = Document::with_content(vec![ContentItem::List(outer_list)]);
+
+        let result = serialize_document(&doc);
+        
+        // Verify three levels of nesting
+        assert!(result.contains("- Outer item<children>"));
+        assert!(result.contains("- Middle item<children>"));
+        assert!(result.contains("- Inner item one</item>"));
+        assert!(result.contains("- Inner item two</item>"));
+        
+        // Count closing tags to verify proper nesting
+        let children_open = result.matches("<children>").count();
+        let children_close = result.matches("</children>").count();
+        assert_eq!(children_open, children_close, "Mismatched <children> tags");
+    }
+
+    #[test]
+    fn test_serialize_nested_lists_from_sample_file() {
+        // Integration test: Parse a sample file and verify nested lists are serialized correctly
+        use crate::txxt_nano::lexer::lex_with_spans;
+        use crate::txxt_nano::parser::api::parse_with_source;
+        use crate::txxt_nano::processor::txxt_sources::TxxtSources;
+
+        let source = TxxtSources::get_string("070-nested-lists-simple.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).expect("Failed to parse");
+
+        let result = serialize_document(&doc);
+
+        // Verify the structure has nested content
+        assert!(result.contains("<item>- First outer item {{list-item}}<children>"));
+        assert!(result.contains("<item>- First nested item {{list-item}}</item>"));
+        assert!(result.contains("<item>- Second nested item {{list-item}}</item>"));
+        assert!(result.contains("</children></item>"));
+        
+        // Verify second outer item also has nested content
+        assert!(result.contains("<item>- Second outer item {{list-item}}<children>"));
+        assert!(result.contains("<item>- Another nested item {{list-item}}</item>"));
+        
+        // Verify numbered list with nested dashed list
+        assert!(result.contains("<item>1. First numbered item {{list-item}}<children>"));
+        assert!(result.contains("<item>- Nested dash item one {{list-item}}</item>"));
+    }
+
+    #[test]
+    fn test_serialize_mixed_content_lists_from_sample_file() {
+        // Integration test: Verify lists with paragraphs and nested lists are serialized correctly
+        use crate::txxt_nano::lexer::lex_with_spans;
+        use crate::txxt_nano::parser::api::parse_with_source;
+        use crate::txxt_nano::processor::txxt_sources::TxxtSources;
+
+        let source = TxxtSources::get_string("080-nested-lists-mixed-content.txxt")
+            .expect("Failed to load sample file");
+        let tokens = lex_with_spans(&source);
+        let doc = parse_with_source(tokens, &source).expect("Failed to parse");
+
+        let result = serialize_document(&doc);
+
+        // Verify list items with paragraph content
+        assert!(result.contains("<item>- First item with nested paragraph {{list-item}}<children>"));
+        assert!(result.contains("<paragraph>This is a paragraph nested inside the first list item"));
+        
+        // Verify list items with multiple paragraphs
+        assert!(result.contains("<item>- Second item with multiple paragraphs {{list-item}}<children>"));
+        assert!(result.contains("<paragraph>This is the first paragraph in the second item"));
+        assert!(result.contains("<paragraph>This is a second paragraph"));
+        
+        // Verify mixed content (para + list + para)
+        assert!(result.contains("<item>1. First complex item {{list-item}}<children>"));
+        assert!(result.contains("<paragraph>This is a paragraph explaining the first item"));
+        assert!(result.contains("<item>- Nested list item one {{list-item}}</item>"));
+        assert!(result.contains("<paragraph>Another paragraph after the nested list"));
+        
+        // Verify deeply nested structure (list > list > list)
+        assert!(result.contains("<item>- Outer item one {{list-item}}<children>"));
+        assert!(result.contains("<item>- Middle item one {{list-item}}<children>"));
+        assert!(result.contains("<item>- Inner item one {{list-item}}</item>"));
+    }
+
+    #[test]
+    fn test_all_nestable_elements_use_container_trait() {
+        // Comprehensive test: Verify that all nestable elements (Session, Annotation, ListItem)
+        // properly serialize their nested content using the generic Container trait approach
+        use crate::txxt_nano::ast::{Annotation, Definition, List, ListItem, Paragraph, Session, TextContent};
+        use crate::txxt_nano::ast::elements::label::Label;
+
+        // Create a complex nested structure with all element types
+        let nested_paragraph = ContentItem::Paragraph(Paragraph::from_line("Nested paragraph".to_string()));
+        let nested_list = ContentItem::List(List::new(vec![
+            ListItem::new("- Item one".to_string()),
+            ListItem::new("- Item two".to_string()),
+        ]));
+
+        // Test Session with nested content
+        let session = Session::new(
+            TextContent::from_string("Test Session".to_string(), None),
+            vec![nested_paragraph.clone(), nested_list.clone()],
+        );
+
+        // Test Definition with nested content
+        let definition = Definition::new(
+            TextContent::from_string("Test Definition".to_string(), None),
+            vec![nested_paragraph.clone(), nested_list.clone()],
+        );
+
+        // Test Annotation with nested content
+        let annotation = Annotation::new(
+            Label::new("test".to_string()),
+            vec![],
+            vec![nested_paragraph.clone(), nested_list.clone()],
+        );
+
+        // Test ListItem with nested content (list in list)
+        let outer_list = List::new(vec![
+            ListItem::with_content(
+                "Outer item".to_string(),
+                vec![nested_paragraph.clone(), nested_list.clone()],
+            ),
+        ]);
+
+        let doc = Document::with_content(vec![
+            ContentItem::Session(session),
+            ContentItem::Definition(definition),
+            ContentItem::Annotation(annotation),
+            ContentItem::List(outer_list),
+        ]);
+
+        let result = serialize_document(&doc);
+
+        // Verify Session uses <children> wrapper
+        assert!(result.contains("<session>Test Session<children>"));
+        assert!(result.contains("</children></session>"));
+
+        // Verify Definition uses <content> wrapper
+        assert!(result.contains("<definition>Test Definition<content>"));
+        assert!(result.contains("</content></definition>"));
+
+        // Verify Annotation uses <content> wrapper
+        assert!(result.contains("<annotation>test<content>"));
+        assert!(result.contains("</content></annotation>"));
+
+        // Verify ListItem uses <children> wrapper
+        assert!(result.contains("<item>Outer item<children>"));
+        assert!(result.contains("</children></item>"));
+
+        // Verify all have nested paragraph
+        let para_count = result.matches("<paragraph>Nested paragraph</paragraph>").count();
+        assert_eq!(para_count, 4, "Should have 4 nested paragraphs (one in each container)");
+
+        // Verify all have nested lists
+        let list_open_count = result.matches("<list>").count();
+        // We have: 1 in session, 1 in definition, 1 in annotation, 1 outer + 1 nested in outer = 5 total
+        assert_eq!(list_open_count, 5, "Should have 5 lists total");
     }
 }
