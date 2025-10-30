@@ -114,7 +114,6 @@ impl FileViewer {
     fn ensure_cursor_visible(&mut self) {
         // Simple scrolling: keep cursor within viewport
         // For now, assume viewport is large enough
-        // TODO: implement proper scrolling logic
     }
 }
 
