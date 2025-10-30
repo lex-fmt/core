@@ -2,9 +2,9 @@
 //! This binary is used to view / convert / process txxt files into (and, in the future, from) different formats.
 //!
 //! Usage:
-//!   txxt process <path> <format>     - Process a file and output to stdout (explicit)
-//!   txxt <path> <format>             - Same as process (default command)
-//!   txxt view <path>                 - Open an interactive TUI viewer
+//!   txxt process `<path>` `<format>`     - Process a file and output to stdout (explicit)
+//!   txxt `<path>` `<format>`             - Same as process (default command)
+//!   txxt view `<path>`                 - Open an interactive TUI viewer
 //!   txxt formats                     - List all available formats
 mod viewer;
 
@@ -148,7 +148,7 @@ fn handle_formats_command() {
 }
 
 /// Parse extras from raw command line arguments
-/// Expects arguments in the format --extras-<key> <value>
+/// Expects arguments in the format `--extras-<key>` `<value>`
 fn parse_extras_from_args() -> HashMap<String, String> {
     let mut result = HashMap::new();
 

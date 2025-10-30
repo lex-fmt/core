@@ -379,7 +379,7 @@ pub mod txxt_sources {
     pub enum SampleFormat {
         /// Raw string content
         String,
-        /// Tokenized content (Vec<Token>)
+        /// Tokenized content (`Vec<Token>`)
         Tokens,
         /// Processed content using the specified format string
         Processed(String),
