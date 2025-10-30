@@ -15,6 +15,41 @@ use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 
+/// Map node types to their icons based on treeviz.rs comments
+fn get_node_icon(node_type: &str) -> &'static str {
+    match node_type {
+        "Document" => "⧉",
+        "Session" => "§",
+        "SessionTitle" => "⊤",
+        "Annotation" => "\"",
+        "Paragraph" => "¶",
+        "List" => "☰",
+        "ListItem" => "•",
+        "Foreign" => "𝒱",
+        "ForeignLine" => "℣",
+        "Definition" => "≔",
+        "SessionContainer" => "Ψ",
+        "ContentContainer" => "➔",
+        "Content" => "⊤",
+        "Text" => "◦",
+        "TextLine" => "↵",
+        "Italic" => "𝐼",
+        "Bold" => "𝐁",
+        "Code" => "ƒ",
+        "Math" => "√",
+        "Reference" => "⊕",
+        "ReferenceFile" => "/",
+        "ReferenceCitation" => "†",
+        "ReferenceCitationAuthor" => "@",
+        "ReferenceCitationPage" => "◫",
+        "ReferenceToCome" => "⋯",
+        "ReferenceUnknown" => "∅",
+        "ReferenceFootnote" => "³",
+        "ReferenceSession" => "#",
+        _ => "◦", // Default fallback
+    }
+}
+
 /// Events that can be emitted by viewers
 ///
 /// These represent model changes that should be applied after handling input.
@@ -328,10 +363,10 @@ impl Viewer for TreeViewer {
                 // Build indentation based on depth (2 spaces per level)
                 let indent = "  ".repeat(node.depth);
 
-                // Build the icon for the node (single icon for all nodes)
-                let icon = "◦ ";
+                // Get the icon for this node type
+                let icon = get_node_icon(node.node_type);
 
-                let text = format!("{}{}{}", indent, icon, node.label);
+                let text = format!("{}{} {}", indent, icon, node.label);
 
                 // Style the line - highlight if it matches the current selection
                 if Some(node.node_id) == highlighted_node_id {
