@@ -1,4 +1,4 @@
-//! Test infrastructure for txxtv
+//! Test infrastructure for txxt
 //!
 //! Provides utilities for testing the full application including:
 //! - TestApp: wrapper for testing the application
@@ -430,7 +430,7 @@ fn test_tree_selection_emits_select_node_event() {
 #[test]
 fn test_nested_elements_have_span_information() {
     // ISSUE: The txxt_nano parser does not set span information on nested elements.
-    // This causes txxtv to be unable to highlight tree nodes when the cursor is on
+    // This causes txxt to be unable to highlight tree nodes when the cursor is on
     // their text in the file viewer, because get_node_at_position() relies on
     // document.elements_at() which depends on span information.
     //

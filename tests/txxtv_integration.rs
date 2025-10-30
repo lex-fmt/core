@@ -1,10 +1,10 @@
-//! Integration tests for txxtv binary
+//! Integration tests for txxt binary
 //!
 //! These tests verify the full application workflow using TestApp infrastructure
 
 // The tests module is defined in the binary crate
 // We access it through the binary's module structure
-mod txxtv_tests {
+mod txxt_tests {
     // Import the test utilities from the binary
     // This requires the tests module to be public
 }
