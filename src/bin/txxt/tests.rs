@@ -664,3 +664,52 @@ fn test_tree_viewer_leaf_nodes_have_alignment_spacing() {
     // This is verified by the rendering logic showing "  " (two spaces)
     // The actual visual verification is manual, but the structure is correct
 }
+
+#[test]
+fn test_theme_semantic_grouping() {
+    // Verify the three-layer architecture: semantically related UI elements
+    // should use the same presentation style
+    let app = TestApp::with_content("test");
+    let theme = &app.app().theme;
+
+    // Active elements should look the same
+    assert_eq!(
+        theme.file_viewer_cursor(),
+        theme.tree_viewer_selected(),
+        "File cursor and tree selection should use the same 'active' style (semantic grouping)"
+    );
+
+    // Normal elements should look the same
+    assert_eq!(
+        theme.file_viewer_text(),
+        theme.tree_viewer_normal(),
+        "Normal text and normal tree nodes should use the same 'normal' style (semantic grouping)"
+    );
+}
+
+#[test]
+fn test_custom_theme_presentation_layer() {
+    // Verify that custom presentation styles can be used to create a theme
+    use ratatui::style::{Color, Style};
+
+    // Create a custom presentation layer
+    let custom_presentation = crate::theme::PresentationStyles {
+        active: Style::default().fg(Color::Red),
+        normal: Style::default(),
+        label: Style::default().fg(Color::Green),
+        mode_tree: Style::default(),
+        mode_text: Style::default(),
+        error: Style::default(),
+        title: Style::default().fg(Color::Blue),
+        panel_bg: Style::default(),
+        border: Style::default(),
+    };
+
+    let custom_theme = crate::theme::Theme::with_presentation(custom_presentation);
+
+    // Verify that the custom presentation is used
+    assert_eq!(custom_theme.file_viewer_cursor().fg, Some(Color::Red));
+    assert_eq!(custom_theme.tree_viewer_selected().fg, Some(Color::Red));
+    assert_eq!(custom_theme.info_panel_label().fg, Some(Color::Green));
+    assert_eq!(custom_theme.title_bar().fg, Some(Color::Blue));
+}

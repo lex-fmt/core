@@ -1,0 +1,46 @@
+# Dark theme for txxtv
+# A sophisticated dark color scheme with muted colors
+
+# Active/selected elements - white text on dark background
+active:
+  fg: white
+  bg: "#1a3a52"
+  modifiers: [bold]
+
+# Normal content - light gray text
+normal:
+  fg: "#cccccc"
+
+# Label text - soft yellow
+label:
+  fg: "#ffcc00"
+
+# Tree selection mode indicator - bright cyan
+mode_tree:
+  fg: "#00dddd"
+  modifiers: [bold]
+
+# Text selection mode indicator - bright green
+mode_text:
+  fg: "#00dd00"
+  modifiers: [bold]
+
+# Error messages - soft red
+error:
+  fg: "#ff5555"
+  modifiers: [bold]
+
+# Title/header bar - inverted dark theme
+title:
+  fg: white
+  bg: "#1a1a2e"
+  modifiers: [bold]
+
+# Info panel background - very dark
+panel_bg:
+  fg: "#cccccc"
+  bg: "#0a0a0a"
+
+# Borders - dark gray
+border:
+  fg: "#333333"
