@@ -123,9 +123,47 @@ fn render_file_viewer(frame: &mut Frame, area: Rect, app: &App) {
     app.file_viewer.render(frame, inner_area, &app.model);
 }
 
-fn render_info_panel(frame: &mut Frame, area: Rect, _app: &App) {
+fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
+    use crate::model::Selection;
+
     let title = "Info";
-    let paragraph = Paragraph::new("")
+
+    // Build info content based on current selection
+    let info_text = match app.model.selection() {
+        Selection::TreeSelection(node_id) => {
+            // Show path for tree selection
+            let path = node_id.path();
+            let path_str = path
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join(" → ");
+
+            if path.is_empty() {
+                "Selected: Root (Document)".to_string()
+            } else {
+                format!("Selected: [{}]", path_str)
+            }
+        }
+        Selection::TextSelection(row, col) => {
+            // Show position and the node at this position
+            let mut info = format!("Cursor: line {}, col {}", row, col);
+
+            if let Some(node_id) = app.model.get_node_at_position(row, col) {
+                let path = node_id.path();
+                let path_str = path
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" → ");
+                info.push_str(&format!("\nNode: [{}]", path_str));
+            }
+
+            info
+        }
+    };
+
+    let paragraph = Paragraph::new(info_text)
         .block(Block::default().borders(Borders::ALL).title(title))
         .style(Style::default().bg(Color::Gray));
 

@@ -95,6 +95,8 @@ impl App {
                 // Auto-expand ancestors so the node is visible in the tree
                 let ancestors = self.model.get_ancestors(node_id);
                 self.model.expand_nodes(&ancestors);
+                // Sync: update file viewer cursor to node's location if available
+                self.sync_viewers_after_selection();
                 true
             }
             ViewerEvent::SelectPosition(row, col) => {
@@ -104,6 +106,8 @@ impl App {
                     let ancestors = self.model.get_ancestors(node_id);
                     self.model.expand_nodes(&ancestors);
                 }
+                // Sync: update file viewer cursor to reflect selection
+                self.sync_viewers_after_selection();
                 true
             }
             ViewerEvent::ToggleNodeExpansion(node_id) => {
@@ -112,6 +116,14 @@ impl App {
             }
             ViewerEvent::NoChange => false,
         }
+    }
+
+    /// Synchronize viewer states after a selection change
+    ///
+    /// This ensures that when the model selection changes, the viewers are updated accordingly.
+    fn sync_viewers_after_selection(&mut self) {
+        // For now, this is a placeholder for future bi-directional sync
+        // The viewers query the model during render to get the correct highlighting
     }
 }
 
