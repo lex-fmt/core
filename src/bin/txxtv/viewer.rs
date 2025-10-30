@@ -8,6 +8,7 @@
 //! be treated uniformly by the main App.
 
 use crate::model::{Model, NodeId};
+use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
 use ratatui::text::Line;
@@ -33,12 +34,12 @@ pub enum ViewerEvent {
 /// Trait for UI viewers
 ///
 /// A viewer is a component that:
-/// - Knows how to render itself given a model
+/// - Knows how to render itself given a model and theme
 /// - Knows how to interpret keyboard input
 /// - Emits ViewerEvents when user interactions require model changes
 pub trait Viewer {
     /// Render this viewer to the given area
-    fn render(&self, frame: &mut Frame, area: Rect, model: &Model);
+    fn render(&self, frame: &mut Frame, area: Rect, model: &Model, theme: &Theme);
 
     /// Handle a keyboard event and return the resulting event
     fn handle_key(&mut self, key: KeyEvent, model: &Model) -> Option<ViewerEvent>;
@@ -151,8 +152,7 @@ impl FileViewer {
 }
 
 impl Viewer for FileViewer {
-    fn render(&self, frame: &mut Frame, area: Rect, _model: &Model) {
-        use ratatui::style::{Color, Modifier, Style};
+    fn render(&self, frame: &mut Frame, area: Rect, _model: &Model, theme: &Theme) {
         use ratatui::text::Span;
 
         // Display the file content line by line, highlighting cursor position
@@ -169,13 +169,8 @@ impl Viewer for FileViewer {
                     for (col_idx, ch) in chars.iter().enumerate() {
                         if col_idx == self.cursor_col {
                             // Highlight the cursor character
-                            spans.push(Span::styled(
-                                ch.to_string(),
-                                Style::default()
-                                    .bg(Color::Yellow)
-                                    .fg(Color::Black)
-                                    .add_modifier(Modifier::BOLD),
-                            ));
+                            spans
+                                .push(Span::styled(ch.to_string(), theme.file_viewer_cursor_style));
                         } else {
                             spans.push(Span::raw(ch.to_string()));
                         }
@@ -183,10 +178,7 @@ impl Viewer for FileViewer {
 
                     // Handle case where cursor is at end of line
                     if self.cursor_col >= chars.len() {
-                        spans.push(Span::styled(
-                            " ",
-                            Style::default().bg(Color::Yellow).fg(Color::Black),
-                        ));
+                        spans.push(Span::styled(" ", theme.file_viewer_cursor_style));
                     }
 
                     Line::from(spans)
@@ -197,7 +189,7 @@ impl Viewer for FileViewer {
             })
             .collect();
 
-        let paragraph = Paragraph::new(lines);
+        let paragraph = Paragraph::new(lines).style(theme.file_viewer_normal_style);
         frame.render_widget(paragraph, area);
     }
 
@@ -317,9 +309,8 @@ impl Default for TreeViewer {
 }
 
 impl Viewer for TreeViewer {
-    fn render(&self, frame: &mut Frame, area: Rect, model: &Model) {
+    fn render(&self, frame: &mut Frame, area: Rect, model: &Model, theme: &Theme) {
         use crate::model::Selection;
-        use ratatui::style::{Color, Modifier, Style};
 
         // Get the flattened tree for rendering
         let flattened = model.flattened_tree();
@@ -355,14 +346,9 @@ impl Viewer for TreeViewer {
 
                 // Style the line - highlight if it matches the current selection
                 if Some(node.node_id) == highlighted_node_id {
-                    Line::from(text).style(
-                        Style::default()
-                            .bg(Color::Blue)
-                            .fg(Color::White)
-                            .add_modifier(Modifier::BOLD),
-                    )
+                    Line::from(text).style(theme.tree_selected_style)
                 } else {
-                    Line::from(text)
+                    Line::from(text).style(theme.tree_normal_style)
                 }
             })
             .collect();
