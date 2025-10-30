@@ -38,7 +38,7 @@ pub fn render(frame: &mut Frame, app: &App, file_name: &str) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),                  // Title bar
-            Constraint::Min(3),                     // Middle (tree|file)
+            Constraint::Min(1),                     // Middle (tree|file) - expand to fill available space
             Constraint::Length(STATUS_LINE_HEIGHT), // Status line
         ])
         .split(size);
