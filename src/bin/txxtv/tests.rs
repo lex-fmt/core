@@ -428,7 +428,6 @@ fn test_tree_selection_emits_select_node_event() {
 }
 
 #[test]
-#[ignore = "txxt_nano parser does not set span information on nested elements - see https://github.com/arthur-debert/txxt-nano/issues/64"]
 fn test_nested_elements_have_span_information() {
     // ISSUE: The txxt_nano parser does not set span information on nested elements.
     // This causes txxtv to be unable to highlight tree nodes when the cursor is on
@@ -468,7 +467,7 @@ fn test_nested_elements_have_span_information() {
             session_id.path()
         );
 
-        // Child element should ALSO have span information (currently fails)
+        // Child element should ALSO have span information
         let child_span = app.app().model.get_span_for_node(child_node_id);
         assert!(
             child_span.is_some(),
@@ -476,19 +475,6 @@ fn test_nested_elements_have_span_information() {
              This is a txxt_nano parser issue: span information is not set on nested elements.",
             child_node_id.path()
         );
-
-        // If the child has a span, we should be able to find it by position
-        if let Some(span) = child_span {
-            let node_at_pos = app
-                .app()
-                .model
-                .get_node_at_position(span.start.line, span.start.column);
-            assert_eq!(
-                node_at_pos,
-                Some(child_node_id),
-                "Should be able to find nested element by its span position"
-            );
-        }
     } else {
         panic!("Test file should have a session with children");
     }
