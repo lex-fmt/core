@@ -328,41 +328,27 @@ impl Model {
         }
 
         let mut current: &[ContentItem] = &self.document.content;
-        let mut _depth = 0;
+        let mut depth = 0;
 
-        for &index in path {
+        for (path_idx, &index) in path.iter().enumerate() {
             if index >= current.len() {
                 return None;
             }
 
             let item = &current[index];
-            let _ = _depth + 1; // Unused but kept for future use
+            depth += 1;
 
+            // If this is the last index in the path, return this item
+            if path_idx == path.len() - 1 {
+                return Some((item, depth));
+            }
+
+            // Otherwise, navigate to this item's children for the next iteration
             if let Some(children) = item.children() {
                 current = children;
             } else {
                 // We've reached a leaf node, but there's still more path
                 return None;
-            }
-        }
-
-        // Return the last item we navigated to
-        // We need to backtrack one step
-        if !path.is_empty() {
-            let parent_path = &path[0..path.len() - 1];
-            if parent_path.is_empty() {
-                // Direct child of root
-                let last_index = path[0];
-                if last_index < self.document.content.len() {
-                    return Some((&self.document.content[last_index], 1));
-                }
-            } else if let Some((parent, parent_depth)) = self.get_node(NodeId::new(parent_path)) {
-                if let Some(children) = parent.children() {
-                    let child_index = path[path.len() - 1];
-                    if child_index < children.len() {
-                        return Some((&children[child_index], parent_depth + 1));
-                    }
-                }
             }
         }
 
