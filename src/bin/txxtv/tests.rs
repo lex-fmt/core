@@ -666,49 +666,50 @@ fn test_tree_viewer_leaf_nodes_have_alignment_spacing() {
 }
 
 #[test]
-fn test_theme_initialization() {
-    // Verify that the theme is initialized with the default theme
+fn test_theme_semantic_grouping() {
+    // Verify the three-layer architecture: semantically related UI elements
+    // should use the same presentation style
     let app = TestApp::with_content("test");
+    let theme = &app.app().theme;
 
-    // App should have a theme
+    // Active elements should look the same
     assert_eq!(
-        app.app().theme.title_bar_style,
-        crate::theme::Theme::default().title_bar_style
+        theme.file_viewer_cursor(),
+        theme.tree_viewer_selected(),
+        "File cursor and tree selection should use the same 'active' style (semantic grouping)"
     );
+
+    // Normal elements should look the same
     assert_eq!(
-        app.app().theme.file_viewer_cursor_style,
-        crate::theme::Theme::default().file_viewer_cursor_style
-    );
-    assert_eq!(
-        app.app().theme.tree_selected_style,
-        crate::theme::Theme::default().tree_selected_style
-    );
-    assert_eq!(
-        app.app().theme.info_panel_bg_style,
-        crate::theme::Theme::default().info_panel_bg_style
+        theme.file_viewer_text(),
+        theme.tree_viewer_normal(),
+        "Normal text and normal tree nodes should use the same 'normal' style (semantic grouping)"
     );
 }
 
 #[test]
-fn test_custom_theme_creation() {
-    // Verify that a custom theme can be created
+fn test_custom_theme_presentation_layer() {
+    // Verify that custom presentation styles can be used to create a theme
     use ratatui::style::{Color, Style};
 
-    let custom_theme = crate::theme::Theme::new(
-        Style::default().fg(Color::Red),     // title_bar_style
-        Style::default().fg(Color::Green),   // file_viewer_cursor_style
-        Style::default(),                    // file_viewer_normal_style
-        Style::default(),                    // tree_normal_style
-        Style::default().fg(Color::Magenta), // tree_selected_style
-        Style::default().bg(Color::Black),   // info_panel_bg_style
-        Style::default(),                    // info_panel_label_style
-        Style::default(),                    // info_panel_mode_tree_style
-        Style::default(),                    // info_panel_mode_text_style
-        Style::default(),                    // error_style
-        Style::default(),                    // border_style
-    );
+    // Create a custom presentation layer
+    let custom_presentation = crate::theme::PresentationStyles {
+        active: Style::default().fg(Color::Red),
+        normal: Style::default(),
+        label: Style::default().fg(Color::Green),
+        mode_tree: Style::default(),
+        mode_text: Style::default(),
+        error: Style::default(),
+        title: Style::default().fg(Color::Blue),
+        panel_bg: Style::default(),
+        border: Style::default(),
+    };
 
-    assert_eq!(custom_theme.title_bar_style.fg, Some(Color::Red));
-    assert_eq!(custom_theme.file_viewer_cursor_style.fg, Some(Color::Green));
-    assert_eq!(custom_theme.tree_selected_style.fg, Some(Color::Magenta));
+    let custom_theme = crate::theme::Theme::with_presentation(custom_presentation);
+
+    // Verify that the custom presentation is used
+    assert_eq!(custom_theme.file_viewer_cursor().fg, Some(Color::Red));
+    assert_eq!(custom_theme.tree_viewer_selected().fg, Some(Color::Red));
+    assert_eq!(custom_theme.info_panel_label().fg, Some(Color::Green));
+    assert_eq!(custom_theme.title_bar().fg, Some(Color::Blue));
 }
