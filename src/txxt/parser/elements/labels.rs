@@ -102,18 +102,11 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range
             (Some(label_range), consumed)
         }
         Err(_) => {
-            let fallback_stream = Stream::from_iter(
-                0..0,
-                tokens
-                    .iter()
-                    .cloned()
-                    .map(|(token, span)| ((token, span.clone()), span)),
-            );
-            let leading_only_parser = leading_whitespace
-                .clone()
-                .then(any::<TokenLocation, ParserError>().repeated())
-                .map(|(count, _)| count);
-            let leading_only = leading_only_parser.parse(fallback_stream).unwrap_or(0);
+            // Directly count leading whitespace tokens in the original slice
+            let leading_only = tokens
+                .iter()
+                .take_while(|(token, _)| matches!(token, Token::Whitespace))
+                .count();
             (None, leading_only)
         }
     }
