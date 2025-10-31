@@ -31,7 +31,7 @@
 //! - Labels (used by annotations in lists): docs/specs/v1/elements/labels.txxt
 //! - Parameters (used by annotations in lists): docs/specs/v1/elements/parameters.txxt
 
-use super::super::location::Location;
+use super::super::location::{Location, Position};
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
@@ -43,7 +43,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
     pub content: Vec<ContentItem>,
-    pub location: Option<Location>,
+    pub location: Location,
 }
 
 /// A list item has text and optional nested content
@@ -51,17 +51,20 @@ pub struct List {
 pub struct ListItem {
     pub(crate) text: Vec<TextContent>,
     pub content: Vec<ContentItem>,
-    pub location: Option<Location>,
+    pub location: Location,
 }
 
 impl List {
+    fn default_location() -> Location {
+        Location::new(Position::new(0, 0), Position::new(0, 0))
+    }
     pub fn new(items: Vec<ContentItem>) -> Self {
         Self {
             content: items,
-            location: None,
+            location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
+    pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         self
     }
@@ -75,7 +78,7 @@ impl AstNode for List {
         format!("{} items", self.content.len())
     }
     fn location(&self) -> Option<Location> {
-        self.location
+        Some(self.location)
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -91,18 +94,21 @@ impl fmt::Display for List {
 }
 
 impl ListItem {
+    fn default_location() -> Location {
+        Location::new(Position::new(0, 0), Position::new(0, 0))
+    }
     pub fn new(text: String) -> Self {
         Self {
             text: vec![TextContent::from_string(text, None)],
             content: Vec::new(),
-            location: None,
+            location: Self::default_location(),
         }
     }
     pub fn with_content(text: String, content: Vec<ContentItem>) -> Self {
         Self {
             text: vec![TextContent::from_string(text, None)],
             content,
-            location: None,
+            location: Self::default_location(),
         }
     }
     /// Create a ListItem with TextContent that may have location information
@@ -110,10 +116,10 @@ impl ListItem {
         Self {
             text: vec![text_content],
             content,
-            location: None,
+            location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
+    pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         self
     }
@@ -135,7 +141,7 @@ impl AstNode for ListItem {
         }
     }
     fn location(&self) -> Option<Location> {
-        self.location
+        Some(self.location)
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -172,7 +178,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let list = List::new(vec![]).with_location(Some(location));
-        assert_eq!(list.location, Some(location));
+        let list = List::new(vec![]).with_location(location);
+        assert_eq!(list.location, location);
     }
 }

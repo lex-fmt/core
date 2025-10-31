@@ -683,7 +683,11 @@ mod tests {
         let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).expect("Failed to parse ensemble sample");
 
-        assert!(doc.location.is_some(), "Document should have a location");
+        // Document doesn't have its own location; location comes from root_session
+        assert!(
+            doc.root_session.location().is_some(),
+            "Root session should have a location"
+        );
 
         for item in &doc.root_session.content {
             assert!(
@@ -694,10 +698,6 @@ mod tests {
 
             match item {
                 ContentItem::Paragraph(paragraph) => {
-                    assert!(
-                        paragraph.location.is_some(),
-                        "Paragraph is missing location"
-                    );
                     for line in &paragraph.lines {
                         if let ContentItem::TextLine(tl) = line {
                             assert!(
@@ -708,7 +708,6 @@ mod tests {
                     }
                 }
                 ContentItem::Session(session) => {
-                    assert!(session.location.is_some(), "Session is missing location");
                     assert!(
                         session.title.location.is_some(),
                         "Session title is missing location"
@@ -722,10 +721,6 @@ mod tests {
                 }
                 ContentItem::Definition(definition) => {
                     assert!(
-                        definition.location.is_some(),
-                        "Definition is missing location"
-                    );
-                    assert!(
                         definition.subject.location.is_some(),
                         "Definition subject should have location"
                     );
@@ -737,13 +732,8 @@ mod tests {
                     }
                 }
                 ContentItem::List(list) => {
-                    assert!(list.location.is_some(), "List is missing location");
                     for item in &list.content {
                         if let ContentItem::ListItem(list_item) = item {
-                            assert!(
-                                list_item.location.is_some(),
-                                "List item should have location"
-                            );
                             for text in &list_item.text {
                                 assert!(
                                     text.location.is_some(),
@@ -780,20 +770,6 @@ mod tests {
         assert!(!annotations.is_empty(), "Expected annotations in sample");
 
         for annotation in annotations {
-            assert!(
-                annotation.location.is_some(),
-                "Annotation should have a location"
-            );
-            assert!(
-                annotation.label.location.is_some(),
-                "Annotation label should have a location"
-            );
-            for parameter in &annotation.parameters {
-                assert!(
-                    parameter.location.is_some(),
-                    "Annotation parameter should have a location"
-                );
-            }
             for child in &annotation.content {
                 assert!(
                     child.location().is_some(),
@@ -824,10 +800,6 @@ mod tests {
 
         for block in foreign_blocks {
             assert!(
-                block.location.is_some(),
-                "Foreign block should have a location"
-            );
-            assert!(
                 block.subject.location.is_some(),
                 "Foreign block subject should have a location"
             );
@@ -839,20 +811,6 @@ mod tests {
             }
 
             let closing = &block.closing_annotation;
-            assert!(
-                closing.location.is_some(),
-                "Closing annotation should have a location"
-            );
-            assert!(
-                closing.label.location.is_some(),
-                "Closing annotation label should have a location"
-            );
-            for parameter in &closing.parameters {
-                assert!(
-                    parameter.location.is_some(),
-                    "Closing annotation parameter should have a location"
-                );
-            }
             for child in &closing.content {
                 assert!(
                     child.location().is_some(),

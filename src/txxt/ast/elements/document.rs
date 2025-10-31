@@ -38,7 +38,6 @@ use std::fmt;
 pub struct Document {
     pub metadata: Vec<Annotation>,
     pub root_session: Session,
-    pub location: Option<Location>,
 }
 
 impl Document {
@@ -46,7 +45,6 @@ impl Document {
         Self {
             metadata: Vec::new(),
             root_session: Session::with_title(String::new()),
-            location: None,
         }
     }
 
@@ -56,7 +54,6 @@ impl Document {
         Self {
             metadata: Vec::new(),
             root_session,
-            location: None,
         }
     }
 
@@ -66,12 +63,11 @@ impl Document {
         Self {
             metadata,
             root_session,
-            location: None,
         }
     }
 
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
-        self.location = location;
+    pub fn with_root_session_location(mut self, location: Location) -> Self {
+        self.root_session.location = location;
         self
     }
 
@@ -141,7 +137,7 @@ impl AstNode for Document {
     }
 
     fn location(&self) -> Option<Location> {
-        self.location
+        None
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -206,22 +202,16 @@ mod tests {
         use crate::txxt::ast::text_content::TextContent;
 
         // Create paragraph 1 with properly located TextLine
-        let text_line1 =
-            TextLine::new(TextContent::from_string("First".to_string(), None)).with_location(Some(
-                Location::new(Position::new(0, 0), Position::new(0, 5)),
-            ));
-        let para1 = Paragraph::new(vec![ContentItem::TextLine(text_line1)]).with_location(Some(
-            Location::new(Position::new(0, 0), Position::new(0, 5)),
-        ));
+        let text_line1 = TextLine::new(TextContent::from_string("First".to_string(), None))
+            .with_location(Location::new(Position::new(0, 0), Position::new(0, 5)));
+        let para1 = Paragraph::new(vec![ContentItem::TextLine(text_line1)])
+            .with_location(Location::new(Position::new(0, 0), Position::new(0, 5)));
 
         // Create paragraph 2 with properly located TextLine
-        let text_line2 =
-            TextLine::new(TextContent::from_string("Second".to_string(), None)).with_location(
-                Some(Location::new(Position::new(1, 0), Position::new(1, 6))),
-            );
-        let para2 = Paragraph::new(vec![ContentItem::TextLine(text_line2)]).with_location(Some(
-            Location::new(Position::new(1, 0), Position::new(1, 6)),
-        ));
+        let text_line2 = TextLine::new(TextContent::from_string("Second".to_string(), None))
+            .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
+        let para2 = Paragraph::new(vec![ContentItem::TextLine(text_line2)])
+            .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
 
         let doc = Document::with_content(vec![
             ContentItem::Paragraph(para1),

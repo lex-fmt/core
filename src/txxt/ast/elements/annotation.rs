@@ -26,7 +26,7 @@
 //! - Labels: docs/specs/v1/elements/labels.txxt
 //! - Parameters: docs/specs/v1/elements/parameters.txxt
 
-use super::super::location::Location;
+use super::super::location::{Location, Position};
 use super::super::traits::{AstNode, Container, Visitor};
 use super::content_item::ContentItem;
 use super::label::Label;
@@ -39,16 +39,19 @@ pub struct Annotation {
     pub label: Label,
     pub parameters: Vec<Parameter>,
     pub content: Vec<ContentItem>,
-    pub location: Option<Location>,
+    pub location: Location,
 }
 
 impl Annotation {
+    fn default_location() -> Location {
+        Location::new(Position::new(0, 0), Position::new(0, 0))
+    }
     pub fn new(label: Label, parameters: Vec<Parameter>, content: Vec<ContentItem>) -> Self {
         Self {
             label,
             parameters,
             content,
-            location: None,
+            location: Self::default_location(),
         }
     }
     pub fn marker(label: Label) -> Self {
@@ -56,7 +59,7 @@ impl Annotation {
             label,
             parameters: Vec::new(),
             content: Vec::new(),
-            location: None,
+            location: Self::default_location(),
         }
     }
     pub fn with_parameters(label: Label, parameters: Vec<Parameter>) -> Self {
@@ -64,10 +67,10 @@ impl Annotation {
             label,
             parameters,
             content: Vec::new(),
-            location: None,
+            location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
+    pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         self
     }
@@ -85,7 +88,7 @@ impl AstNode for Annotation {
         }
     }
     fn location(&self) -> Option<Location> {
-        self.location
+        Some(self.location)
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -128,8 +131,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let annotation =
-            Annotation::marker(Label::new("test".to_string())).with_location(Some(location));
-        assert_eq!(annotation.location, Some(location));
+        let annotation = Annotation::marker(Label::new("test".to_string())).with_location(location);
+        assert_eq!(annotation.location, location);
     }
 }

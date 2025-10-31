@@ -284,24 +284,11 @@ impl ContentItem {
     /// Find all elements at the given position in this item and its children
     /// Returns elements in order from deepest to shallowest nesting
     pub fn elements_at(&self, pos: Position) -> Option<Vec<&ContentItem>> {
-        // Check if this item contains the position
-        let location = match self {
-            ContentItem::Paragraph(p) => p.location(),
-            ContentItem::Session(s) => s.location(),
-            ContentItem::List(l) => l.location(),
-            ContentItem::ListItem(li) => li.location(),
-            ContentItem::TextLine(tl) => tl.location(),
-            ContentItem::Definition(d) => d.location(),
-            ContentItem::Annotation(a) => a.location(),
-            ContentItem::ForeignBlock(fb) => fb.location(),
-        };
-
         // Check nested items first - even if parent location doesn't contain position,
         // nested elements might. This is important because parent locations (like sessions)
         // may only cover their title, not their nested content.
         let mut results = Vec::new();
-        let children = self.children();
-        if let Some(children) = children {
+        if let Some(children) = self.children() {
             for child in children {
                 if let Some(mut child_results) = child.elements_at(pos) {
                     results.append(&mut child_results);
@@ -310,27 +297,19 @@ impl ContentItem {
             }
         }
 
-        // If we found nested results, include this parent if its location contains the position
-        // or if the parent has no location (legacy behavior: items with no location match any position)
-        if !results.is_empty() {
-            // Found nested elements - add parent if it has no location or if location contains position
-            match location {
-                Some(location) if location.contains(pos) => results.push(self),
-                None => results.push(self), // No location means match any position (legacy behavior)
-                _ => {} // location exists but doesn't contain position - don't add parent
-            }
-            // Results are currently [deepest...shallowest], which is correct order
-            Some(results)
-        } else if let Some(location) = location {
-            // No nested results - check if this item contains the position
-            if location.contains(pos) {
-                Some(vec![self])
-            } else {
-                None
-            }
+        // Now, check the current item. An item is considered to be at the position if its
+        // location contains the position.
+        // If nested results were found, this item is a parent and should be added to the
+        // list to form the stack of elements.
+        // If no nested results were found, this item is the innermost element at the position.
+        if self.location().is_some_and(|l| l.contains(pos)) {
+            results.push(self);
+        }
+
+        if results.is_empty() {
+            None
         } else {
-            // No location and no nested results - legacy behavior: items with no location match any position
-            Some(vec![self])
+            Some(results)
         }
     }
 }
@@ -384,10 +363,8 @@ mod tests {
 
     #[test]
     fn test_elements_at_simple_paragraph() {
-        let para = Paragraph::from_line("Test".to_string()).with_location(Some(Location::new(
-            Position::new(0, 0),
-            Position::new(0, 4),
-        )));
+        let para = Paragraph::from_line("Test".to_string())
+            .with_location(Location::new(Position::new(0, 0), Position::new(0, 4)));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 2);
@@ -403,43 +380,29 @@ mod tests {
 
     #[test]
     fn test_elements_at_position_outside_location() {
-        let para = Paragraph::from_line("Test".to_string()).with_location(Some(Location::new(
-            Position::new(0, 0),
-            Position::new(0, 4),
-        )));
+        let para = Paragraph::from_line("Test".to_string())
+            .with_location(Location::new(Position::new(0, 0), Position::new(0, 4)));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 10);
         let results = item.elements_at(pos);
-        // Paragraph with children should still return None if position is outside all locations
-        // Since TextLine has no explicit location, it matches any position when paragraph doesn't contain it
-        // This is acceptable behavior - TextLines inherit parent paragraph matching
-        assert!(results.is_some()); // TextLine has no location, so it matches
+        assert!(results.is_none());
     }
 
     #[test]
     fn test_elements_at_no_location() {
-        // Item with no location should match any position
+        // Item with no location should not match any position
         let para = Paragraph::from_line("Test".to_string());
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(5, 10);
-        if let Some(results) = item.elements_at(pos) {
-            // Paragraphs now expose their TextLine children
-            assert_eq!(results.len(), 2);
-            assert!(results[0].is_text_line());
-            assert!(results[1].is_paragraph());
-        } else {
-            panic!("Expected to find paragraph when no location is set");
-        }
+        assert!(item.elements_at(pos).is_none());
     }
 
     #[test]
     fn test_elements_at_nested_session() {
-        let para = Paragraph::from_line("Nested".to_string()).with_location(Some(Location::new(
-            Position::new(1, 0),
-            Position::new(1, 6),
-        )));
+        let para = Paragraph::from_line("Nested".to_string())
+            .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
         let session = Session::new(
             super::super::super::text_content::TextContent::from_string(
                 "Section".to_string(),
@@ -447,10 +410,7 @@ mod tests {
             ),
             vec![ContentItem::Paragraph(para)],
         )
-        .with_location(Some(Location::new(
-            Position::new(0, 0),
-            Position::new(2, 0),
-        )));
+        .with_location(Location::new(Position::new(0, 0), Position::new(2, 0)));
         let item = ContentItem::Session(session);
 
         let pos = Position::new(1, 3);
