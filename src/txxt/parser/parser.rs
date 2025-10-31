@@ -685,7 +685,7 @@ mod tests {
 
         // Document doesn't have its own location; location comes from root_session
         assert!(
-            doc.root_session.location() != None,
+            doc.root_session.location().is_some(),
             "Root session should have a location"
         );
 
