@@ -1,7 +1,7 @@
 //! ContentItem enum definition
 
 use super::super::location::{Location, Position};
-use super::super::traits::{AstNode, Container};
+use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::definition::Definition;
 use super::foreign::ForeignBlock;
@@ -60,6 +60,19 @@ impl AstNode for ContentItem {
             ContentItem::Definition(d) => d.location(),
             ContentItem::Annotation(a) => a.location(),
             ContentItem::ForeignBlock(fb) => fb.location(),
+        }
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        match self {
+            ContentItem::Paragraph(p) => p.accept(visitor),
+            ContentItem::Session(s) => s.accept(visitor),
+            ContentItem::List(l) => l.accept(visitor),
+            ContentItem::ListItem(li) => li.accept(visitor),
+            ContentItem::TextLine(tl) => tl.accept(visitor),
+            ContentItem::Definition(d) => d.accept(visitor),
+            ContentItem::Annotation(a) => a.accept(visitor),
+            ContentItem::ForeignBlock(fb) => fb.accept(visitor),
         }
     }
 }

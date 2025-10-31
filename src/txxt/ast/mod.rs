@@ -28,4 +28,4 @@ pub use error::PositionLookupError;
 pub use location::{Location, Position, SourceLocation};
 pub use lookup::{find_nodes_at_position, format_at_position};
 pub use text_content::TextContent;
-pub use traits::{AstNode, Container, TextNode};
+pub use traits::{AstNode, Container, TextNode, Visitor};
