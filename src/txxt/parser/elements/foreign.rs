@@ -167,8 +167,8 @@ mod tests {
         println!("Tokens: {:?}", tokens);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.root_session.content.len(), 1);
-        let foreign_block = doc.root_session.content[0].as_foreign_block().unwrap();
+        assert_eq!(doc.root.content.len(), 1);
+        let foreign_block = doc.root.content[0].as_foreign_block().unwrap();
         assert_eq!(foreign_block.subject.as_string(), "Code Example");
         assert!(foreign_block
             .content
@@ -196,8 +196,8 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.root_session.content.len(), 1);
-        let foreign_block = doc.root_session.content[0].as_foreign_block().unwrap();
+        assert_eq!(doc.root.content.len(), 1);
+        let foreign_block = doc.root.content[0].as_foreign_block().unwrap();
         assert_eq!(foreign_block.subject.as_string(), "Image Reference");
         assert_eq!(foreign_block.content.as_string(), ""); // No content in marker form
         assert_eq!(foreign_block.closing_annotation.label.value, "image");
@@ -220,7 +220,7 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let foreign_block = doc.root_session.content[0].as_foreign_block().unwrap();
+        let foreign_block = doc.root.content[0].as_foreign_block().unwrap();
         assert!(foreign_block
             .content
             .as_string()
@@ -238,14 +238,14 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.root_session.content.len(), 2);
+        assert_eq!(doc.root.content.len(), 2);
 
-        let first_block = doc.root_session.content[0].as_foreign_block().unwrap();
+        let first_block = doc.root.content[0].as_foreign_block().unwrap();
         assert_eq!(first_block.subject.as_string(), "First Block");
         assert!(first_block.content.as_string().contains("code1"));
         assert_eq!(first_block.closing_annotation.label.value, "lang1");
 
-        let second_block = doc.root_session.content[1].as_foreign_block().unwrap();
+        let second_block = doc.root.content[1].as_foreign_block().unwrap();
         assert_eq!(second_block.subject.as_string(), "Second Block");
         assert!(second_block.content.as_string().contains("code2"));
         assert_eq!(second_block.closing_annotation.label.value, "lang2");
@@ -257,10 +257,10 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.root_session.content.len(), 3);
-        assert!(doc.root_session.content[0].is_paragraph());
-        assert!(doc.root_session.content[1].is_foreign_block());
-        assert!(doc.root_session.content[2].is_paragraph());
+        assert_eq!(doc.root.content.len(), 3);
+        assert!(doc.root.content[0].is_paragraph());
+        assert!(doc.root.content[1].is_foreign_block());
+        assert!(doc.root.content[2].is_paragraph());
     }
 
     #[test]
@@ -272,7 +272,7 @@ mod tests {
 
         // Find JavaScript code block
         let js_block = doc
-            .root_session
+            .root
             .content
             .iter()
             .find(|item| {
@@ -290,7 +290,7 @@ mod tests {
 
         // Find Python code block
         let py_block = doc
-            .root_session
+            .root
             .content
             .iter()
             .find(|item| {
@@ -306,7 +306,7 @@ mod tests {
 
         // Find SQL block
         let sql_block = doc
-            .root_session
+            .root
             .content
             .iter()
             .find(|item| {
@@ -330,7 +330,7 @@ mod tests {
 
         // Find image reference
         let image_block = doc
-            .root_session
+            .root
             .content
             .iter()
             .find(|item| {
@@ -351,7 +351,7 @@ mod tests {
 
         // Find binary file reference
         let binary_block = doc
-            .root_session
+            .root
             .content
             .iter()
             .find(|item| {

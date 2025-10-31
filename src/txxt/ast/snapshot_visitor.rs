@@ -56,12 +56,12 @@ pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
         format!(
             "Document ({} metadata, {} items)",
             doc.metadata.len(),
-            doc.root_session.content.len()
+            doc.root.content.len()
         ),
     );
 
     // Flatten the root session - its children become direct children of the Document
-    for child in &doc.root_session.content {
+    for child in &doc.root.content {
         snapshot.children.push(snapshot_from_content(child));
     }
 
@@ -136,12 +136,12 @@ mod tests {
     #[test]
     fn test_snapshot_from_document_with_content() {
         let mut doc = Document::new();
-        doc.root_session
+        doc.root
             .content
             .push(ContentItem::Paragraph(Paragraph::from_line(
                 "Test".to_string(),
             )));
-        doc.root_session
+        doc.root
             .content
             .push(ContentItem::Session(Session::with_title(
                 "Section".to_string(),
@@ -191,7 +191,7 @@ mod tests {
             )));
 
         let mut doc = Document::new();
-        doc.root_session.content.push(ContentItem::Session(session));
+        doc.root.content.push(ContentItem::Session(session));
 
         let snapshot = snapshot_from_document(&doc);
 
