@@ -10,6 +10,9 @@
 //! Examples:
 //! - `priority`
 //! - `owner`
+//!
+//! Learn More:
+//! - Labels spec: docs/specs/v1/elements/labels.txxt
 
 use super::super::location::Location;
 use std::fmt;

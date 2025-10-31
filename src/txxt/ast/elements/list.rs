@@ -28,6 +28,8 @@
 //!
 //! Learn More:
 //! - Lists spec: docs/specs/v1/elements/lists.txxt
+//! - Labels (used by annotations in lists): docs/specs/v1/elements/labels.txxt
+//! - Parameters (used by annotations in lists): docs/specs/v1/elements/parameters.txxt
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;
