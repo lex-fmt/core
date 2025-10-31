@@ -35,12 +35,12 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
 }
 
 /// Helper: convert a byte range to a location using source location
-fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
     if range.start > range.end {
-        return None;
+        return Location::default();
     }
     let source_loc = SourceLocation::new(source);
-    Some(source_loc.range_to_location(range))
+    source_loc.range_to_location(range)
 }
 
 /// Helper: compute location bounds from multiple locations
@@ -63,12 +63,12 @@ pub(crate) fn compute_location_from_locations(locations: &[Location]) -> Locatio
 /// Helper: compute location bounds from multiple optional locations
 pub(crate) fn compute_location_from_optional_locations(
     locations: &[Option<Location>],
-) -> Option<Location> {
+) -> Location {
     let actual_locations: Vec<Location> = locations.iter().filter_map(|s| *s).collect();
     if actual_locations.is_empty() {
-        None
+        Location::default()
     } else {
-        Some(compute_location_from_locations(&actual_locations))
+        compute_location_from_locations(&actual_locations)
     }
 }
 
@@ -144,12 +144,12 @@ pub(crate) fn paragraph(
                     let text = extract_text_from_locations(&source, locations);
                     // Compute location for this line
                     let line_location = if locations.is_empty() {
-                        None
+                        Location::default()
                     } else {
                         let range = compute_byte_range_bounds(locations);
                         byte_range_to_location(&source, &range)
                     };
-                    let text_content = TextContent::from_string(text, None);
+                    let text_content = TextContent::from_string(text, Some(line_location));
                     let text_line =
                         crate::txxt::ast::TextLine::new(text_content).with_location(line_location);
                     crate::txxt::ast::ContentItem::TextLine(text_line)
@@ -161,7 +161,7 @@ pub(crate) fn paragraph(
                 let all_locations: Vec<Range<usize>> =
                     line_locations_list.into_iter().flatten().collect();
                 if all_locations.is_empty() {
-                    None
+                    Location::default()
                 } else {
                     let range = compute_byte_range_bounds(&all_locations);
                     byte_range_to_location(&source, &range)

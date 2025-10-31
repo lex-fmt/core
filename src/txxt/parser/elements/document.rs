@@ -29,7 +29,7 @@ pub fn document(source: &str) -> impl Parser<TokenLocation, Document, Error = Pa
         Document {
             metadata: Vec::new(),
             content,
-            location,
+                location: Some(location),
         }
     })
 }

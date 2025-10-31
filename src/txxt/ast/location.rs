@@ -26,6 +26,12 @@ impl fmt::Display for Position {
     }
 }
 
+impl Default for Position {
+    fn default() -> Self {
+        Self::new(0, 0)
+    }
+}
+
 /// Represents a location in source code (start and end positions)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Location {
@@ -58,6 +64,12 @@ impl Location {
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}..{}", self.start, self.end)
+    }
+}
+
+impl Default for Location {
+    fn default() -> Self {
+        Self::new(Position::default(), Position::default())
     }
 }
 
@@ -279,7 +291,7 @@ mod ast_integration_tests {
     #[test]
     fn test_get_location() {
         let location = Location::new(Position::new(1, 0), Position::new(1, 10));
-        let session = Session::with_title("Title".to_string()).with_location(Some(location));
+        let session = Session::with_title("Title".to_string()).with_location(location);
         assert_eq!(session.get_location(), Some(Position::new(1, 0)));
     }
 
@@ -291,8 +303,8 @@ mod ast_integration_tests {
 
         let location1 = Location::new(Position::new(1, 0), Position::new(1, 10));
         let location2 = Location::new(Position::new(2, 0), Position::new(2, 10));
-        let session1 = Session::with_title("Title1".to_string()).with_location(Some(location1));
-        let session2 = Session::with_title("Title2".to_string()).with_location(Some(location2));
+        let session1 = Session::with_title("Title1".to_string()).with_location(location1);
+        let session2 = Session::with_title("Title2".to_string()).with_location(location2);
         let document = Document::with_content(vec![
             ContentItem::Session(session1),
             ContentItem::Session(session2),
@@ -310,10 +322,10 @@ mod ast_integration_tests {
 
         let para_location = Location::new(Position::new(2, 0), Position::new(2, 10));
         let paragraph =
-            Paragraph::from_line("Nested".to_string()).with_location(Some(para_location));
+            Paragraph::from_line("Nested".to_string()).with_location(para_location);
         let session_location = Location::new(Position::new(1, 0), Position::new(3, 0));
         let mut session =
-            Session::with_title("Title".to_string()).with_location(Some(session_location));
+            Session::with_title("Title".to_string()).with_location(session_location);
         session
             .children_mut()
             .push(ContentItem::Paragraph(paragraph));
