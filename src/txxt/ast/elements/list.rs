@@ -1,4 +1,15 @@
-//! List element definition
+//! List element
+//!
+//! A list is an ordered collection of items, each with its own text
+//! and optional nested content. Lists can be used to structure
+//! outlines, steps, or bullet points.
+//!
+//! Structure:
+//! - List: holds items as content
+//! - ListItem: has display text and optional nested content
+//!
+//! Learn More:
+//! - Lists spec: docs/specs/v1/elements/lists.txxt
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;

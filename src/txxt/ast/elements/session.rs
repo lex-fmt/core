@@ -1,4 +1,12 @@
-//! Session element definition
+//! Session element
+//!
+//! A session is a titled container that groups related content.
+//! Sessions establish hierarchy within a document via their title
+//! line and nested content.
+//!
+//! Structure:
+//! - Title: short text identifying the session
+//! - Content: any elements allowed in the body
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;
