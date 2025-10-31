@@ -34,8 +34,12 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
     )
 }
 
-/// Helper: convert a byte range to a location using source location
-fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
+/// Convert a byte range to a Location (line:column positions)
+///
+/// This is the canonical implementation used throughout the parser.
+/// Converts byte offsets from token ranges to line/column coordinates
+/// using the SourceLocation utility (O(log n) binary search).
+pub(crate) fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
     if range.start > range.end {
         return Location::default();
     }
