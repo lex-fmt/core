@@ -14,6 +14,10 @@
 //! - Annotations: docs/specs/v1/elements/annotations.txxt
 //! - Definitions: docs/specs/v1/elements/definitions.txxt
 //! - Foreign blocks: docs/specs/v1/elements/foreign.txxt
+//!
+//! Examples:
+//! - Document-level metadata at the top via annotations
+//! - Body mixing paragraphs, sessions, lists, and definitions
 
 use super::super::location::{Location, Position};
 use super::annotation::Annotation;

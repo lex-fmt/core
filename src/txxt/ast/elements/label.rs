@@ -1,4 +1,15 @@
-//! Label element definition
+//! Label element
+//!
+//! A label is a short identifier used by annotations and other
+//! elements to tag content, categorize, or drive tooling behavior.
+//!
+//! Business use:
+//! - Classify content for review or publishing workflows
+//! - Provide stable keys for parameters and automation
+//!
+//! Examples:
+//! - `priority`
+//! - `owner`
 
 use super::super::location::Location;
 use std::fmt;

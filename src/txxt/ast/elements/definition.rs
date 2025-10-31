@@ -3,10 +3,18 @@
 //!  Definitions are a core element for explaining terms and concepts.
 //!  They pair a subject (the term being defined) with its content, the definition body.
 //!
+//!  Business use:
+//!  - Capture domain vocabulary inline as you write
+//!  - Let tools extract glossaries and cross-references automatically
+//!
 //! Subject:
 //!     Content here
 //!
 //!     Can be multiple paragraphs or any other content but sessions.
+//!
+//! Examples:
+//! - `Term:` followed by an indented explanation
+//! - `HTTP:` One per method; caching rules; and examples
 //!
 //! Subject line:
 //! - Ends with colon (:)

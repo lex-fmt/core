@@ -1,14 +1,14 @@
 //! Annotation
 //!
-//! Annotations are a core element in txxt, but a metadata one. They provide , not only a way for authors and colaborators to register non content related information, but the right hooks for tooling to build on top of txxt, such as a commenting system before publishing.
+//! Annotations are a core element in txxt, but a metadata one. They provide not only a way for authors and collaborators to register non content related information, but the right hooks for tooling to build on top of txxt (e.g., comments, review metadata, publishing hints).
 //!
 // As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling).
 //!
 //! Syntax Forms:
 //!
-//!> <txxt marker> <label> <parameters>? <txxt marker> <content>?
-//!> :: label :: Content can come here
-//!> :: label key=value ::
+//! Syntax patterns (informal):
+//! - `:: label :: content`
+//! - `:: label key=value ::`
 //!
 //! The full form:
 //!
@@ -16,6 +16,9 @@
 //! :: label ::
 //!     indented paragraph or list
 //! ::
+//!
+//! Examples:
+//! - `:: reviewed by=alice ::`
 //!
 //! Learn More:
 //! - The annotation spec: docs/specs/v1/elements/annotations.txxt
