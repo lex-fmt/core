@@ -683,7 +683,11 @@ mod tests {
         let tokens = lex_with_locations(&source);
         let doc = parse_with_source(tokens, &source).expect("Failed to parse ensemble sample");
 
-        assert!(doc.location.is_some(), "Document should have a location");
+        // Document doesn't have its own location; location comes from root_session
+        assert!(
+            doc.root_session.location() != None,
+            "Root session should have a location"
+        );
 
         for item in &doc.root_session.content {
             assert!(
