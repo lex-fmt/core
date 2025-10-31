@@ -11,6 +11,7 @@
 use std::collections::HashSet;
 use txxt::txxt::ast::elements::content_item::ContentItem;
 use txxt::txxt::ast::location::{Location, Position};
+use txxt::txxt::ast::{snapshot_visitor::snapshot_from_content, AstSnapshot};
 use txxt::txxt::parser::Document;
 
 /// Which viewer currently has keyboard focus
@@ -280,42 +281,65 @@ impl Model {
     ///
     /// Creates a depth-first flattening of the document tree, respecting
     /// the expanded/collapsed state. Only includes expanded nodes and their children.
+    /// Uses the canonical snapshot representation to ensure consistency with serializers.
     pub fn flattened_tree(&self) -> Vec<FlattenedTreeNode> {
         let mut nodes = Vec::new();
-        self.flatten_recursive(&self.document.content, &mut NodeId::new(&[]), &mut nodes);
+
+        // Build snapshot tree from document content
+        let snapshots: Vec<AstSnapshot> = self
+            .document
+            .content
+            .iter()
+            .map(snapshot_from_content)
+            .collect();
+
+        // Flatten the snapshot tree
+        for (index, snapshot) in snapshots.iter().enumerate() {
+            let node_id = NodeId::new(&[index]);
+            self.flatten_snapshot_recursive(snapshot, &node_id, &mut nodes);
+        }
+
         nodes
     }
 
-    /// Recursively flatten the tree, respecting expanded/collapsed state
-    fn flatten_recursive(
+    /// Recursively flatten a snapshot tree, respecting expanded/collapsed state
+    fn flatten_snapshot_recursive(
         &self,
-        items: &[ContentItem],
-        parent_id: &mut NodeId,
+        snapshot: &AstSnapshot,
+        current_id: &NodeId,
         nodes: &mut Vec<FlattenedTreeNode>,
     ) {
-        for (index, item) in items.iter().enumerate() {
-            let current_id = parent_id.child(index);
-            let depth = current_id.path().len();
-            let label = item.display_label();
-            let has_children = item.children().map(|c| !c.is_empty()).unwrap_or(false);
-            let is_expanded = self.is_node_expanded(current_id);
-            let node_type = item.node_type();
+        let depth = current_id.path().len();
+        let has_children = !snapshot.children.is_empty();
+        let is_expanded = self.is_node_expanded(*current_id);
 
-            nodes.push(FlattenedTreeNode {
-                node_id: current_id,
-                depth,
-                label,
-                is_expanded,
-                has_children,
-                node_type,
-            });
+        // Map snapshot node type to static string for FlattenedTreeNode
+        let node_type = match snapshot.node_type.as_str() {
+            "Session" => "Session",
+            "Paragraph" => "Paragraph",
+            "List" => "List",
+            "ListItem" => "ListItem",
+            "Definition" => "Definition",
+            "ForeignBlock" => "ForeignBlock",
+            "Annotation" => "Annotation",
+            "TextLine" => "TextLine",
+            _ => "Unknown",
+        };
 
-            // Recursively add children if expanded
-            if is_expanded && has_children {
-                if let Some(children) = item.children() {
-                    let mut child_parent = current_id;
-                    self.flatten_recursive(children, &mut child_parent, nodes);
-                }
+        nodes.push(FlattenedTreeNode {
+            node_id: *current_id,
+            depth,
+            label: snapshot.label.clone(),
+            is_expanded,
+            has_children,
+            node_type,
+        });
+
+        // Recursively add children if expanded
+        if is_expanded && has_children {
+            for (child_index, child) in snapshot.children.iter().enumerate() {
+                let child_id = current_id.child(child_index);
+                self.flatten_snapshot_recursive(child, &child_id, nodes);
             }
         }
     }
