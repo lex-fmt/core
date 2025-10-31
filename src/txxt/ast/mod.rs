@@ -22,7 +22,7 @@ pub mod traits;
 // Re-export commonly used types at module root
 pub use elements::{
     Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
-    Parameter, Session,
+    Parameter, Session, TextLine,
 };
 pub use error::PositionLookupError;
 pub use location::{Location, Position, SourceLocation};

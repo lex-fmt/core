@@ -149,7 +149,10 @@ pub(crate) fn paragraph(
                         let range = compute_byte_range_bounds(locations);
                         byte_range_to_location(&source, &range)
                     };
-                    TextContent::from_string(text, line_location)
+                    let text_content = TextContent::from_string(text, None);
+                    let text_line =
+                        crate::txxt::ast::TextLine::new(text_content).with_location(line_location);
+                    crate::txxt::ast::ContentItem::TextLine(text_line)
                 })
                 .collect();
 

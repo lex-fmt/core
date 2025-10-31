@@ -59,13 +59,12 @@ impl fmt::Display for TextLine {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
     /// Lines stored as ContentItems (each a TextLine wrapping TextContent)
-    /// We keep TextContent field for backward compatibility with TextNode trait
-    pub lines: Vec<TextContent>,
+    pub lines: Vec<super::content_item::ContentItem>,
     pub location: Option<Location>,
 }
 
 impl Paragraph {
-    pub fn new(lines: Vec<TextContent>) -> Self {
+    pub fn new(lines: Vec<super::content_item::ContentItem>) -> Self {
         Self {
             lines,
             location: None,
@@ -73,7 +72,9 @@ impl Paragraph {
     }
     pub fn from_line(line: String) -> Self {
         Self {
-            lines: vec![TextContent::from_string(line, None)],
+            lines: vec![super::content_item::ContentItem::TextLine(TextLine::new(
+                TextContent::from_string(line, None),
+            ))],
             location: None,
         }
     }
@@ -84,7 +85,13 @@ impl Paragraph {
     pub fn text(&self) -> String {
         self.lines
             .iter()
-            .map(|line| line.as_string().to_string())
+            .filter_map(|item| {
+                if let super::content_item::ContentItem::TextLine(tl) = item {
+                    Some(tl.text().to_string())
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -111,12 +118,20 @@ impl TextNode for Paragraph {
     fn text(&self) -> String {
         self.lines
             .iter()
-            .map(|line| line.as_string().to_string())
+            .filter_map(|item| {
+                if let super::content_item::ContentItem::TextLine(tl) = item {
+                    Some(tl.text().to_string())
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>()
             .join("\n")
     }
     fn lines(&self) -> &[TextContent] {
-        &self.lines
+        // This is a compatibility method - we no longer store raw TextContent
+        // Return empty slice since we've moved to ContentItem::TextLine
+        &[]
     }
 }
 
@@ -128,13 +143,20 @@ impl fmt::Display for Paragraph {
 
 #[cfg(test)]
 mod tests {
+    use super::super::content_item::ContentItem;
     use super::*;
 
     #[test]
     fn test_paragraph_creation() {
         let para = Paragraph::new(vec![
-            TextContent::from_string("Hello".to_string(), None),
-            TextContent::from_string("World".to_string(), None),
+            ContentItem::TextLine(TextLine::new(TextContent::from_string(
+                "Hello".to_string(),
+                None,
+            ))),
+            ContentItem::TextLine(TextLine::new(TextContent::from_string(
+                "World".to_string(),
+                None,
+            ))),
         ]);
         assert_eq!(para.lines.len(), 2);
         assert_eq!(para.text(), "Hello\nWorld");
