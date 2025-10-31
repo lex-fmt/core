@@ -11,6 +11,10 @@
 //!
 //! Learn More:
 //! - Foreign blocks spec: docs/specs/v1/elements/foreign.txxt
+//!
+//! Examples:
+//! - Embed a code snippet or external block and close it with an annotation
+//! - Use subject text to hint the embedded system (e.g., "mermaid")
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;

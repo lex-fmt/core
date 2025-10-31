@@ -9,6 +9,10 @@
 //!
 //! Learn More:
 //! - Paragraphs spec: docs/specs/v1/elements/paragraphs.txxt
+//!
+//! Examples:
+//! - A single paragraph spans multiple lines until a blank line
+//! - Blank lines separate paragraphs; lists and sessions break flow
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;

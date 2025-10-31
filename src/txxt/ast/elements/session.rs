@@ -7,6 +7,12 @@
 //! Structure:
 //! - Title: short text identifying the session
 //! - Content: any elements allowed in the body
+//!
+//! Examples:
+//!
+//! Welcome to The Txxt format
+//!
+//!     Txxt is a plain text document format. ...
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;
