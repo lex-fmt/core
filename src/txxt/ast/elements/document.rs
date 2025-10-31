@@ -4,9 +4,21 @@
 //! (as annotations) and a sequence of content elements (paragraphs,
 //! sessions, lists, foreign blocks, definitions, annotations).
 //!
-//! Structure:
+//! ## Structure
 //! - Metadata: zero or more leading annotations that apply to the whole document
 //! - Content: ordered list of content items making up the body
+//!
+//! ## Trait Implementations
+//!
+//! Document implements `AstNode` and `Container` to enable uniform tree traversal
+//! and visualization. However, Document's structure differs from other nodes:
+//! - Metadata (annotations) are stored separately from content
+//! - The `AstNode::accept()` visitor visits metadata first, then content
+//! - Snapshots (via `snapshot_from_document()`) include only content, not metadata
+//!
+//! **Note:** This partial alignment with other nodes is temporary. Issue #103 Phase 2
+//! will further restructure Document by introducing a Session root node, making the
+//! structure fully homogeneous with the rest of the AST.
 //!
 //! Learn More:
 //! - Paragraphs: docs/specs/v1/elements/paragraphs.txxt
@@ -14,6 +26,7 @@
 //! - Annotations: docs/specs/v1/elements/annotations.txxt
 //! - Definitions: docs/specs/v1/elements/definitions.txxt
 //! - Foreign blocks: docs/specs/v1/elements/foreign.txxt
+//! - Issue #103: Fix Document node in the AST
 //!
 //! Examples:
 //! - Document-level metadata at the top via annotations

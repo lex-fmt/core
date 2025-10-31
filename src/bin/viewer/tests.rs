@@ -495,8 +495,8 @@ fn test_nested_elements_have_location_information() {
 #[test]
 fn test_text_view_cursor_on_nested_element_updates_model() {
     // Now that nested elements have locations, verify the full chain works:
-    // FileViewer cursor on nested element ? get_node_at_position finds it ?
-    // emit event ? model updates ? tree should highlight
+    // FileViewer cursor on nested element → get_node_at_position finds it →
+    // emit event → model updates → tree should highlight
 
     let mut app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
 
@@ -517,7 +517,7 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
 
         // If it's nested, check if it has a location
         if tree_path.len() > 1 {
-            println!("? Found a nested element!");
+            println!("✓ Found a nested element!");
             if let Some(location) = app.app().model.get_location_for_node(tree_selected) {
                 println!(
                     "Nested node location: line {}-{}, col {}-{}",
@@ -570,7 +570,7 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
             }
         } else {
             println!(
-                "? Node is not nested (depth {}), skipping test",
+                "✗ Node is not nested (depth {}), skipping test",
                 tree_path.len()
             );
         }
@@ -580,8 +580,8 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
 #[test]
 fn test_tree_viewer_expand_collapse_indicators() {
     // Step 9.5: Verify that tree viewer shows expand/collapse indicators
-    // - ? for expanded nodes with children
-    // - ? for collapsed nodes with children
+    // - ▼ for expanded nodes with children
+    // - ▶ for collapsed nodes with children
     // - two spaces for leaf nodes (no children)
 
     let mut app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
@@ -595,11 +595,11 @@ fn test_tree_viewer_expand_collapse_indicators() {
     // Get the flattened tree to verify structure
     let flattened = app.app().model.flattened_tree();
 
-    // Find a node with children (skip TextLines and Paragraphs as they expose TextLines)
+    // Find a node with children (skip Document, TextLines and Paragraphs as they expose TextLines)
     let mut node_with_children = None;
     for node in &flattened {
         if node.has_children {
-            // Skip TextLines/Paragraphs and the Document root; look for containers like Session, List, etc.
+            // Skip Document (tree root), TextLines and Paragraphs, look for containers like Session, List, etc.
             if node.node_type != "Document"
                 && !node.node_type.contains("TextLine")
                 && !node.node_type.contains("Paragraph")
@@ -617,7 +617,7 @@ fn test_tree_viewer_expand_collapse_indicators() {
 
     let node_with_children = node_with_children.unwrap();
 
-    // When expanded, should show ?
+    // When expanded, should show ▼
     assert!(node_with_children.has_children, "Node should have children");
 
     // Find the tree node in the flattened tree and navigate to it
@@ -705,7 +705,7 @@ fn test_status_line_renders_tree_mode_indicator() {
 
     // Status line should contain tree mode indicator
     assert!(
-        output.contains("??") || output.contains("Tree"),
+        output.contains("🌳") || output.contains("Tree"),
         "Status line should show tree mode indicator"
     );
 }
@@ -719,7 +719,7 @@ fn test_status_line_renders_text_mode_indicator() {
 
     // Status line should contain text mode indicator
     assert!(
-        output.contains("??") || output.contains("Text"),
+        output.contains("📝") || output.contains("Text"),
         "Status line should show text mode indicator"
     );
 }
@@ -752,7 +752,7 @@ fn test_status_line_is_single_row() {
     // The last line should contain status information
     let last_line = lines[23];
     assert!(
-        !last_line.trim().is_empty() || last_line.contains("?"),
+        !last_line.trim().is_empty() || last_line.contains("│"),
         "Last line should contain status line content or tree border"
     );
 }
@@ -806,10 +806,10 @@ fn test_status_line_no_borders() {
 
     // Count rounded border characters in last line (status line)
     let last_line = lines[23];
-    let has_borders = last_line.contains("?")
-        || last_line.contains("?")
-        || last_line.contains("?")
-        || last_line.contains("?");
+    let has_borders = last_line.contains("╭")
+        || last_line.contains("╮")
+        || last_line.contains("╰")
+        || last_line.contains("╯");
 
     assert!(
         !has_borders,
