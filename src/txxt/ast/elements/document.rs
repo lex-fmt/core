@@ -1,11 +1,8 @@
 //! Document element
 //!
-//! A document is the root of a txxt tree. All content is contained within
-//! a root session, with optional document-level metadata (annotations).
-//!
-//! ## Structure
-//! - Metadata: zero or more leading annotations that apply to the whole document
-//! - Root Session: unnamed session containing all document content
+//! The document node serves two purposes:
+//! - Contains the document tree.
+//! - Contains document-level metadata , including non content related (like file name, parser version, etc)
 //!
 //! This structure makes the entire AST homogeneous - the document's content
 //! is accessed through the standard Session interface, making traversal and
@@ -33,10 +30,10 @@ use super::paragraph::Paragraph;
 use super::session::Session;
 use std::fmt;
 
-/// A document represents the root of a txxt AST
 #[derive(Debug, Clone, PartialEq)]
 pub struct Document {
     pub metadata: Vec<Annotation>,
+    // all content is attached to the root node
     pub root: Session,
 }
 
@@ -105,7 +102,7 @@ impl Document {
         (paragraphs, sessions, lists, foreign_blocks)
     }
 
-    /// Find the deepest element at the given position
+    /// Has to be the deepest element, as ancestors are supersets the deepest node location.
     /// Returns the deepest (most nested) element that contains the position
     pub fn element_at(&self, pos: Position) -> Option<&ContentItem> {
         for item in &self.root.content {
