@@ -1,8 +1,121 @@
 //! Position and location tracking for source code locations
 //!
-//! This module defines the data structures for representing positions
-//! and locations in source code, as well as utilities for converting
-//! byte offsets to line/column positions.
+//! This module defines the data structures for representing positions and locations in source code,
+//! as well as utilities for converting byte offsets to line/column positions.
+//!
+//! ## How Location Tracking Works in txxt
+//!
+//! Location tracking flows through the entire compilation pipeline from raw source code to AST nodes.
+//! Here's the high-level architecture:
+//!
+//! ### 1. Tokenization (Lexer)
+//!
+//! The lexer (`src/txxt/lexer.rs` and `src/txxt/lexer/lexer_impl.rs`) produces tokens paired with
+//! **byte-offset ranges** into the source. The logos crate provides automatic span tracking:
+//!
+//! ```text
+//! Source: "Hello\nWorld"
+//!         012345678901
+//!                  ↓
+//! Lexer produces: (Token::Text("Hello"), 0..5)
+//!                 (Token::Newline, 5..6)
+//!                 (Token::Text("World"), 6..11)
+//! ```
+//!
+//! The lexer pipeline applies several transformations while preserving byte ranges:
+//! - **Whitespace processing**: Removes whitespace tokens, preserves ranges
+//! - **Indentation transformation**: Converts Indent tokens to IndentLevel tokens with meaningful ranges
+//! - **Blank line transformation**: Converts multiple Newlines to BlankLine tokens with aggregated ranges
+//!
+//! See `src/txxt/lexer/transformations/` for implementation details.
+//!
+//! ### 2. Byte-to-Line Conversion (SourceLocation)
+//!
+//! Before building AST nodes, byte ranges are converted to line:column positions using [`SourceLocation`].
+//! This is a one-time setup (not repeated per-token):
+//!
+//! ```text
+//! SourceLocation pre-computes line start byte offsets:
+//!   line_starts = [0, 6]  (first line starts at byte 0, second at byte 6)
+//!
+//! byte_to_position(8) uses binary search:
+//!   - Find line: binary_search(&8) finds index 1 (line 1)
+//!   - Column: 8 - 6 = 2
+//!   - Returns: Position { line: 1, column: 2 }
+//! ```
+//!
+//! This is O(log n) per conversion, efficient for large documents.
+//!
+//! ### 3. Parser (AST Construction)
+//!
+//! The parser (`src/txxt/parser/`) consumes tokens with byte ranges and builds AST nodes with
+//! [`Location`] objects. Location assignment happens bottom-up:
+//!
+//! #### Bottom-Up Construction
+//! Each parser combinator:
+//! 1. Parses child elements (which have locations)
+//! 2. Converts byte ranges to `Location` objects via `byte_range_to_location()`
+//! 3. Aggregates child locations: `compute_location_from_locations(&[child1, child2, ...])`
+//! 4. Creates parent node with aggregated location
+//!
+//! #### Example: Session Parser (`src/txxt/parser/elements/sessions.rs`)
+//!
+//! ```text
+//! Input tokens:  "Session Title" [tokens] DedentLevel
+//!                              ↓
+//! 1. Parse title → TextContent with Location(0:0..0:13)
+//! 2. Parse content (recursive) → [Paragraph, List, ...] each with Location
+//! 3. Compute title_location from title bytes
+//! 4. Aggregate: [title_location] + [para_location, list_location]
+//! 5. Create Session with bounding box location
+//! ```
+//!
+//! #### Location Aggregation
+//! The `compute_location_from_locations()` function (in `src/txxt/parser/combinators.rs`) creates
+//! a bounding box:
+//!
+//! ```text
+//! Input:  [Location(0:0..1:5), Location(2:0..2:10), Location(1:5..1:15)]
+//! Output: Location(0:0..2:10)  ← Spans from earliest start to latest end
+//! ```
+//!
+//! ### 4. Complete Document Structure
+//!
+//! The final document has location information at every level:
+//!
+//! ```text
+//! Document
+//!   ├─ root_session: Session (Location)
+//!   │  ├─ content[0]: Session "Intro" (Location)
+//!   │  │  ├─ Paragraph (Location)
+//!   │  │  │  └─ TextLine (Location)
+//!   │  │  └─ Paragraph (Location)
+//!   │  │     └─ TextLine (Location)
+//!   │  └─ content[1]: List (Location)
+//!   │     ├─ ListItem (Location)
+//!   │     └─ ListItem (Location)
+//!   └─ metadata: [Annotation, ...] (each with Location)
+//! ```
+//!
+//! Every element knows its exact position in the source: start line:column to end line:column.
+//!
+//! ## Key Design Characteristics
+//!
+//! - **Mandatory locations**: All AST nodes (except Document) have required `location: Location` fields
+//! - **No null locations**: Default position is (0, 0) to (0, 0), never None
+//! - **Byte ranges preserved**: Parser uses byte ranges from lexer tokens, not reconstructed positions
+//! - **Unicode-aware**: Handles multi-byte UTF-8 characters correctly via `char_indices()`
+//! - **Efficient conversion**: O(log n) binary search for byte-to-position conversion
+//!
+//! ## Testing
+//!
+//! Location accuracy is verified at multiple levels:
+//! - **Unit tests**: `SourceLocation::byte_to_position()` with ASCII, Unicode, single/multi-line
+//! - **Integration tests**: Document → Session → Paragraph → TextLine hierarchies
+//! - **Position queries**: `find_nodes_at_position()` returns correctly ordered (deepest-first) nodes
+//! - **Edge cases**: Empty documents, single-line, deeply nested, overlapping regions
+//!
+//! See the module tests below (lines 127+) for comprehensive coverage.
 
 use std::fmt;
 use std::ops::Range;
