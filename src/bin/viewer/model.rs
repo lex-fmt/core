@@ -239,11 +239,8 @@ impl Model {
     pub fn get_node_at_position(&self, row: usize, col: usize) -> Option<NodeId> {
         let pos = Position::new(row, col);
 
-        // Find all elements at this position (deepest first) using AST locations
-        let elements = self.document.elements_at(pos);
-
-        // Return the first (deepest) element's NodeId
-        if let Some(element) = elements.first() {
+        // Find the deepest element at this position using AST locations
+        if let Some(element) = self.document.element_at(pos) {
             self.find_node_id_for_element(element)
         } else {
             None
