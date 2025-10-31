@@ -26,10 +26,6 @@ pub fn document(source: &str) -> impl Parser<TokenLocation, Document, Error = Pa
             .collect::<Vec<_>>();
         let location = compute_location_from_optional_locations(&content_locations);
 
-        Document {
-            metadata: Vec::new(),
-            content,
-            location,
-        }
+        Document::with_content(content).with_location(location)
     })
 }
