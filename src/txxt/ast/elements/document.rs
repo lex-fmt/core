@@ -4,9 +4,21 @@
 //! (as annotations) and a sequence of content elements (paragraphs,
 //! sessions, lists, foreign blocks, definitions, annotations).
 //!
-//! Structure:
+//! ## Structure
 //! - Metadata: zero or more leading annotations that apply to the whole document
 //! - Content: ordered list of content items making up the body
+//!
+//! ## Trait Implementations
+//!
+//! Document implements `AstNode` and `Container` to enable uniform tree traversal
+//! and visualization. However, Document's structure differs from other nodes:
+//! - Metadata (annotations) are stored separately from content
+//! - The `AstNode::accept()` visitor visits metadata first, then content
+//! - Snapshots (via `snapshot_from_document()`) include only content, not metadata
+//!
+//! **Note:** This partial alignment with other nodes is temporary. Issue #103 Phase 2
+//! will further restructure Document by introducing a Session root node, making the
+//! structure fully homogeneous with the rest of the AST.
 //!
 //! Learn More:
 //! - Paragraphs: docs/specs/v1/elements/paragraphs.txxt
@@ -14,12 +26,14 @@
 //! - Annotations: docs/specs/v1/elements/annotations.txxt
 //! - Definitions: docs/specs/v1/elements/definitions.txxt
 //! - Foreign blocks: docs/specs/v1/elements/foreign.txxt
+//! - Issue #103: Fix Document node in the AST
 //!
 //! Examples:
 //! - Document-level metadata at the top via annotations
 //! - Body mixing paragraphs, sessions, lists, and definitions
 
 use super::super::location::{Location, Position};
+use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
 use super::foreign::ForeignBlock;
@@ -108,6 +122,45 @@ impl Document {
     }
 }
 
+impl AstNode for Document {
+    fn node_type(&self) -> &'static str {
+        "Document"
+    }
+
+    fn display_label(&self) -> String {
+        format!(
+            "Document ({} metadata, {} items)",
+            self.metadata.len(),
+            self.content.len()
+        )
+    }
+
+    fn location(&self) -> Option<Location> {
+        self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        for annotation in &self.metadata {
+            annotation.accept(visitor);
+        }
+        super::super::traits::visit_children(visitor, &self.content);
+    }
+}
+
+impl Container for Document {
+    fn label(&self) -> &str {
+        "Document"
+    }
+
+    fn children(&self) -> &[ContentItem] {
+        &self.content
+    }
+
+    fn children_mut(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.content
+    }
+}
+
 impl Default for Document {
     fn default() -> Self {
         Self::new()
@@ -189,5 +242,19 @@ mod tests {
             "results[1] is {}",
             results[1].node_type()
         );
+    }
+
+    #[test]
+    fn test_document_traits() {
+        use crate::txxt::ast::traits::{AstNode, Container};
+
+        let doc = Document::with_content(vec![ContentItem::Paragraph(Paragraph::from_line(
+            "Line".to_string(),
+        ))]);
+
+        assert_eq!(doc.node_type(), "Document");
+        assert_eq!(doc.display_label(), "Document (0 metadata, 1 items)");
+        assert_eq!(Container::label(&doc), "Document");
+        assert_eq!(Container::children(&doc).len(), 1);
     }
 }

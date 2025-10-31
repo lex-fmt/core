@@ -11,7 +11,7 @@
 use std::collections::HashSet;
 use txxt::txxt::ast::elements::content_item::ContentItem;
 use txxt::txxt::ast::location::{Location, Position};
-use txxt::txxt::ast::{snapshot_visitor::snapshot_from_content, AstSnapshot};
+use txxt::txxt::ast::{snapshot_visitor::snapshot_from_document, AstSnapshot};
 use txxt::txxt::parser::Document;
 
 /// Which viewer currently has keyboard focus
@@ -256,6 +256,10 @@ impl Model {
     /// The location indicates where in the source text this node is located.
     pub fn get_location_for_node(&self, node_id: NodeId) -> Option<Location> {
         use txxt::txxt::ast::traits::AstNode;
+        if node_id.path().is_empty() {
+            return self.document.location;
+        }
+
         self.get_node(node_id).and_then(|(item, _depth)| {
             // Use the AstNode trait to get the location
             item.location()
@@ -285,19 +289,10 @@ impl Model {
     pub fn flattened_tree(&self) -> Vec<FlattenedTreeNode> {
         let mut nodes = Vec::new();
 
-        // Build snapshot tree from document content
-        let snapshots: Vec<AstSnapshot> = self
-            .document
-            .content
-            .iter()
-            .map(snapshot_from_content)
-            .collect();
-
-        // Flatten the snapshot tree
-        for (index, snapshot) in snapshots.iter().enumerate() {
-            let node_id = NodeId::new(&[index]);
-            self.flatten_snapshot_recursive(snapshot, &node_id, &mut nodes);
-        }
+        // Build snapshot tree from the document root
+        let snapshot = snapshot_from_document(&self.document);
+        let root_id = NodeId::new(&[]);
+        self.flatten_snapshot_recursive(&snapshot, &root_id, &mut nodes);
 
         nodes
     }
@@ -311,10 +306,11 @@ impl Model {
     ) {
         let depth = current_id.path().len();
         let has_children = !snapshot.children.is_empty();
-        let is_expanded = self.is_node_expanded(*current_id);
+        let is_expanded = current_id.path().is_empty() || self.is_node_expanded(*current_id);
 
         // Map snapshot node type to static string for FlattenedTreeNode
         let node_type = match snapshot.node_type.as_str() {
+            "Document" => "Document",
             "Session" => "Session",
             "Paragraph" => "Paragraph",
             "List" => "List",
@@ -534,6 +530,10 @@ mod tests {
 
         // Should have some nodes
         assert!(!flattened.is_empty());
+
+        // First node should be the document root
+        assert_eq!(flattened[0].node_type, "Document");
+        assert_eq!(flattened[0].depth, 0);
 
         // All nodes should have valid node IDs
         for node in &flattened {
