@@ -89,11 +89,9 @@ pub fn serialize_document(doc: &Document) -> String {
     let mut serializer = TagSerializer::new();
     serializer.indent_level = 1;
 
-    for item in &doc.content {
-        let snapshot = crate::txxt::ast::snapshot_visitor::snapshot_from_content(item);
-        eprintln!("SNAPSHOT: {:?}", snapshot);
-        serializer.serialize_snapshot(&snapshot);
-    }
+    // Serialize the root session
+    let snapshot = crate::txxt::ast::snapshot_visitor::snapshot_from_document(doc);
+    serializer.serialize_snapshot(&snapshot);
 
     result.push_str(&serializer.output);
     result.push_str("</document>");

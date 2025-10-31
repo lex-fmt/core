@@ -100,7 +100,11 @@ mod tests {
         }
         assert!(result.is_ok(), "Failed to parse simple definition");
         let doc = result.unwrap();
-        assert_eq!(doc.content.len(), 2, "Should have paragraph and definition");
+        assert_eq!(
+            doc.root_session.content.len(),
+            2,
+            "Should have paragraph and definition"
+        );
     }
 
     #[test]
@@ -118,10 +122,14 @@ mod tests {
         assert!(result.is_ok(), "Failed to parse nested definitions");
 
         let doc = result.unwrap();
-        assert_eq!(doc.content.len(), 1, "Should have one outer definition");
+        assert_eq!(
+            doc.root_session.content.len(),
+            1,
+            "Should have one outer definition"
+        );
 
         // Check outer definition
-        let outer_def = doc.content[0]
+        let outer_def = doc.root_session.content[0]
             .as_definition()
             .expect("Should be a definition");
         assert_eq!(outer_def.label(), "Outer");
@@ -166,8 +174,8 @@ mod tests {
         assert!(result.is_ok(), "Failed to parse paragraph then definition");
 
         let doc = result.unwrap();
-        println!("Parsed {} items", doc.content.len());
-        for (i, item) in doc.content.iter().enumerate() {
+        println!("Parsed {} items", doc.root_session.content.len());
+        for (i, item) in doc.root_session.content.iter().enumerate() {
             match item {
                 ContentItem::Paragraph(p) => {
                     println!("  Item {}: Paragraph with {} lines", i, p.lines.len())
@@ -179,7 +187,7 @@ mod tests {
             }
         }
         assert_eq!(
-            doc.content.len(),
+            doc.root_session.content.len(),
             4,
             "Should have 2 paragraphs and 2 definitions"
         );
