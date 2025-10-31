@@ -8,11 +8,11 @@ use chumsky::primitive::filter;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::{AstNode, ContentItem, List, ListItem, Location, TextContent};
+use crate::txxt::ast::{ContentItem, List, ListItem, Location, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    byte_range_to_location, compute_location_from_locations, extract_tokens_to_text_and_location,
-    is_text_token, token,
+    aggregate_locations, byte_range_to_location, compute_location_from_locations,
+    extract_tokens_to_text_and_location, is_text_token, token,
 };
 
 /// Type alias for token with location
@@ -86,13 +86,7 @@ where
             let line_location = byte_range_to_location(&source_for_list, &text_location);
             let text_content = TextContent::from_string(text, Some(line_location));
 
-            let mut location_sources = vec![line_location];
-            location_sources.extend(
-                content
-                    .iter()
-                    .map(|item| item.location().unwrap_or_default()),
-            );
-            let location = compute_location_from_locations(&location_sources);
+            let location = aggregate_locations(line_location, &content);
 
             ListItem::with_text_content(text_content, content).with_location(location)
         });
