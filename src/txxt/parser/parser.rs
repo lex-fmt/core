@@ -720,7 +720,7 @@ mod tests {
                 }
                 ContentItem::List(list) => {
                     assert!(list.location.is_some(), "List is missing location");
-                    for list_item in &list.items {
+                    for list_item in &list.content {
                         assert!(
                             list_item.location.is_some(),
                             "List item should have location"

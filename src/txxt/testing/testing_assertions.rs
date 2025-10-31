@@ -289,7 +289,7 @@ pub struct ListAssertion<'a> {
 
 impl<'a> ListAssertion<'a> {
     pub fn item_count(self, expected: usize) -> Self {
-        let actual = self.list.items.len();
+        let actual = self.list.content.len();
         assert_eq!(
             actual, expected,
             "{}: Expected {} list items, found {} list items",
@@ -302,13 +302,13 @@ impl<'a> ListAssertion<'a> {
         F: FnOnce(ListItemAssertion<'a>),
     {
         assert!(
-            index < self.list.items.len(),
+            index < self.list.content.len(),
             "{}: Item index {} out of bounds (list has {} items)",
             self.context,
             index,
-            self.list.items.len()
+            self.list.content.len()
         );
-        let item = &self.list.items[index];
+        let item = &self.list.content[index];
         assertion(ListItemAssertion {
             item,
             context: format!("{}:items[{}]", self.context, index),

@@ -96,7 +96,7 @@ fn serialize_definition_first_child(item: &ContentItem, indent_level: usize, out
         ContentItem::List(l) => {
             // For lists as first child, serialize normally but clean first item
             output.push_str(&format!("{}<list>\n", indent));
-            for (i, list_item) in l.items.iter().enumerate() {
+            for (i, list_item) in l.content.iter().enumerate() {
                 if i == 0 {
                     // First item - remove {{definition}} marker if present
                     let item_text = list_item.label();
@@ -164,7 +164,7 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
             // <list><item>...</item>...</list>
             // Each item uses Container trait for nested content
             output.push_str(&format!("{}<list>\n", indent));
-            for item in &l.items {
+            for item in &l.content {
                 serialize_list_item(item, indent_level + 1, output);
             }
             output.push_str(&format!("{}</list>\n", indent));
@@ -185,8 +185,8 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
                     definition_marker = marker;
                 } else if let ContentItem::List(l) = &d.children()[0] {
                     // Check if first list item has {{definition}} marker
-                    if !l.items.is_empty() {
-                        let item_text = l.items[0].label();
+                    if !l.content.is_empty() {
+                        let item_text = l.content[0].label();
                         let (_, marker) = extract_list_item_definition_marker(item_text);
                         definition_marker = marker;
                     }
