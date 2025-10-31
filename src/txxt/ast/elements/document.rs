@@ -1,36 +1,27 @@
 //! Document element
 //!
-//! A document is the root of a txxt tree. It can contain metadata
-//! (as annotations) and a sequence of content elements (paragraphs,
-//! sessions, lists, foreign blocks, definitions, annotations).
+//! A document is the root of a txxt tree. All content is contained within
+//! a root session, with optional document-level metadata (annotations).
 //!
 //! ## Structure
 //! - Metadata: zero or more leading annotations that apply to the whole document
-//! - Content: ordered list of content items making up the body
+//! - Root Session: unnamed session containing all document content
 //!
-//! ## Trait Implementations
-//!
-//! Document implements `AstNode` and `Container` to enable uniform tree traversal
-//! and visualization. However, Document's structure differs from other nodes:
-//! - Metadata (annotations) are stored separately from content
-//! - The `AstNode::accept()` visitor visits metadata first, then content
-//! - Snapshots (via `snapshot_from_document()`) include only content, not metadata
-//!
-//! **Note:** This partial alignment with other nodes is temporary. Issue #103 Phase 2
-//! will further restructure Document by introducing a Session root node, making the
-//! structure fully homogeneous with the rest of the AST.
+//! This structure makes the entire AST homogeneous - the document's content
+//! is accessed through the standard Session interface, making traversal and
+//! transformation logic consistent throughout the tree.
 //!
 //! Learn More:
 //! - Paragraphs: docs/specs/v1/elements/paragraphs.txxt
 //! - Lists: docs/specs/v1/elements/lists.txxt
+//! - Sessions: docs/specs/v1/elements/sessions.txxt
 //! - Annotations: docs/specs/v1/elements/annotations.txxt
 //! - Definitions: docs/specs/v1/elements/definitions.txxt
 //! - Foreign blocks: docs/specs/v1/elements/foreign.txxt
-//! - Issue #103: Fix Document node in the AST
 //!
 //! Examples:
-//! - Document-level metadata at the top via annotations
-//! - Body mixing paragraphs, sessions, lists, and definitions
+//! - Document-level metadata via annotations
+//! - All body content accessible via document.root_session.content
 
 use super::super::location::{Location, Position};
 use super::super::traits::{AstNode, Container, Visitor};
@@ -46,7 +37,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Document {
     pub metadata: Vec<Annotation>,
-    pub content: Vec<ContentItem>,
+    pub root_session: Session,
     pub location: Option<Location>,
 }
 
@@ -54,23 +45,27 @@ impl Document {
     pub fn new() -> Self {
         Self {
             metadata: Vec::new(),
-            content: Vec::new(),
+            root_session: Session::with_title(String::new()),
             location: None,
         }
     }
 
     pub fn with_content(content: Vec<ContentItem>) -> Self {
+        let mut root_session = Session::with_title(String::new());
+        root_session.content = content;
         Self {
             metadata: Vec::new(),
-            content,
+            root_session,
             location: None,
         }
     }
 
     pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
+        let mut root_session = Session::with_title(String::new());
+        root_session.content = content;
         Self {
             metadata,
-            content,
+            root_session,
             location: None,
         }
     }
@@ -81,23 +76,33 @@ impl Document {
     }
 
     pub fn iter_items(&self) -> impl Iterator<Item = &ContentItem> {
-        self.content.iter()
+        self.root_session.content.iter()
     }
 
     pub fn iter_paragraphs(&self) -> impl Iterator<Item = &Paragraph> {
-        self.content.iter().filter_map(|item| item.as_paragraph())
+        self.root_session
+            .content
+            .iter()
+            .filter_map(|item| item.as_paragraph())
     }
 
     pub fn iter_sessions(&self) -> impl Iterator<Item = &Session> {
-        self.content.iter().filter_map(|item| item.as_session())
+        self.root_session
+            .content
+            .iter()
+            .filter_map(|item| item.as_session())
     }
 
     pub fn iter_lists(&self) -> impl Iterator<Item = &List> {
-        self.content.iter().filter_map(|item| item.as_list())
+        self.root_session
+            .content
+            .iter()
+            .filter_map(|item| item.as_list())
     }
 
     pub fn iter_foreign_blocks(&self) -> impl Iterator<Item = &ForeignBlock> {
-        self.content
+        self.root_session
+            .content
             .iter()
             .filter_map(|item| item.as_foreign_block())
     }
@@ -113,7 +118,7 @@ impl Document {
     /// Find all elements at the given position, returning them in order from deepest to shallowest
     pub fn elements_at(&self, pos: Position) -> Vec<&ContentItem> {
         let mut results = Vec::new();
-        for item in &self.content {
+        for item in &self.root_session.content {
             if let Some(mut items) = item.elements_at(pos) {
                 results.append(&mut items);
             }
@@ -131,7 +136,7 @@ impl AstNode for Document {
         format!(
             "Document ({} metadata, {} items)",
             self.metadata.len(),
-            self.content.len()
+            self.root_session.content.len()
         )
     }
 
@@ -143,7 +148,7 @@ impl AstNode for Document {
         for annotation in &self.metadata {
             annotation.accept(visitor);
         }
-        super::super::traits::visit_children(visitor, &self.content);
+        self.root_session.accept(visitor);
     }
 }
 
@@ -153,11 +158,11 @@ impl Container for Document {
     }
 
     fn children(&self) -> &[ContentItem] {
-        &self.content
+        &self.root_session.content
     }
 
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.content
+        &mut self.root_session.content
     }
 }
 
@@ -173,7 +178,7 @@ impl fmt::Display for Document {
             f,
             "Document({} metadata, {} items)",
             self.metadata.len(),
-            self.content.len()
+            self.root_session.content.len()
         )
     }
 }
@@ -191,7 +196,7 @@ mod tests {
             ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
             ContentItem::Session(Session::with_title("Section 1".to_string())),
         ]);
-        assert_eq!(doc.content.len(), 2);
+        assert_eq!(doc.root_session.content.len(), 2);
         assert_eq!(doc.metadata.len(), 0);
     }
 

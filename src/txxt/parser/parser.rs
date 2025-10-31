@@ -464,13 +464,13 @@ mod tests {
             .expect("Parser should handle definition with list followed by definition");
 
         // Should have 2 definitions
-        assert_eq!(doc.content.len(), 2);
+        assert_eq!(doc.root_session.content.len(), 2);
 
         // First should be a definition
-        assert!(doc.content[0].as_definition().is_some());
+        assert!(doc.root_session.content[0].as_definition().is_some());
 
         // Second should also be a definition
-        assert!(doc.content[1].as_definition().is_some());
+        assert!(doc.root_session.content[1].as_definition().is_some());
     }
 
     // ========================================================================
@@ -483,8 +483,8 @@ mod tests {
         let tokens = lex_with_locations(input);
         let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
 
-        assert_eq!(doc.content.len(), 1);
-        let para = doc.content[0].as_paragraph().unwrap();
+        assert_eq!(doc.root_session.content.len(), 1);
+        let para = doc.root_session.content[0].as_paragraph().unwrap();
         assert!(para.location().is_some(), "Paragraph should have location");
 
         let location = para.location().unwrap();
@@ -498,8 +498,8 @@ mod tests {
         let tokens = lex_with_locations(input);
         let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
 
-        assert_eq!(doc.content.len(), 1);
-        let para = doc.content[0].as_paragraph().unwrap();
+        assert_eq!(doc.root_session.content.len(), 1);
+        let para = doc.root_session.content[0].as_paragraph().unwrap();
 
         // Should have 2 lines
         assert_eq!(para.lines.len(), 2);
@@ -533,7 +533,7 @@ mod tests {
         let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
 
         // The document should have at least a paragraph and possibly a list
-        assert!(!doc.content.is_empty());
+        assert!(!doc.root_session.content.is_empty());
 
         // Query for position in the nested content
         let results = doc.elements_at(Position::new(4, 4));
@@ -550,7 +550,7 @@ mod tests {
         let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
 
         // Get all items
-        let items = doc.content.clone();
+        let items = doc.root_session.content.clone();
 
         // First paragraph should be at line 0
         if let Some(para) = items.first().and_then(|item| item.as_paragraph()) {
@@ -582,10 +582,13 @@ mod tests {
         let doc_new = parse_with_source(tokens, input).expect("Failed to parse with positions");
 
         // Content should be identical
-        assert_eq!(doc_old.content.len(), doc_new.content.len());
+        assert_eq!(
+            doc_old.root_session.content.len(),
+            doc_new.root_session.content.len()
+        );
 
-        let para_old = doc_old.content[0].as_paragraph().unwrap();
-        let para_new = doc_new.content[0].as_paragraph().unwrap();
+        let para_old = doc_old.root_session.content[0].as_paragraph().unwrap();
+        let para_new = doc_new.root_session.content[0].as_paragraph().unwrap();
 
         // Text content should be the same (ignoring location information)
         assert_eq!(para_old.lines.len(), para_new.lines.len());
@@ -612,7 +615,7 @@ mod tests {
         let tokens = lex_with_locations(input);
         let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
 
-        let para = doc.content[0].as_paragraph().unwrap();
+        let para = doc.root_session.content[0].as_paragraph().unwrap();
         let location = para.location().unwrap();
 
         // Should contain position in the middle
@@ -635,10 +638,11 @@ mod tests {
         let tokens = lex_with_locations(input);
         let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
 
-        assert!(doc.content.len() >= 2);
+        assert!(doc.root_session.content.len() >= 2);
 
         // Find the session
         let session = doc
+            .root_session
             .content
             .iter()
             .find(|item| item.is_session())
@@ -681,7 +685,7 @@ mod tests {
 
         assert!(doc.location.is_some(), "Document should have a location");
 
-        for item in &doc.content {
+        for item in &doc.root_session.content {
             assert!(
                 item.location().is_some(),
                 "{} should have a location",
@@ -768,6 +772,7 @@ mod tests {
         let doc = parse_with_source(tokens, &source).expect("Failed to parse annotations sample");
 
         let annotations: Vec<_> = doc
+            .root_session
             .content
             .iter()
             .filter_map(|item| item.as_annotation())
@@ -807,6 +812,7 @@ mod tests {
             parse_with_source(tokens, &source).expect("Failed to parse foreign blocks sample");
 
         let foreign_blocks: Vec<_> = doc
+            .root_session
             .content
             .iter()
             .filter_map(|item| item.as_foreign_block())

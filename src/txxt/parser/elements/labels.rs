@@ -121,7 +121,7 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
         assert_eq!(annotation.parameters.len(), 0);
     }
@@ -132,7 +132,7 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "warning");
         assert_eq!(annotation.parameters.len(), 1);
         assert_eq!(annotation.parameters[0].key, "severity");
@@ -144,7 +144,7 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "python.typing");
         assert_eq!(annotation.parameters.len(), 0);
     }
@@ -155,7 +155,7 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, ""); // Empty label
         assert_eq!(annotation.parameters.len(), 1);
         assert_eq!(annotation.parameters[0].key, "version");
@@ -168,7 +168,7 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "code-review");
         assert_eq!(annotation.parameters.len(), 0);
     }
