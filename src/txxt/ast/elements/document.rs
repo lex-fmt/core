@@ -1,25 +1,30 @@
 //! Document element
 //!
-//! A document is the root of a txxt tree. It can contain metadata
-//! (as annotations) and a sequence of content elements (paragraphs,
-//! sessions, lists, foreign blocks, definitions, annotations).
+//! A document is the root of a txxt tree. All content is contained within
+//! a root session, with optional document-level metadata (annotations).
 //!
-//! Structure:
+//! ## Structure
 //! - Metadata: zero or more leading annotations that apply to the whole document
-//! - Content: ordered list of content items making up the body
+//! - Root Session: unnamed session containing all document content
+//!
+//! This structure makes the entire AST homogeneous - the document's content
+//! is accessed through the standard Session interface, making traversal and
+//! transformation logic consistent throughout the tree.
 //!
 //! Learn More:
 //! - Paragraphs: docs/specs/v1/elements/paragraphs.txxt
 //! - Lists: docs/specs/v1/elements/lists.txxt
+//! - Sessions: docs/specs/v1/elements/sessions.txxt
 //! - Annotations: docs/specs/v1/elements/annotations.txxt
 //! - Definitions: docs/specs/v1/elements/definitions.txxt
 //! - Foreign blocks: docs/specs/v1/elements/foreign.txxt
 //!
 //! Examples:
-//! - Document-level metadata at the top via annotations
-//! - Body mixing paragraphs, sessions, lists, and definitions
+//! - Document-level metadata via annotations
+//! - All body content accessible via document.root_session.content
 
 use super::super::location::{Location, Position};
+use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
 use super::foreign::ForeignBlock;
@@ -32,7 +37,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Document {
     pub metadata: Vec<Annotation>,
-    pub content: Vec<ContentItem>,
+    pub root_session: Session,
     pub location: Option<Location>,
 }
 
@@ -40,23 +45,27 @@ impl Document {
     pub fn new() -> Self {
         Self {
             metadata: Vec::new(),
-            content: Vec::new(),
+            root_session: Session::with_title(String::new()),
             location: None,
         }
     }
 
     pub fn with_content(content: Vec<ContentItem>) -> Self {
+        let mut root_session = Session::with_title(String::new());
+        root_session.content = content;
         Self {
             metadata: Vec::new(),
-            content,
+            root_session,
             location: None,
         }
     }
 
     pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
+        let mut root_session = Session::with_title(String::new());
+        root_session.content = content;
         Self {
             metadata,
-            content,
+            root_session,
             location: None,
         }
     }
@@ -67,23 +76,33 @@ impl Document {
     }
 
     pub fn iter_items(&self) -> impl Iterator<Item = &ContentItem> {
-        self.content.iter()
+        self.root_session.content.iter()
     }
 
     pub fn iter_paragraphs(&self) -> impl Iterator<Item = &Paragraph> {
-        self.content.iter().filter_map(|item| item.as_paragraph())
+        self.root_session
+            .content
+            .iter()
+            .filter_map(|item| item.as_paragraph())
     }
 
     pub fn iter_sessions(&self) -> impl Iterator<Item = &Session> {
-        self.content.iter().filter_map(|item| item.as_session())
+        self.root_session
+            .content
+            .iter()
+            .filter_map(|item| item.as_session())
     }
 
     pub fn iter_lists(&self) -> impl Iterator<Item = &List> {
-        self.content.iter().filter_map(|item| item.as_list())
+        self.root_session
+            .content
+            .iter()
+            .filter_map(|item| item.as_list())
     }
 
     pub fn iter_foreign_blocks(&self) -> impl Iterator<Item = &ForeignBlock> {
-        self.content
+        self.root_session
+            .content
             .iter()
             .filter_map(|item| item.as_foreign_block())
     }
@@ -99,12 +118,51 @@ impl Document {
     /// Find all elements at the given position, returning them in order from deepest to shallowest
     pub fn elements_at(&self, pos: Position) -> Vec<&ContentItem> {
         let mut results = Vec::new();
-        for item in &self.content {
+        for item in &self.root_session.content {
             if let Some(mut items) = item.elements_at(pos) {
                 results.append(&mut items);
             }
         }
         results
+    }
+}
+
+impl AstNode for Document {
+    fn node_type(&self) -> &'static str {
+        "Document"
+    }
+
+    fn display_label(&self) -> String {
+        format!(
+            "Document ({} metadata, {} items)",
+            self.metadata.len(),
+            self.root_session.content.len()
+        )
+    }
+
+    fn location(&self) -> Option<Location> {
+        self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        for annotation in &self.metadata {
+            annotation.accept(visitor);
+        }
+        self.root_session.accept(visitor);
+    }
+}
+
+impl Container for Document {
+    fn label(&self) -> &str {
+        "Document"
+    }
+
+    fn children(&self) -> &[ContentItem] {
+        &self.root_session.content
+    }
+
+    fn children_mut(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.root_session.content
     }
 }
 
@@ -120,7 +178,7 @@ impl fmt::Display for Document {
             f,
             "Document({} metadata, {} items)",
             self.metadata.len(),
-            self.content.len()
+            self.root_session.content.len()
         )
     }
 }
@@ -138,7 +196,7 @@ mod tests {
             ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
             ContentItem::Session(Session::with_title("Section 1".to_string())),
         ]);
-        assert_eq!(doc.content.len(), 2);
+        assert_eq!(doc.root_session.content.len(), 2);
         assert_eq!(doc.metadata.len(), 0);
     }
 
@@ -148,22 +206,16 @@ mod tests {
         use crate::txxt::ast::text_content::TextContent;
 
         // Create paragraph 1 with properly located TextLine
-        let text_line1 =
-            TextLine::new(TextContent::from_string("First".to_string(), None)).with_location(
-                Location::new(Position::new(0, 0), Position::new(0, 5)),
-            );
-        let para1 = Paragraph::new(vec![ContentItem::TextLine(text_line1)]).with_location(
-            Location::new(Position::new(0, 0), Position::new(0, 5)),
-        );
+        let text_line1 = TextLine::new(TextContent::from_string("First".to_string(), None))
+            .with_location(Location::new(Position::new(0, 0), Position::new(0, 5)));
+        let para1 = Paragraph::new(vec![ContentItem::TextLine(text_line1)])
+            .with_location(Location::new(Position::new(0, 0), Position::new(0, 5)));
 
         // Create paragraph 2 with properly located TextLine
-        let text_line2 =
-            TextLine::new(TextContent::from_string("Second".to_string(), None)).with_location(
-                Location::new(Position::new(1, 0), Position::new(1, 6)),
-            );
-        let para2 = Paragraph::new(vec![ContentItem::TextLine(text_line2)]).with_location(
-            Location::new(Position::new(1, 0), Position::new(1, 6)),
-        );
+        let text_line2 = TextLine::new(TextContent::from_string("Second".to_string(), None))
+            .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
+        let para2 = Paragraph::new(vec![ContentItem::TextLine(text_line2)])
+            .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
 
         let doc = Document::with_content(vec![
             ContentItem::Paragraph(para1),
@@ -189,5 +241,19 @@ mod tests {
             "results[1] is {}",
             results[1].node_type()
         );
+    }
+
+    #[test]
+    fn test_document_traits() {
+        use crate::txxt::ast::traits::{AstNode, Container};
+
+        let doc = Document::with_content(vec![ContentItem::Paragraph(Paragraph::from_line(
+            "Line".to_string(),
+        ))]);
+
+        assert_eq!(doc.node_type(), "Document");
+        assert_eq!(doc.display_label(), "Document (0 metadata, 1 items)");
+        assert_eq!(Container::label(&doc), "Document");
+        assert_eq!(Container::children(&doc).len(), 1);
     }
 }

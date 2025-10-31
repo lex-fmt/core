@@ -321,11 +321,9 @@ mod ast_integration_tests {
         use crate::txxt::ast::find_nodes_at_position;
 
         let para_location = Location::new(Position::new(2, 0), Position::new(2, 10));
-        let paragraph =
-            Paragraph::from_line("Nested".to_string()).with_location(para_location);
+        let paragraph = Paragraph::from_line("Nested".to_string()).with_location(para_location);
         let session_location = Location::new(Position::new(1, 0), Position::new(3, 0));
-        let mut session =
-            Session::with_title("Title".to_string()).with_location(session_location);
+        let mut session = Session::with_title("Title".to_string()).with_location(session_location);
         session
             .children_mut()
             .push(ContentItem::Paragraph(paragraph));

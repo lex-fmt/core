@@ -259,8 +259,25 @@ mod tests {
         let file_path = "docs/specs/v1/samples/060-trifecta-nesting.txxt";
         let spec = ProcessingSpec::from_string("ast-treeviz").unwrap();
         let result = process_file(file_path, &spec).unwrap();
-        // Updated to use icon-based format with TextLines visible
-        let expected = "├─ ¶ Trifecta Nesting Test {{paragr...\n│ └─ ↵ Trifecta Nesting Test {{paragr...\n├─ ¶ This document tests the combin...\n│ └─ ↵ This document tests the combin...\n├─ § 1. Root Session {{session-titl...\n│ ├─ ¶ This root session contains var...\n│ │ └─ ↵ This root session contains var...\n│ ├─ § 1.1. Sub-session with Paragrap...\n│ │ ├─ ¶ This sub-session starts with a...\n│ │ │ └─ ↵ This sub-session starts with a...\n│ │ └─ ☰ 2 items\n│ │   ├─ • - Then has a list {{list-item}...\n│ │   └─ • - With multiple items {{list-i...\n│ ├─ § 1.2. Sub-session with List {{s...\n│ │ ├─ ☰ 2 items\n│ │ │ ├─ • - Starts with a list {{list-it...\n│ │ │ └─ • - Has multiple items {{list-it...\n│ │ ├─ ¶ Then has a paragraph. {{paragr...\n│ │ │ └─ ↵ Then has a paragraph. {{paragr...\n│ │ └─ § 1.2.1. Deeply Nested Session {...\n│ │   ├─ ¶ This is a deeply nested sessio...\n│ │   │ └─ ↵ This is a deeply nested sessio...\n│ │   ├─ ☰ 2 items\n│ │   │ ├─ • - With its own list {{list-ite...\n│ │   │ └─ • - And multiple items {{list-it...\n│ │   └─ ☰ 2 items\n│ │     ├─ • - Another list follows {{list-...\n│ │     └─ • - In the same session {{list-i...\n│ ├─ ¶ Back to the root session level...\n│ │ └─ ↵ Back to the root session level...\n│ └─ ☰ 2 items\n│   ├─ • - Root session can also have l...\n│   └─ • - At its own level {{list-item...\n├─ § 2. Another Root Session {{sess...\n│ ├─ ¶ This session demonstrates diff...\n│ │ └─ ↵ This session demonstrates diff...\n│ └─ § 2.1. Mixed Content Sub-session...\n│   ├─ ☰ 2 items\n│   │ ├─ • - Starts with list {{list-item...\n│   │ └─ • - Multiple items {{list-item}}\n│   ├─ ¶ Paragraph in the middle. {{par...\n│   │ └─ ↵ Paragraph in the middle. {{par...\n│   ├─ ☰ 2 items\n│   │ ├─ • - Ends with another list {{lis...\n│   │ └─ • - To complete the pattern {{li...\n│   └─ § 2.1.1. Even Deeper Nesting {{s...\n│     ├─ ¶ The deepest level contains par...\n│     │ └─ ↵ The deepest level contains par...\n│     ├─ ☰ 2 items\n│     │ ├─ • - First deep list {{list-item}...\n│     │ └─ • - Second deep item {{list-item...\n│     ├─ ¶ Another paragraph at deep leve...\n│     │ └─ ↵ Another paragraph at deep leve...\n│     └─ ☰ 2 items\n│       ├─ • - Second deep list {{list-item...\n│       └─ • - Completing the deep structur...\n└─ ¶ Final root level paragraph. {{...\n  └─ ↵ Final root level paragraph. {{...\n";
-        assert_eq!(result.replace("\r\n", "\n"), expected);
+
+        let expected = format!(
+            "{}\n{}",
+            "⧉ Document (0 metadata, 5 items)",
+            include_str!("fixtures/treeviz_expected_body.txt").trim_end_matches('\n')
+        );
+
+        let normalized = result
+            .replace("\r\n", "\n")
+            .trim_end_matches('\n')
+            .to_string();
+        let expected_normalized = expected
+            .replace("\r\n", "\n")
+            .trim_end_matches('\n')
+            .to_string();
+
+        assert_eq!(
+            normalized, expected_normalized,
+            "treeviz output doesn't match expected format"
+        );
     }
 }

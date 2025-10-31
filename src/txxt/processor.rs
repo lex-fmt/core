@@ -507,11 +507,11 @@ Second paragraph"#;
         let doc = crate::txxt::parser::parse_with_source(tokens, content).unwrap();
 
         // Check if locations are populated
-        if let Some(first_item) = doc.content.first() {
+        if let Some(first_item) = doc.root_session.content.first() {
             // The first paragraph should have a location
             match first_item {
                 crate::txxt::parser::ContentItem::Paragraph(_p) => {
-                    assert!(true, "Paragraph should have position information");
+                    // Paragraph has location
                 }
                 _ => panic!("Expected first item to be a paragraph"),
             }

@@ -6,7 +6,7 @@
 
 use super::snapshot::AstSnapshot;
 use super::traits::{AstNode, Container};
-use super::{Annotation, ContentItem, Definition, List, ListItem, Paragraph, Session};
+use super::{Annotation, ContentItem, Definition, Document, List, ListItem, Paragraph, Session};
 
 /// Create a snapshot of a single AST node and all its children
 ///
@@ -43,6 +43,29 @@ pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
         ContentItem::Annotation(ann) => build_annotation_snapshot(ann),
         ContentItem::TextLine(tl) => AstSnapshot::new("TextLine".to_string(), tl.display_label()),
     }
+}
+
+/// Build a snapshot for the document root, flattening the root session
+///
+/// Note: Document metadata (annotations) are not included in this snapshot.
+/// This reflects the document structure where metadata is separate from content.
+/// The root session is flattened so its children appear as direct children of the Document.
+pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
+    let mut snapshot = AstSnapshot::new(
+        "Document".to_string(),
+        format!(
+            "Document ({} metadata, {} items)",
+            doc.metadata.len(),
+            doc.root_session.content.len()
+        ),
+    );
+
+    // Flatten the root session - its children become direct children of the Document
+    for child in &doc.root_session.content {
+        snapshot.children.push(snapshot_from_content(child));
+    }
+
+    snapshot
 }
 
 fn build_session_snapshot(session: &Session) -> AstSnapshot {
@@ -91,4 +114,93 @@ fn build_annotation_snapshot(ann: &Annotation) -> AstSnapshot {
         snapshot.children.push(snapshot_from_content(child));
     }
     snapshot
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::txxt::ast::elements::annotation::Annotation;
+    use crate::txxt::ast::elements::paragraph::Paragraph;
+    use crate::txxt::ast::elements::session::Session;
+
+    #[test]
+    fn test_snapshot_from_document_empty() {
+        let doc = Document::new();
+        let snapshot = snapshot_from_document(&doc);
+
+        assert_eq!(snapshot.node_type, "Document");
+        assert_eq!(snapshot.label, "Document (0 metadata, 0 items)");
+        assert!(snapshot.children.is_empty());
+    }
+
+    #[test]
+    fn test_snapshot_from_document_with_content() {
+        let mut doc = Document::new();
+        doc.root_session
+            .content
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Test".to_string(),
+            )));
+        doc.root_session
+            .content
+            .push(ContentItem::Session(Session::with_title(
+                "Section".to_string(),
+            )));
+
+        let snapshot = snapshot_from_document(&doc);
+
+        assert_eq!(snapshot.node_type, "Document");
+        assert_eq!(snapshot.label, "Document (0 metadata, 2 items)");
+        assert_eq!(snapshot.children.len(), 2);
+        assert_eq!(snapshot.children[0].node_type, "Paragraph");
+        assert_eq!(snapshot.children[1].node_type, "Session");
+    }
+
+    #[test]
+    fn test_snapshot_excludes_metadata() {
+        use crate::txxt::ast::elements::label::Label;
+
+        let annotation = Annotation::new(Label::new("test-label".to_string()), vec![], vec![]);
+        let doc = Document::with_metadata_and_content(
+            vec![annotation],
+            vec![ContentItem::Paragraph(Paragraph::from_line(
+                "Test".to_string(),
+            ))],
+        );
+
+        let snapshot = snapshot_from_document(&doc);
+
+        assert_eq!(snapshot.label, "Document (1 metadata, 1 items)");
+        // Metadata should not appear as children - they are kept separate
+        assert_eq!(snapshot.children.len(), 1);
+        assert_eq!(snapshot.children[0].node_type, "Paragraph");
+        // Verify no Annotation nodes in children
+        assert!(snapshot
+            .children
+            .iter()
+            .all(|child| child.node_type != "Annotation"));
+    }
+
+    #[test]
+    fn test_snapshot_from_document_preserves_structure() {
+        let mut session = Session::with_title("Main".to_string());
+        session
+            .content
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Para 1".to_string(),
+            )));
+
+        let mut doc = Document::new();
+        doc.root_session.content.push(ContentItem::Session(session));
+
+        let snapshot = snapshot_from_document(&doc);
+
+        assert_eq!(snapshot.node_type, "Document");
+        assert_eq!(snapshot.children.len(), 1);
+
+        let session_snapshot = &snapshot.children[0];
+        assert_eq!(session_snapshot.node_type, "Session");
+        assert_eq!(session_snapshot.children.len(), 1);
+        assert_eq!(session_snapshot.children[0].node_type, "Paragraph");
+    }
 }

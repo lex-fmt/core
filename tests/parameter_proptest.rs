@@ -80,7 +80,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.content[0].as_annotation().unwrap();
+                let annotation = doc.root_session.content[0].as_annotation().unwrap();
                 prop_assert_eq!(annotation.parameters.len(), 1);
 
                 // Extract key and value from the parameter string
@@ -98,7 +98,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.content[0].as_annotation().unwrap();
+                let annotation = doc.root_session.content[0].as_annotation().unwrap();
                 let expected_count = params.split(',').count();
                 prop_assert_eq!(annotation.parameters.len(), expected_count);
             }
@@ -112,7 +112,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.content[0].as_annotation().unwrap();
+                let annotation = doc.root_session.content[0].as_annotation().unwrap();
                 prop_assert_eq!(&annotation.parameters[0].key, &key);
                 prop_assert_eq!(&annotation.parameters[0].value, &Some(value));
             }
@@ -126,7 +126,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.content[0].as_annotation().unwrap();
+                let annotation = doc.root_session.content[0].as_annotation().unwrap();
                 prop_assert_eq!(&annotation.parameters[0].key, &key);
                 prop_assert_eq!(&annotation.parameters[0].value, &Some(value));
             }
@@ -140,7 +140,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.content[0].as_annotation().unwrap();
+                let annotation = doc.root_session.content[0].as_annotation().unwrap();
 
                 // Extract keys from the parameter string
                 let expected_keys: Vec<&str> = params
@@ -170,7 +170,7 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.parameters.len(), 3);
     }
 
@@ -181,7 +181,7 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.parameters.len(), 3);
         assert_eq!(annotation.parameters[0].key, "key1");
         assert_eq!(annotation.parameters[1].key, "key2");
@@ -195,7 +195,7 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.parameters.len(), 2);
         assert_eq!(annotation.parameters[0].value, Some("val1".to_string()));
         assert_eq!(annotation.parameters[1].value, Some("val2".to_string()));
@@ -208,7 +208,7 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(
             annotation.parameters[0].value,
             Some("Hello World".to_string())
@@ -222,7 +222,7 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(
             annotation.parameters[0].value,
             Some("value with, comma".to_string())
@@ -236,7 +236,7 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.parameters[0].value, Some("".to_string()));
     }
 
@@ -247,7 +247,7 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.parameters[0].value, Some("3.11.2".to_string()));
     }
 
@@ -258,7 +258,7 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.content[0].as_annotation().unwrap();
+        let annotation = doc.root_session.content[0].as_annotation().unwrap();
         assert_eq!(annotation.parameters.len(), 2);
         assert_eq!(annotation.parameters[0].key, "ref-id");
         assert_eq!(annotation.parameters[1].key, "api_version");

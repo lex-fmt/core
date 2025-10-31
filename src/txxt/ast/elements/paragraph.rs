@@ -108,10 +108,10 @@ impl Paragraph {
         // the location of the single child TextLine for consistency, as this
         // is what the parser would do.
         if self.lines.len() == 1 {
-            if let Some(line) = self.lines.get_mut(0) {
-                if let super::content_item::ContentItem::TextLine(text_line) = line {
-                    text_line.location = location;
-                }
+            if let Some(super::content_item::ContentItem::TextLine(text_line)) =
+                self.lines.get_mut(0)
+            {
+                text_line.location = location;
             }
         }
         self

@@ -122,8 +122,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let definition =
-            Definition::with_subject("Subject".to_string()).with_location(location);
+        let definition = Definition::with_subject("Subject".to_string()).with_location(location);
         assert_eq!(definition.location, location);
     }
 }

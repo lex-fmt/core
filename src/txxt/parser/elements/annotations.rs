@@ -138,8 +138,9 @@ where
                 } = header_info;
 
                 let label_text = label.unwrap_or_default();
-                let label_location =
-                    label_range.map_or(Location::default(), |s| byte_range_to_location(&source_for_block, &s));
+                let label_location = label_range.map_or(Location::default(), |s| {
+                    byte_range_to_location(&source_for_block, &s)
+                });
                 let label = Label::new(label_text).with_location(label_location);
 
                 let header_location = byte_range_to_location(&source_for_block, &header_range);
@@ -178,8 +179,9 @@ where
                 } = header_info;
 
                 let label_text = label.unwrap_or_default();
-                let label_location = label_range
-                    .map_or(Location::default(), |s| byte_range_to_location(&source_for_single_line, &s));
+                let label_location = label_range.map_or(Location::default(), |s| {
+                    byte_range_to_location(&source_for_single_line, &s)
+                });
                 let label = Label::new(label_text).with_location(label_location);
 
                 // Handle content if present and compute paragraph location
@@ -188,18 +190,14 @@ where
                     let range = compute_byte_range_bounds(&locations);
                     let paragraph_location =
                         byte_range_to_location(&source_for_single_line, &range);
-                    let text_content =
-                        TextContent::from_string(text, Some(paragraph_location));
+                    let text_content = TextContent::from_string(text, Some(paragraph_location));
                     let text_line = crate::txxt::ast::TextLine::new(text_content)
                         .with_location(paragraph_location);
                     let paragraph = Paragraph {
                         lines: vec![ContentItem::TextLine(text_line)],
                         location: paragraph_location,
                     };
-                    (
-                        vec![ContentItem::Paragraph(paragraph)],
-                        paragraph_location,
-                    )
+                    (vec![ContentItem::Paragraph(paragraph)], paragraph_location)
                 } else {
                     (vec![], Location::default())
                 };
@@ -234,8 +232,8 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
-        assert!(doc.content[1].is_annotation());
+        assert_eq!(doc.root_session.content.len(), 3); // paragraph, annotation, paragraph
+        assert!(doc.root_session.content[1].is_annotation());
     }
 
     #[test]
@@ -244,8 +242,8 @@ mod tests {
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        assert_eq!(doc.content.len(), 3); // paragraph, annotation, paragraph
-        let annotation = doc.content[1].as_annotation().unwrap();
+        assert_eq!(doc.root_session.content.len(), 3); // paragraph, annotation, paragraph
+        let annotation = doc.root_session.content[1].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
         assert_eq!(annotation.content.len(), 1); // One paragraph with inline text
         assert!(annotation.content[0].is_paragraph());
@@ -262,6 +260,7 @@ mod tests {
 
         // Find and verify :: note :: annotation
         let note_annotation = doc
+            .root_session
             .content
             .iter()
             .find(|item| {
@@ -279,6 +278,7 @@ mod tests {
 
         // Find and verify :: warning severity=high :: annotation
         let warning_annotation = doc
+            .root_session
             .content
             .iter()
             .find(|item| {
@@ -294,6 +294,7 @@ mod tests {
 
         // Find and verify :: python.typing :: annotation (namespaced label)
         let python_annotation = doc
+            .root_session
             .content
             .iter()
             .find(|item| {
@@ -317,6 +318,7 @@ mod tests {
 
         // Find and verify :: note author="Jane Doe" :: annotation with block content
         let note_annotation = doc
+            .root_session
             .content
             .iter()
             .find(|item| {
@@ -337,6 +339,7 @@ mod tests {
 
         // Find and verify :: warning severity=critical :: annotation with list
         let warning_annotation = doc
+            .root_session
             .content
             .iter()
             .find(|item| {
