@@ -5,9 +5,61 @@ use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, TextNode};
 use std::fmt;
 
+/// A text line within a paragraph
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextLine {
+    pub content: TextContent,
+    pub location: Option<Location>,
+}
+
+impl TextLine {
+    pub fn new(content: TextContent) -> Self {
+        Self {
+            content,
+            location: None,
+        }
+    }
+
+    pub fn with_location(mut self, location: Option<Location>) -> Self {
+        self.location = location;
+        self
+    }
+
+    pub fn text(&self) -> &str {
+        self.content.as_string()
+    }
+}
+
+impl AstNode for TextLine {
+    fn node_type(&self) -> &'static str {
+        "TextLine"
+    }
+
+    fn display_label(&self) -> String {
+        let text = self.text();
+        if text.len() > 50 {
+            format!("{}...", &text[..50])
+        } else {
+            text.to_string()
+        }
+    }
+
+    fn location(&self) -> Option<Location> {
+        self.location
+    }
+}
+
+impl fmt::Display for TextLine {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TextLine('{}')", self.text())
+    }
+}
+
 /// A paragraph represents a block of text lines
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
+    /// Lines stored as ContentItems (each a TextLine wrapping TextContent)
+    /// We keep TextContent field for backward compatibility with TextNode trait
     pub lines: Vec<TextContent>,
     pub location: Option<Location>,
 }

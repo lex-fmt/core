@@ -92,6 +92,7 @@ fn append_content_item(result: &mut String, item: &ContentItem, prefix: &str, is
             // ListItems can have nested content
             append_children(result, list_item.children(), &new_prefix);
         }
+        ContentItem::TextLine(_) => {} // TextLines don't have children
         ContentItem::Paragraph(_) => {}
         ContentItem::ForeignBlock(_) => {} // Foreign blocks don't have children
     }
