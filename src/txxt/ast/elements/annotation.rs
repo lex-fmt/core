@@ -23,6 +23,8 @@
 //! Learn More:
 //! - The annotation spec: docs/specs/v1/elements/annotations.txxt
 //! - The annotation sample: docs/specs/v1/samples/element-based/annotations/annotations.simple.txxt
+//! - Labels: docs/specs/v1/elements/labels.txxt
+//! - Parameters: docs/specs/v1/elements/parameters.txxt
 
 use super::super::location::Location;
 use super::super::traits::{AstNode, Container, Visitor};
