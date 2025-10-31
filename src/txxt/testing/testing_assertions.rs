@@ -26,14 +26,14 @@ pub struct DocumentAssertion<'a> {
 impl<'a> DocumentAssertion<'a> {
     /// Assert the number of items in the document
     pub fn item_count(self, expected: usize) -> Self {
-        let actual = self.doc.content.len();
+        let actual = self.doc.root_session.content.len();
         assert_eq!(
             actual,
             expected,
             "Expected {} items, found {} items: [{}]",
             expected,
             actual,
-            summarize_items(&self.doc.content)
+            summarize_items(&self.doc.root_session.content)
         );
         self
     }
@@ -44,13 +44,13 @@ impl<'a> DocumentAssertion<'a> {
         F: FnOnce(ContentItemAssertion<'a>),
     {
         assert!(
-            index < self.doc.content.len(),
+            index < self.doc.root_session.content.len(),
             "Item index {} out of bounds (document has {} items)",
             index,
-            self.doc.content.len()
+            self.doc.root_session.content.len()
         );
 
-        let item = &self.doc.content[index];
+        let item = &self.doc.root_session.content[index];
         assertion(ContentItemAssertion {
             item,
             context: format!("items[{}]", index),

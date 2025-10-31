@@ -131,8 +131,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let annotation =
-            Annotation::marker(Label::new("test".to_string())).with_location(location);
+        let annotation = Annotation::marker(Label::new("test".to_string())).with_location(location);
         assert_eq!(annotation.location, location);
     }
 }

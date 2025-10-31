@@ -61,9 +61,7 @@ pub(crate) fn compute_location_from_locations(locations: &[Location]) -> Locatio
 }
 
 /// Helper: compute location bounds from multiple optional locations
-pub(crate) fn compute_location_from_optional_locations(
-    locations: &[Option<Location>],
-) -> Location {
+pub(crate) fn compute_location_from_optional_locations(locations: &[Option<Location>]) -> Location {
     let actual_locations: Vec<Location> = locations.iter().filter_map(|s| *s).collect();
     if actual_locations.is_empty() {
         Location::default()
