@@ -3,11 +3,11 @@ use super::location::Position;
 use super::traits::AstNode;
 
 pub fn find_nodes_at_position(document: &Document, position: Position) -> Vec<&dyn AstNode> {
-    document
-        .elements_at(position)
-        .into_iter()
-        .map(|item| item as &dyn AstNode)
-        .collect()
+    if let Some(item) = document.element_at(position) {
+        vec![item as &dyn AstNode]
+    } else {
+        Vec::new()
+    }
 }
 
 pub fn format_at_position(document: &Document, position: Position) -> String {
