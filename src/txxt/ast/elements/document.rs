@@ -1,4 +1,23 @@
-//! Document element definition
+//! Document element
+//!
+//! A document is the root of a txxt tree. It can contain metadata
+//! (as annotations) and a sequence of content elements (paragraphs,
+//! sessions, lists, foreign blocks, definitions, annotations).
+//!
+//! Structure:
+//! - Metadata: zero or more leading annotations that apply to the whole document
+//! - Content: ordered list of content items making up the body
+//!
+//! Learn More:
+//! - Paragraphs: docs/specs/v1/elements/paragraphs.txxt
+//! - Lists: docs/specs/v1/elements/lists.txxt
+//! - Annotations: docs/specs/v1/elements/annotations.txxt
+//! - Definitions: docs/specs/v1/elements/definitions.txxt
+//! - Foreign blocks: docs/specs/v1/elements/foreign.txxt
+//!
+//! Examples:
+//! - Document-level metadata at the top via annotations
+//! - Body mixing paragraphs, sessions, lists, and definitions
 
 use super::super::location::{Location, Position};
 use super::annotation::Annotation;

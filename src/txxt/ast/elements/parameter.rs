@@ -1,4 +1,18 @@
-//! Parameter element definition
+//! Parameter element
+//!
+//! A parameter is a key with an optional value, attached to
+//! annotations and foreign blocks to convey structured metadata.
+//!
+//! Business use:
+//! - Lightweight configuration and flags (boolean or key=value)
+//! - Enables filtering, routing, and automation in tools
+//!
+//! Examples:
+//! - `priority=high`
+//! - `draft`
+//!
+//! Learn More:
+//! - Parameters spec: docs/specs/v1/elements/parameters.txxt
 
 use super::super::location::Location;
 use std::fmt;

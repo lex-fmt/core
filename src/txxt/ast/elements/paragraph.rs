@@ -1,4 +1,18 @@
-//! Paragraph element definition
+//! Paragraph element
+//!
+//! A paragraph is a block of one or more text lines. It represents
+//! narrative content. Empty lines separate paragraphs.
+//!
+//! Properties:
+//! - Stores lines as `TextLine` items
+//! - Preserves intra-paragraph line breaks
+//!
+//! Learn More:
+//! - Paragraphs spec: docs/specs/v1/elements/paragraphs.txxt
+//!
+//! Examples:
+//! - A single paragraph spans multiple lines until a blank line
+//! - Blank lines separate paragraphs; lists and sessions break flow
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;

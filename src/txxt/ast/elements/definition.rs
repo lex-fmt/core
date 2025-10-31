@@ -1,4 +1,33 @@
-//! Definition element definition
+//! Definition element
+//!
+//!  Definitions are a core element for explaining terms and concepts.
+//!  They pair a subject (the term being defined) with its content, the definition body.
+//!
+//!  Business use:
+//!  - Capture domain vocabulary inline as you write
+//!  - Let tools extract glossaries and cross-references automatically
+//!
+//! Subject:
+//!     Content here
+//!
+//!     Can be multiple paragraphs or any other content but sessions.
+//!
+//! Examples:
+//! - `Term:` followed by an indented explanation
+//! - `HTTP:` One per method; caching rules; and examples
+//!
+//! Subject line:
+//! - Ends with colon (:)
+//! - Colon is a marker, not part of the subject text
+//! - Subject extracted without the colon
+//!
+//! Content:
+//! - Must be indented immediately after subject
+//! - Can contain any element but sessions.
+//!
+//! Learn More:
+//! - The definition spec: docs/specs/v1/elements/definitions.txxt
+//! - The definition sample: docs/specs/v1/samples/element-based/definitions/definitions.simple.txxt
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;

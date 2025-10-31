@@ -1,4 +1,35 @@
-//! List element definition
+//! List element
+//!
+//! A list is an ordered collection of items, each with its own text
+//! and optional nested content. Lists can be used to structure
+//! outlines, steps, or bullet points.
+//!
+//! Lists have decoration styles, for example the plain one (dashes) or various ordering formats, as numerical, alphabetical, roman, etc.
+//!
+//! Lists must have a minimum of 2 items.  And it's not ilegal to have mixed decorations in a list, as the parser will consider the first item's decoration to set the list type. The ordering doesn't have to be correct, as lists itself are ordered, they are just a marker, but tooling will order them under demand.
+//!
+//! Structure:
+//! - List: holds items as content
+//! - ListItem: has display text and optional nested content
+//!
+//! Examples:
+//!
+//! A flat list with the plain decoration.
+//!
+//! - Bread
+//! - Milk
+//!
+//! They can be nested, and have other styles:
+//!
+//! 1. Groceries
+//!    - Bread
+//!    - Milk
+//!
+//!
+//! Learn More:
+//! - Lists spec: docs/specs/v1/elements/lists.txxt
+//! - Labels (used by annotations in lists): docs/specs/v1/elements/labels.txxt
+//! - Parameters (used by annotations in lists): docs/specs/v1/elements/parameters.txxt
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;

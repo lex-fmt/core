@@ -4,12 +4,14 @@ Introduction
 
 	Annotations are a core element in txxt, but a metadata one. They provide , not only a way for authors and colaborators to register non content related information, but the right hooks for tooling to build on top of txxt, such as a commenting system before publishing.
 
+	As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling).
+
 
 	Core features:
 
 	- Annotations have an optional labels [./labels.txxt] and parameters [./parameters.txxt]
-	- Either label or parameters must be present (or both)
-	- Annotations have optional content: inline text or block content (paragraphs/lists, but NOT sessions or nested annotations)
+	- Labels are mandatory, parameters are optional.
+	- Annotations have optional content: which can be the single line shortcut or the regular content conatainer form, which allows all elements but sessions to be part (including nesting). While not prohibited, annotations should not contain other annotations as their content as the semantic meaning would be ... why bother? 
 
 Syntax Forms:
 

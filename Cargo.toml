@@ -9,9 +9,15 @@ repository = "https://github.com/adebert/txxt-nano"
 keywords = ["parser", "format", "txxt"]
 categories = ["parsing", "text-processing"]
 
+[lib]
+# Disable doctests for the library; docs contain txxt examples that aren't Rust
+doctest = false
+
 [[bin]]
 name = "txxt"
 path = "src/bin/txxt.rs"
+# We use plenty of txxt in code docs, and having to explicitly avoid error is not worth it
+doctest = false
 
 [dependencies]
 logos = "0.14"
