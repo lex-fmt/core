@@ -1,4 +1,25 @@
-//! Annotation element definition
+//! Annotation
+//!
+//! Annotations are a core element in txxt, but a metadata one. They provide , not only a way for authors and colaborators to register non content related information, but the right hooks for tooling to build on top of txxt, such as a commenting system before publishing.
+//!
+// As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling).
+//!
+//! Syntax Forms:
+//!
+//!> <txxt marker> <label> <parameters>? <txxt marker> <content>?
+//!> :: label :: Content can come here
+//!> :: label key=value ::
+//!
+//! The full form:
+//!
+//!
+//! :: label ::
+//!     indented paragraph or list
+//! ::
+//!
+//! Learn More:
+//! - The annotation spec: docs/specs/v1/elements/annotations.txxt
+//! - The annotation sample: docs/specs/v1/samples/element-based/annotations/annotations.simple.txxt
 
 use super::super::location::Location;
 use super::super::traits::{AstNode, Container, Visitor};
