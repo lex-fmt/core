@@ -1,4 +1,12 @@
-//! ContentItem enum definition
+//! Content item
+//!
+//! `ContentItem` is the common wrapper for all elements that can
+//! appear in document content. It lets tooling operate uniformly on
+//! mixed structures (paragraphs, sessions, lists, definitions, etc.).
+//!
+//! Examples:
+//! - A session containing paragraphs and a list
+//! - A paragraph followed by a definition and an annotation
 
 use super::super::location::{Location, Position};
 use super::super::traits::{AstNode, Container, Visitor};

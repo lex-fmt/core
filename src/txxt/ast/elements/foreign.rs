@@ -1,4 +1,20 @@
-//! Foreign block element definition
+//! Foreign block element
+//!
+//! A foreign block embeds content from another system or format
+//! between a subject marker and a closing annotation. Its content
+//! is treated as opaque text by the txxt AST.
+//!
+//! Structure:
+//! - Subject: identifies the kind of foreign content
+//! - Content: raw text payload, not parsed into txxt elements
+//! - Closing annotation: terminates the block and may carry metadata
+//!
+//! Learn More:
+//! - Foreign blocks spec: docs/specs/v1/elements/foreign.txxt
+//!
+//! Examples:
+//! - Embed a code snippet or external block and close it with an annotation
+//! - Use subject text to hint the embedded system (e.g., "mermaid")
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;

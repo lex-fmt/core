@@ -2,14 +2,14 @@ Definitions
 
 Introduction
 
-	Definitions are a core element for explaining terms and concepts. They pair a subject (the term) with indented explanatory content.
+	Definitions are a core element for explaining terms and concepts. They pair a subject (the term being defined) with indented explanatory content.
 
 Syntax
 
-	Pattern:
-		Subject:
-		    content here
-		    can be multiple paragraphs or lists
+	Subject:
+		Content here
+
+		Can be multiple paragraphs or any other content but sessions.
 
 	Key rule: NO blank line between subject and content
 	(blank line would make it a session instead)
@@ -21,8 +21,7 @@ Syntax
 
 	Content:
 		- Must be indented immediately after subject
-		- Can contain paragraphs and lists
-		- CANNOT contain sessions (keeps definitions focused)
+		- Can contain any element but sessions.
 
 Disambiguation from Sessions
 
