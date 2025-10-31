@@ -38,7 +38,6 @@ use std::fmt;
 pub struct Document {
     pub metadata: Vec<Annotation>,
     pub root_session: Session,
-    pub location: Option<Location>,
 }
 
 impl Document {
@@ -46,7 +45,6 @@ impl Document {
         Self {
             metadata: Vec::new(),
             root_session: Session::with_title(String::new()),
-            location: None,
         }
     }
 
@@ -56,7 +54,6 @@ impl Document {
         Self {
             metadata: Vec::new(),
             root_session,
-            location: None,
         }
     }
 
@@ -66,12 +63,11 @@ impl Document {
         Self {
             metadata,
             root_session,
-            location: None,
         }
     }
 
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
-        self.location = location;
+    pub fn with_root_session_location(mut self, location: Location) -> Self {
+        self.root_session.location = location;
         self
     }
 
@@ -141,7 +137,7 @@ impl AstNode for Document {
     }
 
     fn location(&self) -> Option<Location> {
-        self.location
+        None
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {

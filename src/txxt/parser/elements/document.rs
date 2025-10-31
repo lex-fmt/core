@@ -26,6 +26,6 @@ pub fn document(source: &str) -> impl Parser<TokenLocation, Document, Error = Pa
             .collect::<Vec<_>>();
         let location = compute_location_from_optional_locations(&content_locations);
 
-        Document::with_content(content).with_location(Some(location))
+        Document::with_content(content).with_root_session_location(location)
     })
 }
