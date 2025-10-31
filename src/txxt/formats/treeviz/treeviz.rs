@@ -40,7 +40,7 @@
 //!         ReferenceFootnote: ³
 //!         ReferenceSession: #
 
-use crate::txxt::ast::{AstNode, Container, ContentItem, Document, ListItem};
+use crate::txxt::ast::{Container, ContentItem, Document};
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() > max_chars {
@@ -85,7 +85,12 @@ fn append_content_item(result: &mut String, item: &ContentItem, prefix: &str, is
             append_children(result, annotation.children(), &new_prefix);
         }
         ContentItem::List(list) => {
-            append_list_items(result, &list.content, &new_prefix);
+            // Lists now contain ContentItems (mostly ListItems)
+            append_children(result, &list.content, &new_prefix);
+        }
+        ContentItem::ListItem(list_item) => {
+            // ListItems can have nested content
+            append_children(result, list_item.children(), &new_prefix);
         }
         ContentItem::Paragraph(_) => {}
         ContentItem::ForeignBlock(_) => {} // Foreign blocks don't have children
@@ -96,21 +101,5 @@ fn append_children(result: &mut String, children: &[ContentItem], prefix: &str) 
     for (i, child) in children.iter().enumerate() {
         let is_last = i == children.len() - 1;
         append_content_item(result, child, prefix, is_last);
-    }
-}
-
-fn append_list_items(result: &mut String, items: &[ListItem], prefix: &str) {
-    for (i, item) in items.iter().enumerate() {
-        let is_last = i == items.len() - 1;
-        let connector = if is_last { "└─" } else { "├─" };
-        let node_type = item.node_type();
-        let display_label = truncate(item.label(), 30);
-        result.push_str(&format!(
-            "{}{} {}: {}\n",
-            prefix, connector, node_type, display_label
-        ));
-
-        let new_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
-        append_children(result, item.children(), &new_prefix);
     }
 }
