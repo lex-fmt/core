@@ -14,7 +14,7 @@
 //!
 //!     Txxt is a plain text document format. ...
 
-use super::super::location::Location;
+use super::super::location::{Location, Position};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
 use super::content_item::ContentItem;
@@ -25,25 +25,28 @@ use std::fmt;
 pub struct Session {
     pub title: TextContent,
     pub content: Vec<ContentItem>,
-    pub location: Option<Location>,
+    pub location: Location,
 }
 
 impl Session {
+    fn default_location() -> Location {
+        Location::new(Position::new(0, 0), Position::new(0, 0))
+    }
     pub fn new(title: TextContent, content: Vec<ContentItem>) -> Self {
         Self {
             title,
             content,
-            location: None,
+            location: Self::default_location(),
         }
     }
     pub fn with_title(title: String) -> Self {
         Self {
             title: TextContent::from_string(title, None),
             content: Vec::new(),
-            location: None,
+            location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
+    pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         self
     }
@@ -57,7 +60,7 @@ impl AstNode for Session {
         self.title.as_string().to_string()
     }
     fn location(&self) -> Option<Location> {
-        self.location
+        Some(self.location)
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -112,7 +115,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let session = Session::with_title("Title".to_string()).with_location(Some(location));
-        assert_eq!(session.location, Some(location));
+        let session = Session::with_title("Title".to_string()).with_location(location);
+        assert_eq!(session.location, location);
     }
 }

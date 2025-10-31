@@ -12,8 +12,7 @@ use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{AstNode, ContentItem, List, ListItem, Location, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    compute_location_from_optional_locations, extract_tokens_to_text_and_location, is_text_token,
-    token,
+    compute_location_from_locations, extract_tokens_to_text_and_location, is_text_token, token,
 };
 
 /// Type alias for token with location
@@ -66,12 +65,12 @@ pub(crate) fn list_item_line(
 }
 
 /// Helper: convert a byte range to a location using source location
-fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
     if range.start > range.end {
-        return None;
+        return Location::default();
     }
     let source_loc = SourceLocation::new(source);
-    Some(source_loc.range_to_location(range))
+    source_loc.range_to_location(range)
 }
 
 /// Build a list parser
@@ -94,18 +93,22 @@ where
         .map(move |((text, text_location), maybe_content)| {
             let content = maybe_content.unwrap_or_default();
             let line_location = byte_range_to_location(&source_for_list, &text_location);
-            let text_content = TextContent::from_string(text, line_location);
+            let text_content = TextContent::from_string(text, Some(line_location));
 
             let mut location_sources = vec![line_location];
-            location_sources.extend(content.iter().map(|item| item.location()));
-            let location = compute_location_from_optional_locations(&location_sources);
+            location_sources.extend(
+                content
+                    .iter()
+                    .map(|item| item.location().unwrap_or_default()),
+            );
+            let location = compute_location_from_locations(&location_sources);
 
             ListItem::with_text_content(text_content, content).with_location(location)
         });
 
     single_list_item.repeated().at_least(2).map(|items| {
-        let locations: Vec<Option<Location>> = items.iter().map(|item| item.location).collect();
-        let location = compute_location_from_optional_locations(&locations);
+        let locations: Vec<Location> = items.iter().map(|item| item.location).collect();
+        let location = compute_location_from_locations(&locations);
         let content_items: Vec<ContentItem> =
             items.into_iter().map(ContentItem::ListItem).collect();
         ContentItem::List(List {

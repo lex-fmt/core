@@ -14,30 +14,33 @@
 //! Learn More:
 //! - Labels spec: docs/specs/v1/elements/labels.txxt
 
-use super::super::location::Location;
+use super::super::location::{Location, Position};
 use std::fmt;
 
 /// A label represents a named identifier in txxt documents
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Label {
     pub value: String,
-    pub location: Option<Location>,
+    pub location: Location,
 }
 
 impl Label {
+    fn default_location() -> Location {
+        Location::new(Position::new(0, 0), Position::new(0, 0))
+    }
     pub fn new(value: String) -> Self {
         Self {
             value,
-            location: None,
+            location: Self::default_location(),
         }
     }
     pub fn from_string(value: &str) -> Self {
         Self {
             value: value.to_string(),
-            location: None,
+            location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
+    pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         self
     }
@@ -59,7 +62,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let label = Label::new("test".to_string()).with_location(Some(location));
-        assert_eq!(label.location, Some(location));
+        let label = Label::new("test".to_string()).with_location(location);
+        assert_eq!(label.location, location);
     }
 }

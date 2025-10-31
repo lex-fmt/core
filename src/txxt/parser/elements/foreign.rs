@@ -13,8 +13,8 @@ use crate::txxt::ast::{
 };
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    compute_byte_range_bounds, compute_location_from_optional_locations,
-    extract_text_from_locations, text_line, token,
+    compute_byte_range_bounds, compute_location_from_locations, extract_text_from_locations,
+    text_line, token,
 };
 use crate::txxt::parser::elements::annotations::{annotation_header, AnnotationHeader};
 use crate::txxt::parser::elements::definitions::definition_subject;
@@ -26,12 +26,12 @@ type TokenLocation = (Token, Range<usize>);
 type ParserError = Simple<TokenLocation>;
 
 /// Helper: convert a byte range to a location using source location
-fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
     if range.start > range.end {
-        return None;
+        return Location::default();
     }
     let source_loc = SourceLocation::new(source);
-    Some(source_loc.range_to_location(range))
+    source_loc.range_to_location(range)
 }
 
 /// Parse a foreign block
@@ -89,15 +89,16 @@ pub(crate) fn foreign_block(
             } = header_info;
 
             let label_text = label.unwrap_or_default();
-            let label_location = label_range
-                .and_then(|range| byte_range_to_location(&source_for_annotation, &range));
+            let label_location = label_range.map_or(Location::default(), |range| {
+                byte_range_to_location(&source_for_annotation, &range)
+            });
             let label = Label::new(label_text).with_location(label_location);
 
             let (content, paragraph_location) = if let Some(locations) = content_location {
                 let text = extract_text_from_locations(&source_for_annotation, &locations);
                 let range = compute_byte_range_bounds(&locations);
                 let paragraph_location = byte_range_to_location(&source_for_annotation, &range);
-                let text_content = TextContent::from_string(text, paragraph_location);
+                let text_content = TextContent::from_string(text, Some(paragraph_location));
                 let text_line =
                     crate::txxt::ast::TextLine::new(text_content).with_location(paragraph_location);
                 let paragraph = Paragraph {
@@ -106,13 +107,13 @@ pub(crate) fn foreign_block(
                 };
                 (vec![ContentItem::Paragraph(paragraph)], paragraph_location)
             } else {
-                (vec![], None)
+                (vec![], Location::default())
             };
 
             let header_location = byte_range_to_location(&source_for_annotation, &header_range);
 
             let location_sources = vec![header_location, label_location, paragraph_location];
-            let location = compute_location_from_optional_locations(&location_sources);
+            let location = compute_location_from_locations(&location_sources);
 
             Annotation {
                 label,
@@ -130,11 +131,11 @@ pub(crate) fn foreign_block(
         .map(
             move |(((subject_text, subject_location), content_locations), closing_annotation)| {
                 let subject_location = byte_range_to_location(&source, &subject_location);
-                let subject = TextContent::from_string(subject_text, subject_location);
+                let subject = TextContent::from_string(subject_text, Some(subject_location));
 
                 let (content_text, content_location) = if let Some(locations) = content_locations {
                     if locations.is_empty() {
-                        (String::new(), None)
+                        (String::new(), Location::default())
                     } else {
                         let text = extract_text_from_locations(&source, &locations);
                         let range = compute_byte_range_bounds(&locations);
@@ -142,16 +143,16 @@ pub(crate) fn foreign_block(
                         (text, location)
                     }
                 } else {
-                    (String::new(), None)
+                    (String::new(), Location::default())
                 };
 
-                let content = TextContent::from_string(content_text, content_location);
+                let content = TextContent::from_string(content_text, Some(content_location));
                 let location_sources = vec![
                     subject_location,
                     content_location,
                     closing_annotation.location,
                 ];
-                let location = compute_location_from_optional_locations(&location_sources);
+                let location = compute_location_from_locations(&location_sources);
 
                 ForeignBlock {
                     subject,

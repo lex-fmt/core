@@ -16,7 +16,7 @@
 //! - Embed a code snippet or external block and close it with an annotation
 //! - Use subject text to hint the embedded system (e.g., "mermaid")
 
-use super::super::location::Location;
+use super::super::location::{Location, Position};
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Visitor;
@@ -29,16 +29,19 @@ pub struct ForeignBlock {
     pub subject: TextContent,
     pub content: TextContent,
     pub closing_annotation: Annotation,
-    pub location: Option<Location>,
+    pub location: Location,
 }
 
 impl ForeignBlock {
+    fn default_location() -> Location {
+        Location::new(Position::new(0, 0), Position::new(0, 0))
+    }
     pub fn new(subject: String, content: String, closing_annotation: Annotation) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
             content: TextContent::from_string(content, None),
             closing_annotation,
-            location: None,
+            location: Self::default_location(),
         }
     }
     pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
@@ -46,10 +49,10 @@ impl ForeignBlock {
             subject: TextContent::from_string(subject, None),
             content: TextContent::from_string(String::new(), None),
             closing_annotation,
-            location: None,
+            location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
+    pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         self
     }
@@ -68,7 +71,7 @@ impl AstNode for ForeignBlock {
         }
     }
     fn location(&self) -> Option<Location> {
-        self.location
+        Some(self.location)
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {

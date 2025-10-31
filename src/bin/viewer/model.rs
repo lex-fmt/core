@@ -257,7 +257,8 @@ impl Model {
     pub fn get_location_for_node(&self, node_id: NodeId) -> Option<Location> {
         use txxt::txxt::ast::traits::AstNode;
         if node_id.path().is_empty() {
-            return self.document.location;
+            // Document doesn't have a location; the root session does
+            return self.document.root_session.location();
         }
 
         self.get_node(node_id).and_then(|(item, _depth)| {
