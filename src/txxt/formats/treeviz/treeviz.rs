@@ -62,7 +62,7 @@
 //!         ReferenceFootnote: ³
 //!         ReferenceSession: #
 
-use crate::txxt::ast::{snapshot_visitor::snapshot_from_content, AstSnapshot, Document};
+use crate::txxt::ast::{snapshot_visitor::snapshot_from_document, AstSnapshot, Document};
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() > max_chars {
@@ -77,6 +77,7 @@ fn truncate(s: &str, max_chars: usize) -> String {
 /// Get the icon for a node type
 fn get_icon(node_type: &str) -> &'static str {
     match node_type {
+        "Document" => "⧉",
         "Session" => "§",
         "Paragraph" => "¶",
         "TextLine" => "↵",
@@ -121,14 +122,22 @@ fn format_snapshot(
     output
 }
 
-pub fn to_treeviz_str(doc: &Document) -> String {
-    let mut output = String::new();
+fn format_document_snapshot(snapshot: &AstSnapshot) -> String {
+    let icon = get_icon(&snapshot.node_type);
+    let truncated_label = truncate(&snapshot.label, 30);
+    let mut output = format!("{} {}\n", icon, truncated_label);
 
-    let child_count = doc.content.len();
-    for (i, item) in doc.content.iter().enumerate() {
-        let snapshot = snapshot_from_content(item);
-        output.push_str(&format_snapshot(&snapshot, "", i, child_count));
+    if !snapshot.children.is_empty() {
+        let child_count = snapshot.children.len();
+        for (i, child) in snapshot.children.iter().enumerate() {
+            output.push_str(&format_snapshot(child, "", i, child_count));
+        }
     }
 
     output
+}
+
+pub fn to_treeviz_str(doc: &Document) -> String {
+    let snapshot = snapshot_from_document(doc);
+    format_document_snapshot(&snapshot)
 }
