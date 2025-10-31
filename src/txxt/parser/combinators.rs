@@ -5,7 +5,8 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::{Location, Paragraph, TextContent};
+use crate::txxt::ast::traits::AstNode;
+use crate::txxt::ast::{ContentItem, Location, Paragraph, TextContent};
 use crate::txxt::lexer::Token;
 
 /// Type alias for token with location
@@ -34,11 +35,18 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
     )
 }
 
-/// Helper: convert a byte range to a location using source location
-fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
-    if range.start > range.end {
-        return Location::default();
-    }
+/// Convert a byte range to a Location (line:column positions)
+///
+/// This is the canonical implementation used throughout the parser.
+/// Converts byte offsets from token ranges to line/column coordinates
+/// using the SourceLocation utility (O(log n) binary search).
+pub(crate) fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
+    debug_assert!(
+        range.start <= range.end,
+        "Invalid byte range: {}..{} (start > end)",
+        range.start,
+        range.end
+    );
     let source_loc = SourceLocation::new(source);
     source_loc.range_to_location(range)
 }
@@ -68,6 +76,22 @@ pub(crate) fn compute_location_from_optional_locations(locations: &[Option<Locat
     } else {
         compute_location_from_locations(&actual_locations)
     }
+}
+
+/// Helper: aggregate location from a primary location and child content items
+///
+/// Creates a bounding box that encompasses the primary location and all child content.
+/// This is commonly used when building container nodes (sessions, lists, definitions)
+/// that need to include the location of their title/header and all child items.
+///
+/// # Example
+/// ```ignore
+/// let location = aggregate_locations(title_location, &session_content);
+/// ```
+pub(crate) fn aggregate_locations(primary: Location, children: &[ContentItem]) -> Location {
+    let mut sources = vec![primary];
+    sources.extend(children.iter().filter_map(|item| item.location()));
+    compute_location_from_locations(&sources)
 }
 
 /// Helper: compute location bounds from byte ranges

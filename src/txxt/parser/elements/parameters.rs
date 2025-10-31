@@ -6,9 +6,9 @@
 //! Grammar: `<parameters> = <parameter> ("," <parameter>)*`
 //! Where: `<parameter> = <key> "=" <value>`
 
-use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::{Location, Parameter};
+use crate::txxt::ast::Parameter;
 use crate::txxt::lexer::Token;
+use crate::txxt::parser::combinators::byte_range_to_location;
 use chumsky::{prelude::*, Stream};
 use std::ops::Range;
 
@@ -46,15 +46,6 @@ pub(crate) fn convert_parameter(source: &str, param: ParameterWithLocations) -> 
 /// Extract text from source using a location range
 fn extract_text<'a>(source: &'a str, location: &Range<usize>) -> &'a str {
     &source[location.start..location.end]
-}
-
-/// Helper: convert a byte range to a location using source location
-fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
-    if range.start > range.end {
-        return Location::default();
-    }
-    let source_loc = SourceLocation::new(source);
-    source_loc.range_to_location(range)
 }
 
 /// Helper function to parse parameters from a token slice

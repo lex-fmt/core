@@ -8,11 +8,10 @@ use chumsky::primitive::filter;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::{AstNode, ContentItem, Definition, Location, TextContent};
+use crate::txxt::ast::{ContentItem, Definition, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    compute_location_from_locations, extract_tokens_to_text_and_location, token,
+    aggregate_locations, byte_range_to_location, extract_tokens_to_text_and_location, token,
 };
 
 /// Type alias for token with location
@@ -36,15 +35,6 @@ pub(crate) fn definition_subject(
         .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Newline)).ignored())
 }
 
-/// Helper: convert a byte range to a location using source location
-fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
-    if range.start > range.end {
-        return Location::default();
-    }
-    let source_loc = SourceLocation::new(source);
-    source_loc.range_to_location(range)
-}
-
 /// Build a definition parser
 pub(crate) fn build_definition_parser<P>(
     source: Arc<String>,
@@ -65,13 +55,7 @@ where
                 byte_range_to_location(&source_for_definition, &subject_location);
             let subject = TextContent::from_string(subject_text, Some(subject_location));
 
-            let mut location_sources = vec![subject_location];
-            location_sources.extend(
-                content
-                    .iter()
-                    .map(|item| item.location().unwrap_or_default()),
-            );
-            let location = compute_location_from_locations(&location_sources);
+            let location = aggregate_locations(subject_location, &content);
 
             ContentItem::Definition(Definition {
                 subject,

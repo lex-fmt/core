@@ -7,14 +7,13 @@ use chumsky::prelude::*;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{
     Annotation, ContentItem, ForeignBlock, Label, Location, Paragraph, TextContent,
 };
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    compute_byte_range_bounds, compute_location_from_locations, extract_text_from_locations,
-    text_line, token,
+    byte_range_to_location, compute_byte_range_bounds, compute_location_from_locations,
+    extract_text_from_locations, text_line, token,
 };
 use crate::txxt::parser::elements::annotations::{annotation_header, AnnotationHeader};
 use crate::txxt::parser::elements::definitions::definition_subject;
@@ -24,15 +23,6 @@ type TokenLocation = (Token, Range<usize>);
 
 /// Type alias for parser error
 type ParserError = Simple<TokenLocation>;
-
-/// Helper: convert a byte range to a location using source location
-fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
-    if range.start > range.end {
-        return Location::default();
-    }
-    let source_loc = SourceLocation::new(source);
-    source_loc.range_to_location(range)
-}
 
 /// Parse a foreign block
 /// Phase 4: Now builds final ForeignBlock type directly
