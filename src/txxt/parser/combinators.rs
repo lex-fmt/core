@@ -41,9 +41,12 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
 /// Converts byte offsets from token ranges to line/column coordinates
 /// using the SourceLocation utility (O(log n) binary search).
 pub(crate) fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
-    if range.start > range.end {
-        return Location::default();
-    }
+    debug_assert!(
+        range.start <= range.end,
+        "Invalid byte range: {}..{} (start > end)",
+        range.start,
+        range.end
+    );
     let source_loc = SourceLocation::new(source);
     source_loc.range_to_location(range)
 }
