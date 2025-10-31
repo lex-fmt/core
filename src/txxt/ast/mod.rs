@@ -16,6 +16,8 @@ pub mod elements;
 pub mod error;
 pub mod location;
 pub mod lookup;
+pub mod snapshot;
+pub mod snapshot_visitor;
 pub mod text_content;
 pub mod traits;
 
@@ -27,5 +29,7 @@ pub use elements::{
 pub use error::PositionLookupError;
 pub use location::{Location, Position, SourceLocation};
 pub use lookup::{find_nodes_at_position, format_at_position};
+pub use snapshot::AstSnapshot;
+pub use snapshot_visitor::snapshot_node;
 pub use text_content::TextContent;
 pub use traits::{AstNode, Container, TextNode, Visitor};

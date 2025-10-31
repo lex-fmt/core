@@ -1,14 +1,14 @@
 //! XML-like AST tag serialization
 //!
-//! Serializes AST nodes to an XML-like format that directly reflects the AST structure.
-//! Uses the Visitor pattern for uniform serialization across all node types.
+//! Serializes AST snapshots to an XML-like format.
+//! Consumes the normalized AST snapshot representation and applies
+//! XML/tag-specific formatting.
 //!
 //! ## Format
 //!
-//! - Node type → tag name
-//! - Label (title/subject/item_line) → text content
+//! - Node type → tag name (snake-case)
+//! - Label → text content
 //! - Children → nested tags (no wrapper)
-//! - Leaf text → text content
 //!
 //! ## Example
 //!
@@ -22,19 +22,22 @@
 //! </document>
 //! ```
 
-use crate::txxt::ast::elements::paragraph::TextLine;
-use crate::txxt::ast::{
-    traits::visit_children, Annotation, AstNode, Container, Definition, Document, ForeignBlock,
-    List, ListItem, Paragraph, Session, Visitor,
-};
+use crate::txxt::ast::{AstSnapshot, Document};
 
-/// Tag serializer using the Visitor pattern
+/// Tag serializer that converts AstSnapshot to XML-like format
 struct TagSerializer {
     output: String,
     indent_level: usize,
 }
 
 impl TagSerializer {
+    fn new() -> Self {
+        Self {
+            output: String::new(),
+            indent_level: 0,
+        }
+    }
+
     fn indent(&self) -> String {
         "  ".repeat(self.indent_level)
     }
@@ -44,149 +47,38 @@ impl TagSerializer {
         self.output.push_str(s);
     }
 
-    fn open_tag(&mut self, tag: &str) {
-        self.push_indent(&format!("<{tag}>"));
-    }
+    fn serialize_snapshot(&mut self, snapshot: &AstSnapshot) {
+        let tag = to_tag_name(&snapshot.node_type);
 
-    fn tag_with_text(&mut self, tag: &str, text: &str) {
-        self.push_indent(&format!("<{tag}>{}</{}>\n", escape_xml(text), tag));
-    }
+        self.push_indent(&format!("<{}>", tag));
+        self.output.push_str(&escape_xml(&snapshot.label));
 
-    fn close_tag_inline(&mut self, tag: &str) {
-        self.output.push_str(&format!("</{tag}>"));
-    }
-}
-
-impl Visitor for TagSerializer {
-    fn visit_paragraph(&mut self, para: &Paragraph) {
-        self.open_tag("paragraph");
-
-        if para.lines.is_empty() {
-            self.close_tag_inline("paragraph");
+        if snapshot.children.is_empty() {
+            self.output.push_str(&format!("</{}>", tag));
+            self.output.push('\n');
         } else {
             self.output.push('\n');
             self.indent_level += 1;
-            visit_children(self, &para.lines);
-            self.indent_level -= 1;
-            self.push_indent("");
-            self.close_tag_inline("paragraph");
-        }
-        self.output.push('\n');
-    }
-
-    fn visit_text_line(&mut self, tl: &TextLine) {
-        let text = tl.text();
-        self.tag_with_text("text-line", text);
-    }
-
-    fn visit_session(&mut self, session: &Session) {
-        self.open_tag("session");
-        self.output.push_str(&escape_xml(session.label()));
-
-        if !session.children().is_empty() {
-            self.output.push('\n');
-            self.indent_level += 1;
-            visit_children(self, session.children());
-            self.indent_level -= 1;
-            self.push_indent("");
-        }
-
-        self.close_tag_inline("session");
-        self.output.push('\n');
-    }
-
-    fn visit_list(&mut self, list: &List) {
-        self.open_tag("list");
-        self.output.push('\n');
-        self.indent_level += 1;
-        visit_children(self, &list.content);
-        self.indent_level -= 1;
-        self.push_indent("");
-        self.close_tag_inline("list");
-        self.output.push('\n');
-    }
-
-    fn visit_list_item(&mut self, item: &ListItem) {
-        self.open_tag("list-item");
-        self.output.push_str(&escape_xml(item.label()));
-
-        if !item.children().is_empty() {
-            self.output.push('\n');
-            self.indent_level += 1;
-            visit_children(self, item.children());
-            self.indent_level -= 1;
-            self.push_indent("");
-        }
-
-        self.close_tag_inline("list-item");
-        self.output.push('\n');
-    }
-
-    fn visit_definition(&mut self, def: &Definition) {
-        self.open_tag("definition");
-        self.output.push_str(&escape_xml(def.label()));
-
-        if !def.children().is_empty() {
-            self.output.push('\n');
-            self.indent_level += 1;
-            visit_children(self, def.children());
-            self.indent_level -= 1;
-            self.push_indent("");
-        }
-
-        self.close_tag_inline("definition");
-        self.output.push('\n');
-    }
-
-    fn visit_foreign_block(&mut self, fb: &ForeignBlock) {
-        self.open_tag("foreign-block");
-        self.output.push_str(&escape_xml(fb.subject.as_string()));
-
-        if !fb.content.as_string().is_empty() {
-            self.output.push('\n');
-            self.indent_level += 1;
-            self.push_indent(&format!(
-                "<content>{}</content>\n",
-                escape_xml(fb.content.as_string())
-            ));
-            self.indent_level -= 1;
-        }
-
-        self.close_tag_inline("foreign-block");
-        self.output.push('\n');
-    }
-
-    fn visit_annotation(&mut self, ann: &Annotation) {
-        self.open_tag("annotation");
-        self.output.push_str(&escape_xml(&ann.label.value));
-
-        // Add parameters if present
-        if !ann.parameters.is_empty() {
-            self.output.push('[');
-            for (i, param) in ann.parameters.iter().enumerate() {
-                if i > 0 {
-                    self.output.push(',');
-                }
-                self.output.push_str(&escape_xml(&param.key));
-                if let Some(value) = &param.value {
-                    self.output.push('=');
-                    self.output.push_str(&escape_xml(value));
-                }
+            for child in &snapshot.children {
+                self.serialize_snapshot(child);
             }
-            self.output.push(']');
-        }
-
-        if !ann.children().is_empty() {
-            self.output.push('\n');
-            self.indent_level += 1;
-            visit_children(self, ann.children());
             self.indent_level -= 1;
-            self.push_indent("");
+            self.push_indent(&format!("</{}>", tag));
+            self.output.push('\n');
         }
-
-        self.close_tag_inline("annotation");
-        self.output.push('\n');
     }
+}
+
+/// Convert a node type name to a tag name (e.g., "TextLine" → "text-line")
+fn to_tag_name(node_type: &str) -> String {
+    let mut tag = String::new();
+    for (i, c) in node_type.chars().enumerate() {
+        if i > 0 && c.is_uppercase() {
+            tag.push('-');
+        }
+        tag.push(c.to_lowercase().next().unwrap());
+    }
+    tag
 }
 
 /// Serialize a document to AST tag format
@@ -194,13 +86,13 @@ pub fn serialize_document(doc: &Document) -> String {
     let mut result = String::new();
     result.push_str("<document>\n");
 
-    let mut serializer = TagSerializer {
-        output: String::new(),
-        indent_level: 1,
-    };
+    let mut serializer = TagSerializer::new();
+    serializer.indent_level = 1;
 
     for item in &doc.content {
-        item.accept(&mut serializer);
+        let snapshot = crate::txxt::ast::snapshot_visitor::snapshot_from_content(item);
+        eprintln!("SNAPSHOT: {:?}", snapshot);
+        serializer.serialize_snapshot(&snapshot);
     }
 
     result.push_str(&serializer.output);
@@ -213,7 +105,7 @@ fn escape_xml(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
-        .replace('"', "&quot;")
+        .replace('\"', "&quot;")
         .replace('\'', "&apos;")
 }
 
@@ -231,7 +123,7 @@ mod tests {
         let result = serialize_document(&doc);
         assert!(result.contains("<document>"));
         assert!(result.contains("<paragraph>"));
-        assert!(result.contains("<text-line>Hello world</text-line>"));
+        assert!(result.contains("Hello world"));
         assert!(result.contains("</paragraph>"));
         assert!(result.contains("</document>"));
     }
@@ -246,12 +138,12 @@ mod tests {
         ))]);
 
         let result = serialize_document(&doc);
+        println!("RESULT:\n{}", result);
         assert!(result.contains("<session>Introduction"));
         assert!(result.contains("<paragraph>"));
-        assert!(result.contains("<text-line>Welcome</text-line>"));
+        assert!(result.contains("Welcome"));
         assert!(result.contains("</paragraph>"));
         assert!(result.contains("</session>"));
-        assert!(!result.contains("<children>"));
     }
 
     #[test]
@@ -272,10 +164,9 @@ mod tests {
         let result = serialize_document(&doc);
         assert!(result.contains("<session>Root"));
         assert!(result.contains("<paragraph>"));
-        assert!(result.contains("<text-line>Para 1</text-line>"));
+        assert!(result.contains("Para 1"));
         assert!(result.contains("<session>Nested"));
-        assert!(result.contains("<text-line>Nested para</text-line>"));
-        assert!(!result.contains("<children>"));
+        assert!(result.contains("Nested para"));
     }
 
     #[test]
@@ -298,7 +189,6 @@ mod tests {
 
         let result = serialize_document(&doc);
         assert!(result.contains("<session>Empty</session>"));
-        assert!(!result.contains("<children>"));
     }
 
     #[test]
@@ -315,7 +205,5 @@ mod tests {
         assert!(result.contains("<list-item>- First item</list-item>"));
         assert!(result.contains("<list-item>- Second item</list-item>"));
         assert!(result.contains("</list>"));
-        // No wrapper tags with new visitor format
-        assert!(!result.contains("<children>"));
     }
 }

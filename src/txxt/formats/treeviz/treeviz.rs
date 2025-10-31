@@ -62,7 +62,7 @@
 //!         ReferenceFootnote: ³
 //!         ReferenceSession: #
 
-use crate::txxt::ast::{Container, ContentItem, Document};
+use crate::txxt::ast::{snapshot_visitor::snapshot_from_content, AstSnapshot, Document};
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() > max_chars {
@@ -74,55 +74,61 @@ fn truncate(s: &str, max_chars: usize) -> String {
     }
 }
 
-pub fn to_treeviz_str(doc: &Document) -> String {
-    let mut result = String::new();
-    for (i, item) in doc.content.iter().enumerate() {
-        let is_last = i == doc.content.len() - 1;
-        append_content_item(&mut result, item, "", is_last);
+/// Get the icon for a node type
+fn get_icon(node_type: &str) -> &'static str {
+    match node_type {
+        "Session" => "§",
+        "Paragraph" => "¶",
+        "TextLine" => "↵",
+        "List" => "☰",
+        "ListItem" => "•",
+        "Definition" => "≔",
+        "ForeignBlock" => "𝒱",
+        "Annotation" => "\"",
+        _ => "○",
     }
-    result
 }
 
-fn append_content_item(result: &mut String, item: &ContentItem, prefix: &str, is_last: bool) {
+/// Build treeviz output from an AstSnapshot
+fn format_snapshot(
+    snapshot: &AstSnapshot,
+    prefix: &str,
+    child_index: usize,
+    child_count: usize,
+) -> String {
+    let mut output = String::new();
+
+    let is_last = child_index == child_count - 1;
     let connector = if is_last { "└─" } else { "├─" };
-    let node_type = item.node_type();
+    let icon = get_icon(&snapshot.node_type);
+    let truncated_label = truncate(&snapshot.label, 30);
 
-    let display_label = truncate(&item.display_label(), 30);
-
-    result.push_str(&format!(
-        "{}{} {}: {}\n",
-        prefix, connector, node_type, display_label
+    output.push_str(&format!(
+        "{}{} {} {}\n",
+        prefix, connector, icon, truncated_label
     ));
 
-    let new_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
+    // Process children if any
+    if !snapshot.children.is_empty() {
+        let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
+        let child_count = snapshot.children.len();
 
-    match item {
-        ContentItem::Session(session) => {
-            append_children(result, session.children(), &new_prefix);
+        for (i, child) in snapshot.children.iter().enumerate() {
+            output.push_str(&format_snapshot(child, &child_prefix, i, child_count));
         }
-        ContentItem::Definition(definition) => {
-            append_children(result, definition.children(), &new_prefix);
-        }
-        ContentItem::Annotation(annotation) => {
-            append_children(result, annotation.children(), &new_prefix);
-        }
-        ContentItem::List(list) => {
-            // Lists now contain ContentItems (mostly ListItems)
-            append_children(result, &list.content, &new_prefix);
-        }
-        ContentItem::ListItem(list_item) => {
-            // ListItems can have nested content
-            append_children(result, list_item.children(), &new_prefix);
-        }
-        ContentItem::TextLine(_) => {} // TextLines don't have children
-        ContentItem::Paragraph(_) => {}
-        ContentItem::ForeignBlock(_) => {} // Foreign blocks don't have children
     }
+
+    output
 }
 
-fn append_children(result: &mut String, children: &[ContentItem], prefix: &str) {
-    for (i, child) in children.iter().enumerate() {
-        let is_last = i == children.len() - 1;
-        append_content_item(result, child, prefix, is_last);
+pub fn to_treeviz_str(doc: &Document) -> String {
+    let mut output = String::new();
+
+    let child_count = doc.content.len();
+    for (i, item) in doc.content.iter().enumerate() {
+        let snapshot = snapshot_from_content(item);
+        output.push_str(&format_snapshot(&snapshot, "", i, child_count));
     }
+
+    output
 }
