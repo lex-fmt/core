@@ -57,6 +57,70 @@ impl<'a> DocumentAssertion<'a> {
         });
         self
     }
+
+    /// Assert the root session location starts at the given line and column
+    pub fn root_location_starts_at(self, expected_line: usize, expected_column: usize) -> Self {
+        let actual = self.doc.root_session.location;
+        assert_eq!(
+            actual.start.line, expected_line,
+            "Expected root session location start line {}, found {}",
+            expected_line, actual.start.line
+        );
+        assert_eq!(
+            actual.start.column, expected_column,
+            "Expected root session location start column {}, found {}",
+            expected_column, actual.start.column
+        );
+        self
+    }
+
+    /// Assert the root session location ends at the given line and column
+    pub fn root_location_ends_at(self, expected_line: usize, expected_column: usize) -> Self {
+        let actual = self.doc.root_session.location;
+        assert_eq!(
+            actual.end.line, expected_line,
+            "Expected root session location end line {}, found {}",
+            expected_line, actual.end.line
+        );
+        assert_eq!(
+            actual.end.column, expected_column,
+            "Expected root session location end column {}, found {}",
+            expected_column, actual.end.column
+        );
+        self
+    }
+
+    /// Assert the root session location contains the given position
+    pub fn root_location_contains(self, line: usize, column: usize) -> Self {
+        use crate::txxt::ast::location::Position;
+
+        let pos = Position::new(line, column);
+        let location = self.doc.root_session.location;
+        assert!(
+            location.contains(pos),
+            "Expected root session location {} to contain position {}:{}",
+            location,
+            line,
+            column
+        );
+        self
+    }
+
+    /// Assert the root session location does NOT contain the given position
+    pub fn root_location_excludes(self, line: usize, column: usize) -> Self {
+        use crate::txxt::ast::location::Position;
+
+        let pos = Position::new(line, column);
+        let location = self.doc.root_session.location;
+        assert!(
+            !location.contains(pos),
+            "Expected root session location {} to NOT contain position {}:{}",
+            location,
+            line,
+            column
+        );
+        self
+    }
 }
 
 // ============================================================================
@@ -692,4 +756,143 @@ fn summarize_items(items: &[ContentItem]) -> String {
         .map(|item| item.node_type())
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+// ============================================================================
+// Tests for Location Assertions
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::txxt::ast::location::{Location, Position};
+    use crate::txxt::ast::{Document, Paragraph, Session, TextContent};
+
+    #[test]
+    fn test_root_location_starts_at() {
+        let location = Location::new(Position::new(0, 0), Position::new(0, 10));
+        let mut session = Session::with_title(String::new());
+        session.location = location;
+        let doc = Document {
+            metadata: Vec::new(),
+            root_session: session,
+        };
+
+        // Should pass
+        assert_ast(&doc).root_location_starts_at(0, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected root session location start line 5, found 0")]
+    fn test_root_location_starts_at_fails_wrong_line() {
+        let location = Location::new(Position::new(0, 0), Position::new(0, 10));
+        let mut session = Session::with_title(String::new());
+        session.location = location;
+        let doc = Document {
+            metadata: Vec::new(),
+            root_session: session,
+        };
+
+        assert_ast(&doc).root_location_starts_at(5, 0);
+    }
+
+    #[test]
+    fn test_root_location_ends_at() {
+        let location = Location::new(Position::new(0, 0), Position::new(2, 15));
+        let mut session = Session::with_title(String::new());
+        session.location = location;
+        let doc = Document {
+            metadata: Vec::new(),
+            root_session: session,
+        };
+
+        assert_ast(&doc).root_location_ends_at(2, 15);
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected root session location end column 10, found 15")]
+    fn test_root_location_ends_at_fails_wrong_column() {
+        let location = Location::new(Position::new(0, 0), Position::new(2, 15));
+        let mut session = Session::with_title(String::new());
+        session.location = location;
+        let doc = Document {
+            metadata: Vec::new(),
+            root_session: session,
+        };
+
+        assert_ast(&doc).root_location_ends_at(2, 10);
+    }
+
+    #[test]
+    fn test_root_location_contains() {
+        let location = Location::new(Position::new(1, 0), Position::new(3, 10));
+        let mut session = Session::with_title(String::new());
+        session.location = location;
+        let doc = Document {
+            metadata: Vec::new(),
+            root_session: session,
+        };
+
+        assert_ast(&doc).root_location_contains(2, 5); // Inside
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected root session location")]
+    fn test_root_location_contains_fails() {
+        let location = Location::new(Position::new(1, 0), Position::new(3, 10));
+        let mut session = Session::with_title(String::new());
+        session.location = location;
+        let doc = Document {
+            metadata: Vec::new(),
+            root_session: session,
+        };
+
+        assert_ast(&doc).root_location_contains(5, 5); // Outside
+    }
+
+    #[test]
+    fn test_root_location_excludes() {
+        let location = Location::new(Position::new(1, 0), Position::new(3, 10));
+        let mut session = Session::with_title(String::new());
+        session.location = location;
+        let doc = Document {
+            metadata: Vec::new(),
+            root_session: session,
+        };
+
+        assert_ast(&doc).root_location_excludes(5, 5); // Outside
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected root session location")]
+    fn test_root_location_excludes_fails() {
+        let location = Location::new(Position::new(1, 0), Position::new(3, 10));
+        let mut session = Session::with_title(String::new());
+        session.location = location;
+        let doc = Document {
+            metadata: Vec::new(),
+            root_session: session,
+        };
+
+        assert_ast(&doc).root_location_excludes(2, 5); // Inside
+    }
+
+    #[test]
+    fn test_location_assertions_are_fluent() {
+        let location = Location::new(Position::new(0, 0), Position::new(5, 20));
+        let mut session = Session::with_title(String::new());
+        session.location = location;
+        let doc = Document {
+            metadata: Vec::new(),
+            root_session: session,
+        };
+
+        // Test fluent chaining
+        assert_ast(&doc)
+            .root_location_starts_at(0, 0)
+            .root_location_ends_at(5, 20)
+            .root_location_contains(2, 10)
+            .root_location_excludes(10, 0)
+            .item_count(0);
+    }
 }
