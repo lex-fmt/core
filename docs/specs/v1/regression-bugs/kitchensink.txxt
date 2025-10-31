@@ -2,6 +2,7 @@ Kitchensink Test Document {{paragraph}}
 
 This document includes all major features of the txxt language to serve as a comprehensive "kitchensink" regression test for the parser. {{paragraph}}
 
+This is a two-lined paragraph.
 First, a simple definition at the root level. {{paragraph}}
 
 Root Definition:

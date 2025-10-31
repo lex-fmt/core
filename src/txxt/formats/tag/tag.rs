@@ -256,6 +256,15 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
             // But handle it here for completeness
             serialize_list_item(li, indent_level, output);
         }
+        ContentItem::TextLine(tl) => {
+            // TextLines should be serialized within Paragraph context
+            // But handle it here for completeness
+            output.push_str(&format!(
+                "{}<text-line>{}</text-line>\n",
+                indent,
+                escape_xml(tl.text())
+            ));
+        }
         ContentItem::ForeignBlock(fb) => {
             // <foreign-block>subject<content>raw content</content><closing-annotation>...</closing-annotation></foreign-block>
             // ForeignBlock has raw content, not structured children, so no Container trait usage

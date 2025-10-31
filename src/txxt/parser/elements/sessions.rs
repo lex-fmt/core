@@ -177,6 +177,9 @@ mod tests {
                                 li.content.len()
                             );
                         }
+                        ContentItem::TextLine(tl) => {
+                            println!("  {}: TextLine '{}'", i, tl.text());
+                        }
                         ContentItem::Definition(d) => {
                             println!(
                                 "  {}: Definition '{}' with {} children",

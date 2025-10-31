@@ -6,7 +6,7 @@ use super::annotation::Annotation;
 use super::definition::Definition;
 use super::foreign::ForeignBlock;
 use super::list::{List, ListItem};
-use super::paragraph::Paragraph;
+use super::paragraph::{Paragraph, TextLine};
 use super::session::Session;
 use std::fmt;
 
@@ -17,6 +17,7 @@ pub enum ContentItem {
     Session(Session),
     List(List),
     ListItem(ListItem),
+    TextLine(TextLine),
     Definition(Definition),
     Annotation(Annotation),
     ForeignBlock(ForeignBlock),
@@ -29,6 +30,7 @@ impl AstNode for ContentItem {
             ContentItem::Session(s) => s.node_type(),
             ContentItem::List(l) => l.node_type(),
             ContentItem::ListItem(li) => li.node_type(),
+            ContentItem::TextLine(tl) => tl.node_type(),
             ContentItem::Definition(d) => d.node_type(),
             ContentItem::Annotation(a) => a.node_type(),
             ContentItem::ForeignBlock(fb) => fb.node_type(),
@@ -41,6 +43,7 @@ impl AstNode for ContentItem {
             ContentItem::Session(s) => s.display_label(),
             ContentItem::List(l) => l.display_label(),
             ContentItem::ListItem(li) => li.display_label(),
+            ContentItem::TextLine(tl) => tl.display_label(),
             ContentItem::Definition(d) => d.display_label(),
             ContentItem::Annotation(a) => a.display_label(),
             ContentItem::ForeignBlock(fb) => fb.display_label(),
@@ -53,6 +56,7 @@ impl AstNode for ContentItem {
             ContentItem::Session(s) => s.location(),
             ContentItem::List(l) => l.location(),
             ContentItem::ListItem(li) => li.location(),
+            ContentItem::TextLine(tl) => tl.location(),
             ContentItem::Definition(d) => d.location(),
             ContentItem::Annotation(a) => a.location(),
             ContentItem::ForeignBlock(fb) => fb.location(),
@@ -67,6 +71,7 @@ impl ContentItem {
             ContentItem::Session(s) => s.node_type(),
             ContentItem::List(l) => l.node_type(),
             ContentItem::ListItem(li) => li.node_type(),
+            ContentItem::TextLine(tl) => tl.node_type(),
             ContentItem::Definition(d) => d.node_type(),
             ContentItem::Annotation(a) => a.node_type(),
             ContentItem::ForeignBlock(fb) => fb.node_type(),
@@ -79,6 +84,7 @@ impl ContentItem {
             ContentItem::Session(s) => s.display_label(),
             ContentItem::List(l) => l.display_label(),
             ContentItem::ListItem(li) => li.display_label(),
+            ContentItem::TextLine(tl) => tl.display_label(),
             ContentItem::Definition(d) => d.display_label(),
             ContentItem::Annotation(a) => a.display_label(),
             ContentItem::ForeignBlock(fb) => fb.display_label(),
@@ -103,6 +109,8 @@ impl ContentItem {
             ContentItem::Annotation(a) => Some(a.children()),
             ContentItem::List(l) => Some(&l.content),
             ContentItem::ListItem(li) => Some(li.children()),
+            ContentItem::TextLine(_) => None,
+            ContentItem::Paragraph(_) => None, // Paragraphs keep lines as TextContent, not ContentItem
             _ => None,
         }
     }
@@ -256,6 +264,7 @@ impl ContentItem {
             ContentItem::Session(s) => s.location(),
             ContentItem::List(l) => l.location(),
             ContentItem::ListItem(li) => li.location(),
+            ContentItem::TextLine(tl) => tl.location(),
             ContentItem::Definition(d) => d.location(),
             ContentItem::Annotation(a) => a.location(),
             ContentItem::ForeignBlock(fb) => fb.location(),
@@ -315,6 +324,9 @@ impl fmt::Display for ContentItem {
             ContentItem::List(l) => write!(f, "List({} items)", l.content.len()),
             ContentItem::ListItem(li) => {
                 write!(f, "ListItem('{}', {} items)", li.text(), li.content.len())
+            }
+            ContentItem::TextLine(tl) => {
+                write!(f, "TextLine('{}')", tl.text())
             }
             ContentItem::Definition(d) => {
                 write!(
