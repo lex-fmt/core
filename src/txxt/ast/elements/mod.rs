@@ -22,6 +22,6 @@ pub use document::Document;
 pub use foreign::ForeignBlock;
 pub use label::Label;
 pub use list::{List, ListItem};
-pub use paragraph::Paragraph;
+pub use paragraph::{Paragraph, TextLine};
 pub use parameter::Parameter;
 pub use session::Session;

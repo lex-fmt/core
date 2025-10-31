@@ -4,13 +4,14 @@ use super::super::location::Location;
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
+use super::super::traits::Visitor;
 use super::content_item::ContentItem;
 use std::fmt;
 
 /// A list contains multiple list items
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
-    pub items: Vec<ListItem>,
+    pub content: Vec<ContentItem>,
     pub location: Option<Location>,
 }
 
@@ -23,9 +24,9 @@ pub struct ListItem {
 }
 
 impl List {
-    pub fn new(items: Vec<ListItem>) -> Self {
+    pub fn new(items: Vec<ContentItem>) -> Self {
         Self {
-            items,
+            content: items,
             location: None,
         }
     }
@@ -40,16 +41,21 @@ impl AstNode for List {
         "List"
     }
     fn display_label(&self) -> String {
-        format!("{} items", self.items.len())
+        format!("{} items", self.content.len())
     }
     fn location(&self) -> Option<Location> {
         self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        visitor.visit_list(self);
+        super::super::traits::visit_children(visitor, &self.content);
     }
 }
 
 impl fmt::Display for List {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "List({} items)", self.items.len())
+        write!(f, "List({} items)", self.content.len())
     }
 }
 
@@ -99,6 +105,11 @@ impl AstNode for ListItem {
     }
     fn location(&self) -> Option<Location> {
         self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        visitor.visit_list_item(self);
+        super::super::traits::visit_children(visitor, &self.content);
     }
 }
 

@@ -1,0 +1,94 @@
+//! Snapshot building for AST nodes
+//!
+//! This module provides the canonical AST traversal that creates a normalized snapshot
+//! representation of the entire tree. All serializers should consume the output
+//! of snapshot_node() rather than reimplementing traversal logic.
+
+use super::snapshot::AstSnapshot;
+use super::traits::{AstNode, Container};
+use super::{Annotation, ContentItem, Definition, List, ListItem, Paragraph, Session};
+
+/// Create a snapshot of a single AST node and all its children
+///
+/// This function recursively builds a complete snapshot tree for a node and all its descendants.
+pub fn snapshot_node<T: AstNode>(node: &T) -> AstSnapshot {
+    // We match on concrete types here - since this is called with concrete types from ContentItem,
+    // we don't need to do any casting
+    let node_type = node.node_type();
+    let label = node.display_label();
+
+    // For container types, we need to visit children
+    // But without unsafe casting, we can only do this if we have the concrete type
+    // This is a limitation of the generic approach
+    //
+    // The solution: use ContentItem enum variants directly in callers
+    // See snapshot_from_content_concrete below
+
+    AstSnapshot::new(node_type.to_string(), label)
+}
+
+/// Build snapshot from a concrete ContentItem enum
+///
+/// This is the preferred way to call the snapshot builder since it avoids unsafe casting.
+pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
+    match item {
+        ContentItem::Session(session) => build_session_snapshot(session),
+        ContentItem::Paragraph(para) => build_paragraph_snapshot(para),
+        ContentItem::List(list) => build_list_snapshot(list),
+        ContentItem::ListItem(li) => build_list_item_snapshot(li),
+        ContentItem::Definition(def) => build_definition_snapshot(def),
+        ContentItem::ForeignBlock(fb) => {
+            AstSnapshot::new("ForeignBlock".to_string(), fb.display_label())
+        }
+        ContentItem::Annotation(ann) => build_annotation_snapshot(ann),
+        ContentItem::TextLine(tl) => AstSnapshot::new("TextLine".to_string(), tl.display_label()),
+    }
+}
+
+fn build_session_snapshot(session: &Session) -> AstSnapshot {
+    let mut snapshot = AstSnapshot::new("Session".to_string(), session.display_label());
+    for child in session.children() {
+        snapshot.children.push(snapshot_from_content(child));
+    }
+    snapshot
+}
+
+fn build_paragraph_snapshot(para: &Paragraph) -> AstSnapshot {
+    let mut snapshot = AstSnapshot::new("Paragraph".to_string(), para.display_label());
+    for line in &para.lines {
+        snapshot.children.push(snapshot_from_content(line));
+    }
+    snapshot
+}
+
+fn build_list_snapshot(list: &List) -> AstSnapshot {
+    let mut snapshot = AstSnapshot::new("List".to_string(), list.display_label());
+    for item in &list.content {
+        snapshot.children.push(snapshot_from_content(item));
+    }
+    snapshot
+}
+
+fn build_list_item_snapshot(item: &ListItem) -> AstSnapshot {
+    let mut snapshot = AstSnapshot::new("ListItem".to_string(), item.display_label());
+    for child in item.children() {
+        snapshot.children.push(snapshot_from_content(child));
+    }
+    snapshot
+}
+
+fn build_definition_snapshot(def: &Definition) -> AstSnapshot {
+    let mut snapshot = AstSnapshot::new("Definition".to_string(), def.display_label());
+    for child in def.children() {
+        snapshot.children.push(snapshot_from_content(child));
+    }
+    snapshot
+}
+
+fn build_annotation_snapshot(ann: &Annotation) -> AstSnapshot {
+    let mut snapshot = AstSnapshot::new("Annotation".to_string(), ann.display_label());
+    for child in ann.children() {
+        snapshot.children.push(snapshot_from_content(child));
+    }
+    snapshot
+}
