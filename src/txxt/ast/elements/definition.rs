@@ -3,27 +3,19 @@
 //!  Definitions are a core element for explaining terms and concepts.
 //!  They pair a subject (the term being defined) with its content, the definition body.
 //!
-//!  Business use:
-//!  - Capture domain vocabulary inline as you write
-//!  - Let tools extract glossaries and cross-references automatically
-//!
-//! Subject:
-//!     Content here
-//!
-//!     Can be multiple paragraphs or any other content but sessions.
+//! Syntax:
+//!     <text-span>+ <colon> <line-break>
+//!     <indent> <content> ... any number of content elements
+//!     <dedent>
 //!
 //! Examples:
-//! - `Term:` followed by an indented explanation
-//! - `HTTP:` One per method; caching rules; and examples
+//!     Cache:
+//!         Temporary storage for frequently accessed data.
 //!
-//! Subject line:
-//! - Ends with colon (:)
-//! - Colon is a marker, not part of the subject text
-//! - Subject extracted without the colon
+//!     Microservice:
+//!         An architectural style that structures applications as loosely coupled services.
 //!
-//! Content:
-//! - Must be indented immediately after subject
-//! - Can contain any element but sessions.
+//!         Each service is independently deployable and scalable.
 //!
 //! Learn More:
 //! - The definition spec: docs/specs/v1/elements/definitions.txxt

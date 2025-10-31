@@ -1,19 +1,28 @@
 //! Session element
 //!
-//! A session is a titled container that groups related content.
-//! Sessions establish hierarchy within a document via their title
-//! line and nested content.
+//! A session is the main structural element of txxt documents. Sessions can be arbitrarily nested
+//! and contain required titles and content.
+//!
+//! Sessions establish hierarchy within a document via their title e and nested content, like all
+//! major elements in txxt.
 //!
 //! Structure:
 //! - Title: short text identifying the session
 //! - Content: any elements allowed in the body
+//!
+//! The title can be any text content, and is often decorated with an ordering indicator, just like lists,
+//! and in txxt all the numerical, alphabetical, and roman numeral indicators are supported.
 //!
 //! Examples:
 //!
 //! Welcome to The Txxt format
 //!
 //!     Txxt is a plain text document format. ...
-
+//!
+//! 1.4 The Finale
+//!
+//!     Here is where we stop.
+//!
 use super::super::location::{Location, Position};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
