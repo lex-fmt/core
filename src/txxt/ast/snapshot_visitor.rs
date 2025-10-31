@@ -6,7 +6,7 @@
 
 use super::snapshot::AstSnapshot;
 use super::traits::{AstNode, Container};
-use super::{Annotation, ContentItem, Definition, List, ListItem, Paragraph, Session};
+use super::{Annotation, ContentItem, Definition, Document, List, ListItem, Paragraph, Session};
 
 /// Create a snapshot of a single AST node and all its children
 ///
@@ -43,6 +43,24 @@ pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
         ContentItem::Annotation(ann) => build_annotation_snapshot(ann),
         ContentItem::TextLine(tl) => AstSnapshot::new("TextLine".to_string(), tl.display_label()),
     }
+}
+
+/// Build a snapshot for the document root, including all top-level content items
+pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
+    let mut snapshot = AstSnapshot::new(
+        "Document".to_string(),
+        format!(
+            "Document ({} metadata, {} items)",
+            doc.metadata.len(),
+            doc.content.len()
+        ),
+    );
+
+    for item in &doc.content {
+        snapshot.children.push(snapshot_from_content(item));
+    }
+
+    snapshot
 }
 
 fn build_session_snapshot(session: &Session) -> AstSnapshot {
