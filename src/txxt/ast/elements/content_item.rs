@@ -5,7 +5,7 @@ use super::super::traits::{AstNode, Container};
 use super::annotation::Annotation;
 use super::definition::Definition;
 use super::foreign::ForeignBlock;
-use super::list::List;
+use super::list::{List, ListItem};
 use super::paragraph::Paragraph;
 use super::session::Session;
 use std::fmt;
@@ -16,6 +16,7 @@ pub enum ContentItem {
     Paragraph(Paragraph),
     Session(Session),
     List(List),
+    ListItem(ListItem),
     Definition(Definition),
     Annotation(Annotation),
     ForeignBlock(ForeignBlock),
@@ -27,6 +28,7 @@ impl AstNode for ContentItem {
             ContentItem::Paragraph(p) => p.node_type(),
             ContentItem::Session(s) => s.node_type(),
             ContentItem::List(l) => l.node_type(),
+            ContentItem::ListItem(li) => li.node_type(),
             ContentItem::Definition(d) => d.node_type(),
             ContentItem::Annotation(a) => a.node_type(),
             ContentItem::ForeignBlock(fb) => fb.node_type(),
@@ -38,6 +40,7 @@ impl AstNode for ContentItem {
             ContentItem::Paragraph(p) => p.display_label(),
             ContentItem::Session(s) => s.display_label(),
             ContentItem::List(l) => l.display_label(),
+            ContentItem::ListItem(li) => li.display_label(),
             ContentItem::Definition(d) => d.display_label(),
             ContentItem::Annotation(a) => a.display_label(),
             ContentItem::ForeignBlock(fb) => fb.display_label(),
@@ -49,6 +52,7 @@ impl AstNode for ContentItem {
             ContentItem::Paragraph(p) => p.location(),
             ContentItem::Session(s) => s.location(),
             ContentItem::List(l) => l.location(),
+            ContentItem::ListItem(li) => li.location(),
             ContentItem::Definition(d) => d.location(),
             ContentItem::Annotation(a) => a.location(),
             ContentItem::ForeignBlock(fb) => fb.location(),
@@ -62,6 +66,7 @@ impl ContentItem {
             ContentItem::Paragraph(p) => p.node_type(),
             ContentItem::Session(s) => s.node_type(),
             ContentItem::List(l) => l.node_type(),
+            ContentItem::ListItem(li) => li.node_type(),
             ContentItem::Definition(d) => d.node_type(),
             ContentItem::Annotation(a) => a.node_type(),
             ContentItem::ForeignBlock(fb) => fb.node_type(),
@@ -73,6 +78,7 @@ impl ContentItem {
             ContentItem::Paragraph(p) => p.display_label(),
             ContentItem::Session(s) => s.display_label(),
             ContentItem::List(l) => l.display_label(),
+            ContentItem::ListItem(li) => li.display_label(),
             ContentItem::Definition(d) => d.display_label(),
             ContentItem::Annotation(a) => a.display_label(),
             ContentItem::ForeignBlock(fb) => fb.display_label(),
@@ -84,6 +90,7 @@ impl ContentItem {
             ContentItem::Session(s) => Some(s.label()),
             ContentItem::Definition(d) => Some(d.label()),
             ContentItem::Annotation(a) => Some(a.label()),
+            ContentItem::ListItem(li) => Some(li.label()),
             ContentItem::ForeignBlock(fb) => Some(fb.subject.as_string()),
             _ => None,
         }
@@ -94,6 +101,8 @@ impl ContentItem {
             ContentItem::Session(s) => Some(s.children()),
             ContentItem::Definition(d) => Some(d.children()),
             ContentItem::Annotation(a) => Some(a.children()),
+            ContentItem::List(l) => Some(&l.content),
+            ContentItem::ListItem(li) => Some(li.children()),
             _ => None,
         }
     }
@@ -103,6 +112,8 @@ impl ContentItem {
             ContentItem::Session(s) => Some(s.children_mut()),
             ContentItem::Definition(d) => Some(d.children_mut()),
             ContentItem::Annotation(a) => Some(a.children_mut()),
+            ContentItem::List(l) => Some(&mut l.content),
+            ContentItem::ListItem(li) => Some(li.children_mut()),
             _ => None,
         }
     }
@@ -122,6 +133,9 @@ impl ContentItem {
     }
     pub fn is_list(&self) -> bool {
         matches!(self, ContentItem::List(_))
+    }
+    pub fn is_list_item(&self) -> bool {
+        matches!(self, ContentItem::ListItem(_))
     }
     pub fn is_definition(&self) -> bool {
         matches!(self, ContentItem::Definition(_))
@@ -150,6 +164,13 @@ impl ContentItem {
     pub fn as_list(&self) -> Option<&List> {
         if let ContentItem::List(l) = self {
             Some(l)
+        } else {
+            None
+        }
+    }
+    pub fn as_list_item(&self) -> Option<&ListItem> {
+        if let ContentItem::ListItem(li) = self {
+            Some(li)
         } else {
             None
         }
@@ -197,6 +218,13 @@ impl ContentItem {
             None
         }
     }
+    pub fn as_list_item_mut(&mut self) -> Option<&mut ListItem> {
+        if let ContentItem::ListItem(li) = self {
+            Some(li)
+        } else {
+            None
+        }
+    }
     pub fn as_definition_mut(&mut self) -> Option<&mut Definition> {
         if let ContentItem::Definition(d) = self {
             Some(d)
@@ -227,6 +255,7 @@ impl ContentItem {
             ContentItem::Paragraph(p) => p.location(),
             ContentItem::Session(s) => s.location(),
             ContentItem::List(l) => l.location(),
+            ContentItem::ListItem(li) => li.location(),
             ContentItem::Definition(d) => d.location(),
             ContentItem::Annotation(a) => a.location(),
             ContentItem::ForeignBlock(fb) => fb.location(),
@@ -284,6 +313,9 @@ impl fmt::Display for ContentItem {
                 )
             }
             ContentItem::List(l) => write!(f, "List({} items)", l.content.len()),
+            ContentItem::ListItem(li) => {
+                write!(f, "ListItem('{}', {} items)", li.text(), li.content.len())
+            }
             ContentItem::Definition(d) => {
                 write!(
                     f,

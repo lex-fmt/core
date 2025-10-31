@@ -720,22 +720,24 @@ mod tests {
                 }
                 ContentItem::List(list) => {
                     assert!(list.location.is_some(), "List is missing location");
-                    for list_item in &list.content {
-                        assert!(
-                            list_item.location.is_some(),
-                            "List item should have location"
-                        );
-                        for text in &list_item.text {
+                    for item in &list.content {
+                        if let ContentItem::ListItem(list_item) = item {
                             assert!(
-                                text.location.is_some(),
-                                "List item text should have location"
+                                list_item.location.is_some(),
+                                "List item should have location"
                             );
-                        }
-                        for child in &list_item.content {
-                            assert!(
-                                child.location().is_some(),
-                                "Nested list item child should have location"
-                            );
+                            for text in &list_item.text {
+                                assert!(
+                                    text.location.is_some(),
+                                    "List item text should have location"
+                                );
+                            }
+                            for child in &list_item.content {
+                                assert!(
+                                    child.location().is_some(),
+                                    "Nested list item child should have location"
+                                );
+                            }
                         }
                     }
                 }

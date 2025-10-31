@@ -10,7 +10,7 @@ use std::fmt;
 /// A list contains multiple list items
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
-    pub content: Vec<ListItem>,
+    pub content: Vec<ContentItem>,
     pub location: Option<Location>,
 }
 
@@ -23,7 +23,7 @@ pub struct ListItem {
 }
 
 impl List {
-    pub fn new(items: Vec<ListItem>) -> Self {
+    pub fn new(items: Vec<ContentItem>) -> Self {
         Self {
             content: items,
             location: None,

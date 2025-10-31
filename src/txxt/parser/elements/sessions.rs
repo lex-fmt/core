@@ -169,6 +169,14 @@ mod tests {
                         ContentItem::List(l) => {
                             println!("  {}: List with {} items", i, l.content.len());
                         }
+                        ContentItem::ListItem(li) => {
+                            println!(
+                                "  {}: ListItem '{}' with {} children",
+                                i,
+                                li.label(),
+                                li.content.len()
+                            );
+                        }
                         ContentItem::Definition(d) => {
                             println!(
                                 "  {}: Definition '{}' with {} children",

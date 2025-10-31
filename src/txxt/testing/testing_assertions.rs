@@ -308,7 +308,17 @@ impl<'a> ListAssertion<'a> {
             index,
             self.list.content.len()
         );
-        let item = &self.list.content[index];
+        let content_item = &self.list.content[index];
+        let item = if let ContentItem::ListItem(li) = content_item {
+            li
+        } else {
+            panic!(
+                "{}: Expected ListItem at index {}, but found {:?}",
+                self.context,
+                index,
+                content_item.node_type()
+            );
+        };
         assertion(ListItemAssertion {
             item,
             context: format!("{}:items[{}]", self.context, index),

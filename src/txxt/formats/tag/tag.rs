@@ -96,32 +96,34 @@ fn serialize_definition_first_child(item: &ContentItem, indent_level: usize, out
         ContentItem::List(l) => {
             // For lists as first child, serialize normally but clean first item
             output.push_str(&format!("{}<list>\n", indent));
-            for (i, list_item) in l.content.iter().enumerate() {
-                if i == 0 {
-                    // First item - remove {{definition}} marker if present
-                    let item_text = list_item.label();
-                    let (cleaned_text, _) = extract_list_item_definition_marker(item_text);
-                    let temp_indent = "  ".repeat(indent_level + 1);
-                    output.push_str(&format!(
-                        "{}<item>{}",
-                        temp_indent,
-                        escape_xml(&cleaned_text)
-                    ));
+            for (i, item) in l.content.iter().enumerate() {
+                if let ContentItem::ListItem(list_item) = item {
+                    if i == 0 {
+                        // First item - remove {{definition}} marker if present
+                        let item_text = list_item.label();
+                        let (cleaned_text, _) = extract_list_item_definition_marker(item_text);
+                        let temp_indent = "  ".repeat(indent_level + 1);
+                        output.push_str(&format!(
+                            "{}<item>{}",
+                            temp_indent,
+                            escape_xml(&cleaned_text)
+                        ));
 
-                    if list_item.children().is_empty() {
-                        output.push_str("</item>\n");
+                        if list_item.children().is_empty() {
+                            output.push_str("</item>\n");
+                        } else {
+                            serialize_children(
+                                list_item.children(),
+                                indent_level + 2,
+                                output,
+                                "children",
+                                &temp_indent,
+                            );
+                            output.push_str("</item>\n");
+                        }
                     } else {
-                        serialize_children(
-                            list_item.children(),
-                            indent_level + 2,
-                            output,
-                            "children",
-                            &temp_indent,
-                        );
-                        output.push_str("</item>\n");
+                        serialize_list_item(list_item, indent_level + 1, output);
                     }
-                } else {
-                    serialize_list_item(list_item, indent_level + 1, output);
                 }
             }
             output.push_str(&format!("{}</list>\n", indent));
@@ -165,7 +167,9 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
             // Each item uses Container trait for nested content
             output.push_str(&format!("{}<list>\n", indent));
             for item in &l.content {
-                serialize_list_item(item, indent_level + 1, output);
+                if let ContentItem::ListItem(li) = item {
+                    serialize_list_item(li, indent_level + 1, output);
+                }
             }
             output.push_str(&format!("{}</list>\n", indent));
         }
@@ -186,9 +190,11 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
                 } else if let ContentItem::List(l) = &d.children()[0] {
                     // Check if first list item has {{definition}} marker
                     if !l.content.is_empty() {
-                        let item_text = l.content[0].label();
-                        let (_, marker) = extract_list_item_definition_marker(item_text);
-                        definition_marker = marker;
+                        if let ContentItem::ListItem(li) = &l.content[0] {
+                            let item_text = li.label();
+                            let (_, marker) = extract_list_item_definition_marker(item_text);
+                            definition_marker = marker;
+                        }
                     }
                 }
             }
@@ -244,6 +250,11 @@ fn serialize_content_item(item: &ContentItem, indent_level: usize, output: &mut 
                 serialize_children(a.children(), indent_level + 1, output, "content", &indent);
                 output.push_str("</annotation>\n");
             }
+        }
+        ContentItem::ListItem(li) => {
+            // ListItems should be serialized within List context using serialize_list_item
+            // But handle it here for completeness
+            serialize_list_item(li, indent_level, output);
         }
         ContentItem::ForeignBlock(fb) => {
             // <foreign-block>subject<content>raw content</content><closing-annotation>...</closing-annotation></foreign-block>
@@ -410,8 +421,8 @@ mod tests {
         use crate::txxt::ast::{List, ListItem};
 
         let doc = Document::with_content(vec![ContentItem::List(List::new(vec![
-            ListItem::new("- First item".to_string()),
-            ListItem::new("- Second item".to_string()),
+            ContentItem::ListItem(ListItem::new("- First item".to_string())),
+            ContentItem::ListItem(ListItem::new("- Second item".to_string())),
         ]))]);
 
         let result = serialize_document(&doc);
@@ -433,16 +444,16 @@ mod tests {
         //   - Inner item two
         // - Outer item two
         let inner_list = List::new(vec![
-            ListItem::new("- Inner item one".to_string()),
-            ListItem::new("- Inner item two".to_string()),
+            ContentItem::ListItem(ListItem::new("- Inner item one".to_string())),
+            ContentItem::ListItem(ListItem::new("- Inner item two".to_string())),
         ]);
 
         let outer_list = List::new(vec![
-            ListItem::with_content(
+            ContentItem::ListItem(ListItem::with_content(
                 "- Outer item one".to_string(),
                 vec![ContentItem::List(inner_list)],
-            ),
-            ListItem::new("- Outer item two".to_string()),
+            )),
+            ContentItem::ListItem(ListItem::new("- Outer item two".to_string())),
         ]);
 
         let doc = Document::with_content(vec![ContentItem::List(outer_list)]);
@@ -469,12 +480,12 @@ mod tests {
         // Create a list with paragraph content:
         // - First item
         //   This is a nested paragraph.
-        let list = List::new(vec![ListItem::with_content(
+        let list = List::new(vec![ContentItem::ListItem(ListItem::with_content(
             "- First item".to_string(),
             vec![ContentItem::Paragraph(Paragraph::from_line(
                 "This is a nested paragraph.".to_string(),
             ))],
-        )]);
+        ))]);
 
         let doc = Document::with_content(vec![ContentItem::List(list)]);
 
@@ -496,11 +507,11 @@ mod tests {
         //    - Nested list item two
         //    Another paragraph.
         let nested_list = List::new(vec![
-            ListItem::new("- Nested list item one".to_string()),
-            ListItem::new("- Nested list item two".to_string()),
+            ContentItem::ListItem(ListItem::new("- Nested list item one".to_string())),
+            ContentItem::ListItem(ListItem::new("- Nested list item two".to_string())),
         ]);
 
-        let list = List::new(vec![ListItem::with_content(
+        let list = List::new(vec![ContentItem::ListItem(ListItem::with_content(
             "1. First item".to_string(),
             vec![
                 ContentItem::Paragraph(Paragraph::from_line(
@@ -509,7 +520,7 @@ mod tests {
                 ContentItem::List(nested_list),
                 ContentItem::Paragraph(Paragraph::from_line("Another paragraph.".to_string())),
             ],
-        )]);
+        ))]);
 
         let doc = Document::with_content(vec![ContentItem::List(list)]);
 
@@ -534,19 +545,19 @@ mod tests {
         //     - Inner item one
         //     - Inner item two
         let inner_list = List::new(vec![
-            ListItem::new("- Inner item one".to_string()),
-            ListItem::new("- Inner item two".to_string()),
+            ContentItem::ListItem(ListItem::new("- Inner item one".to_string())),
+            ContentItem::ListItem(ListItem::new("- Inner item two".to_string())),
         ]);
 
-        let middle_list = List::new(vec![ListItem::with_content(
+        let middle_list = List::new(vec![ContentItem::ListItem(ListItem::with_content(
             "- Middle item".to_string(),
             vec![ContentItem::List(inner_list)],
-        )]);
+        ))]);
 
-        let outer_list = List::new(vec![ListItem::with_content(
+        let outer_list = List::new(vec![ContentItem::ListItem(ListItem::with_content(
             "- Outer item".to_string(),
             vec![ContentItem::List(middle_list)],
-        )]);
+        ))]);
 
         let doc = Document::with_content(vec![ContentItem::List(outer_list)]);
 
@@ -643,8 +654,8 @@ mod tests {
         let nested_paragraph =
             ContentItem::Paragraph(Paragraph::from_line("Nested paragraph".to_string()));
         let nested_list = ContentItem::List(List::new(vec![
-            ListItem::new("- Item one".to_string()),
-            ListItem::new("- Item two".to_string()),
+            ContentItem::ListItem(ListItem::new("- Item one".to_string())),
+            ContentItem::ListItem(ListItem::new("- Item two".to_string())),
         ]));
 
         // Test Session with nested content
@@ -667,10 +678,10 @@ mod tests {
         );
 
         // Test ListItem with nested content (list in list)
-        let outer_list = List::new(vec![ListItem::with_content(
+        let outer_list = List::new(vec![ContentItem::ListItem(ListItem::with_content(
             "Outer item".to_string(),
             vec![nested_paragraph.clone(), nested_list.clone()],
-        )]);
+        ))]);
 
         let doc = Document::with_content(vec![
             ContentItem::Session(session),
