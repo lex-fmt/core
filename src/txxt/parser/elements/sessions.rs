@@ -7,10 +7,10 @@ use chumsky::prelude::*;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::{AstNode, ContentItem, Session, TextContent};
+use crate::txxt::ast::{ContentItem, Session, TextContent};
 use crate::txxt::lexer::Token;
 use crate::txxt::parser::combinators::{
-    byte_range_to_location, compute_byte_range_bounds, compute_location_from_locations,
+    aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
     extract_text_from_locations, text_line, token,
 };
 
@@ -54,13 +54,7 @@ where
             let title_location = byte_range_to_location(&source_for_session, &title_location);
             let title = TextContent::from_string(title_text, Some(title_location));
 
-            let mut location_sources = vec![title_location];
-            location_sources.extend(
-                content
-                    .iter()
-                    .map(|item| item.location().unwrap_or_default()),
-            );
-            let location = compute_location_from_locations(&location_sources);
+            let location = aggregate_locations(title_location, &content);
 
             ContentItem::Session(Session {
                 title,

@@ -766,7 +766,7 @@ fn summarize_items(items: &[ContentItem]) -> String {
 mod tests {
     use super::*;
     use crate::txxt::ast::location::{Location, Position};
-    use crate::txxt::ast::{Document, Paragraph, Session, TextContent};
+    use crate::txxt::ast::{Document, Session};
 
     #[test]
     fn test_root_location_starts_at() {
