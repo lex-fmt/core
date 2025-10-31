@@ -125,14 +125,26 @@ mod tests {
 
     #[test]
     fn test_document_elements_at() {
-        let para1 = Paragraph::from_line("First".to_string()).with_location(Some(Location::new(
-            Position::new(0, 0),
-            Position::new(0, 5),
-        )));
-        let para2 = Paragraph::from_line("Second".to_string()).with_location(Some(Location::new(
-            Position::new(1, 0),
-            Position::new(1, 6),
-        )));
+        use crate::txxt::ast::elements::paragraph::TextLine;
+        use crate::txxt::ast::text_content::TextContent;
+
+        // Create paragraph 1 with properly located TextLine
+        let text_line1 =
+            TextLine::new(TextContent::from_string("First".to_string(), None)).with_location(Some(
+                Location::new(Position::new(0, 0), Position::new(0, 5)),
+            ));
+        let para1 = Paragraph::new(vec![ContentItem::TextLine(text_line1)]).with_location(Some(
+            Location::new(Position::new(0, 0), Position::new(0, 5)),
+        ));
+
+        // Create paragraph 2 with properly located TextLine
+        let text_line2 =
+            TextLine::new(TextContent::from_string("Second".to_string(), None)).with_location(
+                Some(Location::new(Position::new(1, 0), Position::new(1, 6))),
+            );
+        let para2 = Paragraph::new(vec![ContentItem::TextLine(text_line2)]).with_location(Some(
+            Location::new(Position::new(1, 0), Position::new(1, 6)),
+        ));
 
         let doc = Document::with_content(vec![
             ContentItem::Paragraph(para1),
@@ -140,7 +152,23 @@ mod tests {
         ]);
 
         let results = doc.elements_at(Position::new(1, 3));
-        assert_eq!(results.len(), 1);
-        assert!(results[0].is_paragraph());
+        // We get: TextLine (deepest), Paragraph (shallowest)
+        // Document.elements_at returns results from content items, not including Document itself
+        assert_eq!(
+            results.len(),
+            2,
+            "Expected 2 results, got: {:?}",
+            results.iter().map(|r| r.node_type()).collect::<Vec<_>>()
+        );
+        assert!(
+            results[0].is_text_line(),
+            "results[0] is {}",
+            results[0].node_type()
+        );
+        assert!(
+            results[1].is_paragraph(),
+            "results[1] is {}",
+            results[1].node_type()
+        );
     }
 }

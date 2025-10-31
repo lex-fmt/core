@@ -142,7 +142,11 @@ mod tests {
         let nested_para = inner_def.content[0]
             .as_paragraph()
             .expect("Should be a paragraph");
-        assert_eq!(nested_para.lines[0].as_string(), "Nested content");
+        if let ContentItem::TextLine(tl) = &nested_para.lines[0] {
+            assert_eq!(tl.text(), "Nested content");
+        } else {
+            panic!("Expected TextLine");
+        }
     }
 
     #[test]
