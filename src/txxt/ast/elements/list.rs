@@ -4,6 +4,7 @@ use super::super::location::Location;
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
+use super::super::traits::Visitor;
 use super::content_item::ContentItem;
 use std::fmt;
 
@@ -44,6 +45,11 @@ impl AstNode for List {
     }
     fn location(&self) -> Option<Location> {
         self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        visitor.visit_list(self);
+        super::super::traits::visit_children(visitor, &self.content);
     }
 }
 
@@ -99,6 +105,11 @@ impl AstNode for ListItem {
     }
     fn location(&self) -> Option<Location> {
         self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        visitor.visit_list_item(self);
+        super::super::traits::visit_children(visitor, &self.content);
     }
 }
 

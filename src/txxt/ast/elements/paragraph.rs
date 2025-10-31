@@ -2,7 +2,7 @@
 
 use super::super::location::Location;
 use super::super::text_content::TextContent;
-use super::super::traits::{AstNode, TextNode};
+use super::super::traits::{AstNode, TextNode, Visitor};
 use std::fmt;
 
 /// A text line within a paragraph
@@ -46,6 +46,10 @@ impl AstNode for TextLine {
 
     fn location(&self) -> Option<Location> {
         self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        visitor.visit_text_line(self);
     }
 }
 
@@ -111,6 +115,12 @@ impl AstNode for Paragraph {
     }
     fn location(&self) -> Option<Location> {
         self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        visitor.visit_paragraph(self);
+        // Visit child TextLines
+        super::super::traits::visit_children(visitor, &self.lines);
     }
 }
 
