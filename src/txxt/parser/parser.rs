@@ -511,23 +511,23 @@ mod tests {
     }
 
     #[test]
-    fn test_elements_at_query_on_parsed_document() {
+    fn test_element_at_query_on_parsed_document() {
         let input = "First paragraph\n\n2. Session Title\n\n    Session content\n\n";
         let tokens = lex_with_locations(input);
         let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
 
         // Query for the session (should be at line 2)
-        let results = doc.elements_at(Position::new(2, 3));
+        let result = doc.element_at(Position::new(2, 3));
 
-        // Should find at least the session
-        assert!(!results.is_empty(), "Should find elements at position 2:3");
+        // Should find the element
+        assert!(result.is_some(), "Should find element at position 2:3");
 
-        // First result should be a session
-        assert!(results[0].is_session());
+        // Result should be a session
+        assert!(result.unwrap().is_session());
     }
 
     #[test]
-    fn test_elements_at_nested_position() {
+    fn test_element_at_nested_position() {
         let input = "Title\n\n1. Item one\n\n    Nested content\n\n";
         let tokens = lex_with_locations(input);
         let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
@@ -536,11 +536,11 @@ mod tests {
         assert!(!doc.root_session.content.is_empty());
 
         // Query for position in the nested content
-        let results = doc.elements_at(Position::new(4, 4));
+        let result = doc.element_at(Position::new(4, 4));
 
-        // Should find elements at that position (or return empty if position is outside all locations)
+        // Should find element at that position (or return None if position is outside all locations)
         // This is acceptable - position 4:4 might be outside all defined locations
-        let _ = results;
+        let _ = result;
     }
 
     #[test]

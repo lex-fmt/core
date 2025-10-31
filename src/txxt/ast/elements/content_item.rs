@@ -281,35 +281,28 @@ impl ContentItem {
         }
     }
 
-    /// Find all elements at the given position in this item and its children
-    /// Returns elements in order from deepest to shallowest nesting
-    pub fn elements_at(&self, pos: Position) -> Option<Vec<&ContentItem>> {
+    /// Find the deepest element at the given position in this item and its children
+    /// Returns the deepest (most nested) element that contains the position
+    pub fn element_at(&self, pos: Position) -> Option<&ContentItem> {
         // Check nested items first - even if parent location doesn't contain position,
         // nested elements might. This is important because parent locations (like sessions)
         // may only cover their title, not their nested content.
-        let mut results = Vec::new();
         if let Some(children) = self.children() {
             for child in children {
-                if let Some(mut child_results) = child.elements_at(pos) {
-                    results.append(&mut child_results);
-                    break; // Only one branch can contain the position
+                if let Some(result) = child.element_at(pos) {
+                    return Some(result); // Return deepest element found
                 }
             }
         }
 
         // Now, check the current item. An item is considered to be at the position if its
         // location contains the position.
-        // If nested results were found, this item is a parent and should be added to the
-        // list to form the stack of elements.
-        // If no nested results were found, this item is the innermost element at the position.
+        // If nested elements were found, they would have been returned above.
+        // If no nested results were found, this item is the deepest element at the position.
         if self.location().is_some_and(|l| l.contains(pos)) {
-            results.push(self);
-        }
-
-        if results.is_empty() {
-            None
+            Some(self)
         } else {
-            Some(results)
+            None
         }
     }
 }
@@ -362,45 +355,43 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_elements_at_simple_paragraph() {
+    fn test_element_at_simple_paragraph() {
         let para = Paragraph::from_line("Test".to_string())
             .with_location(Location::new(Position::new(0, 0), Position::new(0, 4)));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 2);
-        if let Some(results) = item.elements_at(pos) {
-            // Paragraphs now expose their TextLine children, so we get both the paragraph and the line
-            assert_eq!(results.len(), 2);
-            assert!(results[0].is_text_line()); // Innermost should be the TextLine
-            assert!(results[1].is_paragraph()); // Outer should be the paragraph
+        if let Some(result) = item.element_at(pos) {
+            // Should return the deepest element, which is the TextLine
+            assert!(result.is_text_line());
         } else {
-            panic!("Expected to find paragraph at position");
+            panic!("Expected to find element at position");
         }
     }
 
     #[test]
-    fn test_elements_at_position_outside_location() {
+    fn test_element_at_position_outside_location() {
         let para = Paragraph::from_line("Test".to_string())
             .with_location(Location::new(Position::new(0, 0), Position::new(0, 4)));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 10);
-        let results = item.elements_at(pos);
-        assert!(results.is_none());
+        let result = item.element_at(pos);
+        assert!(result.is_none());
     }
 
     #[test]
-    fn test_elements_at_no_location() {
+    fn test_element_at_no_location() {
         // Item with no location should not match any position
         let para = Paragraph::from_line("Test".to_string());
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(5, 10);
-        assert!(item.elements_at(pos).is_none());
+        assert!(item.element_at(pos).is_none());
     }
 
     #[test]
-    fn test_elements_at_nested_session() {
+    fn test_element_at_nested_session() {
         let para = Paragraph::from_line("Nested".to_string())
             .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
         let session = Session::new(
@@ -414,14 +405,11 @@ mod tests {
         let item = ContentItem::Session(session);
 
         let pos = Position::new(1, 3);
-        if let Some(results) = item.elements_at(pos) {
-            // Now we get: TextLine (deepest), Paragraph, Session (shallowest)
-            assert_eq!(results.len(), 3);
-            assert!(results[0].is_text_line());
-            assert!(results[1].is_paragraph());
-            assert!(results[2].is_session());
+        if let Some(result) = item.element_at(pos) {
+            // Should return the deepest element, which is the TextLine
+            assert!(result.is_text_line());
         } else {
-            panic!("Expected to find session and paragraph");
+            panic!("Expected to find deepest element");
         }
     }
 }
