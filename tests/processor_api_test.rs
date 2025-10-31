@@ -254,34 +254,30 @@ mod tests {
         }
     }
 
-    fn normalize_icons(s: &str) -> String {
-        s.chars()
-            .map(|ch| if ch.is_ascii() { ch } else { '?' })
-            .collect()
-    }
-
     #[test]
     fn test_ast_treeviz_format_complex() {
         let file_path = "docs/specs/v1/samples/060-trifecta-nesting.txxt";
         let spec = ProcessingSpec::from_string("ast-treeviz").unwrap();
         let result = process_file(file_path, &spec).unwrap();
-        // Updated to use icon-based format with TextLines visible
-        let expected_body =
-            include_str!("fixtures/treeviz_expected_body.txt").trim_end_matches('\n');
-        let normalized = result.replace("\r\n", "\n");
-        let (first_line, rest) = normalized
-            .split_once('\n')
-            .expect("treeviz output should have multiple lines");
-        assert!(
-            first_line.ends_with("Document (0 metadata, 5 items)"),
-            "unexpected document header: {}",
-            first_line
+
+        let expected = format!(
+            "{}\n{}",
+            "⧉ Document (0 metadata, 5 items)",
+            include_str!("fixtures/treeviz_expected_body.txt").trim_end_matches('\n')
         );
-        let rest_normalized = normalize_icons(rest);
-        let expected_normalized = normalize_icons(expected_body);
+
+        let normalized = result
+            .replace("\r\n", "\n")
+            .trim_end_matches('\n')
+            .to_string();
+        let expected_normalized = expected
+            .replace("\r\n", "\n")
+            .trim_end_matches('\n')
+            .to_string();
+
         assert_eq!(
-            rest_normalized.trim_end_matches('\n'),
-            expected_normalized.trim_end_matches('\n')
+            normalized, expected_normalized,
+            "treeviz output doesn't match expected format"
         );
     }
 }
