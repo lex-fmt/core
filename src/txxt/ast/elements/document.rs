@@ -111,15 +111,15 @@ impl Document {
         (paragraphs, sessions, lists, foreign_blocks)
     }
 
-    /// Find all elements at the given position, returning them in order from deepest to shallowest
-    pub fn elements_at(&self, pos: Position) -> Vec<&ContentItem> {
-        let mut results = Vec::new();
+    /// Find the deepest element at the given position
+    /// Returns the deepest (most nested) element that contains the position
+    pub fn element_at(&self, pos: Position) -> Option<&ContentItem> {
         for item in &self.root_session.content {
-            if let Some(mut items) = item.elements_at(pos) {
-                results.append(&mut items);
+            if let Some(result) = item.element_at(pos) {
+                return Some(result);
             }
         }
-        results
+        None
     }
 }
 
@@ -197,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn test_document_elements_at() {
+    fn test_document_element_at() {
         use crate::txxt::ast::elements::paragraph::TextLine;
         use crate::txxt::ast::text_content::TextContent;
 
@@ -218,24 +218,13 @@ mod tests {
             ContentItem::Paragraph(para2),
         ]);
 
-        let results = doc.elements_at(Position::new(1, 3));
-        // We get: TextLine (deepest), Paragraph (shallowest)
-        // Document.elements_at returns results from content items, not including Document itself
-        assert_eq!(
-            results.len(),
-            2,
-            "Expected 2 results, got: {:?}",
-            results.iter().map(|r| r.node_type()).collect::<Vec<_>>()
-        );
+        let result = doc.element_at(Position::new(1, 3));
+        // We get the deepest element: TextLine
+        assert!(result.is_some(), "Expected to find element at position");
         assert!(
-            results[0].is_text_line(),
-            "results[0] is {}",
-            results[0].node_type()
-        );
-        assert!(
-            results[1].is_paragraph(),
-            "results[1] is {}",
-            results[1].node_type()
+            result.unwrap().is_text_line(),
+            "Expected TextLine, got {}",
+            result.unwrap().node_type()
         );
     }
 
