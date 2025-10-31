@@ -3,6 +3,7 @@
 use super::super::location::Location;
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
+use super::super::traits::Visitor;
 use super::annotation::Annotation;
 use std::fmt;
 
@@ -52,6 +53,11 @@ impl AstNode for ForeignBlock {
     }
     fn location(&self) -> Option<Location> {
         self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        visitor.visit_foreign_block(self);
+        // ForeignBlock has no children to visit - content is opaque
     }
 }
 

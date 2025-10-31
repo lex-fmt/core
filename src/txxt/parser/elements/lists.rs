@@ -106,7 +106,12 @@ where
     single_list_item.repeated().at_least(2).map(|items| {
         let locations: Vec<Option<Location>> = items.iter().map(|item| item.location).collect();
         let location = compute_location_from_optional_locations(&locations);
-        ContentItem::List(List { items, location })
+        let content_items: Vec<ContentItem> =
+            items.into_iter().map(ContentItem::ListItem).collect();
+        ContentItem::List(List {
+            content: content_items,
+            location,
+        })
     })
 }
 

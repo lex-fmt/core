@@ -3,6 +3,28 @@
 //! Treeviz is a visual representation of the AST, design specifically for document trees.
 //! It features a one line per node format, which enables quick scanning of the tree, and is specially
 //! helpful for formats that are primarely line oriented (like text).
+//!
+//! It encodes the node structure as indentation, with 2 white spaces per level of nesting.
+//!
+//! So the format is :
+//! <indentation>(per level) <icon><space><label> (truncated to 30 characters)
+//!
+//! Example: (truncation not withstanding)
+//!
+//!   ¶ This is a two-lined para…
+// │    ↵ This is a two-lined pa…
+// │    ↵ First, a simple defini…
+// │  ≔ Root Definition
+// │    ¶ This definition contai…
+// │      ↵ This definition cont…
+// │    ☰ 2 items
+// │      • - Item 1 in definiti…
+// │      • - Item 2 in definiti…
+// │  ¶ This is a marker annotat…
+// │    ↵ This is a marker annot…
+// │  § 1. Primary Session {{ses…
+// │    ¶ This session acts as t…
+// │      ↵ This session acts as…
 
 //! Icons
 //!     Core elements:
@@ -40,7 +62,7 @@
 //!         ReferenceFootnote: ³
 //!         ReferenceSession: #
 
-use crate::txxt::ast::{AstNode, Container, ContentItem, Document, ListItem};
+use crate::txxt::ast::{snapshot_visitor::snapshot_from_content, AstSnapshot, Document};
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() > max_chars {
@@ -52,65 +74,61 @@ fn truncate(s: &str, max_chars: usize) -> String {
     }
 }
 
-pub fn to_treeviz_str(doc: &Document) -> String {
-    let mut result = String::new();
-    for (i, item) in doc.content.iter().enumerate() {
-        let is_last = i == doc.content.len() - 1;
-        append_content_item(&mut result, item, "", is_last);
+/// Get the icon for a node type
+fn get_icon(node_type: &str) -> &'static str {
+    match node_type {
+        "Session" => "§",
+        "Paragraph" => "¶",
+        "TextLine" => "↵",
+        "List" => "☰",
+        "ListItem" => "•",
+        "Definition" => "≔",
+        "ForeignBlock" => "𝒱",
+        "Annotation" => "\"",
+        _ => "○",
     }
-    result
 }
 
-fn append_content_item(result: &mut String, item: &ContentItem, prefix: &str, is_last: bool) {
+/// Build treeviz output from an AstSnapshot
+fn format_snapshot(
+    snapshot: &AstSnapshot,
+    prefix: &str,
+    child_index: usize,
+    child_count: usize,
+) -> String {
+    let mut output = String::new();
+
+    let is_last = child_index == child_count - 1;
     let connector = if is_last { "└─" } else { "├─" };
-    let node_type = item.node_type();
+    let icon = get_icon(&snapshot.node_type);
+    let truncated_label = truncate(&snapshot.label, 30);
 
-    let display_label = truncate(&item.display_label(), 30);
-
-    result.push_str(&format!(
-        "{}{} {}: {}\n",
-        prefix, connector, node_type, display_label
+    output.push_str(&format!(
+        "{}{} {} {}\n",
+        prefix, connector, icon, truncated_label
     ));
 
-    let new_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
+    // Process children if any
+    if !snapshot.children.is_empty() {
+        let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
+        let child_count = snapshot.children.len();
 
-    match item {
-        ContentItem::Session(session) => {
-            append_children(result, session.children(), &new_prefix);
+        for (i, child) in snapshot.children.iter().enumerate() {
+            output.push_str(&format_snapshot(child, &child_prefix, i, child_count));
         }
-        ContentItem::Definition(definition) => {
-            append_children(result, definition.children(), &new_prefix);
-        }
-        ContentItem::Annotation(annotation) => {
-            append_children(result, annotation.children(), &new_prefix);
-        }
-        ContentItem::List(list) => {
-            append_list_items(result, &list.items, &new_prefix);
-        }
-        ContentItem::Paragraph(_) => {}
-        ContentItem::ForeignBlock(_) => {} // Foreign blocks don't have children
     }
+
+    output
 }
 
-fn append_children(result: &mut String, children: &[ContentItem], prefix: &str) {
-    for (i, child) in children.iter().enumerate() {
-        let is_last = i == children.len() - 1;
-        append_content_item(result, child, prefix, is_last);
-    }
-}
+pub fn to_treeviz_str(doc: &Document) -> String {
+    let mut output = String::new();
 
-fn append_list_items(result: &mut String, items: &[ListItem], prefix: &str) {
-    for (i, item) in items.iter().enumerate() {
-        let is_last = i == items.len() - 1;
-        let connector = if is_last { "└─" } else { "├─" };
-        let node_type = item.node_type();
-        let display_label = truncate(item.label(), 30);
-        result.push_str(&format!(
-            "{}{} {}: {}\n",
-            prefix, connector, node_type, display_label
-        ));
-
-        let new_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
-        append_children(result, item.children(), &new_prefix);
+    let child_count = doc.content.len();
+    for (i, item) in doc.content.iter().enumerate() {
+        let snapshot = snapshot_from_content(item);
+        output.push_str(&format_snapshot(&snapshot, "", i, child_count));
     }
+
+    output
 }

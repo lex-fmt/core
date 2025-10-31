@@ -1,7 +1,7 @@
 //! Annotation element definition
 
 use super::super::location::Location;
-use super::super::traits::{AstNode, Container};
+use super::super::traits::{AstNode, Container, Visitor};
 use super::content_item::ContentItem;
 use super::label::Label;
 use super::parameter::Parameter;
@@ -60,6 +60,11 @@ impl AstNode for Annotation {
     }
     fn location(&self) -> Option<Location> {
         self.location
+    }
+
+    fn accept(&self, visitor: &mut dyn Visitor) {
+        visitor.visit_annotation(self);
+        super::super::traits::visit_children(visitor, &self.content);
     }
 }
 

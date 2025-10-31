@@ -319,9 +319,10 @@ mod ast_integration_tests {
             .push(ContentItem::Paragraph(paragraph));
         let document = Document::with_content(vec![ContentItem::Session(session)]);
         let nodes = find_nodes_at_position(&document, Position::new(2, 5));
-        assert_eq!(nodes.len(), 2);
-        // Results are returned deepest to shallowest, so paragraph (nested) comes first
-        assert_eq!(nodes[0].node_type(), "Paragraph");
-        assert_eq!(nodes[1].node_type(), "Session");
+        // Now we get: TextLine (deepest), Paragraph, Session (shallowest)
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(nodes[0].node_type(), "TextLine");
+        assert_eq!(nodes[1].node_type(), "Paragraph");
+        assert_eq!(nodes[2].node_type(), "Session");
     }
 }

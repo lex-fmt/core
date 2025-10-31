@@ -167,7 +167,18 @@ mod tests {
                             );
                         }
                         ContentItem::List(l) => {
-                            println!("  {}: List with {} items", i, l.items.len());
+                            println!("  {}: List with {} items", i, l.content.len());
+                        }
+                        ContentItem::ListItem(li) => {
+                            println!(
+                                "  {}: ListItem '{}' with {} children",
+                                i,
+                                li.label(),
+                                li.content.len()
+                            );
+                        }
+                        ContentItem::TextLine(tl) => {
+                            println!("  {}: TextLine '{}'", i, tl.text());
                         }
                         ContentItem::Definition(d) => {
                             println!(
