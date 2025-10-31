@@ -310,7 +310,7 @@ mod tests {
         // Should be parsed as a single paragraph, NOT a paragraph + list
         // because there's no blank line before the list-item-lines
         assert_eq!(
-            doc.root_session.content.len(),
+            doc.root.content.len(),
             1,
             "Should be 1 paragraph, not paragraph + list"
         );
@@ -328,7 +328,7 @@ mod tests {
 
         // Should be parsed as paragraph + list
         assert_eq!(
-            doc2.root_session.content.len(),
+            doc2.root.content.len(),
             2,
             "Should be paragraph + list with blank line"
         );

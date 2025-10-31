@@ -21,7 +21,7 @@
 //!
 //! Examples:
 //! - Document-level metadata via annotations
-//! - All body content accessible via document.root_session.content
+//! - All body content accessible via document.root.content
 
 use super::super::location::{Location, Position};
 use super::super::traits::{AstNode, Container, Visitor};
@@ -37,67 +37,61 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Document {
     pub metadata: Vec<Annotation>,
-    pub root_session: Session,
+    pub root: Session,
 }
 
 impl Document {
     pub fn new() -> Self {
         Self {
             metadata: Vec::new(),
-            root_session: Session::with_title(String::new()),
+            root: Session::with_title(String::new()),
         }
     }
 
     pub fn with_content(content: Vec<ContentItem>) -> Self {
-        let mut root_session = Session::with_title(String::new());
-        root_session.content = content;
+        let mut root = Session::with_title(String::new());
+        root.content = content;
         Self {
             metadata: Vec::new(),
-            root_session,
+            root,
         }
     }
 
     pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
-        let mut root_session = Session::with_title(String::new());
-        root_session.content = content;
-        Self {
-            metadata,
-            root_session,
-        }
+        let mut root = Session::with_title(String::new());
+        root.content = content;
+        Self { metadata, root }
     }
 
-    pub fn with_root_session_location(mut self, location: Location) -> Self {
-        self.root_session.location = location;
+    pub fn with_root_location(mut self, location: Location) -> Self {
+        self.root.location = location;
         self
     }
 
     pub fn iter_items(&self) -> impl Iterator<Item = &ContentItem> {
-        self.root_session.content.iter()
+        self.root.content.iter()
     }
 
     pub fn iter_paragraphs(&self) -> impl Iterator<Item = &Paragraph> {
-        self.root_session
+        self.root
             .content
             .iter()
             .filter_map(|item| item.as_paragraph())
     }
 
     pub fn iter_sessions(&self) -> impl Iterator<Item = &Session> {
-        self.root_session
+        self.root
             .content
             .iter()
             .filter_map(|item| item.as_session())
     }
 
     pub fn iter_lists(&self) -> impl Iterator<Item = &List> {
-        self.root_session
-            .content
-            .iter()
-            .filter_map(|item| item.as_list())
+        self.root.content.iter().filter_map(|item| item.as_list())
     }
 
     pub fn iter_foreign_blocks(&self) -> impl Iterator<Item = &ForeignBlock> {
-        self.root_session
+        self.root
             .content
             .iter()
             .filter_map(|item| item.as_foreign_block())
@@ -114,7 +108,7 @@ impl Document {
     /// Find the deepest element at the given position
     /// Returns the deepest (most nested) element that contains the position
     pub fn element_at(&self, pos: Position) -> Option<&ContentItem> {
-        for item in &self.root_session.content {
+        for item in &self.root.content {
             if let Some(result) = item.element_at(pos) {
                 return Some(result);
             }
@@ -132,7 +126,7 @@ impl AstNode for Document {
         format!(
             "Document ({} metadata, {} items)",
             self.metadata.len(),
-            self.root_session.content.len()
+            self.root.content.len()
         )
     }
 
@@ -144,7 +138,7 @@ impl AstNode for Document {
         for annotation in &self.metadata {
             annotation.accept(visitor);
         }
-        self.root_session.accept(visitor);
+        self.root.accept(visitor);
     }
 }
 
@@ -154,11 +148,11 @@ impl Container for Document {
     }
 
     fn children(&self) -> &[ContentItem] {
-        &self.root_session.content
+        &self.root.content
     }
 
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.root_session.content
+        &mut self.root.content
     }
 }
 
@@ -174,7 +168,7 @@ impl fmt::Display for Document {
             f,
             "Document({} metadata, {} items)",
             self.metadata.len(),
-            self.root_session.content.len()
+            self.root.content.len()
         )
     }
 }
@@ -192,7 +186,7 @@ mod tests {
             ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
             ContentItem::Session(Session::with_title("Section 1".to_string())),
         ]);
-        assert_eq!(doc.root_session.content.len(), 2);
+        assert_eq!(doc.root.content.len(), 2);
         assert_eq!(doc.metadata.len(), 0);
     }
 
