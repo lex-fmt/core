@@ -595,12 +595,15 @@ fn test_tree_viewer_expand_collapse_indicators() {
     // Get the flattened tree to verify structure
     let flattened = app.app().model.flattened_tree();
 
-    // Find a node with children (skip TextLines and Paragraphs as they expose TextLines)
+    // Find a node with children (skip Document, TextLines and Paragraphs as they expose TextLines)
     let mut node_with_children = None;
     for node in &flattened {
         if node.has_children {
-            // Skip TextLines and Paragraphs, look for containers like Session, List, etc.
-            if !node.node_type.contains("TextLine") && !node.node_type.contains("Paragraph") {
+            // Skip Document (tree root), TextLines and Paragraphs, look for containers like Session, List, etc.
+            if node.node_type != "Document"
+                && !node.node_type.contains("TextLine")
+                && !node.node_type.contains("Paragraph")
+            {
                 node_with_children = Some(node.clone());
                 break;
             }
