@@ -49,12 +49,12 @@ fn extract_text<'a>(source: &'a str, location: &Range<usize>) -> &'a str {
 }
 
 /// Helper: convert a byte range to a location using source location
-fn byte_range_to_location(source: &str, range: &Range<usize>) -> Option<Location> {
+fn byte_range_to_location(source: &str, range: &Range<usize>) -> Location {
     if range.start > range.end {
-        return None;
+        return Location::default();
     }
     let source_loc = SourceLocation::new(source);
-    Some(source_loc.range_to_location(range))
+    source_loc.range_to_location(range)
 }
 
 /// Helper function to parse parameters from a token slice

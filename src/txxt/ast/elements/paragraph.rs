@@ -14,7 +14,7 @@
 //! - A single paragraph spans multiple lines until a blank line
 //! - Blank lines separate paragraphs; lists and sessions break flow
 
-use super::super::location::Location;
+use super::super::location::{Location, Position};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, TextNode, Visitor};
 use std::fmt;
@@ -23,18 +23,21 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextLine {
     pub content: TextContent,
-    pub location: Option<Location>,
+    pub location: Location,
 }
 
 impl TextLine {
+    fn default_location() -> Location {
+        Location::new(Position::new(0, 0), Position::new(0, 0))
+    }
     pub fn new(content: TextContent) -> Self {
         Self {
             content,
-            location: None,
+            location: Self::default_location(),
         }
     }
 
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
+    pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         self
     }
@@ -59,7 +62,7 @@ impl AstNode for TextLine {
     }
 
     fn location(&self) -> Option<Location> {
-        self.location
+        Some(self.location)
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -78,14 +81,17 @@ impl fmt::Display for TextLine {
 pub struct Paragraph {
     /// Lines stored as ContentItems (each a TextLine wrapping TextContent)
     pub lines: Vec<super::content_item::ContentItem>,
-    pub location: Option<Location>,
+    pub location: Location,
 }
 
 impl Paragraph {
+    fn default_location() -> Location {
+        Location::new(Position::new(0, 0), Position::new(0, 0))
+    }
     pub fn new(lines: Vec<super::content_item::ContentItem>) -> Self {
         Self {
             lines,
-            location: None,
+            location: Self::default_location(),
         }
     }
     pub fn from_line(line: String) -> Self {
@@ -93,11 +99,21 @@ impl Paragraph {
             lines: vec![super::content_item::ContentItem::TextLine(TextLine::new(
                 TextContent::from_string(line, None),
             ))],
-            location: None,
+            location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Option<Location>) -> Self {
+    pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
+        // When a paragraph's location is set in tests, we should also update
+        // the location of the single child TextLine for consistency, as this
+        // is what the parser would do.
+        if self.lines.len() == 1 {
+            if let Some(line) = self.lines.get_mut(0) {
+                if let super::content_item::ContentItem::TextLine(text_line) = line {
+                    text_line.location = location;
+                }
+            }
+        }
         self
     }
     pub fn text(&self) -> String {
@@ -128,7 +144,7 @@ impl AstNode for Paragraph {
         }
     }
     fn location(&self) -> Option<Location> {
-        self.location
+        Some(self.location)
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -192,8 +208,8 @@ mod tests {
             super::super::super::location::Position::new(0, 0),
             super::super::super::location::Position::new(0, 5),
         );
-        let para = Paragraph::from_line("Hello".to_string()).with_location(Some(location));
+        let para = Paragraph::from_line("Hello".to_string()).with_location(location);
 
-        assert_eq!(para.location, Some(location));
+        assert_eq!(para.location, location);
     }
 }
