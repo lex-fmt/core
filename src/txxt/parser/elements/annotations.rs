@@ -349,6 +349,6 @@ mod tests {
 
         // Verify the list has 3 items
         let list = warning.content[1].as_list().unwrap();
-        assert_eq!(list.items.len(), 3);
+        assert_eq!(list.content.len(), 3);
     }
 }

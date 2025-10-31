@@ -283,7 +283,7 @@ impl fmt::Display for ContentItem {
                     s.content.len()
                 )
             }
-            ContentItem::List(l) => write!(f, "List({} items)", l.items.len()),
+            ContentItem::List(l) => write!(f, "List({} items)", l.content.len()),
             ContentItem::Definition(d) => {
                 write!(
                     f,
