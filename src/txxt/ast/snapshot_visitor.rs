@@ -45,23 +45,24 @@ pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
     }
 }
 
-/// Build a snapshot for the document root, including all top-level content items
+/// Build a snapshot for the document root, flattening the root session
 ///
 /// Note: Document metadata (annotations) are not included in this snapshot.
-/// This reflects the current AST structure where metadata is separate from content.
-/// Future versions may adjust this based on issue #103 restructuring.
+/// This reflects the document structure where metadata is separate from content.
+/// The root session is flattened so its children appear as direct children of the Document.
 pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new(
         "Document".to_string(),
         format!(
             "Document ({} metadata, {} items)",
             doc.metadata.len(),
-            doc.content.len()
+            doc.root_session.content.len()
         ),
     );
 
-    for item in &doc.content {
-        snapshot.children.push(snapshot_from_content(item));
+    // Flatten the root session - its children become direct children of the Document
+    for child in &doc.root_session.content {
+        snapshot.children.push(snapshot_from_content(child));
     }
 
     snapshot
@@ -135,13 +136,16 @@ mod tests {
     #[test]
     fn test_snapshot_from_document_with_content() {
         let mut doc = Document::new();
-        doc.content
+        doc.root_session
+            .content
             .push(ContentItem::Paragraph(Paragraph::from_line(
                 "Test".to_string(),
             )));
-        doc.content.push(ContentItem::Session(Session::with_title(
-            "Section".to_string(),
-        )));
+        doc.root_session
+            .content
+            .push(ContentItem::Session(Session::with_title(
+                "Section".to_string(),
+            )));
 
         let snapshot = snapshot_from_document(&doc);
 
@@ -187,7 +191,7 @@ mod tests {
             )));
 
         let mut doc = Document::new();
-        doc.content.push(ContentItem::Session(session));
+        doc.root_session.content.push(ContentItem::Session(session));
 
         let snapshot = snapshot_from_document(&doc);
 

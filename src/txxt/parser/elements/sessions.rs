@@ -108,8 +108,8 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("\n✓ Parsed successfully");
-                println!("Document has {} items:", doc.content.len());
-                for (i, item) in doc.content.iter().enumerate() {
+                println!("Document has {} items:", doc.root_session.content.len());
+                for (i, item) in doc.root_session.content.iter().enumerate() {
                     println!("  {}: {}", i, item);
                 }
                 // This might actually be fine - the blank indented line might be ignored
@@ -152,8 +152,8 @@ mod tests {
         match &result {
             Ok(doc) => {
                 println!("\n✓ Parsed as session with 0 children");
-                println!("Document has {} items:", doc.content.len());
-                for (i, item) in doc.content.iter().enumerate() {
+                println!("Document has {} items:", doc.root_session.content.len());
+                for (i, item) in doc.root_session.content.iter().enumerate() {
                     match item {
                         ContentItem::Paragraph(p) => {
                             println!("  {}: Paragraph with {} lines", i, p.lines.len());
