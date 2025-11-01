@@ -54,6 +54,32 @@ pub fn analyze_lead(token: &crate::txxt::lexer::LineToken) -> LeadType {
     }
 }
 
+/// Extract the list marker type from source tokens
+/// Returns a marker type identifier to distinguish dash lists, numbered lists, lettered lists, etc.
+fn extract_list_marker_type(tokens: &[crate::txxt::lexer::tokens::Token]) -> String {
+    use crate::txxt::lexer::tokens::Token;
+
+    for token in tokens {
+        match token {
+            Token::Dash => return "dash".to_string(),
+            Token::Number(_) => return "number".to_string(),
+            Token::Text(s) if s.len() == 1 && s.chars().next().unwrap().is_alphabetic() => {
+                return "letter".to_string();
+            }
+            Token::Text(s)
+                if s.chars()
+                    .all(|c| matches!(c, 'I' | 'V' | 'X' | 'L' | 'C' | 'D' | 'M'))
+                    && !s.is_empty() =>
+            {
+                return "roman".to_string();
+            }
+            _ => {}
+        }
+    }
+
+    "unknown".to_string()
+}
+
 /// Represents a recognized grammar pattern
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchedPattern {
@@ -200,8 +226,11 @@ impl TxxtGrammarRules {
     /// - Starts with SEQ_MARKER (-, 1., a., I., etc.)
     /// - NO blank line after the marker (forbidden between items)
     /// - Optional content block (indented children)
-    /// - Next item is another SEQ_MARKER at same level
+    /// - Next item is another SEQ_MARKER **of the same type** at same level
     /// - Requires at least 2 items to be a list
+    ///
+    /// Important: List items must use consistent marker type (all dashes, all numbers, etc.)
+    /// This prevents "- item\n4. session-title" from being parsed as a mixed list.
     pub fn try_list_from_tree(&self, tree: &[crate::txxt::lexer::LineTokenTree]) -> Option<usize> {
         use crate::txxt::lexer::LineTokenTree;
 
@@ -210,10 +239,13 @@ impl TxxtGrammarRules {
         }
 
         // Must start with LIST_LINE
-        let first_is_list_line = matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::ListLine);
-        if !first_is_list_line {
-            return None;
-        }
+        let first_list_token = match tree.first() {
+            Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::ListLine => Some(t),
+            _ => None,
+        }?;
+
+        // Extract the marker type from the first list item's source tokens
+        let first_marker_type = extract_list_marker_type(&first_list_token.source_tokens);
 
         // Count list items: each LIST_ITEM = LIST_LINE (BLANK_LINE? BLOCK)?
         // KEY: NO blank line is allowed between items (blank lines are only WITHIN items, before their content block)
@@ -224,6 +256,13 @@ impl TxxtGrammarRules {
             // Must have a LIST_LINE at this position
             match tree.get(tree_idx) {
                 Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::ListLine => {
+                    // Check that this list item uses the SAME marker type as the first item
+                    let marker_type = extract_list_marker_type(&t.source_tokens);
+                    if marker_type != first_marker_type {
+                        // Different marker type - not part of this list
+                        break;
+                    }
+
                     item_count += 1;
                     tree_idx += 1;
                 }
