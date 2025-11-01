@@ -31,9 +31,10 @@ pub mod transformations;
 pub use detokenizer::detokenize;
 pub use lexer_impl::tokenize;
 pub use tokens::{LineToken, LineTokenType, Token};
+pub use transformations::experimental_transform_indentation_to_token_tree::LineTokenTree;
 pub use transformations::{
-    experimental_transform_to_line_tokens, process_whitespace_remainders, transform_blank_lines,
-    transform_indentation,
+    experimental_transform_indentation_to_token_tree, experimental_transform_to_line_tokens,
+    process_whitespace_remainders, transform_blank_lines, transform_indentation,
 };
 
 /// Main lexer function that returns fully processed tokens with locations
