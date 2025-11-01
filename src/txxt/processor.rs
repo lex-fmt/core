@@ -316,7 +316,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                             // Use experimental parser
                             let tree = crate::txxt::lexer::experimental_lex(&content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental lexer failed: {:?}", e)))?;
-                            let doc_exp = crate::txxt::parser::grammarengine::parse_experimental(tree, &content)
+                            let doc_exp = crate::txxt::parser::homy::parse_experimental(tree, &content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental parser failed: {}", e)))?;
                             Ok(crate::txxt::parser::serialize_ast_tag(&doc_exp))
                         }
@@ -324,7 +324,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                             // Use experimental parser
                             let tree = crate::txxt::lexer::experimental_lex(&content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental lexer failed: {:?}", e)))?;
-                            let doc_exp = crate::txxt::parser::grammarengine::parse_experimental(tree, &content)
+                            let doc_exp = crate::txxt::parser::homy::parse_experimental(tree, &content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental parser failed: {}", e)))?;
                             Ok(crate::txxt::parser::to_treeviz_str(&doc_exp))
                         }

@@ -5,11 +5,11 @@
 //! more preprocessing of the cst.
 //! The pipeline consists of:
 //! 1. Core tokenization using logos lexer
-//! 2. Transformation pipeline:
+//! 2. Common Transformation pipeline:
 //!    - Whitespace remainder processing ./transformations/transform_whitespace.rs
 //!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ./transformations/transform_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ./transformations/transform_blanklines.rs
-//! 3. Experimental transformation pipeline:
+//! 3.
 //!    - Flatten tokens into line tokens
 //!    - Transform line tokens into a hierarchical tree
 //!

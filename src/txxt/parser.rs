@@ -4,7 +4,7 @@
 //!
 //! - **Reference Parser**: Traditional combinator-based parser (reference/)
 //!   - Contains element parsers and parser combinators
-//! - **Grammar Engine**: Regex-based grammar-driven parser (grammarengine/)
+//! - **Grammar Engine**: Regex-based grammar-driven parser (homy/)
 //!   - Uses regex matching and pattern unwrapping
 //!
 //! No shared code between parsers (each is completely independent).
@@ -15,7 +15,7 @@
 //! for comprehensive documentation on using verified txxt sources and AST assertions.
 
 // Parser implementations
-pub mod grammarengine;
+pub mod homy;
 pub mod reference;
 
 // Re-export AST types and utilities from the ast module
