@@ -6,6 +6,11 @@
 use proptest::prelude::*;
 use txxt::txxt::lexer::{lex, Token};
 
+/// Helper: strip locations from lexer output
+fn strip_loc(pairs: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Token> {
+    pairs.into_iter().map(|(t, _)| t).collect()
+}
+
 /// Sample document snapshot tests
 #[cfg(test)]
 mod sample_document_tests {
@@ -20,7 +25,7 @@ mod sample_document_tests {
     #[test]
     fn test_000_paragraphs_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/000-paragraphs.txxt");
-        let tokens = lex(&content);
+        let tokens = strip_loc(lex(&content));
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -29,7 +34,7 @@ mod sample_document_tests {
     fn test_010_sessions_flat_single_tokenization() {
         let content =
             read_sample_document("docs/specs/v1/samples/010-paragraphs-sessions-flat-single.txxt");
-        let tokens = lex(&content);
+        let tokens = strip_loc(lex(&content));
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -39,7 +44,7 @@ mod sample_document_tests {
         let content = read_sample_document(
             "docs/specs/v1/samples/020-paragraphs-sessions-flat-multiple.txxt",
         );
-        let tokens = lex(&content);
+        let tokens = strip_loc(lex(&content));
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -49,7 +54,7 @@ mod sample_document_tests {
         let content = read_sample_document(
             "docs/specs/v1/samples/030-paragraphs-sessions-nested-multiple.txxt",
         );
-        let tokens = lex(&content);
+        let tokens = strip_loc(lex(&content));
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -57,7 +62,7 @@ mod sample_document_tests {
     #[test]
     fn test_040_lists_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/040-lists.txxt");
-        let tokens = lex(&content);
+        let tokens = strip_loc(lex(&content));
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -65,7 +70,7 @@ mod sample_document_tests {
     #[test]
     fn test_050_paragraph_lists_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/050-paragraph-lists.txxt");
-        let tokens = lex(&content);
+        let tokens = strip_loc(lex(&content));
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -73,7 +78,7 @@ mod sample_document_tests {
     #[test]
     fn test_050_trifecta_flat_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
-        let tokens = lex(&content);
+        let tokens = strip_loc(lex(&content));
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -81,7 +86,7 @@ mod sample_document_tests {
     #[test]
     fn test_060_trifecta_nesting_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/060-trifecta-nesting.txxt");
-        let tokens = lex(&content);
+        let tokens = strip_loc(lex(&content));
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -180,7 +185,7 @@ mod proptest_tests {
         #[test]
         fn test_tokenize_produces_valid_tokens(input in txxt_document_strategy()) {
             // All tokens should be valid Token variants
-            let tokens = lex(&input);
+            let tokens = strip_loc(lex(&input));
             for token in tokens {
                 match token {
                     Token::TxxtMarker | Token::Indent | Token::IndentLevel | Token::DedentLevel |
@@ -197,7 +202,7 @@ mod proptest_tests {
         fn test_indentation_tokenization(input in indentation_strategy()) {
             // Indentation should produce appropriate indentation-related tokens
             // Note: lex() transforms Indent tokens to IndentLevel/DedentLevel
-            let tokens = lex(&input);
+            let tokens = strip_loc(lex(&input));
 
             // After lex(), indentation tokens are transformed:
             // - Indent tokens become IndentLevel tokens (only if line has content after indentation)
@@ -237,7 +242,7 @@ mod proptest_tests {
         #[test]
         fn test_list_item_tokenization(input in list_item_strategy()) {
             // List items should contain appropriate markers
-            let tokens = lex(&input);
+            let tokens = strip_loc(lex(&input));
 
             if input.starts_with('-') {
                 assert!(tokens.iter().any(|t| matches!(t, Token::Dash)));
@@ -253,7 +258,7 @@ mod proptest_tests {
         #[test]
         fn test_session_title_tokenization(input in session_title_strategy()) {
             // Session titles should contain appropriate markers
-            let tokens = lex(&input);
+            let tokens = strip_loc(lex(&input));
 
             if input.contains(':') {
                 assert!(tokens.iter().any(|t| matches!(t, Token::Colon)));
@@ -266,7 +271,7 @@ mod proptest_tests {
         #[test]
         fn test_multiline_tokenization(input in txxt_text_strategy()) {
             // Multiline text should contain Newline tokens
-            let tokens = lex(&input);
+            let tokens = strip_loc(lex(&input));
 
             if input.contains('\n') {
                 assert!(tokens.iter().any(|t| matches!(t, Token::Newline)));
@@ -276,14 +281,14 @@ mod proptest_tests {
         #[test]
         fn test_empty_input_tokenization(input in "") {
             // Empty input should produce no tokens
-            let tokens = lex(&input);
+            let tokens = strip_loc(lex(&input));
             assert!(tokens.is_empty());
         }
 
         #[test]
         fn test_whitespace_only_tokenization(input in "[ ]{0,10}") {
             // Whitespace-only input should produce appropriate tokens
-            let tokens = lex(&input);
+            let tokens = strip_loc(lex(&input));
 
             if input.is_empty() {
                 assert!(tokens.is_empty());
@@ -305,7 +310,7 @@ mod integration_tests {
     #[test]
     fn test_paragraph_pattern() {
         let input = "This is a paragraph.\nIt has multiple lines.";
-        let tokens = lex(input);
+        let tokens = strip_loc(lex(input));
 
         // Exact token sequence validation
         // lex() adds a trailing newline and applies full transformations
@@ -337,7 +342,7 @@ mod integration_tests {
     #[test]
     fn test_list_pattern() {
         let input = "- First item\n- Second item";
-        let tokens = lex(input);
+        let tokens = strip_loc(lex(input));
 
         // Exact token sequence validation
         // lex() adds a trailing newline and applies full transformations
@@ -363,7 +368,7 @@ mod integration_tests {
     #[test]
     fn test_session_pattern() {
         let input = "1. Session Title\n    Content here";
-        let tokens = lex(input);
+        let tokens = strip_loc(lex(input));
 
         // Exact token sequence validation
         // lex() transforms Indent -> IndentLevel and adds trailing newline
@@ -390,7 +395,7 @@ mod integration_tests {
     #[test]
     fn test_txxt_marker_pattern() {
         let input = "Some text :: marker";
-        let tokens = lex(input);
+        let tokens = strip_loc(lex(input));
 
         // Exact token sequence validation
         // lex() adds a trailing newline
@@ -412,7 +417,7 @@ mod integration_tests {
     #[test]
     fn test_mixed_content_pattern() {
         let input = "1. Session\n    - Item 1\n    - Item 2\n\nParagraph after.";
-        let tokens = lex(input);
+        let tokens = strip_loc(lex(input));
 
         // Exact token sequence validation
         // lex() transforms Indent -> IndentLevel and consecutive Newlines -> BlankLine

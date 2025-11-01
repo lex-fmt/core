@@ -68,7 +68,7 @@ where
 mod tests {
     use crate::txxt::ast::Container;
     use crate::txxt::ast::ContentItem;
-    use crate::txxt::lexer::{lex, lex_with_locations, Token};
+    use crate::txxt::lexer::{lex, Token};
     use crate::txxt::parser::api::parse_with_source;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
@@ -90,7 +90,7 @@ mod tests {
         println!("Input: {:?}", input);
         println!("Tokens: {:?}", tokens);
 
-        let tokens_with_locations = lex_with_locations(input);
+        let tokens_with_locations = lex(input);
         let result = parse_with_source(tokens_with_locations, input);
 
         match &result {
@@ -210,7 +210,7 @@ mod tests {
     fn test_verified_single_session_sample() {
         let source = TxxtSources::get_string("010-paragraphs-sessions-flat-single.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_locations(&source);
+        let tokens = lex(&source);
 
         let result = parse_with_source(tokens, &source);
         assert!(
@@ -267,7 +267,7 @@ mod tests {
     fn test_verified_multiple_sessions_sample() {
         let source = TxxtSources::get_string("020-paragraphs-sessions-flat-multiple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_locations(&source);
+        let tokens = lex(&source);
 
         let result = parse_with_source(tokens, &source);
         assert!(
@@ -343,7 +343,7 @@ mod tests {
     fn test_verified_nested_sessions_sample() {
         let source = TxxtSources::get_string("030-paragraphs-sessions-nested-multiple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_locations(&source);
+        let tokens = lex(&source);
 
         let result = parse_with_source(tokens, &source);
         assert!(

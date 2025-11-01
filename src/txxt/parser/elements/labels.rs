@@ -112,13 +112,13 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range
 #[cfg(test)]
 mod tests {
 
-    use crate::txxt::lexer::lex_with_locations;
+    use crate::txxt::lexer::lex;
     use crate::txxt::parser::parse_with_source;
 
     #[test]
     fn test_annotation_with_label_only() {
         let source = ":: note ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn test_annotation_with_label_and_parameters() {
         let source = ":: warning severity=high ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn test_annotation_with_dotted_label() {
         let source = ":: python.typing ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn test_annotation_parameters_only_no_label() {
         let source = ":: version=3.11 ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn test_annotation_with_dashed_label() {
         let source = ":: code-review ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
