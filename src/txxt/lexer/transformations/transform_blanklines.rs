@@ -436,8 +436,8 @@ mod tests {
         let source = "First paragraph\n\nSecond paragraph";
         // Positions: "First paragraph" 0..15, "\n" 15..16, "\n" 16..17, "Second paragraph" 17..33
 
-        let tokens_with_locations = crate::txxt::lexer::tokenize(source);
-        let result = transform_blank_lines(tokens_with_locations);
+        let tokens = crate::txxt::lexer::tokenize(source);
+        let result = transform_blank_lines(tokens);
 
         // Find the BlankLine token
         let blank_line_pos = result
