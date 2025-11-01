@@ -69,8 +69,10 @@ pub enum PipelineStage {
 /// Wrapper enum for pipeline outputs at different stages
 #[derive(Debug, Clone)]
 pub enum PipelineOutput {
-    /// Raw or transformed basic tokens
-    Tokens(Vec<Token>),
+    /// Raw or transformed basic tokens with location information preserved
+    /// This allows debugging and analysis of intermediate stages while maintaining
+    /// the ability to map tokens back to their source locations.
+    Tokens(Vec<(Token, std::ops::Range<usize>)>),
     /// Line tokens
     LineTokens(Vec<LineToken>),
     /// Token tree
@@ -112,41 +114,37 @@ pub fn experimental_lex(
 pub fn experimental_lex_stage(source: &str, stage: PipelineStage) -> PipelineOutput {
     let source_with_newline = ensure_source_ends_with_newline(source);
 
-    // Helper function to extract tokens without location information
-    fn extract_tokens(tokens_with_loc: &[(Token, std::ops::Range<usize>)]) -> Vec<Token> {
-        tokens_with_loc.iter().map(|(t, _)| t.clone()).collect()
-    }
-
     // Stage 1: Raw tokenization
     let raw_tokens = tokenize(&source_with_newline);
     if stage == PipelineStage::RawTokens {
-        return PipelineOutput::Tokens(extract_tokens(&raw_tokens));
+        return PipelineOutput::Tokens(raw_tokens);
     }
 
     // Stage 2: Whitespace remainder processing
     let after_whitespace = process_whitespace_remainders(raw_tokens);
 
     if stage == PipelineStage::AfterWhitespace {
-        return PipelineOutput::Tokens(extract_tokens(&after_whitespace));
+        return PipelineOutput::Tokens(after_whitespace);
     }
 
     // Stage 3: Indentation transformation
     let after_indentation = transform_indentation(after_whitespace);
 
     if stage == PipelineStage::AfterIndentation {
-        return PipelineOutput::Tokens(extract_tokens(&after_indentation));
+        return PipelineOutput::Tokens(after_indentation);
     }
 
     // Stage 4: Blank line transformation
     let after_blank_lines = transform_blank_lines(after_indentation);
 
     if stage == PipelineStage::AfterBlankLines {
-        return PipelineOutput::Tokens(extract_tokens(&after_blank_lines));
+        return PipelineOutput::Tokens(after_blank_lines.clone());
     }
 
     // Stage 5: Line token transformation (experimental)
-    // Extract tokens once for use in line token transformation
-    let tokens_for_line_tokens = extract_tokens(&after_blank_lines);
+    // Extract tokens for use in line token transformation (location info not needed downstream)
+    let tokens_for_line_tokens: Vec<Token> =
+        after_blank_lines.iter().map(|(t, _)| t.clone()).collect();
     let line_tokens = experimental_transform_to_line_tokens(tokens_for_line_tokens);
 
     if stage == PipelineStage::LineTokens {
