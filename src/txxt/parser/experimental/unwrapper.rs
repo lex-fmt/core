@@ -46,6 +46,45 @@ pub fn unwrap_token_to_paragraph(token: &LineToken, _source: &str) -> Result<Con
     Ok(ContentItem::Paragraph(paragraph))
 }
 
+/// Convert multiple line tokens to a single Paragraph ContentItem with multiple lines.
+///
+/// This handles multi-line paragraphs where consecutive lines are grouped into
+/// a single paragraph node, each line becoming a TextLine in the paragraph.
+pub fn unwrap_tokens_to_paragraph(
+    tokens: Vec<LineToken>,
+    _source: &str,
+) -> Result<ContentItem, String> {
+    if tokens.is_empty() {
+        return Err("Cannot create paragraph from empty token list".to_string());
+    }
+
+    // Create a TextLine for each token
+    let lines: Vec<ContentItem> = tokens
+        .into_iter()
+        .map(|token| {
+            let text_content = extract_text_from_token(&token);
+            ContentItem::TextLine(TextLine {
+                content: TextContent::from_string(text_content, None),
+                location: Location {
+                    start: Position { line: 0, column: 0 },
+                    end: Position { line: 0, column: 0 },
+                },
+            })
+        })
+        .collect();
+
+    // Wrap all lines in a single Paragraph
+    let paragraph = Paragraph {
+        lines,
+        location: Location {
+            start: Position { line: 0, column: 0 },
+            end: Position { line: 0, column: 0 },
+        },
+    };
+
+    Ok(ContentItem::Paragraph(paragraph))
+}
+
 /// Convert an annotation line token to an Annotation ContentItem.
 ///
 /// Annotations are lines with :: markers.

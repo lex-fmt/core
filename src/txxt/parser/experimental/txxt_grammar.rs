@@ -157,15 +157,28 @@ impl TxxtGrammarRules {
                     break;
                 }
                 _ => {
-                    count += 1;
+                    // Non-list token - stop here
+                    break;
                 }
             }
         }
 
         // Require at least 2 list items
         if item_count >= 2 {
+            eprintln!(
+                "DEBUG try_list: MATCHED! count={}, item_count={}, remaining={:?}",
+                count,
+                item_count,
+                token_types.iter().skip(count).take(3).collect::<Vec<_>>()
+            );
             Some(count)
         } else {
+            eprintln!(
+                "DEBUG try_list: NO MATCH. count={}, item_count={}, first_5={:?}",
+                count,
+                item_count,
+                token_types.iter().take(5).collect::<Vec<_>>()
+            );
             None
         }
     }
@@ -228,6 +241,11 @@ impl TxxtGrammarRules {
     pub fn try_paragraph(&self, token_types: &[LineTokenType]) -> Option<usize> {
         if token_types.is_empty() {
             return None;
+        }
+
+        // Special case: lone blank line (returns 1 to skip it, doesn't generate content)
+        if token_types[0] == LineTokenType::BlankLine {
+            return Some(1);
         }
 
         // Paragraph matches until we hit a BLANK_LINE, INDENT, or DEDENT

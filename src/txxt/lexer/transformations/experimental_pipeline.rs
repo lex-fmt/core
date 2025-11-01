@@ -296,6 +296,36 @@ mod tests {
     }
 
     #[test]
+    fn test_pipeline_blank_line_preservation() {
+        let source = "Para 1\n\nPara 2";
+
+        // Check LineTokens stage
+        let line_tokens_output = experimental_lex_stage(source, PipelineStage::LineTokens);
+        if let PipelineOutput::LineTokens(tokens) = line_tokens_output {
+            eprintln!("LineTokens (count={}): ", tokens.len());
+            for (i, token) in tokens.iter().enumerate() {
+                eprintln!("  [{}] {:?}", i, token.line_type);
+            }
+        }
+
+        // Check TokenTree stage
+        let tree_output = experimental_lex_stage(source, PipelineStage::TokenTree);
+        if let PipelineOutput::TokenTree(tree) = tree_output {
+            eprintln!("TokenTree (count={}): ", tree.len());
+            for (i, node) in tree.iter().enumerate() {
+                match node {
+                    crate::txxt::lexer::LineTokenTree::Token(t) => {
+                        eprintln!("  [{}] Token: {:?}", i, t.line_type);
+                    }
+                    crate::txxt::lexer::LineTokenTree::Block(_) => {
+                        eprintln!("  [{}] Block", i);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_experimental_lex_mixed_content() {
         let source = "Title:\n\n    First paragraph\n\n    - List item 1\n    - List item 2";
         let result = experimental_lex(source).expect("Pipeline should not fail");
