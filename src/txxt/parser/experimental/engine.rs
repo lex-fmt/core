@@ -99,6 +99,10 @@ fn parse_node_at_level(
         return Err("Empty tree at node level".to_string());
     }
 
+    // Check if a Block follows the current tokens (implicit INDENT)
+    let has_following_block = token_types.len() < tree.len()
+        && matches!(tree.get(token_types.len()), Some(LineTokenTree::Block(_)));
+
     // Handle blank lines: create a simple paragraph with no content
     if !token_types.is_empty() && token_types[0] == LineTokenType::BlankLine {
         if let LineTokenTree::Token(line_token) = &tree[0] {
@@ -145,30 +149,30 @@ fn parse_node_at_level(
         }
     }
 
-    // Try session pattern: SUBJECT_LINE + BLANK_LINE + INDENT
-    if let Some(_consumed) = grammar.try_session(token_types) {
-        if tree.len() >= 2 {
+    // Try session pattern: SUBJECT_LINE + BLANK_LINE + Block (implicit INDENT)
+    if has_following_block {
+        if let Some(_consumed) = grammar.try_session(token_types) {
             if let LineTokenTree::Token(subject_token) = &tree[0] {
-                // Block is at tree[1] after blank line
-                if tree.len() > 1 {
-                    if let LineTokenTree::Block(block_children) = &tree[1] {
-                        let block_content = walk_and_parse(block_children, source)?;
-                        let item = super::unwrapper::unwrap_session(subject_token, block_content)?;
-                        return Ok((item, 2)); // subject + block
-                    }
+                // Block is at position after all tokens
+                let block_idx = token_types.len();
+                if let LineTokenTree::Block(block_children) = &tree[block_idx] {
+                    let block_content = walk_and_parse(block_children, source)?;
+                    let item = super::unwrapper::unwrap_session(subject_token, block_content)?;
+                    return Ok((item, block_idx + 1)); // all tokens + block
                 }
             }
         }
     }
 
-    // Try definition pattern: SUBJECT_LINE + INDENT
-    if let Some(_consumed) = grammar.try_definition(token_types) {
-        if tree.len() >= 2 {
+    // Try definition pattern: SUBJECT_LINE + Block (implicit INDENT, no blank line)
+    if has_following_block {
+        if let Some(_consumed) = grammar.try_definition(token_types) {
             if let LineTokenTree::Token(subject_token) = &tree[0] {
-                if let LineTokenTree::Block(block_children) = &tree[1] {
+                let block_idx = token_types.len();
+                if let LineTokenTree::Block(block_children) = &tree[block_idx] {
                     let block_content = walk_and_parse(block_children, source)?;
                     let item = super::unwrapper::unwrap_definition(subject_token, block_content)?;
-                    return Ok((item, 2)); // subject + block
+                    return Ok((item, block_idx + 1)); // all tokens + block
                 }
             }
         }
@@ -292,9 +296,9 @@ mod tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        assert_eq!(doc.root.content.len(), 2);
-        assert!(matches!(doc.root.content[0], ContentItem::Paragraph(_))); // Subject line as paragraph
-        assert!(matches!(doc.root.content[1], ContentItem::Session(_))); // Block as container
+        // Subject line + Block (no blank line) = Definition
+        assert_eq!(doc.root.content.len(), 1);
+        assert!(matches!(doc.root.content[0], ContentItem::Definition(_)));
     }
 
     #[test]
@@ -327,13 +331,14 @@ mod tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        // Root has: paragraph (Level0) + container (block)
-        assert_eq!(doc.root.content.len(), 2);
-        assert!(matches!(doc.root.content[1], ContentItem::Session(_)));
+        // Root has: Definition (Level0 with block)
+        assert_eq!(doc.root.content.len(), 1);
+        assert!(matches!(doc.root.content[0], ContentItem::Definition(_)));
 
-        // Inside the container: paragraph (Content0) + paragraph (Level1) + container (block)
-        if let ContentItem::Session(container) = &doc.root.content[1] {
-            assert_eq!(container.content.len(), 3);
+        // Inside the definition: paragraph (Content0) + definition (Level1 with block)
+        if let ContentItem::Definition(def) = &doc.root.content[0] {
+            assert_eq!(def.content.len(), 2);
+            assert!(matches!(def.content[1], ContentItem::Definition(_)));
         }
     }
 
@@ -351,12 +356,12 @@ mod tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        assert_eq!(doc.root.content.len(), 2);
-        // The empty block should still create a session (even if empty)
-        assert!(matches!(doc.root.content[1], ContentItem::Session(_)));
+        // Subject line + empty block (no blank line) = Definition
+        assert_eq!(doc.root.content.len(), 1);
+        assert!(matches!(doc.root.content[0], ContentItem::Definition(_)));
 
-        if let ContentItem::Session(container) = &doc.root.content[1] {
-            assert_eq!(container.content.len(), 0);
+        if let ContentItem::Definition(def) = &doc.root.content[0] {
+            assert_eq!(def.content.len(), 0);
         }
     }
 
@@ -385,12 +390,10 @@ mod tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        // Should have: para(Title1) + container + para(Title2) + container
-        assert_eq!(doc.root.content.len(), 4);
-        assert!(matches!(doc.root.content[0], ContentItem::Paragraph(_)));
-        assert!(matches!(doc.root.content[1], ContentItem::Session(_)));
-        assert!(matches!(doc.root.content[2], ContentItem::Paragraph(_)));
-        assert!(matches!(doc.root.content[3], ContentItem::Session(_)));
+        // Should have: Definition(Title1) + Definition(Title2)
+        assert_eq!(doc.root.content.len(), 2);
+        assert!(matches!(doc.root.content[0], ContentItem::Definition(_)));
+        assert!(matches!(doc.root.content[1], ContentItem::Definition(_)));
     }
 
     #[test]
@@ -505,14 +508,14 @@ mod tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        // Root: para(Outer) + container
-        assert_eq!(doc.root.content.len(), 2);
+        // Root: Definition(Outer with block)
+        assert_eq!(doc.root.content.len(), 1);
 
-        if let ContentItem::Session(outer) = &doc.root.content[1] {
-            // Inside outer: para + blank + para(Inner) + container
-            assert_eq!(outer.content.len(), 4);
+        if let ContentItem::Definition(outer) = &doc.root.content[0] {
+            // Inside outer: para + blank + Session(Inner with block)
+            assert_eq!(outer.content.len(), 3);
 
-            if let ContentItem::Session(inner) = &outer.content[3] {
+            if let ContentItem::Session(inner) = &outer.content[2] {
                 // Inside inner: para + listitem
                 assert_eq!(inner.content.len(), 2);
             }
