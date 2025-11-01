@@ -56,13 +56,14 @@ impl List {
             location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Location) -> Self {
-        self.location = location;
-        self
+    #[deprecated(note = "Use at(location) instead")]
+    pub fn with_location(self, location: Location) -> Self {
+        self.at(location)
     }
     /// Preferred builder
-    pub fn at(self, location: Location) -> Self {
-        self.with_location(location)
+    pub fn at(mut self, location: Location) -> Self {
+        self.location = location;
+        self
     }
 }
 
@@ -73,8 +74,8 @@ impl AstNode for List {
     fn display_label(&self) -> String {
         format!("{} items", self.content.len())
     }
-    fn location(&self) -> Option<Location> {
-        Some(self.location)
+    fn location(&self) -> Location {
+        self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -115,13 +116,14 @@ impl ListItem {
             location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Location) -> Self {
-        self.location = location;
-        self
+    #[deprecated(note = "Use at(location) instead")]
+    pub fn with_location(self, location: Location) -> Self {
+        self.at(location)
     }
     /// Preferred builder
-    pub fn at(self, location: Location) -> Self {
-        self.with_location(location)
+    pub fn at(mut self, location: Location) -> Self {
+        self.location = location;
+        self
     }
     pub fn text(&self) -> &str {
         self.text[0].as_string()
@@ -140,8 +142,8 @@ impl AstNode for ListItem {
             text.to_string()
         }
     }
-    fn location(&self) -> Option<Location> {
-        Some(self.location)
+    fn location(&self) -> Location {
+        self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -178,7 +180,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let list = List::new(vec![]).with_location(location);
+        let list = List::new(vec![]).at(location);
         assert_eq!(list.location, location);
     }
 }

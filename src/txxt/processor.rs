@@ -205,8 +205,8 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
         ProcessingStage::Ast => {
             // Parse the document - all documents now include full location information
             let doc = if matches!(spec.format, OutputFormat::AstPosition) {
-                crate::txxt::parser::parse(crate::txxt::lexer::lex(&content), &content)
-                    .map_err(|errs| {
+                crate::txxt::parser::parse(crate::txxt::lexer::lex(&content), &content).map_err(
+                    |errs| {
                         let error_details = errs
                             .iter()
                             .map(|e| {
@@ -223,7 +223,8 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                             "Failed to parse document:\n{}",
                             error_details
                         ))
-                    })?
+                    },
+                )?
             } else {
                 crate::txxt::parser::parse_document(&content).map_err(|errs| {
                     let error_details = errs

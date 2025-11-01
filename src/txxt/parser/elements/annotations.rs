@@ -137,11 +137,7 @@ where
 
                 // Collect locations from header and content to compute overall annotation span
                 let mut location_sources: Vec<Location> = vec![header_location];
-                location_sources.extend(
-                    content
-                        .iter()
-                        .map(|item| item.location().unwrap_or_default()),
-                );
+                location_sources.extend(content.iter().map(|item| item.location()));
                 location_sources.push(label_location);
                 let location = compute_location_from_locations(&location_sources);
 
@@ -181,8 +177,8 @@ where
                     let paragraph_location =
                         byte_range_to_location(&source_for_single_line, &range);
                     let text_content = TextContent::from_string(text, Some(paragraph_location));
-                    let text_line = crate::txxt::ast::TextLine::new(text_content)
-                        .with_location(paragraph_location);
+                    let text_line =
+                        crate::txxt::ast::TextLine::new(text_content).at(paragraph_location);
                     let paragraph = Paragraph {
                         lines: vec![ContentItem::TextLine(text_line)],
                         location: paragraph_location,
