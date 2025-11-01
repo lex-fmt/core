@@ -105,7 +105,7 @@ Annotations
 
 		- Either label or parameters must be present (or both)
 		- Labels: letter (letter | digit | "_" | "-" | ".")*
-		- Parameters: key=value format, comma or space separated
+		- Parameters: key=value format, comma separated
 		- Parameters are order-preserving (stored as list, not map)
 
 	Content:

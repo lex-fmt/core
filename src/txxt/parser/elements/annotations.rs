@@ -280,7 +280,7 @@ mod tests {
         let warning = warning_annotation.as_annotation().unwrap();
         assert_eq!(warning.parameters.len(), 1);
         assert_eq!(warning.parameters[0].key, "severity");
-        assert_eq!(warning.parameters[0].value, Some("high".to_string()));
+        assert_eq!(warning.parameters[0].value, "high".to_string());
 
         // Find and verify :: python.typing :: annotation (namespaced label)
         let python_annotation = doc
@@ -320,9 +320,9 @@ mod tests {
         let note = note_annotation.as_annotation().unwrap();
         assert_eq!(note.parameters.len(), 2);
         assert_eq!(note.parameters[0].key, "author");
-        assert_eq!(note.parameters[0].value, Some("Jane Doe".to_string()));
+        assert_eq!(note.parameters[0].value, "Jane Doe".to_string());
         assert_eq!(note.parameters[1].key, "date");
-        assert_eq!(note.parameters[1].value, Some("2025-01-15".to_string()));
+        assert_eq!(note.parameters[1].value, "2025-01-15".to_string());
         assert_eq!(note.content.len(), 2); // Two paragraphs
         assert!(note.content[0].is_paragraph());
         assert!(note.content[1].is_paragraph());
@@ -341,11 +341,11 @@ mod tests {
         let warning = warning_annotation.as_annotation().unwrap();
         assert_eq!(warning.parameters.len(), 3);
         assert_eq!(warning.parameters[0].key, "severity");
-        assert_eq!(warning.parameters[0].value, Some("critical".to_string()));
+        assert_eq!(warning.parameters[0].value, "critical".to_string());
         assert_eq!(warning.parameters[1].key, "priority");
-        assert_eq!(warning.parameters[1].value, Some("high".to_string()));
+        assert_eq!(warning.parameters[1].value, "high".to_string());
         assert_eq!(warning.parameters[2].key, "reviewer");
-        assert_eq!(warning.parameters[2].value, Some("Alice Smith".to_string()));
+        assert_eq!(warning.parameters[2].value, "Alice Smith".to_string());
         assert_eq!(warning.content.len(), 2); // Paragraph + List
         assert!(warning.content[0].is_paragraph());
         assert!(warning.content[1].is_list());
