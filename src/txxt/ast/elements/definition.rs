@@ -53,13 +53,14 @@ impl Definition {
             location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Location) -> Self {
-        self.location = location;
-        self
+    #[deprecated(note = "Use at(location) instead")]
+    pub fn with_location(self, location: Location) -> Self {
+        self.at(location)
     }
     /// Preferred builder
-    pub fn at(self, location: Location) -> Self {
-        self.with_location(location)
+    pub fn at(mut self, location: Location) -> Self {
+        self.location = location;
+        self
     }
 }
 
@@ -75,8 +76,8 @@ impl AstNode for Definition {
             subject_text.to_string()
         }
     }
-    fn location(&self) -> Option<Location> {
-        Some(self.location)
+    fn location(&self) -> Location {
+        self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -118,7 +119,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let definition = Definition::with_subject("Subject".to_string()).with_location(location);
+        let definition = Definition::with_subject("Subject".to_string()).at(location);
         assert_eq!(definition.location, location);
     }
 }

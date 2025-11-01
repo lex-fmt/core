@@ -132,8 +132,8 @@ impl AstNode for Document {
         )
     }
 
-    fn location(&self) -> Option<Location> {
-        None
+    fn location(&self) -> Location {
+        self.root.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -199,13 +199,13 @@ mod tests {
 
         // Create paragraph 1 with properly located TextLine
         let text_line1 = TextLine::new(TextContent::from_string("First".to_string(), None))
-            .with_location(Location::new(Position::new(0, 0), Position::new(0, 5)));
+            .at(Location::new(Position::new(0, 0), Position::new(0, 5)));
         let para1 = Paragraph::new(vec![ContentItem::TextLine(text_line1)])
             .at(Location::new(Position::new(0, 0), Position::new(0, 5)));
 
         // Create paragraph 2 with properly located TextLine
         let text_line2 = TextLine::new(TextContent::from_string("Second".to_string(), None))
-            .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
+            .at(Location::new(Position::new(1, 0), Position::new(1, 6)));
         let para2 = Paragraph::new(vec![ContentItem::TextLine(text_line2)])
             .at(Location::new(Position::new(1, 0), Position::new(1, 6)));
 

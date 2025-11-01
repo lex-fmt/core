@@ -5,7 +5,7 @@ use std::ops::Range;
 
 use crate::txxt::ast::{AstNode, Document};
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::combinators::compute_location_from_optional_locations;
+use crate::txxt::parser::combinators::compute_location_from_locations;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
@@ -24,7 +24,7 @@ pub fn document(source: &str) -> impl Parser<TokenLocation, Document, Error = Pa
             .iter()
             .map(|item| item.location())
             .collect::<Vec<_>>();
-        let location = compute_location_from_optional_locations(&content_locations);
+        let location = compute_location_from_locations(&content_locations);
 
         Document::with_content(content).with_root_location(location)
     })

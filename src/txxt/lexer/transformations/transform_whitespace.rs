@@ -57,6 +57,7 @@ pub fn process_whitespace_remainders(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::txxt::testing::factories::{mk_token, Tokens};
 
     #[test]
     fn test_whitespace_remainders() {
@@ -78,10 +79,10 @@ mod tests {
     #[test]
     fn test_whitespace_without_indentation() {
         // Whitespace not following indent should be preserved
-        let tokenss = vec![
-            (Token::Text("hello".to_string()), 0..5),
-            (Token::Whitespace, 5..6),
-            (Token::Text("world".to_string()), 6..11),
+        let tokenss: Tokens = vec![
+            mk_token(Token::Text("hello".to_string()), 0, 5),
+            mk_token(Token::Whitespace, 5, 6),
+            mk_token(Token::Text("world".to_string()), 6, 11),
         ];
         let result = process_whitespace_remainders(tokenss.clone());
         assert_eq!(result, tokenss);
@@ -90,10 +91,10 @@ mod tests {
     #[test]
     fn test_whitespace_after_indent_before_non_text() {
         // Whitespace after indent but before non-text token should be preserved
-        let tokenss = vec![
-            (Token::Indent, 0..4),
-            (Token::Whitespace, 4..5),
-            (Token::Dash, 5..6),
+        let tokenss: Tokens = vec![
+            mk_token(Token::Indent, 0, 4),
+            mk_token(Token::Whitespace, 4, 5),
+            mk_token(Token::Dash, 5, 6),
         ];
         let result = process_whitespace_remainders(tokenss.clone());
         assert_eq!(result, tokenss);

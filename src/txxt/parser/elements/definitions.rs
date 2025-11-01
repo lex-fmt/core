@@ -68,7 +68,7 @@ mod tests {
     use crate::txxt::ast::Container;
     use crate::txxt::ast::ContentItem;
     use crate::txxt::lexer::lex;
-    use crate::txxt::parser::api::parse_with_source;
+    use crate::txxt::parser::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
 
@@ -80,7 +80,7 @@ mod tests {
         println!("Testing simple definition with unified parser:");
         println!("Source: {:?}", source);
 
-        let result = parse_with_source(tokens, source);
+        let result = parse(tokens, source);
         if let Err(ref e) = result {
             println!("Parse error: {:?}", e);
         }
@@ -101,7 +101,7 @@ mod tests {
         println!("Testing nested definitions with unified parser:");
         println!("Source: {:?}", source);
 
-        let result = parse_with_source(tokens, source);
+        let result = parse(tokens, source);
         if let Err(ref e) = result {
             println!("Parse error: {:?}", e);
         }
@@ -152,7 +152,7 @@ mod tests {
         println!("Testing paragraph then definition:");
         println!("Source: {:?}", source);
 
-        let result = parse_with_source(tokens, source);
+        let result = parse(tokens, source);
         if let Err(ref e) = result {
             println!("Parse error: {:?}", e);
             println!("Error at span: {:?}", &source[e[0].span().clone()]);
@@ -192,7 +192,7 @@ mod tests {
             println!("  {}: {:?}", i, token);
         }
 
-        let result = parse_with_source(tokens, &source);
+        let result = parse(tokens, &source);
         if let Err(ref e) = result {
             println!("Parse error: {:?}", e);
         }
@@ -289,7 +289,7 @@ mod tests {
         let source = TxxtSources::get_string("100-definitions-mixed-content.txxt")
             .expect("Failed to load sample file");
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)

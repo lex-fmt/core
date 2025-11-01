@@ -1,4 +1,7 @@
-//! Test factories for creating locations and spanned tokens succinctly
+//! Test factories for creating locations and spanned tokens succinctly.
+//!
+//! The lexer and parser now require **every** token to carry a byte-span. These helpers
+//! keep tests concise while enforcing that requirement.
 
 use std::ops::Range;
 
@@ -23,5 +26,14 @@ pub fn mk_tokens(specs: &[(Token, usize, usize)]) -> Tokens {
         .iter()
         .cloned()
         .map(|(t, s, e)| mk_token(t, s, e))
+        .collect()
+}
+
+/// Create tokens with zero-length spans for convenience in tests that only
+/// care about token order.
+pub fn mk_tokens_with_dummy_span(tokens: Vec<Token>) -> Tokens {
+    tokens
+        .into_iter()
+        .map(|token| mk_token(token, 0, 0))
         .collect()
 }

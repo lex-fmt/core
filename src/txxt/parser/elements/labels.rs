@@ -113,13 +113,13 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range
 mod tests {
 
     use crate::txxt::lexer::lex;
-    use crate::txxt::parser::parse_with_source;
+    use crate::txxt::parser::parse;
 
     #[test]
     fn test_annotation_with_label_only() {
         let source = ":: note ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
@@ -130,7 +130,7 @@ mod tests {
     fn test_annotation_with_label_and_parameters() {
         let source = ":: warning severity=high ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "warning");
@@ -142,7 +142,7 @@ mod tests {
     fn test_annotation_with_dotted_label() {
         let source = ":: python.typing ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "python.typing");
@@ -153,7 +153,7 @@ mod tests {
     fn test_annotation_parameters_only_no_label() {
         let source = ":: version=3.11 ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, ""); // Empty label
@@ -166,7 +166,7 @@ mod tests {
     fn test_annotation_with_dashed_label() {
         let source = ":: code-review ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "code-review");
