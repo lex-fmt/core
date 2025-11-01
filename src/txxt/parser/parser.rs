@@ -113,10 +113,10 @@ pub fn document() -> impl Parser<TokenLocation, Document, Error = ParserError> {
 ///
 /// Re-exports the canonical implementation from api.rs
 pub fn parse_with_source(
-    tokens_with_locations: Vec<TokenLocation>,
+    tokenss: Vec<TokenLocation>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    super::api::parse_with_source(tokens_with_locations, source)
+    super::api::parse_with_source(tokenss, source)
 }
 
 #[cfg(test)]
@@ -130,9 +130,9 @@ mod tests {
     #[test]
     fn test_simple_paragraph() {
         let input = "Hello world\n\n";
-        let tokens_with_locations = lex(input);
+        let tokenss = lex(input);
 
-        let result = paragraph(Arc::new(input.to_string())).parse(tokens_with_locations);
+        let result = paragraph(Arc::new(input.to_string())).parse(tokenss);
         assert!(result.is_ok(), "Failed to parse paragraph: {:?}", result);
 
         let para = result.unwrap();

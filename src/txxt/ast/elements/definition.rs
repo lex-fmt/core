@@ -109,7 +109,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_definition_with_location() {
+    fn test_definition() {
         let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),

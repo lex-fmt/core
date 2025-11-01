@@ -119,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn test_session_with_location() {
+    fn test_session() {
         let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),

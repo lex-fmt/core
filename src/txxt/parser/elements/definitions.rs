@@ -28,9 +28,7 @@ pub(crate) fn definition_subject(
     filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
-        .map(move |tokens_with_locations| {
-            extract_tokens_to_text_and_location(&source, tokens_with_locations)
-        })
+        .map(move |tokenss| extract_tokens_to_text_and_location(&source, tokenss))
         .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
         .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Newline)).ignored())
 }

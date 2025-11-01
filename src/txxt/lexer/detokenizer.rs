@@ -106,9 +106,9 @@ mod tests {
     #[test]
     fn test_detokenize_with_semantic_indentation() {
         let source = "1. Session\n    - Item 1\n        - Nested Item\n    - Item 2";
-        let raw_tokens_with_locations = tokenize(source);
-        let tokens_with_locations = transform_indentation(raw_tokens_with_locations);
-        let tokens: Vec<_> = tokens_with_locations.into_iter().map(|(t, _)| t).collect();
+        let raw_tokenss = tokenize(source);
+        let tokenss = transform_indentation(raw_tokenss);
+        let tokens: Vec<_> = tokenss.into_iter().map(|(t, _)| t).collect();
         let detokenized = detokenize(&tokens);
         assert_eq!(detokenized, source);
     }
@@ -126,9 +126,9 @@ mod tests {
     }
 
     fn test_roundtrip_semantic_tokens(source: &str, snapshot_name: &str) {
-        let raw_tokens_with_locations = tokenize(source);
-        let tokens_with_locations = transform_indentation(raw_tokens_with_locations);
-        let tokens: Vec<_> = tokens_with_locations.into_iter().map(|(t, _)| t).collect();
+        let raw_tokenss = tokenize(source);
+        let tokenss = transform_indentation(raw_tokenss);
+        let tokens: Vec<_> = tokenss.into_iter().map(|(t, _)| t).collect();
         let detokenized = detokenize(&tokens);
         insta::assert_snapshot!(snapshot_name, detokenized);
     }
