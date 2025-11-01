@@ -200,12 +200,17 @@ pub fn transform_indentation(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::txxt::testing::factories::{mk_token, Tokens};
 
-    fn with_loc(tokens: Vec<Token>) -> Vec<(Token, std::ops::Range<usize>)> {
-        tokens.into_iter().map(|t| (t, 0..0)).collect()
+    fn with_loc(tokens: Vec<Token>) -> Tokens {
+        tokens
+            .into_iter()
+            .enumerate()
+            .map(|(idx, token)| mk_token(token, idx, idx + 1))
+            .collect()
     }
 
-    fn strip_loc(pairs: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Token> {
+    fn strip_loc(pairs: Tokens) -> Vec<Token> {
         pairs.into_iter().map(|(t, _)| t).collect()
     }
 
@@ -361,8 +366,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let input_with_loc: Vec<_> = input.clone().into_iter().map(|t| (t, 0..0)).collect();
-        let result_with_loc = transform_indentation(input_with_loc);
+        let result_with_loc = transform_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         // No changes expected - no indentation, no DedentLevel at EOF
@@ -488,8 +492,7 @@ mod tests {
             // File ends here without explicit dedents
         ];
 
-        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
-        let result_with_loc = transform_indentation(input_with_loc);
+        let result_with_loc = transform_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
@@ -523,8 +526,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
-        let result_with_loc = transform_indentation(input_with_loc);
+        let result_with_loc = transform_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
@@ -562,8 +564,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
-        let result_with_loc = transform_indentation(input_with_loc);
+        let result_with_loc = transform_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
@@ -595,8 +596,7 @@ mod tests {
             Token::Text("c".to_string()),
         ];
 
-        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
-        let result_with_loc = transform_indentation(input_with_loc);
+        let result_with_loc = transform_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
@@ -668,8 +668,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
-        let result_with_loc = transform_indentation(input_with_loc);
+        let result_with_loc = transform_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         // Expected: Level stays at 2, no dedent/re-indent around the blank line
@@ -722,15 +721,15 @@ mod tests {
         // - DedentLevel with location 7..7 (at EOF)
 
         assert_eq!(result.len(), 5);
-        assert_eq!(result[0], (Token::Text("a".to_string()), 0..1));
-        assert_eq!(result[1], (Token::Newline, 1..2));
+        assert_eq!(result[0], mk_token(Token::Text("a".to_string()), 0, 1));
+        assert_eq!(result[1], mk_token(Token::Newline, 1, 2));
         assert_eq!(result[2].0, Token::IndentLevel);
         assert_eq!(
             result[2].1,
             2..6,
             "IndentLevel should have location of its Indent token"
         );
-        assert_eq!(result[3], (Token::Text("b".to_string()), 6..7));
+        assert_eq!(result[3], mk_token(Token::Text("b".to_string()), 6, 7));
         assert_eq!(result[4].0, Token::DedentLevel);
         assert_eq!(
             result[4].1,
@@ -829,7 +828,7 @@ mod tests {
             12..12,
             "Second DedentLevel should point to position 12"
         );
-        assert_eq!(result[8], (Token::Text("c".to_string()), 12..13));
+        assert_eq!(result[8], mk_token(Token::Text("c".to_string()), 12, 13));
     }
 
     #[test]

@@ -72,7 +72,7 @@ mod tests {
     use crate::txxt::parser::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
-    use crate::txxt::testing::factories::mk_tokens;
+    use crate::txxt::testing::factories::{mk_token, Tokens};
 
     #[test]
     fn test_malformed_session_title_with_indent_but_no_content() {
@@ -123,19 +123,20 @@ mod tests {
     fn test_session_title_followed_by_bare_indent_level() {
         // Test case 1: Session with empty content (IndentLevel immediately followed by DedentLevel)
         // This actually SHOULD be allowed or give a clear error
-        let tokenss = mk_tokens(&[
-            (Token::Text("".to_string()), 0, 0),
-            (Token::Newline, 0, 0),
-            (Token::Newline, 0, 0),
-            (Token::IndentLevel, 0, 0),
-            (Token::DedentLevel, 0, 0),
-            (Token::DedentLevel, 0, 0),
-        ]);
+        let tokens: Tokens = vec![
+            mk_token(Token::Text("".to_string()), 0, 0),
+            mk_token(Token::Newline, 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::IndentLevel, 2, 3),
+            mk_token(Token::DedentLevel, 3, 4),
+            mk_token(Token::DedentLevel, 4, 5),
+        ];
 
         println!("\n=== Test: Session with empty content ===");
-        println!("Tokens: {:?}", tokenss);
+        let pretty_tokens: Vec<_> = tokens.iter().map(|(t, _)| t).collect();
+        println!("Tokens: {:?}", pretty_tokens);
 
-        let result = parse(tokenss, "");
+        let result = parse(tokens, "");
 
         match &result {
             Ok(doc) => {
