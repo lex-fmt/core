@@ -1,11 +1,12 @@
 //! Parameter element
 //!
-//! A parameter is a key with an optional value, attached to
+//! A parameter is  a pair of key and value.
 //! annotations and foreign blocks to convey structured metadata.
 //!
-//! Business use:
-//! - Lightweight configuration and flags (boolean or key=value)
-//! - Enables filtering, routing, and automation in tools
+//! They can be used in annotations and, together with labels allow for structured metadata.
+//!
+//! Syntax:
+//! <key> "=" <value>
 //!
 //! Examples:
 //! - `priority=high`

@@ -26,14 +26,14 @@ pub struct DocumentAssertion<'a> {
 impl<'a> DocumentAssertion<'a> {
     /// Assert the number of items in the document
     pub fn item_count(self, expected: usize) -> Self {
-        let actual = self.doc.root_session.content.len();
+        let actual = self.doc.root.content.len();
         assert_eq!(
             actual,
             expected,
             "Expected {} items, found {} items: [{}]",
             expected,
             actual,
-            summarize_items(&self.doc.root_session.content)
+            summarize_items(&self.doc.root.content)
         );
         self
     }
@@ -44,13 +44,13 @@ impl<'a> DocumentAssertion<'a> {
         F: FnOnce(ContentItemAssertion<'a>),
     {
         assert!(
-            index < self.doc.root_session.content.len(),
+            index < self.doc.root.content.len(),
             "Item index {} out of bounds (document has {} items)",
             index,
-            self.doc.root_session.content.len()
+            self.doc.root.content.len()
         );
 
-        let item = &self.doc.root_session.content[index];
+        let item = &self.doc.root.content[index];
         assertion(ContentItemAssertion {
             item,
             context: format!("items[{}]", index),
@@ -60,7 +60,7 @@ impl<'a> DocumentAssertion<'a> {
 
     /// Assert the root session location starts at the given line and column
     pub fn root_location_starts_at(self, expected_line: usize, expected_column: usize) -> Self {
-        let actual = self.doc.root_session.location;
+        let actual = self.doc.root.location;
         assert_eq!(
             actual.start.line, expected_line,
             "Expected root session location start line {}, found {}",
@@ -76,7 +76,7 @@ impl<'a> DocumentAssertion<'a> {
 
     /// Assert the root session location ends at the given line and column
     pub fn root_location_ends_at(self, expected_line: usize, expected_column: usize) -> Self {
-        let actual = self.doc.root_session.location;
+        let actual = self.doc.root.location;
         assert_eq!(
             actual.end.line, expected_line,
             "Expected root session location end line {}, found {}",
@@ -95,7 +95,7 @@ impl<'a> DocumentAssertion<'a> {
         use crate::txxt::ast::location::Position;
 
         let pos = Position::new(line, column);
-        let location = self.doc.root_session.location;
+        let location = self.doc.root.location;
         assert!(
             location.contains(pos),
             "Expected root session location {} to contain position {}:{}",
@@ -111,7 +111,7 @@ impl<'a> DocumentAssertion<'a> {
         use crate::txxt::ast::location::Position;
 
         let pos = Position::new(line, column);
-        let location = self.doc.root_session.location;
+        let location = self.doc.root.location;
         assert!(
             !location.contains(pos),
             "Expected root session location {} to NOT contain position {}:{}",
@@ -775,7 +775,7 @@ mod tests {
         session.location = location;
         let doc = Document {
             metadata: Vec::new(),
-            root_session: session,
+            root: session,
         };
 
         // Should pass
@@ -790,7 +790,7 @@ mod tests {
         session.location = location;
         let doc = Document {
             metadata: Vec::new(),
-            root_session: session,
+            root: session,
         };
 
         assert_ast(&doc).root_location_starts_at(5, 0);
@@ -803,7 +803,7 @@ mod tests {
         session.location = location;
         let doc = Document {
             metadata: Vec::new(),
-            root_session: session,
+            root: session,
         };
 
         assert_ast(&doc).root_location_ends_at(2, 15);
@@ -817,7 +817,7 @@ mod tests {
         session.location = location;
         let doc = Document {
             metadata: Vec::new(),
-            root_session: session,
+            root: session,
         };
 
         assert_ast(&doc).root_location_ends_at(2, 10);
@@ -830,7 +830,7 @@ mod tests {
         session.location = location;
         let doc = Document {
             metadata: Vec::new(),
-            root_session: session,
+            root: session,
         };
 
         assert_ast(&doc).root_location_contains(2, 5); // Inside
@@ -844,7 +844,7 @@ mod tests {
         session.location = location;
         let doc = Document {
             metadata: Vec::new(),
-            root_session: session,
+            root: session,
         };
 
         assert_ast(&doc).root_location_contains(5, 5); // Outside
@@ -857,7 +857,7 @@ mod tests {
         session.location = location;
         let doc = Document {
             metadata: Vec::new(),
-            root_session: session,
+            root: session,
         };
 
         assert_ast(&doc).root_location_excludes(5, 5); // Outside
@@ -871,7 +871,7 @@ mod tests {
         session.location = location;
         let doc = Document {
             metadata: Vec::new(),
-            root_session: session,
+            root: session,
         };
 
         assert_ast(&doc).root_location_excludes(2, 5); // Inside
@@ -884,7 +884,7 @@ mod tests {
         session.location = location;
         let doc = Document {
             metadata: Vec::new(),
-            root_session: session,
+            root: session,
         };
 
         // Test fluent chaining

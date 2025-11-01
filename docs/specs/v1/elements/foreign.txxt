@@ -75,7 +75,7 @@ Examples
 		:: javascript ::
 
 	Marker form for images:
-		Sunset Photo:
+Sunset Photo:
 		:: image type=jpg, src=sunset.jpg :: As the sun sets over the ocean.
 
 	With parameters and caption:
