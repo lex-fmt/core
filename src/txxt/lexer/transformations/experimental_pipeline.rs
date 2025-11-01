@@ -24,6 +24,7 @@
 
 use std::fmt;
 
+use crate::txxt::lexer::ensure_source_ends_with_newline;
 use crate::txxt::lexer::lexer_impl::tokenize;
 use crate::txxt::lexer::tokens::{LineToken, Token};
 use crate::txxt::lexer::transformations::{
@@ -109,12 +110,7 @@ pub fn experimental_lex(
 /// # Returns
 /// Pipeline output at the requested stage
 pub fn experimental_lex_stage(source: &str, stage: PipelineStage) -> PipelineOutput {
-    // Ensure source ends with newline (standard preprocessing)
-    let source_with_newline = if !source.is_empty() && !source.ends_with('\n') {
-        format!("{}\n", source)
-    } else {
-        source.to_string()
-    };
+    let source_with_newline = ensure_source_ends_with_newline(source);
 
     // Helper function to extract tokens without location information
     fn extract_tokens(tokens_with_loc: &[(Token, std::ops::Range<usize>)]) -> Vec<Token> {
