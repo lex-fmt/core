@@ -1,11 +1,10 @@
 //! Paragraph element
 //!
-//! A paragraph is a block of one or more text lines. It represents
-//! narrative content. Empty lines separate paragraphs.
+//! A paragraph is a block of one or more text lines. It represents any text,  except for a
+//! unascaped annotation string/.
 //!
-//! Properties:
-//! - Stores lines as `TextLine` items
-//! - Preserves intra-paragraph line breaks
+//! The above is an example of a single line paragraph.
+//! Whereas this is an example of a multi-line paragraph:
 //!
 //! Learn More:
 //! - Paragraphs spec: docs/specs/v1/elements/paragraphs.txxt

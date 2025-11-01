@@ -1,7 +1,15 @@
-//! Element-specific AST node definitions
+//! Element-specific AST node definitions for the txxt format
 //!
-//! This module contains AST node definitions for individual txxt elements.
-//! Each element type has its own module with its definition, implementations, and tests.
+//! The txxt document structure is incredibly simple:
+//! - Nested elements (all but paragraphs)
+//! - All elements share a common structure:
+//!
+//! <lead>
+//! <container> -> all children go here
+//!     <children> ...
+//! </container>
+//! </lead>
+//!
 
 pub mod annotation;
 pub mod content_item;

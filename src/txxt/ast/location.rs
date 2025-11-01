@@ -85,7 +85,7 @@
 //!
 //! ```text
 //! Document
-//!   ├─ root_session: Session (Location)
+//!   ├─ root: Session (Location)
 //!   │  ├─ content[0]: Session "Intro" (Location)
 //!   │  │  ├─ Paragraph (Location)
 //!   │  │  │  └─ TextLine (Location)
