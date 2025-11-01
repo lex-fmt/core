@@ -87,10 +87,83 @@ pub fn unwrap_tokens_to_paragraph(
 
 /// Convert an annotation line token to an Annotation ContentItem.
 ///
-/// Annotations are lines with :: markers.
-/// This builds an Annotation element from the source tokens.
+/// Annotations are lines with :: markers, format: :: label [params] :: [optional text]
+/// This builds an Annotation element from the source tokens, extracting:
+/// - Label and parameters between :: markers
+/// - Optional trailing text after closing :: as a child paragraph
 pub fn unwrap_annotation(token: &LineToken, _source: &str) -> Result<ContentItem, String> {
-    // Extract text content from the annotation
+    use crate::txxt::lexer::tokens::Token;
+
+    // Find the structure: :: [tokens]* :: [tokens]*
+    // We need to count how many :: markers we have
+    let mut dcolon_count = 0;
+    let mut first_dcolon_idx = None;
+    let mut second_dcolon_start = None;
+
+    // Scan through source tokens looking for :: markers
+    let mut i = 0;
+    while i < token.source_tokens.len() {
+        if matches!(&token.source_tokens[i], Token::TxxtMarker) {
+            // Token::TxxtMarker represents the :: marker
+            dcolon_count += 1;
+            if dcolon_count == 1 {
+                first_dcolon_idx = Some(i);
+            } else if dcolon_count == 2 {
+                second_dcolon_start = Some(i);
+                break;
+            }
+        }
+        i += 1;
+    }
+
+    // Parse based on what we found
+    if dcolon_count >= 2 {
+        // We have :: label :: [text]
+        // Extract label tokens between the two :: markers
+        let first_dcolon = first_dcolon_idx.unwrap();
+        let second_dcolon = second_dcolon_start.unwrap();
+
+        let label_tokens = &token.source_tokens[first_dcolon + 1..second_dcolon];
+        let label_text = extract_text_from_tokens(label_tokens);
+
+        // Extract text after second ::
+        let remaining_tokens = &token.source_tokens[second_dcolon + 1..];
+        let trailing_text = extract_text_from_tokens(remaining_tokens);
+
+        // Create annotation
+        let mut annotation = Annotation {
+            label: Label::from_string(&label_text),
+            parameters: vec![],
+            content: vec![],
+            location: Location {
+                start: Position { line: 0, column: 0 },
+                end: Position { line: 0, column: 0 },
+            },
+        };
+
+        // If there's trailing text, create a paragraph as content
+        if !trailing_text.is_empty() {
+            let text_line = TextLine {
+                content: TextContent::from_string(trailing_text, None),
+                location: Location {
+                    start: Position { line: 0, column: 0 },
+                    end: Position { line: 0, column: 0 },
+                },
+            };
+            let paragraph = Paragraph {
+                lines: vec![ContentItem::TextLine(text_line)],
+                location: Location {
+                    start: Position { line: 0, column: 0 },
+                    end: Position { line: 0, column: 0 },
+                },
+            };
+            annotation.content.push(ContentItem::Paragraph(paragraph));
+        }
+
+        return Ok(ContentItem::Annotation(annotation));
+    }
+
+    // Fallback: single-line annotation without trailing text
     let text_content = extract_text_from_token(token);
 
     // Create an annotation with the extracted text
@@ -136,6 +209,21 @@ pub fn unwrap_annotation_with_content(
 fn extract_text_from_token(token: &LineToken) -> String {
     token
         .source_tokens
+        .iter()
+        .filter_map(|t| {
+            if let Token::Text(s) = t {
+                Some(s.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Extract text from a slice of tokens, joining them with spaces
+fn extract_text_from_tokens(tokens: &[Token]) -> String {
+    tokens
         .iter()
         .filter_map(|t| {
             if let Token::Text(s) = t {
