@@ -827,7 +827,7 @@ mod tests {
     fn test_step1_integration_annotation_and_paragraph() {
         // Step 1: Test that we can parse annotations and paragraphs
         use crate::txxt::lexer::tokens::{LineToken, LineTokenType, Token};
-        use crate::txxt::lexer::transformations::experimental_transform_indentation_to_token_tree::LineTokenTree;
+        use crate::txxt::lexer::transformations::transform_indentation_to_token_tree::LineTokenTree;
         use crate::txxt::parser::grammarengine::parse_experimental;
 
         // Create a simple tree with annotation and paragraph
