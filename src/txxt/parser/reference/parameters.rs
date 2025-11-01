@@ -6,9 +6,9 @@
 //! Grammar: `<parameters> = <parameter> ("," <parameter>)*`
 //! Where: `<parameter> = <key> "=" <value>`
 
+use super::combinators::byte_range_to_location;
 use crate::txxt::ast::Parameter;
 use crate::txxt::lexer::Token;
-use super::combinators::byte_range_to_location;
 use chumsky::{prelude::*, Stream};
 use std::ops::Range;
 

@@ -8,14 +8,14 @@ use chumsky::primitive::filter;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::{Annotation, AstNode, ContentItem, Label, Location, Paragraph, TextContent};
-use crate::txxt::lexer::Token;
-use super::labels::parse_label_from_tokens;
-use super::parameters::{convert_parameter, parse_parameters_from_tokens};
 use super::combinators::{
     byte_range_to_location, compute_byte_range_bounds, compute_location_from_locations,
     extract_text_from_locations, text_line, token,
 };
+use super::labels::parse_label_from_tokens;
+use super::parameters::{convert_parameter, parse_parameters_from_tokens};
+use crate::txxt::ast::{Annotation, AstNode, ContentItem, Label, Location, Paragraph, TextContent};
+use crate::txxt::lexer::Token;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);

@@ -8,11 +8,11 @@ use chumsky::primitive::filter;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::{ContentItem, Definition, TextContent};
-use crate::txxt::lexer::Token;
 use super::combinators::{
     aggregate_locations, byte_range_to_location, extract_tokens_to_text_and_location, token,
 };
+use crate::txxt::ast::{ContentItem, Definition, TextContent};
+use crate::txxt::lexer::Token;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
