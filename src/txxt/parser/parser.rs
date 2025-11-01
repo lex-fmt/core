@@ -94,21 +94,6 @@ pub(crate) fn build_document_content_parser(
     })
 }
 
-// Import Phase 3b refactored document parser from elements::document module
-use super::elements::document as document_module;
-
-/// Parse a document - delegated to document module
-/// Phase 5: The document parser requires source text to populate location information
-#[deprecated(
-    note = "Use elements::document(source) + parse(tokens, source) for location-aware parsing"
-)]
-pub fn document() -> impl Parser<TokenLocation, Document, Error = ParserError> {
-    // This function is kept for backward compatibility but delegates to document_module::document(source)
-    // Since this function doesn't have access to source, it uses an empty string.
-    // For proper position tracking, use parse_with_source instead.
-    document_module::document("")
-}
-
 /// Parse with source text - the primary parsing function
 ///
 /// Parses tokens with location information and source text to produce a Document.
@@ -120,6 +105,7 @@ pub fn parse(tokens: Vec<TokenLocation>, source: &str) -> Result<Document, Vec<P
 }
 
 /// Backward-compatibility shim
+#[deprecated(note = "Use parse(tokens, source) instead")]
 pub fn parse_with_source(
     tokens: Vec<TokenLocation>,
     source: &str,
@@ -200,7 +186,7 @@ mod tests {
 
         let source = TxxtSources::get_string("050-trifecta-flat-simple.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
@@ -294,7 +280,7 @@ mod tests {
 
         let source = TxxtSources::get_string("060-trifecta-nesting.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
@@ -410,7 +396,7 @@ mod tests {
 
         let source = TxxtSources::get_string("110-ensemble-with-definitions.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
@@ -468,7 +454,7 @@ mod tests {
 
         // This should parse successfully but currently fails with:
         // Parse error at location 14..15: reason=Unexpected, found=Some((Newline, 34..35))
-        let doc = parse_with_source(tokens, &source)
+        let doc = parse(tokens, &source)
             .expect("Parser should handle definition with list followed by definition");
 
         // Should have 2 definitions
@@ -486,25 +472,23 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_parse_with_source_simple() {
+    fn test_parse_simple() {
         let input = "Hello world\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         assert_eq!(doc.root.content.len(), 1);
         let para = doc.root.content[0].as_paragraph().unwrap();
-        assert!(para.location().is_some(), "Paragraph should have location");
-
-        let location = para.location().unwrap();
+        let location = para.location();
         assert_eq!(location.start.line, 0);
         assert_eq!(location.start.column, 0);
     }
 
     #[test]
-    fn test_parse_with_source_multiline() {
+    fn test_parse_multiline() {
         let input = "First line\nSecond line\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         assert_eq!(doc.root.content.len(), 1);
         let para = doc.root.content[0].as_paragraph().unwrap();
@@ -513,7 +497,7 @@ mod tests {
         assert_eq!(para.lines.len(), 2);
 
         // Location should cover both lines
-        let location = para.location().unwrap();
+        let location = para.location();
         assert_eq!(location.start.line, 0);
         assert_eq!(location.end.line, 1);
     }
@@ -522,7 +506,7 @@ mod tests {
     fn test_element_at_query_on_parsed_document() {
         let input = "First paragraph\n\n2. Session Title\n\n    Session content\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         // Query for the session (should be at line 2)
         let result = doc.element_at(Position::new(2, 3));
@@ -538,7 +522,7 @@ mod tests {
     fn test_element_at_nested_position() {
         let input = "Title\n\n1. Item one\n\n    Nested content\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         // The document should have at least a paragraph and possibly a list
         assert!(!doc.root.content.is_empty());
@@ -555,23 +539,21 @@ mod tests {
     fn test_position_comparison_in_query() {
         let input = "Line 0\n\nLine 2\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         // Get all items
         let items = doc.root.content.clone();
 
         // First paragraph should be at line 0
         if let Some(para) = items.first().and_then(|item| item.as_paragraph()) {
-            if let Some(location) = para.location() {
-                assert_eq!(location.start.line, 0);
-            }
+            let location = para.location();
+            assert_eq!(location.start.line, 0);
         }
 
         // Second paragraph should be at line 2
         if let Some(para) = items.get(1).and_then(|item| item.as_paragraph()) {
-            if let Some(location) = para.location() {
-                assert_eq!(location.start.line, 2);
-            }
+            let location = para.location();
+            assert_eq!(location.start.line, 2);
         }
     }
 
@@ -583,11 +565,10 @@ mod tests {
         let tokens = lex(input);
 
         // Old parser should still work (without positions)
-        let doc_old =
-            parse_with_source(tokens.clone(), input).expect("Failed to parse without positions");
+        let doc_old = parse(tokens.clone(), input).expect("Failed to parse without positions");
 
         // New parser with positions
-        let doc_new = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc_new = parse(tokens, input).expect("Failed to parse with positions");
 
         // Content should be identical
         assert_eq!(doc_old.root.content.len(), doc_new.root.content.len());
@@ -608,9 +589,11 @@ mod tests {
         }
 
         // But new version should have positions on the paragraph and text
-        assert!(para_new.location().is_some());
+        let para_location = para_new.location();
+        assert!(para_location.start <= para_location.end);
         if let ContentItem::TextLine(tl) = &para_new.lines[0] {
-            assert!(tl.location().is_some());
+            let line_location = tl.location();
+            assert!(line_location.start <= line_location.end);
         }
     }
 
@@ -618,10 +601,10 @@ mod tests {
     fn test_location_boundary_containment() {
         let input = "0123456789\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         let para = doc.root.content[0].as_paragraph().unwrap();
-        let location = para.location().unwrap();
+        let location = para.location();
 
         // Should contain position in the middle
         assert!(location.contains(Position::new(0, 5)));
@@ -632,7 +615,7 @@ mod tests {
         // Should contain end
         assert!(location.contains(location.end));
 
-        // Shouldมี contain position after end
+        // Should?? contain position after end
         assert!(!location.contains(Position::new(0, 11)));
     }
 
@@ -641,7 +624,7 @@ mod tests {
         // Test that nested paragraphs inside sessions have location information
         let input = "Title\n\n1. Session Title\n\n    Nested paragraph\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         assert!(doc.root.content.len() >= 2);
 
@@ -653,7 +636,11 @@ mod tests {
             .find(|item| item.is_session())
             .expect("Should have a session");
 
-        assert!(session.location().is_some(), "Session should have location");
+        let session_location = session.location();
+        assert!(
+            session_location.start <= session_location.end,
+            "Session should have location"
+        );
 
         // Get nested content
         if let Some(children) = session.children() {
@@ -663,19 +650,18 @@ mod tests {
             if let Some(para_item) = children.first() {
                 if para_item.is_paragraph() {
                     let para = para_item.as_paragraph().unwrap();
+                    let location = para.location();
                     assert!(
-                        para.location().is_some(),
+                        location.start <= location.end,
                         "Nested paragraph should have location, but got {:?}",
-                        para.location()
+                        location
                     );
 
-                    if let Some(location) = para.location() {
-                        println!(
-                            "Nested paragraph location: {:?} to {:?}",
-                            location.start, location.end
-                        );
-                        assert_eq!(location.start.line, 4, "Paragraph should be at line 4");
-                    }
+                    println!(
+                        "Nested paragraph location: {:?} to {:?}",
+                        location.start, location.end
+                    );
+                    assert_eq!(location.start.line, 4, "Paragraph should be at line 4");
                 }
             }
         }
@@ -686,17 +672,19 @@ mod tests {
         let source = TxxtSources::get_string("110-ensemble-with-definitions.txxt")
             .expect("Failed to load ensemble sample");
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).expect("Failed to parse ensemble sample");
+        let doc = parse(tokens, &source).expect("Failed to parse ensemble sample");
 
         // Document doesn't have its own location; location comes from root
+        let root_location = doc.root.location();
         assert!(
-            doc.root.location().is_some(),
+            root_location.start <= root_location.end,
             "Root session should have a location"
         );
 
         for item in &doc.root.content {
+            let item_location = item.location();
             assert!(
-                item.location().is_some(),
+                item_location.start <= item_location.end,
                 "{} should have a location",
                 item.node_type()
             );
@@ -705,8 +693,9 @@ mod tests {
                 ContentItem::Paragraph(paragraph) => {
                     for line in &paragraph.lines {
                         if let ContentItem::TextLine(tl) = line {
+                            let line_location = tl.location();
                             assert!(
-                                tl.location().is_some(),
+                                line_location.start <= line_location.end,
                                 "Paragraph line should have location"
                             );
                         }
@@ -718,8 +707,9 @@ mod tests {
                         "Session title is missing location"
                     );
                     for child in &session.content {
+                        let child_location = child.location();
                         assert!(
-                            child.location().is_some(),
+                            child_location.start <= child_location.end,
                             "Session child should have location"
                         );
                     }
@@ -730,8 +720,9 @@ mod tests {
                         "Definition subject should have location"
                     );
                     for child in &definition.content {
+                        let child_location = child.location();
                         assert!(
-                            child.location().is_some(),
+                            child_location.start <= child_location.end,
                             "Definition child should have location"
                         );
                     }
@@ -746,8 +737,9 @@ mod tests {
                                 );
                             }
                             for child in &list_item.content {
+                                let child_location = child.location();
                                 assert!(
-                                    child.location().is_some(),
+                                    child_location.start <= child_location.end,
                                     "Nested list item child should have location"
                                 );
                             }
@@ -764,7 +756,7 @@ mod tests {
         let source = TxxtSources::get_string("120-annotations-simple.txxt")
             .expect("Failed to load annotations sample");
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).expect("Failed to parse annotations sample");
+        let doc = parse(tokens, &source).expect("Failed to parse annotations sample");
 
         let annotations: Vec<_> = doc
             .root
@@ -776,8 +768,9 @@ mod tests {
 
         for annotation in annotations {
             for child in &annotation.content {
+                let child_location = child.location();
                 assert!(
-                    child.location().is_some(),
+                    child_location.start <= child_location.end,
                     "Annotation content should have a location"
                 );
             }
@@ -789,8 +782,7 @@ mod tests {
         let source = TxxtSources::get_string("140-foreign-blocks-simple.txxt")
             .expect("Failed to load foreign blocks sample");
         let tokens = lex(&source);
-        let doc =
-            parse_with_source(tokens, &source).expect("Failed to parse foreign blocks sample");
+        let doc = parse(tokens, &source).expect("Failed to parse foreign blocks sample");
 
         let foreign_blocks: Vec<_> = doc
             .root
@@ -817,8 +809,9 @@ mod tests {
 
             let closing = &block.closing_annotation;
             for child in &closing.content {
+                let child_location = child.location();
                 assert!(
-                    child.location().is_some(),
+                    child_location.start <= child_location.end,
                     "Closing annotation content should have a location"
                 );
             }

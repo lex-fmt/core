@@ -104,7 +104,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::txxt::lexer::lex;
-    use crate::txxt::parser::api::parse_with_source;
+    use crate::txxt::parser::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
 
@@ -113,7 +113,7 @@ mod tests {
         // Simplest possible list: 2 dashed items
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Find the first list (after "Plain dash lists:" paragraph)
         // Document structure: Para Para Para List Para List...
@@ -143,7 +143,7 @@ mod tests {
         // Test numbered list: "1. ", "2. ", "3. "
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Numerical lists (item 5)
         assert_ast(&doc).item(5, |item| {
@@ -166,7 +166,7 @@ mod tests {
         // Test alphabetical list: "a. ", "b. ", "c. "
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Alphabetical lists (item 7)
         assert_ast(&doc).item(7, |item| {
@@ -189,7 +189,7 @@ mod tests {
         // Test mixed decorations: different markers in same list
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Mixed decoration lists (item 9)
         assert_ast(&doc).item(9, |item| {
@@ -212,7 +212,7 @@ mod tests {
         // Test parenthetical numbering: "(1) ", "(2) ", "(3) "
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Parenthetical numbering (item 11)
         assert_ast(&doc).item(11, |item| {
@@ -235,7 +235,7 @@ mod tests {
         // Critical test: single list-like line becomes paragraph, 2+ with blank line become list
         let source = TxxtSources::get_string("050-paragraph-lists.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Items 2-4: Single list-item-lines merged into paragraphs
         assert_ast(&doc).item(2, |item| {
@@ -266,7 +266,7 @@ mod tests {
         // Full document test with lists from TxxtSources
         let source = TxxtSources::get_string("040-lists.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Verify document structure: paragraphs + lists alternating
         assert_ast(&doc)
@@ -303,7 +303,7 @@ mod tests {
         // Without the blank line, consecutive list-item-lines should be parsed as paragraphs
         let source = "First paragraph\n- Item one\n- Item two\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         // Should be parsed as a single paragraph, NOT a paragraph + list
         // because there's no blank line before the list-item-lines
@@ -322,7 +322,7 @@ mod tests {
         // Now test the positive case: with blank line, it becomes separate items
         let source_with_blank = "First paragraph\n\n- Item one\n- Item two\n";
         let tokens2 = lex(source_with_blank);
-        let doc2 = parse_with_source(tokens2, source_with_blank).unwrap();
+        let doc2 = parse(tokens2, source_with_blank).unwrap();
 
         // Should be parsed as paragraph + list
         assert_eq!(
@@ -351,7 +351,7 @@ mod tests {
         let source = TxxtSources::get_string("070-nested-lists-simple.txxt")
             .expect("Failed to load sample file");
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
@@ -435,7 +435,7 @@ mod tests {
         let source = TxxtSources::get_string("080-nested-lists-mixed-content.txxt")
             .expect("Failed to load sample file");
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)

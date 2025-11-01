@@ -69,9 +69,10 @@ mod tests {
     use crate::txxt::ast::Container;
     use crate::txxt::ast::ContentItem;
     use crate::txxt::lexer::{lex, Token};
-    use crate::txxt::parser::api::parse_with_source;
+    use crate::txxt::parser::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
+    use crate::txxt::testing::factories::{mk_token, Tokens};
 
     #[test]
     fn test_malformed_session_title_with_indent_but_no_content() {
@@ -91,7 +92,7 @@ mod tests {
         println!("Tokens: {:?}", tokens);
 
         let tokenss = lex(input);
-        let result = parse_with_source(tokenss, input);
+        let result = parse(tokenss, input);
 
         match &result {
             Ok(doc) => {
@@ -122,20 +123,20 @@ mod tests {
     fn test_session_title_followed_by_bare_indent_level() {
         // Test case 1: Session with empty content (IndentLevel immediately followed by DedentLevel)
         // This actually SHOULD be allowed or give a clear error
-        let tokens = vec![
-            Token::Text("".to_string()),
-            Token::Newline,
-            Token::Newline,
-            Token::IndentLevel,
-            Token::DedentLevel,
-            Token::DedentLevel,
+        let tokens: Tokens = vec![
+            mk_token(Token::Text("".to_string()), 0, 0),
+            mk_token(Token::Newline, 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::IndentLevel, 2, 3),
+            mk_token(Token::DedentLevel, 3, 4),
+            mk_token(Token::DedentLevel, 4, 5),
         ];
 
         println!("\n=== Test: Session with empty content ===");
-        println!("Tokens: {:?}", tokens);
+        let pretty_tokens: Vec<_> = tokens.iter().map(|(t, _)| t).collect();
+        println!("Tokens: {:?}", pretty_tokens);
 
-        let tokenss: Vec<_> = tokens.into_iter().map(|t| (t, 0..0)).collect();
-        let result = parse_with_source(tokenss, "");
+        let result = parse(tokens, "");
 
         match &result {
             Ok(doc) => {
@@ -212,7 +213,7 @@ mod tests {
             .expect("Failed to load sample file");
         let tokens = lex(&source);
 
-        let result = parse_with_source(tokens, &source);
+        let result = parse(tokens, &source);
         assert!(
             result.is_ok(),
             "Failed to parse 010-paragraphs-sessions-flat-single.txxt: {:?}",
@@ -269,7 +270,7 @@ mod tests {
             .expect("Failed to load sample file");
         let tokens = lex(&source);
 
-        let result = parse_with_source(tokens, &source);
+        let result = parse(tokens, &source);
         assert!(
             result.is_ok(),
             "Failed to parse 020-paragraphs-sessions-flat-multiple.txxt: {:?}",
@@ -345,7 +346,7 @@ mod tests {
             .expect("Failed to load sample file");
         let tokens = lex(&source);
 
-        let result = parse_with_source(tokens, &source);
+        let result = parse(tokens, &source);
         assert!(
             result.is_ok(),
             "Failed to parse 030-paragraphs-sessions-nested-multiple.txxt: {:?}",

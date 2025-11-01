@@ -68,16 +68,6 @@ pub(crate) fn compute_location_from_locations(locations: &[Location]) -> Locatio
     )
 }
 
-/// Helper: compute location bounds from multiple optional locations
-pub(crate) fn compute_location_from_optional_locations(locations: &[Option<Location>]) -> Location {
-    let actual_locations: Vec<Location> = locations.iter().filter_map(|s| *s).collect();
-    if actual_locations.is_empty() {
-        Location::default()
-    } else {
-        compute_location_from_locations(&actual_locations)
-    }
-}
-
 /// Helper: aggregate location from a primary location and child content items
 ///
 /// Creates a bounding box that encompasses the primary location and all child content.
@@ -90,7 +80,7 @@ pub(crate) fn compute_location_from_optional_locations(locations: &[Option<Locat
 /// ```
 pub(crate) fn aggregate_locations(primary: Location, children: &[ContentItem]) -> Location {
     let mut sources = vec![primary];
-    sources.extend(children.iter().filter_map(|item| item.location()));
+    sources.extend(children.iter().map(|item| item.location()));
     compute_location_from_locations(&sources)
 }
 
@@ -172,8 +162,7 @@ pub(crate) fn paragraph(
                         byte_range_to_location(&source, &range)
                     };
                     let text_content = TextContent::from_string(text, Some(line_location));
-                    let text_line =
-                        crate::txxt::ast::TextLine::new(text_content).with_location(line_location);
+                    let text_line = crate::txxt::ast::TextLine::new(text_content).at(line_location);
                     crate::txxt::ast::ContentItem::TextLine(text_line)
                 })
                 .collect();

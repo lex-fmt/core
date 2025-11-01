@@ -36,7 +36,12 @@ impl TextLine {
         }
     }
 
-    pub fn with_location(mut self, location: Location) -> Self {
+    #[deprecated(note = "Use at(location) instead")]
+    pub fn with_location(self, location: Location) -> Self {
+        self.at(location)
+    }
+
+    pub fn at(mut self, location: Location) -> Self {
         self.location = location;
         self
     }
@@ -60,8 +65,8 @@ impl AstNode for TextLine {
         }
     }
 
-    fn location(&self) -> Option<Location> {
-        Some(self.location)
+    fn location(&self) -> Location {
+        self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -109,10 +114,15 @@ impl Paragraph {
             ))],
             location: Self::default_location(),
         };
-        para = para.with_location(location);
+        para = para.at(location);
         para
     }
-    pub fn with_location(mut self, location: Location) -> Self {
+    #[deprecated(note = "Use at(location) instead")]
+    pub fn with_location(self, location: Location) -> Self {
+        self.at(location)
+    }
+    /// Preferred builder
+    pub fn at(mut self, location: Location) -> Self {
         self.location = location;
         // When a paragraph's location is set in tests, we should also update
         // the location of the single child TextLine for consistency, as this
@@ -125,10 +135,6 @@ impl Paragraph {
             }
         }
         self
-    }
-    /// Preferred builder
-    pub fn at(self, location: Location) -> Self {
-        self.with_location(location)
     }
     pub fn text(&self) -> String {
         self.lines
@@ -157,8 +163,8 @@ impl AstNode for Paragraph {
             text
         }
     }
-    fn location(&self) -> Option<Location> {
-        Some(self.location)
+    fn location(&self) -> Location {
+        self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -222,7 +228,7 @@ mod tests {
             super::super::super::location::Position::new(0, 0),
             super::super::super::location::Position::new(0, 5),
         );
-        let para = Paragraph::from_line("Hello".to_string()).with_location(location);
+        let para = Paragraph::from_line("Hello".to_string()).at(location);
 
         assert_eq!(para.location, location);
     }
