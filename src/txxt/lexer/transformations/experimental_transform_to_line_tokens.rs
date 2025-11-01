@@ -159,16 +159,34 @@ fn is_list_line(tokens: &[Token]) -> bool {
 
     // Check for ordered list marker: (Number | Letter | RomanNumeral) (Period | CloseParen) Whitespace
     if i + 2 < tokens.len() {
-        let has_number_or_letter = matches!(tokens[i], Token::Number(_));
+        let has_number = matches!(tokens[i], Token::Number(_));
+        let has_letter = matches!(tokens[i], Token::Text(ref s) if is_single_letter(s));
+        let has_roman = matches!(tokens[i], Token::Text(ref s) if is_roman_numeral(s));
         let has_separator = matches!(tokens[i + 1], Token::Period | Token::CloseParen);
         let has_space = matches!(tokens[i + 2], Token::Whitespace);
 
-        if has_number_or_letter && has_separator && has_space {
+        if (has_number || has_letter || has_roman) && has_separator && has_space {
             return true;
         }
     }
 
     false
+}
+
+/// Check if a string is a single letter (a-z, A-Z)
+fn is_single_letter(s: &str) -> bool {
+    s.len() == 1 && s.chars().next().map_or(false, |c| c.is_alphabetic())
+}
+
+/// Check if a string is a Roman numeral (I, II, III, IV, V, etc.)
+fn is_roman_numeral(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    // Check if all characters are valid Roman numeral characters
+    s.chars()
+        .all(|c| matches!(c, 'I' | 'V' | 'X' | 'L' | 'C' | 'D' | 'M'))
+        && s.chars().next().map_or(false, |c| c.is_uppercase())
 }
 
 /// Check if line ends with colon (ignoring trailing whitespace and newline)
@@ -287,6 +305,58 @@ mod tests {
             Token::Dash,
             Token::Whitespace,
             Token::Text("Item".to_string()),
+            Token::Newline,
+        ];
+        let line = classify_line_tokens(&tokens);
+        assert_eq!(line, LineTokenType::ListLine);
+    }
+
+    #[test]
+    fn test_list_line_letter_marker() {
+        let tokens = vec![
+            Token::Text("a".to_string()),
+            Token::Period,
+            Token::Whitespace,
+            Token::Text("First".to_string()),
+            Token::Newline,
+        ];
+        let line = classify_line_tokens(&tokens);
+        assert_eq!(line, LineTokenType::ListLine);
+    }
+
+    #[test]
+    fn test_list_line_letter_marker_uppercase() {
+        let tokens = vec![
+            Token::Text("A".to_string()),
+            Token::CloseParen,
+            Token::Whitespace,
+            Token::Text("Item".to_string()),
+            Token::Newline,
+        ];
+        let line = classify_line_tokens(&tokens);
+        assert_eq!(line, LineTokenType::ListLine);
+    }
+
+    #[test]
+    fn test_list_line_roman_numeral_marker() {
+        let tokens = vec![
+            Token::Text("I".to_string()),
+            Token::Period,
+            Token::Whitespace,
+            Token::Text("First".to_string()),
+            Token::Newline,
+        ];
+        let line = classify_line_tokens(&tokens);
+        assert_eq!(line, LineTokenType::ListLine);
+    }
+
+    #[test]
+    fn test_list_line_roman_numeral_multi_char() {
+        let tokens = vec![
+            Token::Text("III".to_string()),
+            Token::CloseParen,
+            Token::Whitespace,
+            Token::Text("Third".to_string()),
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
