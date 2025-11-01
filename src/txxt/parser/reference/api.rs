@@ -5,7 +5,7 @@ use std::ops::Range;
 
 use crate::txxt::ast::Document;
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::elements::document::document;
+use crate::txxt::parser::ast_build::document::document;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);

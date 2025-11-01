@@ -27,11 +27,11 @@ use super::combinators::paragraph;
 
 // Import parser builders from element modules
 use super::combinators::token;
-use super::elements::annotations::build_annotation_parser;
-use super::elements::definitions::build_definition_parser;
-use super::elements::foreign::foreign_block;
-use super::elements::lists::build_list_parser;
-use super::elements::sessions::build_session_parser;
+use crate::txxt::parser::ast_build::annotations::build_annotation_parser;
+use crate::txxt::parser::ast_build::definitions::build_definition_parser;
+use crate::txxt::parser::ast_build::foreign::foreign_block;
+use crate::txxt::parser::ast_build::lists::build_list_parser;
+use crate::txxt::parser::ast_build::sessions::build_session_parser;
 use std::sync::Arc;
 
 /// Build the Multi-Parser Bundle for document-level content parsing.

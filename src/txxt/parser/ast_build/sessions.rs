@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::txxt::ast::{ContentItem, Session, TextContent};
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::combinators::{
+use crate::txxt::parser::reference::combinators::{
     aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
     extract_text_from_locations, text_line, token,
 };
@@ -69,7 +69,7 @@ mod tests {
     use crate::txxt::ast::Container;
     use crate::txxt::ast::ContentItem;
     use crate::txxt::lexer::{lex, Token};
-    use crate::txxt::parser::api::parse;
+    use crate::txxt::parser::reference::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
     use crate::txxt::testing::factories::{mk_token, Tokens};

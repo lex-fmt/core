@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use crate::txxt::ast::{ContentItem, Definition, TextContent};
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::combinators::{
+use crate::txxt::parser::reference::combinators::{
     aggregate_locations, byte_range_to_location, extract_tokens_to_text_and_location, token,
 };
 
@@ -68,7 +68,7 @@ mod tests {
     use crate::txxt::ast::Container;
     use crate::txxt::ast::ContentItem;
     use crate::txxt::lexer::lex;
-    use crate::txxt::parser::api::parse;
+    use crate::txxt::parser::reference::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
 
