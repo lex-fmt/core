@@ -48,6 +48,9 @@ pub enum OutputFormat {
     AstTag, // AST XML-like tag format
     AstTreeviz,
     AstPosition, // AST position lookup format
+    // Experimental pipeline formats
+    ExperimentalLineTokens,
+    ExperimentalTokenTree,
 }
 
 /// Represents a complete processing specification
@@ -68,6 +71,18 @@ impl ProcessingSpec {
         let stage = match parts[0] {
             "token" => ProcessingStage::Token,
             "ast" => ProcessingStage::Ast,
+            "experimental-line-tokens" => {
+                return Ok(ProcessingSpec {
+                    stage: ProcessingStage::Token,
+                    format: OutputFormat::ExperimentalLineTokens,
+                })
+            }
+            "experimental-token-tree" => {
+                return Ok(ProcessingSpec {
+                    stage: ProcessingStage::Token,
+                    format: OutputFormat::ExperimentalTokenTree,
+                })
+            }
             _ => return Err(ProcessingError::InvalidStage(parts[0].to_string())),
         };
 
@@ -146,6 +161,14 @@ impl ProcessingSpec {
                 stage: ProcessingStage::Ast,
                 format: OutputFormat::AstPosition,
             },
+            ProcessingSpec {
+                stage: ProcessingStage::Token,
+                format: OutputFormat::ExperimentalLineTokens,
+            },
+            ProcessingSpec {
+                stage: ProcessingStage::Token,
+                format: OutputFormat::ExperimentalTokenTree,
+            },
         ]
     }
 }
@@ -196,57 +219,84 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     let content =
         fs::read_to_string(file_path).map_err(|e| ProcessingError::IoError(e.to_string()))?;
 
-    // Process according to stage
-    match spec.stage {
-        ProcessingStage::Token => {
-            let tokens = lex(&content);
-            format_tokenss(&tokens, &spec.format)
+    // Process according to stage and format
+    // Handle experimental formats first
+    match &spec.format {
+        OutputFormat::ExperimentalLineTokens => {
+            let line_tokens = crate::txxt::lexer::experimental_lex_stage(
+                &content,
+                crate::txxt::lexer::PipelineStage::LineTokens,
+            );
+            if let crate::txxt::lexer::PipelineOutput::LineTokens(tokens) = line_tokens {
+                let json = serde_json::to_string_pretty(&tokens)
+                    .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+                return Ok(json);
+            }
+            Err(ProcessingError::IoError(
+                "Unexpected output from experimental pipeline".to_string(),
+            ))
         }
-        ProcessingStage::Ast => {
-            // Parse the document - all documents now include full location information
-            let doc = if matches!(spec.format, OutputFormat::AstPosition) {
-                crate::txxt::parser::parse_with_source(crate::txxt::lexer::lex(&content), &content)
-                    .map_err(|errs| {
-                        let error_details = errs
-                            .iter()
-                            .map(|e| {
-                                format!(
-                                    "  Parse error at span {:?}: reason={:?}, found={:?}",
-                                    e.span(),
-                                    e.reason(),
-                                    e.found()
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n");
-                        ProcessingError::IoError(format!(
-                            "Failed to parse document:\n{}",
-                            error_details
-                        ))
-                    })?
-            } else {
-                crate::txxt::parser::parse_document(&content).map_err(|errs| {
-                    let error_details = errs
-                        .iter()
-                        .map(|e| {
-                            format!(
-                                "  Parse error at span {:?}: reason={:?}, found={:?}",
-                                e.span(),
-                                e.reason(),
-                                e.found()
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    ProcessingError::IoError(format!(
-                        "Failed to parse document:\n{}",
-                        error_details
-                    ))
-                })?
-            };
+        OutputFormat::ExperimentalTokenTree => {
+            let tree = crate::txxt::lexer::experimental_lex(&content);
+            let json = serde_json::to_string_pretty(&tree)
+                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+            Ok(json)
+        }
+        _ => {
+            // Non-experimental format, continue with standard processing
+            match spec.stage {
+                ProcessingStage::Token => {
+                    let tokens = lex(&content);
+                    format_tokenss(&tokens, &spec.format)
+                }
+                ProcessingStage::Ast => {
+                    // Parse the document - all documents now include full location information
+                    let doc = if matches!(spec.format, OutputFormat::AstPosition) {
+                        crate::txxt::parser::parse_with_source(
+                            crate::txxt::lexer::lex(&content),
+                            &content,
+                        )
+                        .map_err(|errs| {
+                            let error_details = errs
+                                .iter()
+                                .map(|e| {
+                                    format!(
+                                        "  Parse error at span {:?}: reason={:?}, found={:?}",
+                                        e.span(),
+                                        e.reason(),
+                                        e.found()
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            ProcessingError::IoError(format!(
+                                "Failed to parse document:\n{}",
+                                error_details
+                            ))
+                        })?
+                    } else {
+                        crate::txxt::parser::parse_document(&content).map_err(|errs| {
+                            let error_details = errs
+                                .iter()
+                                .map(|e| {
+                                    format!(
+                                        "  Parse error at span {:?}: reason={:?}, found={:?}",
+                                        e.span(),
+                                        e.reason(),
+                                        e.found()
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            ProcessingError::IoError(format!(
+                                "Failed to parse document:\n{}",
+                                error_details
+                            ))
+                        })?
+                    };
 
-            // Format according to output format
-            match spec.format {
+                    // Format according to output format
+                    match spec.format {
                 OutputFormat::AstTag => Ok(crate::txxt::parser::serialize_ast_tag(&doc)),
                 OutputFormat::AstTreeviz => Ok(crate::txxt::parser::to_treeviz_str(&doc)),
                 OutputFormat::AstPosition => {
@@ -272,6 +322,8 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                 _ => Err(ProcessingError::InvalidFormatType(
                     "Only ast-tag, ast-treeviz, and ast-position formats are supported for AST stage".to_string(),
                 )),
+            }
+                }
             }
         }
     }
@@ -314,6 +366,12 @@ fn format_tokenss(
         OutputFormat::AstPosition => Err(ProcessingError::InvalidFormatType(
             "ast-position format only works with ast stage".to_string(),
         )),
+        OutputFormat::ExperimentalLineTokens | OutputFormat::ExperimentalTokenTree => {
+            // These formats are handled in process_file_with_extras, not here
+            Err(ProcessingError::InvalidFormatType(
+                "Experimental formats should be handled by process_file_with_extras".to_string(),
+            ))
+        }
     }
 }
 
@@ -322,23 +380,29 @@ pub fn available_formats() -> Vec<String> {
     ProcessingSpec::available_specs()
         .into_iter()
         .map(|spec| {
-            format!(
-                "{}-{}",
-                match spec.stage {
-                    ProcessingStage::Token => "token",
-                    ProcessingStage::Ast => "ast",
-                },
-                match spec.format {
-                    OutputFormat::Simple => "simple",
-                    OutputFormat::Json => "json",
-                    OutputFormat::RawSimple => "raw-simple",
-                    OutputFormat::RawJson => "raw-json",
-                    OutputFormat::Xml => "xml",
-                    OutputFormat::AstTag => "tag",
-                    OutputFormat::AstTreeviz => "treeviz",
-                    OutputFormat::AstPosition => "position",
-                }
-            )
+            // Handle experimental formats separately
+            match spec.format {
+                OutputFormat::ExperimentalLineTokens => "experimental-line-tokens".to_string(),
+                OutputFormat::ExperimentalTokenTree => "experimental-token-tree".to_string(),
+                _ => format!(
+                    "{}-{}",
+                    match spec.stage {
+                        ProcessingStage::Token => "token",
+                        ProcessingStage::Ast => "ast",
+                    },
+                    match spec.format {
+                        OutputFormat::Simple => "simple",
+                        OutputFormat::Json => "json",
+                        OutputFormat::RawSimple => "raw-simple",
+                        OutputFormat::RawJson => "raw-json",
+                        OutputFormat::Xml => "xml",
+                        OutputFormat::AstTag => "tag",
+                        OutputFormat::AstTreeviz => "treeviz",
+                        OutputFormat::AstPosition => "position",
+                        _ => unreachable!(),
+                    }
+                ),
+            }
         })
         .collect()
 }
