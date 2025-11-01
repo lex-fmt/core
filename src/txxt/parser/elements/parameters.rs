@@ -201,13 +201,13 @@ pub(crate) fn parse_parameters_from_tokens(
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt::lexer::lex_with_locations;
+    use crate::txxt::lexer::lex;
     use crate::txxt::parser::parse_with_source;
 
     #[test]
     fn test_annotation_comma_separated_parameters() {
         let source = ":: warning severity=high,priority=urgent ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -223,7 +223,7 @@ mod tests {
     fn test_annotation_quoted_string_values() {
         let source =
             ":: note author=\"Jane Doe\" title=\"Important Note\" ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn test_annotation_mixed_separators_and_quotes() {
         let source = ":: task priority=high,status=\"in progress\",assigned=alice ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -255,7 +255,7 @@ mod tests {
     fn test_annotation_whitespace_around_commas() {
         // Test that whitespace around commas is properly ignored
         let source = ":: note key1=val1 , key2=val2 , key3=val3 ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn test_annotation_with_only_keyed_parameters() {
         let source = ":: warning priority=urgent ::\n\nText. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();

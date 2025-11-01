@@ -13,7 +13,7 @@ use logos::Logos;
 /// This function performs raw tokenization using the logos lexer, returning tokens
 /// paired with their source locations. Additional transformations (whitespace processing,
 /// indentation handling, blank line handling) should be applied by the caller.
-pub fn tokenize_with_locations(source: &str) -> Vec<(Token, logos::Span)> {
+pub fn tokenize(source: &str) -> Vec<(Token, logos::Span)> {
     let mut lexer = Token::lexer(source);
     let mut tokens = Vec::new();
 
@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_with_locations() {
-        let tokens_with_locations = tokenize_with_locations("hello world");
+        let tokens_with_locations = tokenize("hello world");
         assert_eq!(tokens_with_locations.len(), 3);
 
         // Check that tokens are correct
@@ -43,14 +43,14 @@ mod tests {
 
     #[test]
     fn test_empty_input() {
-        let tokens_with_locations = tokenize_with_locations("");
+        let tokens_with_locations = tokenize("");
         assert_eq!(tokens_with_locations, vec![]);
     }
 
     #[test]
     fn test_complex_tokenization() {
         let input = "1. Session Title\n    - Item 1\n    - Item 2";
-        let tokens_with_locations = tokenize_with_locations(input);
+        let tokens_with_locations = tokenize(input);
 
         // Expected tokens for "1. Session Title"
         assert_eq!(tokens_with_locations[0].0, Token::Number("1".to_string())); // "1"
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_whitespace_only() {
-        let tokens_with_locations = tokenize_with_locations("   \t  ");
+        let tokens_with_locations = tokenize("   \t  ");
         // Expected: 3 spaces -> Whitespace, 1 tab -> Indent, 2 spaces -> Whitespace
         assert_eq!(tokens_with_locations.len(), 3);
         assert_eq!(tokens_with_locations[0].0, Token::Whitespace);

@@ -34,6 +34,6 @@ type ParseResult = Result<
 /// Main parser function that takes source text and returns a parsed document
 /// This is the primary entry point for parsing txxt documents
 pub fn parse_document(source: &str) -> ParseResult {
-    let tokens_with_locations = crate::txxt::lexer::lex_with_locations(source);
+    let tokens_with_locations = crate::txxt::lexer::lex(source);
     parse_with_source(tokens_with_locations, source)
 }
