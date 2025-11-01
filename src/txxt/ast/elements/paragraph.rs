@@ -202,7 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn test_paragraph_with_location() {
+    fn test_paragraph() {
         let location = Location::new(
             super::super::super::location::Position::new(0, 0),
             super::super::super::location::Position::new(0, 5),

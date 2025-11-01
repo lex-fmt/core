@@ -166,7 +166,7 @@ mod tests {
     }
 
     #[test]
-    fn test_with_location() {
+    fn test() {
         let location = Location::new(Position::new(0, 0), Position::new(0, 5));
         let content = TextContent::from_string("Hello".to_string(), Some(location));
         assert_eq!(content.location, Some(location));

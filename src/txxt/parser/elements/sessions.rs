@@ -90,8 +90,8 @@ mod tests {
         println!("Input: {:?}", input);
         println!("Tokens: {:?}", tokens);
 
-        let tokens_with_locations = lex(input);
-        let result = parse_with_source(tokens_with_locations, input);
+        let tokenss = lex(input);
+        let result = parse_with_source(tokenss, input);
 
         match &result {
             Ok(doc) => {
@@ -134,8 +134,8 @@ mod tests {
         println!("\n=== Test: Session with empty content ===");
         println!("Tokens: {:?}", tokens);
 
-        let tokens_with_locations: Vec<_> = tokens.into_iter().map(|t| (t, 0..0)).collect();
-        let result = parse_with_source(tokens_with_locations, "");
+        let tokenss: Vec<_> = tokens.into_iter().map(|t| (t, 0..0)).collect();
+        let result = parse_with_source(tokenss, "");
 
         match &result {
             Ok(doc) => {

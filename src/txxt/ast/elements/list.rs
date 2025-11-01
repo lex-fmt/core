@@ -165,7 +165,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_list_with_location() {
+    fn test_list() {
         let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),

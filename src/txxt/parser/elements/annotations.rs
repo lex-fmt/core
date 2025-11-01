@@ -60,7 +60,7 @@ pub(crate) fn annotation_header(
             }
         }
 
-        let params_with_locations = parse_parameters_from_tokens(&tokens[i..]);
+        let paramss = parse_parameters_from_tokens(&tokens[i..]);
 
         let header_range_start = tokens.first().map(|(_, span)| span.start).unwrap_or(0);
         let header_range_end = tokens
@@ -80,7 +80,7 @@ pub(crate) fn annotation_header(
         });
 
         // Convert parameters to final types
-        let params = params_with_locations
+        let params = paramss
             .into_iter()
             .map(|p| convert_parameter(&source, p))
             .collect();

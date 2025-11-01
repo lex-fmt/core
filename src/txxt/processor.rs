@@ -200,7 +200,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     match spec.stage {
         ProcessingStage::Token => {
             let tokens = lex(&content);
-            format_tokens_with_locations(&tokens, &spec.format)
+            format_tokenss(&tokens, &spec.format)
         }
         ProcessingStage::Ast => {
             // Parse the document - all documents now include full location information
@@ -278,7 +278,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
 }
 
 /// Format tokens according to the specified format
-fn format_tokens_with_locations(
+fn format_tokenss(
     tokens: &[(Token, std::ops::Range<usize>)],
     format: &OutputFormat,
 ) -> Result<String, ProcessingError> {
@@ -615,10 +615,10 @@ mod tests {
             (Token::Newline, 11..12),
         ];
 
-        let simple = format_tokens_with_locations(&tokens, &OutputFormat::Simple).unwrap();
+        let simple = format_tokenss(&tokens, &OutputFormat::Simple).unwrap();
         assert_eq!(simple, "<text:hello><whitespace><text:world><newline>\n");
 
-        let json = format_tokens_with_locations(&tokens, &OutputFormat::Json).unwrap();
+        let json = format_tokenss(&tokens, &OutputFormat::Json).unwrap();
         assert!(json.contains("\"Text\""));
         assert!(json.contains("\"Whitespace\""));
         assert!(json.contains("\"Newline\""));

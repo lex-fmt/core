@@ -59,9 +59,7 @@ pub(crate) fn list_item_line(
     dash_pattern
         .or(ordered_pattern)
         .or(paren_pattern)
-        .map(move |tokens_with_locations| {
-            extract_tokens_to_text_and_location(&source, tokens_with_locations)
-        })
+        .map(move |tokenss| extract_tokens_to_text_and_location(&source, tokenss))
 }
 
 /// Build a list parser

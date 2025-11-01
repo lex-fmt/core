@@ -51,8 +51,8 @@ pub fn lex(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
         source.to_string()
     };
 
-    let tokens_with_locations = tokenize(&source_with_newline);
-    let tokens_after_whitespace = process_whitespace_remainders(tokens_with_locations);
+    let tokenss = tokenize(&source_with_newline);
+    let tokens_after_whitespace = process_whitespace_remainders(tokenss);
     let tokens_after_indentation = transform_indentation(tokens_after_whitespace);
     transform_blank_lines(tokens_after_indentation)
 }
