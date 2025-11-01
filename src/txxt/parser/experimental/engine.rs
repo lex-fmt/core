@@ -11,7 +11,9 @@
 //! The tree walking is completely decoupled from grammar/pattern matching,
 //! making it testable and maintainable independently.
 
+use super::txxt_grammar::TxxtGrammarRules;
 use crate::txxt::ast::TextContent;
+use crate::txxt::lexer::tokens::LineTokenType;
 use crate::txxt::lexer::transformations::experimental_transform_indentation_to_token_tree::LineTokenTree;
 use crate::txxt::parser::{ContentItem, Document, Location, Position, Session};
 
@@ -49,47 +51,108 @@ pub fn parse_experimental(tree: Vec<LineTokenTree>, source: &str) -> Result<Docu
 /// Recursively walk the token tree and parse content at each level.
 ///
 /// Algorithm:
-/// 1. Extract all children from the token tree (flattening blocks)
-/// 2. For each child:
-///    - If it's a Token: add it to the current flat sequence
-///    - If it's a Block: mark it for recursive parsing
-/// 3. Apply pattern matching to the flat sequence
-/// 4. For each matched pattern:
-///    - Extract tokens for that pattern
-///    - If pattern has a nested block, recursively parse it
-///    - Use unwrapper to convert matched pattern + tokens → AST node
-/// 5. Return the list of content items
+/// 1. Convert tree nodes to token types at current level
+/// 2. Apply pattern matching using grammar rules
+/// 3. For each matched pattern:
+///    - If it includes a nested block, recursively parse it
+///    - Use unwrapper to convert pattern + tokens → AST node
+/// 4. Return the list of content items
 fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentItem>, String> {
+    let grammar =
+        TxxtGrammarRules::new().map_err(|e| format!("Failed to create grammar rules: {}", e))?;
+
     let mut content_items = Vec::new();
+    let mut i = 0;
 
-    // For now, with stubbed pattern matching, we'll just convert each item
-    // to either a Paragraph (for tokens) or process blocks recursively
-    for node in tree {
-        match node {
-            LineTokenTree::Token(line_token) => {
-                // Stub: convert token to Paragraph
-                let item = super::unwrapper::unwrap_token_to_paragraph(line_token, source)?;
-                content_items.push(item);
-            }
-            LineTokenTree::Block(children) => {
-                // Recursively parse the block's content
-                let block_content = walk_and_parse(children, source)?;
+    while i < tree.len() {
+        // Extract token types at current level
+        let remaining_tree = &tree[i..];
+        let token_types: Vec<LineTokenType> = remaining_tree
+            .iter()
+            .map_while(|node| {
+                match node {
+                    LineTokenTree::Token(line_token) => Some(line_token.line_type),
+                    LineTokenTree::Block(_) => None, // Stop at blocks
+                }
+            })
+            .collect();
 
-                // Stub: wrap in UnknownContainer (just a Session for now)
-                let container = Session {
-                    title: TextContent::from_string("container".to_string(), None),
-                    content: block_content,
-                    location: Location {
-                        start: Position { line: 0, column: 0 },
-                        end: Position { line: 0, column: 0 },
-                    },
-                };
-                content_items.push(ContentItem::Session(container));
-            }
-        }
+        // Try to match a pattern
+        let (item, consumed) = parse_node_at_level(remaining_tree, &token_types, &grammar, source)?;
+        content_items.push(item);
+        i += consumed;
     }
 
     Ok(content_items)
+}
+
+/// Parse a single node or pattern starting at the current position in the tree.
+///
+/// Tries patterns in order of specificity, returns the matched pattern and number of tree items consumed.
+fn parse_node_at_level(
+    tree: &[LineTokenTree],
+    token_types: &[LineTokenType],
+    grammar: &TxxtGrammarRules,
+    source: &str,
+) -> Result<(ContentItem, usize), String> {
+    // Handle blank lines: create a simple paragraph with no content
+    if !token_types.is_empty() && token_types[0] == LineTokenType::BlankLine {
+        if let LineTokenTree::Token(line_token) = &tree[0] {
+            let item = super::unwrapper::unwrap_token_to_paragraph(line_token, source)?;
+            return Ok((item, 1));
+        }
+    }
+
+    // Try annotation pattern first (most specific)
+    if let Some(_consumed) = grammar.try_annotation(token_types) {
+        if let LineTokenTree::Token(line_token) = &tree[0] {
+            let item = super::unwrapper::unwrap_annotation(line_token, source)?;
+            return Ok((item, 1));
+        }
+    }
+
+    // Check if we have a block following tokens (potential definition/session/list)
+    let mut tokens_before_block = 0;
+    for (idx, node) in tree.iter().enumerate() {
+        match node {
+            LineTokenTree::Token(_) => tokens_before_block = idx + 1,
+            LineTokenTree::Block(_) => break,
+        }
+    }
+
+    // If we found a block, we have a structured element (needs pattern matching with blocks)
+    // For now, just consume tokens until block and wrap the block
+    if tokens_before_block > 0 && tokens_before_block < tree.len() {
+        // Consume all tokens before the block
+        if let LineTokenTree::Token(line_token) = &tree[0] {
+            let item = super::unwrapper::unwrap_token_to_paragraph(line_token, source)?;
+            return Ok((item, 1));
+        }
+    }
+
+    // Default: try paragraph (fallback pattern)
+    if let Some(_consumed) = grammar.try_paragraph(token_types) {
+        if let LineTokenTree::Token(line_token) = &tree[0] {
+            let item = super::unwrapper::unwrap_token_to_paragraph(line_token, source)?;
+            return Ok((item, 1));
+        }
+    }
+
+    // If block is next, recursively parse its content and wrap in a session
+    if let LineTokenTree::Block(children) = &tree[0] {
+        let block_content = walk_and_parse(children, source)?;
+        let container = Session {
+            title: TextContent::from_string("container".to_string(), None),
+            content: block_content,
+            location: Location {
+                start: Position { line: 0, column: 0 },
+                end: Position { line: 0, column: 0 },
+            },
+        };
+        return Ok((ContentItem::Session(container), 1));
+    }
+
+    Err("No pattern matched and no block found".to_string())
 }
 
 #[cfg(test)]
