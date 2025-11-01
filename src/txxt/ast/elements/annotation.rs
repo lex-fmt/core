@@ -89,6 +89,10 @@ impl Annotation {
         self.location = location;
         self
     }
+    /// Preferred builder
+    pub fn at(self, location: Location) -> Self {
+        self.with_location(location)
+    }
 }
 
 impl AstNode for Annotation {

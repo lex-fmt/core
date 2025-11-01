@@ -115,6 +115,10 @@ impl Paragraph {
         }
         self
     }
+    /// Preferred builder
+    pub fn at(self, location: Location) -> Self {
+        self.with_location(location)
+    }
     pub fn text(&self) -> String {
         self.lines
             .iter()
