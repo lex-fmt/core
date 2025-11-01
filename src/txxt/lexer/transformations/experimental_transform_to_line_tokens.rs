@@ -473,4 +473,23 @@ mod tests {
         // Colon is not at end, so not a subject line
         assert_eq!(line, LineTokenType::ParagraphLine);
     }
+
+    #[test]
+    fn test_annotation_and_subject_line_precedence() {
+        // A line that looks like both annotation (has ::) and subject (ends with :)
+        // Annotation check comes BEFORE subject check, so AnnotationLine should win
+        let tokens = vec![
+            Token::TxxtMarker,
+            Token::Text("note".to_string()),
+            Token::TxxtMarker,
+            Token::Whitespace,
+            Token::Text("description".to_string()),
+            Token::Colon,
+            Token::Newline,
+        ];
+
+        let line = classify_line_tokens(&tokens);
+        // ANNOTATION_LINE takes precedence (checked before SUBJECT_LINE)
+        assert_eq!(line, LineTokenType::AnnotationLine);
+    }
 }
