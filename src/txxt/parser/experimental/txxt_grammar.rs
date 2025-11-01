@@ -839,10 +839,12 @@ mod tests {
                     Token::TxxtMarker,
                 ],
                 line_type: LineTokenType::AnnotationLine,
+                source_span: None,
             }),
             LineTokenTree::Token(LineToken {
                 source_tokens: vec![Token::Text("Some text".to_string())],
                 line_type: LineTokenType::ParagraphLine,
+                source_span: None,
             }),
         ];
 

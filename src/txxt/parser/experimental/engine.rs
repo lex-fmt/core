@@ -142,8 +142,11 @@ fn parse_node_at_level(
             };
             if let LineTokenTree::Block(block_children) = &tree[block_idx] {
                 let block_content = walk_and_parse(block_children, source)?;
-                let item =
-                    super::unwrapper::unwrap_annotation_with_content(opening_token, block_content)?;
+                let item = super::unwrapper::unwrap_annotation_with_content(
+                    opening_token,
+                    block_content,
+                    source,
+                )?;
                 return Ok((item, consumed));
             }
         }
@@ -190,6 +193,7 @@ fn parse_node_at_level(
                             subject_token,
                             content_lines,
                             annotation_token,
+                            source,
                         )?;
                         return Ok((item, consumed));
                     }
@@ -202,6 +206,7 @@ fn parse_node_at_level(
                         subject_token,
                         vec![],
                         annotation_token,
+                        source,
                     )?;
                     return Ok((item, consumed));
                 }
@@ -225,7 +230,7 @@ fn parse_node_at_level(
             // Find the block (it's at position consumed-1)
             if let LineTokenTree::Block(block_children) = &tree[consumed - 1] {
                 let block_content = walk_and_parse(block_children, source)?;
-                let item = super::unwrapper::unwrap_session(lead_token, block_content)?;
+                let item = super::unwrapper::unwrap_session(lead_token, block_content, source)?;
                 return Ok((item, consumed));
             }
         }
@@ -238,7 +243,8 @@ fn parse_node_at_level(
                 let block_idx = token_types.len();
                 if let LineTokenTree::Block(block_children) = &tree[block_idx] {
                     let block_content = walk_and_parse(block_children, source)?;
-                    let item = super::unwrapper::unwrap_definition(subject_token, block_content)?;
+                    let item =
+                        super::unwrapper::unwrap_definition(subject_token, block_content, source)?;
                     return Ok((item, block_idx + 1));
                 }
             }
@@ -271,7 +277,8 @@ fn parse_node_at_level(
                             vec![]
                         };
 
-                    let item = super::unwrapper::unwrap_list_item(item_token, nested_content)?;
+                    let item =
+                        super::unwrapper::unwrap_list_item(item_token, nested_content, source)?;
                     list_items.push(item);
                     continue;
                 }
@@ -280,7 +287,7 @@ fn parse_node_at_level(
         }
 
         if list_items.len() >= 2 {
-            let list = super::unwrapper::unwrap_list(list_items)?;
+            let list = super::unwrapper::unwrap_list(list_items, source)?;
             return Ok((list, consumed));
         }
     }

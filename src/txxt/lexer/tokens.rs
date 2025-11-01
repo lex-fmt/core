@@ -142,8 +142,9 @@ impl Token {
 /// which groups raw tokens into semantic line units. Each line token stores:
 /// - The original raw tokens that created it (for location information and AST construction)
 /// - The line type (what kind of line this is)
+/// - The source span (byte range in source) for location tracking
 ///
-/// By preserving raw tokens, we can later pass them directly to existing AST constructors,
+/// By preserving raw tokens and source span, we can later pass them directly to existing AST constructors,
 /// which handles all location tracking and AST node creation automatically.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LineToken {
@@ -152,6 +153,10 @@ pub struct LineToken {
 
     /// The type/classification of this line
     pub line_type: LineTokenType,
+
+    /// The byte range in source code that this line spans
+    /// Used for location tracking and mapping AST nodes back to source
+    pub source_span: Option<std::ops::Range<usize>>,
 }
 
 /// The classification of a line token
