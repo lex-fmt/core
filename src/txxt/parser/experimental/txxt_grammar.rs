@@ -175,6 +175,58 @@ impl TxxtGrammarRules {
         }
     }
 
+    /// Try to match a foreign block pattern from tree
+    /// Supports two forms:
+    /// 1. Block form: SUBJECT_LINE + optional BLANK_LINE + BLOCK + ANNOTATION_LINE (closing)
+    ///    Example: "Language:\n    code content\n:: language ::"
+    /// 2. Marker form: SUBJECT_LINE + ANNOTATION_LINE (no content block)
+    ///    Example: "Image:\n:: image src=... ::"
+    pub fn try_foreign_block_from_tree(
+        &self,
+        tree: &[crate::txxt::lexer::LineTokenTree],
+    ) -> Option<usize> {
+        use crate::txxt::lexer::LineTokenTree;
+
+        if tree.is_empty() {
+            return None;
+        }
+
+        // Must start with SUBJECT_LINE
+        let subject_is_valid = matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::SubjectLine);
+        if !subject_is_valid {
+            return None;
+        }
+
+        let mut idx = 1;
+
+        // Optional BLANK_LINE after subject
+        let has_blank = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
+        if has_blank {
+            idx += 1;
+        }
+
+        // Check what comes next: BLOCK or ANNOTATION_LINE
+        match tree.get(idx) {
+            // Form 1: BLOCK + ANNOTATION_LINE (block form with content)
+            Some(LineTokenTree::Block(_)) => {
+                idx += 1;
+                // Must have a closing ANNOTATION_LINE after the block
+                let has_closing_annotation = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::AnnotationLine);
+                if has_closing_annotation {
+                    idx += 1;
+                    return Some(idx); // Successfully matched: subject (blank?) block annotation
+                }
+                None
+            }
+            // Form 2: ANNOTATION_LINE directly (marker form, no content block)
+            Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::AnnotationLine => {
+                idx += 1;
+                Some(idx) // Successfully matched: subject (blank?) annotation
+            }
+            _ => None,
+        }
+    }
+
     /// Try to match a list pattern (DEPRECATED - use try_list_from_tree)
     /// Pattern: BLANK_LINE + 2+ list items (LIST_LINE or SUBJECT_LINE with list marker)
     #[deprecated]

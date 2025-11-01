@@ -157,12 +157,24 @@ fn parse_node_at_level(
         }
     }
 
-    // 2. FOREIGN BLOCK: SUBJECT_LINE + Block + ANNOTATION_LINE
-    if let Some((end_idx, _indent_idx)) = grammar.try_foreign_block(token_types) {
-        if end_idx <= tree.len() && end_idx >= 3 {
-            if let LineTokenTree::Token(subject_token) = &tree[0] {
-                if let LineTokenTree::Block(block_children) = &tree[1] {
-                    if let LineTokenTree::Token(annotation_token) = &tree[2] {
+    // 2. FOREIGN BLOCK: Two forms:
+    //    - Block form: SUBJECT_LINE + optional BLANK_LINE + BLOCK + ANNOTATION_LINE
+    //    - Marker form: SUBJECT_LINE + optional BLANK_LINE + ANNOTATION_LINE (no block)
+    // Use tree-based matching to properly detect the pattern across blocks
+    if let Some(consumed) = grammar.try_foreign_block_from_tree(tree) {
+        if let LineTokenTree::Token(subject_token) = &tree[0] {
+            // Find what comes after subject (blank line or block/annotation)
+            let mut check_idx = 1;
+            let has_blank = matches!(tree.get(check_idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
+            if has_blank {
+                check_idx += 1;
+            }
+
+            // Check if we have a block (block form) or annotation directly (marker form)
+            match tree.get(check_idx) {
+                Some(LineTokenTree::Block(block_children)) => {
+                    // Block form: extract content lines from block
+                    if let LineTokenTree::Token(annotation_token) = &tree[consumed - 1] {
                         let content_lines = block_children
                             .iter()
                             .filter_map(|child| {
@@ -179,9 +191,21 @@ fn parse_node_at_level(
                             content_lines,
                             annotation_token,
                         )?;
-                        return Ok((item, 3));
+                        return Ok((item, consumed));
                     }
                 }
+                Some(LineTokenTree::Token(annotation_token))
+                    if annotation_token.line_type == LineTokenType::AnnotationLine =>
+                {
+                    // Marker form: no content block, just annotation
+                    let item = super::unwrapper::unwrap_foreign_block(
+                        subject_token,
+                        vec![],
+                        annotation_token,
+                    )?;
+                    return Ok((item, consumed));
+                }
+                _ => {}
             }
         }
     }
