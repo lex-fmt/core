@@ -8,7 +8,7 @@
 
 use crate::txxt::ast::Parameter;
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::reference::combinators::byte_range_to_location;
+use super::combinators::byte_range_to_location;
 use chumsky::{prelude::*, Stream};
 use std::ops::Range;
 

@@ -3,9 +3,9 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
+use super::document::document;
 use crate::txxt::ast::Document;
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::ast_build::document::document;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);

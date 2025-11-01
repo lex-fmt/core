@@ -1,12 +1,13 @@
 //! Parser module for the txxt format
 //!
-//! This module contains the parsing logic for the txxt format,
-//! including two parser implementations:
+//! This module contains two independent parser implementations:
 //!
 //! - **Reference Parser**: Traditional combinator-based parser (reference/)
+//!   - Contains element parsers and parser combinators
 //! - **Grammar Engine**: Regex-based grammar-driven parser (grammarengine/)
+//!   - Uses regex matching and pattern unwrapping
 //!
-//! Both parsers share common AST building blocks (ast_build/).
+//! No shared code between parsers (each is completely independent).
 //!
 //! ## Testing
 //!
@@ -14,7 +15,6 @@
 //! for comprehensive documentation on using verified txxt sources and AST assertions.
 
 // Parser implementations
-pub mod ast_build;
 pub mod grammarengine;
 pub mod reference;
 
@@ -26,7 +26,7 @@ pub use crate::txxt::ast::{
 };
 
 pub use crate::txxt::formats::{serialize_ast_tag, to_treeviz_str};
-pub use ast_build::document;
+pub use reference::document;
 pub use reference::parse;
 
 /// Type alias for parse result with spanned tokens
