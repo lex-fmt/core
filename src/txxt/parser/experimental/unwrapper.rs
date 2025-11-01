@@ -189,36 +189,94 @@ pub fn unwrap_annotation_with_content(
 
 /// Extract human-readable text from a line token's source tokens.
 ///
-/// This is a simple stub that concatenates Text tokens together.
-/// Later, this will be replaced with proper token parsing.
+/// Extracts semantic content from all token types (Text, Number, Dash, etc.)
+/// while skipping whitespace, newlines, and synthetic indentation tokens.
+/// This provides proper text reconstruction for annotations, definitions, and other
+/// semantic structures that may contain non-Text tokens (e.g., numbers in ordered lists).
 fn extract_text_from_token(token: &LineToken) -> String {
-    token
-        .source_tokens
-        .iter()
-        .filter_map(|t| {
-            if let Token::Text(s) = t {
-                Some(s.clone())
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+    extract_text_from_tokens(&token.source_tokens)
 }
 
-/// Extract text from a slice of tokens, joining them with spaces
+/// Extract text from a slice of tokens, properly handling all token types.
+///
+/// Extracts semantic content from all tokens (Text, Number, Dash, Period, etc.)
+/// while skipping whitespace, newlines, and synthetic indentation tokens.
+/// Concatenates tokens directly, preserving the original token structure without
+/// forcing spaces between everything (unlike simple join which always adds spaces).
 fn extract_text_from_tokens(tokens: &[Token]) -> String {
-    tokens
-        .iter()
-        .filter_map(|t| {
-            if let Token::Text(s) = t {
-                Some(s.clone())
-            } else {
-                None
+    let mut result = String::new();
+    let mut prev_was_content = false;
+
+    for token in tokens {
+        match token {
+            // Semantic content tokens - extract their string representation
+            Token::Text(s) => {
+                // Add space before text if previous token was content
+                if prev_was_content {
+                    result.push(' ');
+                }
+                result.push_str(s);
+                prev_was_content = true;
             }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+            Token::Number(s) => {
+                // Add space before number if previous token was content
+                if prev_was_content {
+                    result.push(' ');
+                }
+                result.push_str(s);
+                prev_was_content = true;
+            }
+            // Punctuation and symbols - no spaces around them
+            Token::Dash => {
+                result.push('-');
+                prev_was_content = true;
+            }
+            Token::Period => {
+                result.push('.');
+                prev_was_content = true;
+            }
+            Token::OpenParen => {
+                result.push('(');
+                prev_was_content = true;
+            }
+            Token::CloseParen => {
+                result.push(')');
+                prev_was_content = false; // Reset for next token
+            }
+            Token::Colon => {
+                result.push(':');
+                prev_was_content = true;
+            }
+            Token::Comma => {
+                result.push(',');
+                prev_was_content = true;
+            }
+            Token::Quote => {
+                result.push('"');
+                prev_was_content = true;
+            }
+            Token::Equals => {
+                result.push('=');
+                prev_was_content = true;
+            }
+            Token::TxxtMarker => {
+                result.push_str("::");
+                prev_was_content = true;
+            }
+
+            // Whitespace and newlines - skip these
+            Token::Whitespace | Token::Newline | Token::BlankLine | Token::Indent => {
+                // Skip whitespace
+            }
+
+            // Synthetic tokens - skip (generated during transformation)
+            Token::IndentLevel | Token::DedentLevel => {
+                // Skip synthetic tokens
+            }
+        }
+    }
+
+    result
 }
 
 /// Extract location information from a LineToken using its source span
@@ -499,7 +557,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_text_ignores_non_text_tokens() {
+    fn test_extract_text_handles_all_token_types() {
         let token = make_line_token(
             LineTokenType::SubjectLine,
             vec![
@@ -510,7 +568,10 @@ mod tests {
         );
 
         let text = extract_text_from_token(&token);
-        assert_eq!(text, "Title");
+        // Now properly handles all semantic content tokens, including Colon
+        // Punctuation is directly concatenated without spaces
+        // Newline is still filtered out as it's whitespace
+        assert_eq!(text, "Title:");
     }
 
     #[test]
