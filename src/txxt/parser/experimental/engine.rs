@@ -542,7 +542,7 @@ mod tests {
 
         let doc = result.unwrap();
         // Should have content items
-        assert!(doc.root.content.len() > 0, "Should have content");
+        assert!(!doc.root.content.is_empty(), "Should have content");
 
         // Verify we can create Session nodes (the parser's engine works)
         // This tests that the unwrapper functions are callable and work
@@ -580,7 +580,7 @@ mod tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        assert!(doc.root.content.len() > 0);
+        assert!(!doc.root.content.is_empty());
 
         // Verify Definition or Paragraph nodes are created (parser works end-to-end)
         let has_definition_or_paragraph = doc
@@ -682,7 +682,7 @@ mod tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        assert!(doc.root.content.len() > 0);
+        assert!(!doc.root.content.is_empty());
 
         // Find the Session at top level
         let mut session_found = false;
@@ -690,13 +690,13 @@ mod tests {
             if let ContentItem::Session(session) = item {
                 session_found = true;
                 // Session should have content
-                assert!(session.content.len() > 0);
+                assert!(!session.content.is_empty());
 
                 // Look for Definition inside Session
                 for session_item in &session.content {
                     if let ContentItem::Definition(def) = session_item {
                         // Definition should have content
-                        assert!(def.content.len() > 0);
+                        assert!(!def.content.is_empty());
                     }
                 }
             }
