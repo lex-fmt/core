@@ -1,20 +1,36 @@
 //! Foreign block element
 //!
-//! A foreign block embeds content from another system or format
-//! between a subject marker and a closing annotation. Its content
-//! is treated as opaque text by the txxt AST.
+//! A foreign block embeds content that is not txxt formated.
+//! Typically this can either be binary data, such as images, or text in some formal langauge
+//! like a programming language excerpt in Python.
 //!
-//! Structure:
-//! - Subject: identifies the kind of foreign content
-//! - Content: raw text payload, not parsed into txxt elements
-//! - Closing annotation: terminates the block and may carry metadata
+//! Note that a foreign block can forgo content all together (i.e. binaries won't encode conetent).
+//!
+//! The subject introduces what the content is, and the closing annotation terminates the block.
+//! The annotation can take any valid annotation form, and the label is user defined. As a convention
+//! tough,  if the content is to be interpreted by a tool, the label should be the name of the tool/language.
+//! While the txxt software will not parse the content, it will preserve it exactly as it is, and can be used
+//! to format the content in editors and other tools.
+//!
+//! Syntax:
+//! <subject-line>
+//! <indent> <content> ... any number of content elements
+//! <dedent>  <annotation>
+//!
+//! Examples:
+//!     Images:
+//!         Sunset Photo:
+//!         :: image type=jpg, src=sunset.jpg :: As the sun sets over the ocean.
+//!     Code:
+//!         JavaScript Example:
+//!             function hello() {
+//!                 return "world";
+//!             }
+//!      :: javascript ::
 //!
 //! Learn More:
 //! - Foreign blocks spec: docs/specs/v1/elements/foreign.txxt
 //!
-//! Examples:
-//! - Embed a code snippet or external block and close it with an annotation
-//! - Use subject text to hint the embedded system (e.g., "mermaid")
 
 use super::super::location::{Location, Position};
 use super::super::text_content::TextContent;
