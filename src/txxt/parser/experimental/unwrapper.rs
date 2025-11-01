@@ -10,7 +10,7 @@
 //! 3. Building appropriate AST node types
 //! 4. Handling recursive content from nested blocks
 
-use crate::txxt::ast::{Paragraph, TextContent, TextLine};
+use crate::txxt::ast::{Annotation, Label, Paragraph, TextContent, TextLine};
 use crate::txxt::lexer::tokens::LineToken;
 use crate::txxt::parser::{ContentItem, Location, Position};
 
@@ -42,6 +42,28 @@ pub fn unwrap_token_to_paragraph(token: &LineToken, _source: &str) -> Result<Con
     };
 
     Ok(ContentItem::Paragraph(paragraph))
+}
+
+/// Convert an annotation line token to an Annotation ContentItem.
+///
+/// Annotations are lines with :: markers.
+/// This builds an Annotation element from the source tokens.
+pub fn unwrap_annotation(token: &LineToken, _source: &str) -> Result<ContentItem, String> {
+    // Extract text content from the annotation
+    let text_content = extract_text_from_token(token);
+
+    // Create an annotation with the extracted text
+    let annotation = Annotation {
+        label: Label::from_string(&text_content),
+        parameters: vec![],
+        content: vec![],
+        location: Location {
+            start: Position { line: 0, column: 0 },
+            end: Position { line: 0, column: 0 },
+        },
+    };
+
+    Ok(ContentItem::Annotation(annotation))
 }
 
 /// Extract human-readable text from a line token's source tokens.
