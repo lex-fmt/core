@@ -141,7 +141,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_annotation() {
+    fn test_annotation_with_location() {
         let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),

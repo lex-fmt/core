@@ -31,31 +31,33 @@ use crate::txxt::lexer::tokens::Token;
 /// Blank lines (sequences of 2+ newlines) become Newline followed by BlankLine token
 /// The BlankLine token gets the location covering the extra newlines (from 2nd newline onwards)
 pub fn transform_blank_lines(
-    tokenss: Vec<(Token, std::ops::Range<usize>)>,
+    tokens_with_locations: Vec<(Token, std::ops::Range<usize>)>,
 ) -> Vec<(Token, std::ops::Range<usize>)> {
     let mut result = Vec::new();
     let mut i = 0;
 
-    while i < tokenss.len() {
-        if matches!(tokenss[i].0, Token::Newline) {
+    while i < tokens_with_locations.len() {
+        if matches!(tokens_with_locations[i].0, Token::Newline) {
             // Count consecutive Newline tokens and collect their locations
             let mut newline_count = 0;
             let mut j = i;
-            while j < tokenss.len() && matches!(tokenss[j].0, Token::Newline) {
+            while j < tokens_with_locations.len()
+                && matches!(tokens_with_locations[j].0, Token::Newline)
+            {
                 newline_count += 1;
                 j += 1;
             }
 
             // Emit the first Newline with its original location (ends the current line)
-            result.push((Token::Newline, tokenss[i].1.clone()));
+            result.push((Token::Newline, tokens_with_locations[i].1.clone()));
 
             // If we have 2+ consecutive newlines, also emit a BlankLine token
             // The BlankLine location covers all the extra newlines (from 2nd to last)
             if newline_count >= 2 {
                 // Calculate the location covering the extra newlines
                 // Start from the second newline, end at the last newline
-                let blank_line_start = tokenss[i + 1].1.start;
-                let blank_line_end = tokenss[j - 1].1.end;
+                let blank_line_start = tokens_with_locations[i + 1].1.start;
+                let blank_line_end = tokens_with_locations[j - 1].1.end;
                 let blank_line_location = blank_line_start..blank_line_end;
 
                 result.push((Token::BlankLine, blank_line_location));
@@ -65,7 +67,7 @@ pub fn transform_blank_lines(
             i = j;
         } else {
             // Non-newline token, just copy it with its location
-            result.push(tokenss[i].clone());
+            result.push(tokens_with_locations[i].clone());
             i += 1;
         }
     }
@@ -432,8 +434,8 @@ mod tests {
         let source = "First paragraph\n\nSecond paragraph";
         // Positions: "First paragraph" 0..15, "\n" 15..16, "\n" 16..17, "Second paragraph" 17..33
 
-        let tokenss = crate::txxt::lexer::tokenize(source);
-        let result = transform_blank_lines(tokenss);
+        let tokens_with_locations = crate::txxt::lexer::tokenize(source);
+        let result = transform_blank_lines(tokens_with_locations);
 
         // Find the BlankLine token
         let blank_line_pos = result

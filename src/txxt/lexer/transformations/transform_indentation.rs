@@ -68,10 +68,13 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
 /// - IndentLevel: location covers the Indent tokens it represents
 /// - DedentLevel: location at the start of the line where dedentation occurs
 pub fn transform_indentation(
-    tokenss: Vec<(Token, std::ops::Range<usize>)>,
+    tokens_with_locations: Vec<(Token, std::ops::Range<usize>)>,
 ) -> Vec<(Token, std::ops::Range<usize>)> {
     // Extract just the tokens for processing
-    let tokens: Vec<Token> = tokenss.iter().map(|(t, _)| t.clone()).collect();
+    let tokens: Vec<Token> = tokens_with_locations
+        .iter()
+        .map(|(t, _)| t.clone())
+        .collect();
 
     let mut result = Vec::new();
     let mut current_level = 0;
@@ -95,7 +98,7 @@ pub fn transform_indentation(
             }
             if j < tokens.len() && matches!(tokens[j], Token::Newline) {
                 // Preserve the newline location
-                result.push((Token::Newline, tokenss[j].1.clone()));
+                result.push((Token::Newline, tokens_with_locations[j].1.clone()));
                 j += 1;
             }
             i = j;
@@ -112,16 +115,17 @@ pub fn transform_indentation(
                 let indent_start_idx = line_start;
                 for level_idx in 0..(target_level - current_level) {
                     let indent_token_idx = indent_start_idx + current_level + level_idx;
-                    if indent_token_idx < tokenss.len()
-                        && matches!(tokenss[indent_token_idx].0, Token::Indent)
+                    if indent_token_idx < tokens_with_locations.len()
+                        && matches!(tokens_with_locations[indent_token_idx].0, Token::Indent)
                     {
                         // Use the location of the Indent token
-                        let location = tokenss[indent_token_idx].1.clone();
+                        let location = tokens_with_locations[indent_token_idx].1.clone();
                         result.push((Token::IndentLevel, location));
                     } else {
                         // Fallback: use the location of the first content token on this line
-                        let fallback_location = if line_start < tokenss.len() {
-                            tokenss[line_start].1.start..tokenss[line_start].1.start
+                        let fallback_location = if line_start < tokens_with_locations.len() {
+                            tokens_with_locations[line_start].1.start
+                                ..tokens_with_locations[line_start].1.start
                         } else {
                             0..0
                         };
@@ -132,14 +136,14 @@ pub fn transform_indentation(
             std::cmp::Ordering::Less => {
                 // DedentLevel tokens: use the location at the start of the new line (where dedent occurs)
                 // This represents the position where we "return" to a previous indentation level
-                let dedent_location = if line_start < tokenss.len() {
+                let dedent_location = if line_start < tokens_with_locations.len() {
                     // Point to the start of the first token on the new line
-                    let start = tokenss[line_start].1.start;
+                    let start = tokens_with_locations[line_start].1.start;
                     start..start
                 } else {
                     // End of file: use empty location at the end
-                    let end = if !tokenss.is_empty() {
-                        tokenss.last().unwrap().1.end
+                    let end = if !tokens_with_locations.is_empty() {
+                        tokens_with_locations.last().unwrap().1.end
                     } else {
                         0
                     };
@@ -168,13 +172,13 @@ pub fn transform_indentation(
 
         // Process the rest of the line, keeping all remaining tokens with locations
         while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
-            result.push((tokens[j].clone(), tokenss[j].1.clone()));
+            result.push((tokens[j].clone(), tokens_with_locations[j].1.clone()));
             j += 1;
         }
 
         // Add the newline token if we haven't reached the end
         if j < tokens.len() && matches!(tokens[j], Token::Newline) {
-            result.push((Token::Newline, tokenss[j].1.clone()));
+            result.push((Token::Newline, tokens_with_locations[j].1.clone()));
             j += 1;
         }
 
@@ -183,8 +187,8 @@ pub fn transform_indentation(
 
     // Add dedents to close all remaining indentation levels
     // These occur at the end of file, so use the end position
-    let eof_location = if !tokenss.is_empty() {
-        let end = tokenss.last().unwrap().1.end;
+    let eof_location = if !tokens_with_locations.is_empty() {
+        let end = tokens_with_locations.last().unwrap().1.end;
         end..end
     } else {
         0..0
@@ -855,8 +859,8 @@ mod tests {
         //            13..20 "Subitem", 20..21 " ", 21..22 "A", 22..23 "\n",
         //            23..27 "    ", 27..28 "-", 28..29 " ", 29..36 "Subitem", 36..37 " ", 37..38 "B"
 
-        let tokenss = crate::txxt::lexer::tokenize(source);
-        let result = transform_indentation(tokenss);
+        let tokens_with_locations = crate::txxt::lexer::tokenize(source);
+        let result = transform_indentation(tokens_with_locations);
 
         // Find the IndentLevel token
         let indent_level_pos = result
