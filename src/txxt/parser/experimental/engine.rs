@@ -80,13 +80,17 @@ fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentIte
         // Try to match a pattern
         let (item, consumed) = parse_node_at_level(remaining_tree, &token_types, &grammar, source)?;
 
-        // Only add to content if it's not a structural blank line
-        // (blank lines are consumed by patterns but don't generate content)
-        if let LineTokenTree::Token(token) = &remaining_tree[0] {
-            if token.line_type != LineTokenType::BlankLine {
-                content_items.push(item);
-            }
+        // Skip structural blank lines (paragraphs created from standalone blank lines)
+        // These are detected as single-line paragraphs from BlankLine tokens
+        let is_blank_line_paragraph = if let LineTokenTree::Token(token) = &remaining_tree[0] {
+            token.line_type == LineTokenType::BlankLine
+                && matches!(item, ContentItem::Paragraph(_))
+                && consumed == 1
         } else {
+            false
+        };
+
+        if !is_blank_line_paragraph {
             content_items.push(item);
         }
 

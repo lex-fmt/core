@@ -165,20 +165,8 @@ impl TxxtGrammarRules {
 
         // Require at least 2 list items
         if item_count >= 2 {
-            eprintln!(
-                "DEBUG try_list: MATCHED! count={}, item_count={}, remaining={:?}",
-                count,
-                item_count,
-                token_types.iter().skip(count).take(3).collect::<Vec<_>>()
-            );
             Some(count)
         } else {
-            eprintln!(
-                "DEBUG try_list: NO MATCH. count={}, item_count={}, first_5={:?}",
-                count,
-                item_count,
-                token_types.iter().take(5).collect::<Vec<_>>()
-            );
             None
         }
     }
