@@ -46,6 +46,10 @@ impl Label {
         self.location = location;
         self
     }
+    /// Preferred builder: `at(location)`
+    pub fn at(self, location: Location) -> Self {
+        self.with_location(location)
+    }
 }
 
 impl fmt::Display for Label {
@@ -59,7 +63,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_label_with_location() {
+    fn test_label() {
         let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),

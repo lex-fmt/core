@@ -41,6 +41,10 @@ impl Parameter {
         self.location = location;
         self
     }
+    /// Preferred builder
+    pub fn at(self, location: Location) -> Self {
+        self.with_location(location)
+    }
 }
 
 impl fmt::Display for Parameter {
@@ -54,7 +58,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parameter_with_location() {
+    fn test_parameter() {
         let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),

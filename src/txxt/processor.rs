@@ -200,33 +200,30 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     match spec.stage {
         ProcessingStage::Token => {
             let tokens = lex(&content);
-            format_tokens(&tokens, &spec.format)
+            format_tokenss(&tokens, &spec.format)
         }
         ProcessingStage::Ast => {
             // Parse the document - all documents now include full location information
             let doc = if matches!(spec.format, OutputFormat::AstPosition) {
-                crate::txxt::parser::parse_with_source(
-                    crate::txxt::lexer::lex_with_locations(&content),
-                    &content,
-                )
-                .map_err(|errs| {
-                    let error_details = errs
-                        .iter()
-                        .map(|e| {
-                            format!(
-                                "  Parse error at span {:?}: reason={:?}, found={:?}",
-                                e.span(),
-                                e.reason(),
-                                e.found()
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    ProcessingError::IoError(format!(
-                        "Failed to parse document:\n{}",
-                        error_details
-                    ))
-                })?
+                crate::txxt::parser::parse_with_source(crate::txxt::lexer::lex(&content), &content)
+                    .map_err(|errs| {
+                        let error_details = errs
+                            .iter()
+                            .map(|e| {
+                                format!(
+                                    "  Parse error at span {:?}: reason={:?}, found={:?}",
+                                    e.span(),
+                                    e.reason(),
+                                    e.found()
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        ProcessingError::IoError(format!(
+                            "Failed to parse document:\n{}",
+                            error_details
+                        ))
+                    })?
             } else {
                 crate::txxt::parser::parse_document(&content).map_err(|errs| {
                     let error_details = errs
@@ -281,11 +278,14 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
 }
 
 /// Format tokens according to the specified format
-fn format_tokens(tokens: &[Token], format: &OutputFormat) -> Result<String, ProcessingError> {
+fn format_tokenss(
+    tokens: &[(Token, std::ops::Range<usize>)],
+    format: &OutputFormat,
+) -> Result<String, ProcessingError> {
     match format {
         OutputFormat::Simple | OutputFormat::RawSimple => {
             let mut result = String::new();
-            for token in tokens {
+            for (token, _) in tokens {
                 result.push_str(&format!("{}", token));
                 if matches!(token, Token::Newline) {
                     result.push('\n');
@@ -503,7 +503,7 @@ pub mod txxt_sources {
         let content = r#"First paragraph
 Second paragraph"#;
 
-        let tokens = crate::txxt::lexer::lex_with_locations(content);
+        let tokens = crate::txxt::lexer::lex(content);
         let doc = crate::txxt::parser::parse_with_source(tokens, content).unwrap();
 
         // Check if locations are populated
@@ -608,17 +608,17 @@ mod tests {
 
     #[test]
     fn test_token_formatting() {
-        let tokens = vec![
-            Token::Text("hello".to_string()),
-            Token::Whitespace,
-            Token::Text("world".to_string()),
-            Token::Newline,
+        let tokens: Vec<(Token, std::ops::Range<usize>)> = vec![
+            (Token::Text("hello".to_string()), 0..5),
+            (Token::Whitespace, 5..6),
+            (Token::Text("world".to_string()), 6..11),
+            (Token::Newline, 11..12),
         ];
 
-        let simple = format_tokens(&tokens, &OutputFormat::Simple).unwrap();
+        let simple = format_tokenss(&tokens, &OutputFormat::Simple).unwrap();
         assert_eq!(simple, "<text:hello><whitespace><text:world><newline>\n");
 
-        let json = format_tokens(&tokens, &OutputFormat::Json).unwrap();
+        let json = format_tokenss(&tokens, &OutputFormat::Json).unwrap();
         assert!(json.contains("\"Text\""));
         assert!(json.contains("\"Whitespace\""));
         assert!(json.contains("\"Newline\""));

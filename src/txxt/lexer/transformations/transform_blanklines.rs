@@ -26,72 +26,36 @@ use crate::txxt::lexer::tokens::Token;
 ///
 /// Input tokens: `[Text, Newline, Newline, Text, Newline]`
 /// Output tokens: `[Text, Newline, BlankLine, Text, Newline]`
-pub fn transform_blank_lines(tokens: Vec<Token>) -> Vec<Token> {
-    let mut result = Vec::new();
-    let mut i = 0;
-
-    while i < tokens.len() {
-        if matches!(tokens[i], Token::Newline) {
-            // Count consecutive Newline tokens
-            let mut newline_count = 0;
-            let mut j = i;
-            while j < tokens.len() && matches!(tokens[j], Token::Newline) {
-                newline_count += 1;
-                j += 1;
-            }
-
-            // Emit the first Newline (ends the current line)
-            result.push(Token::Newline);
-
-            // If we have 2+ consecutive newlines, also emit a BlankLine token
-            // This represents the blank line(s) between block elements
-            if newline_count >= 2 {
-                result.push(Token::BlankLine);
-            }
-
-            // Move past all the newlines we just processed
-            i = j;
-        } else {
-            // Non-newline token, just copy it
-            result.push(tokens[i].clone());
-            i += 1;
-        }
-    }
-
-    result
-}
-
+/// removed non-location-only transform; use location-preserving API below
 /// Transform blank lines while preserving source locations
 /// Blank lines (sequences of 2+ newlines) become Newline followed by BlankLine token
 /// The BlankLine token gets the location covering the extra newlines (from 2nd newline onwards)
-pub fn transform_blank_lines_with_locations(
-    tokens_with_locations: Vec<(Token, std::ops::Range<usize>)>,
+pub fn transform_blank_lines(
+    tokens: Vec<(Token, std::ops::Range<usize>)>,
 ) -> Vec<(Token, std::ops::Range<usize>)> {
     let mut result = Vec::new();
     let mut i = 0;
 
-    while i < tokens_with_locations.len() {
-        if matches!(tokens_with_locations[i].0, Token::Newline) {
+    while i < tokens.len() {
+        if matches!(tokens[i].0, Token::Newline) {
             // Count consecutive Newline tokens and collect their locations
             let mut newline_count = 0;
             let mut j = i;
-            while j < tokens_with_locations.len()
-                && matches!(tokens_with_locations[j].0, Token::Newline)
-            {
+            while j < tokens.len() && matches!(tokens[j].0, Token::Newline) {
                 newline_count += 1;
                 j += 1;
             }
 
             // Emit the first Newline with its original location (ends the current line)
-            result.push((Token::Newline, tokens_with_locations[i].1.clone()));
+            result.push((Token::Newline, tokens[i].1.clone()));
 
             // If we have 2+ consecutive newlines, also emit a BlankLine token
             // The BlankLine location covers all the extra newlines (from 2nd to last)
             if newline_count >= 2 {
                 // Calculate the location covering the extra newlines
                 // Start from the second newline, end at the last newline
-                let blank_line_start = tokens_with_locations[i + 1].1.start;
-                let blank_line_end = tokens_with_locations[j - 1].1.end;
+                let blank_line_start = tokens[i + 1].1.start;
+                let blank_line_end = tokens[j - 1].1.end;
                 let blank_line_location = blank_line_start..blank_line_end;
 
                 result.push((Token::BlankLine, blank_line_location));
@@ -101,7 +65,7 @@ pub fn transform_blank_lines_with_locations(
             i = j;
         } else {
             // Non-newline token, just copy it with its location
-            result.push(tokens_with_locations[i].clone());
+            result.push(tokens[i].clone());
             i += 1;
         }
     }
@@ -113,6 +77,14 @@ pub fn transform_blank_lines_with_locations(
 mod tests {
     use super::*;
 
+    fn with_loc(tokens: Vec<Token>) -> Vec<(Token, std::ops::Range<usize>)> {
+        tokens.into_iter().map(|t| (t, 0..0)).collect()
+    }
+
+    fn strip_loc(pairs: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Token> {
+        pairs.into_iter().map(|(t, _)| t).collect()
+    }
+
     #[test]
     fn test_single_newline_unchanged() {
         let input = vec![
@@ -120,7 +92,7 @@ mod tests {
             Token::Newline,
             Token::Text("b".to_string()),
         ];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         assert_eq!(
             result,
             vec![
@@ -139,7 +111,7 @@ mod tests {
             Token::Newline,
             Token::Text("t".to_string()),
         ];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         assert_eq!(
             result,
             vec![
@@ -160,7 +132,7 @@ mod tests {
             Token::Newline,
             Token::Text("t".to_string()),
         ];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         assert_eq!(
             result,
             vec![
@@ -184,7 +156,7 @@ mod tests {
             Token::Newline,
             Token::Text("t".to_string()),
         ];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         assert_eq!(
             result,
             vec![
@@ -202,7 +174,7 @@ mod tests {
     #[test]
     fn test_blank_line_at_end() {
         let input = vec![Token::Text("t".to_string()), Token::Newline, Token::Newline];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         assert_eq!(
             result,
             vec![
@@ -216,7 +188,7 @@ mod tests {
     #[test]
     fn test_blank_line_at_start() {
         let input = vec![Token::Newline, Token::Newline, Token::Text("t".to_string())];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         assert_eq!(
             result,
             vec![
@@ -238,7 +210,7 @@ mod tests {
             Token::Newline,
             Token::Text("t".to_string()),
         ];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         // 4 consecutive newlines become Newline (ends line) + BlankLine (blank lines)
         assert_eq!(
             result,
@@ -254,14 +226,14 @@ mod tests {
     #[test]
     fn test_empty_input() {
         let input = vec![];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         assert_eq!(result, vec![]);
     }
 
     #[test]
     fn test_only_newlines() {
         let input = vec![Token::Newline, Token::Newline, Token::Newline];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         assert_eq!(result, vec![Token::Newline, Token::BlankLine]);
     }
 
@@ -277,7 +249,7 @@ mod tests {
             Token::Newline,
             Token::Text("t".to_string()),
         ];
-        let result = transform_blank_lines(input);
+        let result = strip_loc(transform_blank_lines(with_loc(input)));
         assert_eq!(
             result,
             vec![
@@ -294,14 +266,14 @@ mod tests {
     }
 
     #[test]
-    fn test_blank_line_with_locations() {
+    fn test_blank_lines() {
         let input = vec![
             (Token::Text("t".to_string()), 0..4),
             (Token::Newline, 4..5),
             (Token::Newline, 5..6),
             (Token::Text("t".to_string()), 6..10),
         ];
-        let result = transform_blank_lines_with_locations(input);
+        let result = transform_blank_lines(input);
         assert_eq!(
             result,
             vec![
@@ -320,14 +292,15 @@ mod tests {
     fn test_blank_line_token_has_correct_location_for_double_newline() {
         // Test: BlankLine should cover the location of extra newlines (from 2nd onwards)
         // Input: "a\n\nb" where positions are: "a" 0..1, "\n" 1..2, "\n" 2..3, "b" 3..4
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3),
-            (Token::Text("b".to_string()), 3..4),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3),
+            mk_token(Token::Text("b".to_string()), 3, 4),
         ];
 
-        let result = transform_blank_lines_with_locations(input);
+        let result = transform_blank_lines(input);
 
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
@@ -342,15 +315,16 @@ mod tests {
     fn test_blank_line_token_has_correct_location_for_triple_newline() {
         // Test: BlankLine should cover the location from 2nd to last newline
         // Input: "a\n\n\nb" where positions are: "a" 0..1, "\n" 1..2, "\n" 2..3, "\n" 3..4, "b" 4..5
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3),
-            (Token::Newline, 3..4),
-            (Token::Text("b".to_string()), 4..5),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3),
+            mk_token(Token::Newline, 3, 4),
+            mk_token(Token::Text("b".to_string()), 4, 5),
         ];
 
-        let result = transform_blank_lines_with_locations(input);
+        let result = transform_blank_lines(input);
 
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
@@ -366,17 +340,18 @@ mod tests {
     fn test_blank_line_token_has_correct_location_for_many_newlines() {
         // Test: BlankLine should cover all extra newlines
         // Input: "a\n\n\n\n\nb" (5 newlines total)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3),
-            (Token::Newline, 3..4),
-            (Token::Newline, 4..5),
-            (Token::Newline, 5..6),
-            (Token::Text("b".to_string()), 6..7),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3),
+            mk_token(Token::Newline, 3, 4),
+            mk_token(Token::Newline, 4, 5),
+            mk_token(Token::Newline, 5, 6),
+            mk_token(Token::Text("b".to_string()), 6, 7),
         ];
 
-        let result = transform_blank_lines_with_locations(input);
+        let result = transform_blank_lines(input);
 
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
@@ -392,18 +367,19 @@ mod tests {
     fn test_multiple_blank_lines_each_have_correct_locations() {
         // Test: Multiple BlankLine tokens should each have their own correct locations
         // Input: "a\n\nb\n\n\nc"
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3),
-            (Token::Text("b".to_string()), 3..4),
-            (Token::Newline, 4..5),
-            (Token::Newline, 5..6),
-            (Token::Newline, 6..7),
-            (Token::Text("c".to_string()), 7..8),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3),
+            mk_token(Token::Text("b".to_string()), 3, 4),
+            mk_token(Token::Newline, 4, 5),
+            mk_token(Token::Newline, 5, 6),
+            mk_token(Token::Newline, 6, 7),
+            mk_token(Token::Text("c".to_string()), 7, 8),
         ];
 
-        let result = transform_blank_lines_with_locations(input);
+        let result = transform_blank_lines(input);
 
         // Expected: Text("a"), Newline, BlankLine, Text("b"), Newline, BlankLine, Text("c")
         assert_eq!(result.len(), 7);
@@ -427,7 +403,7 @@ mod tests {
             (Token::Text("a".to_string()), 2..3),
         ];
 
-        let result = transform_blank_lines_with_locations(input);
+        let result = transform_blank_lines(input);
 
         // Expected: Newline, BlankLine, Text("a")
         assert_eq!(result.len(), 3);
@@ -446,7 +422,7 @@ mod tests {
             (Token::Newline, 2..3),
         ];
 
-        let result = transform_blank_lines_with_locations(input);
+        let result = transform_blank_lines(input);
 
         // Expected: Text("a"), Newline, BlankLine
         assert_eq!(result.len(), 3);
@@ -460,8 +436,8 @@ mod tests {
         let source = "First paragraph\n\nSecond paragraph";
         // Positions: "First paragraph" 0..15, "\n" 15..16, "\n" 16..17, "Second paragraph" 17..33
 
-        let tokens_with_locations = crate::txxt::lexer::tokenize_with_locations(source);
-        let result = transform_blank_lines_with_locations(tokens_with_locations);
+        let tokens = crate::txxt::lexer::tokenize(source);
+        let result = transform_blank_lines(tokens);
 
         // Find the BlankLine token
         let blank_line_pos = result
@@ -495,7 +471,7 @@ mod tests {
             (Token::Text("b".to_string()), 2..3),
         ];
 
-        let result = transform_blank_lines_with_locations(input.clone());
+        let result = transform_blank_lines(input.clone());
 
         // Should be identical to input since no blank lines
         assert_eq!(result, input);

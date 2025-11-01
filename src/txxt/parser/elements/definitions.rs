@@ -28,9 +28,7 @@ pub(crate) fn definition_subject(
     filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
-        .map(move |tokens_with_locations| {
-            extract_tokens_to_text_and_location(&source, tokens_with_locations)
-        })
+        .map(move |tokenss| extract_tokens_to_text_and_location(&source, tokenss))
         .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
         .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Newline)).ignored())
 }
@@ -69,7 +67,7 @@ where
 mod tests {
     use crate::txxt::ast::Container;
     use crate::txxt::ast::ContentItem;
-    use crate::txxt::lexer::lex_with_locations;
+    use crate::txxt::lexer::lex;
     use crate::txxt::parser::api::parse_with_source;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
@@ -78,7 +76,7 @@ mod tests {
     fn test_unified_recursive_parser_simple() {
         // Minimal test for the unified recursive parser
         let source = "First paragraph\n\nDefinition:\n    Content of definition\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         println!("Testing simple definition with unified parser:");
         println!("Source: {:?}", source);
 
@@ -99,7 +97,7 @@ mod tests {
     fn test_unified_recursive_nested_definitions() {
         // Test nested definitions with the unified parser
         let source = "Outer:\n    Inner:\n        Nested content\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         println!("Testing nested definitions with unified parser:");
         println!("Source: {:?}", source);
 
@@ -150,7 +148,7 @@ mod tests {
     fn test_unified_parser_paragraph_then_definition() {
         // Test paragraph followed by definition - similar to failing test
         let source = "Simple paragraph\n\nAnother paragraph\n\nFirst Definition:\n    Definition content\n\nSecond Definition:\n    More content\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         println!("Testing paragraph then definition:");
         println!("Source: {:?}", source);
 
@@ -186,7 +184,7 @@ mod tests {
     fn test_verified_definitions_simple() {
         let source = TxxtSources::get_string("090-definitions-simple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_locations(&source);
+        let tokens = lex(&source);
 
         // Debug: print first few tokens
         println!("First 10 tokens:");
@@ -290,7 +288,7 @@ mod tests {
     fn test_verified_definitions_mixed_content() {
         let source = TxxtSources::get_string("100-definitions-mixed-content.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_locations(&source);
+        let tokens = lex(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs

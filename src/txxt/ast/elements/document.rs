@@ -94,6 +94,11 @@ impl Document {
             .filter_map(|item| item.as_foreign_block())
     }
 
+    /// Convenience accessor for the root session's location
+    pub fn root_location(&self) -> Location {
+        self.root.location
+    }
+
     pub fn count_by_type(&self) -> (usize, usize, usize, usize) {
         let paragraphs = self.iter_paragraphs().count();
         let sessions = self.iter_sessions().count();
@@ -196,13 +201,13 @@ mod tests {
         let text_line1 = TextLine::new(TextContent::from_string("First".to_string(), None))
             .with_location(Location::new(Position::new(0, 0), Position::new(0, 5)));
         let para1 = Paragraph::new(vec![ContentItem::TextLine(text_line1)])
-            .with_location(Location::new(Position::new(0, 0), Position::new(0, 5)));
+            .at(Location::new(Position::new(0, 0), Position::new(0, 5)));
 
         // Create paragraph 2 with properly located TextLine
         let text_line2 = TextLine::new(TextContent::from_string("Second".to_string(), None))
             .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
         let para2 = Paragraph::new(vec![ContentItem::TextLine(text_line2)])
-            .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
+            .at(Location::new(Position::new(1, 0), Position::new(1, 6)));
 
         let doc = Document::with_content(vec![
             ContentItem::Paragraph(para1),

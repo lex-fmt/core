@@ -60,6 +60,10 @@ impl List {
         self.location = location;
         self
     }
+    /// Preferred builder
+    pub fn at(self, location: Location) -> Self {
+        self.with_location(location)
+    }
 }
 
 impl AstNode for List {
@@ -115,6 +119,10 @@ impl ListItem {
         self.location = location;
         self
     }
+    /// Preferred builder
+    pub fn at(self, location: Location) -> Self {
+        self.with_location(location)
+    }
     pub fn text(&self) -> &str {
         self.text[0].as_string()
     }
@@ -165,7 +173,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_list_with_location() {
+    fn test_list() {
         let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),

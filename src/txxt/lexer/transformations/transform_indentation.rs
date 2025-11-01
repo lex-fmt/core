@@ -25,93 +25,6 @@ use crate::txxt::lexer::tokens::Token;
 ///
 /// Input tokens: `[Text, Newline, Indent, Indent, Dash, Newline, Indent, Text]`
 /// Output tokens: `[Text, Newline, IndentLevel, IndentLevel, Dash, Newline, DedentLevel, Text, DedentLevel]`
-pub fn transform_indentation(tokens: Vec<Token>) -> Vec<Token> {
-    let mut result = Vec::new();
-    let mut current_level = 0;
-    let mut i = 0;
-
-    while i < tokens.len() {
-        // Find the start of the current line
-        let line_start = find_line_start(&tokens, i);
-
-        // Count Indent tokens at the beginning of this line
-        let line_indent_level = count_line_indent_steps(&tokens, line_start);
-
-        // Check if this line is blank (only contains indentation and newline)
-        let is_blank_line = is_line_blank(&tokens, line_start);
-
-        // Skip blank lines - they don't affect indentation level
-        if is_blank_line {
-            // Just add the newline token and continue
-            // Blank lines preserve the current indentation level
-            let mut j = line_start;
-            while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
-                j += 1;
-            }
-            if j < tokens.len() && matches!(tokens[j], Token::Newline) {
-                result.push(Token::Newline);
-                j += 1;
-            }
-            i = j;
-            continue;
-        }
-
-        // Calculate the target indentation level for this line
-        let target_level = line_indent_level;
-
-        // Generate appropriate IndentLevel/DedentLevel tokens
-        match target_level.cmp(&current_level) {
-            std::cmp::Ordering::Greater => {
-                // Need to indent: add IndentLevel tokens for each additional level
-                for _ in 0..(target_level - current_level) {
-                    result.push(Token::IndentLevel);
-                }
-            }
-            std::cmp::Ordering::Less => {
-                // Need to dedent: add DedentLevel tokens for each reduced level
-                for _ in 0..(current_level - target_level) {
-                    result.push(Token::DedentLevel);
-                }
-            }
-            std::cmp::Ordering::Equal => {
-                // No indentation change needed
-            }
-        }
-
-        // Update current level
-        current_level = target_level;
-
-        // Skip the initial Indent tokens that were processed as indentation
-        let mut j = line_start;
-        for _ in 0..line_indent_level {
-            if j < tokens.len() && matches!(tokens[j], Token::Indent) {
-                j += 1;
-            }
-        }
-
-        // Process the rest of the line, keeping all remaining tokens
-        while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
-            result.push(tokens[j].clone());
-            j += 1;
-        }
-
-        // Add the newline token if we haven't reached the end
-        if j < tokens.len() && matches!(tokens[j], Token::Newline) {
-            result.push(Token::Newline);
-            j += 1;
-        }
-
-        i = j;
-    }
-
-    // Add dedents to close all remaining indentation levels
-    for _ in 0..current_level {
-        result.push(Token::DedentLevel);
-    }
-
-    result
-}
-
 /// Find the start of the current line, going backwards from the given position
 fn find_line_start(tokens: &[Token], mut pos: usize) -> usize {
     // Go backwards to find the previous newline or start of document
@@ -154,14 +67,11 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
 /// Synthetic tokens (IndentLevel, DedentLevel) are given meaningful locations:
 /// - IndentLevel: location covers the Indent tokens it represents
 /// - DedentLevel: location at the start of the line where dedentation occurs
-pub fn transform_indentation_with_locations(
-    tokens_with_locations: Vec<(Token, std::ops::Range<usize>)>,
+pub fn transform_indentation(
+    tokens: Vec<(Token, std::ops::Range<usize>)>,
 ) -> Vec<(Token, std::ops::Range<usize>)> {
     // Extract just the tokens for processing
-    let tokens: Vec<Token> = tokens_with_locations
-        .iter()
-        .map(|(t, _)| t.clone())
-        .collect();
+    let token_kinds: Vec<Token> = tokens.iter().map(|(t, _)| t.clone()).collect();
 
     let mut result = Vec::new();
     let mut current_level = 0;
@@ -169,23 +79,23 @@ pub fn transform_indentation_with_locations(
 
     while i < tokens.len() {
         // Find the start of the current line
-        let line_start = find_line_start(&tokens, i);
+        let line_start = find_line_start(&token_kinds, i);
 
         // Count Indent tokens at the beginning of this line
-        let line_indent_level = count_line_indent_steps(&tokens, line_start);
+        let line_indent_level = count_line_indent_steps(&token_kinds, line_start);
 
         // Check if this line is blank (only contains indentation and newline)
-        let is_blank_line = is_line_blank(&tokens, line_start);
+        let is_blank_line = is_line_blank(&token_kinds, line_start);
 
         // Skip blank lines - they don't affect indentation level
         if is_blank_line {
             let mut j = line_start;
-            while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
+            while j < token_kinds.len() && !matches!(token_kinds[j], Token::Newline) {
                 j += 1;
             }
-            if j < tokens.len() && matches!(tokens[j], Token::Newline) {
+            if j < token_kinds.len() && matches!(token_kinds[j], Token::Newline) {
                 // Preserve the newline location
-                result.push((Token::Newline, tokens_with_locations[j].1.clone()));
+                result.push((Token::Newline, tokens[j].1.clone()));
                 j += 1;
             }
             i = j;
@@ -202,17 +112,16 @@ pub fn transform_indentation_with_locations(
                 let indent_start_idx = line_start;
                 for level_idx in 0..(target_level - current_level) {
                     let indent_token_idx = indent_start_idx + current_level + level_idx;
-                    if indent_token_idx < tokens_with_locations.len()
-                        && matches!(tokens_with_locations[indent_token_idx].0, Token::Indent)
+                    if indent_token_idx < token_kinds.len()
+                        && matches!(token_kinds[indent_token_idx], Token::Indent)
                     {
                         // Use the location of the Indent token
-                        let location = tokens_with_locations[indent_token_idx].1.clone();
+                        let location = tokens[indent_token_idx].1.clone();
                         result.push((Token::IndentLevel, location));
                     } else {
                         // Fallback: use the location of the first content token on this line
-                        let fallback_location = if line_start < tokens_with_locations.len() {
-                            tokens_with_locations[line_start].1.start
-                                ..tokens_with_locations[line_start].1.start
+                        let fallback_location = if line_start < token_kinds.len() {
+                            tokens[line_start].1.start..tokens[line_start].1.start
                         } else {
                             0..0
                         };
@@ -223,14 +132,14 @@ pub fn transform_indentation_with_locations(
             std::cmp::Ordering::Less => {
                 // DedentLevel tokens: use the location at the start of the new line (where dedent occurs)
                 // This represents the position where we "return" to a previous indentation level
-                let dedent_location = if line_start < tokens_with_locations.len() {
+                let dedent_location = if line_start < token_kinds.len() {
                     // Point to the start of the first token on the new line
-                    let start = tokens_with_locations[line_start].1.start;
+                    let start = tokens[line_start].1.start;
                     start..start
                 } else {
                     // End of file: use empty location at the end
-                    let end = if !tokens_with_locations.is_empty() {
-                        tokens_with_locations.last().unwrap().1.end
+                    let end = if !token_kinds.is_empty() {
+                        tokens.last().unwrap().1.end
                     } else {
                         0
                     };
@@ -252,20 +161,20 @@ pub fn transform_indentation_with_locations(
         // Skip the initial Indent tokens that were processed as indentation
         let mut j = line_start;
         for _ in 0..line_indent_level {
-            if j < tokens.len() && matches!(tokens[j], Token::Indent) {
+            if j < token_kinds.len() && matches!(token_kinds[j], Token::Indent) {
                 j += 1;
             }
         }
 
         // Process the rest of the line, keeping all remaining tokens with locations
-        while j < tokens.len() && !matches!(tokens[j], Token::Newline) {
-            result.push((tokens[j].clone(), tokens_with_locations[j].1.clone()));
+        while j < token_kinds.len() && !matches!(token_kinds[j], Token::Newline) {
+            result.push((token_kinds[j].clone(), tokens[j].1.clone()));
             j += 1;
         }
 
         // Add the newline token if we haven't reached the end
-        if j < tokens.len() && matches!(tokens[j], Token::Newline) {
-            result.push((Token::Newline, tokens_with_locations[j].1.clone()));
+        if j < token_kinds.len() && matches!(token_kinds[j], Token::Newline) {
+            result.push((Token::Newline, tokens[j].1.clone()));
             j += 1;
         }
 
@@ -274,8 +183,8 @@ pub fn transform_indentation_with_locations(
 
     // Add dedents to close all remaining indentation levels
     // These occur at the end of file, so use the end position
-    let eof_location = if !tokens_with_locations.is_empty() {
-        let end = tokens_with_locations.last().unwrap().1.end;
+    let eof_location = if !token_kinds.is_empty() {
+        let end = tokens.last().unwrap().1.end;
         end..end
     } else {
         0..0
@@ -292,6 +201,14 @@ pub fn transform_indentation_with_locations(
 mod tests {
     use super::*;
 
+    fn with_loc(tokens: Vec<Token>) -> Vec<(Token, std::ops::Range<usize>)> {
+        tokens.into_iter().map(|t| (t, 0..0)).collect()
+    }
+
+    fn strip_loc(pairs: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Token> {
+        pairs.into_iter().map(|(t, _)| t).collect()
+    }
+
     #[test]
     fn test_simple_indentation() {
         let input = vec![
@@ -302,7 +219,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input);
+        let result = strip_loc(transform_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -331,7 +248,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input);
+        let result = strip_loc(transform_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -390,7 +307,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input);
+        let result = strip_loc(transform_indentation(with_loc(input)));
 
         // Expected: Indent for line 2, Indent for line 4, Dedent for line 5
         assert_eq!(
@@ -444,7 +361,9 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input.clone());
+        let input_with_loc: Vec<_> = input.clone().into_iter().map(|t| (t, 0..0)).collect();
+        let result_with_loc = transform_indentation(input_with_loc);
+        let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         // No changes expected - no indentation, no DedentLevel at EOF
         assert_eq!(result, input);
@@ -453,14 +372,14 @@ mod tests {
     #[test]
     fn test_empty_input() {
         let input = vec![];
-        let result = transform_indentation(input);
+        let result = strip_loc(transform_indentation(with_loc(input)));
         assert_eq!(result, vec![]);
     }
 
     #[test]
     fn test_single_line() {
         let input = vec![Token::Text("a".to_string())];
-        let result = transform_indentation(input);
+        let result = strip_loc(transform_indentation(with_loc(input)));
         assert_eq!(result, vec![Token::Text("a".to_string())]);
     }
 
@@ -478,7 +397,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input);
+        let result = strip_loc(transform_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -511,7 +430,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input);
+        let result = strip_loc(transform_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -539,7 +458,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input);
+        let result = strip_loc(transform_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -569,7 +488,9 @@ mod tests {
             // File ends here without explicit dedents
         ];
 
-        let result = transform_indentation(input);
+        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
+        let result_with_loc = transform_indentation(input_with_loc);
+        let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
             result,
@@ -602,7 +523,9 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input);
+        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
+        let result_with_loc = transform_indentation(input_with_loc);
+        let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
             result,
@@ -639,7 +562,9 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input);
+        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
+        let result_with_loc = transform_indentation(input_with_loc);
+        let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
             result,
@@ -670,7 +595,9 @@ mod tests {
             Token::Text("c".to_string()),
         ];
 
-        let result = transform_indentation(input);
+        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
+        let result_with_loc = transform_indentation(input_with_loc);
+        let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
             result,
@@ -741,7 +668,9 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = transform_indentation(input);
+        let input_with_loc: Vec<_> = input.into_iter().map(|t| (t, 0..0)).collect();
+        let result_with_loc = transform_indentation(input_with_loc);
+        let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         // Expected: Level stays at 2, no dedent/re-indent around the blank line
         assert_eq!(
@@ -775,14 +704,15 @@ mod tests {
     fn test_indent_level_tokens_have_correct_locations() {
         // Test: IndentLevel tokens should have locations that correspond to the Indent tokens they represent
         // Input: "a\n    b" (a, newline, 4 spaces, b)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1), // "a" at position 0-1
-            (Token::Newline, 1..2),               // "\n" at position 1-2
-            (Token::Indent, 2..6),                // "    " (4 spaces) at position 2-6
-            (Token::Text("b".to_string()), 6..7), // "b" at position 6-7
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1), // "a" at position 0-1
+            mk_token(Token::Newline, 1, 2),               // "\n" at position 1-2
+            mk_token(Token::Indent, 2, 6),                // "    " (4 spaces) at position 2-6
+            mk_token(Token::Text("b".to_string()), 6, 7), // "b" at position 6-7
         ];
 
-        let result = transform_indentation_with_locations(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
 
         // Expected:
         // - Text("a") with location 0..1
@@ -813,15 +743,16 @@ mod tests {
     fn test_multiple_indent_levels_have_correct_locations() {
         // Test: Multiple IndentLevel tokens should each have locations of their respective Indent tokens
         // Input: "a\n        b" (a, newline, 8 spaces = 2 indent levels, b)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),   // "a"
-            (Token::Newline, 1..2),                 // "\n"
-            (Token::Indent, 2..6),                  // first 4 spaces (indent level 1)
-            (Token::Indent, 6..10),                 // second 4 spaces (indent level 2)
-            (Token::Text("b".to_string()), 10..11), // "b"
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),   // "a"
+            mk_token(Token::Newline, 1, 2),                 // "\n"
+            mk_token(Token::Indent, 2, 6),                  // first 4 spaces (indent level 1)
+            mk_token(Token::Indent, 6, 10),                 // second 4 spaces (indent level 2)
+            mk_token(Token::Text("b".to_string()), 10, 11), // "b"
         ];
 
-        let result = transform_indentation_with_locations(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
 
         // Should have: Text, Newline, IndentLevel, IndentLevel, Text, DedentLevel, DedentLevel
         assert_eq!(result.len(), 7);
@@ -843,16 +774,17 @@ mod tests {
     fn test_dedent_level_tokens_have_correct_locations() {
         // Test: DedentLevel tokens should have locations at the position where dedentation occurs
         // Input: "a\n    b\nc" (a, newline, 4 spaces, b, newline, c)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1), // "a"
-            (Token::Newline, 1..2),               // "\n"
-            (Token::Indent, 2..6),                // "    "
-            (Token::Text("b".to_string()), 6..7), // "b"
-            (Token::Newline, 7..8),               // "\n"
-            (Token::Text("c".to_string()), 8..9), // "c" (dedented back to level 0)
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1), // "a"
+            mk_token(Token::Newline, 1, 2),               // "\n"
+            mk_token(Token::Indent, 2, 6),                // "    "
+            mk_token(Token::Text("b".to_string()), 6, 7), // "b"
+            mk_token(Token::Newline, 7, 8),               // "\n"
+            mk_token(Token::Text("c".to_string()), 8, 9), // "c" (dedented back to level 0)
         ];
 
-        let result = transform_indentation_with_locations(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
 
         // Expected:
         // - Text("a"), Newline, IndentLevel, Text("b"), Newline, DedentLevel, Text("c")
@@ -869,17 +801,18 @@ mod tests {
     fn test_multiple_dedent_levels_have_correct_locations() {
         // Test: Multiple DedentLevel tokens should all have the same location (position of dedentation)
         // Input: "a\n        b\nc" (2 levels in, then 2 levels out)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Indent, 2..6),
-            (Token::Indent, 6..10),
-            (Token::Text("b".to_string()), 10..11),
-            (Token::Newline, 11..12),
-            (Token::Text("c".to_string()), 12..13), // Back to level 0
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Indent, 6, 10),
+            mk_token(Token::Text("b".to_string()), 10, 11),
+            mk_token(Token::Newline, 11, 12),
+            mk_token(Token::Text("c".to_string()), 12, 13), // Back to level 0
         ];
 
-        let result = transform_indentation_with_locations(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
 
         // Expected: Text("a"), Newline, IndentLevel, IndentLevel, Text("b"), Newline, DedentLevel, DedentLevel, Text("c")
         // Should have 2 DedentLevel tokens before Text("c")
@@ -903,14 +836,15 @@ mod tests {
     fn test_eof_dedent_uses_correct_location() {
         // Test: DedentLevel tokens at end of file should use the EOF position
         // Input: "a\n    b" (ends while indented)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Indent, 2..6),
-            (Token::Text("b".to_string()), 6..7),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Text("b".to_string()), 6, 7),
         ];
 
-        let result = transform_indentation_with_locations(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
 
         // Last token should be DedentLevel with location at EOF (7..7)
         let last = result.last().unwrap();
@@ -926,8 +860,8 @@ mod tests {
         //            13..20 "Subitem", 20..21 " ", 21..22 "A", 22..23 "\n",
         //            23..27 "    ", 27..28 "-", 28..29 " ", 29..36 "Subitem", 36..37 " ", 37..38 "B"
 
-        let tokens_with_locations = crate::txxt::lexer::tokenize_with_locations(source);
-        let result = transform_indentation_with_locations(tokens_with_locations);
+        let tokens_with_locations = crate::txxt::lexer::tokenize(source);
+        let result = transform_indentation(tokens_with_locations);
 
         // Find the IndentLevel token
         let indent_level_pos = result
@@ -969,15 +903,16 @@ mod tests {
     #[test]
     fn test_blank_lines_preserve_location_tracking() {
         // Test that blank lines don't break location tracking for indentation
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3), // Blank line (will be handled by blank_line_transform)
-            (Token::Indent, 3..7),
-            (Token::Text("b".to_string()), 7..8),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3), // Blank line (will be handled by blank_line_transform)
+            mk_token(Token::Indent, 3, 7),
+            mk_token(Token::Text("b".to_string()), 7, 8),
         ];
 
-        let result = transform_indentation_with_locations(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
 
         // The IndentLevel should still have correct location
         let indent_pos = result
