@@ -186,7 +186,7 @@ mod tests {
         );
         assert_eq!(
             foreign_block.closing_annotation.parameters[0].value,
-            Some("Hello World".to_string())
+            "Hello World".to_string()
         );
     }
 
@@ -205,12 +205,12 @@ mod tests {
         assert_eq!(foreign_block.closing_annotation.parameters[0].key, "type");
         assert_eq!(
             foreign_block.closing_annotation.parameters[0].value,
-            Some("jpg".to_string())
+            "jpg".to_string()
         );
         assert_eq!(foreign_block.closing_annotation.parameters[1].key, "src");
         assert_eq!(
             foreign_block.closing_annotation.parameters[1].value,
-            Some("sunset.jpg".to_string())
+            "sunset.jpg".to_string()
         );
     }
 
@@ -346,7 +346,7 @@ mod tests {
         assert_eq!(image.closing_annotation.parameters[0].key, "type");
         assert_eq!(
             image.closing_annotation.parameters[0].value,
-            Some("jpg".to_string())
+            "jpg".to_string()
         );
 
         // Find binary file reference
@@ -367,7 +367,7 @@ mod tests {
         assert_eq!(binary.closing_annotation.parameters[0].key, "type");
         assert_eq!(
             binary.closing_annotation.parameters[0].value,
-            Some("pdf".to_string())
+            "pdf".to_string()
         );
     }
 }
