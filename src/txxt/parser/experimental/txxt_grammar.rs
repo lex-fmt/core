@@ -170,8 +170,9 @@ impl TxxtGrammarRules {
         }
     }
 
-    /// Try to match a definition pattern
-    /// Pattern: SUBJECT_LINE + INDENT (no blank line between)
+    /// Try to match a definition pattern (no blank line between subject and block)
+    /// Pattern: SUBJECT_LINE (without BLANK_LINE following)
+    /// Note: When used with has_following_block, the Block itself represents the INDENT
     pub fn try_definition(&self, token_types: &[LineTokenType]) -> Option<usize> {
         if token_types.is_empty() {
             return None;
@@ -182,19 +183,23 @@ impl TxxtGrammarRules {
             return None;
         }
 
-        // Next must be INDENT (not BLANK_LINE)
-        if token_types.len() < 2 {
+        // If we have 2+ tokens, the next must NOT be BLANK_LINE (that would be a session)
+        if token_types.len() > 1 && token_types[1] == LineTokenType::BlankLine {
             return None;
         }
 
-        match token_types[1] {
-            LineTokenType::IndentLevel => Some(2), // SUBJECT_LINE + INDENT
-            _ => None,
+        // Check if there's an explicit INDENT token
+        if token_types.len() >= 2 && token_types[1] == LineTokenType::IndentLevel {
+            Some(2) // SUBJECT_LINE + INDENT
+        } else {
+            // If no explicit INDENT token, just SUBJECT_LINE (Block will follow implicitly)
+            Some(1)
         }
     }
 
-    /// Try to match a session pattern
-    /// Pattern: SUBJECT_LINE + BLANK_LINE + INDENT
+    /// Try to match a session pattern (with blank line between subject and block)
+    /// Pattern: SUBJECT_LINE + BLANK_LINE
+    /// Note: When used with has_following_block, the Block itself represents the INDENT
     pub fn try_session(&self, token_types: &[LineTokenType]) -> Option<usize> {
         if token_types.is_empty() {
             return None;
@@ -210,12 +215,13 @@ impl TxxtGrammarRules {
             return None;
         }
 
-        // Then must be INDENT
-        if token_types.len() < 3 || token_types[2] != LineTokenType::IndentLevel {
-            return None;
+        // Check if there's an explicit INDENT token after blank line
+        if token_types.len() >= 3 && token_types[2] == LineTokenType::IndentLevel {
+            Some(3) // SUBJECT_LINE + BLANK_LINE + INDENT
+        } else {
+            // If no explicit INDENT token, just SUBJECT_LINE + BLANK_LINE (Block will follow implicitly)
+            Some(2)
         }
-
-        Some(3) // SUBJECT_LINE + BLANK_LINE + INDENT
     }
 
     /// Try to match a paragraph (fallback - always succeeds, consumes tokens until blank or structural)
