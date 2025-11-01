@@ -40,36 +40,31 @@ use crate::txxt::lexer::tokens::{LineToken, LineTokenType, Token};
 pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
     let mut line_tokens = Vec::new();
     let mut current_line = Vec::new();
-    let mut i = 0;
 
-    while i < tokens.len() {
-        let token = &tokens[i];
-
+    for token in tokens {
         // Structural tokens (IndentLevel, DedentLevel) are pass-through
         // They appear alone, not as part of lines
         if matches!(token, Token::IndentLevel) {
             if !current_line.is_empty() {
-                line_tokens.push(classify_and_create_line_token(current_line.clone()));
-                current_line.clear();
+                line_tokens.push(classify_and_create_line_token(current_line));
+                current_line = Vec::new();
             }
             line_tokens.push(LineToken {
-                source_tokens: vec![token.clone()],
+                source_tokens: vec![token],
                 line_type: LineTokenType::IndentLevel,
             });
-            i += 1;
             continue;
         }
 
         if matches!(token, Token::DedentLevel) {
             if !current_line.is_empty() {
-                line_tokens.push(classify_and_create_line_token(current_line.clone()));
-                current_line.clear();
+                line_tokens.push(classify_and_create_line_token(current_line));
+                current_line = Vec::new();
             }
             line_tokens.push(LineToken {
-                source_tokens: vec![token.clone()],
+                source_tokens: vec![token],
                 line_type: LineTokenType::DedentLevel,
             });
-            i += 1;
             continue;
         }
 
@@ -78,14 +73,12 @@ pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToke
 
         // Newline marks end of line
         if matches!(token, Token::Newline) {
-            line_tokens.push(classify_and_create_line_token(current_line.clone()));
-            current_line.clear();
+            line_tokens.push(classify_and_create_line_token(current_line));
+            current_line = Vec::new();
         }
-
-        i += 1;
     }
 
-    // Handle any remaining tokens (shouldn't normally happen if input is well-formed)
+    // Handle any remaining tokens (if input doesn't end with newline)
     if !current_line.is_empty() {
         line_tokens.push(classify_and_create_line_token(current_line));
     }
