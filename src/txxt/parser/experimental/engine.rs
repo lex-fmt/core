@@ -95,6 +95,10 @@ fn parse_node_at_level(
     grammar: &TxxtGrammarRules,
     source: &str,
 ) -> Result<(ContentItem, usize), String> {
+    if tree.is_empty() {
+        return Err("Empty tree at node level".to_string());
+    }
+
     // Handle blank lines: create a simple paragraph with no content
     if !token_types.is_empty() && token_types[0] == LineTokenType::BlankLine {
         if let LineTokenTree::Token(line_token) = &tree[0] {
@@ -111,22 +115,84 @@ fn parse_node_at_level(
         }
     }
 
-    // Check if we have a block following tokens (potential definition/session/list)
-    let mut tokens_before_block = 0;
-    for (idx, node) in tree.iter().enumerate() {
-        match node {
-            LineTokenTree::Token(_) => tokens_before_block = idx + 1,
-            LineTokenTree::Block(_) => break,
+    // Try foreign block pattern: SUBJECT_LINE + INDENT...DEDENT + ANNOTATION_LINE
+    if let Some((end_idx, _indent_idx)) = grammar.try_foreign_block(token_types) {
+        if end_idx <= tree.len() && end_idx >= 3 {
+            // We have: subject + block + annotation
+            if let LineTokenTree::Token(subject_token) = &tree[0] {
+                if let LineTokenTree::Block(block_children) = &tree[1] {
+                    if let LineTokenTree::Token(annotation_token) = &tree[2] {
+                        let content_lines = block_children
+                            .iter()
+                            .filter_map(|child| {
+                                if let LineTokenTree::Token(t) = child {
+                                    Some(t)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        let item = super::unwrapper::unwrap_foreign_block(
+                            subject_token,
+                            content_lines,
+                            annotation_token,
+                        )?;
+                        return Ok((item, 3));
+                    }
+                }
+            }
         }
     }
 
-    // If we found a block, we have a structured element (needs pattern matching with blocks)
-    // For now, just consume tokens until block and wrap the block
-    if tokens_before_block > 0 && tokens_before_block < tree.len() {
-        // Consume all tokens before the block
-        if let LineTokenTree::Token(line_token) = &tree[0] {
-            let item = super::unwrapper::unwrap_token_to_paragraph(line_token, source)?;
-            return Ok((item, 1));
+    // Try session pattern: SUBJECT_LINE + BLANK_LINE + INDENT
+    if let Some(_consumed) = grammar.try_session(token_types) {
+        if tree.len() >= 2 {
+            if let LineTokenTree::Token(subject_token) = &tree[0] {
+                // Block is at tree[1] after blank line
+                if tree.len() > 1 {
+                    if let LineTokenTree::Block(block_children) = &tree[1] {
+                        let block_content = walk_and_parse(block_children, source)?;
+                        let item = super::unwrapper::unwrap_session(subject_token, block_content)?;
+                        return Ok((item, 2)); // subject + block
+                    }
+                }
+            }
+        }
+    }
+
+    // Try definition pattern: SUBJECT_LINE + INDENT
+    if let Some(_consumed) = grammar.try_definition(token_types) {
+        if tree.len() >= 2 {
+            if let LineTokenTree::Token(subject_token) = &tree[0] {
+                if let LineTokenTree::Block(block_children) = &tree[1] {
+                    let block_content = walk_and_parse(block_children, source)?;
+                    let item = super::unwrapper::unwrap_definition(subject_token, block_content)?;
+                    return Ok((item, 2)); // subject + block
+                }
+            }
+        }
+    }
+
+    // Try list pattern: BLANK_LINE + 2+ list items
+    if let Some(consumed) = grammar.try_list(token_types) {
+        // Collect list items from tree
+        let mut list_items = Vec::new();
+        let mut tree_idx = 1; // Skip blank line
+
+        while tree_idx < tree.len() && list_items.len() < consumed - 1 {
+            if let LineTokenTree::Token(item_token) = &tree[tree_idx] {
+                let item = super::unwrapper::unwrap_list_item(item_token, vec![])?;
+                list_items.push(item);
+                tree_idx += 1;
+            } else {
+                break;
+            }
+        }
+
+        if list_items.len() >= 2 {
+            let list = super::unwrapper::unwrap_list(list_items)?;
+            return Ok((list, consumed));
         }
     }
 
@@ -138,7 +204,7 @@ fn parse_node_at_level(
         }
     }
 
-    // If block is next, recursively parse its content and wrap in a session
+    // If block is next with no pattern match, wrap it in a default session (shouldn't happen)
     if let LineTokenTree::Block(children) = &tree[0] {
         let block_content = walk_and_parse(children, source)?;
         let container = Session {
@@ -152,7 +218,7 @@ fn parse_node_at_level(
         return Ok((ContentItem::Session(container), 1));
     }
 
-    Err("No pattern matched and no block found".to_string())
+    Err("No pattern matched".to_string())
 }
 
 #[cfg(test)]
