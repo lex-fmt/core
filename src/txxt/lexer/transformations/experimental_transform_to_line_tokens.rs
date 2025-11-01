@@ -43,8 +43,9 @@ pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToke
 
     for token in tokens {
         let is_newline = matches!(token, Token::Newline);
+        let is_blank_line_token = matches!(token, Token::BlankLine);
 
-        // Structural tokens (IndentLevel, DedentLevel) are pass-through
+        // Structural tokens (IndentLevel, DedentLevel, BlankLine) are pass-through
         // They appear alone, not as part of lines
         if matches!(token, Token::IndentLevel) {
             if !current_line.is_empty() {
@@ -66,6 +67,19 @@ pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToke
             line_tokens.push(LineToken {
                 source_tokens: vec![token],
                 line_type: LineTokenType::DedentLevel,
+            });
+            continue;
+        }
+
+        // BlankLine tokens are also structural - they represent a blank line by themselves
+        if is_blank_line_token {
+            if !current_line.is_empty() {
+                line_tokens.push(classify_and_create_line_token(current_line));
+                current_line = Vec::new();
+            }
+            line_tokens.push(LineToken {
+                source_tokens: vec![token],
+                line_type: LineTokenType::BlankLine,
             });
             continue;
         }

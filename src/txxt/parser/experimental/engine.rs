@@ -65,7 +65,7 @@ fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentIte
     let mut i = 0;
 
     while i < tree.len() {
-        // Extract token types at current level
+        // Extract token types at current level (including blank lines - needed for pattern matching!)
         let remaining_tree = &tree[i..];
         let token_types: Vec<LineTokenType> = remaining_tree
             .iter()
@@ -79,7 +79,17 @@ fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentIte
 
         // Try to match a pattern
         let (item, consumed) = parse_node_at_level(remaining_tree, &token_types, &grammar, source)?;
-        content_items.push(item);
+
+        // Only add to content if it's not a structural blank line
+        // (blank lines are consumed by patterns but don't generate content)
+        if let LineTokenTree::Token(token) = &remaining_tree[0] {
+            if token.line_type != LineTokenType::BlankLine {
+                content_items.push(item);
+            }
+        } else {
+            content_items.push(item);
+        }
+
         i += consumed;
     }
 
@@ -103,15 +113,17 @@ fn parse_node_at_level(
     let has_following_block = token_types.len() < tree.len()
         && matches!(tree.get(token_types.len()), Some(LineTokenTree::Block(_)));
 
-    // Handle blank lines: create a simple paragraph with no content
-    if !token_types.is_empty() && token_types[0] == LineTokenType::BlankLine {
-        if let LineTokenTree::Token(line_token) = &tree[0] {
-            let item = super::unwrapper::unwrap_token_to_paragraph(line_token, source)?;
-            return Ok((item, 1));
-        }
-    }
+    // PATTERN MATCHING ORDER (from parsing.txxt and user feedback)
+    // Annotation → Foreign Block → Definition → List → Session → Paragraph
+    //
+    // Key reasons for this order:
+    // - Annotations can appear in foreign blocks (as closing markers), detect first
+    // - Foreign blocks have unambiguous indentation wall boundaries
+    // - Definitions/Sessions both use colon-ending, disambiguated by blank line presence
+    // - Lists require blank line before + 2+ items
+    // - Paragraphs are the catch-all fallback
 
-    // Try annotation pattern first (most specific)
+    // 1. ANNOTATION: Lines with :: markers (take precedence everywhere)
     if let Some(_consumed) = grammar.try_annotation(token_types) {
         if let LineTokenTree::Token(line_token) = &tree[0] {
             let item = super::unwrapper::unwrap_annotation(line_token, source)?;
@@ -119,10 +131,9 @@ fn parse_node_at_level(
         }
     }
 
-    // Try foreign block pattern: SUBJECT_LINE + INDENT...DEDENT + ANNOTATION_LINE
+    // 2. FOREIGN BLOCK: SUBJECT_LINE + Block + ANNOTATION_LINE
     if let Some((end_idx, _indent_idx)) = grammar.try_foreign_block(token_types) {
         if end_idx <= tree.len() && end_idx >= 3 {
-            // We have: subject + block + annotation
             if let LineTokenTree::Token(subject_token) = &tree[0] {
                 if let LineTokenTree::Block(block_children) = &tree[1] {
                     if let LineTokenTree::Token(annotation_token) = &tree[2] {
@@ -149,22 +160,7 @@ fn parse_node_at_level(
         }
     }
 
-    // Try session pattern: SUBJECT_LINE + BLANK_LINE + Block (implicit INDENT)
-    if has_following_block {
-        if let Some(_consumed) = grammar.try_session(token_types) {
-            if let LineTokenTree::Token(subject_token) = &tree[0] {
-                // Block is at position after all tokens
-                let block_idx = token_types.len();
-                if let LineTokenTree::Block(block_children) = &tree[block_idx] {
-                    let block_content = walk_and_parse(block_children, source)?;
-                    let item = super::unwrapper::unwrap_session(subject_token, block_content)?;
-                    return Ok((item, block_idx + 1)); // all tokens + block
-                }
-            }
-        }
-    }
-
-    // Try definition pattern: SUBJECT_LINE + Block (implicit INDENT, no blank line)
+    // 3. DEFINITION: SUBJECT_LINE + Block (no blank line between)
     if has_following_block {
         if let Some(_consumed) = grammar.try_definition(token_types) {
             if let LineTokenTree::Token(subject_token) = &tree[0] {
@@ -172,15 +168,14 @@ fn parse_node_at_level(
                 if let LineTokenTree::Block(block_children) = &tree[block_idx] {
                     let block_content = walk_and_parse(block_children, source)?;
                     let item = super::unwrapper::unwrap_definition(subject_token, block_content)?;
-                    return Ok((item, block_idx + 1)); // all tokens + block
+                    return Ok((item, block_idx + 1));
                 }
             }
         }
     }
 
-    // Try list pattern: BLANK_LINE + 2+ list items
+    // 4. LIST: BLANK_LINE + 2+ list items
     if let Some(consumed) = grammar.try_list(token_types) {
-        // Collect list items from tree
         let mut list_items = Vec::new();
         let mut tree_idx = 1; // Skip blank line
 
@@ -200,11 +195,34 @@ fn parse_node_at_level(
         }
     }
 
-    // Default: try paragraph (fallback pattern)
-    if let Some(_consumed) = grammar.try_paragraph(token_types) {
-        if let LineTokenTree::Token(line_token) = &tree[0] {
-            let item = super::unwrapper::unwrap_token_to_paragraph(line_token, source)?;
-            return Ok((item, 1));
+    // 5. SESSION: SUBJECT_LINE + BLANK_LINE + Block
+    if has_following_block {
+        if let Some(_consumed) = grammar.try_session(token_types) {
+            if let LineTokenTree::Token(subject_token) = &tree[0] {
+                let block_idx = token_types.len();
+                if let LineTokenTree::Block(block_children) = &tree[block_idx] {
+                    let block_content = walk_and_parse(block_children, source)?;
+                    let item = super::unwrapper::unwrap_session(subject_token, block_content)?;
+                    return Ok((item, block_idx + 1));
+                }
+            }
+        }
+    }
+
+    // 6. PARAGRAPH (fallback): any-line+ (all non-blank lines not matching above patterns)
+    if let Some(consumed) = grammar.try_paragraph(token_types) {
+        let mut paragraph_tokens = Vec::new();
+        for i in 0..consumed {
+            if i < tree.len() {
+                if let LineTokenTree::Token(line_token) = &tree[i] {
+                    paragraph_tokens.push(line_token.clone());
+                }
+            }
+        }
+
+        if !paragraph_tokens.is_empty() {
+            let item = super::unwrapper::unwrap_tokens_to_paragraph(paragraph_tokens, source)?;
+            return Ok((item, consumed));
         }
     }
 
