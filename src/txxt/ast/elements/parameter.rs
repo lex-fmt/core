@@ -1,15 +1,14 @@
 //! Parameter element
 //!
-//! A parameter is a key with an optional value, attached to
+//! A parameter is a key with a value, attached to
 //! annotations and foreign blocks to convey structured metadata.
 //!
 //! Business use:
-//! - Lightweight configuration and flags (boolean or key=value)
+//! - Lightweight configuration
 //! - Enables filtering, routing, and automation in tools
 //!
 //! Examples:
 //! - `priority=high`
-//! - `draft`
 //!
 //! Learn More:
 //! - Parameters spec: docs/specs/v1/elements/parameters.txxt
@@ -17,11 +16,11 @@
 use super::super::location::{Location, Position};
 use std::fmt;
 
-/// A parameter represents a key-value pair, with optional value
+/// A parameter represents a key-value pair
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
     pub key: String,
-    pub value: Option<String>,
+    pub value: String,
     pub location: Location,
 }
 
@@ -30,24 +29,10 @@ impl Parameter {
         Location::new(Position::new(0, 0), Position::new(0, 0))
     }
 
-    pub fn new(key: String, value: Option<String>) -> Self {
+    pub fn new(key: String, value: String) -> Self {
         Self {
             key,
             value,
-            location: Self::default_location(),
-        }
-    }
-    pub fn boolean(key: String) -> Self {
-        Self {
-            key,
-            value: None,
-            location: Self::default_location(),
-        }
-    }
-    pub fn with_value(key: String, value: String) -> Self {
-        Self {
-            key,
-            value: Some(value),
             location: Self::default_location(),
         }
     }
@@ -59,10 +44,7 @@ impl Parameter {
 
 impl fmt::Display for Parameter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.value {
-            Some(v) => write!(f, "{}={}", self.key, v),
-            None => write!(f, "{}", self.key),
-        }
+        write!(f, "{}={}", self.key, self.value)
     }
 }
 
@@ -77,7 +59,7 @@ mod tests {
             super::super::super::location::Position::new(1, 10),
         );
         let param =
-            Parameter::new("key".to_string(), Some("value".to_string())).with_location(location);
+            Parameter::new("key".to_string(), "value".to_string()).with_location(location);
         assert_eq!(param.location, location);
     }
 }
