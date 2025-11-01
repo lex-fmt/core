@@ -30,10 +30,26 @@ pub mod transformations;
 
 pub use detokenizer::detokenize;
 pub use lexer_impl::tokenize;
-pub use tokens::Token;
+pub use tokens::{LineToken, LineTokenType, Token};
+pub use transformations::experimental_transform_indentation_to_token_tree::LineTokenTree;
 pub use transformations::{
-    process_whitespace_remainders, transform_blank_lines, transform_indentation,
+    experimental_lex, experimental_lex_stage, experimental_transform_indentation_to_token_tree,
+    experimental_transform_to_line_tokens, process_whitespace_remainders, transform_blank_lines,
+    transform_indentation, PipelineOutput, PipelineStage,
 };
+
+/// Preprocesses source text to ensure it ends with a newline.
+///
+/// This is required for proper paragraph parsing at EOF.
+/// Returns the original string if it already ends with a newline, or empty string.
+/// Otherwise, appends a newline.
+pub(crate) fn ensure_source_ends_with_newline(source: &str) -> String {
+    if !source.is_empty() && !source.ends_with('\n') {
+        format!("{}\n", source)
+    } else {
+        source.to_string()
+    }
+}
 
 /// Main lexer function that returns fully processed tokens with locations
 /// Returns tokens with their corresponding source locations
@@ -44,12 +60,7 @@ pub use transformations::{
 /// 3. transform_indentation() - convert Indent tokens with location tracking
 /// 4. transform_blank_lines() - convert Newline sequences with location tracking
 pub fn lex(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
-    // Ensure source ends with newline to help with paragraph parsing at EOF
-    let source_with_newline = if !source.is_empty() && !source.ends_with('\n') {
-        format!("{}\n", source)
-    } else {
-        source.to_string()
-    };
+    let source_with_newline = ensure_source_ends_with_newline(source);
 
     let tokenss = tokenize(&source_with_newline);
     let tokens_after_whitespace = process_whitespace_remainders(tokenss);

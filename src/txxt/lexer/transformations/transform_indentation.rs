@@ -924,4 +924,134 @@ mod tests {
             "IndentLevel location should be preserved"
         );
     }
+
+    #[test]
+    fn test_unbalanced_indent_at_eof() {
+        // Test case: file ends while indented - should emit dedents to balance
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Indent, 6, 10),
+            mk_token(Token::Text("b".to_string()), 10, 11),
+            // EOF at indent level 2 - should emit 2 dedents
+        ];
+
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+
+        let dedent_count = result
+            .iter()
+            .filter(|(t, _)| matches!(t, Token::DedentLevel))
+            .count();
+
+        assert_eq!(
+            dedent_count, 2,
+            "Should have 2 dedents to close 2 open indentation levels"
+        );
+    }
+
+    #[test]
+    fn test_rapid_indent_dedent_cycles() {
+        // Test case: multiple indent/dedent cycles
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Text("b".to_string()), 6, 7),
+            mk_token(Token::Newline, 7, 8),
+            mk_token(Token::Text("c".to_string()), 8, 9), // Back at level 0
+            mk_token(Token::Newline, 9, 10),
+            mk_token(Token::Indent, 10, 14),
+            mk_token(Token::Text("d".to_string()), 14, 15),
+            mk_token(Token::Newline, 15, 16),
+            mk_token(Token::Text("e".to_string()), 16, 17), // Back at level 0
+        ];
+
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+
+        let dedent_count = result
+            .iter()
+            .filter(|(t, _)| matches!(t, Token::DedentLevel))
+            .count();
+        let indent_count = result
+            .iter()
+            .filter(|(t, _)| matches!(t, Token::IndentLevel))
+            .count();
+
+        // Should have 2 indents and 2 dedents for the two cycles
+        assert_eq!(indent_count, 2, "Should have 2 IndentLevel tokens");
+        assert_eq!(dedent_count, 2, "Should have 2 DedentLevel tokens");
+    }
+
+    #[test]
+    fn test_deep_nesting_unbalanced() {
+        // Test case: nested indentation (one level deeper each line)
+        // Line 1: "a" (level 0)
+        // Line 2: 1 indent + "b" (level 1) → emits 1 IndentLevel
+        // Line 3: 2 indents + "c" (level 2) → emits 1 IndentLevel
+        // EOF at level 2 - should emit 2 dedents to close
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Text("b".to_string()), 6, 7),
+            mk_token(Token::Newline, 7, 8),
+            mk_token(Token::Indent, 8, 12),
+            mk_token(Token::Indent, 12, 16),
+            mk_token(Token::Text("c".to_string()), 16, 17),
+            // EOF at level 2 - should emit 2 dedents
+        ];
+
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+
+        let dedent_count = result
+            .iter()
+            .filter(|(t, _)| matches!(t, Token::DedentLevel))
+            .count();
+        let indent_count = result
+            .iter()
+            .filter(|(t, _)| matches!(t, Token::IndentLevel))
+            .count();
+
+        assert_eq!(
+            indent_count, 2,
+            "Should have 2 IndentLevel tokens (1 for 0→1, 1 for 1→2)"
+        );
+        assert_eq!(
+            dedent_count, 2,
+            "Should have 2 DedentLevel tokens to close 2 open indentation levels at EOF"
+        );
+    }
+
+    #[test]
+    fn test_partial_dedent_unbalanced() {
+        // Test case: partial dedent (from level 2 to level 1)
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Indent, 6, 10),
+            mk_token(Token::Text("b".to_string()), 10, 11),
+            mk_token(Token::Newline, 11, 12),
+            mk_token(Token::Text("c".to_string()), 12, 13), // Back to level 1
+            mk_token(Token::Newline, 13, 14),
+            // EOF at level 1 - should emit 1 dedent
+        ];
+
+        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+
+        let dedent_count = result
+            .iter()
+            .filter(|(t, _)| matches!(t, Token::DedentLevel))
+            .count();
+
+        assert_eq!(
+            dedent_count, 2,
+            "Should have 2 dedents total (1 from level 2 to 1, 1 from level 1 to 0)"
+        );
+    }
 }
