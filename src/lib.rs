@@ -1,4 +1,4 @@
-//! # txxt-nano
+//! # txxt
 //!
 //! A parser for the txxt format.
 //!
@@ -11,7 +11,7 @@ pub mod txxt;
 
 /// A simple function to demonstrate the library works
 pub fn hello() -> &'static str {
-    "Hello from txxt-nano!"
+    "Hello from txxt!"
 }
 
 #[cfg(test)]
@@ -20,6 +20,6 @@ mod tests {
 
     #[test]
     fn test_hello() {
-        assert_eq!(hello(), "Hello from txxt-nano!");
+        assert_eq!(hello(), "Hello from txxt!");
     }
 }
