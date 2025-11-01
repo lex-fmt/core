@@ -1,4 +1,7 @@
-//! Test factories for creating locations and spanned tokens succinctly
+//! Test factories for creating locations and spanned tokens succinctly.
+//!
+//! The lexer and parser now require **every** token to carry a byte-span. These helpers
+//! keep tests concise while enforcing that requirement.
 
 use std::ops::Range;
 
