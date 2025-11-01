@@ -23,7 +23,7 @@ pub use crate::txxt::ast::{
 
 pub use crate::txxt::formats::{serialize_ast_tag, to_treeviz_str};
 pub use elements::document::document;
-pub use parser::parse_with_source;
+pub use parser::parse;
 
 /// Type alias for parse result with spanned tokens
 type ParseResult = Result<
@@ -34,6 +34,6 @@ type ParseResult = Result<
 /// Main parser function that takes source text and returns a parsed document
 /// This is the primary entry point for parsing txxt documents
 pub fn parse_document(source: &str) -> ParseResult {
-    let tokenss = crate::txxt::lexer::lex(source);
-    parse_with_source(tokenss, source)
+    let tokens = crate::txxt::lexer::lex(source);
+    parse(tokens, source)
 }

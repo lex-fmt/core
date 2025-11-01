@@ -51,9 +51,9 @@ pub fn visit_children(visitor: &mut dyn Visitor, items: &[ContentItem]) {
 pub trait AstNode {
     fn node_type(&self) -> &'static str;
     fn display_label(&self) -> String;
-    fn location(&self) -> Option<Location>;
-    fn get_location(&self) -> Option<Position> {
-        self.location().map(|s| s.start)
+    fn location(&self) -> Location;
+    fn start_position(&self) -> Position {
+        self.location().start
     }
 
     /// Accept a visitor for traversing this node and its children

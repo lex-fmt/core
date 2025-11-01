@@ -255,13 +255,10 @@ impl Model {
         use txxt::txxt::ast::traits::AstNode;
         if node_id.path().is_empty() {
             // Document doesn't have a location; the root session does
-            return self.document.root.location();
+            return Some(self.document.root.location());
         }
 
-        self.get_node(node_id).and_then(|(item, _depth)| {
-            // Use the AstNode trait to get the location
-            item.location()
-        })
+        self.get_node(node_id).map(|(item, _depth)| item.location())
     }
 
     /// Get the ancestors of a node (path from root to node, not including the node itself)
