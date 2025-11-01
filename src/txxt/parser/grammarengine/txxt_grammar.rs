@@ -9,7 +9,7 @@
 //! More complex patterns are added in subsequent steps (foreign blocks, lists, definitions, sessions).
 
 use crate::txxt::lexer::tokens::LineTokenType;
-use crate::txxt::parser::experimental::regex_grammar_engine::{RegexGrammarMatcher, TokenSeq};
+use crate::txxt::parser::grammarengine::regex_grammar_engine::{RegexGrammarMatcher, TokenSeq};
 
 /// Convert LineTokenType enum to its string representation for pattern matching
 fn token_type_to_string(token_type: &LineTokenType) -> String {
@@ -828,7 +828,7 @@ mod tests {
         // Step 1: Test that we can parse annotations and paragraphs
         use crate::txxt::lexer::tokens::{LineToken, LineTokenType, Token};
         use crate::txxt::lexer::transformations::experimental_transform_indentation_to_token_tree::LineTokenTree;
-        use crate::txxt::parser::experimental::parse_experimental;
+        use crate::txxt::parser::grammarengine::parse_experimental;
 
         // Create a simple tree with annotation and paragraph
         let tree = vec![

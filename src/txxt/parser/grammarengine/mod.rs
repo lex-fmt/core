@@ -1,4 +1,4 @@
-//! Experimental Parser Module
+//! Grammar Engine Parser Module
 //!
 //! This module implements a multi-pass parsing approach that separates concerns:
 //! - Tree Walking (orchestration and recursion handling)
