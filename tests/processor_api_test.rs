@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn test_available_specs() {
         let specs = ProcessingSpec::available_specs();
-        assert_eq!(specs.len(), 9); // Added ast-position and 2 experimental formats
+        assert_eq!(specs.len(), 11); // Added ast-position and 2 experimental formats
 
         let token_simple = specs
             .iter()
