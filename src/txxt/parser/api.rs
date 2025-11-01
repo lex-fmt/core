@@ -17,9 +17,18 @@ type ParserError = Simple<TokenLocation>;
 ///
 /// Parses tokens with location information and source text to produce a Document.
 /// All parsed documents include complete location information automatically.
-pub fn parse_with_source(
-    tokenss: Vec<TokenLocation>,
+pub fn parse(
+    tokens_with_locations: Vec<TokenLocation>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    document(source).parse(tokenss)
+    document(source).parse(tokens_with_locations)
+}
+
+/// Backward-compatibility shim: prefer `parse`
+#[allow(dead_code)]
+pub fn parse_with_source(
+    tokens_with_locations: Vec<TokenLocation>,
+    source: &str,
+) -> Result<Document, Vec<ParserError>> {
+    parse(tokens_with_locations, source)
 }

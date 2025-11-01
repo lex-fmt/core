@@ -112,11 +112,19 @@ pub fn document() -> impl Parser<TokenLocation, Document, Error = ParserError> {
 /// All parsed documents include complete location information automatically.
 ///
 /// Re-exports the canonical implementation from api.rs
-pub fn parse_with_source(
-    tokenss: Vec<TokenLocation>,
+pub fn parse(
+    tokens_with_locations: Vec<TokenLocation>,
     source: &str,
 ) -> Result<Document, Vec<ParserError>> {
-    super::api::parse_with_source(tokenss, source)
+    super::api::parse(tokens_with_locations, source)
+}
+
+/// Backward-compatibility shim
+pub fn parse_with_source(
+    tokens_with_locations: Vec<TokenLocation>,
+    source: &str,
+) -> Result<Document, Vec<ParserError>> {
+    parse(tokens_with_locations, source)
 }
 
 #[cfg(test)]
