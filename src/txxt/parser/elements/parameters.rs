@@ -232,10 +232,7 @@ mod tests {
         assert_eq!(annotation.parameters[0].key, "author");
         assert_eq!(annotation.parameters[0].value, "Jane Doe".to_string());
         assert_eq!(annotation.parameters[1].key, "title");
-        assert_eq!(
-            annotation.parameters[1].value,
-            "Important Note".to_string()
-        );
+        assert_eq!(annotation.parameters[1].value, "Important Note".to_string());
     }
 
     #[test]
@@ -249,10 +246,7 @@ mod tests {
         assert_eq!(annotation.parameters[0].key, "priority");
         assert_eq!(annotation.parameters[0].value, "high".to_string());
         assert_eq!(annotation.parameters[1].key, "status");
-        assert_eq!(
-            annotation.parameters[1].value,
-            "in progress".to_string()
-        );
+        assert_eq!(annotation.parameters[1].value, "in progress".to_string());
         assert_eq!(annotation.parameters[2].key, "assigned");
         assert_eq!(annotation.parameters[2].value, "alice".to_string());
     }
@@ -276,12 +270,12 @@ mod tests {
     }
 
     #[test]
-    fn test_annotation_boolean_parameter_is_not_parsed() {
-        let source = ":: warning draft,priority=urgent ::\n\nText. {{paragraph}}\n";
+    fn test_annotation_with_only_keyed_parameters() {
+        let source = ":: warning priority=urgent ::\n\nText. {{paragraph}}\n";
         let tokens = lex_with_locations(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
-        let annotation = doc.root_session.content[0].as_annotation().unwrap();
+        let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "warning");
         assert_eq!(annotation.parameters.len(), 1);
         assert_eq!(annotation.parameters[0].key, "priority");

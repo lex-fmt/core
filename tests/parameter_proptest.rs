@@ -114,7 +114,7 @@ mod proptest_tests {
             if let Ok(doc) = result {
                 let annotation = doc.root.content[0].as_annotation().unwrap();
                 prop_assert_eq!(&annotation.parameters[0].key, &key);
-                prop_assert_eq!(&annotation.parameters[0].value, &Some(value));
+                prop_assert_eq!(&annotation.parameters[0].value, &value);
             }
         }
 
@@ -128,7 +128,7 @@ mod proptest_tests {
             if let Ok(doc) = result {
                 let annotation = doc.root.content[0].as_annotation().unwrap();
                 prop_assert_eq!(&annotation.parameters[0].key, &key);
-                prop_assert_eq!(&annotation.parameters[0].value, &Some(value));
+                prop_assert_eq!(&annotation.parameters[0].value, &value);
             }
         }
 
@@ -197,8 +197,8 @@ mod specific_tests {
         let doc = result.unwrap();
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.parameters.len(), 2);
-        assert_eq!(annotation.parameters[0].value, Some("val1".to_string()));
-        assert_eq!(annotation.parameters[1].value, Some("val2".to_string()));
+        assert_eq!(annotation.parameters[0].value, "val1".to_string());
+        assert_eq!(annotation.parameters[1].value, "val2".to_string());
     }
 
     #[test]
@@ -209,10 +209,7 @@ mod specific_tests {
 
         let doc = result.unwrap();
         let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(
-            annotation.parameters[0].value,
-            Some("Hello World".to_string())
-        );
+        assert_eq!(annotation.parameters[0].value, "Hello World".to_string());
     }
 
     #[test]
@@ -225,7 +222,7 @@ mod specific_tests {
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(
             annotation.parameters[0].value,
-            Some("value with, comma".to_string())
+            "value with, comma".to_string()
         );
     }
 
@@ -237,7 +234,7 @@ mod specific_tests {
 
         let doc = result.unwrap();
         let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters[0].value, Some("".to_string()));
+        assert_eq!(annotation.parameters[0].value, "".to_string());
     }
 
     #[test]
@@ -248,7 +245,7 @@ mod specific_tests {
 
         let doc = result.unwrap();
         let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters[0].value, Some("3.11.2".to_string()));
+        assert_eq!(annotation.parameters[0].value, "3.11.2".to_string());
     }
 
     #[test]

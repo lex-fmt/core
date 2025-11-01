@@ -159,7 +159,7 @@ mod tests {
         assert_eq!(annotation.label.value, ""); // Empty label
         assert_eq!(annotation.parameters.len(), 1);
         assert_eq!(annotation.parameters[0].key, "version");
-        assert_eq!(annotation.parameters[0].value, Some("3.11".to_string()));
+        assert_eq!(annotation.parameters[0].value, "3.11".to_string());
     }
 
     #[test]
