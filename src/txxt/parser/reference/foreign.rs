@@ -11,12 +11,12 @@ use crate::txxt::ast::{
     Annotation, ContentItem, ForeignBlock, Label, Location, Paragraph, TextContent,
 };
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::reference::combinators::{
+use super::annotations::{annotation_header, AnnotationHeader};
+use super::definitions::definition_subject;
+use super::combinators::{
     byte_range_to_location, compute_byte_range_bounds, compute_location_from_locations,
     extract_text_from_locations, text_line, token,
 };
-use crate::txxt::parser::ast_build::annotations::{annotation_header, AnnotationHeader};
-use crate::txxt::parser::ast_build::definitions::definition_subject;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);

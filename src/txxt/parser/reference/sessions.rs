@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::txxt::ast::{ContentItem, Session, TextContent};
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::reference::combinators::{
+use super::combinators::{
     aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
     extract_text_from_locations, text_line, token,
 };
