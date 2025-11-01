@@ -23,6 +23,7 @@ pub fn parse(tokens: Vec<TokenLocation>, source: &str) -> Result<Document, Vec<P
 
 /// Backward-compatibility shim: prefer `parse`
 #[allow(dead_code)]
+#[deprecated(note = "Use parse(tokens, source) instead")]
 pub fn parse_with_source(
     tokens: Vec<TokenLocation>,
     source: &str,

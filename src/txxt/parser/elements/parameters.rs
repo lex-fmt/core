@@ -202,13 +202,13 @@ pub(crate) fn parse_parameters_from_tokens(
 #[cfg(test)]
 mod tests {
     use crate::txxt::lexer::lex;
-    use crate::txxt::parser::parse_with_source;
+    use crate::txxt::parser::parse;
 
     #[test]
     fn test_annotation_comma_separated_parameters() {
         let source = ":: warning severity=high,priority=urgent ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "warning");
@@ -224,7 +224,7 @@ mod tests {
         let source =
             ":: note author=\"Jane Doe\" title=\"Important Note\" ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
@@ -239,7 +239,7 @@ mod tests {
     fn test_annotation_mixed_separators_and_quotes() {
         let source = ":: task priority=high,status=\"in progress\",assigned=alice ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.parameters.len(), 3);
@@ -256,7 +256,7 @@ mod tests {
         // Test that whitespace around commas is properly ignored
         let source = ":: note key1=val1 , key2=val2 , key3=val3 ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "note");
