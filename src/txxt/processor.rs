@@ -320,8 +320,11 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     }
 }
 
-/// Format tokens according to the specified format
-fn format_tokenss(
+/// Format tokens according to the specified output format.
+///
+/// This function handles all token-based output formats (Simple, Json, RawSimple, RawJson).
+/// AST-based formats and specialized formats are not handled here.
+pub fn format_tokenss(
     tokens: &[(Token, std::ops::Range<usize>)],
     format: &OutputFormat,
 ) -> Result<String, ProcessingError> {
