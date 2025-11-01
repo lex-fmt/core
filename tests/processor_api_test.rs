@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn test_available_specs() {
         let specs = ProcessingSpec::available_specs();
-        assert_eq!(specs.len(), 7); // Added ast-position
+        assert_eq!(specs.len(), 9); // Added ast-position and 2 experimental formats
 
         let token_simple = specs
             .iter()
@@ -249,6 +249,11 @@ mod tests {
                 OutputFormat::AstPosition => Err(ProcessingError::InvalidFormatType(
                     "ast-position format only works with ast stage".to_string(),
                 )),
+                OutputFormat::ExperimentalLineTokens | OutputFormat::ExperimentalTokenTree => {
+                    Err(ProcessingError::InvalidFormatType(
+                        "Experimental formats require file I/O".to_string(),
+                    ))
+                }
             },
             ProcessingStage::Ast => Err(ProcessingError::InvalidStage("ast".to_string())),
         }

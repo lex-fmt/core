@@ -18,7 +18,7 @@ use crate::txxt::lexer::tokens::LineToken;
 /// The tree is built by processing IndentLevel/DedentLevel markers:
 /// - Token variant holds a single LineToken
 /// - Block variant holds a vector of tree nodes (children at deeper indentation)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LineTokenTree {
     /// A single line token
     Token(LineToken),

@@ -145,7 +145,7 @@ impl Token {
 ///
 /// By preserving raw tokens, we can later pass them directly to existing AST constructors,
 /// which handles all location tracking and AST node creation automatically.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LineToken {
     /// The original raw tokens that comprise this line
     pub source_tokens: Vec<Token>,
@@ -155,7 +155,7 @@ pub struct LineToken {
 }
 
 /// The classification of a line token
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LineTokenType {
     /// Blank line (empty or whitespace only)
     BlankLine,
