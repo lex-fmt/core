@@ -559,24 +559,11 @@ impl<'a> AnnotationAssertion<'a> {
             .annotation
             .parameters
             .iter()
-            .any(|p| p.key == key && p.value.as_deref() == Some(value));
+            .any(|p| p.key == key && p.value == value);
         assert!(
             found,
             "{}: Expected parameter '{}={}' to exist",
             self.context, key, value
-        );
-        self
-    }
-    pub fn has_boolean_parameter(self, key: &str) -> Self {
-        let found = self
-            .annotation
-            .parameters
-            .iter()
-            .any(|p| p.key == key && p.value.is_none());
-        assert!(
-            found,
-            "{}: Expected boolean parameter '{}' to exist",
-            self.context, key
         );
         self
     }
@@ -669,7 +656,7 @@ impl<'a> ForeignBlockAssertion<'a> {
             .closing_annotation
             .parameters
             .iter()
-            .any(|p| p.key == key && p.value.as_deref() == Some(value));
+            .any(|p| p.key == key && p.value == value);
         assert!(
             found,
             "{}: Expected closing annotation to have parameter '{}={}'",
