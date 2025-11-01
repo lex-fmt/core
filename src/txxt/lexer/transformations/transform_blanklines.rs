@@ -294,11 +294,12 @@ mod tests {
     fn test_blank_line_token_has_correct_location_for_double_newline() {
         // Test: BlankLine should cover the location of extra newlines (from 2nd onwards)
         // Input: "a\n\nb" where positions are: "a" 0..1, "\n" 1..2, "\n" 2..3, "b" 3..4
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3),
-            (Token::Text("b".to_string()), 3..4),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3),
+            mk_token(Token::Text("b".to_string()), 3, 4),
         ];
 
         let result = transform_blank_lines(input);
@@ -316,12 +317,13 @@ mod tests {
     fn test_blank_line_token_has_correct_location_for_triple_newline() {
         // Test: BlankLine should cover the location from 2nd to last newline
         // Input: "a\n\n\nb" where positions are: "a" 0..1, "\n" 1..2, "\n" 2..3, "\n" 3..4, "b" 4..5
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3),
-            (Token::Newline, 3..4),
-            (Token::Text("b".to_string()), 4..5),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3),
+            mk_token(Token::Newline, 3, 4),
+            mk_token(Token::Text("b".to_string()), 4, 5),
         ];
 
         let result = transform_blank_lines(input);
@@ -340,14 +342,15 @@ mod tests {
     fn test_blank_line_token_has_correct_location_for_many_newlines() {
         // Test: BlankLine should cover all extra newlines
         // Input: "a\n\n\n\n\nb" (5 newlines total)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3),
-            (Token::Newline, 3..4),
-            (Token::Newline, 4..5),
-            (Token::Newline, 5..6),
-            (Token::Text("b".to_string()), 6..7),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3),
+            mk_token(Token::Newline, 3, 4),
+            mk_token(Token::Newline, 4, 5),
+            mk_token(Token::Newline, 5, 6),
+            mk_token(Token::Text("b".to_string()), 6, 7),
         ];
 
         let result = transform_blank_lines(input);
@@ -366,15 +369,16 @@ mod tests {
     fn test_multiple_blank_lines_each_have_correct_locations() {
         // Test: Multiple BlankLine tokens should each have their own correct locations
         // Input: "a\n\nb\n\n\nc"
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3),
-            (Token::Text("b".to_string()), 3..4),
-            (Token::Newline, 4..5),
-            (Token::Newline, 5..6),
-            (Token::Newline, 6..7),
-            (Token::Text("c".to_string()), 7..8),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3),
+            mk_token(Token::Text("b".to_string()), 3, 4),
+            mk_token(Token::Newline, 4, 5),
+            mk_token(Token::Newline, 5, 6),
+            mk_token(Token::Newline, 6, 7),
+            mk_token(Token::Text("c".to_string()), 7, 8),
         ];
 
         let result = transform_blank_lines(input);
