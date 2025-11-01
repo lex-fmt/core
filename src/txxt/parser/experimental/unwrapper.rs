@@ -107,6 +107,28 @@ pub fn unwrap_annotation(token: &LineToken, _source: &str) -> Result<ContentItem
     Ok(ContentItem::Annotation(annotation))
 }
 
+/// Create an annotation with block content from an opening annotation token and parsed content
+pub fn unwrap_annotation_with_content(
+    opening_token: &LineToken,
+    content: Vec<ContentItem>,
+) -> Result<ContentItem, String> {
+    // Extract text content from the opening annotation
+    let text_content = extract_text_from_token(opening_token);
+
+    // Create an annotation with the extracted text and content
+    let annotation = Annotation {
+        label: Label::from_string(&text_content),
+        parameters: vec![],
+        content,
+        location: Location {
+            start: Position { line: 0, column: 0 },
+            end: Position { line: 0, column: 0 },
+        },
+    };
+
+    Ok(ContentItem::Annotation(annotation))
+}
+
 /// Extract human-readable text from a line token's source tokens.
 ///
 /// This is a simple stub that concatenates Text tokens together.

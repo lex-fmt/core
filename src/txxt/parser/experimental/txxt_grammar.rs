@@ -410,6 +410,53 @@ impl TxxtGrammarRules {
         Some(idx)
     }
 
+    /// Try to match an annotation with block content pattern from tree
+    /// Pattern: ANNOTATION_LINE (opening with label+params) BLANK_LINE? BLOCK ANNOTATION_LINE (closing)
+    /// Examples:
+    /// - `:: note ::\n    paragraph\n::`  (simple case)
+    /// - `:: note author="Jane" ::\n    paragraph\n::`  (with parameters)
+    pub fn try_annotation_from_tree(
+        &self,
+        tree: &[crate::txxt::lexer::LineTokenTree],
+    ) -> Option<usize> {
+        use crate::txxt::lexer::LineTokenTree;
+
+        if tree.len() < 3 {
+            return None; // Need at least: opening_annotation + block + closing_annotation
+        }
+
+        // Must start with ANNOTATION_LINE (opening)
+        let opening_is_annotation = matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::AnnotationLine);
+        if !opening_is_annotation {
+            return None;
+        }
+
+        let mut idx = 1;
+
+        // Optional BLANK_LINE after opening annotation
+        let has_blank = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
+        if has_blank {
+            idx += 1;
+        }
+
+        // Must have a BLOCK (indented content) after blank (or opening if no blank)
+        let has_block = matches!(tree.get(idx), Some(LineTokenTree::Block(_)));
+        if !has_block {
+            return None;
+        }
+        idx += 1;
+
+        // Must have a closing ANNOTATION_LINE (::)
+        let has_closing = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::AnnotationLine);
+        if !has_closing {
+            return None;
+        }
+        idx += 1;
+
+        // Successfully matched: annotation block blank block annotation
+        Some(idx)
+    }
+
     /// Try to match a paragraph (fallback - always succeeds, consumes tokens until blank or structural)
     pub fn try_paragraph(&self, token_types: &[LineTokenType]) -> Option<usize> {
         if token_types.is_empty() {

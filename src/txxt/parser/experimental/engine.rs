@@ -129,6 +129,27 @@ fn parse_node_at_level(
     // - Paragraphs are the fallback
 
     // 1. ANNOTATION: Lines with :: markers (take precedence everywhere)
+    // Try block annotations first (:: label :: ... ::), then single-line annotations (:: label ::)
+
+    // Block annotation: ANNOTATION_LINE + BLOCK + ANNOTATION_LINE
+    if let Some(consumed) = grammar.try_annotation_from_tree(tree) {
+        if let LineTokenTree::Token(opening_token) = &tree[0] {
+            let block_idx = if matches!(tree.get(1), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
+            {
+                2
+            } else {
+                1
+            };
+            if let LineTokenTree::Block(block_children) = &tree[block_idx] {
+                let block_content = walk_and_parse(block_children, source)?;
+                let item =
+                    super::unwrapper::unwrap_annotation_with_content(opening_token, block_content)?;
+                return Ok((item, consumed));
+            }
+        }
+    }
+
+    // Single-line annotation: just :: label ::
     if let Some(_consumed) = grammar.try_annotation(token_types) {
         if let LineTokenTree::Token(line_token) = &tree[0] {
             let item = super::unwrapper::unwrap_annotation(line_token, source)?;
@@ -349,5 +370,177 @@ mod tests {
             .iter()
             .any(|item| matches!(item, ContentItem::Annotation(_)));
         assert!(has_annotation, "Should contain an Annotation node");
+    }
+
+    #[test]
+    fn test_annotations_120_simple() {
+        let source = std::fs::read_to_string("docs/specs/v1/samples/120-annotations-simple.txxt")
+            .expect("Could not read 120 sample");
+        let tree = experimental_lex(&source).expect("Failed to tokenize");
+        let doc = parse_experimental(tree, &source).expect("Parser failed");
+
+        eprintln!("\n=== 120 ANNOTATIONS SIMPLE ===");
+        eprintln!("Root items count: {}", doc.root.content.len());
+        for (i, item) in doc.root.content.iter().enumerate() {
+            match item {
+                ContentItem::Paragraph(p) => {
+                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
+                }
+                ContentItem::Annotation(a) => {
+                    eprintln!(
+                        "  [{}] Annotation: label='{}' params={}",
+                        i,
+                        a.label.value,
+                        a.parameters.len()
+                    )
+                }
+                ContentItem::Session(s) => {
+                    eprintln!("  [{}] Session: {} items", i, s.content.len())
+                }
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                _ => eprintln!("  [{}] Other", i),
+            }
+        }
+
+        // Verify we have paragraphs and annotations
+        let has_annotations = doc
+            .root
+            .content
+            .iter()
+            .any(|item| matches!(item, ContentItem::Annotation(_)));
+        let has_paragraphs = doc
+            .root
+            .content
+            .iter()
+            .any(|item| matches!(item, ContentItem::Paragraph(_)));
+
+        assert!(has_annotations, "Should contain Annotation nodes");
+        assert!(has_paragraphs, "Should contain Paragraph nodes");
+    }
+
+    #[test]
+    fn test_annotations_130_block_content() {
+        let source =
+            std::fs::read_to_string("docs/specs/v1/samples/130-annotations-block-content.txxt")
+                .expect("Could not read 130 sample");
+        let tree = experimental_lex(&source).expect("Failed to tokenize");
+        let doc = parse_experimental(tree, &source).expect("Parser failed");
+
+        eprintln!("\n=== 130 ANNOTATIONS BLOCK CONTENT ===");
+        eprintln!("Root items count: {}", doc.root.content.len());
+        for (i, item) in doc.root.content.iter().enumerate() {
+            match item {
+                ContentItem::Paragraph(p) => {
+                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
+                }
+                ContentItem::Annotation(a) => {
+                    eprintln!(
+                        "  [{}] Annotation: label='{}' params={} content={} items",
+                        i,
+                        a.label.value,
+                        a.parameters.len(),
+                        a.content.len()
+                    )
+                }
+                ContentItem::Session(s) => {
+                    eprintln!("  [{}] Session: {} items", i, s.content.len())
+                }
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                _ => eprintln!("  [{}] Other", i),
+            }
+        }
+
+        // Verify we have annotations with block content
+        let annotations_with_content = doc
+            .root
+            .content
+            .iter()
+            .filter_map(|item| match item {
+                ContentItem::Annotation(a) => Some(a),
+                _ => None,
+            })
+            .filter(|a| !a.content.is_empty())
+            .count();
+
+        assert!(
+            annotations_with_content > 0,
+            "Should have annotations with block content"
+        );
+    }
+
+    #[test]
+    fn test_annotations_combined_trifecta() {
+        // Test annotations combined with paragraphs, lists, and sessions
+        let source = r#"Document with annotations and trifecta
+
+:: info ::
+
+Paragraph before session.
+
+1. Session with annotation inside
+
+    :: note author="system" ::
+        This is an annotated note within a session
+    ::
+
+    - List item 1
+    - List item 2
+
+    Another paragraph in session.
+
+:: warning severity=high ::
+    - Item in annotated warning
+    - Important item
+::
+
+Final paragraph.
+"#;
+
+        let tree = experimental_lex(source).expect("Failed to tokenize");
+        let doc = parse_experimental(tree, source).expect("Parser failed");
+
+        eprintln!("\n=== ANNOTATIONS + TRIFECTA COMBINED ===");
+        eprintln!("Root items count: {}", doc.root.content.len());
+        for (i, item) in doc.root.content.iter().enumerate() {
+            match item {
+                ContentItem::Paragraph(p) => {
+                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
+                }
+                ContentItem::Annotation(a) => {
+                    eprintln!(
+                        "  [{}] Annotation: label='{}' content={} items",
+                        i,
+                        a.label.value,
+                        a.content.len()
+                    )
+                }
+                ContentItem::Session(s) => {
+                    eprintln!("  [{}] Session: {} items", i, s.content.len())
+                }
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                _ => eprintln!("  [{}] Other", i),
+            }
+        }
+
+        // Verify mixed content
+        let has_annotations = doc
+            .root
+            .content
+            .iter()
+            .any(|item| matches!(item, ContentItem::Annotation(_)));
+        let has_paragraphs = doc
+            .root
+            .content
+            .iter()
+            .any(|item| matches!(item, ContentItem::Paragraph(_)));
+        let has_sessions = doc
+            .root
+            .content
+            .iter()
+            .any(|item| matches!(item, ContentItem::Session(_)));
+
+        assert!(has_annotations, "Should contain annotations");
+        assert!(has_paragraphs, "Should contain paragraphs");
+        assert!(has_sessions, "Should contain sessions");
     }
 }
