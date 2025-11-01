@@ -213,14 +213,14 @@ where
 #[cfg(test)]
 mod tests {
     use crate::txxt::lexer::lex;
-    use crate::txxt::parser::api::parse_with_source;
+    use crate::txxt::parser::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
 
     #[test]
     fn test_annotation_marker_minimal() {
         let source = "Para one. {{paragraph}}\n\n:: note ::\n\nPara two. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         assert_eq!(doc.root.content.len(), 3); // paragraph, annotation, paragraph
         assert!(doc.root.content[1].is_annotation());
@@ -230,7 +230,7 @@ mod tests {
     fn test_annotation_single_line() {
         let source = "Para one. {{paragraph}}\n\n:: note :: This is inline text\n\nPara two. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         assert_eq!(doc.root.content.len(), 3); // paragraph, annotation, paragraph
         let annotation = doc.root.content[1].as_annotation().unwrap();
@@ -244,7 +244,7 @@ mod tests {
         let source = TxxtSources::get_string("120-annotations-simple.txxt")
             .expect("Failed to load sample file");
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Verify document parses successfully and contains expected structure
 
@@ -304,7 +304,7 @@ mod tests {
         let source = TxxtSources::get_string("130-annotations-block-content.txxt")
             .expect("Failed to load sample file");
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Find and verify :: note author="Jane Doe" :: annotation with block content
         let note_annotation = doc

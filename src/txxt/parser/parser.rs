@@ -94,21 +94,6 @@ pub(crate) fn build_document_content_parser(
     })
 }
 
-// Import Phase 3b refactored document parser from elements::document module
-use super::elements::document as document_module;
-
-/// Parse a document - delegated to document module
-/// Phase 5: The document parser requires source text to populate location information
-#[deprecated(
-    note = "Use elements::document(source) + parse(tokens, source) for location-aware parsing"
-)]
-pub fn document() -> impl Parser<TokenLocation, Document, Error = ParserError> {
-    // This function is kept for backward compatibility but delegates to document_module::document(source)
-    // Since this function doesn't have access to source, it uses an empty string.
-    // For proper position tracking, use parse_with_source instead.
-    document_module::document("")
-}
-
 /// Parse with source text - the primary parsing function
 ///
 /// Parses tokens with location information and source text to produce a Document.
@@ -120,6 +105,7 @@ pub fn parse(tokens: Vec<TokenLocation>, source: &str) -> Result<Document, Vec<P
 }
 
 /// Backward-compatibility shim
+#[deprecated(note = "Use parse(tokens, source) instead")]
 pub fn parse_with_source(
     tokens: Vec<TokenLocation>,
     source: &str,
@@ -200,7 +186,7 @@ mod tests {
 
         let source = TxxtSources::get_string("050-trifecta-flat-simple.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
@@ -294,7 +280,7 @@ mod tests {
 
         let source = TxxtSources::get_string("060-trifecta-nesting.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
@@ -410,7 +396,7 @@ mod tests {
 
         let source = TxxtSources::get_string("110-ensemble-with-definitions.txxt").unwrap();
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).unwrap();
+        let doc = parse(tokens, &source).unwrap();
 
         // Item 0-1: Opening paragraphs
         assert_ast(&doc)
@@ -468,7 +454,7 @@ mod tests {
 
         // This should parse successfully but currently fails with:
         // Parse error at location 14..15: reason=Unexpected, found=Some((Newline, 34..35))
-        let doc = parse_with_source(tokens, &source)
+        let doc = parse(tokens, &source)
             .expect("Parser should handle definition with list followed by definition");
 
         // Should have 2 definitions
@@ -486,10 +472,10 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_parse_with_source_simple() {
+    fn test_parse_simple() {
         let input = "Hello world\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         assert_eq!(doc.root.content.len(), 1);
         let para = doc.root.content[0].as_paragraph().unwrap();
@@ -501,10 +487,10 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_with_source_multiline() {
+    fn test_parse_multiline() {
         let input = "First line\nSecond line\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         assert_eq!(doc.root.content.len(), 1);
         let para = doc.root.content[0].as_paragraph().unwrap();
@@ -522,7 +508,7 @@ mod tests {
     fn test_element_at_query_on_parsed_document() {
         let input = "First paragraph\n\n2. Session Title\n\n    Session content\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         // Query for the session (should be at line 2)
         let result = doc.element_at(Position::new(2, 3));
@@ -538,7 +524,7 @@ mod tests {
     fn test_element_at_nested_position() {
         let input = "Title\n\n1. Item one\n\n    Nested content\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         // The document should have at least a paragraph and possibly a list
         assert!(!doc.root.content.is_empty());
@@ -555,7 +541,7 @@ mod tests {
     fn test_position_comparison_in_query() {
         let input = "Line 0\n\nLine 2\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         // Get all items
         let items = doc.root.content.clone();
@@ -583,11 +569,10 @@ mod tests {
         let tokens = lex(input);
 
         // Old parser should still work (without positions)
-        let doc_old =
-            parse_with_source(tokens.clone(), input).expect("Failed to parse without positions");
+        let doc_old = parse(tokens.clone(), input).expect("Failed to parse without positions");
 
         // New parser with positions
-        let doc_new = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc_new = parse(tokens, input).expect("Failed to parse with positions");
 
         // Content should be identical
         assert_eq!(doc_old.root.content.len(), doc_new.root.content.len());
@@ -618,7 +603,7 @@ mod tests {
     fn test_location_boundary_containment() {
         let input = "0123456789\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         let para = doc.root.content[0].as_paragraph().unwrap();
         let location = para.location().unwrap();
@@ -632,7 +617,7 @@ mod tests {
         // Should contain end
         assert!(location.contains(location.end));
 
-        // Shouldมี contain position after end
+        // Should?? contain position after end
         assert!(!location.contains(Position::new(0, 11)));
     }
 
@@ -641,7 +626,7 @@ mod tests {
         // Test that nested paragraphs inside sessions have location information
         let input = "Title\n\n1. Session Title\n\n    Nested paragraph\n\n";
         let tokens = lex(input);
-        let doc = parse_with_source(tokens, input).expect("Failed to parse with positions");
+        let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         assert!(doc.root.content.len() >= 2);
 
@@ -686,7 +671,7 @@ mod tests {
         let source = TxxtSources::get_string("110-ensemble-with-definitions.txxt")
             .expect("Failed to load ensemble sample");
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).expect("Failed to parse ensemble sample");
+        let doc = parse(tokens, &source).expect("Failed to parse ensemble sample");
 
         // Document doesn't have its own location; location comes from root
         assert!(
@@ -764,7 +749,7 @@ mod tests {
         let source = TxxtSources::get_string("120-annotations-simple.txxt")
             .expect("Failed to load annotations sample");
         let tokens = lex(&source);
-        let doc = parse_with_source(tokens, &source).expect("Failed to parse annotations sample");
+        let doc = parse(tokens, &source).expect("Failed to parse annotations sample");
 
         let annotations: Vec<_> = doc
             .root
@@ -789,8 +774,7 @@ mod tests {
         let source = TxxtSources::get_string("140-foreign-blocks-simple.txxt")
             .expect("Failed to load foreign blocks sample");
         let tokens = lex(&source);
-        let doc =
-            parse_with_source(tokens, &source).expect("Failed to parse foreign blocks sample");
+        let doc = parse(tokens, &source).expect("Failed to parse foreign blocks sample");
 
         let foreign_blocks: Vec<_> = doc
             .root

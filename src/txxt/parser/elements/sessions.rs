@@ -69,7 +69,7 @@ mod tests {
     use crate::txxt::ast::Container;
     use crate::txxt::ast::ContentItem;
     use crate::txxt::lexer::{lex, Token};
-    use crate::txxt::parser::api::parse_with_source;
+    use crate::txxt::parser::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;
 
@@ -91,7 +91,7 @@ mod tests {
         println!("Tokens: {:?}", tokens);
 
         let tokenss = lex(input);
-        let result = parse_with_source(tokenss, input);
+        let result = parse(tokenss, input);
 
         match &result {
             Ok(doc) => {
@@ -135,7 +135,7 @@ mod tests {
         println!("Tokens: {:?}", tokens);
 
         let tokenss: Vec<_> = tokens.into_iter().map(|t| (t, 0..0)).collect();
-        let result = parse_with_source(tokenss, "");
+        let result = parse(tokenss, "");
 
         match &result {
             Ok(doc) => {
@@ -212,7 +212,7 @@ mod tests {
             .expect("Failed to load sample file");
         let tokens = lex(&source);
 
-        let result = parse_with_source(tokens, &source);
+        let result = parse(tokens, &source);
         assert!(
             result.is_ok(),
             "Failed to parse 010-paragraphs-sessions-flat-single.txxt: {:?}",
@@ -269,7 +269,7 @@ mod tests {
             .expect("Failed to load sample file");
         let tokens = lex(&source);
 
-        let result = parse_with_source(tokens, &source);
+        let result = parse(tokens, &source);
         assert!(
             result.is_ok(),
             "Failed to parse 020-paragraphs-sessions-flat-multiple.txxt: {:?}",
@@ -345,7 +345,7 @@ mod tests {
             .expect("Failed to load sample file");
         let tokens = lex(&source);
 
-        let result = parse_with_source(tokens, &source);
+        let result = parse(tokens, &source);
         assert!(
             result.is_ok(),
             "Failed to parse 030-paragraphs-sessions-nested-multiple.txxt: {:?}",
