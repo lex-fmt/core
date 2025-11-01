@@ -1,4 +1,4 @@
-//! Command-line interface for txxt-nano
+//! Command-line interface for txxt
 //! This binary is used to view / convert / process txxt files into (and, in the future, from) different formats.
 //!
 //! Usage:

@@ -443,7 +443,7 @@ mod tests {
 
     #[test]
     fn test_regression_definition_with_list_followed_by_definition() {
-        // Issue: https://github.com/arthur-debert/txxt-nano/issues/41
+        // Issue: https://github.com/arthur-debert/txxt/issues/41
         // See: docs/specs/v1/regression-bugs/parser-definition-list-transition.txxt
 
         let source = std::fs::read_to_string(
