@@ -32,5 +32,8 @@ pub fn mk_tokens(specs: &[(Token, usize, usize)]) -> Tokens {
 /// Create tokens with zero-length spans for convenience in tests that only
 /// care about token order.
 pub fn mk_tokens_with_dummy_span(tokens: Vec<Token>) -> Tokens {
-    tokens.into_iter().map(|token| mk_token(token, 0, 0)).collect()
+    tokens
+        .into_iter()
+        .map(|token| mk_token(token, 0, 0))
+        .collect()
 }
