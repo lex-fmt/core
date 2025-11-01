@@ -357,7 +357,7 @@ mod tests {
     #[test]
     fn test_element_at_simple_paragraph() {
         let para = Paragraph::from_line("Test".to_string())
-            .with_location(Location::new(Position::new(0, 0), Position::new(0, 4)));
+            .at(Location::new(Position::new(0, 0), Position::new(0, 4)));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 2);
@@ -372,7 +372,7 @@ mod tests {
     #[test]
     fn test_element_at_position_outside_location() {
         let para = Paragraph::from_line("Test".to_string())
-            .with_location(Location::new(Position::new(0, 0), Position::new(0, 4)));
+            .at(Location::new(Position::new(0, 0), Position::new(0, 4)));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 10);
@@ -393,7 +393,7 @@ mod tests {
     #[test]
     fn test_element_at_nested_session() {
         let para = Paragraph::from_line("Nested".to_string())
-            .with_location(Location::new(Position::new(1, 0), Position::new(1, 6)));
+            .at(Location::new(Position::new(1, 0), Position::new(1, 6)));
         let session = Session::new(
             super::super::super::text_content::TextContent::from_string(
                 "Section".to_string(),
@@ -401,7 +401,7 @@ mod tests {
             ),
             vec![ContentItem::Paragraph(para)],
         )
-        .with_location(Location::new(Position::new(0, 0), Position::new(2, 0)));
+        .at(Location::new(Position::new(0, 0), Position::new(2, 0)));
         let item = ContentItem::Session(session);
 
         let pos = Position::new(1, 3);

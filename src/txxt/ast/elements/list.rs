@@ -60,6 +60,10 @@ impl List {
         self.location = location;
         self
     }
+    /// Preferred builder
+    pub fn at(self, location: Location) -> Self {
+        self.with_location(location)
+    }
 }
 
 impl AstNode for List {
@@ -114,6 +118,10 @@ impl ListItem {
     pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         self
+    }
+    /// Preferred builder
+    pub fn at(self, location: Location) -> Self {
+        self.with_location(location)
     }
     pub fn text(&self) -> &str {
         self.text[0].as_string()
