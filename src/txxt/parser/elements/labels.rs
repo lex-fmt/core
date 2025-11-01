@@ -166,7 +166,7 @@ mod tests {
     fn test_annotation_with_dashed_label() {
         let source = ":: code-review ::\n\nText. {{paragraph}}\n";
         let tokens = lex(source);
-        let doc = parse_with_source(tokens, source).unwrap();
+        let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
         assert_eq!(annotation.label.value, "code-review");

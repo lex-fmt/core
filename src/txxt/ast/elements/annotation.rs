@@ -85,13 +85,14 @@ impl Annotation {
             location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Location) -> Self {
-        self.location = location;
-        self
+    #[deprecated(note = "Use at(location) instead")]
+    pub fn with_location(self, location: Location) -> Self {
+        self.at(location)
     }
     /// Preferred builder
-    pub fn at(self, location: Location) -> Self {
-        self.with_location(location)
+    pub fn at(mut self, location: Location) -> Self {
+        self.location = location;
+        self
     }
 }
 
@@ -106,8 +107,8 @@ impl AstNode for Annotation {
             format!("{} ({} params)", self.label.value, self.parameters.len())
         }
     }
-    fn location(&self) -> Option<Location> {
-        Some(self.location)
+    fn location(&self) -> Location {
+        self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -150,7 +151,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let annotation = Annotation::marker(Label::new("test".to_string())).with_location(location);
+        let annotation = Annotation::marker(Label::new("test".to_string())).at(location);
         assert_eq!(annotation.location, location);
     }
 }

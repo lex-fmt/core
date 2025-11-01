@@ -58,7 +58,7 @@ impl AstNode for ContentItem {
         }
     }
 
-    fn location(&self) -> Option<Location> {
+    fn location(&self) -> Location {
         match self {
             ContentItem::Paragraph(p) => p.location(),
             ContentItem::Session(s) => s.location(),
@@ -299,7 +299,7 @@ impl ContentItem {
         // location contains the position.
         // If nested elements were found, they would have been returned above.
         // If no nested results were found, this item is the deepest element at the position.
-        if self.location().is_some_and(|l| l.contains(pos)) {
+        if self.location().contains(pos) {
             Some(self)
         } else {
             None

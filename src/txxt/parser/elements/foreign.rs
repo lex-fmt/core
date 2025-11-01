@@ -90,7 +90,7 @@ pub(crate) fn foreign_block(
                 let paragraph_location = byte_range_to_location(&source_for_annotation, &range);
                 let text_content = TextContent::from_string(text, Some(paragraph_location));
                 let text_line =
-                    crate::txxt::ast::TextLine::new(text_content).with_location(paragraph_location);
+                    crate::txxt::ast::TextLine::new(text_content).at(paragraph_location);
                 let paragraph = Paragraph {
                     lines: vec![ContentItem::TextLine(text_line)],
                     location: paragraph_location,

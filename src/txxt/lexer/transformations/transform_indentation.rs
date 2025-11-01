@@ -860,8 +860,8 @@ mod tests {
         //            13..20 "Subitem", 20..21 " ", 21..22 "A", 22..23 "\n",
         //            23..27 "    ", 27..28 "-", 28..29 " ", 29..36 "Subitem", 36..37 " ", 37..38 "B"
 
-        let tokens_with_locations = crate::txxt::lexer::tokenize(source);
-        let result = transform_indentation(tokens_with_locations);
+        let tokens = crate::txxt::lexer::tokenize(source);
+        let result = transform_indentation(tokens);
 
         // Find the IndentLevel token
         let indent_level_pos = result
