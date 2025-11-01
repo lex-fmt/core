@@ -49,8 +49,8 @@ pub enum OutputFormat {
     AstTreeviz,
     AstPosition, // AST position lookup format
     // Experimental pipeline formats
-    ExperimentalLineTokens,
-    ExperimentalTokenTree,
+    TokenLine,
+    TokenTree,
 }
 
 /// Represents a complete processing specification
@@ -71,18 +71,6 @@ impl ProcessingSpec {
         let stage = match parts[0] {
             "token" => ProcessingStage::Token,
             "ast" => ProcessingStage::Ast,
-            "experimental-line-tokens" => {
-                return Ok(ProcessingSpec {
-                    stage: ProcessingStage::Token,
-                    format: OutputFormat::ExperimentalLineTokens,
-                })
-            }
-            "experimental-token-tree" => {
-                return Ok(ProcessingSpec {
-                    stage: ProcessingStage::Token,
-                    format: OutputFormat::ExperimentalTokenTree,
-                })
-            }
             _ => return Err(ProcessingError::InvalidStage(parts[0].to_string())),
         };
 
@@ -95,6 +83,8 @@ impl ProcessingSpec {
             "tag" => OutputFormat::AstTag,
             "treeviz" => OutputFormat::AstTreeviz,
             "position" => OutputFormat::AstPosition,
+            "line" => OutputFormat::TokenLine,
+            "tree" => OutputFormat::TokenTree,
             _ => return Err(ProcessingError::InvalidFormatType(parts[1..].join("-"))),
         };
 
@@ -163,11 +153,11 @@ impl ProcessingSpec {
             },
             ProcessingSpec {
                 stage: ProcessingStage::Token,
-                format: OutputFormat::ExperimentalLineTokens,
+                format: OutputFormat::TokenLine,
             },
             ProcessingSpec {
                 stage: ProcessingStage::Token,
-                format: OutputFormat::ExperimentalTokenTree,
+                format: OutputFormat::TokenTree,
             },
         ]
     }
@@ -220,9 +210,9 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
         fs::read_to_string(file_path).map_err(|e| ProcessingError::IoError(e.to_string()))?;
 
     // Process according to stage and format
-    // Handle experimental formats first
+    // Handle experimental pipeline formats first
     match &spec.format {
-        OutputFormat::ExperimentalLineTokens => {
+        OutputFormat::TokenLine => {
             let line_tokens = crate::txxt::lexer::experimental_lex_stage(
                 &content,
                 crate::txxt::lexer::PipelineStage::LineTokens,
@@ -236,7 +226,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                 "Unexpected output from experimental pipeline".to_string(),
             ))
         }
-        OutputFormat::ExperimentalTokenTree => {
+        OutputFormat::TokenTree => {
             let tree = crate::txxt::lexer::experimental_lex(&content);
             let json = serde_json::to_string_pretty(&tree)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
@@ -366,10 +356,10 @@ fn format_tokenss(
         OutputFormat::AstPosition => Err(ProcessingError::InvalidFormatType(
             "ast-position format only works with ast stage".to_string(),
         )),
-        OutputFormat::ExperimentalLineTokens | OutputFormat::ExperimentalTokenTree => {
+        OutputFormat::TokenLine | OutputFormat::TokenTree => {
             // These formats are handled in process_file_with_extras, not here
             Err(ProcessingError::InvalidFormatType(
-                "Experimental formats should be handled by process_file_with_extras".to_string(),
+                "Token line/tree formats should be handled by process_file_with_extras".to_string(),
             ))
         }
     }
@@ -380,29 +370,25 @@ pub fn available_formats() -> Vec<String> {
     ProcessingSpec::available_specs()
         .into_iter()
         .map(|spec| {
-            // Handle experimental formats separately
-            match spec.format {
-                OutputFormat::ExperimentalLineTokens => "experimental-line-tokens".to_string(),
-                OutputFormat::ExperimentalTokenTree => "experimental-token-tree".to_string(),
-                _ => format!(
-                    "{}-{}",
-                    match spec.stage {
-                        ProcessingStage::Token => "token",
-                        ProcessingStage::Ast => "ast",
-                    },
-                    match spec.format {
-                        OutputFormat::Simple => "simple",
-                        OutputFormat::Json => "json",
-                        OutputFormat::RawSimple => "raw-simple",
-                        OutputFormat::RawJson => "raw-json",
-                        OutputFormat::Xml => "xml",
-                        OutputFormat::AstTag => "tag",
-                        OutputFormat::AstTreeviz => "treeviz",
-                        OutputFormat::AstPosition => "position",
-                        _ => unreachable!(),
-                    }
-                ),
-            }
+            format!(
+                "{}-{}",
+                match spec.stage {
+                    ProcessingStage::Token => "token",
+                    ProcessingStage::Ast => "ast",
+                },
+                match spec.format {
+                    OutputFormat::Simple => "simple",
+                    OutputFormat::Json => "json",
+                    OutputFormat::RawSimple => "raw-simple",
+                    OutputFormat::RawJson => "raw-json",
+                    OutputFormat::Xml => "xml",
+                    OutputFormat::AstTag => "tag",
+                    OutputFormat::AstTreeviz => "treeviz",
+                    OutputFormat::AstPosition => "position",
+                    OutputFormat::TokenLine => "line",
+                    OutputFormat::TokenTree => "tree",
+                }
+            )
         })
         .collect()
 }

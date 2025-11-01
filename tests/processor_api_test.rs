@@ -249,9 +249,9 @@ mod tests {
                 OutputFormat::AstPosition => Err(ProcessingError::InvalidFormatType(
                     "ast-position format only works with ast stage".to_string(),
                 )),
-                OutputFormat::ExperimentalLineTokens | OutputFormat::ExperimentalTokenTree => {
+                OutputFormat::TokenLine | OutputFormat::TokenTree => {
                     Err(ProcessingError::InvalidFormatType(
-                        "Experimental formats require file I/O".to_string(),
+                        "Token line/tree formats require file I/O".to_string(),
                     ))
                 }
             },
