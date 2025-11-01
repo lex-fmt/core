@@ -82,7 +82,7 @@ pub(crate) fn foreign_block(
             let label_location = label_range.map_or(Location::default(), |range| {
                 byte_range_to_location(&source_for_annotation, &range)
             });
-            let label = Label::new(label_text).with_location(label_location);
+            let label = Label::new(label_text).at(label_location);
 
             let (content, paragraph_location) = if let Some(locations) = content_location {
                 let text = extract_text_from_locations(&source_for_annotation, &locations);

@@ -131,7 +131,7 @@ where
                 let label_location = label_range.map_or(Location::default(), |s| {
                     byte_range_to_location(&source_for_block, &s)
                 });
-                let label = Label::new(label_text).with_location(label_location);
+                let label = Label::new(label_text).at(label_location);
 
                 let header_location = byte_range_to_location(&source_for_block, &header_range);
 
@@ -172,7 +172,7 @@ where
                 let label_location = label_range.map_or(Location::default(), |s| {
                     byte_range_to_location(&source_for_single_line, &s)
                 });
-                let label = Label::new(label_text).with_location(label_location);
+                let label = Label::new(label_text).at(label_location);
 
                 // Handle content if present and compute paragraph location
                 let (content, paragraph_location) = if let Some(locations) = content_location {

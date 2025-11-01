@@ -86,7 +86,7 @@ where
 
             let location = aggregate_locations(line_location, &content);
 
-            ListItem::with_text_content(text_content, content).with_location(location)
+            ListItem::with_text_content(text_content, content).at(location)
         });
 
     single_list_item.repeated().at_least(2).map(|items| {
