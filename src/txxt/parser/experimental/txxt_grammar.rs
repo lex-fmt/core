@@ -34,6 +34,26 @@ pub fn token_types_to_string(tokens: &[LineTokenType]) -> String {
         .join(" ")
 }
 
+/// Helper to analyze lead characteristics
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LeadType {
+    Annotation,  // Has :: markers
+    SeqMarker,   // Starts with list marker (-, 1., a., I., etc.)
+    SubjectLine, // Ends with colon
+    PlainText,   // Plain text line (could be session, paragraph, etc.)
+}
+
+/// Analyze a line token to determine its lead type
+pub fn analyze_lead(token: &crate::txxt::lexer::LineToken) -> LeadType {
+    match token.line_type {
+        LineTokenType::AnnotationLine => LeadType::Annotation,
+        LineTokenType::ListLine => LeadType::SeqMarker,
+        LineTokenType::SubjectLine => LeadType::SubjectLine,
+        LineTokenType::ParagraphLine => LeadType::PlainText,
+        _ => LeadType::PlainText,
+    }
+}
+
 /// Represents a recognized grammar pattern
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchedPattern {
@@ -129,8 +149,9 @@ impl TxxtGrammarRules {
         }
     }
 
-    /// Try to match a list pattern
+    /// Try to match a list pattern (DEPRECATED - use try_list_from_tree)
     /// Pattern: BLANK_LINE + 2+ list items (LIST_LINE or SUBJECT_LINE with list marker)
+    #[deprecated]
     pub fn try_list(&self, token_types: &[LineTokenType]) -> Option<usize> {
         if token_types.is_empty() {
             return None;
@@ -171,6 +192,74 @@ impl TxxtGrammarRules {
         }
     }
 
+    /// Try to match a list pattern using tree structure
+    ///
+    /// Pattern: LIST_ITEM (BLANK_LINE? BLOCK)? LIST_ITEM (BLANK_LINE? BLOCK)? ...
+    ///
+    /// Key characteristics of a LIST:
+    /// - Starts with SEQ_MARKER (-, 1., a., I., etc.)
+    /// - NO blank line after the marker (forbidden between items)
+    /// - Optional content block (indented children)
+    /// - Next item is another SEQ_MARKER at same level
+    /// - Requires at least 2 items to be a list
+    pub fn try_list_from_tree(&self, tree: &[crate::txxt::lexer::LineTokenTree]) -> Option<usize> {
+        use crate::txxt::lexer::LineTokenTree;
+
+        if tree.is_empty() {
+            return None;
+        }
+
+        // Must start with LIST_LINE
+        let first_is_list_line = matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::ListLine);
+        if !first_is_list_line {
+            return None;
+        }
+
+        // Count list items: each LIST_ITEM = LIST_LINE (BLANK_LINE? BLOCK)?
+        // KEY: NO blank line is allowed between items (blank lines are only WITHIN items, before their content block)
+        let mut tree_idx = 0;
+        let mut item_count = 0;
+
+        while tree_idx < tree.len() {
+            // Must have a LIST_LINE at this position
+            match tree.get(tree_idx) {
+                Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::ListLine => {
+                    item_count += 1;
+                    tree_idx += 1;
+                }
+                _ => break, // No more list items
+            }
+
+            // Check for optional BLANK_LINE? BLOCK pattern (content of this list item)
+            if tree_idx < tree.len() {
+                // Check if next is BLANK_LINE
+                let has_blank = matches!(tree.get(tree_idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
+                if has_blank {
+                    tree_idx += 1;
+                }
+
+                // Check if next is BLOCK (the indented content of this item)
+                if matches!(tree.get(tree_idx), Some(LineTokenTree::Block(_))) {
+                    tree_idx += 1;
+                }
+            }
+
+            // Stop if next item is not a LIST_LINE
+            // This prevents "1. Item\n2. Item" from being parsed as a list when followed by "1. Session"
+            if !matches!(tree.get(tree_idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::ListLine)
+            {
+                break;
+            }
+        }
+
+        // Require at least 2 list items
+        if item_count >= 2 {
+            Some(tree_idx)
+        } else {
+            None
+        }
+    }
+
     /// Try to match a definition pattern (no blank line between subject and block)
     /// Pattern: SUBJECT_LINE (without BLANK_LINE following)
     /// Note: When used with has_following_block, the Block itself represents the INDENT
@@ -201,6 +290,7 @@ impl TxxtGrammarRules {
     /// Try to match a session pattern (with blank line between subject and block)
     /// Pattern: SUBJECT_LINE + BLANK_LINE
     /// Note: When used with has_following_block, the Block itself represents the INDENT
+    #[deprecated]
     pub fn try_session(&self, token_types: &[LineTokenType]) -> Option<usize> {
         if token_types.is_empty() {
             return None;
@@ -223,6 +313,62 @@ impl TxxtGrammarRules {
             // If no explicit INDENT token, just SUBJECT_LINE + BLANK_LINE (Block will follow implicitly)
             Some(2)
         }
+    }
+
+    /// Try to match a session pattern using tree structure
+    ///
+    /// Pattern: (BLANK_LINE?) <ANY_LINE> BLANK_LINE BLOCK
+    ///
+    /// Key characteristics of a SESSION:
+    /// - The lead line is surrounded by blank lines (before and after)
+    /// - Followed by indented content block
+    /// - The lead can be ANY line type except annotation (which stands alone)
+    ///
+    /// Note: A SESSION requires a blank line AFTER the lead (distinguishes from DEFINITION)
+    pub fn try_session_from_tree(
+        &self,
+        tree: &[crate::txxt::lexer::LineTokenTree],
+    ) -> Option<usize> {
+        use crate::txxt::lexer::LineTokenTree;
+
+        if tree.len() < 3 {
+            return None; // Need at least: lead + blank + block
+        }
+
+        // Check for optional BLANK_LINE before lead
+        let mut idx = 0;
+        if matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
+        {
+            idx = 1;
+        }
+
+        // Must have a lead (any line except blank or structural)
+        let lead_is_valid = matches!(tree.get(idx), Some(LineTokenTree::Token(t))
+            if t.line_type != LineTokenType::BlankLine
+            && t.line_type != LineTokenType::IndentLevel
+            && t.line_type != LineTokenType::DedentLevel);
+
+        if !lead_is_valid {
+            return None;
+        }
+        idx += 1;
+
+        // Must have a BLANK_LINE after lead
+        let has_blank_after = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
+        if !has_blank_after {
+            return None;
+        }
+        idx += 1;
+
+        // Must have a BLOCK (indented content) after blank
+        let has_block = matches!(tree.get(idx), Some(LineTokenTree::Block(_)));
+        if !has_block {
+            return None;
+        }
+        idx += 1;
+
+        // Successfully matched: (blank?) lead blank block
+        Some(idx)
     }
 
     /// Try to match a paragraph (fallback - always succeeds, consumes tokens until blank or structural)
@@ -447,6 +593,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_list_pattern_match_two_items() {
         let rules = TxxtGrammarRules::new().unwrap();
         let tokens = vec![
@@ -460,6 +607,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_list_pattern_no_match_single_item() {
         let rules = TxxtGrammarRules::new().unwrap();
         let tokens = vec![LineTokenType::BlankLine, LineTokenType::ListLine];
@@ -469,6 +617,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_list_pattern_stops_at_blank_line() {
         let rules = TxxtGrammarRules::new().unwrap();
         let tokens = vec![
@@ -513,6 +662,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_session_pattern_match() {
         let rules = TxxtGrammarRules::new().unwrap();
         let tokens = vec![
@@ -526,6 +676,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_session_pattern_no_match_no_blank_line() {
         let rules = TxxtGrammarRules::new().unwrap();
         let tokens = vec![LineTokenType::SubjectLine, LineTokenType::IndentLevel];

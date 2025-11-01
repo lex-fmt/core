@@ -117,15 +117,16 @@ fn parse_node_at_level(
     let has_following_block = token_types.len() < tree.len()
         && matches!(tree.get(token_types.len()), Some(LineTokenTree::Block(_)));
 
-    // PATTERN MATCHING ORDER (from parsing.txxt and user feedback)
-    // Annotation → Foreign Block → Definition → List → Session → Paragraph
+    // PATTERN MATCHING ORDER (based on blank line context)
+    // Annotation → Foreign Block → Session → Definition → List → Paragraph
     //
     // Key reasons for this order:
-    // - Annotations can appear in foreign blocks (as closing markers), detect first
-    // - Foreign blocks have unambiguous indentation wall boundaries
-    // - Definitions/Sessions both use colon-ending, disambiguated by blank line presence
-    // - Lists require blank line before + 2+ items
-    // - Paragraphs are the catch-all fallback
+    // - Annotations are standalone (::), detect first
+    // - Foreign blocks have unambiguous pattern (subject→block→annotation)
+    // - Sessions: BLANK-before + any-lead + BLANK-after + block (requires blanks around lead!)
+    // - Definitions: any-lead + NO-blank + block (no breathing room)
+    // - Lists: seq-marker + (blank?+block)* + seq-marker (requires 2+ items)
+    // - Paragraphs are the fallback
 
     // 1. ANNOTATION: Lines with :: markers (take precedence everywhere)
     if let Some(_consumed) = grammar.try_annotation(token_types) {
@@ -164,7 +165,28 @@ fn parse_node_at_level(
         }
     }
 
-    // 3. DEFINITION: SUBJECT_LINE + Block (no blank line between)
+    // 3. SESSION: (BLANK_LINE?) <ANY_LINE> BLANK_LINE BLOCK
+    // Check BEFORE definition/list because sessions have specific blank-line signature
+    if let Some(consumed) = grammar.try_session_from_tree(tree) {
+        // Find the actual lead token (skipping optional blank before)
+        let lead_idx = if matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
+        {
+            1
+        } else {
+            0
+        };
+
+        if let LineTokenTree::Token(lead_token) = &tree[lead_idx] {
+            // Find the block (it's at position consumed-1)
+            if let LineTokenTree::Block(block_children) = &tree[consumed - 1] {
+                let block_content = walk_and_parse(block_children, source)?;
+                let item = super::unwrapper::unwrap_session(lead_token, block_content)?;
+                return Ok((item, consumed));
+            }
+        }
+    }
+
+    // 4. DEFINITION: <ANY_LINE> NO-BLANK BLOCK
     if has_following_block {
         if let Some(_consumed) = grammar.try_definition(token_types) {
             if let LineTokenTree::Token(subject_token) = &tree[0] {
@@ -178,38 +200,43 @@ fn parse_node_at_level(
         }
     }
 
-    // 4. LIST: BLANK_LINE + 2+ list items
-    if let Some(consumed) = grammar.try_list(token_types) {
+    // 5. LIST: LIST_ITEM (BLANK_LINE? BLOCK)? LIST_ITEM (BLANK_LINE? BLOCK)? ...
+    if let Some(consumed) = grammar.try_list_from_tree(tree) {
         let mut list_items = Vec::new();
-        let mut tree_idx = 1; // Skip blank line
+        let mut tree_idx = 0;
 
-        while tree_idx < tree.len() && list_items.len() < consumed - 1 {
+        // Parse each list item: LIST_LINE (BLANK_LINE? BLOCK)?
+        while tree_idx < consumed {
             if let LineTokenTree::Token(item_token) = &tree[tree_idx] {
-                let item = super::unwrapper::unwrap_list_item(item_token, vec![])?;
-                list_items.push(item);
-                tree_idx += 1;
-            } else {
-                break;
+                if item_token.line_type == LineTokenType::ListLine {
+                    tree_idx += 1;
+
+                    // Check for optional BLANK_LINE
+                    let has_blank = matches!(tree.get(tree_idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
+                    if has_blank {
+                        tree_idx += 1;
+                    }
+
+                    // Check for optional BLOCK (nested content)
+                    let nested_content =
+                        if let Some(LineTokenTree::Block(block_children)) = tree.get(tree_idx) {
+                            tree_idx += 1;
+                            walk_and_parse(block_children, source)?
+                        } else {
+                            vec![]
+                        };
+
+                    let item = super::unwrapper::unwrap_list_item(item_token, nested_content)?;
+                    list_items.push(item);
+                    continue;
+                }
             }
+            tree_idx += 1;
         }
 
         if list_items.len() >= 2 {
             let list = super::unwrapper::unwrap_list(list_items)?;
             return Ok((list, consumed));
-        }
-    }
-
-    // 5. SESSION: SUBJECT_LINE + BLANK_LINE + Block
-    if has_following_block {
-        if let Some(_consumed) = grammar.try_session(token_types) {
-            if let LineTokenTree::Token(subject_token) = &tree[0] {
-                let block_idx = token_types.len();
-                if let LineTokenTree::Block(block_children) = &tree[block_idx] {
-                    let block_content = walk_and_parse(block_children, source)?;
-                    let item = super::unwrapper::unwrap_session(subject_token, block_content)?;
-                    return Ok((item, block_idx + 1));
-                }
-            }
         }
     }
 
@@ -322,5 +349,124 @@ mod tests {
             .iter()
             .any(|item| matches!(item, ContentItem::Annotation(_)));
         assert!(has_annotation, "Should contain an Annotation node");
+    }
+
+    #[test]
+    fn debug_030_nested_sessions() {
+        let source = std::fs::read_to_string(
+            "docs/specs/v1/samples/030-paragraphs-sessions-nested-multiple.txxt",
+        )
+        .expect("Could not read 030 sample");
+        let tree = experimental_lex(&source).expect("Failed to tokenize");
+        let doc = parse_experimental(tree, &source).expect("Parser failed");
+
+        eprintln!("\n=== 030 NESTED SESSIONS ===");
+        eprintln!("Root items count: {}", doc.root.content.len());
+        for (i, item) in doc.root.content.iter().enumerate() {
+            match item {
+                ContentItem::Paragraph(p) => {
+                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
+                }
+                ContentItem::Session(s) => {
+                    eprintln!("  [{}] Session: {} items", i, s.content.len())
+                }
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                _ => eprintln!("  [{}] Other", i),
+            }
+        }
+    }
+
+    #[test]
+    fn debug_050_trifecta_flat() {
+        let source = std::fs::read_to_string("docs/specs/v1/samples/050-trifecta-flat-simple.txxt")
+            .expect("Could not read 050 sample");
+        let tree = experimental_lex(&source).expect("Failed to tokenize");
+        let doc = parse_experimental(tree, &source).expect("Parser failed");
+
+        eprintln!("\n=== 050 TRIFECTA FLAT ===");
+        eprintln!("Root items count: {}", doc.root.content.len());
+        for (i, item) in doc.root.content.iter().enumerate() {
+            match item {
+                ContentItem::Paragraph(p) => {
+                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
+                }
+                ContentItem::Session(s) => {
+                    eprintln!("  [{}] Session: {} items", i, s.content.len())
+                }
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                _ => eprintln!("  [{}] Other", i),
+            }
+        }
+    }
+
+    #[test]
+    fn debug_060_trifecta_nesting() {
+        let source = std::fs::read_to_string("docs/specs/v1/samples/060-trifecta-nesting.txxt")
+            .expect("Could not read 060 sample");
+        let tree = experimental_lex(&source).expect("Failed to tokenize");
+        let doc = parse_experimental(tree, &source).expect("Parser failed");
+
+        eprintln!("\n=== 060 TRIFECTA NESTING ===");
+        eprintln!("Root items count: {}", doc.root.content.len());
+        for (i, item) in doc.root.content.iter().enumerate() {
+            match item {
+                ContentItem::Paragraph(p) => {
+                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
+                }
+                ContentItem::Session(s) => {
+                    eprintln!("  [{}] Session: {} items", i, s.content.len())
+                }
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                _ => eprintln!("  [{}] Other", i),
+            }
+        }
+    }
+
+    #[test]
+    fn debug_070_nested_lists() {
+        let source = std::fs::read_to_string("docs/specs/v1/samples/070-nested-lists-simple.txxt")
+            .expect("Could not read 070 sample");
+        let tree = experimental_lex(&source).expect("Failed to tokenize");
+
+        // Debug: show the token tree structure
+        eprintln!("\n=== 070 TOKEN TREE ===");
+        for (i, node) in tree.iter().enumerate().take(20) {
+            match node {
+                crate::txxt::lexer::LineTokenTree::Token(t) => {
+                    eprintln!("  [{}] Token: {:?}", i, t.line_type);
+                }
+                crate::txxt::lexer::LineTokenTree::Block(children) => {
+                    eprintln!("  [{}] Block with {} children", i, children.len());
+                }
+            }
+        }
+
+        let doc = parse_experimental(tree, &source).expect("Parser failed");
+
+        eprintln!("\n=== 070 NESTED LISTS ===");
+        eprintln!("Root items count: {}", doc.root.content.len());
+        for (i, item) in doc.root.content.iter().enumerate() {
+            match item {
+                ContentItem::Paragraph(p) => {
+                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
+                }
+                ContentItem::Session(s) => {
+                    eprintln!("  [{}] Session: {} items", i, s.content.len());
+                    for (j, subitem) in s.content.iter().enumerate() {
+                        match subitem {
+                            ContentItem::Paragraph(sp) => {
+                                eprintln!("       [{}] Paragraph: {} lines", j, sp.lines.len())
+                            }
+                            ContentItem::List(sl) => {
+                                eprintln!("       [{}] List: {} items", j, sl.content.len())
+                            }
+                            _ => eprintln!("       [{}] Other", j),
+                        }
+                    }
+                }
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                _ => eprintln!("  [{}] Other", i),
+            }
+        }
     }
 }
