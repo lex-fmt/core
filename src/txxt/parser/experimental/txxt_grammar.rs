@@ -54,7 +54,6 @@ pub enum MatchedPattern {
 /// Grammar rules for txxt parsing
 pub struct TxxtGrammarRules {
     annotation_pattern: RegexGrammarMatcher,
-    // More patterns will be added in subsequent steps
 }
 
 impl TxxtGrammarRules {
@@ -84,6 +83,139 @@ impl TxxtGrammarRules {
         }
 
         None
+    }
+
+    /// Try to match a foreign block pattern
+    /// Pattern: SUBJECT_LINE + optional BLANK_LINE + INDENT...DEDENT + ANNOTATION_LINE
+    pub fn try_foreign_block(&self, token_types: &[LineTokenType]) -> Option<(usize, usize)> {
+        if token_types.is_empty() {
+            return None;
+        }
+
+        // Must start with SUBJECT_LINE
+        if token_types[0] != LineTokenType::SubjectLine {
+            return None;
+        }
+
+        // Find pattern: SUBJECT_LINE ... INDENT ... DEDENT ... ANNOTATION_LINE
+        let mut indent_idx = None;
+        let mut dedent_idx = None;
+        let mut annotation_idx = None;
+
+        for (i, token_type) in token_types.iter().enumerate() {
+            if *token_type == LineTokenType::IndentLevel && indent_idx.is_none() {
+                indent_idx = Some(i);
+            } else if *token_type == LineTokenType::DedentLevel
+                && dedent_idx.is_none()
+                && indent_idx.is_some()
+            {
+                dedent_idx = Some(i);
+            } else if *token_type == LineTokenType::AnnotationLine
+                && annotation_idx.is_none()
+                && dedent_idx.is_some()
+            {
+                annotation_idx = Some(i);
+                break;
+            }
+        }
+
+        // Check if we found the complete pattern
+        match (indent_idx, dedent_idx, annotation_idx) {
+            (Some(indent), Some(_dedent), Some(annotation)) => {
+                let end = annotation + 1;
+                Some((end, indent))
+            }
+            _ => None,
+        }
+    }
+
+    /// Try to match a list pattern
+    /// Pattern: BLANK_LINE + 2+ list items (LIST_LINE or SUBJECT_LINE with list marker)
+    pub fn try_list(&self, token_types: &[LineTokenType]) -> Option<usize> {
+        if token_types.is_empty() {
+            return None;
+        }
+
+        // Must start with BLANK_LINE
+        if token_types[0] != LineTokenType::BlankLine {
+            return None;
+        }
+
+        // Count consecutive LIST_LINE or SUBJECT_LINE items after blank line
+        let mut count = 1; // Count the blank line
+        let mut item_count = 0;
+
+        for token_type in &token_types[1..] {
+            match token_type {
+                LineTokenType::ListLine | LineTokenType::SubjectLine => {
+                    item_count += 1;
+                    count += 1;
+                }
+                LineTokenType::BlankLine
+                | LineTokenType::IndentLevel
+                | LineTokenType::DedentLevel => {
+                    break;
+                }
+                _ => {
+                    count += 1;
+                }
+            }
+        }
+
+        // Require at least 2 list items
+        if item_count >= 2 {
+            Some(count)
+        } else {
+            None
+        }
+    }
+
+    /// Try to match a definition pattern
+    /// Pattern: SUBJECT_LINE + INDENT (no blank line between)
+    pub fn try_definition(&self, token_types: &[LineTokenType]) -> Option<usize> {
+        if token_types.is_empty() {
+            return None;
+        }
+
+        // Must start with SUBJECT_LINE
+        if token_types[0] != LineTokenType::SubjectLine {
+            return None;
+        }
+
+        // Next must be INDENT (not BLANK_LINE)
+        if token_types.len() < 2 {
+            return None;
+        }
+
+        match token_types[1] {
+            LineTokenType::IndentLevel => Some(2), // SUBJECT_LINE + INDENT
+            _ => None,
+        }
+    }
+
+    /// Try to match a session pattern
+    /// Pattern: SUBJECT_LINE + BLANK_LINE + INDENT
+    pub fn try_session(&self, token_types: &[LineTokenType]) -> Option<usize> {
+        if token_types.is_empty() {
+            return None;
+        }
+
+        // Must start with SUBJECT_LINE
+        if token_types[0] != LineTokenType::SubjectLine {
+            return None;
+        }
+
+        // Next must be BLANK_LINE
+        if token_types.len() < 2 || token_types[1] != LineTokenType::BlankLine {
+            return None;
+        }
+
+        // Then must be INDENT
+        if token_types.len() < 3 || token_types[2] != LineTokenType::IndentLevel {
+            return None;
+        }
+
+        Some(3) // SUBJECT_LINE + BLANK_LINE + INDENT
     }
 
     /// Try to match a paragraph (fallback - always succeeds, consumes tokens until blank or structural)
@@ -268,6 +400,126 @@ mod tests {
     fn test_default_creation() {
         let _rules = TxxtGrammarRules::default();
         // If we get here without panicking, default works
+    }
+
+    #[test]
+    fn test_foreign_block_pattern_match() {
+        let rules = TxxtGrammarRules::new().unwrap();
+        let tokens = vec![
+            LineTokenType::SubjectLine,
+            LineTokenType::IndentLevel,
+            LineTokenType::ParagraphLine,
+            LineTokenType::DedentLevel,
+            LineTokenType::AnnotationLine,
+        ];
+
+        let result = rules.try_foreign_block(&tokens);
+        assert!(result.is_some(), "Should match foreign block pattern");
+    }
+
+    #[test]
+    fn test_foreign_block_pattern_no_match_missing_annotation() {
+        let rules = TxxtGrammarRules::new().unwrap();
+        let tokens = vec![
+            LineTokenType::SubjectLine,
+            LineTokenType::IndentLevel,
+            LineTokenType::ParagraphLine,
+            LineTokenType::DedentLevel,
+        ];
+
+        let result = rules.try_foreign_block(&tokens);
+        assert!(
+            result.is_none(),
+            "Should not match without closing annotation"
+        );
+    }
+
+    #[test]
+    fn test_list_pattern_match_two_items() {
+        let rules = TxxtGrammarRules::new().unwrap();
+        let tokens = vec![
+            LineTokenType::BlankLine,
+            LineTokenType::ListLine,
+            LineTokenType::ListLine,
+        ];
+
+        let result = rules.try_list(&tokens);
+        assert_eq!(result, Some(3), "Should match list with 2+ items");
+    }
+
+    #[test]
+    fn test_list_pattern_no_match_single_item() {
+        let rules = TxxtGrammarRules::new().unwrap();
+        let tokens = vec![LineTokenType::BlankLine, LineTokenType::ListLine];
+
+        let result = rules.try_list(&tokens);
+        assert_eq!(result, None, "Should not match single list item");
+    }
+
+    #[test]
+    fn test_list_pattern_stops_at_blank_line() {
+        let rules = TxxtGrammarRules::new().unwrap();
+        let tokens = vec![
+            LineTokenType::BlankLine,
+            LineTokenType::ListLine,
+            LineTokenType::ListLine,
+            LineTokenType::BlankLine,
+            LineTokenType::ListLine,
+        ];
+
+        let result = rules.try_list(&tokens);
+        assert_eq!(
+            result,
+            Some(3),
+            "List should stop at next blank line, consuming 3 items"
+        );
+    }
+
+    #[test]
+    fn test_definition_pattern_match() {
+        let rules = TxxtGrammarRules::new().unwrap();
+        let tokens = vec![LineTokenType::SubjectLine, LineTokenType::IndentLevel];
+
+        let result = rules.try_definition(&tokens);
+        assert_eq!(result, Some(2), "Should match definition pattern");
+    }
+
+    #[test]
+    fn test_definition_pattern_no_match_blank_line_between() {
+        let rules = TxxtGrammarRules::new().unwrap();
+        let tokens = vec![
+            LineTokenType::SubjectLine,
+            LineTokenType::BlankLine,
+            LineTokenType::IndentLevel,
+        ];
+
+        let result = rules.try_definition(&tokens);
+        assert_eq!(
+            result, None,
+            "Should not match definition with blank line after subject"
+        );
+    }
+
+    #[test]
+    fn test_session_pattern_match() {
+        let rules = TxxtGrammarRules::new().unwrap();
+        let tokens = vec![
+            LineTokenType::SubjectLine,
+            LineTokenType::BlankLine,
+            LineTokenType::IndentLevel,
+        ];
+
+        let result = rules.try_session(&tokens);
+        assert_eq!(result, Some(3), "Should match session pattern");
+    }
+
+    #[test]
+    fn test_session_pattern_no_match_no_blank_line() {
+        let rules = TxxtGrammarRules::new().unwrap();
+        let tokens = vec![LineTokenType::SubjectLine, LineTokenType::IndentLevel];
+
+        let result = rules.try_session(&tokens);
+        assert_eq!(result, None, "Should not match session without blank line");
     }
 
     #[test]
