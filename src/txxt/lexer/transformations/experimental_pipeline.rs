@@ -22,12 +22,31 @@
 //!
 //! This pipeline coexists with the existing lexer without modifying it.
 
+use std::fmt;
+
 use crate::txxt::lexer::lexer_impl::tokenize;
 use crate::txxt::lexer::tokens::{LineToken, Token};
 use crate::txxt::lexer::transformations::{
     experimental_transform_indentation_to_token_tree, experimental_transform_to_line_tokens,
     process_whitespace_remainders, transform_blank_lines, transform_indentation,
 };
+
+/// Error type for experimental pipeline operations
+#[derive(Debug, Clone, PartialEq)]
+pub enum PipelineError {
+    /// Unexpected output type from a pipeline stage
+    UnexpectedOutput(String),
+}
+
+impl fmt::Display for PipelineError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PipelineError::UnexpectedOutput(msg) => write!(f, "Unexpected output: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for PipelineError {}
 
 /// Represents a stage in the experimental pipeline for debugging/testing
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,12 +84,17 @@ pub enum PipelineOutput {
 /// * `source` - The input source text
 ///
 /// # Returns
-/// A vector of LineTokenTree nodes representing the hierarchical structure
-pub fn experimental_lex(source: &str) -> Vec<crate::txxt::lexer::LineTokenTree> {
+/// A Result containing a vector of LineTokenTree nodes, or a PipelineError if the
+/// pipeline stage returns an unexpected output type (which should not happen in normal usage).
+pub fn experimental_lex(
+    source: &str,
+) -> Result<Vec<crate::txxt::lexer::LineTokenTree>, PipelineError> {
     let output = experimental_lex_stage(source, PipelineStage::TokenTree);
     match output {
-        PipelineOutput::TokenTree(tree) => tree,
-        _ => panic!("TokenTree stage should return TokenTree output"),
+        PipelineOutput::TokenTree(tree) => Ok(tree),
+        _ => Err(PipelineError::UnexpectedOutput(
+            "TokenTree stage should return TokenTree output".to_string(),
+        )),
     }
 }
 
@@ -92,42 +116,42 @@ pub fn experimental_lex_stage(source: &str, stage: PipelineStage) -> PipelineOut
         source.to_string()
     };
 
+    // Helper function to extract tokens without location information
+    fn extract_tokens(tokens_with_loc: &[(Token, std::ops::Range<usize>)]) -> Vec<Token> {
+        tokens_with_loc.iter().map(|(t, _)| t.clone()).collect()
+    }
+
     // Stage 1: Raw tokenization
     let raw_tokens = tokenize(&source_with_newline);
-    let raw_tokens_only: Vec<Token> = raw_tokens.iter().map(|(t, _)| t.clone()).collect();
-
     if stage == PipelineStage::RawTokens {
-        return PipelineOutput::Tokens(raw_tokens_only);
+        return PipelineOutput::Tokens(extract_tokens(&raw_tokens));
     }
 
     // Stage 2: Whitespace remainder processing
     let after_whitespace = process_whitespace_remainders(raw_tokens);
 
     if stage == PipelineStage::AfterWhitespace {
-        let tokens_only: Vec<Token> = after_whitespace.iter().map(|(t, _)| t.clone()).collect();
-        return PipelineOutput::Tokens(tokens_only);
+        return PipelineOutput::Tokens(extract_tokens(&after_whitespace));
     }
 
     // Stage 3: Indentation transformation
     let after_indentation = transform_indentation(after_whitespace);
 
     if stage == PipelineStage::AfterIndentation {
-        let tokens_only: Vec<Token> = after_indentation.iter().map(|(t, _)| t.clone()).collect();
-        return PipelineOutput::Tokens(tokens_only);
+        return PipelineOutput::Tokens(extract_tokens(&after_indentation));
     }
 
     // Stage 4: Blank line transformation
     let after_blank_lines = transform_blank_lines(after_indentation);
 
     if stage == PipelineStage::AfterBlankLines {
-        let tokens_only: Vec<Token> = after_blank_lines.iter().map(|(t, _)| t.clone()).collect();
-        return PipelineOutput::Tokens(tokens_only);
+        return PipelineOutput::Tokens(extract_tokens(&after_blank_lines));
     }
 
     // Stage 5: Line token transformation (experimental)
-    let line_tokens = experimental_transform_to_line_tokens(
-        after_blank_lines.iter().map(|(t, _)| t.clone()).collect(),
-    );
+    // Extract tokens once for use in line token transformation
+    let tokens_for_line_tokens = extract_tokens(&after_blank_lines);
+    let line_tokens = experimental_transform_to_line_tokens(tokens_for_line_tokens);
 
     if stage == PipelineStage::LineTokens {
         return PipelineOutput::LineTokens(line_tokens.clone());
@@ -145,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_experimental_lex_empty_input() {
-        let result = experimental_lex("");
+        let result = experimental_lex("").expect("Pipeline should not fail");
         // Empty input should produce empty tree
         assert!(result.is_empty());
     }
@@ -153,7 +177,7 @@ mod tests {
     #[test]
     fn test_experimental_lex_single_paragraph() {
         let source = "Hello world";
-        let result = experimental_lex(source);
+        let result = experimental_lex(source).expect("Pipeline should not fail");
         // Single paragraph should produce at least one token
         assert!(!result.is_empty());
     }
@@ -161,14 +185,14 @@ mod tests {
     #[test]
     fn test_experimental_lex_multiple_paragraphs() {
         let source = "First paragraph\n\nSecond paragraph";
-        let result = experimental_lex(source);
+        let result = experimental_lex(source).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_experimental_lex_with_indentation() {
         let source = "Title:\n    Indented content\n    More indented";
-        let result = experimental_lex(source);
+        let result = experimental_lex(source).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
@@ -259,35 +283,35 @@ mod tests {
     #[test]
     fn test_experimental_lex_list_structure() {
         let source = "Items:\n    - First\n    - Second\n    - Third";
-        let result = experimental_lex(source);
+        let result = experimental_lex(source).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_experimental_lex_nested_indentation() {
         let source = "Level 1:\n    Level 2:\n        Level 3 content";
-        let result = experimental_lex(source);
+        let result = experimental_lex(source).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_experimental_lex_with_blank_lines() {
         let source = "Para 1\n\nPara 2\n\nPara 3";
-        let result = experimental_lex(source);
+        let result = experimental_lex(source).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_experimental_lex_mixed_content() {
         let source = "Title:\n\n    First paragraph\n\n    - List item 1\n    - List item 2";
-        let result = experimental_lex(source);
+        let result = experimental_lex(source).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_experimental_lex_with_annotations() {
         let source = ":: note ::\nSome text\n\n:: note :: with inline content";
-        let result = experimental_lex(source);
+        let result = experimental_lex(source).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 }
@@ -300,7 +324,7 @@ mod integration_tests {
     fn test_experimental_pipeline_with_000_paragraphs() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/000-paragraphs.txxt")
             .expect("Could not read sample file");
-        let tree = experimental_lex(&content);
+        let tree = experimental_lex(&content).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for paragraphs"
@@ -311,7 +335,7 @@ mod integration_tests {
     fn test_experimental_pipeline_with_040_lists() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/040-lists.txxt")
             .expect("Could not read sample file");
-        let tree = experimental_lex(&content);
+        let tree = experimental_lex(&content).expect("Pipeline should not fail");
         assert!(!tree.is_empty(), "Token tree should not be empty for lists");
     }
 
@@ -319,7 +343,7 @@ mod integration_tests {
     fn test_experimental_pipeline_with_050_paragraph_lists() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/050-paragraph-lists.txxt")
             .expect("Could not read sample file");
-        let tree = experimental_lex(&content);
+        let tree = experimental_lex(&content).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for mixed content"
@@ -330,7 +354,7 @@ mod integration_tests {
     fn test_experimental_pipeline_with_090_definitions() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/090-definitions-simple.txxt")
             .expect("Could not read sample file");
-        let tree = experimental_lex(&content);
+        let tree = experimental_lex(&content).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for definitions"
@@ -341,7 +365,7 @@ mod integration_tests {
     fn test_experimental_pipeline_with_120_annotations() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/120-annotations-simple.txxt")
             .expect("Could not read sample file");
-        let tree = experimental_lex(&content);
+        let tree = experimental_lex(&content).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for annotations"
@@ -354,7 +378,7 @@ mod integration_tests {
             "docs/specs/v1/samples/030-paragraphs-sessions-nested-multiple.txxt",
         )
         .expect("Could not read sample file");
-        let tree = experimental_lex(&content);
+        let tree = experimental_lex(&content).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for nested sessions"
@@ -365,7 +389,7 @@ mod integration_tests {
     fn test_experimental_pipeline_with_070_nested_lists() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/070-nested-lists-simple.txxt")
             .expect("Could not read sample file");
-        let tree = experimental_lex(&content);
+        let tree = experimental_lex(&content).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for nested lists"

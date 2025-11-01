@@ -227,7 +227,8 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
             ))
         }
         OutputFormat::TokenTree => {
-            let tree = crate::txxt::lexer::experimental_lex(&content);
+            let tree = crate::txxt::lexer::experimental_lex(&content)
+                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
             let json = serde_json::to_string_pretty(&tree)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
             Ok(json)

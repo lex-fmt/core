@@ -68,11 +68,11 @@ pub fn experimental_transform_indentation_to_token_tree(
             }
             crate::txxt::lexer::tokens::LineTokenType::DedentLevel => {
                 // Close current level and add it as a Block to parent
+                // Even empty blocks are preserved - they may be semantically meaningful
+                // (e.g., an empty session body, though this shouldn't occur in valid txxt)
                 if let Some(completed_block) = stack.pop() {
-                    if !completed_block.is_empty() {
-                        let current_level = stack.last_mut().expect("Stack should never be empty");
-                        current_level.push(LineTokenTree::Block(completed_block));
-                    }
+                    let current_level = stack.last_mut().expect("Stack should never be empty");
+                    current_level.push(LineTokenTree::Block(completed_block));
                 }
             }
             _ => {
@@ -337,7 +337,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_blocks_not_created() {
+    fn test_empty_blocks_are_preserved() {
         let input = vec![
             make_line_token(
                 LineTokenType::SubjectLine,
@@ -353,10 +353,16 @@ mod tests {
 
         let result = experimental_transform_indentation_to_token_tree(input);
 
-        // Empty blocks should not be created, just skip
-        assert_eq!(result.len(), 2);
-        assert!(matches!(result[0], LineTokenTree::Token(_)));
-        assert!(matches!(result[1], LineTokenTree::Token(_)));
+        // Empty blocks ARE preserved - they may be semantically meaningful
+        assert_eq!(result.len(), 3);
+        assert!(matches!(result[0], LineTokenTree::Token(_))); // Title
+        assert!(matches!(result[1], LineTokenTree::Block(_))); // Empty block
+        assert!(matches!(result[2], LineTokenTree::Token(_))); // After
+
+        // Verify the empty block is indeed empty
+        if let LineTokenTree::Block(inner) = &result[1] {
+            assert_eq!(inner.len(), 0);
+        }
     }
 
     #[test]
