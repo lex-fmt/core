@@ -26,12 +26,12 @@ type ParserError = Simple<TokenLocation>;
 use super::combinators::paragraph;
 
 // Import parser builders from element modules
+use super::annotations::build_annotation_parser;
 use super::combinators::token;
-use super::elements::annotations::build_annotation_parser;
-use super::elements::definitions::build_definition_parser;
-use super::elements::foreign::foreign_block;
-use super::elements::lists::build_list_parser;
-use super::elements::sessions::build_session_parser;
+use super::definitions::build_definition_parser;
+use super::foreign::foreign_block;
+use super::lists::build_list_parser;
+use super::sessions::build_session_parser;
 use std::sync::Arc;
 
 /// Build the Multi-Parser Bundle for document-level content parsing.
