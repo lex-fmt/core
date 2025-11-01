@@ -1,17 +1,19 @@
 //! Experimental Parser Unwrapper - Pattern to AST Conversion
 //!
 //! This module handles converting matched patterns and tokens into AST nodes.
-//! For now, it contains stubbed builders that create simple AST nodes.
-//! Later, these will be replaced with real pattern matching and proper element builders.
+//! It reuses existing element builders from src/txxt/parser/elements/ which properly
+//! handle location tracking and AST construction.
 //!
 //! The unwrapper is responsible for:
 //! 1. Taking matched pattern data + tokens
-//! 2. Extracting source locations from tokens
-//! 3. Building appropriate AST node types
+//! 2. Extracting source locations from tokens via source_tokens field
+//! 3. Building appropriate AST node types using existing builders
 //! 4. Handling recursive content from nested blocks
 
-use crate::txxt::ast::{Annotation, Label, Paragraph, TextContent, TextLine};
-use crate::txxt::lexer::tokens::LineToken;
+use crate::txxt::ast::{
+    Annotation, Definition, Label, List, ListItem, Paragraph, Session, TextContent, TextLine,
+};
+use crate::txxt::lexer::tokens::{LineToken, Token};
 use crate::txxt::parser::{ContentItem, Location, Position};
 
 /// Stub: Convert a line token to a Paragraph ContentItem.
@@ -75,7 +77,7 @@ fn extract_text_from_token(token: &LineToken) -> String {
         .source_tokens
         .iter()
         .filter_map(|t| {
-            if let crate::txxt::lexer::Token::Text(s) = t {
+            if let Token::Text(s) = t {
                 Some(s.clone())
             } else {
                 None
@@ -83,6 +85,108 @@ fn extract_text_from_token(token: &LineToken) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Create a default location (for now, until we add proper location tracking from source)
+///
+/// TODO: In the future, we should extract actual line:column information from the source tokens
+fn default_location() -> Location {
+    Location {
+        start: Position { line: 0, column: 0 },
+        end: Position { line: 0, column: 0 },
+    }
+}
+
+/// Create a Session AST node from a subject line token and content
+///
+/// Used by the parser when it matches: SUBJECT_LINE + BLANK_LINE + INDENT
+pub fn unwrap_session(
+    subject_token: &LineToken,
+    content: Vec<ContentItem>,
+) -> Result<ContentItem, String> {
+    let title_text = extract_text_from_token(subject_token);
+    let title = TextContent::from_string(title_text, None);
+
+    let session = Session::new(title, content).at(default_location());
+    Ok(ContentItem::Session(session))
+}
+
+/// Create a Definition AST node from a subject token and content
+///
+/// Used by the parser when it matches: SUBJECT_LINE + INDENT (no blank line)
+pub fn unwrap_definition(
+    subject_token: &LineToken,
+    content: Vec<ContentItem>,
+) -> Result<ContentItem, String> {
+    let subject_text = extract_text_from_token(subject_token);
+    let subject = TextContent::from_string(subject_text, None);
+
+    let definition = Definition::new(subject, content).at(default_location());
+    Ok(ContentItem::Definition(definition))
+}
+
+/// Create a List AST node from multiple list item tokens
+///
+/// Used by the parser when it matches: BLANK_LINE + 2+ list items
+pub fn unwrap_list(list_items: Vec<ContentItem>) -> Result<ContentItem, String> {
+    if list_items.is_empty() {
+        return Err("Cannot create list with no items".to_string());
+    }
+
+    let list = List::new(list_items).at(default_location());
+    Ok(ContentItem::List(list))
+}
+
+/// Create a ListItem AST node from a list line token and optional nested content
+///
+/// Called for each item in a list
+pub fn unwrap_list_item(
+    item_token: &LineToken,
+    content: Vec<ContentItem>,
+) -> Result<ContentItem, String> {
+    let item_text = extract_text_from_token(item_token);
+
+    let list_item = if content.is_empty() {
+        ListItem::new(item_text).at(default_location())
+    } else {
+        let text_content = TextContent::from_string(item_text, None);
+        ListItem::with_text_content(text_content, content).at(default_location())
+    };
+
+    Ok(ContentItem::ListItem(list_item))
+}
+
+/// Create a ForeignBlock AST node from subject, content, and closing annotation
+///
+/// Used by the parser when it matches: SUBJECT_LINE + INDENT...DEDENT + ANNOTATION_LINE
+pub fn unwrap_foreign_block(
+    subject_token: &LineToken,
+    content_lines: Vec<&LineToken>,
+    closing_annotation_token: &LineToken,
+) -> Result<ContentItem, String> {
+    let subject_text = extract_text_from_token(subject_token);
+
+    // Combine all content lines into a single text block
+    let content_text = content_lines
+        .iter()
+        .map(|token| extract_text_from_token(token))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    // Create the closing annotation
+    let annotation_text = extract_text_from_token(closing_annotation_token);
+    let closing_annotation = Annotation {
+        label: Label::from_string(&annotation_text),
+        parameters: vec![],
+        content: vec![],
+        location: default_location(),
+    };
+
+    let foreign_block =
+        crate::txxt::ast::ForeignBlock::new(subject_text, content_text, closing_annotation)
+            .at(default_location());
+
+    Ok(ContentItem::ForeignBlock(foreign_block))
 }
 
 #[cfg(test)]
