@@ -76,12 +76,17 @@ pub fn transform_blank_lines(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::txxt::testing::factories::{mk_token, Tokens};
 
-    fn with_loc(tokens: Vec<Token>) -> Vec<(Token, std::ops::Range<usize>)> {
-        tokens.into_iter().map(|t| (t, 0..0)).collect()
+    fn with_loc(tokens: Vec<Token>) -> Tokens {
+        tokens
+            .into_iter()
+            .enumerate()
+            .map(|(idx, token)| mk_token(token, idx, idx + 1))
+            .collect()
     }
 
-    fn strip_loc(pairs: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Token> {
+    fn strip_loc(pairs: Tokens) -> Vec<Token> {
         pairs.into_iter().map(|(t, _)| t).collect()
     }
 
@@ -267,22 +272,21 @@ mod tests {
 
     #[test]
     fn test_blank_lines() {
-        let input = vec![
-            (Token::Text("t".to_string()), 0..4),
-            (Token::Newline, 4..5),
-            (Token::Newline, 5..6),
-            (Token::Text("t".to_string()), 6..10),
+        let input: Tokens = vec![
+            mk_token(Token::Text("t".to_string()), 0, 4),
+            mk_token(Token::Newline, 4, 5),
+            mk_token(Token::Newline, 5, 6),
+            mk_token(Token::Text("t".to_string()), 6, 10),
         ];
+
         let result = transform_blank_lines(input);
-        assert_eq!(
-            result,
-            vec![
-                (Token::Text("t".to_string()), 0..4),
-                (Token::Newline, 4..5),
-                (Token::BlankLine, 5..6), // BlankLine covers the 2nd newline
-                (Token::Text("t".to_string()), 6..10),
-            ]
-        );
+        let expected: Tokens = vec![
+            mk_token(Token::Text("t".to_string()), 0, 4),
+            mk_token(Token::Newline, 4, 5),
+            mk_token(Token::BlankLine, 5, 6),
+            mk_token(Token::Text("t".to_string()), 6, 10),
+        ];
+        assert_eq!(result, expected);
     }
 
     // ========== location TESTS ==========
@@ -304,11 +308,11 @@ mod tests {
 
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
-        assert_eq!(result[0], (Token::Text("a".to_string()), 0..1));
-        assert_eq!(result[1], (Token::Newline, 1..2));
+        assert_eq!(result[0], mk_token(Token::Text("a".to_string()), 0, 1));
+        assert_eq!(result[1], mk_token(Token::Newline, 1, 2));
         assert_eq!(result[2].0, Token::BlankLine);
         assert_eq!(result[2].1, 2..3, "BlankLine should cover the 2nd newline");
-        assert_eq!(result[3], (Token::Text("b".to_string()), 3..4));
+        assert_eq!(result[3], mk_token(Token::Text("b".to_string()), 3, 4));
     }
 
     #[test]
@@ -397,17 +401,17 @@ mod tests {
     fn test_blank_line_at_start_has_correct_location() {
         // Test: BlankLine at document start
         // Input: "\n\na" (starts with blank line)
-        let input = vec![
-            (Token::Newline, 0..1),
-            (Token::Newline, 1..2),
-            (Token::Text("a".to_string()), 2..3),
+        let input: Tokens = vec![
+            mk_token(Token::Newline, 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Text("a".to_string()), 2, 3),
         ];
 
         let result = transform_blank_lines(input);
 
         // Expected: Newline, BlankLine, Text("a")
         assert_eq!(result.len(), 3);
-        assert_eq!(result[0], (Token::Newline, 0..1));
+        assert_eq!(result[0], mk_token(Token::Newline, 0, 1));
         assert_eq!(result[1].0, Token::BlankLine);
         assert_eq!(result[1].1, 1..2, "BlankLine at start should be at 1..2");
     }
@@ -416,10 +420,10 @@ mod tests {
     fn test_blank_line_at_end_has_correct_location() {
         // Test: BlankLine at document end
         // Input: "a\n\n" (ends with blank line)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3),
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3),
         ];
 
         let result = transform_blank_lines(input);
@@ -465,10 +469,10 @@ mod tests {
     #[test]
     fn test_no_blank_line_preserves_all_locations() {
         // Test: When there are no blank lines, all locations should be preserved
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Text("b".to_string()), 2..3),
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Text("b".to_string()), 2, 3),
         ];
 
         let result = transform_blank_lines(input.clone());

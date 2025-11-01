@@ -6,6 +6,12 @@ Introduction
 
 	That is not to say, however, that it is not parsable—it is—but it requires careful planning and attention to detail.
 
+Tokenization Model
+
+	The lexer always emits *spanned tokens*: every token variant is paired with a byte-range from the original source. Synthetic tokens that are introduced by the transformation pipeline (IndentLevel, DedentLevel, BlankLine) also receive meaningful spans derived from surrounding content.
+
+	Downstream code and tests MUST assume locations are mandatory. There are no "location-less" tokens any more, so helper APIs (including the testing factories) always require start/end offsets. This keeps the parser, AST builder, and tooling aligned around a single source of truth for slice boundaries.
+
 The Parse Order
 
 	Parse order is critical. The elements must be parsed in this exact sequence:

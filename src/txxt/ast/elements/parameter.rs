@@ -37,13 +37,14 @@ impl Parameter {
             location: Self::default_location(),
         }
     }
-    pub fn with_location(mut self, location: Location) -> Self {
-        self.location = location;
-        self
+    #[deprecated(note = "Use at(location) instead")]
+    pub fn with_location(self, location: Location) -> Self {
+        self.at(location)
     }
     /// Preferred builder
-    pub fn at(self, location: Location) -> Self {
-        self.with_location(location)
+    pub fn at(mut self, location: Location) -> Self {
+        self.location = location;
+        self
     }
 }
 
@@ -63,7 +64,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let param = Parameter::new("key".to_string(), "value".to_string()).with_location(location);
+        let param = Parameter::new("key".to_string(), "value".to_string()).at(location);
         assert_eq!(param.location, location);
     }
 }

@@ -243,28 +243,25 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                 ProcessingStage::Ast => {
                     // Parse the document - all documents now include full location information
                     let doc = if matches!(spec.format, OutputFormat::AstPosition) {
-                        crate::txxt::parser::parse_with_source(
-                            crate::txxt::lexer::lex(&content),
-                            &content,
-                        )
-                        .map_err(|errs| {
-                            let error_details = errs
-                                .iter()
-                                .map(|e| {
-                                    format!(
-                                        "  Parse error at span {:?}: reason={:?}, found={:?}",
-                                        e.span(),
-                                        e.reason(),
-                                        e.found()
-                                    )
-                                })
-                                .collect::<Vec<_>>()
-                                .join("\n");
-                            ProcessingError::IoError(format!(
-                                "Failed to parse document:\n{}",
-                                error_details
-                            ))
-                        })?
+                        crate::txxt::parser::parse(crate::txxt::lexer::lex(&content), &content)
+                            .map_err(|errs| {
+                                let error_details = errs
+                                    .iter()
+                                    .map(|e| {
+                                        format!(
+                                            "  Parse error at span {:?}: reason={:?}, found={:?}",
+                                            e.span(),
+                                            e.reason(),
+                                            e.found()
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+                                ProcessingError::IoError(format!(
+                                    "Failed to parse document:\n{}",
+                                    error_details
+                                ))
+                            })?
                     } else {
                         crate::txxt::parser::parse_document(&content).map_err(|errs| {
                             let error_details = errs
@@ -288,32 +285,32 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
 
                     // Format according to output format
                     match spec.format {
-                OutputFormat::AstTag => Ok(crate::txxt::parser::serialize_ast_tag(&doc)),
-                OutputFormat::AstTreeviz => Ok(crate::txxt::parser::to_treeviz_str(&doc)),
-                OutputFormat::AstPosition => {
-                    let line = extras
-                        .get("line")
-                        .and_then(|s| s.parse::<usize>().ok())
-                        .ok_or_else(|| {
-                            ProcessingError::InvalidFormatType("Missing or invalid 'line' extra".to_string())
-                        })?;
-                    let column = extras
-                        .get("column")
-                        .and_then(|s| s.parse::<usize>().ok())
-                        .ok_or_else(|| {
-                            ProcessingError::InvalidFormatType(
-                                "Missing or invalid 'column' extra".to_string(),
-                            )
-                        })?;
-                    Ok(crate::txxt::parser::format_at_position(
-                        &doc,
-                        crate::txxt::parser::Position::new(line, column),
-                    ))
-                }
-                _ => Err(ProcessingError::InvalidFormatType(
-                    "Only ast-tag, ast-treeviz, and ast-position formats are supported for AST stage".to_string(),
-                )),
-            }
+                        OutputFormat::AstTag => Ok(crate::txxt::parser::serialize_ast_tag(&doc)),
+                        OutputFormat::AstTreeviz => Ok(crate::txxt::parser::to_treeviz_str(&doc)),
+                        OutputFormat::AstPosition => {
+                            let line = extras
+                                .get("line")
+                                .and_then(|s| s.parse::<usize>().ok())
+                                .ok_or_else(|| {
+                                    ProcessingError::InvalidFormatType("Missing or invalid 'line' extra".to_string())
+                                })?;
+                            let column = extras
+                                .get("column")
+                                .and_then(|s| s.parse::<usize>().ok())
+                                .ok_or_else(|| {
+                                    ProcessingError::InvalidFormatType(
+                                        "Missing or invalid 'column' extra".to_string(),
+                                    )
+                                })?;
+                            Ok(crate::txxt::parser::format_at_position(
+                                &doc,
+                                crate::txxt::parser::Position::new(line, column),
+                            ))
+                        }
+                        _ => Err(ProcessingError::InvalidFormatType(
+                            "Only ast-tag, ast-treeviz, and ast-position formats are supported for AST stage".to_string(),
+                        )),
+                    }
                 }
             }
         }
@@ -558,7 +555,7 @@ pub mod txxt_sources {
 Second paragraph"#;
 
         let tokens = crate::txxt::lexer::lex(content);
-        let doc = crate::txxt::parser::parse_with_source(tokens, content).unwrap();
+        let doc = crate::txxt::parser::parse(tokens, content).unwrap();
 
         // Check if locations are populated
         if let Some(first_item) = doc.root.content.first() {

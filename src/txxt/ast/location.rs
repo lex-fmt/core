@@ -402,10 +402,10 @@ mod ast_integration_tests {
     };
 
     #[test]
-    fn test_get_location() {
+    fn test_start_position() {
         let location = Location::new(Position::new(1, 0), Position::new(1, 10));
         let session = Session::with_title("Title".to_string()).at(location);
-        assert_eq!(session.get_location(), Some(Position::new(1, 0)));
+        assert_eq!(session.start_position(), Position::new(1, 0));
     }
 
     #[test]
