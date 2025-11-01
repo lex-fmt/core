@@ -3,7 +3,7 @@
 use std::fs;
 use txxt::txxt::lexer::Token;
 use txxt::txxt::processor::{
-    process_file, OutputFormat, ProcessingError, ProcessingSpec, ProcessingStage,
+    format_tokenss, process_file, OutputFormat, ProcessingError, ProcessingSpec, ProcessingStage,
 };
 
 #[cfg(test)]
@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn test_available_specs() {
         let specs = ProcessingSpec::available_specs();
-        assert_eq!(specs.len(), 7); // Added ast-position
+        assert_eq!(specs.len(), 9); // Added ast-position and 2 experimental formats
 
         let token_simple = specs
             .iter()
@@ -218,38 +218,21 @@ mod tests {
     }
 
     // Helper function to test formatting without file I/O
+    // Wraps tokens with dummy location information and delegates to format_tokenss
     fn process_file_with_tokens(
         tokens: &[Token],
         spec: &ProcessingSpec,
     ) -> Result<String, ProcessingError> {
         match spec.stage {
-            ProcessingStage::Token => match spec.format {
-                OutputFormat::Simple | OutputFormat::RawSimple => {
-                    let mut result = String::new();
-                    for token in tokens {
-                        result.push_str(&format!("{}", token));
-                        if matches!(token, Token::Newline) {
-                            result.push('\n');
-                        }
-                    }
-                    Ok(result)
-                }
-                OutputFormat::Json | OutputFormat::RawJson => {
-                    let json = serde_json::to_string_pretty(tokens)
-                        .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-                    Ok(json)
-                }
-                OutputFormat::Xml => Err(ProcessingError::InvalidFormatType("xml".to_string())),
-                OutputFormat::AstTag => Err(ProcessingError::InvalidFormatType(
-                    "ast-tag format only works with ast stage".to_string(),
-                )),
-                OutputFormat::AstTreeviz => Err(ProcessingError::InvalidFormatType(
-                    "ast-treeviz format only works with ast stage".to_string(),
-                )),
-                OutputFormat::AstPosition => Err(ProcessingError::InvalidFormatType(
-                    "ast-position format only works with ast stage".to_string(),
-                )),
-            },
+            ProcessingStage::Token => {
+                // Convert tokens to include dummy location information
+                let tokens_with_loc: Vec<(Token, std::ops::Range<usize>)> = tokens
+                    .iter()
+                    .enumerate()
+                    .map(|(i, t)| (t.clone(), i..i + 1))
+                    .collect();
+                format_tokenss(&tokens_with_loc, &spec.format)
+            }
             ProcessingStage::Ast => Err(ProcessingError::InvalidStage("ast".to_string())),
         }
     }
