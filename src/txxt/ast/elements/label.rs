@@ -1,15 +1,17 @@
 //! Label element
 //!
 //! A label is a short identifier used by annotations and other
-//! elements to tag content, categorize, or drive tooling behavior.
+//! elements. Labels server similar roles but have relevant differences from:
+//! - Tags: An annotation can only have one label, while tags are typically multiple.
+//! - IDS: labels are not unique, even in the the same element
 //!
-//! Business use:
-//! - Classify content for review or publishing workflows
-//! - Provide stable keys for parameters and automation
+//! Labels support dot notation for namespaces:
+//! Namespaced: txxt.internal, plugin.myapp.custom
+//! Namespaces are user defined, with the exception of the doc and txxt namespaces which are reserved.
 //!
-//! Examples:
-//! - `priority`
-//! - `owner`
+//! Syntax:
+//! <letter> (<letter> | <digit> | "_" | "-" | ".")*
+//!
 //!
 //! Learn More:
 //! - Labels spec: docs/specs/v1/elements/labels.txxt

@@ -1,25 +1,40 @@
 //! Annotation
 //!
-//! Annotations are a core element in txxt, but a metadata one. They provide not only a way for authors and collaborators to register non content related information, but the right hooks for tooling to build on top of txxt (e.g., comments, review metadata, publishing hints).
+//! Annotations are a core element in txxt, but not the document's content , rather it's metadata one.
+//! They provide not only a way for authors and collaborators to register non content related
+//! information, but the right hooks for tooling to build on top of txxt (e.g., comments, review
+//! metadata, publishing hints).
 //!
-// As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling).
-//!
-//! Syntax Forms:
-//!
-//! Syntax patterns (informal):
-//! - `:: label :: content`
-//! - `:: label key=value ::`
-//!
-//! The full form:
+//! As such they provide : -
+//! - labels: a way to identify the annotation
+//! - parameters[optional]:  a way to provide structured data
+//! - Optional content, like all other elements:
+//!     - Nestable containter that can host any element but sessions
+//!     - Shorthand for for single or no content annotations.
 //!
 //!
-//! :: label ::
-//!     indented paragraph or list
-//! ::
+//! Syntax:
+//!   Short Hand Form:
+//!     <txxt-marker> <label> <parameters>? <txxt-marker>
+//!   Long Hand Form:
+//!     <txxt-marker> <label> <parameters>? <txxt-marker>
+//!     <indent> <content> ... any number of content elements
+//!     <dedent> <txxt-marker>
 //!
-//! Examples:
-//! - `:: reviewed by=alice ::`
-//!
+//!  Examples:
+//!      Label only:
+//!         :: image ::  
+//!      Label and parameters:
+//!         :: note severity=high :: Check this carefully
+//!      Marker form (no content):
+//!         :: debug ::
+//!      Params-only:
+//!         :: type=python :: (params-only, no label)
+//!      Long Form:
+//!         :: label ::
+//!             John has reviewed this paragraph. Hence we're only lacking:
+//!             - Janest's approval
+//!             - OK from legal
 //! Learn More:
 //! - The annotation spec: docs/specs/v1/elements/annotations.txxt
 //! - The annotation sample: docs/specs/v1/samples/element-based/annotations/annotations.simple.txxt
@@ -33,7 +48,7 @@ use super::label::Label;
 use super::parameter::Parameter;
 use std::fmt;
 
-/// An annotation represents a labeled element with parameters and content
+/// An annotation represents some metadata about an ast element.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Annotation {
     pub label: Label,
