@@ -100,38 +100,13 @@ fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentIte
     Ok(content_items)
 }
 
-/// Parse a single node or pattern starting at the current position in the tree.
-///
-/// Tries patterns in order of specificity, returns the matched pattern and number of tree items consumed.
-fn parse_node_at_level(
+/// Try to match a block annotation pattern
+/// Pattern: ANNOTATION_LINE + [BLANK_LINE?] + BLOCK + [ANNOTATION_LINE?]
+fn try_match_block_annotation(
     tree: &[LineTokenTree],
-    token_types: &[LineTokenType],
     grammar: &TxxtGrammarRules,
     source: &str,
-) -> Result<(ContentItem, usize), String> {
-    if tree.is_empty() {
-        return Err("Empty tree at node level".to_string());
-    }
-
-    // Check if a Block follows the current tokens (implicit INDENT)
-    let has_following_block = token_types.len() < tree.len()
-        && matches!(tree.get(token_types.len()), Some(LineTokenTree::Block(_)));
-
-    // PATTERN MATCHING ORDER (based on blank line context)
-    // Annotation → Foreign Block → Session → Definition → List → Paragraph
-    //
-    // Key reasons for this order:
-    // - Annotations are standalone (::), detect first
-    // - Foreign blocks have unambiguous pattern (subject→block→annotation)
-    // - Sessions: BLANK-before + any-lead + BLANK-after + block (requires blanks around lead!)
-    // - Definitions: any-lead + NO-blank + block (no breathing room)
-    // - Lists: seq-marker + (blank?+block)* + seq-marker (requires 2+ items)
-    // - Paragraphs are the fallback
-
-    // 1. ANNOTATION: Lines with :: markers (take precedence everywhere)
-    // Try block annotations first (:: label :: ... ::), then single-line annotations (:: label ::)
-
-    // Block annotation: ANNOTATION_LINE + BLOCK + ANNOTATION_LINE
+) -> Result<Option<(ContentItem, usize)>, String> {
     if let Some(consumed) = grammar.try_annotation_from_tree(tree) {
         if let LineTokenTree::Token(opening_token) = &tree[0] {
             let block_idx = if matches!(tree.get(1), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
@@ -147,36 +122,54 @@ fn parse_node_at_level(
                     block_content,
                     source,
                 )?;
-                return Ok((item, consumed));
+                return Ok(Some((item, consumed)));
             }
         }
     }
+    Ok(None)
+}
 
-    // Single-line annotation: just :: label ::
-    if let Some(_consumed) = grammar.try_annotation(token_types) {
+/// Try to match a single-line annotation pattern
+/// Pattern: ANNOTATION_LINE (:: label ::)
+fn try_match_single_annotation(
+    tree: &[LineTokenTree],
+    token_types: &[LineTokenType],
+    source: &str,
+) -> Result<Option<(ContentItem, usize)>, String> {
+    if let Some(_consumed) = token_types.first().and_then(|t| {
+        if matches!(t, LineTokenType::AnnotationLine) {
+            Some(())
+        } else {
+            None
+        }
+    }) {
         if let LineTokenTree::Token(line_token) = &tree[0] {
             let item = super::unwrapper::unwrap_annotation(line_token, source)?;
-            return Ok((item, 1));
+            return Ok(Some((item, 1)));
         }
     }
+    Ok(None)
+}
 
-    // 2. FOREIGN BLOCK: Two forms:
-    //    - Block form: SUBJECT_LINE + optional BLANK_LINE + BLOCK + ANNOTATION_LINE
-    //    - Marker form: SUBJECT_LINE + optional BLANK_LINE + ANNOTATION_LINE (no block)
-    // Use tree-based matching to properly detect the pattern across blocks
+/// Try to match a foreign block pattern
+/// Patterns:
+/// - Block form: SUBJECT_LINE + [BLANK_LINE?] + BLOCK + ANNOTATION_LINE
+/// - Marker form: SUBJECT_LINE + [BLANK_LINE?] + ANNOTATION_LINE
+fn try_match_foreign_block(
+    tree: &[LineTokenTree],
+    grammar: &TxxtGrammarRules,
+    source: &str,
+) -> Result<Option<(ContentItem, usize)>, String> {
     if let Some(consumed) = grammar.try_foreign_block_from_tree(tree) {
         if let LineTokenTree::Token(subject_token) = &tree[0] {
-            // Find what comes after subject (blank line or block/annotation)
             let mut check_idx = 1;
             let has_blank = matches!(tree.get(check_idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
             if has_blank {
                 check_idx += 1;
             }
 
-            // Check if we have a block (block form) or annotation directly (marker form)
             match tree.get(check_idx) {
                 Some(LineTokenTree::Block(block_children)) => {
-                    // Block form: extract content lines from block
                     if let LineTokenTree::Token(annotation_token) = &tree[consumed - 1] {
                         let content_lines = block_children
                             .iter()
@@ -195,30 +188,35 @@ fn parse_node_at_level(
                             annotation_token,
                             source,
                         )?;
-                        return Ok((item, consumed));
+                        return Ok(Some((item, consumed)));
                     }
                 }
                 Some(LineTokenTree::Token(annotation_token))
                     if annotation_token.line_type == LineTokenType::AnnotationLine =>
                 {
-                    // Marker form: no content block, just annotation
                     let item = super::unwrapper::unwrap_foreign_block(
                         subject_token,
                         vec![],
                         annotation_token,
                         source,
                     )?;
-                    return Ok((item, consumed));
+                    return Ok(Some((item, consumed)));
                 }
                 _ => {}
             }
         }
     }
+    Ok(None)
+}
 
-    // 3. SESSION: (BLANK_LINE?) <ANY_LINE> BLANK_LINE BLOCK
-    // Check BEFORE definition/list because sessions have specific blank-line signature
+/// Try to match a session pattern
+/// Pattern: [BLANK_LINE?] <ANY_LINE> BLANK_LINE BLOCK
+fn try_match_session(
+    tree: &[LineTokenTree],
+    grammar: &TxxtGrammarRules,
+    source: &str,
+) -> Result<Option<(ContentItem, usize)>, String> {
     if let Some(consumed) = grammar.try_session_from_tree(tree) {
-        // Find the actual lead token (skipping optional blank before)
         let lead_idx = if matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
         {
             1
@@ -227,48 +225,60 @@ fn parse_node_at_level(
         };
 
         if let LineTokenTree::Token(lead_token) = &tree[lead_idx] {
-            // Find the block (it's at position consumed-1)
             if let LineTokenTree::Block(block_children) = &tree[consumed - 1] {
                 let block_content = walk_and_parse(block_children, source)?;
                 let item = super::unwrapper::unwrap_session(lead_token, block_content, source)?;
-                return Ok((item, consumed));
+                return Ok(Some((item, consumed)));
             }
         }
     }
+    Ok(None)
+}
 
-    // 4. DEFINITION: <ANY_LINE> NO-BLANK BLOCK
-    if has_following_block {
-        if let Some(_consumed) = grammar.try_definition(token_types) {
-            if let LineTokenTree::Token(subject_token) = &tree[0] {
-                let block_idx = token_types.len();
-                if let LineTokenTree::Block(block_children) = &tree[block_idx] {
-                    let block_content = walk_and_parse(block_children, source)?;
-                    let item =
-                        super::unwrapper::unwrap_definition(subject_token, block_content, source)?;
-                    return Ok((item, block_idx + 1));
-                }
+/// Try to match a definition pattern
+/// Pattern: <ANY_LINE> NO-BLANK BLOCK
+fn try_match_definition(
+    tree: &[LineTokenTree],
+    token_types: &[LineTokenType],
+    grammar: &TxxtGrammarRules,
+    source: &str,
+    has_following_block: bool,
+) -> Result<Option<(ContentItem, usize)>, String> {
+    if has_following_block && grammar.try_definition(token_types).is_some() {
+        if let LineTokenTree::Token(subject_token) = &tree[0] {
+            let block_idx = token_types.len();
+            if let LineTokenTree::Block(block_children) = &tree[block_idx] {
+                let block_content = walk_and_parse(block_children, source)?;
+                let item =
+                    super::unwrapper::unwrap_definition(subject_token, block_content, source)?;
+                return Ok(Some((item, block_idx + 1)));
             }
         }
     }
+    Ok(None)
+}
 
-    // 5. LIST: LIST_ITEM (BLANK_LINE? BLOCK)? LIST_ITEM (BLANK_LINE? BLOCK)? ...
+/// Try to match a list pattern
+/// Pattern: LIST_LINE (BLANK_LINE? BLOCK)? LIST_LINE (BLANK_LINE? BLOCK)? ... (2+ items)
+fn try_match_list(
+    tree: &[LineTokenTree],
+    grammar: &TxxtGrammarRules,
+    source: &str,
+) -> Result<Option<(ContentItem, usize)>, String> {
     if let Some(consumed) = grammar.try_list_from_tree(tree) {
         let mut list_items = Vec::new();
         let mut tree_idx = 0;
 
-        // Parse each list item: LIST_LINE (BLANK_LINE? BLOCK)?
         while tree_idx < consumed {
             if let LineTokenTree::Token(item_token) = &tree[tree_idx] {
                 if item_token.line_type == LineTokenType::ListLine {
                     tree_idx += 1;
 
-                    // Check for optional BLANK_LINE
                     let has_blank = matches!(tree.get(tree_idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
                     if has_blank {
                         tree_idx += 1;
                     }
 
-                    // Check for optional BLOCK (nested content)
                     let nested_content =
                         if let Some(LineTokenTree::Block(block_children)) = tree.get(tree_idx) {
                             tree_idx += 1;
@@ -288,11 +298,20 @@ fn parse_node_at_level(
 
         if list_items.len() >= 2 {
             let list = super::unwrapper::unwrap_list(list_items, source)?;
-            return Ok((list, consumed));
+            return Ok(Some((list, consumed)));
         }
     }
+    Ok(None)
+}
 
-    // 6. PARAGRAPH (fallback): any-line+ (all non-blank lines not matching above patterns)
+/// Try to match a paragraph pattern
+/// Pattern: any-line+ (all non-blank lines not matching above patterns)
+fn try_match_paragraph(
+    tree: &[LineTokenTree],
+    token_types: &[LineTokenType],
+    grammar: &TxxtGrammarRules,
+    source: &str,
+) -> Result<Option<(ContentItem, usize)>, String> {
     if let Some(consumed) = grammar.try_paragraph(token_types) {
         let mut paragraph_tokens = Vec::new();
         for i in 0..consumed {
@@ -305,8 +324,78 @@ fn parse_node_at_level(
 
         if !paragraph_tokens.is_empty() {
             let item = super::unwrapper::unwrap_tokens_to_paragraph(paragraph_tokens, source)?;
-            return Ok((item, consumed));
+            return Ok(Some((item, consumed)));
         }
+    }
+    Ok(None)
+}
+
+/// Parse a single node or pattern starting at the current position in the tree.
+///
+/// Tries patterns in order of specificity using a matcher loop for better maintainability.
+fn parse_node_at_level(
+    tree: &[LineTokenTree],
+    token_types: &[LineTokenType],
+    grammar: &TxxtGrammarRules,
+    source: &str,
+) -> Result<(ContentItem, usize), String> {
+    if tree.is_empty() {
+        return Err("Empty tree at node level".to_string());
+    }
+
+    // Check if a Block follows the current tokens (implicit INDENT)
+    let has_following_block = token_types.len() < tree.len()
+        && matches!(tree.get(token_types.len()), Some(LineTokenTree::Block(_)));
+
+    // PATTERN MATCHING ORDER (based on blank line context and specificity)
+    // Annotation → Foreign Block → Session → Definition → List → Paragraph
+    //
+    // Key reasons for this order:
+    // - Annotations are standalone (::), detect first
+    // - Foreign blocks have unambiguous pattern (subject→block→annotation)
+    // - Sessions: BLANK-before + any-lead + BLANK-after + block (requires blanks around lead!)
+    // - Definitions: any-lead + NO-blank + block (no breathing room)
+    // - Lists: seq-marker + (blank?+block)* + seq-marker (requires 2+ items)
+    // - Paragraphs are the fallback
+
+    // Try matchers in order of specificity (data-driven pattern matching)
+    // Each matcher returns Some((item, consumed)) if it matches, None if it doesn't
+
+    // 1. Try block annotation (most specific annotation form)
+    if let Some((item, consumed)) = try_match_block_annotation(tree, grammar, source)? {
+        return Ok((item, consumed));
+    }
+
+    // 2. Try single-line annotation
+    if let Some((item, consumed)) = try_match_single_annotation(tree, token_types, source)? {
+        return Ok((item, consumed));
+    }
+
+    // 3. Try foreign block (both block and marker forms)
+    if let Some((item, consumed)) = try_match_foreign_block(tree, grammar, source)? {
+        return Ok((item, consumed));
+    }
+
+    // 4. Try session (requires specific blank-line signature)
+    if let Some((item, consumed)) = try_match_session(tree, grammar, source)? {
+        return Ok((item, consumed));
+    }
+
+    // 5. Try definition (before list, different blank-line semantics)
+    if let Some((item, consumed)) =
+        try_match_definition(tree, token_types, grammar, source, has_following_block)?
+    {
+        return Ok((item, consumed));
+    }
+
+    // 6. Try list (requires 2+ items)
+    if let Some((item, consumed)) = try_match_list(tree, grammar, source)? {
+        return Ok((item, consumed));
+    }
+
+    // 7. Try paragraph (fallback for any non-matching lines)
+    if let Some((item, consumed)) = try_match_paragraph(tree, token_types, grammar, source)? {
+        return Ok((item, consumed));
     }
 
     // If block is next with no pattern match, wrap it in a default session (shouldn't happen)
