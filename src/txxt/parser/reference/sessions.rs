@@ -7,12 +7,12 @@ use chumsky::prelude::*;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::{ContentItem, Session, TextContent};
-use crate::txxt::lexer::Token;
 use super::combinators::{
     aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
     extract_text_from_locations, text_line, token,
 };
+use crate::txxt::ast::{ContentItem, Session, TextContent};
+use crate::txxt::lexer::Token;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
