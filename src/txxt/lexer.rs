@@ -1,12 +1,17 @@
 //! Lexer module for the txxt format
 //!
 //! This module orchestrates the complete tokenization pipeline for the txxt format.
+//! Currently we are still running two parser designs side by side and the the newer parser requires
+//! more preprocessing of the cst.
 //! The pipeline consists of:
 //! 1. Core tokenization using logos lexer
 //! 2. Transformation pipeline:
-//!    - Whitespace remainder processing
-//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel)
-//!    - Blank line transformation (consecutive Newlines -> BlankLine)
+//!    - Whitespace remainder processing ./transformations/transform_whitespace.rs
+//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ./transformations/transform_indentation.rs
+//!    - Blank line transformation (consecutive Newlines -> BlankLine) ./transformations/transform_blanklines.rs
+//! 3. Experimental transformation pipeline:
+//!    - Flatten tokens into line tokens
+//!    - Transform line tokens into a hierarchical tree
 //!
 //! Indentation Handling
 //!
@@ -31,11 +36,11 @@ pub mod transformations;
 pub use detokenizer::detokenize;
 pub use lexer_impl::tokenize;
 pub use tokens::{LineToken, LineTokenType, Token};
-pub use transformations::experimental_transform_indentation_to_token_tree::LineTokenTree;
+pub use transformations::transform_indentation_to_token_tree::LineTokenTree;
 pub use transformations::{
-    experimental_lex, experimental_lex_stage, experimental_transform_indentation_to_token_tree,
-    experimental_transform_to_line_tokens, process_whitespace_remainders, transform_blank_lines,
-    transform_indentation, PipelineOutput, PipelineStage,
+    experimental_lex, experimental_lex_stage, process_whitespace_remainders, transform_blank_lines,
+    transform_indentation, transform_indentation_to_token_tree, transform_to_line_tokens,
+    PipelineOutput, PipelineStage,
 };
 
 /// Preprocesses source text to ensure it ends with a newline.
