@@ -60,7 +60,7 @@ pub(crate) fn annotation_header(
             }
         }
 
-        let params_with_locations = parse_parameters_from_tokens(&tokens[i..]);
+        let paramss = parse_parameters_from_tokens(&tokens[i..]);
 
         let header_range_start = tokens.first().map(|(_, span)| span.start).unwrap_or(0);
         let header_range_end = tokens
@@ -80,7 +80,7 @@ pub(crate) fn annotation_header(
         });
 
         // Convert parameters to final types
-        let params = params_with_locations
+        let params = paramss
             .into_iter()
             .map(|p| convert_parameter(&source, p))
             .collect();
@@ -131,7 +131,7 @@ where
                 let label_location = label_range.map_or(Location::default(), |s| {
                     byte_range_to_location(&source_for_block, &s)
                 });
-                let label = Label::new(label_text).with_location(label_location);
+                let label = Label::new(label_text).at(label_location);
 
                 let header_location = byte_range_to_location(&source_for_block, &header_range);
 
@@ -172,7 +172,7 @@ where
                 let label_location = label_range.map_or(Location::default(), |s| {
                     byte_range_to_location(&source_for_single_line, &s)
                 });
-                let label = Label::new(label_text).with_location(label_location);
+                let label = Label::new(label_text).at(label_location);
 
                 // Handle content if present and compute paragraph location
                 let (content, paragraph_location) = if let Some(locations) = content_location {
@@ -212,14 +212,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt::lexer::lex_with_locations;
+    use crate::txxt::lexer::lex;
     use crate::txxt::parser::api::parse_with_source;
     use crate::txxt::processor::txxt_sources::TxxtSources;
 
     #[test]
     fn test_annotation_marker_minimal() {
         let source = "Para one. {{paragraph}}\n\n:: note ::\n\nPara two. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.root.content.len(), 3); // paragraph, annotation, paragraph
@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn test_annotation_single_line() {
         let source = "Para one. {{paragraph}}\n\n:: note :: This is inline text\n\nPara two. {{paragraph}}\n";
-        let tokens = lex_with_locations(source);
+        let tokens = lex(source);
         let doc = parse_with_source(tokens, source).unwrap();
 
         assert_eq!(doc.root.content.len(), 3); // paragraph, annotation, paragraph
@@ -243,7 +243,7 @@ mod tests {
     fn test_verified_annotations_simple() {
         let source = TxxtSources::get_string("120-annotations-simple.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_locations(&source);
+        let tokens = lex(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Verify document parses successfully and contains expected structure
@@ -303,7 +303,7 @@ mod tests {
     fn test_verified_annotations_block_content() {
         let source = TxxtSources::get_string("130-annotations-block-content.txxt")
             .expect("Failed to load sample file");
-        let tokens = lex_with_locations(&source);
+        let tokens = lex(&source);
         let doc = parse_with_source(tokens, &source).unwrap();
 
         // Find and verify :: note author="Jane Doe" :: annotation with block content

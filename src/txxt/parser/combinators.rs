@@ -144,9 +144,9 @@ pub(crate) fn text_line(
     filter(|(t, _location): &TokenLocation| is_text_token(t))
         .repeated()
         .at_least(1)
-        .map(|tokens_with_locations: Vec<TokenLocation>| {
+        .map(|tokenss: Vec<TokenLocation>| {
             // Collect all locations for this line
-            tokens_with_locations.into_iter().map(|(_, s)| s).collect()
+            tokenss.into_iter().map(|(_, s)| s).collect()
         })
 }
 

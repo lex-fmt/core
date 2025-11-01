@@ -59,6 +59,10 @@ impl Session {
         self.location = location;
         self
     }
+    /// Preferred builder
+    pub fn at(self, location: Location) -> Self {
+        self.with_location(location)
+    }
 }
 
 impl AstNode for Session {
@@ -119,7 +123,7 @@ mod tests {
     }
 
     #[test]
-    fn test_session_with_location() {
+    fn test_session() {
         let location = super::super::super::location::Location::new(
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),

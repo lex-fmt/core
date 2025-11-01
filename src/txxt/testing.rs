@@ -153,6 +153,7 @@
 //!    ```
 
 mod testing_assertions;
+mod testing_factories;
 mod testing_matchers;
 
 pub use testing_assertions::{
@@ -161,3 +162,8 @@ pub use testing_assertions::{
     SessionAssertion,
 };
 pub use testing_matchers::TextMatch;
+
+// Public submodule path: crate::txxt::testing::factories
+pub mod factories {
+    pub use super::testing_factories::*;
+}
