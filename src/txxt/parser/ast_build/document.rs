@@ -5,7 +5,7 @@ use std::ops::Range;
 
 use crate::txxt::ast::{AstNode, Document};
 use crate::txxt::lexer::Token;
-use crate::txxt::parser::combinators::compute_location_from_locations;
+use crate::txxt::parser::reference::combinators::compute_location_from_locations;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
@@ -19,7 +19,7 @@ type ParserError = Simple<TokenLocation>;
 /// This function is focused on document-level parsing and delegates to parser.rs
 /// for the actual document content parsing logic.
 pub fn document(source: &str) -> impl Parser<TokenLocation, Document, Error = ParserError> + Clone {
-    crate::txxt::parser::parser::build_document_content_parser(source).map(|content| {
+    crate::txxt::parser::reference::parser::build_document_content_parser(source).map(|content| {
         let content_locations = content
             .iter()
             .map(|item| item.location())

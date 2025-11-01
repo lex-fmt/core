@@ -1,19 +1,22 @@
 //! Parser module for the txxt format
 //!
 //! This module contains the parsing logic for the txxt format,
-//! including AST definitions and the parser implementation.
+//! including two parser implementations:
+//!
+//! - **Reference Parser**: Traditional combinator-based parser (reference/)
+//! - **Grammar Engine**: Regex-based grammar-driven parser (grammarengine/)
+//!
+//! Both parsers share common AST building blocks (ast_build/).
 //!
 //! ## Testing
 //!
 //! All parser tests must follow strict guidelines. See the [testing module](crate::txxt::testing)
 //! for comprehensive documentation on using verified txxt sources and AST assertions.
 
-pub mod api;
-pub mod combinators;
-pub mod elements;
-pub mod experimental;
-#[allow(clippy::module_inception)]
-pub mod parser;
+// Parser implementations
+pub mod ast_build;
+pub mod grammarengine;
+pub mod reference;
 
 // Re-export AST types and utilities from the ast module
 pub use crate::txxt::ast::{
@@ -23,8 +26,8 @@ pub use crate::txxt::ast::{
 };
 
 pub use crate::txxt::formats::{serialize_ast_tag, to_treeviz_str};
-pub use elements::document::document;
-pub use parser::parse;
+pub use ast_build::document;
+pub use reference::parse;
 
 /// Type alias for parse result with spanned tokens
 type ParseResult = Result<
