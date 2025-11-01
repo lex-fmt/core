@@ -99,6 +99,9 @@ use super::elements::document as document_module;
 
 /// Parse a document - delegated to document module
 /// Phase 5: The document parser requires source text to populate location information
+#[deprecated(
+    note = "Use elements::document(source) + parse(tokens, source) for location-aware parsing"
+)]
 pub fn document() -> impl Parser<TokenLocation, Document, Error = ParserError> {
     // This function is kept for backward compatibility but delegates to document_module::document(source)
     // Since this function doesn't have access to source, it uses an empty string.

@@ -101,6 +101,17 @@ impl Paragraph {
             location: Self::default_location(),
         }
     }
+    /// Create a paragraph with a single line and attach a location
+    pub fn from_line_at(line: String, location: Location) -> Self {
+        let mut para = Self {
+            lines: vec![super::content_item::ContentItem::TextLine(TextLine::new(
+                TextContent::from_string(line, None),
+            ))],
+            location: Self::default_location(),
+        };
+        para = para.with_location(location);
+        para
+    }
     pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         // When a paragraph's location is set in tests, we should also update

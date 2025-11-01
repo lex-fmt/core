@@ -94,6 +94,11 @@ impl Document {
             .filter_map(|item| item.as_foreign_block())
     }
 
+    /// Convenience accessor for the root session's location
+    pub fn root_location(&self) -> Location {
+        self.root.location
+    }
+
     pub fn count_by_type(&self) -> (usize, usize, usize, usize) {
         let paragraphs = self.iter_paragraphs().count();
         let sessions = self.iter_sessions().count();
