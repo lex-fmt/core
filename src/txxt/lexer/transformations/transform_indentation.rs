@@ -708,11 +708,12 @@ mod tests {
     fn test_indent_level_tokens_have_correct_locations() {
         // Test: IndentLevel tokens should have locations that correspond to the Indent tokens they represent
         // Input: "a\n    b" (a, newline, 4 spaces, b)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1), // "a" at position 0-1
-            (Token::Newline, 1..2),               // "\n" at position 1-2
-            (Token::Indent, 2..6),                // "    " (4 spaces) at position 2-6
-            (Token::Text("b".to_string()), 6..7), // "b" at position 6-7
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1), // "a" at position 0-1
+            mk_token(Token::Newline, 1, 2),               // "\n" at position 1-2
+            mk_token(Token::Indent, 2, 6),                // "    " (4 spaces) at position 2-6
+            mk_token(Token::Text("b".to_string()), 6, 7), // "b" at position 6-7
         ];
 
         let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
@@ -746,12 +747,13 @@ mod tests {
     fn test_multiple_indent_levels_have_correct_locations() {
         // Test: Multiple IndentLevel tokens should each have locations of their respective Indent tokens
         // Input: "a\n        b" (a, newline, 8 spaces = 2 indent levels, b)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),   // "a"
-            (Token::Newline, 1..2),                 // "\n"
-            (Token::Indent, 2..6),                  // first 4 spaces (indent level 1)
-            (Token::Indent, 6..10),                 // second 4 spaces (indent level 2)
-            (Token::Text("b".to_string()), 10..11), // "b"
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),   // "a"
+            mk_token(Token::Newline, 1, 2),                 // "\n"
+            mk_token(Token::Indent, 2, 6),                  // first 4 spaces (indent level 1)
+            mk_token(Token::Indent, 6, 10),                 // second 4 spaces (indent level 2)
+            mk_token(Token::Text("b".to_string()), 10, 11), // "b"
         ];
 
         let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
@@ -776,13 +778,14 @@ mod tests {
     fn test_dedent_level_tokens_have_correct_locations() {
         // Test: DedentLevel tokens should have locations at the position where dedentation occurs
         // Input: "a\n    b\nc" (a, newline, 4 spaces, b, newline, c)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1), // "a"
-            (Token::Newline, 1..2),               // "\n"
-            (Token::Indent, 2..6),                // "    "
-            (Token::Text("b".to_string()), 6..7), // "b"
-            (Token::Newline, 7..8),               // "\n"
-            (Token::Text("c".to_string()), 8..9), // "c" (dedented back to level 0)
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1), // "a"
+            mk_token(Token::Newline, 1, 2),               // "\n"
+            mk_token(Token::Indent, 2, 6),                // "    "
+            mk_token(Token::Text("b".to_string()), 6, 7), // "b"
+            mk_token(Token::Newline, 7, 8),               // "\n"
+            mk_token(Token::Text("c".to_string()), 8, 9), // "c" (dedented back to level 0)
         ];
 
         let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
@@ -802,14 +805,15 @@ mod tests {
     fn test_multiple_dedent_levels_have_correct_locations() {
         // Test: Multiple DedentLevel tokens should all have the same location (position of dedentation)
         // Input: "a\n        b\nc" (2 levels in, then 2 levels out)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Indent, 2..6),
-            (Token::Indent, 6..10),
-            (Token::Text("b".to_string()), 10..11),
-            (Token::Newline, 11..12),
-            (Token::Text("c".to_string()), 12..13), // Back to level 0
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Indent, 6, 10),
+            mk_token(Token::Text("b".to_string()), 10, 11),
+            mk_token(Token::Newline, 11, 12),
+            mk_token(Token::Text("c".to_string()), 12, 13), // Back to level 0
         ];
 
         let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
@@ -836,11 +840,12 @@ mod tests {
     fn test_eof_dedent_uses_correct_location() {
         // Test: DedentLevel tokens at end of file should use the EOF position
         // Input: "a\n    b" (ends while indented)
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Indent, 2..6),
-            (Token::Text("b".to_string()), 6..7),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Text("b".to_string()), 6, 7),
         ];
 
         let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
@@ -902,12 +907,13 @@ mod tests {
     #[test]
     fn test_blank_lines_preserve_location_tracking() {
         // Test that blank lines don't break location tracking for indentation
-        let input = vec![
-            (Token::Text("a".to_string()), 0..1),
-            (Token::Newline, 1..2),
-            (Token::Newline, 2..3), // Blank line (will be handled by blank_line_transform)
-            (Token::Indent, 3..7),
-            (Token::Text("b".to_string()), 7..8),
+        use crate::txxt::testing::factories::{mk_token, Tokens};
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Newline, 2, 3), // Blank line (will be handled by blank_line_transform)
+            mk_token(Token::Indent, 3, 7),
+            mk_token(Token::Text("b".to_string()), 7, 8),
         ];
 
         let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
