@@ -59,8 +59,7 @@ mod tests {
             super::super::super::location::Position::new(1, 0),
             super::super::super::location::Position::new(1, 10),
         );
-        let param =
-            Parameter::new("key".to_string(), "value".to_string()).with_location(location);
+        let param = Parameter::new("key".to_string(), "value".to_string()).with_location(location);
         assert_eq!(param.location, location);
     }
 }
