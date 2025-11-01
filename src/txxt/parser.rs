@@ -11,6 +11,7 @@
 pub mod api;
 pub mod combinators;
 pub mod elements;
+pub mod experimental;
 #[allow(clippy::module_inception)]
 pub mod parser;
 

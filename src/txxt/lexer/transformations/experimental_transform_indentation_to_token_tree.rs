@@ -96,6 +96,7 @@ mod tests {
         LineToken {
             source_tokens: tokens,
             line_type,
+            source_span: None,
         }
     }
 

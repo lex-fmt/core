@@ -25,6 +25,9 @@ use crate::txxt::lexer::tokens::{LineToken, LineTokenType, Token};
 /// Input: Flat token stream from lexer transformations (whitespace, indentation, blank-line processed)
 /// Output: Vector of LineTokens where each token represents one logical line
 ///
+/// Note: source_span is NOT set here - it's set by the caller (pipeline) which has access to both
+/// tokens and their byte ranges.
+///
 /// Example:
 /// ```text
 /// Input tokens:
@@ -32,9 +35,9 @@ use crate::txxt::lexer::tokens::{LineToken, LineTokenType, Token};
 ///
 /// Output line tokens:
 ///   [
-///     LineToken { source_tokens: [Text("Title"), Colon, Newline], line_type: SubjectLine },
-///     LineToken { source_tokens: [Indent], line_type: IndentLevel },
-///     LineToken { source_tokens: [Text("Content"), Newline], line_type: ParagraphLine },
+///     LineToken { source_tokens: [Text("Title"), Colon, Newline], line_type: SubjectLine, source_span: None },
+///     LineToken { source_tokens: [Indent], line_type: IndentLevel, source_span: None },
+///     LineToken { source_tokens: [Text("Content"), Newline], line_type: ParagraphLine, source_span: None },
 ///   ]
 /// ```
 pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
@@ -43,8 +46,9 @@ pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToke
 
     for token in tokens {
         let is_newline = matches!(token, Token::Newline);
+        let is_blank_line_token = matches!(token, Token::BlankLine);
 
-        // Structural tokens (IndentLevel, DedentLevel) are pass-through
+        // Structural tokens (IndentLevel, DedentLevel, BlankLine) are pass-through
         // They appear alone, not as part of lines
         if matches!(token, Token::IndentLevel) {
             if !current_line.is_empty() {
@@ -54,6 +58,7 @@ pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToke
             line_tokens.push(LineToken {
                 source_tokens: vec![token],
                 line_type: LineTokenType::IndentLevel,
+                source_span: None,
             });
             continue;
         }
@@ -66,6 +71,21 @@ pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToke
             line_tokens.push(LineToken {
                 source_tokens: vec![token],
                 line_type: LineTokenType::DedentLevel,
+                source_span: None,
+            });
+            continue;
+        }
+
+        // BlankLine tokens are also structural - they represent a blank line by themselves
+        if is_blank_line_token {
+            if !current_line.is_empty() {
+                line_tokens.push(classify_and_create_line_token(current_line));
+                current_line = Vec::new();
+            }
+            line_tokens.push(LineToken {
+                source_tokens: vec![token],
+                line_type: LineTokenType::BlankLine,
+                source_span: None,
             });
             continue;
         }
@@ -94,6 +114,7 @@ fn classify_and_create_line_token(tokens: Vec<Token>) -> LineToken {
     LineToken {
         source_tokens: tokens,
         line_type,
+        source_span: None,
     }
 }
 
