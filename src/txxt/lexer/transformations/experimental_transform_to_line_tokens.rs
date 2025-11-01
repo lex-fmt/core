@@ -42,6 +42,8 @@ pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToke
     let mut current_line = Vec::new();
 
     for token in tokens {
+        let is_newline = matches!(token, Token::Newline);
+
         // Structural tokens (IndentLevel, DedentLevel) are pass-through
         // They appear alone, not as part of lines
         if matches!(token, Token::IndentLevel) {
@@ -68,11 +70,11 @@ pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToke
             continue;
         }
 
-        // Accumulate tokens for current line
-        current_line.push(token.clone());
+        // Accumulate tokens for current line (move token, not clone)
+        current_line.push(token);
 
         // Newline marks end of line
-        if matches!(token, Token::Newline) {
+        if is_newline {
             line_tokens.push(classify_and_create_line_token(current_line));
             current_line = Vec::new();
         }
@@ -175,7 +177,7 @@ fn is_list_line(tokens: &[Token]) -> bool {
 
 /// Check if a string is a single letter (a-z, A-Z)
 fn is_single_letter(s: &str) -> bool {
-    s.len() == 1 && s.chars().next().map_or(false, |c| c.is_alphabetic())
+    s.len() == 1 && s.chars().next().is_some_and(|c| c.is_alphabetic())
 }
 
 /// Check if a string is a Roman numeral (I, II, III, IV, V, etc.)
@@ -186,7 +188,7 @@ fn is_roman_numeral(s: &str) -> bool {
     // Check if all characters are valid Roman numeral characters
     s.chars()
         .all(|c| matches!(c, 'I' | 'V' | 'X' | 'L' | 'C' | 'D' | 'M'))
-        && s.chars().next().map_or(false, |c| c.is_uppercase())
+        && s.chars().next().is_some_and(|c| c.is_uppercase())
 }
 
 /// Check if line ends with colon (ignoring trailing whitespace and newline)
