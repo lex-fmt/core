@@ -60,6 +60,7 @@ pub fn _to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
             }
             line_tokens.push(LineToken {
                 source_tokens: vec![token],
+                token_spans: Vec::new(),
                 line_type: LineTokenType::IndentLevel,
                 source_span: None,
             });
@@ -73,6 +74,7 @@ pub fn _to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
             }
             line_tokens.push(LineToken {
                 source_tokens: vec![token],
+                token_spans: Vec::new(),
                 line_type: LineTokenType::DedentLevel,
                 source_span: None,
             });
@@ -87,6 +89,7 @@ pub fn _to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
             }
             line_tokens.push(LineToken {
                 source_tokens: vec![token],
+                token_spans: Vec::new(),
                 line_type: LineTokenType::BlankLine,
                 source_span: None,
             });
@@ -116,6 +119,7 @@ fn classify_and_create_line_token(tokens: Vec<Token>) -> LineToken {
     let line_type = classify_line_tokens(&tokens);
     LineToken {
         source_tokens: tokens,
+        token_spans: Vec::new(),
         line_type,
         source_span: None,
     }

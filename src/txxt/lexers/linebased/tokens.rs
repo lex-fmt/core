@@ -16,13 +16,19 @@ use crate::txxt::lexers::tokens::Token;
 /// - The original raw tokens that created it (for location information and AST construction)
 /// - The line type (what kind of line this is)
 /// - The source span (byte range in source) for location tracking
+/// - Individual token spans (to enable byte-accurate text extraction from token subsets)
 ///
-/// By preserving raw tokens and source span, we can later pass them directly to existing AST constructors,
-/// which handles all location tracking and AST node creation automatically.
+/// By preserving raw tokens, their individual spans, and the overall line span, we can later
+/// pass them directly to existing AST constructors (using the same unified approach as the
+/// reference parser), which handles all location tracking and AST node creation automatically.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LineToken {
     /// The original raw tokens that comprise this line
     pub source_tokens: Vec<Token>,
+
+    /// The byte range in source code for each token
+    /// Must be the same length as source_tokens
+    pub token_spans: Vec<std::ops::Range<usize>>,
 
     /// The type/classification of this line
     pub line_type: LineTokenType,
