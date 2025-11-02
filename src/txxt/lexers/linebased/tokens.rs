@@ -72,15 +72,35 @@ impl fmt::Display for LineTokenType {
     }
 }
 
+/// A container for multiple line tokens at the same indentation level.
+///
+/// This represents the second grouping level: multiple LineTokens that are at the same
+/// indentation level are grouped together in a LineContainerToken. This preserves both
+/// the individual line structure (for location tracking) and the block structure
+/// (for understanding which lines belong together at the same level).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct LineContainerToken {
+    /// The line tokens that comprise this container (all at the same indentation level)
+    pub source_tokens: Vec<LineToken>,
+
+    /// The byte range in source code that this container spans
+    /// Used for location tracking and mapping AST nodes back to source
+    pub source_span: Option<std::ops::Range<usize>>,
+}
+
 /// A tree node in the hierarchical token structure.
 ///
 /// The tree is built by processing IndentLevel/DedentLevel markers:
 /// - Token variant holds a single LineToken
+/// - Container variant holds a LineContainerToken (multiple tokens at same level)
 /// - Block variant holds a vector of tree nodes (children at deeper indentation)
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LineTokenTree {
     /// A single line token
     Token(LineToken),
+
+    /// A container of line tokens at the same indentation level
+    Container(LineContainerToken),
 
     /// A block of nested tokens (represents indented content)
     Block(Vec<LineTokenTree>),
