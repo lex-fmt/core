@@ -1,4 +1,4 @@
-//! Experimental transformation: raw tokens → line tokens
+//! Linebased transformation: raw tokens → line tokens
 //!
 //! This transformation converts a flat stream of raw tokens (output from the current
 //! lexer's 3 existing steps) into line tokens, where each token represents one logical line.
@@ -41,7 +41,7 @@ use crate::txxt::lexers::tokens::Token;
 ///     LineToken { source_tokens: [Text("Content"), Newline], line_type: ParagraphLine, source_span: None },
 ///   ]
 /// ```
-pub fn experimental_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
+pub fn _to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
     let mut line_tokens = Vec::new();
     let mut current_line = Vec::new();
 
@@ -412,7 +412,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let line_tokens = experimental_to_line_tokens(tokens.clone());
+        let line_tokens = _to_line_tokens(tokens.clone());
 
         assert_eq!(line_tokens.len(), 3);
 
@@ -452,7 +452,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let line_tokens = experimental_to_line_tokens(tokens);
+        let line_tokens = _to_line_tokens(tokens);
 
         // Should produce: paragraph, blank line, list line
         assert_eq!(line_tokens.len(), 3);

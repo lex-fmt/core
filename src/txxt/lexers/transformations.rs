@@ -9,9 +9,9 @@
 //! 3. sem_indentation() - converts Indent tokens to IndentLevel/DedentLevel tokens
 //! 4. transform_blank_lines() - converts consecutive Newline tokens to BlankLine tokens
 //!
-//! Experimental transformations (for the experimental 3-pass parser):
-//! - experimental_to_line_tokens() - flat tokens → line tokens (Pass 0)
-//! - experimental_indentation_to_token_tree() - line tokens → hierarchical tree (Pass 1)
+//! Linebased transformations (for the experimental 3-pass parser):
+//! - _to_line_tokens() - flat tokens → line tokens (Pass 0)
+//! - _indentation_to_token_tree() - line tokens → hierarchical tree (Pass 1)
 //!
 //! The line-based pipeline that orchestrates all transformations is now in the `linebased` module.
 
@@ -21,7 +21,7 @@ pub mod sem_indentation;
 
 // Re-export the experimental pipeline from the linebased module
 pub use crate::txxt::lexers::linebased::{
-    experimental_lex, experimental_lex_stage, PipelineError, PipelineOutput, PipelineStage,
+    PipelineError, PipelineOutput, PipelineStage, _lex, _lex_stage,
 };
 pub use blanklines::transform_blank_lines;
 pub use normalize_whitespace::process_whitespace_remainders;

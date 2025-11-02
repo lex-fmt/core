@@ -1,4 +1,4 @@
-//! Experimental Parser Engine - Tree Walker and Orchestrator
+//! Linebased Parser Engine - Tree Walker and Orchestrator
 //!
 //! This module implements the main parsing orchestrator that:
 //! 1. Walks the semantic line token tree (from experimental lexer)
@@ -417,13 +417,13 @@ fn parse_node_at_level(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::lexers::transformations::experimental_lex;
+    use crate::txxt::lexers::transformations::_lex;
 
     #[test]
     fn test_parse_simple_paragraphs() {
         // Use tokens from the experimental lexer pipeline (returns token tree directly)
         let source = "Simple paragraph\n";
-        let tree = experimental_lex(source).expect("Failed to tokenize");
+        let tree = _lex(source).expect("Failed to tokenize");
 
         let result = parse_experimental(tree, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -438,7 +438,7 @@ mod tests {
     fn test_parse_definition() {
         // Use tokens from the experimental lexer pipeline
         let source = "Definition:\n    This is the definition content\n";
-        let tree = experimental_lex(source).expect("Failed to tokenize");
+        let tree = _lex(source).expect("Failed to tokenize");
 
         let result = parse_experimental(tree, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -457,7 +457,7 @@ mod tests {
     fn test_parse_session() {
         // Use tokens from the experimental lexer pipeline
         let source = "Session:\n\n    Session content here\n";
-        let tree = experimental_lex(source).expect("Failed to tokenize");
+        let tree = _lex(source).expect("Failed to tokenize");
 
         let result = parse_experimental(tree, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -476,7 +476,7 @@ mod tests {
     fn test_parse_annotation() {
         // Use tokens from the experimental lexer pipeline
         let source = ":: note ::\n";
-        let tree = experimental_lex(source).expect("Failed to tokenize");
+        let tree = _lex(source).expect("Failed to tokenize");
 
         let result = parse_experimental(tree, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -495,7 +495,7 @@ mod tests {
     fn test_annotations_120_simple() {
         let source = std::fs::read_to_string("docs/specs/v1/samples/120-annotations-simple.txxt")
             .expect("Could not read 120 sample");
-        let tree = experimental_lex(&source).expect("Failed to tokenize");
+        let tree = _lex(&source).expect("Failed to tokenize");
         let doc = parse_experimental(tree, &source).expect("Parser failed");
 
         eprintln!("\n=== 120 ANNOTATIONS SIMPLE ===");
@@ -542,7 +542,7 @@ mod tests {
         let source =
             std::fs::read_to_string("docs/specs/v1/samples/130-annotations-block-content.txxt")
                 .expect("Could not read 130 sample");
-        let tree = experimental_lex(&source).expect("Failed to tokenize");
+        let tree = _lex(&source).expect("Failed to tokenize");
         let doc = parse_experimental(tree, &source).expect("Parser failed");
 
         eprintln!("\n=== 130 ANNOTATIONS BLOCK CONTENT ===");
@@ -615,7 +615,7 @@ Paragraph before session.
 Final paragraph.
 "#;
 
-        let tree = experimental_lex(source).expect("Failed to tokenize");
+        let tree = _lex(source).expect("Failed to tokenize");
         let doc = parse_experimental(tree, source).expect("Parser failed");
 
         eprintln!("\n=== ANNOTATIONS + TRIFECTA COMBINED ===");

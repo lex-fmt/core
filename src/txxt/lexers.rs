@@ -40,8 +40,8 @@ pub use detokenizer::detokenize;
 pub use indentation::tokenize;
 pub use tokens::Token;
 pub use transformations::{
-    experimental_lex, experimental_lex_stage, process_whitespace_remainders, sem_indentation,
-    transform_blank_lines, PipelineOutput, PipelineStage,
+    _lex, _lex_stage, process_whitespace_remainders, sem_indentation, transform_blank_lines,
+    PipelineOutput, PipelineStage,
 };
 
 // Re-export line-based types for convenience

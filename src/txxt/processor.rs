@@ -67,12 +67,12 @@ pub enum OutputFormat {
     AstTag, // AST XML-like tag format
     AstTreeviz,
     AstPosition, // AST position lookup format
-    // Experimental pipeline formats
+    // Linebased pipeline formats
     TokenLine,
     TokenTree,
-    // Experimental parser AST formats
-    AstExperimentalTag,
-    AstExperimentalTreeviz,
+    // Linebased parser AST formats
+    AstLinebasedTag,
+    AstLinebasedTreeviz,
 }
 
 /// Represents a complete processing specification
@@ -107,8 +107,8 @@ impl ProcessingSpec {
             "position" => OutputFormat::AstPosition,
             "line" => OutputFormat::TokenLine,
             "tree" => OutputFormat::TokenTree,
-            "experimental-tag" => OutputFormat::AstExperimentalTag,
-            "experimental-treeviz" => OutputFormat::AstExperimentalTreeviz,
+            "experimental-tag" => OutputFormat::AstLinebasedTag,
+            "experimental-treeviz" => OutputFormat::AstLinebasedTreeviz,
             _ => return Err(ProcessingError::InvalidFormatType(parts[1..].join("-"))),
         };
 
@@ -117,8 +117,8 @@ impl ProcessingSpec {
             (ProcessingStage::Ast, OutputFormat::AstTag) => {} // Valid
             (ProcessingStage::Ast, OutputFormat::AstTreeviz) => {} // Valid
             (ProcessingStage::Ast, OutputFormat::AstPosition) => {} // Valid
-            (ProcessingStage::Ast, OutputFormat::AstExperimentalTag) => {} // Valid
-            (ProcessingStage::Ast, OutputFormat::AstExperimentalTreeviz) => {} // Valid
+            (ProcessingStage::Ast, OutputFormat::AstLinebasedTag) => {} // Valid
+            (ProcessingStage::Ast, OutputFormat::AstLinebasedTreeviz) => {} // Valid
             (ProcessingStage::Ast, _) => {
                 return Err(ProcessingError::InvalidFormatType(format!(
                     "Format '{:?}' not supported for AST stage (only 'tag', 'treeviz', 'position', 'experimental-tag', and 'experimental-treeviz' are supported)",
@@ -140,12 +140,12 @@ impl ProcessingSpec {
                     "Format 'position' only works with AST stage".to_string(),
                 ))
             }
-            (ProcessingStage::Token, OutputFormat::AstExperimentalTag) => {
+            (ProcessingStage::Token, OutputFormat::AstLinebasedTag) => {
                 return Err(ProcessingError::InvalidFormatType(
                     "Format 'experimental-tag' only works with AST stage".to_string(),
                 ))
             }
-            (ProcessingStage::Token, OutputFormat::AstExperimentalTreeviz) => {
+            (ProcessingStage::Token, OutputFormat::AstLinebasedTreeviz) => {
                 return Err(ProcessingError::InvalidFormatType(
                     "Format 'experimental-treeviz' only works with AST stage".to_string(),
                 ))
@@ -197,11 +197,11 @@ impl ProcessingSpec {
             },
             ProcessingSpec {
                 stage: ProcessingStage::Ast,
-                format: OutputFormat::AstExperimentalTag,
+                format: OutputFormat::AstLinebasedTag,
             },
             ProcessingSpec {
                 stage: ProcessingStage::Ast,
-                format: OutputFormat::AstExperimentalTreeviz,
+                format: OutputFormat::AstLinebasedTreeviz,
             },
         ]
     }
@@ -257,7 +257,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     // Handle experimental pipeline formats first
     match &spec.format {
         OutputFormat::TokenLine => {
-            let line_tokens = crate::txxt::lexers::experimental_lex_stage(
+            let line_tokens = crate::txxt::lexers::_lex_stage(
                 &content,
                 crate::txxt::lexers::PipelineStage::LineTokens,
             );
@@ -271,14 +271,14 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
             ))
         }
         OutputFormat::TokenTree => {
-            let tree = crate::txxt::lexers::experimental_lex(&content)
+            let tree = crate::txxt::lexers::_lex(&content)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
             let json = serde_json::to_string_pretty(&tree)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
             Ok(json)
         }
         _ => {
-            // Non-experimental format, continue with standard processing
+            // Non linebased format, continue with standard processing
             match spec.stage {
                 ProcessingStage::Token => {
                     let tokens = lex(&content);
@@ -295,22 +295,22 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                     match spec.format {
                         OutputFormat::AstTag => Ok(crate::txxt::parsers::serialize_ast_tag(&doc)),
                         OutputFormat::AstTreeviz => Ok(crate::txxt::parsers::to_treeviz_str(&doc)),
-                        OutputFormat::AstExperimentalTag => {
+                        OutputFormat::AstLinebasedTag => {
                             // Use experimental parser (linebased lexer + homy parser)
                             let doc_exp = TxxtPipeline::new("linebased", "homy")
                                 .parse(&content)
                                 .map_err(|e| ProcessingError::IoError(format!(
-                                    "Experimental parser failed: {}",
+                                    "Linebased parser failed: {}",
                                     e
                                 )))?;
                             Ok(crate::txxt::parsers::serialize_ast_tag(&doc_exp))
                         }
-                        OutputFormat::AstExperimentalTreeviz => {
+                        OutputFormat::AstLinebasedTreeviz => {
                             // Use experimental parser (linebased lexer + homy parser)
                             let doc_exp = TxxtPipeline::new("linebased", "homy")
                                 .parse(&content)
                                 .map_err(|e| ProcessingError::IoError(format!(
-                                    "Experimental parser failed: {}",
+                                    "Linebased parser failed: {}",
                                     e
                                 )))?;
                             Ok(crate::txxt::parsers::to_treeviz_str(&doc_exp))
@@ -336,7 +336,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                             ))
                         }
                         _ => Err(ProcessingError::InvalidFormatType(
-                            "Only ast-tag, ast-treeviz, ast-position, ast-experimental-tag, and ast-experimental-treeviz formats are supported for AST stage".to_string(),
+                            "Only ast-tag, ast-treeviz, ast-position, ast linebased-tag, and ast linebased-treeviz formats are supported for AST stage".to_string(),
                         )),
                     }
                 }
@@ -385,11 +385,11 @@ pub fn format_tokenss(
         OutputFormat::AstPosition => Err(ProcessingError::InvalidFormatType(
             "ast-position format only works with ast stage".to_string(),
         )),
-        OutputFormat::AstExperimentalTag => Err(ProcessingError::InvalidFormatType(
-            "ast-experimental-tag format only works with ast stage".to_string(),
+        OutputFormat::AstLinebasedTag => Err(ProcessingError::InvalidFormatType(
+            "ast linebased-tag format only works with ast stage".to_string(),
         )),
-        OutputFormat::AstExperimentalTreeviz => Err(ProcessingError::InvalidFormatType(
-            "ast-experimental-treeviz format only works with ast stage".to_string(),
+        OutputFormat::AstLinebasedTreeviz => Err(ProcessingError::InvalidFormatType(
+            "ast linebased-treeviz format only works with ast stage".to_string(),
         )),
         OutputFormat::TokenLine | OutputFormat::TokenTree => {
             // These formats are handled in process_file_with_extras, not here
@@ -422,8 +422,8 @@ pub fn available_formats() -> Vec<String> {
                     OutputFormat::AstPosition => "position",
                     OutputFormat::TokenLine => "line",
                     OutputFormat::TokenTree => "tree",
-                    OutputFormat::AstExperimentalTag => "experimental-tag",
-                    OutputFormat::AstExperimentalTreeviz => "experimental-treeviz",
+                    OutputFormat::AstLinebasedTag => "experimental-tag",
+                    OutputFormat::AstLinebasedTreeviz => "experimental-treeviz",
                 }
             )
         })
