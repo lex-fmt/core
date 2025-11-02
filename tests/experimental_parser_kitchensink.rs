@@ -5,7 +5,7 @@
 //! Any regression in parsing will be caught automatically.
 
 use txxt::txxt::lexers::transformations::_lex;
-use txxt::txxt::parsers::homy::engine::parse_experimental;
+use txxt::txxt::parsers::linebased::engine::parse_experimental;
 use txxt::txxt::parsers::ContentItem;
 
 #[test]

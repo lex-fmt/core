@@ -1,7 +1,7 @@
 //! Common parser interfaces and registry
 //!
 //! This module defines the `Parser` trait and `ParserRegistry` for pluggable
-//! parser implementations. Each parser design (reference, homy, etc.)
+//! parser implementations. Each parser design (reference, linebased, etc.)
 //! implements the `Parser` trait, and the registry allows selecting which
 //! parser to use at runtime.
 
@@ -34,7 +34,7 @@ impl std::error::Error for ParseError {}
 pub enum ParserInput {
     /// Standard token stream with source locations (for reference parser)
     Tokens(Vec<(crate::txxt::lexers::Token, std::ops::Range<usize>)>),
-    /// Line-based token trees (for homy parser)
+    /// Line-based token trees (for linebased parser)
     LineTokenTrees(Vec<crate::txxt::lexers::LineTokenTree>),
 }
 
@@ -134,7 +134,7 @@ impl ParserRegistry {
         let mut registry = Self::global().lock().unwrap();
         if registry.available().is_empty() {
             registry.register(std::sync::Arc::new(ReferenceParserImpl));
-            registry.register(std::sync::Arc::new(HomyParserImpl));
+            registry.register(std::sync::Arc::new(LineBasedParserImpl));
         }
     }
 }
@@ -175,12 +175,12 @@ impl Parser for ReferenceParserImpl {
     }
 }
 
-/// Implementation wrapper for the homy (linebased) parser
-pub struct HomyParserImpl;
+/// Implementation wrapper for the linebased (linebased) parser
+pub struct LineBasedParserImpl;
 
-impl Parser for HomyParserImpl {
+impl Parser for LineBasedParserImpl {
     fn name(&self) -> &'static str {
-        "homy"
+        "linebased"
     }
 
     fn parse(
@@ -190,12 +190,13 @@ impl Parser for HomyParserImpl {
     ) -> Result<crate::txxt::parsers::Document, ParseError> {
         match input {
             ParserInput::LineTokenTrees(trees) => {
-                // Call the actual homy parser - takes Vec<LineTokenTree>
-                crate::txxt::parsers::homy::parse_experimental(trees, source)
-                    .map_err(|e| ParseError::ParsingFailed(format!("Homy parser failed: {}", e)))
+                // Call the actual linebased parser - takes Vec<LineTokenTree>
+                crate::txxt::parsers::linebased::parse_experimental(trees, source).map_err(|e| {
+                    ParseError::ParsingFailed(format!("LineBased parser failed: {}", e))
+                })
             }
             ParserInput::Tokens(_) => Err(ParseError::IncompatibleInput(
-                "Homy parser requires line token trees, not token stream".to_string(),
+                "LineBased parser requires line token trees, not token stream".to_string(),
             )),
         }
     }
@@ -232,12 +233,12 @@ mod tests {
     fn test_parser_registry_available() {
         let mut registry = ParserRegistry::new();
         registry.register(std::sync::Arc::new(ReferenceParserImpl));
-        registry.register(std::sync::Arc::new(HomyParserImpl));
+        registry.register(std::sync::Arc::new(LineBasedParserImpl));
 
         let available = registry.available();
         assert_eq!(available.len(), 2);
         assert!(available.contains(&"reference".to_string()));
-        assert!(available.contains(&"homy".to_string()));
+        assert!(available.contains(&"linebased".to_string()));
     }
 
     #[test]
@@ -260,9 +261,9 @@ mod tests {
     }
 
     #[test]
-    fn test_homy_parser_name() {
-        let parser = HomyParserImpl;
-        assert_eq!(parser.name(), "homy");
+    fn test_linebased_parser_name() {
+        let parser = LineBasedParserImpl;
+        assert_eq!(parser.name(), "linebased");
     }
 
     #[test]
@@ -283,8 +284,8 @@ mod tests {
     }
 
     #[test]
-    fn test_homy_parser_supports_tree() {
-        let parser = HomyParserImpl;
+    fn test_linebased_parser_supports_tree() {
+        let parser = LineBasedParserImpl;
         let tree = crate::txxt::lexers::LineTokenTree::Block(vec![]);
         let input = ParserInput::LineTokenTrees(vec![tree]);
 
@@ -292,8 +293,8 @@ mod tests {
     }
 
     #[test]
-    fn test_homy_parser_does_not_support_tokens() {
-        let parser = HomyParserImpl;
+    fn test_linebased_parser_does_not_support_tokens() {
+        let parser = LineBasedParserImpl;
         let input = ParserInput::Tokens(vec![]);
 
         assert!(!parser.supports_input(&input));

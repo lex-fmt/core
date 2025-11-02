@@ -17,7 +17,7 @@
 //! let doc = pipeline.parse("hello world").expect("Failed to parse");
 //!
 //! // Use specific lexer/parser combination
-//! let pipeline = TxxtPipeline::new("linebased", "homy");
+//! let pipeline = TxxtPipeline::new("linebased", "linebased");
 //! let doc = pipeline.parse("hello world").expect("Failed to parse");
 //! ```
 //!
@@ -107,8 +107,8 @@ impl ProcessingSpec {
             "position" => OutputFormat::AstPosition,
             "line" => OutputFormat::TokenLine,
             "tree" => OutputFormat::TokenTree,
-            "experimental-tag" => OutputFormat::AstLinebasedTag,
-            "experimental-treeviz" => OutputFormat::AstLinebasedTreeviz,
+            "linebased-tag" => OutputFormat::AstLinebasedTag,
+            "linebased-treeviz" => OutputFormat::AstLinebasedTreeviz,
             _ => return Err(ProcessingError::InvalidFormatType(parts[1..].join("-"))),
         };
 
@@ -121,7 +121,7 @@ impl ProcessingSpec {
             (ProcessingStage::Ast, OutputFormat::AstLinebasedTreeviz) => {} // Valid
             (ProcessingStage::Ast, _) => {
                 return Err(ProcessingError::InvalidFormatType(format!(
-                    "Format '{:?}' not supported for AST stage (only 'tag', 'treeviz', 'position', 'experimental-tag', and 'experimental-treeviz' are supported)",
+                    "Format '{:?}' not supported for AST stage (only 'tag', 'treeviz', 'position', 'linebased-tag', and 'linebased-treeviz' are supported)",
                     format
                 )))
             }
@@ -142,12 +142,12 @@ impl ProcessingSpec {
             }
             (ProcessingStage::Token, OutputFormat::AstLinebasedTag) => {
                 return Err(ProcessingError::InvalidFormatType(
-                    "Format 'experimental-tag' only works with AST stage".to_string(),
+                    "Format 'linebased-tag' only works with AST stage".to_string(),
                 ))
             }
             (ProcessingStage::Token, OutputFormat::AstLinebasedTreeviz) => {
                 return Err(ProcessingError::InvalidFormatType(
-                    "Format 'experimental-treeviz' only works with AST stage".to_string(),
+                    "Format 'linebased-treeviz' only works with AST stage".to_string(),
                 ))
             }
             _ => {} // Token stage with other formats is fine
@@ -254,7 +254,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
         fs::read_to_string(file_path).map_err(|e| ProcessingError::IoError(e.to_string()))?;
 
     // Process according to stage and format
-    // Handle experimental pipeline formats first
+    // Handle linebased pipeline formats first
     match &spec.format {
         OutputFormat::TokenLine => {
             let line_tokens = crate::txxt::lexers::_lex_stage(
@@ -267,7 +267,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                 return Ok(json);
             }
             Err(ProcessingError::IoError(
-                "Unexpected output from experimental pipeline".to_string(),
+                "Unexpected output from linebased pipeline".to_string(),
             ))
         }
         OutputFormat::TokenTree => {
@@ -296,8 +296,8 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                         OutputFormat::AstTag => Ok(crate::txxt::parsers::serialize_ast_tag(&doc)),
                         OutputFormat::AstTreeviz => Ok(crate::txxt::parsers::to_treeviz_str(&doc)),
                         OutputFormat::AstLinebasedTag => {
-                            // Use experimental parser (linebased lexer + homy parser)
-                            let doc_exp = TxxtPipeline::new("linebased", "homy")
+                            // Use linebased parser (linebased lexer + linebased parser)
+                            let doc_exp = TxxtPipeline::new("linebased", "linebased")
                                 .parse(&content)
                                 .map_err(|e| ProcessingError::IoError(format!(
                                     "Linebased parser failed: {}",
@@ -306,8 +306,8 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                             Ok(crate::txxt::parsers::serialize_ast_tag(&doc_exp))
                         }
                         OutputFormat::AstLinebasedTreeviz => {
-                            // Use experimental parser (linebased lexer + homy parser)
-                            let doc_exp = TxxtPipeline::new("linebased", "homy")
+                            // Use linebased parser (linebased lexer + linebased parser)
+                            let doc_exp = TxxtPipeline::new("linebased", "linebased")
                                 .parse(&content)
                                 .map_err(|e| ProcessingError::IoError(format!(
                                     "Linebased parser failed: {}",
@@ -422,8 +422,8 @@ pub fn available_formats() -> Vec<String> {
                     OutputFormat::AstPosition => "position",
                     OutputFormat::TokenLine => "line",
                     OutputFormat::TokenTree => "tree",
-                    OutputFormat::AstLinebasedTag => "experimental-tag",
-                    OutputFormat::AstLinebasedTreeviz => "experimental-treeviz",
+                    OutputFormat::AstLinebasedTag => "linebased-tag",
+                    OutputFormat::AstLinebasedTreeviz => "linebased-treeviz",
                 }
             )
         })
