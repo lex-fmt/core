@@ -16,18 +16,14 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::txxt::ast::{
-    Annotation, ContentItem, ForeignBlock, Label, ListItem, Location, Paragraph, Parameter,
-    TextContent, TextLine,
+    ContentItem, ForeignBlock, Label, ListItem, Location, Paragraph, Parameter, TextContent,
 };
 use crate::txxt::lexers::Token;
 // Location utilities and AST builders are now imported from crate::txxt::parsers::common
 use crate::txxt::parsers::common::{
     build_annotation, build_definition, build_foreign_block, build_list, build_paragraph,
     build_session,
-    location::{
-        aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
-        compute_location_from_locations,
-    },
+    location::{aggregate_locations, byte_range_to_location, compute_byte_range_bounds},
 };
 
 /// Type alias for token with location
@@ -167,6 +163,7 @@ pub(crate) struct AnnotationHeader {
     pub label: Option<String>,
     pub label_range: Option<Range<usize>>,
     pub parameters: Vec<Parameter>,
+    #[allow(dead_code)]
     pub header_range: Range<usize>,
 }
 
@@ -520,7 +517,7 @@ pub(crate) fn foreign_block(
                 label,
                 label_range,
                 parameters,
-                header_range,
+                header_range: _,
             } = header_info;
 
             let label_text = label.unwrap_or_default();
@@ -529,31 +526,26 @@ pub(crate) fn foreign_block(
             });
             let label = Label::new(label_text).at(label_location);
 
-            let (content, paragraph_location) = if let Some(locations) = content_location {
+            let (content, _paragraph_location) = if let Some(locations) = content_location {
                 let text = extract_text_from_locations(&source_for_annotation, &locations);
                 let range = compute_byte_range_bounds(&locations);
                 let paragraph_location = byte_range_to_location(&source_for_annotation, &range);
-                let text_content = TextContent::from_string(text, Some(paragraph_location));
-                let text_line = TextLine::new(text_content).at(paragraph_location);
-                let paragraph = Paragraph {
-                    lines: vec![ContentItem::TextLine(text_line)],
-                    location: paragraph_location,
-                };
-                (vec![ContentItem::Paragraph(paragraph)], paragraph_location)
+
+                // Use common builder
+                let paragraph =
+                    build_paragraph(vec![(text, paragraph_location)], paragraph_location);
+                (vec![paragraph], paragraph_location)
             } else {
                 (vec![], Location::default())
             };
 
-            let header_location = byte_range_to_location(&source_for_annotation, &header_range);
+            // Use common builder - extract label value and location to reconstruct
+            let label_text = label.value.clone();
+            let label_location = label.location;
 
-            let location_sources = vec![header_location, label_location, paragraph_location];
-            let location = compute_location_from_locations(&location_sources);
-
-            Annotation {
-                label,
-                parameters,
-                content,
-                location,
+            match build_annotation(label_text, label_location, parameters, content) {
+                ContentItem::Annotation(annotation) => annotation,
+                _ => unreachable!("build_annotation always returns Annotation"),
             }
         });
 
