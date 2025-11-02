@@ -454,8 +454,11 @@ mod tests {
     fn make_line_token(line_type: LineTokenType, tokens: Vec<Token>) -> LineToken {
         // Create a reasonable default span - in tests, source is usually small
         // This span should work with test sources
+        // token_spans will be populated during pipeline processing
+        let num_tokens = tokens.len();
         LineToken {
             source_tokens: tokens,
+            token_spans: vec![0..1000; num_tokens], // Default span for each token in tests
             line_type,
             source_span: Some(0..1000), // Large span to accommodate test sources
         }
