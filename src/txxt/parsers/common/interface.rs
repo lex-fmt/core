@@ -190,10 +190,12 @@ impl Parser for LineBasedParserImpl {
     ) -> Result<crate::txxt::parsers::Document, ParseError> {
         match input {
             ParserInput::LineTokenTrees(trees) => {
-                // Call the actual linebased parser - takes Vec<LineTokenTree>
-                crate::txxt::parsers::linebased::parse_experimental(trees, source).map_err(|e| {
-                    ParseError::ParsingFailed(format!("LineBased parser failed: {}", e))
-                })
+                // The new declarative grammar parser uses LineContainerToken directly
+                // For backward compatibility, convert Vec<LineTokenTree> back to LineContainerToken
+                let container = convert_token_trees_to_container(&trees);
+                crate::txxt::parsers::linebased::parse_experimental_v2(container, source).map_err(
+                    |e| ParseError::ParsingFailed(format!("LineBased parser failed: {}", e)),
+                )
             }
             ParserInput::Tokens(_) => Err(ParseError::IncompatibleInput(
                 "LineBased parser requires line token trees, not token stream".to_string(),
@@ -203,6 +205,40 @@ impl Parser for LineBasedParserImpl {
 
     fn supports_input(&self, input: &ParserInput) -> bool {
         matches!(input, ParserInput::LineTokenTrees(_))
+    }
+}
+
+/// Convert Vec<LineTokenTree> back to LineContainerToken for the new parser
+/// This is a backward compatibility bridge while the lexer pipeline transitions
+fn convert_token_trees_to_container(
+    trees: &[crate::txxt::lexers::LineTokenTree],
+) -> crate::txxt::lexers::LineContainerToken {
+    use crate::txxt::lexers::{LineContainerToken, LineTokenTree};
+
+    // Convert the tree structure back to LineContainerToken format
+    fn convert_tree(tree: &LineTokenTree) -> Vec<LineContainerToken> {
+        match tree {
+            LineTokenTree::Token(token) => vec![LineContainerToken::Token(token.clone())],
+            LineTokenTree::Block(children) => {
+                let converted_children = children.iter().flat_map(convert_tree).collect();
+                vec![LineContainerToken::Container {
+                    children: converted_children,
+                    source_span: None,
+                }]
+            }
+            LineTokenTree::Container(_) => {
+                // Skip legacy containers (shouldn't happen in new code)
+                vec![]
+            }
+        }
+    }
+
+    let children = trees.iter().flat_map(convert_tree).collect();
+
+    // Wrap everything in a root container
+    LineContainerToken::Container {
+        children,
+        source_span: None,
     }
 }
 
