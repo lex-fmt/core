@@ -30,11 +30,12 @@
 //!
 //! This separation makes each component testable independently.
 
+pub mod declarative_grammar;
 pub mod engine;
 pub mod regex_grammar_engine;
 pub mod txxt_grammar;
 pub mod unwrapper;
 
-pub use engine::parse_experimental;
+pub use engine::{parse_experimental, parse_experimental_v2};
 pub use regex_grammar_engine::{RegexGrammarMatcher, TokenSeq};
 pub use txxt_grammar::{MatchedPattern, TxxtGrammarRules};
