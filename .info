@@ -1,0 +1,3 @@
+src/txxt/parser The root for all parsers
+src/txxt/parser/homy The module for the 'home' parser design.
+src/txxt/parser/reference The module for the 'reference' parser design.

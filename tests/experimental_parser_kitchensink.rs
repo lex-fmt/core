@@ -4,9 +4,9 @@
 //! produces the correct AST structure for a complex, comprehensive test file.
 //! Any regression in parsing will be caught automatically.
 
-use txxt::txxt::lexer::transformations::experimental_pipeline::experimental_lex;
-use txxt::txxt::parser::grammarengine::engine::parse_experimental;
-use txxt::txxt::parser::ContentItem;
+use txxt::txxt::lexers::transformations::experimental_lex;
+use txxt::txxt::parsers::homy::engine::parse_experimental;
+use txxt::txxt::parsers::ContentItem;
 
 #[test]
 fn experimental_parser_kitchensink_snapshot() {

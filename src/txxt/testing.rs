@@ -24,7 +24,7 @@
 //!
 //! ```rust-example
 //! use crate::txxt::processor::txxt_sources::TxxtSources;
-//! use crate::txxt::parser::parse_document;
+//! use crate::txxt::parsers::parse_document;
 //!
 //! // CORRECT: Use verified sample files
 //! let source = TxxtSources::get_string("000-paragraphs.txxt")?;

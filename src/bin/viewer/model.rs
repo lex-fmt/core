@@ -12,7 +12,7 @@ use std::collections::HashSet;
 use txxt::txxt::ast::elements::content_item::ContentItem;
 use txxt::txxt::ast::location::{Location, Position};
 use txxt::txxt::ast::{snapshot_visitor::snapshot_from_document, AstSnapshot};
-use txxt::txxt::parser::Document;
+use txxt::txxt::parsers::Document;
 
 /// Which viewer currently has keyboard focus
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_selection_text() {
-        let mut model = Model::new(txxt::txxt::parser::parse_document("test").unwrap());
+        let mut model = Model::new(txxt::txxt::parsers::parse_document("test").unwrap());
         model.select_position(5, 10);
         assert_eq!(model.get_selected_position(), Some((5, 10)));
         assert_eq!(model.get_selected_node_id(), None);
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_selection_node() {
-        let mut model = Model::new(txxt::txxt::parser::parse_document("test").unwrap());
+        let mut model = Model::new(txxt::txxt::parsers::parse_document("test").unwrap());
         let node_id = NodeId::new(&[0, 1]);
         model.select_node(node_id);
         assert_eq!(model.get_selected_node_id(), Some(node_id));
@@ -465,7 +465,7 @@ mod tests {
 
     #[test]
     fn test_node_expansion() {
-        let mut model = Model::new(txxt::txxt::parser::parse_document("test").unwrap());
+        let mut model = Model::new(txxt::txxt::parsers::parse_document("test").unwrap());
         let node_id = NodeId::new(&[0, 1]);
 
         assert!(!model.is_node_expanded(node_id));
@@ -477,7 +477,7 @@ mod tests {
 
     #[test]
     fn test_expand_nodes() {
-        let mut model = Model::new(txxt::txxt::parser::parse_document("test").unwrap());
+        let mut model = Model::new(txxt::txxt::parsers::parse_document("test").unwrap());
         let nodes = [
             NodeId::new(&[0]),
             NodeId::new(&[0, 1]),
@@ -492,7 +492,7 @@ mod tests {
 
     #[test]
     fn test_get_ancestors() {
-        let model = Model::new(txxt::txxt::parser::parse_document("test").unwrap());
+        let model = Model::new(txxt::txxt::parsers::parse_document("test").unwrap());
 
         let node = NodeId::new(&[0, 1, 2]);
         let ancestors = model.get_ancestors(node);
@@ -506,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_get_ancestors_root_child() {
-        let model = Model::new(txxt::txxt::parser::parse_document("test").unwrap());
+        let model = Model::new(txxt::txxt::parsers::parse_document("test").unwrap());
 
         let node = NodeId::new(&[0]);
         let ancestors = model.get_ancestors(node);
@@ -519,7 +519,7 @@ mod tests {
     #[test]
     fn test_flattened_tree_with_content() {
         let doc_str = "# Heading\n\nParagraph text";
-        let model = Model::new(txxt::txxt::parser::parse_document(doc_str).unwrap());
+        let model = Model::new(txxt::txxt::parsers::parse_document(doc_str).unwrap());
 
         let flattened = model.flattened_tree();
 
@@ -539,7 +539,7 @@ mod tests {
     #[test]
     fn test_flattened_tree_respects_expansion() {
         let doc_str = "# Heading\n## Subheading\nText";
-        let mut model = Model::new(txxt::txxt::parser::parse_document(doc_str).unwrap());
+        let mut model = Model::new(txxt::txxt::parsers::parse_document(doc_str).unwrap());
 
         // Get flattened tree when nothing is expanded
         let flattened_collapsed = model.flattened_tree();
@@ -561,7 +561,7 @@ mod tests {
     fn test_get_node_at_position_finds_ast_node() {
         // Create document with content we know the structure of
         let doc_str = "# Heading\n\nParagraph";
-        let model = Model::new(txxt::txxt::parser::parse_document(doc_str).unwrap());
+        let model = Model::new(txxt::txxt::parsers::parse_document(doc_str).unwrap());
 
         // Position (0, 0) should be at the heading
         if let Some(node_id) = model.get_node_at_position(0, 0) {
@@ -577,7 +577,8 @@ mod tests {
 
     #[test]
     fn test_select_position_then_get_node() {
-        let mut model = Model::new(txxt::txxt::parser::parse_document("# Title\nContent").unwrap());
+        let mut model =
+            Model::new(txxt::txxt::parsers::parse_document("# Title\nContent").unwrap());
 
         // Simulate file viewer selecting a position
         model.select_position(0, 0);
