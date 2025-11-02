@@ -843,13 +843,12 @@ mod tests {
     #[test]
     fn test_step1_integration_annotation_and_paragraph() {
         // Step 1: Test that we can parse annotations and paragraphs
-        use crate::txxt::lexers::LineTokenTree;
-        use crate::txxt::lexers::{LineToken, LineTokenType, Token};
-        use crate::txxt::parsers::linebased::parse_experimental;
+        use crate::txxt::lexers::{LineContainerToken, LineToken, LineTokenType, Token};
+        use crate::txxt::parsers::linebased::parse_experimental_v2;
 
         // Create a simple tree with annotation and paragraph
-        let tree = vec![
-            LineTokenTree::Token(LineToken {
+        let tokens = vec![
+            LineContainerToken::Token(LineToken {
                 source_tokens: vec![
                     Token::TxxtMarker,
                     Token::Whitespace,
@@ -860,14 +859,19 @@ mod tests {
                 line_type: LineTokenType::AnnotationStartLine,
                 source_span: None,
             }),
-            LineTokenTree::Token(LineToken {
+            LineContainerToken::Token(LineToken {
                 source_tokens: vec![Token::Text("Some text".to_string())],
                 line_type: LineTokenType::ParagraphLine,
                 source_span: None,
             }),
         ];
 
-        let result = parse_experimental(tree, ":: note ::\nSome text\n");
+        let container = LineContainerToken::Container {
+            children: tokens,
+            source_span: None,
+        };
+
+        let result = parse_experimental_v2(container, ":: note ::\nSome text\n");
         assert!(result.is_ok(), "Failed to parse annotation and paragraph");
 
         let doc = result.unwrap();

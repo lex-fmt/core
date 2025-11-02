@@ -218,7 +218,7 @@ impl GrammarMatcher {
         if end_idx + 1 < tokens.len() {
             if let LineContainerToken::Token(token) = &tokens[end_idx + 1] {
                 if matches!(token.line_type, LineTokenType::AnnotationEndLine) {
-                    end_idx = end_idx + 1;
+                    end_idx += 1;
                 }
             }
         }
@@ -343,9 +343,18 @@ impl GrammarMatcher {
         tokens: &[LineContainerToken],
         start_idx: usize,
     ) -> Option<(PatternMatch, Range<usize>)> {
-        // Pattern: subject-line blank-line indent content dedent
+        // Pattern: <any-line> <blank-line> <indent><container>
+        // Sessions can start with ANY line type (including ParagraphLine, SubjectOrListItemLine, etc.)
+        // The distinguishing feature is the blank line followed by a container
         let subject_token = Self::get_line_token(&tokens[start_idx])?;
-        if !matches!(subject_token.line_type, LineTokenType::SubjectLine) {
+
+        // Sessions must NOT start with blank lines or annotations
+        if matches!(
+            subject_token.line_type,
+            LineTokenType::BlankLine
+                | LineTokenType::AnnotationStartLine
+                | LineTokenType::AnnotationEndLine
+        ) {
             return None;
         }
 
@@ -473,9 +482,12 @@ pub fn parse_with_declarative_grammar(
 
     while idx < tokens.len() {
         if let Some((pattern, range)) = GrammarMatcher::try_match(&tokens, idx) {
-            // Convert pattern to ContentItem
-            let item = convert_pattern_to_item(&tokens, &pattern, source)?;
-            items.push(item);
+            // Skip blank line groups (they're structural, not content)
+            if !matches!(pattern, PatternMatch::BlankLineGroup { .. }) {
+                // Convert pattern to ContentItem
+                let item = convert_pattern_to_item(&tokens, &pattern, source)?;
+                items.push(item);
+            }
             idx = range.end;
         } else {
             idx += 1;
@@ -601,9 +613,9 @@ fn convert_pattern_to_item(
             unwrapper::unwrap_tokens_to_paragraph(paragraph_tokens, source)
         }
         PatternMatch::BlankLineGroup { .. } => {
-            // Blank lines are structural separators, not content elements
-            // Return empty paragraph or skip
-            Err("BlankLineGroup should be filtered out".to_string())
+            // BlankLineGroups should have been filtered out in parse_with_declarative_grammar
+            // If we reach here, something went wrong
+            Err("Internal error: BlankLineGroup reached convert_pattern_to_item".to_string())
         }
     }
 }

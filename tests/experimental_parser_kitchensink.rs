@@ -4,9 +4,8 @@
 //! produces the correct AST structure for a complex, comprehensive test file.
 //! Any regression in parsing will be caught automatically.
 
-use txxt::txxt::lexers::linebased::transformations::unwrap_container_to_token_tree;
 use txxt::txxt::lexers::transformations::_lex;
-use txxt::txxt::parsers::linebased::engine::parse_experimental;
+use txxt::txxt::parsers::linebased::parse_experimental_v2;
 use txxt::txxt::parsers::ContentItem;
 
 #[test]
@@ -15,8 +14,7 @@ fn _parser_kitchensink_snapshot() {
         .expect("Could not read kitchensink.txxt");
 
     let container = _lex(&source).expect("Failed to tokenize");
-    let tree = unwrap_container_to_token_tree(&container);
-    let doc = parse_experimental(tree, &source).expect("Parser failed");
+    let doc = parse_experimental_v2(container, &source).expect("Parser failed");
 
     // Create a readable representation of the AST for snapshot testing
     let snapshot = format_ast_snapshot(&doc.root.content);
