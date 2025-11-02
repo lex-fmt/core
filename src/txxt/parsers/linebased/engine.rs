@@ -210,7 +210,10 @@ fn try_match_single_annotation(
     source: &str,
 ) -> Result<Option<(ContentItem, usize)>, String> {
     if let Some(_consumed) = token_types.first().and_then(|t| {
-        if matches!(t, LineTokenType::AnnotationLine) {
+        if matches!(
+            t,
+            LineTokenType::AnnotationEndLine | LineTokenType::AnnotationStartLine
+        ) {
             Some(())
         } else {
             None
@@ -265,7 +268,10 @@ fn try_match_foreign_block(
                     }
                 }
                 Some(LineTokenTree::Token(annotation_token))
-                    if annotation_token.line_type == LineTokenType::AnnotationLine =>
+                    if matches!(
+                        annotation_token.line_type,
+                        LineTokenType::AnnotationEndLine | LineTokenType::AnnotationStartLine
+                    ) =>
                 {
                     let item = super::unwrapper::unwrap_foreign_block(
                         subject_token,
