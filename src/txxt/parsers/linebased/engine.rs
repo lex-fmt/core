@@ -12,7 +12,7 @@
 //! making it testable and maintainable independently.
 
 use super::txxt_grammar::TxxtGrammarRules;
-use crate::txxt::ast::elements::BlankLineGroup;
+use crate::txxt::ast::elements::{BlankLineGroup, Paragraph};
 use crate::txxt::ast::TextContent;
 use crate::txxt::lexers::{LineTokenTree, LineTokenType};
 use crate::txxt::parsers::{ContentItem, Document, Location, Position, Session};
@@ -454,6 +454,20 @@ fn parse_node_at_level(
 ) -> Result<(ContentItem, usize), String> {
     if tree.is_empty() {
         return Err("Empty tree at node level".to_string());
+    }
+
+    // Special case: BlankLine tokens are handled separately by walk_and_parse
+    // They'll be converted to BlankLineGroup nodes there, so we return a dummy Paragraph
+    // that walk_and_parse will recognize and convert.
+    if let LineTokenTree::Token(token) = &tree[0] {
+        if token.line_type == LineTokenType::BlankLine {
+            // Create a minimal paragraph that walk_and_parse will recognize and convert
+            let paragraph = Paragraph {
+                lines: vec![],
+                location: Location::new(Position::new(0, 0), Position::new(0, 0)),
+            };
+            return Ok((ContentItem::Paragraph(paragraph), 1));
+        }
     }
 
     // Check if a Block follows the current tokens (implicit INDENT)
