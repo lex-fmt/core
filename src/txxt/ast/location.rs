@@ -10,7 +10,7 @@
 //!
 //! ### 1. Tokenization (Lexer)
 //!
-//! The lexer (`src/txxt/lexer.rs` and `src/txxt/lexer/lexer_impl.rs`) produces tokens paired with
+//! The lexer (`src/txxt/lexer.rs` and `src/txxt/lexer/indentation.rs`) produces tokens paired with
 //! **byte-offset ranges** into the source. The logos crate provides automatic span tracking:
 //!
 //! ```text

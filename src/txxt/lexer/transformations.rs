@@ -12,17 +12,18 @@
 //! Experimental transformations (for the experimental 3-pass parser):
 //! - experimental_transform_to_line_tokens() - flat tokens → line tokens (Pass 0)
 //! - experimental_transform_indentation_to_token_tree() - line tokens → hierarchical tree (Pass 1)
-//! - experimental_pipeline - orchestrates all transformations into cohesive pipeline
+//!
+//! The line-based pipeline that orchestrates all transformations is now in the `linebased` module.
 
-pub mod experimental_pipeline;
 pub mod transform_blanklines;
 pub mod transform_indentation;
 pub mod transform_indentation_to_token_tree;
 pub mod transform_to_line_tokens;
 pub mod transform_whitespace;
 
-pub use experimental_pipeline::{
-    experimental_lex, experimental_lex_stage, PipelineOutput, PipelineStage,
+// Re-export the experimental pipeline from the linebased module
+pub use crate::txxt::lexer::linebased::{
+    experimental_lex, experimental_lex_stage, PipelineError, PipelineOutput, PipelineStage,
 };
 pub use transform_blanklines::transform_blank_lines;
 pub use transform_indentation::transform_indentation;

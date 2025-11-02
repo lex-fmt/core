@@ -9,7 +9,7 @@
 //!    - Whitespace remainder processing ./transformations/transform_whitespace.rs
 //!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ./transformations/transform_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ./transformations/transform_blanklines.rs
-//! 3.
+//! 3. Line-based pipeline (experimental):
 //!    - Flatten tokens into line tokens
 //!    - Transform line tokens into a hierarchical tree
 //!
@@ -29,12 +29,13 @@
 //! - At some point in the spec, we will handle blocks much like markdown's fenced blocks,that display non-txxt strings. In these cases, while we may parse (for indentation)the lines, we never want to emit the indent and dedent tokens. Having this happen two stages gives us more flexibility on how to handle these cases.
 
 pub mod detokenizer;
-pub mod lexer_impl;
+pub mod indentation;
+pub mod linebased;
 pub mod tokens;
 pub mod transformations;
 
 pub use detokenizer::detokenize;
-pub use lexer_impl::tokenize;
+pub use indentation::tokenize;
 pub use tokens::{LineToken, LineTokenType, Token};
 pub use transformations::transform_indentation_to_token_tree::LineTokenTree;
 pub use transformations::{
