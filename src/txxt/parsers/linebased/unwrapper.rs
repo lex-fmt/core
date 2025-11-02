@@ -631,10 +631,12 @@ mod tests {
     #[test]
     fn test_unwrap_annotation_with_span_extracts_location() {
         let mut token = make_line_token(
-            LineTokenType::AnnotationLine,
+            LineTokenType::AnnotationStartLine,
             vec![
                 Token::TxxtMarker,
+                Token::Whitespace,
                 Token::Text("note".to_string()),
+                Token::Whitespace,
                 Token::TxxtMarker,
             ],
         );

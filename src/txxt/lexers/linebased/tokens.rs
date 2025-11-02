@@ -38,14 +38,20 @@ pub enum LineTokenType {
     /// Blank line (empty or whitespace only)
     BlankLine,
 
-    /// Line with :: markers (annotation)
-    AnnotationLine,
+    /// Annotation end line: a line starting with :: marker and having no further content
+    AnnotationEndLine,
+
+    /// Annotation start line: follows annotation grammar <txxt-marker><space>(<label><space>)?<parameters>? <txxt-marker> <content>?
+    AnnotationStartLine,
 
     /// Line ending with colon (could be subject/definition/session title)
     SubjectLine,
 
     /// Line starting with list marker (-, 1., a., I., etc.)
     ListLine,
+
+    /// Line starting with list marker and ending with colon (subject and list item combined)
+    SubjectOrListItemLine,
 
     /// Any other line (paragraph text)
     ParagraphLine,
@@ -61,9 +67,11 @@ impl fmt::Display for LineTokenType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             LineTokenType::BlankLine => "BLANK_LINE",
-            LineTokenType::AnnotationLine => "ANNOTATION_LINE",
+            LineTokenType::AnnotationEndLine => "ANNOTATION_END_LINE",
+            LineTokenType::AnnotationStartLine => "ANNOTATION_START_LINE",
             LineTokenType::SubjectLine => "SUBJECT_LINE",
             LineTokenType::ListLine => "LIST_LINE",
+            LineTokenType::SubjectOrListItemLine => "SUBJECT_OR_LIST_ITEM_LINE",
             LineTokenType::ParagraphLine => "PARAGRAPH_LINE",
             LineTokenType::IndentLevel => "INDENT",
             LineTokenType::DedentLevel => "DEDENT",

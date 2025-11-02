@@ -9,9 +9,11 @@
 //!
 //! Line token types:
 //! - BLANK_LINE: Empty line
-//! - ANNOTATION_LINE: Line with :: markers
+//! - ANNOTATION_END_LINE: Line containing only :: marker
+//! - ANNOTATION_START_LINE: Line following annotation grammar: :: <label>? <params>? :: <content>?
 //! - SUBJECT_LINE: Line ending with colon
 //! - LIST_LINE: Line starting with list marker (-, 1., a., I., etc.)
+//! - SUBJECT_OR_LIST_ITEM_LINE: Line starting with list marker and ending with colon
 //! - PARAGRAPH_LINE: Any other line
 //! - INDENT_LEVEL / DEDENT_LEVEL: Structural tokens (pass through unchanged)
 
@@ -120,6 +122,15 @@ fn classify_and_create_line_token(tokens: Vec<Token>) -> LineToken {
 }
 
 /// Determine the type of a line based on its tokens.
+///
+/// Classification follows this specific order (important for correctness):
+/// 1. Blank lines
+/// 2. Annotation end lines (only :: marker, no other content)
+/// 3. Annotation start lines (follows annotation grammar)
+/// 4. List lines starting with list marker AND ending with colon -> SubjectOrListItemLine
+/// 5. List lines (starting with list marker)
+/// 6. Subject lines (ending with colon)
+/// 7. Default to paragraph
 fn classify_line_tokens(tokens: &[Token]) -> LineTokenType {
     if tokens.is_empty() {
         return LineTokenType::ParagraphLine;
@@ -130,18 +141,31 @@ fn classify_line_tokens(tokens: &[Token]) -> LineTokenType {
         return LineTokenType::BlankLine;
     }
 
-    // ANNOTATION_LINE: Contains TxxtMarker (::)
-    if contains_txxt_marker(tokens) {
-        return LineTokenType::AnnotationLine;
+    // ANNOTATION_END_LINE: Only :: marker (and optional whitespace/newline)
+    if is_annotation_end_line(tokens) {
+        return LineTokenType::AnnotationEndLine;
     }
 
-    // LIST_LINE: Starts with list marker (after optional indentation/whitespace)
-    if is_list_line(tokens) {
+    // ANNOTATION_START_LINE: Follows annotation grammar with :: markers
+    if is_annotation_start_line(tokens) {
+        return LineTokenType::AnnotationStartLine;
+    }
+
+    // Check if line both starts with list marker AND ends with colon
+    let has_list_marker = has_list_marker(tokens);
+    let has_colon = ends_with_colon(tokens);
+
+    if has_list_marker && has_colon {
+        return LineTokenType::SubjectOrListItemLine;
+    }
+
+    // LIST_LINE: Starts with list marker
+    if has_list_marker {
         return LineTokenType::ListLine;
     }
 
     // SUBJECT_LINE: Ends with colon
-    if ends_with_colon(tokens) {
+    if has_colon {
         return LineTokenType::SubjectLine;
     }
 
@@ -159,13 +183,69 @@ fn is_blank_line(tokens: &[Token]) -> bool {
     })
 }
 
-/// Check if line contains TxxtMarker (::)
-fn contains_txxt_marker(tokens: &[Token]) -> bool {
-    tokens.iter().any(|t| matches!(t, Token::TxxtMarker))
+/// Check if line is an annotation end line: only :: marker (and optional whitespace/newline)
+fn is_annotation_end_line(tokens: &[Token]) -> bool {
+    // Find all non-whitespace/non-newline tokens
+    let content_tokens: Vec<_> = tokens
+        .iter()
+        .filter(|t| !matches!(t, Token::Whitespace | Token::Newline | Token::Indent))
+        .collect();
+
+    // Must have exactly one token and it must be TxxtMarker
+    content_tokens.len() == 1 && matches!(content_tokens[0], Token::TxxtMarker)
 }
 
-/// Check if line is a list item (starts with list marker after optional indentation)
-fn is_list_line(tokens: &[Token]) -> bool {
+/// Check if line is an annotation start line: follows annotation grammar
+/// Grammar: <txxt-marker><space>(<label><space>)?<parameters>? <txxt-marker> <content>?
+fn is_annotation_start_line(tokens: &[Token]) -> bool {
+    if tokens.is_empty() {
+        return false;
+    }
+
+    // Must contain at least one TxxtMarker
+    let marker_count = tokens
+        .iter()
+        .filter(|t| matches!(t, Token::TxxtMarker))
+        .count();
+    if marker_count < 1 {
+        return false;
+    }
+
+    // Find first TxxtMarker position (after optional leading whitespace)
+    let mut first_marker_idx = None;
+    for (i, token) in tokens.iter().enumerate() {
+        match token {
+            Token::Indent | Token::Whitespace => continue,
+            Token::TxxtMarker => {
+                first_marker_idx = Some(i);
+                break;
+            }
+            _ => break, // Non-whitespace, non-marker: not an annotation line
+        }
+    }
+
+    let first_marker_idx = match first_marker_idx {
+        Some(idx) => idx,
+        None => return false,
+    };
+
+    // After first marker, must have whitespace (or be end of line)
+    if first_marker_idx + 1 < tokens.len()
+        && !matches!(tokens[first_marker_idx + 1], Token::Whitespace)
+    {
+        return false;
+    }
+
+    // Must have a second TxxtMarker somewhere after the first
+    let has_second_marker = tokens[first_marker_idx + 1..]
+        .iter()
+        .any(|t| matches!(t, Token::TxxtMarker));
+
+    has_second_marker
+}
+
+/// Check if line starts with a list marker (after optional indentation)
+fn has_list_marker(tokens: &[Token]) -> bool {
     let mut i = 0;
 
     // Skip leading indentation and whitespace
@@ -244,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn test_annotation_line_classification() {
+    fn test_annotation_start_line_classification() {
         let tokens = vec![
             Token::TxxtMarker,
             Token::Whitespace,
@@ -254,7 +334,26 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::AnnotationLine);
+        assert_eq!(line, LineTokenType::AnnotationStartLine);
+    }
+
+    #[test]
+    fn test_annotation_end_line_classification() {
+        let tokens = vec![Token::TxxtMarker, Token::Newline];
+        let line = classify_line_tokens(&tokens);
+        assert_eq!(line, LineTokenType::AnnotationEndLine);
+    }
+
+    #[test]
+    fn test_annotation_end_line_with_whitespace() {
+        let tokens = vec![
+            Token::Whitespace,
+            Token::TxxtMarker,
+            Token::Whitespace,
+            Token::Newline,
+        ];
+        let line = classify_line_tokens(&tokens);
+        assert_eq!(line, LineTokenType::AnnotationEndLine);
     }
 
     #[test]
@@ -462,7 +561,7 @@ mod tests {
     }
 
     #[test]
-    fn test_list_item_or_subject_line() {
+    fn test_subject_or_list_item_line() {
         // A line that is both list marker AND ends with colon
         // e.g., "1. This is great, see:"
         let tokens = vec![
@@ -479,8 +578,8 @@ mod tests {
         ];
 
         let line = classify_line_tokens(&tokens);
-        // LIST_LINE takes precedence in classification
-        assert_eq!(line, LineTokenType::ListLine);
+        // Should be classified as SubjectOrListItemLine
+        assert_eq!(line, LineTokenType::SubjectOrListItemLine);
     }
 
     #[test]
@@ -497,12 +596,14 @@ mod tests {
     }
 
     #[test]
-    fn test_annotation_and_subject_line_precedence() {
+    fn test_annotation_start_and_subject_line_precedence() {
         // A line that looks like both annotation (has ::) and subject (ends with :)
-        // Annotation check comes BEFORE subject check, so AnnotationLine should win
+        // Annotation check comes BEFORE subject check, so AnnotationStartLine should win
         let tokens = vec![
             Token::TxxtMarker,
+            Token::Whitespace,
             Token::Text("note".to_string()),
+            Token::Whitespace,
             Token::TxxtMarker,
             Token::Whitespace,
             Token::Text("description".to_string()),
@@ -511,7 +612,7 @@ mod tests {
         ];
 
         let line = classify_line_tokens(&tokens);
-        // ANNOTATION_LINE takes precedence (checked before SUBJECT_LINE)
-        assert_eq!(line, LineTokenType::AnnotationLine);
+        // ANNOTATION_START_LINE takes precedence (checked before SUBJECT_LINE)
+        assert_eq!(line, LineTokenType::AnnotationStartLine);
     }
 }
