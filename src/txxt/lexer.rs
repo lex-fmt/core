@@ -6,7 +6,7 @@
 //! The pipeline consists of:
 //! 1. Core tokenization using logos lexer
 //! 2. Common Transformation pipeline:
-//!    - Whitespace remainder processing ./transformations/transform_whitespace.rs
+//!    - Whitespace remainder processing ./transformations/normalize_whitespace.rs
 //!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ./transformations/sem_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ./transformations/transform_blanklines.rs
 //! 3. Line-based pipeline (experimental):

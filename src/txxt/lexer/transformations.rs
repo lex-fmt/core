@@ -16,13 +16,13 @@
 //! The line-based pipeline that orchestrates all transformations is now in the `linebased` module.
 
 pub mod blanklines;
+pub mod normalize_whitespace;
 pub mod sem_indentation;
-pub mod transform_whitespace;
 
 // Re-export the experimental pipeline from the linebased module
 pub use crate::txxt::lexer::linebased::{
     experimental_lex, experimental_lex_stage, PipelineError, PipelineOutput, PipelineStage,
 };
 pub use blanklines::transform_blank_lines;
+pub use normalize_whitespace::process_whitespace_remainders;
 pub use sem_indentation::sem_indentation;
-pub use transform_whitespace::process_whitespace_remainders;
