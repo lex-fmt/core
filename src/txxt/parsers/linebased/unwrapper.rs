@@ -884,4 +884,260 @@ mod tests {
             panic!("Expected Paragraph");
         }
     }
+
+    // ========== HIERARCHICAL LOCATION AGGREGATION TESTS ==========
+    // These tests verify that container nodes properly aggregate locations
+    // from their header/subject and all child content items.
+
+    #[test]
+    fn test_unwrap_session_aggregates_header_and_child_locations() {
+        // Session title on line 0, columns 0-14
+        let mut subject_token = make_line_token(
+            LineTokenType::SubjectLine,
+            vec![Token::Text("Session Title".to_string()), Token::Colon],
+        );
+        subject_token.source_span = Some(0..14);
+
+        // Create mock child content with known locations:
+        // Child 1: line 1, columns 4-20 (nested paragraph)
+        let child1_location = Location::new(Position::new(1, 4), Position::new(1, 20));
+        let child1 = ContentItem::Paragraph(Paragraph {
+            lines: vec![],
+            location: child1_location,
+        });
+
+        // Child 2: line 2, columns 4-25 (another nested paragraph)
+        let child2_location = Location::new(Position::new(2, 4), Position::new(2, 25));
+        let child2 = ContentItem::Paragraph(Paragraph {
+            lines: vec![],
+            location: child2_location,
+        });
+
+        let source = "Session Title:\n    First line\n    Second line\n";
+        let result = unwrap_session(&subject_token, vec![child1, child2], source);
+        assert!(result.is_ok());
+
+        if let Ok(ContentItem::Session(session)) = result {
+            // Location should be bounding box: from start of header (0:0) to end of last child (2:25)
+            assert_eq!(session.location.start.line, 0);
+            assert_eq!(session.location.start.column, 0);
+            assert_eq!(session.location.end.line, 2);
+            assert_eq!(session.location.end.column, 25);
+        } else {
+            panic!("Expected Session");
+        }
+    }
+
+    #[test]
+    fn test_unwrap_definition_aggregates_subject_and_child_locations() {
+        // Definition subject on line 0, columns 0-5
+        let mut subject_token = make_line_token(
+            LineTokenType::SubjectLine,
+            vec![Token::Text("Term".to_string()), Token::Colon],
+        );
+        subject_token.source_span = Some(0..5);
+
+        // Create mock child content with known locations:
+        // Child 1: line 1, columns 4-18
+        let child1_location = Location::new(Position::new(1, 4), Position::new(1, 18));
+        let child1 = ContentItem::Paragraph(Paragraph {
+            lines: vec![],
+            location: child1_location,
+        });
+
+        // Child 2: line 2, columns 4-22
+        let child2_location = Location::new(Position::new(2, 4), Position::new(2, 22));
+        let child2 = ContentItem::Paragraph(Paragraph {
+            lines: vec![],
+            location: child2_location,
+        });
+
+        let source = "Term:\n    Definition part 1\n    Definition part 2\n";
+        let result = unwrap_definition(&subject_token, vec![child1, child2], source);
+        assert!(result.is_ok());
+
+        if let Ok(ContentItem::Definition(definition)) = result {
+            // Location should be bounding box: from start of subject (0:0) to end of last child (2:22)
+            assert_eq!(definition.location.start.line, 0);
+            assert_eq!(definition.location.start.column, 0);
+            assert_eq!(definition.location.end.line, 2);
+            assert_eq!(definition.location.end.column, 22);
+        } else {
+            panic!("Expected Definition");
+        }
+    }
+
+    #[test]
+    fn test_unwrap_list_item_aggregates_item_and_nested_content() {
+        // List item on line 0, columns 0-14
+        let mut item_token = make_line_token(
+            LineTokenType::ListLine,
+            vec![
+                Token::Dash,
+                Token::Whitespace,
+                Token::Text("Item text".to_string()),
+            ],
+        );
+        item_token.source_span = Some(0..14);
+
+        // Create mock nested content:
+        // Nested child: line 1, columns 4-30
+        let nested_location = Location::new(Position::new(1, 4), Position::new(1, 30));
+        let nested_content = ContentItem::Paragraph(Paragraph {
+            lines: vec![],
+            location: nested_location,
+        });
+
+        let source = "- Item text\n    Nested content here\n";
+        let result = unwrap_list_item(&item_token, vec![nested_content], source);
+        assert!(result.is_ok());
+
+        if let Ok(ContentItem::ListItem(item)) = result {
+            // Location should be bounding box: from start of item (0:0) to end of nested content (1:30)
+            assert_eq!(item.location.start.line, 0);
+            assert_eq!(item.location.start.column, 0);
+            assert_eq!(item.location.end.line, 1);
+            assert_eq!(item.location.end.column, 30);
+        } else {
+            panic!("Expected ListItem");
+        }
+    }
+
+    #[test]
+    fn test_unwrap_list_aggregates_all_item_locations() {
+        // Create mock list items with different locations
+
+        // Item 1: line 0, columns 0-8 ("- Item 1" = 8 chars)
+        let item1_location = Location::new(Position::new(0, 0), Position::new(0, 8));
+        let item1 = ContentItem::ListItem(ListItem {
+            text: vec![TextContent::from_string("Item 1".to_string(), None)],
+            content: vec![],
+            location: item1_location,
+        });
+
+        // Item 2: line 1, columns 0-8 ("- Item 2" = 8 chars)
+        let item2_location = Location::new(Position::new(1, 0), Position::new(1, 8));
+        let item2 = ContentItem::ListItem(ListItem {
+            text: vec![TextContent::from_string("Item 2".to_string(), None)],
+            content: vec![],
+            location: item2_location,
+        });
+
+        // Item 3: line 2, columns 0-8 ("- Item 3" = 8 chars)
+        let item3_location = Location::new(Position::new(2, 0), Position::new(2, 8));
+        let item3 = ContentItem::ListItem(ListItem {
+            text: vec![TextContent::from_string("Item 3".to_string(), None)],
+            content: vec![],
+            location: item3_location,
+        });
+
+        let source = "- Item 1\n- Item 2\n- Item 3\n";
+        let result = unwrap_list(vec![item1, item2, item3], source);
+        assert!(result.is_ok());
+
+        if let Ok(ContentItem::List(list)) = result {
+            // Location should be bounding box encompassing all items:
+            // from start of item 1 (0:0) to end of item 3 (2:8)
+            assert_eq!(list.location.start.line, 0);
+            assert_eq!(list.location.start.column, 0);
+            assert_eq!(list.location.end.line, 2);
+            assert_eq!(list.location.end.column, 8);
+        } else {
+            panic!("Expected List");
+        }
+    }
+
+    #[test]
+    fn test_unwrap_session_with_children_on_different_lines() {
+        // Header spanning lines 0-1
+        let mut subject_token = make_line_token(
+            LineTokenType::SubjectLine,
+            vec![
+                Token::Text("Multi-line".to_string()),
+                Token::Whitespace,
+                Token::Text("Title".to_string()),
+                Token::Colon,
+            ],
+        );
+        // Span from line 0 col 0 to line 1 col 5
+        subject_token.source_span = Some(0..20);
+
+        // Child starting earlier on line 0 (edge case: child starts before or overlaps with header)
+        // This tests that min/max logic correctly computes bounding box
+        let child_location = Location::new(
+            Position::new(0, 15), // Overlaps with header end
+            Position::new(3, 10), // Extends beyond header
+        );
+        let child = ContentItem::Paragraph(Paragraph {
+            lines: vec![],
+            location: child_location,
+        });
+
+        let source = "Multi-line\n Title:\n    Content line 1\n    Content line 2\n";
+        let result = unwrap_session(&subject_token, vec![child], source);
+        assert!(result.is_ok());
+
+        if let Ok(ContentItem::Session(session)) = result {
+            // Bounding box should span from header start (0:0) to child end (3:10)
+            assert_eq!(session.location.start.line, 0);
+            assert_eq!(session.location.start.column, 0);
+            assert_eq!(session.location.end.line, 3);
+            assert_eq!(session.location.end.column, 10);
+        } else {
+            panic!("Expected Session");
+        }
+    }
+
+    #[test]
+    fn test_unwrap_definition_empty_children_uses_subject_location() {
+        // Definition with no children should use only subject location
+        let mut subject_token = make_line_token(
+            LineTokenType::SubjectLine,
+            vec![Token::Text("Term".to_string()), Token::Colon],
+        );
+        subject_token.source_span = Some(0..5);
+
+        let source = "Term:\n";
+        let result = unwrap_definition(&subject_token, vec![], source);
+        assert!(result.is_ok());
+
+        if let Ok(ContentItem::Definition(definition)) = result {
+            // With empty children, location should match just the subject
+            assert_eq!(definition.location.start.line, 0);
+            assert_eq!(definition.location.start.column, 0);
+            assert_eq!(definition.location.end.line, 0);
+            assert_eq!(definition.location.end.column, 5);
+        } else {
+            panic!("Expected Definition");
+        }
+    }
+
+    #[test]
+    fn test_unwrap_list_item_no_nested_content_uses_item_location() {
+        // List item with no nested content should use only item location
+        let mut item_token = make_line_token(
+            LineTokenType::ListLine,
+            vec![
+                Token::Dash,
+                Token::Whitespace,
+                Token::Text("Item".to_string()),
+            ],
+        );
+        // Span covers "- Item" (6 characters)
+        item_token.source_span = Some(0..6);
+
+        let source = "- Item\n";
+        let result = unwrap_list_item(&item_token, vec![], source);
+        assert!(result.is_ok());
+
+        if let Ok(ContentItem::ListItem(item)) = result {
+            // With no nested content, location should match just the item
+            assert_eq!(item.location.start.line, 0);
+            assert_eq!(item.location.start.column, 0);
+            assert_eq!(item.location.end.line, 0);
+            assert_eq!(item.location.end.column, 6);
+        } else {
+            panic!("Expected ListItem");
+        }
+    }
 }
