@@ -5,8 +5,8 @@
 //! Any regression in parsing will be caught automatically.
 
 use txxt::txxt::lexers::transformations::experimental_lex;
-use txxt::txxt::parser::homy::engine::parse_experimental;
-use txxt::txxt::parser::ContentItem;
+use txxt::txxt::parsers::homy::engine::parse_experimental;
+use txxt::txxt::parsers::ContentItem;
 
 #[test]
 fn experimental_parser_kitchensink_snapshot() {

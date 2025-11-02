@@ -268,7 +268,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                 ProcessingStage::Ast => {
                     // Parse the document - all documents now include full location information
                     let doc = if matches!(spec.format, OutputFormat::AstPosition) {
-                        crate::txxt::parser::parse(crate::txxt::lexers::lex(&content), &content)
+                        crate::txxt::parsers::parse(crate::txxt::lexers::lex(&content), &content)
                             .map_err(|errs| {
                                 let error_details = errs
                                     .iter()
@@ -288,7 +288,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                                 ))
                             })?
                     } else {
-                        crate::txxt::parser::parse_document(&content).map_err(|errs| {
+                        crate::txxt::parsers::parse_document(&content).map_err(|errs| {
                             let error_details = errs
                                 .iter()
                                 .map(|e| {
@@ -310,23 +310,23 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
 
                     // Format according to output format
                     match spec.format {
-                        OutputFormat::AstTag => Ok(crate::txxt::parser::serialize_ast_tag(&doc)),
-                        OutputFormat::AstTreeviz => Ok(crate::txxt::parser::to_treeviz_str(&doc)),
+                        OutputFormat::AstTag => Ok(crate::txxt::parsers::serialize_ast_tag(&doc)),
+                        OutputFormat::AstTreeviz => Ok(crate::txxt::parsers::to_treeviz_str(&doc)),
                         OutputFormat::AstExperimentalTag => {
                             // Use experimental parser
                             let tree = crate::txxt::lexers::experimental_lex(&content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental lexer failed: {:?}", e)))?;
-                            let doc_exp = crate::txxt::parser::homy::parse_experimental(tree, &content)
+                            let doc_exp = crate::txxt::parsers::homy::parse_experimental(tree, &content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental parser failed: {}", e)))?;
-                            Ok(crate::txxt::parser::serialize_ast_tag(&doc_exp))
+                            Ok(crate::txxt::parsers::serialize_ast_tag(&doc_exp))
                         }
                         OutputFormat::AstExperimentalTreeviz => {
                             // Use experimental parser
                             let tree = crate::txxt::lexers::experimental_lex(&content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental lexer failed: {:?}", e)))?;
-                            let doc_exp = crate::txxt::parser::homy::parse_experimental(tree, &content)
+                            let doc_exp = crate::txxt::parsers::homy::parse_experimental(tree, &content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental parser failed: {}", e)))?;
-                            Ok(crate::txxt::parser::to_treeviz_str(&doc_exp))
+                            Ok(crate::txxt::parsers::to_treeviz_str(&doc_exp))
                         }
                         OutputFormat::AstPosition => {
                             let line = extras
@@ -343,9 +343,9 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                                         "Missing or invalid 'column' extra".to_string(),
                                     )
                                 })?;
-                            Ok(crate::txxt::parser::format_at_position(
+                            Ok(crate::txxt::parsers::format_at_position(
                                 &doc,
-                                crate::txxt::parser::Position::new(line, column),
+                                crate::txxt::parsers::Position::new(line, column),
                             ))
                         }
                         _ => Err(ProcessingError::InvalidFormatType(
@@ -604,13 +604,13 @@ pub mod txxt_sources {
 Second paragraph"#;
 
         let tokens = crate::txxt::lexers::lex(content);
-        let doc = crate::txxt::parser::parse(tokens, content).unwrap();
+        let doc = crate::txxt::parsers::parse(tokens, content).unwrap();
 
         // Check if locations are populated
         if let Some(first_item) = doc.root.content.first() {
             // The first paragraph should have a location
             match first_item {
-                crate::txxt::parser::ContentItem::Paragraph(_p) => {
+                crate::txxt::parsers::ContentItem::Paragraph(_p) => {
                     // Paragraph has location
                 }
                 _ => panic!("Expected first item to be a paragraph"),
