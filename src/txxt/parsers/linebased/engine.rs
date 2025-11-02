@@ -156,14 +156,40 @@ fn try_match_block_annotation(
 ) -> Result<Option<(ContentItem, usize)>, String> {
     if let Some(consumed) = grammar.try_annotation_from_tree(tree) {
         if let LineTokenTree::Token(opening_token) = &tree[0] {
-            let block_idx = if matches!(tree.get(1), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
-            {
-                2
-            } else {
-                1
-            };
+            let mut block_content = vec![];
+            let mut block_idx = 1;
+
+            // Check for optional blank line after opening annotation
+            if let Some(LineTokenTree::Token(blank_token)) = tree.get(1) {
+                if blank_token.line_type == LineTokenType::BlankLine {
+                    // Create BlankLineGroup for the blank line
+                    let location = if let Some(span) = &blank_token.source_span {
+                        let start_line = source[..span.start].matches('\n').count();
+                        let end_line = source[..span.end].matches('\n').count();
+                        Location {
+                            start: Position {
+                                line: start_line,
+                                column: 0,
+                            },
+                            end: Position {
+                                line: end_line + 1,
+                                column: 0,
+                            },
+                        }
+                    } else {
+                        Location::new(Position::new(0, 0), Position::new(0, 0))
+                    };
+
+                    let blank_group =
+                        BlankLineGroup::new(1, blank_token.source_tokens.clone()).at(location);
+                    block_content.push(ContentItem::BlankLineGroup(blank_group));
+                    block_idx = 2;
+                }
+            }
+
             if let LineTokenTree::Block(block_children) = &tree[block_idx] {
-                let block_content = walk_and_parse(block_children, source)?;
+                let parsed_block = walk_and_parse(block_children, source)?;
+                block_content.extend(parsed_block);
                 let item = super::unwrapper::unwrap_annotation_with_content(
                     opening_token,
                     block_content,
