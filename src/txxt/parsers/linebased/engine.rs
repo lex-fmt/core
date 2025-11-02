@@ -12,6 +12,7 @@
 //! making it testable and maintainable independently.
 
 use super::txxt_grammar::TxxtGrammarRules;
+use crate::txxt::ast::elements::BlankLineGroup;
 use crate::txxt::ast::TextContent;
 use crate::txxt::lexers::{LineTokenTree, LineTokenType};
 use crate::txxt::parsers::{ContentItem, Document, Location, Position, Session};
@@ -79,7 +80,7 @@ fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentIte
         // Try to match a pattern
         let (item, consumed) = parse_node_at_level(remaining_tree, &token_types, &grammar, source)?;
 
-        // Skip structural blank lines (paragraphs created from standalone blank lines)
+        // Convert blank line paragraphs to BlankLineGroup nodes
         // These are detected as single-line paragraphs from BlankLine tokens
         let is_blank_line_paragraph = if let LineTokenTree::Token(token) = &remaining_tree[0] {
             token.line_type == LineTokenType::BlankLine
@@ -89,11 +90,58 @@ fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentIte
             false
         };
 
-        if !is_blank_line_paragraph {
-            content_items.push(item);
-        }
+        if is_blank_line_paragraph {
+            // Collect consecutive blank line tokens
+            let mut blank_count = 0;
+            let mut blank_tokens = Vec::new();
+            let mut idx = 0;
 
-        i += consumed;
+            while idx < remaining_tree.len() {
+                if let LineTokenTree::Token(token) = &remaining_tree[idx] {
+                    if token.line_type == LineTokenType::BlankLine {
+                        blank_count += 1;
+                        blank_tokens.extend(token.source_tokens.clone());
+                        idx += 1;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            // Create BlankLineGroup with the first token's location
+            if let LineTokenTree::Token(first_token) = &remaining_tree[0] {
+                let location = if let Some(span) = &first_token.source_span {
+                    // Calculate location from source span
+                    let start_line = source[..span.start].matches('\n').count();
+                    let end_line = source[..span.end].matches('\n').count();
+                    Location {
+                        start: Position {
+                            line: start_line,
+                            column: 0,
+                        },
+                        end: Position {
+                            line: end_line + 1,
+                            column: 0,
+                        },
+                    }
+                } else {
+                    Location::new(Position::new(0, 0), Position::new(0, 0))
+                };
+
+                let blank_group = BlankLineGroup::new(blank_count, blank_tokens).at(location);
+                content_items.push(ContentItem::BlankLineGroup(blank_group));
+                i += blank_count;
+            } else {
+                // Fallback if we can't process blank lines properly
+                content_items.push(item);
+                i += consumed;
+            }
+        } else {
+            content_items.push(item);
+            i += consumed;
+        }
     }
 
     Ok(content_items)

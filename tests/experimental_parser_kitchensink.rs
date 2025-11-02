@@ -123,6 +123,9 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
         ContentItem::TextLine(tl) => {
             format!("TextLine: {}", tl.content.as_string())
         }
+        ContentItem::BlankLineGroup(blg) => {
+            format!("BlankLineGroup with {} line(s)", blg.count)
+        }
     }
 }
 
