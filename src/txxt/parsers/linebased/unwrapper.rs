@@ -11,11 +11,54 @@
 //! 4. Handling recursive content from nested blocks
 
 use crate::txxt::ast::location::SourceLocation;
+use crate::txxt::ast::traits::AstNode;
 use crate::txxt::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Session, TextContent, TextLine,
 };
 use crate::txxt::lexers::{LineToken, Token};
 use crate::txxt::parsers::{ContentItem, Location, Position};
+
+// ============================================================================
+// LOCATION UTILITIES
+// ============================================================================
+
+/// Compute location bounds from multiple locations (Location-level aggregation)
+///
+/// This creates a bounding box that encompasses all provided locations by taking:
+/// - The minimum start line/column across all locations
+/// - The maximum end line/column across all locations
+///
+/// This matches the reference parser's approach for location aggregation.
+fn compute_location_from_locations(locations: &[Location]) -> Location {
+    if locations.is_empty() {
+        return default_location();
+    }
+    let start_line = locations.iter().map(|sp| sp.start.line).min().unwrap_or(0);
+    let start_col = locations
+        .iter()
+        .map(|sp| sp.start.column)
+        .min()
+        .unwrap_or(0);
+    let end_line = locations.iter().map(|sp| sp.end.line).max().unwrap_or(0);
+    let end_col = locations.iter().map(|sp| sp.end.column).max().unwrap_or(0);
+    Location::new(
+        Position::new(start_line, start_col),
+        Position::new(end_line, end_col),
+    )
+}
+
+/// Aggregate location from a primary location and child content items
+///
+/// Creates a bounding box that encompasses the primary location and all child content.
+/// This is commonly used when building container nodes (sessions, lists, definitions)
+/// that need to include the location of their title/header and all child items.
+///
+/// This matches the reference parser's approach for hierarchical location aggregation.
+fn aggregate_locations(primary: Location, children: &[ContentItem]) -> Location {
+    let mut sources = vec![primary];
+    sources.extend(children.iter().map(|item| item.location()));
+    compute_location_from_locations(&sources)
+}
 
 /// Stub: Convert a line token to a Paragraph ContentItem.
 ///
@@ -296,27 +339,34 @@ fn extract_location_from_token(token: &LineToken, source: &str) -> Location {
 
 /// Extract a combined location that spans multiple tokens
 ///
-/// Creates a location that starts at the first token and ends at the last token,
-/// covering all content in between.
+/// Uses Location-level aggregation (matching reference parser approach):
+/// 1. Convert each token's byte range to a Location
+/// 2. Collect all Locations
+/// 3. Aggregate using Location-level min/max (line/column coordinates)
+///
+/// This approach is semantically correct for hierarchical/non-contiguous children
+/// and avoids issues with assuming contiguous byte ranges.
 fn extract_location_from_tokens(tokens: &[LineToken], source: &str) -> Location {
     if tokens.is_empty() {
         return default_location();
     }
 
-    let source_location = SourceLocation::new(source);
-    let mut combined_start: Option<usize> = None;
-    let mut combined_end: Option<usize> = None;
+    // Convert each token's span to a Location
+    let locations: Vec<Location> = tokens
+        .iter()
+        .filter_map(|token| {
+            token.source_span.as_ref().map(|span| {
+                let source_location = SourceLocation::new(source);
+                source_location.range_to_location(span)
+            })
+        })
+        .collect();
 
-    for token in tokens {
-        if let Some(ref span) = token.source_span {
-            combined_start = Some(combined_start.map_or(span.start, |s| s.min(span.start)));
-            combined_end = Some(combined_end.map_or(span.end, |e| e.max(span.end)));
-        }
-    }
-
-    match (combined_start, combined_end) {
-        (Some(start), Some(end)) => source_location.range_to_location(&(start..end)),
-        _ => default_location(),
+    // Aggregate all locations using Location-level bounds
+    if locations.is_empty() {
+        default_location()
+    } else {
+        compute_location_from_locations(&locations)
     }
 }
 
@@ -333,6 +383,9 @@ fn default_location() -> Location {
 /// Create a Session AST node from a subject line token and content
 ///
 /// Used by the parser when it matches: SUBJECT_LINE + BLANK_LINE + INDENT
+///
+/// Location is aggregated from the subject title and all child content,
+/// matching the reference parser's hierarchical location approach.
 pub fn unwrap_session(
     subject_token: &LineToken,
     content: Vec<ContentItem>,
@@ -342,7 +395,10 @@ pub fn unwrap_session(
     let title = TextContent::from_string(title_text, None);
 
     // Extract location from the subject token
-    let location = extract_location_from_token(subject_token, source);
+    let title_location = extract_location_from_token(subject_token, source);
+
+    // Aggregate title location with all child content locations
+    let location = aggregate_locations(title_location, &content);
 
     let session = Session::new(title, content).at(location);
     Ok(ContentItem::Session(session))
@@ -351,6 +407,9 @@ pub fn unwrap_session(
 /// Create a Definition AST node from a subject token and content
 ///
 /// Used by the parser when it matches: SUBJECT_LINE + INDENT (no blank line)
+///
+/// Location is aggregated from the subject title and all child content,
+/// matching the reference parser's hierarchical location approach.
 pub fn unwrap_definition(
     subject_token: &LineToken,
     content: Vec<ContentItem>,
@@ -360,7 +419,10 @@ pub fn unwrap_definition(
     let subject = TextContent::from_string(subject_text, None);
 
     // Extract location from the subject token
-    let location = extract_location_from_token(subject_token, source);
+    let subject_location = extract_location_from_token(subject_token, source);
+
+    // Aggregate subject location with all child content locations
+    let location = aggregate_locations(subject_location, &content);
 
     let definition = Definition::new(subject, content).at(location);
     Ok(ContentItem::Definition(definition))
@@ -369,14 +431,22 @@ pub fn unwrap_definition(
 /// Create a List AST node from multiple list item tokens
 ///
 /// Used by the parser when it matches: BLANK_LINE + 2+ list items
+///
+/// Location is computed from all child list item locations,
+/// matching the reference parser's hierarchical location approach.
 pub fn unwrap_list(list_items: Vec<ContentItem>, _source: &str) -> Result<ContentItem, String> {
     if list_items.is_empty() {
         return Err("Cannot create list with no items".to_string());
     }
 
-    // Lists are constructed from parsed children, so we use default location
-    // (The location would be computed from child item locations if needed)
-    let location = default_location();
+    // Aggregate location from all child list items
+    let locations: Vec<Location> = list_items.iter().map(|item| item.location()).collect();
+
+    let location = if locations.is_empty() {
+        default_location()
+    } else {
+        compute_location_from_locations(&locations)
+    };
 
     let list = List::new(list_items).at(location);
     Ok(ContentItem::List(list))
@@ -385,6 +455,9 @@ pub fn unwrap_list(list_items: Vec<ContentItem>, _source: &str) -> Result<Conten
 /// Create a ListItem AST node from a list line token and optional nested content
 ///
 /// Called for each item in a list
+///
+/// Location is aggregated from the item text and any nested content,
+/// matching the reference parser's hierarchical location approach.
 pub fn unwrap_list_item(
     item_token: &LineToken,
     content: Vec<ContentItem>,
@@ -393,7 +466,14 @@ pub fn unwrap_list_item(
     let item_text = extract_text_from_token(item_token);
 
     // Extract location from the item token
-    let location = extract_location_from_token(item_token, source);
+    let item_location = extract_location_from_token(item_token, source);
+
+    // Aggregate with child content locations if present
+    let location = if content.is_empty() {
+        item_location
+    } else {
+        aggregate_locations(item_location, &content)
+    };
 
     let list_item = if content.is_empty() {
         ListItem::new(item_text).at(location)
@@ -408,6 +488,9 @@ pub fn unwrap_list_item(
 /// Create a ForeignBlock AST node from subject, content, and closing annotation
 ///
 /// Used by the parser when it matches: SUBJECT_LINE + INDENT...DEDENT + ANNOTATION_LINE
+///
+/// Location is aggregated from subject, content lines, and closing annotation,
+/// matching the reference parser's hierarchical location approach.
 pub fn unwrap_foreign_block(
     subject_token: &LineToken,
     content_lines: Vec<&LineToken>,
@@ -433,10 +516,23 @@ pub fn unwrap_foreign_block(
         location: annotation_location,
     };
 
-    // Extract location from subject token, extending to closing annotation end
+    // Aggregate location from subject, content lines, and closing annotation
     let subject_location = extract_location_from_token(subject_token, source);
-    let closing_location = extract_location_from_token(closing_annotation_token, source);
-    let combined_location = Location::new(subject_location.start, closing_location.end);
+
+    // Convert content_lines from Vec<&LineToken> to locations
+    let content_locations: Vec<Location> = content_lines
+        .iter()
+        .filter_map(|token| {
+            token.source_span.as_ref().map(|span| {
+                let source_location = SourceLocation::new(source);
+                source_location.range_to_location(span)
+            })
+        })
+        .collect();
+
+    let mut locations = vec![subject_location, annotation_location];
+    locations.extend(content_locations);
+    let combined_location = compute_location_from_locations(&locations);
 
     let foreign_block =
         crate::txxt::ast::ForeignBlock::new(subject_text, content_text, closing_annotation)
