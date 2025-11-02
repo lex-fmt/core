@@ -20,13 +20,3 @@ type ParserError = Simple<TokenLocation>;
 pub fn parse(tokens: Vec<TokenLocation>, source: &str) -> Result<Document, Vec<ParserError>> {
     document(source).parse(tokens)
 }
-
-/// Backward-compatibility shim: prefer `parse`
-#[allow(dead_code)]
-#[deprecated(note = "Use parse(tokens, source) instead")]
-pub fn parse_with_source(
-    tokens: Vec<TokenLocation>,
-    source: &str,
-) -> Result<Document, Vec<ParserError>> {
-    parse(tokens, source)
-}
