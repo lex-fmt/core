@@ -1,23 +1,77 @@
-//! Declarative Grammar Engine + Recursive Descent Parser for txxt
+//! Declarative Grammar Engine - Regex-Based Parser for txxt
 //!
-//! This module implements a unified parser that:
-//! 1. Pattern-matches on LineToken types and opaque LineContainerToken structures
-//! 2. Follows the strict parse order from grammar.txxt
-//! 3. Recursively descends into containers when needed
-//! 4. No peeking inside containers - just matches on current level
+//! This module implements a unified parser using declarative regex grammar rules:
+//! 1. Converts token sequences to grammar notation strings
+//! 2. Matches against regex patterns in declaration order
+//! 3. Extracts consumed token indices from regex match
+//! 4. Recursively descends into containers when building AST
+//! 5. No imperative pattern matching - grammar is data, not code
 //!
 //! The grammar parse order (from grammar.txxt §4.7):
 //! 1. foreign-block (requires closing annotation - try first for disambiguation)
-//! 2. annotation (single-line annotations with ::)
-//! 3. list (requires preceding blank line)
-//! 4. definition (requires subject + immediate indent)
-//! 5. session (requires subject + blank line + indent)
-//! 6. paragraph (fallback - catches everything else)
+//! 2. annotation_block (block with container between start and end markers)
+//! 3. annotation_single (single-line annotation only)
+//! 4. list (requires preceding blank line + 2+ list items)
+//! 5. definition (requires subject + immediate indent)
+//! 6. session (requires subject + blank line + indent)
+//! 7. paragraph (any content-line or sequence thereof)
+//! 8. blank_line_group (one or more consecutive blank lines)
 
 use super::unwrapper;
 use crate::txxt::lexers::linebased::tokens::{LineContainerToken, LineToken, LineTokenType};
 use crate::txxt::parsers::ContentItem;
+use regex::Regex;
 use std::ops::Range;
+
+/// Grammar patterns as regex rules with names and patterns
+/// Order matters: patterns are tried in declaration order for correct disambiguation
+const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
+    // Foreign Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
+    (
+        "foreign_block",
+        r"^(<subject-line>|<subject-or-list-item-line>)(<blank-line>)?(<container>)?(<annotation-end-line>)",
+    ),
+    // Annotation (multi-line with markers): <annotation-start-line><container><annotation-end-line>
+    (
+        "annotation_block_with_end",
+        r"^(<annotation-start-line>)(<container>)(<annotation-end-line>)",
+    ),
+    // Annotation (multi-line without end marker): <annotation-start-line><container>
+    (
+        "annotation_block",
+        r"^(<annotation-start-line>)(<container>)",
+    ),
+    // Annotation (single-line): <annotation-start-line><content>
+    // NOTE: <content> is implicit (the rest of the line), doesn't appear in token sequence
+    ("annotation_single", r"^(<annotation-start-line>)"),
+    // List: <blank-line><list-item-line><container>?<list-item-line><container>?{1,+}<blank-line>?
+    // NOTE: Simplified to: blank + at least 2 list items (with optional containers)
+    (
+        "list",
+        r"^(<blank-line>)((<list-item-line>)(<container>)?){2,}(<blank-line>)?",
+    ),
+    // Session: <content-line><blank-line><container>
+    // content-line = paragraph-line | subject-line | list-item-line | subject-or-list-item-line
+    // NOTE: Must come before definition to take precedence (both have subject + container, but session has blank in between)
+    (
+        "session",
+        r"^(<paragraph-line>|<subject-line>|<list-item-line>|<subject-or-list-item-line>)(<blank-line>)(<container>)",
+    ),
+    // Definition: <subject-line>|<subject-or-list-item-line><container>
+    // NOTE: No blank line between subject and container
+    (
+        "definition",
+        r"^(<subject-line>|<subject-or-list-item-line>)(<container>)",
+    ),
+    // Paragraph: <content-line>+
+    // content-line = paragraph-line | subject-line | list-item-line | subject-or-list-item-line
+    (
+        "paragraph",
+        r"^(<paragraph-line>|<subject-line>|<list-item-line>|<subject-or-list-item-line>)+",
+    ),
+    // Blank lines: <blank-line-group>
+    ("blank_line_group", r"^(<blank-line>)+"),
+];
 
 /// Represents the result of pattern matching at one level
 #[derive(Debug, Clone)]
@@ -25,66 +79,50 @@ use std::ops::Range;
 enum PatternMatch {
     /// Foreign block: subject + optional blank + optional content + closing annotation
     ForeignBlock {
-        #[allow(dead_code)]
-        subject_idx: usize, // Index of subject line
-        #[allow(dead_code)]
-        blank_idx: Option<usize>, // Index of blank line if present
-        #[allow(dead_code)]
-        content_idx: Option<usize>, // Index of container with content if present
-        #[allow(dead_code)]
-        closing_idx: usize, // Index of closing annotation
+        subject_idx: usize,
+        blank_idx: Option<usize>,
+        content_idx: Option<usize>,
+        closing_idx: usize,
     },
-    /// Annotation: marker form, single-line, or block
-    Annotation {
-        #[allow(dead_code)]
+    /// Annotation block: start + container + end
+    AnnotationBlock {
         start_idx: usize,
-        #[allow(dead_code)]
+        content_idx: usize,
         end_idx: usize,
     },
+    /// Annotation single: just start line
+    AnnotationSingle { start_idx: usize },
     /// List: preceding blank line + 2+ consecutive list items
     List {
-        #[allow(dead_code)]
         blank_idx: usize,
-        #[allow(dead_code)]
-        items: Vec<(usize, Option<usize>)>, // (item_idx, optional_content_block_idx)
+        items: Vec<(usize, Option<usize>)>,
     },
     /// Definition: subject + immediate indent + content
     Definition {
-        #[allow(dead_code)]
         subject_idx: usize,
-        #[allow(dead_code)]
         content_idx: usize,
     },
     /// Session: subject + blank line + indent + content
     Session {
-        #[allow(dead_code)]
         subject_idx: usize,
-        #[allow(dead_code)]
         blank_idx: usize,
-        #[allow(dead_code)]
         content_idx: usize,
     },
     /// Paragraph: one or more consecutive non-blank, non-special lines
-    Paragraph {
-        #[allow(dead_code)]
-        start_idx: usize,
-        #[allow(dead_code)]
-        end_idx: usize,
-    },
+    Paragraph { start_idx: usize, end_idx: usize },
     /// Blank line group: one or more consecutive blank lines
-    BlankLineGroup {
-        #[allow(dead_code)]
-        start_idx: usize,
-        #[allow(dead_code)]
-        end_idx: usize,
-    },
+    BlankLineGroup { start_idx: usize, end_idx: usize },
 }
 
-/// Pattern matcher for declarative grammar
+/// Pattern matcher for declarative grammar using regex-based matching
 pub struct GrammarMatcher;
 
 impl GrammarMatcher {
-    /// Try to match a pattern at the current level.
+    /// Try to match a pattern at the current level using regex patterns.
+    ///
+    /// Converts the current token sequence to a grammar string, matches against
+    /// regex patterns in declaration order, and returns the matched pattern with
+    /// consumed token indices.
     ///
     /// Returns (matched_pattern, consumed_indices)
     fn try_match(
@@ -95,380 +133,292 @@ impl GrammarMatcher {
             return None;
         }
 
-        // 1. Try foreign block (requires closing annotation)
-        if let Some((pattern, range)) = Self::try_foreign_block(tokens, start_idx) {
-            return Some((pattern, range));
-        }
+        // Convert remaining tokens to grammar string
+        let remaining_tokens = &tokens[start_idx..];
+        let token_string = Self::tokens_to_grammar_string(remaining_tokens)?;
 
-        // 2. Try annotation (single-line or block with ::)
-        if let Some((pattern, range)) = Self::try_annotation(tokens, start_idx) {
-            return Some((pattern, range));
-        }
+        // Try each pattern in order
+        for (pattern_name, pattern_regex_str) in GRAMMAR_PATTERNS {
+            if let Ok(regex) = Regex::new(pattern_regex_str) {
+                if let Some(mat) = regex.find(&token_string) {
+                    // Match found - now determine how many tokens were consumed
+                    let consumed_count = Self::count_consumed_tokens(&token_string[..mat.end()]);
 
-        // 3. Try list (requires preceding blank line)
-        if let Some((pattern, range)) = Self::try_list(tokens, start_idx) {
-            return Some((pattern, range));
-        }
+                    // Extract pattern details based on pattern name
+                    let pattern = match *pattern_name {
+                        "foreign_block" => {
+                            Self::parse_foreign_block(remaining_tokens, consumed_count)?
+                        }
+                        "annotation_block_with_end" => {
+                            Self::parse_annotation_block_with_end(remaining_tokens, consumed_count)?
+                        }
+                        "annotation_block" => {
+                            Self::parse_annotation_block(remaining_tokens, consumed_count)?
+                        }
+                        "annotation_single" => {
+                            Self::parse_annotation_single(remaining_tokens, consumed_count)?
+                        }
+                        "list" => Self::parse_list(remaining_tokens, consumed_count)?,
+                        "definition" => Self::parse_definition(remaining_tokens, consumed_count)?,
+                        "session" => Self::parse_session(remaining_tokens, consumed_count)?,
+                        "paragraph" => Self::parse_paragraph(remaining_tokens, consumed_count)?,
+                        "blank_line_group" => {
+                            Self::parse_blank_line_group(remaining_tokens, consumed_count)?
+                        }
+                        _ => continue,
+                    };
 
-        // 4. Try definition (subject + immediate indent)
-        if let Some((pattern, range)) = Self::try_definition(tokens, start_idx) {
-            return Some((pattern, range));
-        }
-
-        // 5. Try session (subject + blank + indent)
-        if let Some((pattern, range)) = Self::try_session(tokens, start_idx) {
-            return Some((pattern, range));
-        }
-
-        // 6. Fallback: paragraph or blank lines
-        if let Some((pattern, range)) = Self::try_blank_lines(tokens, start_idx) {
-            return Some((pattern, range));
-        }
-
-        if let Some((pattern, range)) = Self::try_paragraph(tokens, start_idx) {
-            return Some((pattern, range));
+                    return Some((pattern, start_idx..start_idx + consumed_count));
+                }
+            }
         }
 
         None
     }
 
-    /// Try to match a foreign block
-    fn try_foreign_block(
+    /// Convert remaining tokens to grammar notation string
+    fn tokens_to_grammar_string(tokens: &[LineContainerToken]) -> Option<String> {
+        let mut result = String::new();
+        for token in tokens {
+            match token {
+                LineContainerToken::Token(t) => {
+                    result.push_str(&t.line_type.to_grammar_string());
+                }
+                LineContainerToken::Container { .. } => {
+                    result.push_str("<container>");
+                }
+            }
+        }
+        if result.is_empty() {
+            None
+        } else {
+            Some(result)
+        }
+    }
+
+    /// Count how many tokens are represented in a grammar string
+    /// Each token type in angle brackets represents one token
+    fn count_consumed_tokens(grammar_str: &str) -> usize {
+        grammar_str.matches('<').count()
+    }
+
+    /// Parse foreign block: extract indices from consumed tokens
+    fn parse_foreign_block(
         tokens: &[LineContainerToken],
-        start_idx: usize,
-    ) -> Option<(PatternMatch, Range<usize>)> {
-        // Pattern: subject-line [blank?] [block?] annotation-end-line
-        // Must have: subject + closing annotation
-        if start_idx >= tokens.len() {
+        consumed_count: usize,
+    ) -> Option<PatternMatch> {
+        if !(2..=4).contains(&consumed_count) {
             return None;
         }
 
-        // Check if starts with subject line
-        let subject_token = Self::get_line_token(&tokens[start_idx])?;
-        if !matches!(
-            subject_token.line_type,
-            LineTokenType::SubjectLine | LineTokenType::SubjectOrListItemLine
-        ) {
-            return None;
-        }
-
-        let mut idx = start_idx + 1;
+        let subject_idx = 0;
         let mut blank_idx = None;
         let mut content_idx = None;
+        let mut closing_idx = subject_idx + 1;
 
-        // Look for optional blank line
-        if idx < tokens.len() {
-            if let LineContainerToken::Token(token) = &tokens[idx] {
-                if matches!(token.line_type, LineTokenType::BlankLine) {
-                    blank_idx = Some(idx);
-                    idx += 1;
+        let mut current_idx = 1;
+
+        // Check for optional blank line
+        if current_idx < consumed_count {
+            if let LineContainerToken::Token(t) = &tokens[current_idx] {
+                if matches!(t.line_type, LineTokenType::BlankLine) {
+                    blank_idx = Some(current_idx);
+                    current_idx += 1;
                 }
             }
         }
 
-        // Look for optional content block (indented)
-        if idx < tokens.len() {
-            if let LineContainerToken::Container { .. } = &tokens[idx] {
-                content_idx = Some(idx);
-                idx += 1;
+        // Check for optional container
+        if current_idx < consumed_count {
+            if let LineContainerToken::Container { .. } = &tokens[current_idx] {
+                content_idx = Some(current_idx);
+                current_idx += 1;
             }
         }
 
-        // Must have closing annotation at current level
-        if idx < tokens.len() {
-            if let LineContainerToken::Token(token) = &tokens[idx] {
-                if matches!(token.line_type, LineTokenType::AnnotationEndLine) {
-                    return Some((
-                        PatternMatch::ForeignBlock {
-                            subject_idx: start_idx,
-                            blank_idx,
-                            content_idx,
-                            closing_idx: idx,
-                        },
-                        start_idx..idx + 1,
-                    ));
-                }
-            }
+        // Must have closing annotation
+        if current_idx < consumed_count {
+            closing_idx = current_idx;
         }
 
-        None
+        Some(PatternMatch::ForeignBlock {
+            subject_idx,
+            blank_idx,
+            content_idx,
+            closing_idx,
+        })
     }
 
-    /// Try to match an annotation
-    fn try_annotation(
-        tokens: &[LineContainerToken],
-        start_idx: usize,
-    ) -> Option<(PatternMatch, Range<usize>)> {
-        // Pattern: annotation-start-line [block?] [annotation-end-line?]
-        let subject_token = Self::get_line_token(&tokens[start_idx])?;
-        if !matches!(subject_token.line_type, LineTokenType::AnnotationStartLine) {
+    /// Parse annotation block with end marker: extract indices from consumed tokens
+    fn parse_annotation_block_with_end(
+        _tokens: &[LineContainerToken],
+        consumed_count: usize,
+    ) -> Option<PatternMatch> {
+        if consumed_count != 3 {
             return None;
         }
 
-        let mut end_idx = start_idx;
-
-        // Look for optional block after annotation start
-        if start_idx + 1 < tokens.len() {
-            if let LineContainerToken::Container { .. } = &tokens[start_idx + 1] {
-                end_idx = start_idx + 1;
-            }
-        }
-
-        // Look for optional closing marker
-        if end_idx + 1 < tokens.len() {
-            if let LineContainerToken::Token(token) = &tokens[end_idx + 1] {
-                if matches!(token.line_type, LineTokenType::AnnotationEndLine) {
-                    end_idx += 1;
-                }
-            }
-        }
-
-        Some((
-            PatternMatch::Annotation { start_idx, end_idx },
-            start_idx..end_idx + 1,
-        ))
+        Some(PatternMatch::AnnotationBlock {
+            start_idx: 0,
+            content_idx: 1,
+            end_idx: 2,
+        })
     }
 
-    /// Try to match a list
-    fn try_list(
-        tokens: &[LineContainerToken],
-        start_idx: usize,
-    ) -> Option<(PatternMatch, Range<usize>)> {
-        // Pattern: blank-line list-item [block?] (list-item [block?])+
-        if start_idx >= tokens.len() {
+    /// Parse annotation block without end marker: extract indices from consumed tokens
+    fn parse_annotation_block(
+        _tokens: &[LineContainerToken],
+        consumed_count: usize,
+    ) -> Option<PatternMatch> {
+        if consumed_count != 2 {
             return None;
         }
 
-        // Must start with blank line
-        let blank_token = Self::get_line_token(&tokens[start_idx])?;
-        if !matches!(blank_token.line_type, LineTokenType::BlankLine) {
+        Some(PatternMatch::AnnotationBlock {
+            start_idx: 0,
+            content_idx: 1,
+            end_idx: 1, // No separate end marker
+        })
+    }
+
+    /// Parse annotation single: extract indices from consumed tokens
+    fn parse_annotation_single(
+        _tokens: &[LineContainerToken],
+        consumed_count: usize,
+    ) -> Option<PatternMatch> {
+        if consumed_count != 1 {
             return None;
         }
 
-        let mut idx = start_idx + 1;
+        Some(PatternMatch::AnnotationSingle { start_idx: 0 })
+    }
+
+    /// Parse list: extract indices and items from consumed tokens
+    fn parse_list(tokens: &[LineContainerToken], consumed_count: usize) -> Option<PatternMatch> {
+        if consumed_count < 3 {
+            return None;
+        }
+
+        let blank_idx = 0;
         let mut items = Vec::new();
+        let mut idx = 1;
+        let mut trailing_blank = false;
 
-        // Collect 2+ list items
-        loop {
-            if idx >= tokens.len() {
-                break;
+        // Check if last token is a blank line
+        if consumed_count > 1 {
+            if let LineContainerToken::Token(t) = &tokens[consumed_count - 1] {
+                if matches!(t.line_type, LineTokenType::BlankLine) {
+                    trailing_blank = true;
+                }
             }
+        }
 
-            // Try to match list item
-            if let LineContainerToken::Token(token) = &tokens[idx] {
-                if !matches!(
-                    token.line_type,
+        let end_idx = if trailing_blank {
+            consumed_count - 1
+        } else {
+            consumed_count
+        };
+
+        // Collect list items (with optional containers)
+        while idx < end_idx {
+            if let LineContainerToken::Token(t) = &tokens[idx] {
+                if matches!(
+                    t.line_type,
                     LineTokenType::ListLine | LineTokenType::SubjectOrListItemLine
                 ) {
+                    let item_idx = idx;
+                    idx += 1;
+
+                    // Check for optional container after item
+                    let content_idx = if idx < end_idx {
+                        if let LineContainerToken::Container { .. } = &tokens[idx] {
+                            let ci = Some(idx);
+                            idx += 1;
+                            ci
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    items.push((item_idx, content_idx));
+                } else {
                     break;
                 }
+            } else if let LineContainerToken::Container { .. } = &tokens[idx] {
+                idx += 1;
             } else {
                 break;
-            }
-
-            let item_idx = idx;
-            idx += 1;
-
-            // Check for optional block content after list item
-            let content_idx = if idx < tokens.len() {
-                if let LineContainerToken::Container { .. } = &tokens[idx] {
-                    let ci = Some(idx);
-                    idx += 1;
-                    ci
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
-            items.push((item_idx, content_idx));
-
-            // Must have at least 2 items
-            if items.len() >= 2 {
-                // Continue collecting items or stop
-                if idx >= tokens.len()
-                    || !matches!(&tokens[idx], LineContainerToken::Token(t) if matches!(t.line_type, LineTokenType::ListLine | LineTokenType::SubjectOrListItemLine))
-                {
-                    break;
-                }
             }
         }
 
         if items.len() >= 2 {
-            return Some((
-                PatternMatch::List {
-                    blank_idx: start_idx,
-                    items,
-                },
-                start_idx..idx,
-            ));
+            Some(PatternMatch::List { blank_idx, items })
+        } else {
+            None
         }
-
-        None
     }
 
-    /// Try to match a definition
-    fn try_definition(
-        tokens: &[LineContainerToken],
-        start_idx: usize,
-    ) -> Option<(PatternMatch, Range<usize>)> {
-        // Pattern: subject-line indent content dedent
-        // NO blank line between subject and indent
-        let subject_token = Self::get_line_token(&tokens[start_idx])?;
-        if !matches!(subject_token.line_type, LineTokenType::SubjectLine) {
+    /// Parse definition: extract indices from consumed tokens
+    fn parse_definition(
+        _tokens: &[LineContainerToken],
+        consumed_count: usize,
+    ) -> Option<PatternMatch> {
+        if consumed_count != 2 {
             return None;
         }
 
-        // Must have container immediately after (no blank line)
-        if start_idx + 1 >= tokens.len() {
-            return None;
-        }
-
-        if let LineContainerToken::Container { .. } = &tokens[start_idx + 1] {
-            return Some((
-                PatternMatch::Definition {
-                    subject_idx: start_idx,
-                    content_idx: start_idx + 1,
-                },
-                start_idx..start_idx + 2,
-            ));
-        }
-
-        None
+        Some(PatternMatch::Definition {
+            subject_idx: 0,
+            content_idx: 1,
+        })
     }
 
-    /// Try to match a session
-    fn try_session(
-        tokens: &[LineContainerToken],
-        start_idx: usize,
-    ) -> Option<(PatternMatch, Range<usize>)> {
-        // Pattern: <any-line> <blank-line> <indent><container>
-        // Sessions can start with ANY line type (including ParagraphLine, SubjectOrListItemLine, etc.)
-        // The distinguishing feature is the blank line followed by a container
-        let subject_token = Self::get_line_token(&tokens[start_idx])?;
-
-        // Sessions must NOT start with blank lines or annotations
-        if matches!(
-            subject_token.line_type,
-            LineTokenType::BlankLine
-                | LineTokenType::AnnotationStartLine
-                | LineTokenType::AnnotationEndLine
-        ) {
+    /// Parse session: extract indices from consumed tokens
+    fn parse_session(
+        _tokens: &[LineContainerToken],
+        consumed_count: usize,
+    ) -> Option<PatternMatch> {
+        if consumed_count != 3 {
             return None;
         }
 
-        if start_idx + 2 >= tokens.len() {
-            return None;
-        }
-
-        // Must have blank line after subject
-        let blank_token = Self::get_line_token(&tokens[start_idx + 1])?;
-        if !matches!(blank_token.line_type, LineTokenType::BlankLine) {
-            return None;
-        }
-
-        // Must have container after blank line
-        if let LineContainerToken::Container { .. } = &tokens[start_idx + 2] {
-            return Some((
-                PatternMatch::Session {
-                    subject_idx: start_idx,
-                    blank_idx: start_idx + 1,
-                    content_idx: start_idx + 2,
-                },
-                start_idx..start_idx + 3,
-            ));
-        }
-
-        None
+        Some(PatternMatch::Session {
+            subject_idx: 0,
+            blank_idx: 1,
+            content_idx: 2,
+        })
     }
 
-    /// Try to match blank lines
-    fn try_blank_lines(
-        tokens: &[LineContainerToken],
-        start_idx: usize,
-    ) -> Option<(PatternMatch, Range<usize>)> {
-        let token = Self::get_line_token(&tokens[start_idx])?;
-        if !matches!(token.line_type, LineTokenType::BlankLine) {
+    /// Parse paragraph: extract indices from consumed tokens
+    fn parse_paragraph(
+        _tokens: &[LineContainerToken],
+        consumed_count: usize,
+    ) -> Option<PatternMatch> {
+        if consumed_count < 1 {
             return None;
         }
 
-        let mut idx = start_idx;
-        while idx < tokens.len() {
-            if let LineContainerToken::Token(t) = &tokens[idx] {
-                if matches!(t.line_type, LineTokenType::BlankLine) {
-                    idx += 1;
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-
-        Some((
-            PatternMatch::BlankLineGroup {
-                start_idx,
-                end_idx: idx - 1,
-            },
-            start_idx..idx,
-        ))
+        Some(PatternMatch::Paragraph {
+            start_idx: 0,
+            end_idx: consumed_count - 1,
+        })
     }
 
-    /// Try to match a paragraph
-    fn try_paragraph(
-        tokens: &[LineContainerToken],
-        start_idx: usize,
-    ) -> Option<(PatternMatch, Range<usize>)> {
-        let token = Self::get_line_token(&tokens[start_idx])?;
-
-        // Paragraph is any non-blank, non-special line
-        if matches!(
-            token.line_type,
-            LineTokenType::BlankLine | LineTokenType::IndentLevel | LineTokenType::DedentLevel
-        ) {
+    /// Parse blank line group: extract indices from consumed tokens
+    fn parse_blank_line_group(
+        _tokens: &[LineContainerToken],
+        consumed_count: usize,
+    ) -> Option<PatternMatch> {
+        if consumed_count < 1 {
             return None;
         }
 
-        let mut idx = start_idx;
-        while idx < tokens.len() {
-            match &tokens[idx] {
-                LineContainerToken::Token(t) => {
-                    if matches!(
-                        t.line_type,
-                        LineTokenType::BlankLine
-                            | LineTokenType::IndentLevel
-                            | LineTokenType::DedentLevel
-                    ) {
-                        break;
-                    }
-                    idx += 1;
-                }
-                LineContainerToken::Container { .. } => {
-                    break;
-                }
-            }
-        }
-
-        if idx > start_idx {
-            return Some((
-                PatternMatch::Paragraph {
-                    start_idx,
-                    end_idx: idx - 1,
-                },
-                start_idx..idx,
-            ));
-        }
-
-        None
-    }
-
-    /// Helper to extract LineToken from LineContainerToken
-    fn get_line_token(token: &LineContainerToken) -> Option<&LineToken> {
-        match token {
-            LineContainerToken::Token(t) => Some(t),
-            _ => None,
-        }
+        Some(PatternMatch::BlankLineGroup {
+            start_idx: 0,
+            end_idx: consumed_count - 1,
+        })
     }
 }
 
@@ -485,7 +435,7 @@ pub fn parse_with_declarative_grammar(
             // Skip blank line groups (they're structural, not content)
             if !matches!(pattern, PatternMatch::BlankLineGroup { .. }) {
                 // Convert pattern to ContentItem
-                let item = convert_pattern_to_item(&tokens, &pattern, source)?;
+                let item = convert_pattern_to_item(&tokens, &pattern, range.start, source)?;
                 items.push(item);
             }
             idx = range.end;
@@ -498,9 +448,13 @@ pub fn parse_with_declarative_grammar(
 }
 
 /// Convert a matched pattern to a ContentItem
+///
+/// pattern_offset: the index where the pattern starts in the tokens array
+/// (used to convert relative indices in the pattern to absolute indices)
 fn convert_pattern_to_item(
     tokens: &[LineContainerToken],
     pattern: &PatternMatch,
+    pattern_offset: usize,
     source: &str,
 ) -> Result<ContentItem, String> {
     match pattern {
@@ -510,12 +464,14 @@ fn convert_pattern_to_item(
             content_idx,
             closing_idx,
         } => {
-            let subject_token = extract_line_token(&tokens[*subject_idx])?;
-            let closing_token = extract_line_token(&tokens[*closing_idx])?;
+            let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
+            let closing_token = extract_line_token(&tokens[pattern_offset + closing_idx])?;
 
             // Extract content lines from container if present
             let content_lines = if let Some(content_idx_val) = content_idx {
-                if let LineContainerToken::Container { children, .. } = &tokens[*content_idx_val] {
+                if let LineContainerToken::Container { children, .. } =
+                    &tokens[pattern_offset + content_idx_val]
+                {
                     children
                         .iter()
                         .filter_map(|t| extract_line_token(t).ok())
@@ -529,23 +485,27 @@ fn convert_pattern_to_item(
 
             unwrapper::unwrap_foreign_block(subject_token, content_lines, closing_token, source)
         }
-        PatternMatch::Annotation { start_idx, end_idx } => {
-            let start_token = extract_line_token(&tokens[*start_idx])?;
+        PatternMatch::AnnotationBlock {
+            start_idx,
+            content_idx,
+            end_idx: _,
+        } => {
+            let start_token = extract_line_token(&tokens[pattern_offset + start_idx])?;
 
-            // Check if there's content between start and end markers
-            if *end_idx > *start_idx {
-                // Has block content
-                if let LineContainerToken::Container { children, .. } = &tokens[*start_idx + 1] {
-                    let content = parse_with_declarative_grammar(children.clone(), source)?;
-                    unwrapper::unwrap_annotation_with_content(start_token, content, source)
-                } else {
-                    // No container, just single-line annotation
-                    unwrapper::unwrap_annotation(start_token, source)
-                }
+            // Extract content from container
+            if let LineContainerToken::Container { children, .. } =
+                &tokens[pattern_offset + content_idx]
+            {
+                let content = parse_with_declarative_grammar(children.clone(), source)?;
+                unwrapper::unwrap_annotation_with_content(start_token, content, source)
             } else {
-                // Single-line annotation only
+                // Fallback to single-line annotation if no container
                 unwrapper::unwrap_annotation(start_token, source)
             }
+        }
+        PatternMatch::AnnotationSingle { start_idx } => {
+            let start_token = extract_line_token(&tokens[pattern_offset + start_idx])?;
+            unwrapper::unwrap_annotation(start_token, source)
         }
         PatternMatch::List {
             blank_idx: _,
@@ -554,11 +514,11 @@ fn convert_pattern_to_item(
             let mut list_items = Vec::new();
 
             for (item_idx, content_idx) in items {
-                let item_token = extract_line_token(&tokens[*item_idx])?;
+                let item_token = extract_line_token(&tokens[pattern_offset + item_idx])?;
 
                 let content = if let Some(content_idx_val) = content_idx {
                     if let LineContainerToken::Container { children, .. } =
-                        &tokens[*content_idx_val]
+                        &tokens[pattern_offset + content_idx_val]
                     {
                         parse_with_declarative_grammar(children.clone(), source)?
                     } else {
@@ -578,14 +538,15 @@ fn convert_pattern_to_item(
             subject_idx,
             content_idx,
         } => {
-            let subject_token = extract_line_token(&tokens[*subject_idx])?;
+            let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
 
-            let content =
-                if let LineContainerToken::Container { children, .. } = &tokens[*content_idx] {
-                    parse_with_declarative_grammar(children.clone(), source)?
-                } else {
-                    Vec::new()
-                };
+            let content = if let LineContainerToken::Container { children, .. } =
+                &tokens[pattern_offset + content_idx]
+            {
+                parse_with_declarative_grammar(children.clone(), source)?
+            } else {
+                Vec::new()
+            };
 
             unwrapper::unwrap_definition(subject_token, content, source)
         }
@@ -594,19 +555,21 @@ fn convert_pattern_to_item(
             blank_idx: _,
             content_idx,
         } => {
-            let subject_token = extract_line_token(&tokens[*subject_idx])?;
+            let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
 
-            let content =
-                if let LineContainerToken::Container { children, .. } = &tokens[*content_idx] {
-                    parse_with_declarative_grammar(children.clone(), source)?
-                } else {
-                    Vec::new()
-                };
+            let content = if let LineContainerToken::Container { children, .. } =
+                &tokens[pattern_offset + content_idx]
+            {
+                parse_with_declarative_grammar(children.clone(), source)?
+            } else {
+                Vec::new()
+            };
 
             unwrapper::unwrap_session(subject_token, content, source)
         }
         PatternMatch::Paragraph { start_idx, end_idx } => {
-            let paragraph_tokens: Vec<LineToken> = ((*start_idx)..=(*end_idx))
+            let paragraph_tokens: Vec<LineToken> = ((pattern_offset + start_idx)
+                ..=(pattern_offset + end_idx))
                 .filter_map(|idx| extract_line_token(&tokens[idx]).ok().cloned())
                 .collect();
 
