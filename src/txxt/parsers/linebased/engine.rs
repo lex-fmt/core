@@ -326,18 +326,42 @@ fn try_match_list(
                 if item_token.line_type == LineTokenType::ListLine {
                     tree_idx += 1;
 
-                    let has_blank = matches!(tree.get(tree_idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
-                    if has_blank {
-                        tree_idx += 1;
+                    // Check if there's a blank line before the content block
+                    let mut nested_content = vec![];
+
+                    if let Some(LineTokenTree::Token(blank_token)) = tree.get(tree_idx) {
+                        if blank_token.line_type == LineTokenType::BlankLine {
+                            // Create BlankLineGroup for the blank line before content
+                            let location = if let Some(span) = &blank_token.source_span {
+                                let start_line = source[..span.start].matches('\n').count();
+                                let end_line = source[..span.end].matches('\n').count();
+                                Location {
+                                    start: Position {
+                                        line: start_line,
+                                        column: 0,
+                                    },
+                                    end: Position {
+                                        line: end_line + 1,
+                                        column: 0,
+                                    },
+                                }
+                            } else {
+                                Location::new(Position::new(0, 0), Position::new(0, 0))
+                            };
+
+                            let blank_group =
+                                BlankLineGroup::new(1, blank_token.source_tokens.clone())
+                                    .at(location);
+                            nested_content.push(ContentItem::BlankLineGroup(blank_group));
+                            tree_idx += 1;
+                        }
                     }
 
-                    let nested_content =
-                        if let Some(LineTokenTree::Block(block_children)) = tree.get(tree_idx) {
-                            tree_idx += 1;
-                            walk_and_parse(block_children, source)?
-                        } else {
-                            vec![]
-                        };
+                    if let Some(LineTokenTree::Block(block_children)) = tree.get(tree_idx) {
+                        tree_idx += 1;
+                        let block_content = walk_and_parse(block_children, source)?;
+                        nested_content.extend(block_content);
+                    }
 
                     let item =
                         super::unwrapper::unwrap_list_item(item_token, nested_content, source)?;
