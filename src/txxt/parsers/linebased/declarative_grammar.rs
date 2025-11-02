@@ -18,10 +18,15 @@
 //! 8. blank_line_group (one or more consecutive blank lines)
 
 use super::unwrapper;
-use crate::txxt::lexers::linebased::tokens::{LineContainerToken, LineToken, LineTokenType};
+use crate::txxt::lexers::linebased::tokens::{LineContainerToken, LineToken};
 use crate::txxt::parsers::ContentItem;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::ops::Range;
+
+/// Lazy-compiled regex for extracting list items from the list group capture
+static LIST_ITEM_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(<list-line>|<subject-or-list-item-line>)(<container>)?").unwrap());
 
 /// Grammar patterns as regex rules with names and patterns
 /// Order matters: patterns are tried in declaration order for correct disambiguation
@@ -143,9 +148,9 @@ impl GrammarMatcher {
                         "foreign_block" => PatternMatch::ForeignBlock {
                             subject_idx: 0,
                             blank_idx: caps.name("blank").map(|_| 1),
-                            content_idx: caps.name("content").map(|_| {
-                                caps.name("blank").map_or(1, |_| 2)
-                            }),
+                            content_idx: caps
+                                .name("content")
+                                .map(|_| caps.name("blank").map_or(1, |_| 2)),
                             closing_idx: consumed_count - 1,
                         },
                         "annotation_block_with_end" => PatternMatch::AnnotationBlock {
@@ -161,15 +166,24 @@ impl GrammarMatcher {
                         "annotation_single" => PatternMatch::AnnotationSingle { start_idx: 0 },
                         "list" => {
                             let items_str = caps.name("items").unwrap().as_str();
-                            let list_item_pattern = Regex::new(r"(<list-line>|<subject-or-list-item-line>)(<container>)?").unwrap();
                             let mut items = Vec::new();
                             let mut token_idx = 1; // Start after the blank line
-                            for item_cap in list_item_pattern.find_iter(items_str) {
+                            for item_cap in LIST_ITEM_REGEX.find_iter(items_str) {
                                 let has_container = item_cap.as_str().contains("<container>");
-                                items.push((token_idx, if has_container { Some(token_idx + 1) } else { None }));
+                                items.push((
+                                    token_idx,
+                                    if has_container {
+                                        Some(token_idx + 1)
+                                    } else {
+                                        None
+                                    },
+                                ));
                                 token_idx += if has_container { 2 } else { 1 };
                             }
-                            PatternMatch::List { blank_idx: 0, items }
+                            PatternMatch::List {
+                                blank_idx: 0,
+                                items,
+                            }
                         }
                         "session" => PatternMatch::Session {
                             subject_idx: 0,
