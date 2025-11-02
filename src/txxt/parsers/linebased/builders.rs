@@ -15,15 +15,25 @@ use crate::txxt::ast::{Annotation, Label};
 use crate::txxt::lexers::{LineToken, Token};
 use crate::txxt::parsers::common::{
     build_annotation, build_definition, build_foreign_block, build_list, build_list_item,
-    build_paragraph, build_session,
+    build_paragraph, build_session, extract_text_from_span,
     location::{compute_location_from_locations, default_location},
 };
 use crate::txxt::parsers::{ContentItem, Location};
 
 // ============================================================================
-// LOCATION UTILITIES
+// TEXT AND LOCATION EXTRACTION
 // ============================================================================
-//
+
+/// Extract text from a LineToken using its source_span.
+/// REQUIRES: source_span must be set.
+fn extract_text_from_line_token(token: &LineToken, source: &str) -> Result<String, String> {
+    let span = token
+        .source_span
+        .as_ref()
+        .ok_or_else(|| "LineToken must have source_span set".to_string())?;
+    Ok(extract_text_from_span(source, span))
+}
+
 // Location utilities are now provided by crate::txxt::parsers::common::location
 // See that module for compute_location_from_locations, aggregate_locations, etc.
 
@@ -33,8 +43,8 @@ use crate::txxt::parsers::{ContentItem, Location};
 /// Later, this will be enhanced with pattern matching to recognize
 /// Sessions, Definitions, Lists, etc.
 pub fn unwrap_token_to_paragraph(token: &LineToken, source: &str) -> Result<ContentItem, String> {
-    // Extract text from the token
-    let text_content = extract_text_from_token(token);
+    // Extract text from source_span - not from token iteration
+    let text_content = extract_text_from_line_token(token, source)?;
 
     // Extract location from source span
     let location = extract_location_from_token(token, source);
@@ -442,10 +452,12 @@ mod tests {
     use crate::txxt::parsers::Position;
 
     fn make_line_token(line_type: LineTokenType, tokens: Vec<Token>) -> LineToken {
+        // Create a reasonable default span - in tests, source is usually small
+        // This span should work with test sources
         LineToken {
             source_tokens: tokens,
             line_type,
-            source_span: None,
+            source_span: Some(0..1000), // Large span to accommodate test sources
         }
     }
 
@@ -753,28 +765,6 @@ mod tests {
             assert_eq!(para.location.start.column, 0);
             assert_eq!(para.location.end.line, 1);
             assert_eq!(para.location.end.column, 6);
-        } else {
-            panic!("Expected Paragraph");
-        }
-    }
-
-    #[test]
-    fn test_location_without_span_uses_default() {
-        // If no source_span is set, location should be default (0,0)..(0,0)
-        let token = make_line_token(
-            LineTokenType::ParagraphLine,
-            vec![Token::Text("Text".to_string())],
-        );
-        // Note: source_span is None by default
-
-        let source = "Text\n";
-        let result = unwrap_token_to_paragraph(&token, source);
-        assert!(result.is_ok());
-
-        if let Ok(ContentItem::Paragraph(para)) = result {
-            // Without a source span, location should be default
-            assert_eq!(para.location.start, Position { line: 0, column: 0 });
-            assert_eq!(para.location.end, Position { line: 0, column: 0 });
         } else {
             panic!("Expected Paragraph");
         }

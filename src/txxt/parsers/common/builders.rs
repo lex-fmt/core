@@ -282,3 +282,23 @@ pub fn build_foreign_block(
 
     ContentItem::ForeignBlock(foreign_block)
 }
+
+// ============================================================================
+// TEXT EXTRACTION HELPERS
+// ============================================================================
+
+/// Extract text from a byte range in the source.
+///
+/// This is the unified, common approach for extracting text from source byte ranges.
+/// Both parsers have access to byte ranges, so both use this single implementation.
+pub fn extract_text_from_span(source: &str, span: &std::ops::Range<usize>) -> String {
+    if span.start >= span.end {
+        return String::new();
+    }
+    // Clamp the span to the source length
+    let end = span.end.min(source.len());
+    if span.start >= end {
+        return String::new();
+    }
+    source[span.start..end].trim().to_string()
+}
