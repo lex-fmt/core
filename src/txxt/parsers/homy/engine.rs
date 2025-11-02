@@ -1,7 +1,7 @@
 //! Linebased Parser Engine - Tree Walker and Orchestrator
 //!
 //! This module implements the main parsing orchestrator that:
-//! 1. Walks the semantic line token tree (from experimental lexer)
+//! 1. Walks the semantic line token tree (from linebased lexer)
 //! 2. Groups tokens at each level into flat sequences
 //! 3. Applies pattern matching to recognize grammar elements
 //! 4. Recursively processes indented blocks
@@ -18,11 +18,11 @@ use crate::txxt::parsers::{ContentItem, Document, Location, Position, Session};
 
 /// Parse a semantic line token tree into an AST Document.
 ///
-/// This is the main entry point for the experimental parser.
+/// This is the main entry point for the linebased parser.
 /// It orchestrates the tree walking and pattern matching process.
 ///
 /// # Arguments
-/// * `tree` - The token tree from the experimental lexer
+/// * `tree` - The token tree from the linebased lexer
 /// * `source` - The original source text (for location tracking)
 ///
 /// # Returns
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_paragraphs() {
-        // Use tokens from the experimental lexer pipeline (returns token tree directly)
+        // Use tokens from the linebased lexer pipeline (returns token tree directly)
         let source = "Simple paragraph\n";
         let tree = _lex(source).expect("Failed to tokenize");
 
@@ -436,7 +436,7 @@ mod tests {
 
     #[test]
     fn test_parse_definition() {
-        // Use tokens from the experimental lexer pipeline
+        // Use tokens from the linebased lexer pipeline
         let source = "Definition:\n    This is the definition content\n";
         let tree = _lex(source).expect("Failed to tokenize");
 
@@ -455,7 +455,7 @@ mod tests {
 
     #[test]
     fn test_parse_session() {
-        // Use tokens from the experimental lexer pipeline
+        // Use tokens from the linebased lexer pipeline
         let source = "Session:\n\n    Session content here\n";
         let tree = _lex(source).expect("Failed to tokenize");
 
@@ -474,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_parse_annotation() {
-        // Use tokens from the experimental lexer pipeline
+        // Use tokens from the linebased lexer pipeline
         let source = ":: note ::\n";
         let tree = _lex(source).expect("Failed to tokenize");
 

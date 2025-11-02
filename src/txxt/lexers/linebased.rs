@@ -1,6 +1,6 @@
 //! Line-based lexer pipeline module
 //!
-//! This module provides the experimental line-based lexer pipeline that:
+//! This module provides the linebased line-based lexer pipeline that:
 //! - Flattens tokens into line tokens
 //! - Transforms line tokens into a hierarchical tree
 

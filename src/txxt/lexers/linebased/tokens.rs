@@ -1,4 +1,4 @@
-//! Line-based token types for the experimental lexer pipeline
+//! Line-based token types for the linebased lexer pipeline
 //!
 //! This module contains token types specific to the line-based lexer pipeline:
 //! - LineToken: Represents a logical line created from grouped raw tokens
@@ -11,7 +11,7 @@ use crate::txxt::lexers::tokens::Token;
 
 /// A line token represents one logical line created from grouped raw tokens.
 ///
-/// Line tokens are produced by the experimental line token transformation,
+/// Line tokens are produced by the linebased line token transformation,
 /// which groups raw tokens into semantic line units. Each line token stores:
 /// - The original raw tokens that created it (for location information and AST construction)
 /// - The line type (what kind of line this is)

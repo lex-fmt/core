@@ -175,7 +175,7 @@ impl Parser for ReferenceParserImpl {
     }
 }
 
-/// Implementation wrapper for the homy (experimental) parser
+/// Implementation wrapper for the homy (linebased) parser
 pub struct HomyParserImpl;
 
 impl Parser for HomyParserImpl {

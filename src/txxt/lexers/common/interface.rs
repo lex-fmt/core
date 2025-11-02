@@ -32,7 +32,7 @@ impl std::error::Error for LexError {}
 pub enum LexerOutput {
     /// Standard token stream with source locations
     Tokens(Vec<(crate::txxt::lexers::Token, std::ops::Range<usize>)>),
-    /// Line-based token tree (from experimental lexer)
+    /// Line-based token tree (from linebased lexer)
     LineTokenTrees(Vec<crate::txxt::lexers::LineTokenTree>),
 }
 
@@ -136,7 +136,7 @@ impl Lexer for IndentationLexerImpl {
     }
 }
 
-/// Implementation wrapper for the linebased (experimental) lexer
+/// Implementation wrapper for the linebased (linebased) lexer
 pub struct LinebasedLexerImpl;
 
 impl Lexer for LinebasedLexerImpl {
