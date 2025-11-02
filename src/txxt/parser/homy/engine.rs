@@ -418,7 +418,7 @@ fn parse_node_at_level(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::lexer::transformations::experimental_pipeline::experimental_lex;
+    use crate::txxt::lexer::transformations::experimental_lex;
 
     #[test]
     fn test_parse_simple_paragraphs() {

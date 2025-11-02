@@ -1,31 +1,23 @@
-//! Experimental lexer pipeline: orchestrates all transformations into a cohesive pipeline
+//! This module orchestrates the complete tokenization pipeline for the txxt format.
 //!
-//! This module provides a complete experimental lexer pipeline that chains all transformations:
-//!
-//! ```text
-//! source text
-//!   ↓
-//! tokenize_with_locations()                        [existing]
-//!   ↓
-//! process_whitespace_remainders()                  [existing]
-//!   ↓
-//! transform_indentation()                          [existing]
-//!   ↓
-//! transform_blank_lines()                          [existing]
-//!   ↓
-//! experimental_transform_to_line_tokens()          [Issue #111]
-//!   ↓
-//! experimental_transform_indentation_to_token_tree() [Issue #112]
-//!   ↓
-//! Token Tree (final output)
-//! ```
+//! Currently we are still running two parser designs side by side and the the newer parser requires
+//! more preprocessing of the cst.
+//! The pipeline consists of:
+//! 1. Core tokenization using logos lexer
+//! 2. Common Transformation pipeline:
+//!    - Whitespace remainder processing ../transformations/transform_whitespace.rs
+//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ../transformations/transform_indentation.rs
+//!    - Blank line transformation (consecutive Newlines -> BlankLine) ../transformations/transform_blanklines.rs
+//! 3. Line-based processing:
+//!    - Flatten tokens into line tokens
+//!    - Transform line tokens into a hierarchical tree
 //!
 //! This pipeline coexists with the existing lexer without modifying it.
 
 use std::fmt;
 
 use crate::txxt::lexer::ensure_source_ends_with_newline;
-use crate::txxt::lexer::lexer_impl::tokenize;
+use crate::txxt::lexer::indentation::tokenize;
 use crate::txxt::lexer::tokens::{LineToken, Token};
 use crate::txxt::lexer::transformations::{
     experimental_transform_indentation_to_token_tree, experimental_transform_to_line_tokens,
