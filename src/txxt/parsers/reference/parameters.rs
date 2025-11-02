@@ -202,7 +202,7 @@ pub(crate) fn parse_parameters_from_tokens(
 #[cfg(test)]
 mod tests {
     use crate::txxt::lexers::lex;
-    use crate::txxt::parser::parse;
+    use crate::txxt::parsers::parse;
 
     #[test]
     fn test_annotation_comma_separated_parameters() {

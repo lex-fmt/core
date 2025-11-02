@@ -15,7 +15,7 @@ use crate::txxt::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Session, TextContent, TextLine,
 };
 use crate::txxt::lexers::{LineToken, Token};
-use crate::txxt::parser::{ContentItem, Location, Position};
+use crate::txxt::parsers::{ContentItem, Location, Position};
 
 /// Stub: Convert a line token to a Paragraph ContentItem.
 ///

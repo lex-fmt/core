@@ -113,7 +113,7 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range
 mod tests {
 
     use crate::txxt::lexers::lex;
-    use crate::txxt::parser::parse;
+    use crate::txxt::parsers::parse;
 
     #[test]
     fn test_annotation_with_label_only() {

@@ -145,7 +145,7 @@ mod tests {
         // Test that we extract real content, not placeholder strings
         let input = "First paragraph with numbers 123 and symbols (like this).\n\nSecond paragraph.\n\n1. Session Title\n\n    Session content here.\n\n";
 
-        let doc = crate::txxt::parser::parse_document(input).expect("Failed to parse");
+        let doc = crate::txxt::parsers::parse_document(input).expect("Failed to parse");
 
         assert_ast(&doc)
             .item_count(3)

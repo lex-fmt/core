@@ -14,7 +14,7 @@
 use super::txxt_grammar::TxxtGrammarRules;
 use crate::txxt::ast::TextContent;
 use crate::txxt::lexers::{LineTokenTree, LineTokenType};
-use crate::txxt::parser::{ContentItem, Document, Location, Position, Session};
+use crate::txxt::parsers::{ContentItem, Document, Location, Position, Session};
 
 /// Parse a semantic line token tree into an AST Document.
 ///

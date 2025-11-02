@@ -29,7 +29,7 @@ impl TestApp {
     /// Create a test app with specific content
     pub fn with_content(content: &str) -> Self {
         let document =
-            txxt::txxt::parser::parse_document(content).expect("Failed to parse test document");
+            txxt::txxt::parsers::parse_document(content).expect("Failed to parse test document");
         let model = Model::new(document);
         let app = App::new(model, content.to_string());
 

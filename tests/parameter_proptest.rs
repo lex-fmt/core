@@ -7,7 +7,7 @@
 //! - Whitespace around parameters is ignored
 
 use proptest::prelude::*;
-use txxt::txxt::parser::parse_document;
+use txxt::txxt::parsers::parse_document;
 
 /// Generate valid parameter keys
 fn parameter_key_strategy() -> impl Strategy<Value = String> {

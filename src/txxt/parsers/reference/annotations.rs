@@ -209,7 +209,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::txxt::lexers::lex;
-    use crate::txxt::parser::reference::api::parse;
+    use crate::txxt::parsers::reference::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
 
     #[test]
