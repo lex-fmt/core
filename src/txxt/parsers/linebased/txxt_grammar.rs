@@ -872,4 +872,133 @@ mod tests {
             "Second item should be paragraph"
         );
     }
+
+    #[test]
+    fn test_all_token_types_to_string() {
+        // Test all LineTokenType variants are correctly mapped to strings
+        assert_eq!(
+            token_type_to_string(&LineTokenType::BlankLine),
+            "BLANK_LINE"
+        );
+        assert_eq!(
+            token_type_to_string(&LineTokenType::AnnotationLine),
+            "ANNOTATION_LINE"
+        );
+        assert_eq!(
+            token_type_to_string(&LineTokenType::SubjectLine),
+            "SUBJECT_LINE"
+        );
+        assert_eq!(token_type_to_string(&LineTokenType::ListLine), "LIST_LINE");
+        assert_eq!(
+            token_type_to_string(&LineTokenType::ParagraphLine),
+            "PARAGRAPH_LINE"
+        );
+        assert_eq!(token_type_to_string(&LineTokenType::IndentLevel), "INDENT");
+        assert_eq!(token_type_to_string(&LineTokenType::DedentLevel), "DEDENT");
+    }
+
+    #[test]
+    fn test_analyze_lead_all_types() {
+        use crate::txxt::lexers::{LineToken, Token};
+
+        // Test annotation line
+        let annotation_token = LineToken {
+            source_tokens: vec![Token::TxxtMarker],
+            line_type: LineTokenType::AnnotationLine,
+            source_span: None,
+        };
+        assert_eq!(analyze_lead(&annotation_token), LeadType::Annotation);
+
+        // Test list line
+        let list_token = LineToken {
+            source_tokens: vec![Token::Dash],
+            line_type: LineTokenType::ListLine,
+            source_span: None,
+        };
+        assert_eq!(analyze_lead(&list_token), LeadType::SeqMarker);
+
+        // Test subject line
+        let subject_token = LineToken {
+            source_tokens: vec![Token::Text("title".to_string())],
+            line_type: LineTokenType::SubjectLine,
+            source_span: None,
+        };
+        assert_eq!(analyze_lead(&subject_token), LeadType::SubjectLine);
+
+        // Test paragraph line
+        let paragraph_token = LineToken {
+            source_tokens: vec![Token::Text("content".to_string())],
+            line_type: LineTokenType::ParagraphLine,
+            source_span: None,
+        };
+        assert_eq!(analyze_lead(&paragraph_token), LeadType::PlainText);
+
+        // Test structural tokens map to PlainText
+        let indent_token = LineToken {
+            source_tokens: vec![],
+            line_type: LineTokenType::IndentLevel,
+            source_span: None,
+        };
+        assert_eq!(analyze_lead(&indent_token), LeadType::PlainText);
+
+        let blank_token = LineToken {
+            source_tokens: vec![],
+            line_type: LineTokenType::BlankLine,
+            source_span: None,
+        };
+        assert_eq!(analyze_lead(&blank_token), LeadType::PlainText);
+    }
+
+    #[test]
+    fn test_extract_list_marker_type_all_markers() {
+        use crate::txxt::lexers::tokens::Token;
+
+        // Test dash marker
+        assert_eq!(extract_list_marker_type(&[Token::Dash]), "dash".to_string());
+
+        // Test number marker
+        assert_eq!(
+            extract_list_marker_type(&[Token::Number("1".to_string())]),
+            "number".to_string()
+        );
+
+        // Test single letter marker (lowercase)
+        assert_eq!(
+            extract_list_marker_type(&[Token::Text("a".to_string())]),
+            "letter".to_string()
+        );
+
+        // Test single letter marker (uppercase)
+        assert_eq!(
+            extract_list_marker_type(&[Token::Text("A".to_string())]),
+            "letter".to_string()
+        );
+
+        // Test roman numeral marker (multi-char uppercase roman only - single chars are letters)
+        assert_eq!(
+            extract_list_marker_type(&[Token::Text("II".to_string())]),
+            "roman".to_string()
+        );
+        assert_eq!(
+            extract_list_marker_type(&[Token::Text("VI".to_string())]),
+            "roman".to_string()
+        );
+        assert_eq!(
+            extract_list_marker_type(&[Token::Text("IV".to_string())]),
+            "roman".to_string()
+        );
+        assert_eq!(
+            extract_list_marker_type(&[Token::Text("XL".to_string())]),
+            "roman".to_string()
+        );
+
+        // Test unknown marker (multi-char non-roman)
+        assert_eq!(
+            extract_list_marker_type(&[Token::Text("abc".to_string())]),
+            "unknown".to_string()
+        );
+
+        // Test empty tokens returns unknown
+        assert_eq!(extract_list_marker_type(&[]), "unknown".to_string());
+    }
 }
