@@ -107,14 +107,12 @@ pub fn unwrap_tokens_to_paragraph(
     let overall_location = extract_location_from_tokens(&tokens, source);
 
     // Extract text and location for each line
-    let text_lines: Vec<(String, Location)> = tokens
-        .iter()
-        .map(|token| {
-            let text_content = extract_text_from_token(token);
-            let line_location = extract_location_from_token(token, source);
-            (text_content, line_location)
-        })
-        .collect();
+    let mut text_lines = Vec::new();
+    for token in tokens.iter() {
+        let text_content = extract_text_from_line_token(token, source)?;
+        let line_location = extract_location_from_token(token, source);
+        text_lines.push((text_content, line_location));
+    }
 
     // Use common builder to create paragraph from all lines
     let paragraph = build_paragraph(text_lines, overall_location);
@@ -201,8 +199,8 @@ pub fn unwrap_annotation_with_content(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Extract text content from the opening annotation
-    let label_text = extract_text_from_token(opening_token);
+    // Extract text content from the opening annotation using unified span-based extraction
+    let label_text = extract_text_from_line_token(opening_token, source)?;
 
     // Extract location from the opening token
     let location = extract_location_from_token(opening_token, source);
@@ -210,98 +208,6 @@ pub fn unwrap_annotation_with_content(
     // Use common builder to create annotation
     let annotation = build_annotation(label_text, location, vec![], content);
     Ok(annotation)
-}
-
-/// Extract human-readable text from a line token's source tokens.
-///
-/// Extracts semantic content from all token types (Text, Number, Dash, etc.)
-/// while skipping whitespace, newlines, and synthetic indentation tokens.
-/// This provides proper text reconstruction for annotations, definitions, and other
-/// semantic structures that may contain non-Text tokens (e.g., numbers in ordered lists).
-fn extract_text_from_token(token: &LineToken) -> String {
-    extract_text_from_tokens(&token.source_tokens)
-}
-
-/// Extract text from a slice of tokens, properly handling all token types.
-///
-/// Extracts semantic content from all tokens (Text, Number, Dash, Period, etc.)
-/// while skipping whitespace, newlines, and synthetic indentation tokens.
-/// Concatenates tokens directly, preserving the original token structure without
-/// forcing spaces between everything (unlike simple join which always adds spaces).
-fn extract_text_from_tokens(tokens: &[Token]) -> String {
-    let mut result = String::new();
-    let mut prev_was_content = false;
-
-    for token in tokens {
-        match token {
-            // Semantic content tokens - extract their string representation
-            Token::Text(s) => {
-                // Add space before text if previous token was content
-                if prev_was_content {
-                    result.push(' ');
-                }
-                result.push_str(s);
-                prev_was_content = true;
-            }
-            Token::Number(s) => {
-                // Add space before number if previous token was content
-                if prev_was_content {
-                    result.push(' ');
-                }
-                result.push_str(s);
-                prev_was_content = true;
-            }
-            // Punctuation and symbols - no spaces around them
-            Token::Dash => {
-                result.push('-');
-                prev_was_content = true;
-            }
-            Token::Period => {
-                result.push('.');
-                prev_was_content = true;
-            }
-            Token::OpenParen => {
-                result.push('(');
-                prev_was_content = true;
-            }
-            Token::CloseParen => {
-                result.push(')');
-                prev_was_content = false; // Reset for next token
-            }
-            Token::Colon => {
-                result.push(':');
-                prev_was_content = true;
-            }
-            Token::Comma => {
-                result.push(',');
-                prev_was_content = true;
-            }
-            Token::Quote => {
-                result.push('"');
-                prev_was_content = true;
-            }
-            Token::Equals => {
-                result.push('=');
-                prev_was_content = true;
-            }
-            Token::TxxtMarker => {
-                result.push_str("::");
-                prev_was_content = true;
-            }
-
-            // Whitespace and newlines - skip these
-            Token::Whitespace | Token::Newline | Token::BlankLine | Token::Indent => {
-                // Skip whitespace
-            }
-
-            // Synthetic tokens - skip (generated during transformation)
-            Token::IndentLevel | Token::DedentLevel => {
-                // Skip synthetic tokens
-            }
-        }
-    }
-
-    result
 }
 
 /// Extract location information from a LineToken using its source span
@@ -363,7 +269,7 @@ pub fn unwrap_session(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    let title_text = extract_text_from_token(subject_token);
+    let title_text = extract_text_from_line_token(subject_token, source)?;
 
     // Extract location from the subject token
     let title_location = extract_location_from_token(subject_token, source);
@@ -384,7 +290,7 @@ pub fn unwrap_definition(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    let subject_text = extract_text_from_token(subject_token);
+    let subject_text = extract_text_from_line_token(subject_token, source)?;
 
     // Extract location from the subject token
     let subject_location = extract_location_from_token(subject_token, source);
@@ -421,7 +327,7 @@ pub fn unwrap_list_item(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    let item_text = extract_text_from_token(item_token);
+    let item_text = extract_text_from_line_token(item_token, source)?;
 
     // Extract location from the item token
     let item_location = extract_location_from_token(item_token, source);
@@ -443,15 +349,17 @@ pub fn unwrap_foreign_block(
     closing_annotation_token: &LineToken,
     source: &str,
 ) -> Result<ContentItem, String> {
-    let subject_text = extract_text_from_token(subject_token);
+    let subject_text = extract_text_from_line_token(subject_token, source)?;
     let subject_location = extract_location_from_token(subject_token, source);
 
     // Combine all content lines into a single text block
-    let content_text = content_lines
-        .iter()
-        .map(|token| extract_text_from_token(token))
-        .collect::<Vec<_>>()
-        .join("\n");
+    let mut content_text = String::new();
+    for (idx, token) in content_lines.iter().enumerate() {
+        if idx > 0 {
+            content_text.push('\n');
+        }
+        content_text.push_str(&extract_text_from_line_token(token, source)?);
+    }
 
     // Compute content location from all content lines
     let content_location = if content_lines.is_empty() {
@@ -463,7 +371,7 @@ pub fn unwrap_foreign_block(
     };
 
     // Create the closing annotation with proper location
-    let annotation_text = extract_text_from_token(closing_annotation_token);
+    let annotation_text = extract_text_from_line_token(closing_annotation_token, source)?;
     let annotation_location = extract_location_from_token(closing_annotation_token, source);
     let closing_annotation = Annotation {
         label: Label::from_string(&annotation_text),
@@ -589,60 +497,6 @@ mod tests {
 
         let item = result.unwrap();
         assert!(matches!(item, ContentItem::Paragraph(_)));
-    }
-
-    #[test]
-    fn test_extract_text_with_single_token() {
-        let token = make_line_token(
-            LineTokenType::ParagraphLine,
-            vec![Token::Text("Single".to_string())],
-        );
-
-        let text = extract_text_from_token(&token);
-        assert_eq!(text, "Single");
-    }
-
-    #[test]
-    fn test_extract_text_handles_all_token_types() {
-        let token = make_line_token(
-            LineTokenType::SubjectLine,
-            vec![
-                Token::Text("Title".to_string()),
-                Token::Colon,
-                Token::Newline,
-            ],
-        );
-
-        let text = extract_text_from_token(&token);
-        // Now properly handles all semantic content tokens, including Colon
-        // Punctuation is directly concatenated without spaces
-        // Newline is still filtered out as it's whitespace
-        assert_eq!(text, "Title:");
-    }
-
-    #[test]
-    fn test_extract_text_multiple_text_tokens() {
-        let token = make_line_token(
-            LineTokenType::ParagraphLine,
-            vec![
-                Token::Text("Hello".to_string()),
-                Token::Whitespace,
-                Token::Text("world".to_string()),
-            ],
-        );
-
-        let text = extract_text_from_token(&token);
-        // Should join text tokens with space
-        assert!(text.contains("Hello"));
-        assert!(text.contains("world"));
-    }
-
-    #[test]
-    fn test_extract_text_empty_token() {
-        let token = make_line_token(LineTokenType::BlankLine, vec![]);
-
-        let text = extract_text_from_token(&token);
-        assert_eq!(text, "");
     }
 
     // ========== LOCATION PRESERVATION TESTS ==========
