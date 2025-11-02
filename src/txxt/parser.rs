@@ -32,12 +32,12 @@ pub use reference::parse;
 /// Type alias for parse result with spanned tokens
 type ParseResult = Result<
     Document,
-    Vec<chumsky::prelude::Simple<(crate::txxt::lexer::Token, std::ops::Range<usize>)>>,
+    Vec<chumsky::prelude::Simple<(crate::txxt::lexers::Token, std::ops::Range<usize>)>>,
 >;
 
 /// Main parser function that takes source text and returns a parsed document
 /// This is the primary entry point for parsing txxt documents
 pub fn parse_document(source: &str) -> ParseResult {
-    let tokens = crate::txxt::lexer::lex(source);
+    let tokens = crate::txxt::lexers::lex(source);
     parse(tokens, source)
 }

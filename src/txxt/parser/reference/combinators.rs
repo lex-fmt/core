@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::traits::AstNode;
 use crate::txxt::ast::{ContentItem, Location, Paragraph, TextContent};
-use crate::txxt::lexer::Token;
+use crate::txxt::lexers::Token;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);

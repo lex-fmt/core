@@ -24,7 +24,7 @@
 //! let processed = TxxtSources::get_processed("050-paragraph-lists.txxt", "token-simple").unwrap();
 //! ```
 
-use crate::txxt::lexer::{lex, Token};
+use crate::txxt::lexers::{lex, Token};
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -238,11 +238,11 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     // Handle experimental pipeline formats first
     match &spec.format {
         OutputFormat::TokenLine => {
-            let line_tokens = crate::txxt::lexer::experimental_lex_stage(
+            let line_tokens = crate::txxt::lexers::experimental_lex_stage(
                 &content,
-                crate::txxt::lexer::PipelineStage::LineTokens,
+                crate::txxt::lexers::PipelineStage::LineTokens,
             );
-            if let crate::txxt::lexer::PipelineOutput::LineTokens(tokens) = line_tokens {
+            if let crate::txxt::lexers::PipelineOutput::LineTokens(tokens) = line_tokens {
                 let json = serde_json::to_string_pretty(&tokens)
                     .map_err(|e| ProcessingError::IoError(e.to_string()))?;
                 return Ok(json);
@@ -252,7 +252,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
             ))
         }
         OutputFormat::TokenTree => {
-            let tree = crate::txxt::lexer::experimental_lex(&content)
+            let tree = crate::txxt::lexers::experimental_lex(&content)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
             let json = serde_json::to_string_pretty(&tree)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
@@ -268,7 +268,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                 ProcessingStage::Ast => {
                     // Parse the document - all documents now include full location information
                     let doc = if matches!(spec.format, OutputFormat::AstPosition) {
-                        crate::txxt::parser::parse(crate::txxt::lexer::lex(&content), &content)
+                        crate::txxt::parser::parse(crate::txxt::lexers::lex(&content), &content)
                             .map_err(|errs| {
                                 let error_details = errs
                                     .iter()
@@ -314,7 +314,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                         OutputFormat::AstTreeviz => Ok(crate::txxt::parser::to_treeviz_str(&doc)),
                         OutputFormat::AstExperimentalTag => {
                             // Use experimental parser
-                            let tree = crate::txxt::lexer::experimental_lex(&content)
+                            let tree = crate::txxt::lexers::experimental_lex(&content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental lexer failed: {:?}", e)))?;
                             let doc_exp = crate::txxt::parser::homy::parse_experimental(tree, &content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental parser failed: {}", e)))?;
@@ -322,7 +322,7 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                         }
                         OutputFormat::AstExperimentalTreeviz => {
                             // Use experimental parser
-                            let tree = crate::txxt::lexer::experimental_lex(&content)
+                            let tree = crate::txxt::lexers::experimental_lex(&content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental lexer failed: {:?}", e)))?;
                             let doc_exp = crate::txxt::parser::homy::parse_experimental(tree, &content)
                                 .map_err(|e| ProcessingError::IoError(format!("Experimental parser failed: {}", e)))?;
@@ -603,7 +603,7 @@ pub mod txxt_sources {
         let content = r#"First paragraph
 Second paragraph"#;
 
-        let tokens = crate::txxt::lexer::lex(content);
+        let tokens = crate::txxt::lexers::lex(content);
         let doc = crate::txxt::parser::parse(tokens, content).unwrap();
 
         // Check if locations are populated

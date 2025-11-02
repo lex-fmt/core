@@ -2,7 +2,7 @@
 
 pub mod ast;
 pub mod formats;
-pub mod lexer;
+pub mod lexers;
 pub mod parser;
 pub mod processor;
 pub mod testing;

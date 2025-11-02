@@ -15,7 +15,7 @@ use super::combinators::{
 use super::labels::parse_label_from_tokens;
 use super::parameters::{convert_parameter, parse_parameters_from_tokens};
 use crate::txxt::ast::{Annotation, AstNode, ContentItem, Label, Location, Paragraph, TextContent};
-use crate::txxt::lexer::Token;
+use crate::txxt::lexers::Token;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
@@ -208,7 +208,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt::lexer::lex;
+    use crate::txxt::lexers::lex;
     use crate::txxt::parser::reference::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
 

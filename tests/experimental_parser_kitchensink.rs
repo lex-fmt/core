@@ -4,7 +4,7 @@
 //! produces the correct AST structure for a complex, comprehensive test file.
 //! Any regression in parsing will be caught automatically.
 
-use txxt::txxt::lexer::transformations::experimental_lex;
+use txxt::txxt::lexers::transformations::experimental_lex;
 use txxt::txxt::parser::homy::engine::parse_experimental;
 use txxt::txxt::parser::ContentItem;
 

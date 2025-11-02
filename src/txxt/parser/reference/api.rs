@@ -5,7 +5,7 @@ use std::ops::Range;
 
 use super::document::document;
 use crate::txxt::ast::Document;
-use crate::txxt::lexer::Token;
+use crate::txxt::lexers::Token;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);

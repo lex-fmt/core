@@ -13,7 +13,7 @@ use super::combinators::{
     extract_tokens_to_text_and_location, is_text_token, token,
 };
 use crate::txxt::ast::{ContentItem, List, ListItem, Location, TextContent};
-use crate::txxt::lexer::Token;
+use crate::txxt::lexers::Token;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
@@ -103,7 +103,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt::lexer::lex;
+    use crate::txxt::lexers::lex;
     use crate::txxt::parser::reference::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use crate::txxt::testing::assert_ast;

@@ -8,7 +8,7 @@
 
 use super::combinators::byte_range_to_location;
 use crate::txxt::ast::Parameter;
-use crate::txxt::lexer::Token;
+use crate::txxt::lexers::Token;
 use chumsky::{prelude::*, Stream};
 use std::ops::Range;
 
@@ -201,7 +201,7 @@ pub(crate) fn parse_parameters_from_tokens(
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt::lexer::lex;
+    use crate::txxt::lexers::lex;
     use crate::txxt::parser::parse;
 
     #[test]

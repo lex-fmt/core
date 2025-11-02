@@ -13,7 +13,7 @@
 
 use super::txxt_grammar::TxxtGrammarRules;
 use crate::txxt::ast::TextContent;
-use crate::txxt::lexer::{LineTokenTree, LineTokenType};
+use crate::txxt::lexers::{LineTokenTree, LineTokenType};
 use crate::txxt::parser::{ContentItem, Document, Location, Position, Session};
 
 /// Parse a semantic line token tree into an AST Document.
@@ -417,7 +417,7 @@ fn parse_node_at_level(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::lexer::transformations::experimental_lex;
+    use crate::txxt::lexers::transformations::experimental_lex;
 
     #[test]
     fn test_parse_simple_paragraphs() {

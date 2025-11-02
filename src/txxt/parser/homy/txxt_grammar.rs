@@ -8,7 +8,7 @@
 //!
 //! More complex patterns are added in subsequent steps (foreign blocks, lists, definitions, sessions).
 
-use crate::txxt::lexer::LineTokenType;
+use crate::txxt::lexers::LineTokenType;
 use crate::txxt::parser::homy::regex_grammar_engine::{RegexGrammarMatcher, TokenSeq};
 
 /// Convert LineTokenType enum to its string representation for pattern matching
@@ -44,7 +44,7 @@ pub enum LeadType {
 }
 
 /// Analyze a line token to determine its lead type
-pub fn analyze_lead(token: &crate::txxt::lexer::LineToken) -> LeadType {
+pub fn analyze_lead(token: &crate::txxt::lexers::LineToken) -> LeadType {
     match token.line_type {
         LineTokenType::AnnotationLine => LeadType::Annotation,
         LineTokenType::ListLine => LeadType::SeqMarker,
@@ -56,8 +56,8 @@ pub fn analyze_lead(token: &crate::txxt::lexer::LineToken) -> LeadType {
 
 /// Extract the list marker type from source tokens
 /// Returns a marker type identifier to distinguish dash lists, numbered lists, lettered lists, etc.
-fn extract_list_marker_type(tokens: &[crate::txxt::lexer::tokens::Token]) -> String {
-    use crate::txxt::lexer::tokens::Token;
+fn extract_list_marker_type(tokens: &[crate::txxt::lexers::tokens::Token]) -> String {
+    use crate::txxt::lexers::tokens::Token;
 
     for token in tokens {
         match token {
@@ -183,9 +183,9 @@ impl TxxtGrammarRules {
     ///    Example: "Image:\n:: image src=... ::"
     pub fn try_foreign_block_from_tree(
         &self,
-        tree: &[crate::txxt::lexer::LineTokenTree],
+        tree: &[crate::txxt::lexers::LineTokenTree],
     ) -> Option<usize> {
-        use crate::txxt::lexer::LineTokenTree;
+        use crate::txxt::lexers::LineTokenTree;
 
         if tree.is_empty() {
             return None;
@@ -283,8 +283,8 @@ impl TxxtGrammarRules {
     ///
     /// Important: List items must use consistent marker type (all dashes, all numbers, etc.)
     /// This prevents "- item\n4. session-title" from being parsed as a mixed list.
-    pub fn try_list_from_tree(&self, tree: &[crate::txxt::lexer::LineTokenTree]) -> Option<usize> {
-        use crate::txxt::lexer::LineTokenTree;
+    pub fn try_list_from_tree(&self, tree: &[crate::txxt::lexers::LineTokenTree]) -> Option<usize> {
+        use crate::txxt::lexers::LineTokenTree;
 
         if tree.is_empty() {
             return None;
@@ -418,9 +418,9 @@ impl TxxtGrammarRules {
     /// Note: A SESSION requires a blank line AFTER the lead (distinguishes from DEFINITION)
     pub fn try_session_from_tree(
         &self,
-        tree: &[crate::txxt::lexer::LineTokenTree],
+        tree: &[crate::txxt::lexers::LineTokenTree],
     ) -> Option<usize> {
-        use crate::txxt::lexer::LineTokenTree;
+        use crate::txxt::lexers::LineTokenTree;
 
         if tree.len() < 3 {
             return None; // Need at least: lead + blank + block
@@ -469,9 +469,9 @@ impl TxxtGrammarRules {
     /// - `:: note author="Jane" ::\n    paragraph\n::`  (with parameters)
     pub fn try_annotation_from_tree(
         &self,
-        tree: &[crate::txxt::lexer::LineTokenTree],
+        tree: &[crate::txxt::lexers::LineTokenTree],
     ) -> Option<usize> {
-        use crate::txxt::lexer::LineTokenTree;
+        use crate::txxt::lexers::LineTokenTree;
 
         if tree.len() < 3 {
             return None; // Need at least: opening_annotation + block + closing_annotation
@@ -826,8 +826,8 @@ mod tests {
     #[test]
     fn test_step1_integration_annotation_and_paragraph() {
         // Step 1: Test that we can parse annotations and paragraphs
-        use crate::txxt::lexer::LineTokenTree;
-        use crate::txxt::lexer::{LineToken, LineTokenType, Token};
+        use crate::txxt::lexers::LineTokenTree;
+        use crate::txxt::lexers::{LineToken, LineTokenType, Token};
         use crate::txxt::parser::homy::parse_experimental;
 
         // Create a simple tree with annotation and paragraph
