@@ -2,10 +2,10 @@
 name = "txxt"
 version = "0.1.0"
 edition = "2021"
-authors = ["txxt-nano contributors"]
+authors = ["txxt contributors"]
 description = "A parser for the txxt format"
 license = "MIT"
-repository = "https://github.com/adebert/txxt-nano"
+repository = "https://github.com/adebert/txxt"
 keywords = ["parser", "format", "txxt"]
 categories = ["parsing", "text-processing"]
 

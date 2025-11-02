@@ -5,7 +5,7 @@
 
 use std::ops::Range;
 
-use crate::txxt::lexer::Token;
+use crate::txxt::lexers::Token;
 
 /// Canonical alias for spanned tokens used across tests
 pub type Tokens = Vec<(Token, Range<usize>)>;

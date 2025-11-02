@@ -4,7 +4,7 @@
 //! from our sample collection without panicking or producing invalid tokens.
 
 use proptest::prelude::*;
-use txxt::txxt::lexer::{lex, Token};
+use txxt::txxt::lexers::{lex, Token};
 
 /// Helper: strip locations from lexer output
 fn strip_loc(pairs: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Token> {

@@ -1,3 +1,3 @@
-//! Integration tests for txxt-nano
+//! Integration tests for txxt
 
 // Placeholder - integration tests will be added as needed
