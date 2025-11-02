@@ -55,6 +55,7 @@ pub trait Lexer: Send + Sync {
 ///
 /// This registry holds all available lexer implementations and provides
 /// methods to select and use them.
+#[derive(Clone)]
 pub struct LexerRegistry {
     lexers: std::collections::HashMap<String, std::sync::Arc<dyn Lexer>>,
 }

@@ -3,6 +3,24 @@
 //! This module provides an extensible API for processing txxt files with different
 //! stages (token, ast) and formats (simple, json, xml, etc.).
 //!
+//! # Unified Pipeline API
+//!
+//! For new code, consider using the `TxxtPipeline` API in the `pipeline` module
+//! which provides a cleaner, more flexible interface for selecting lexer and parser
+//! implementations:
+//!
+//! ```rust,ignore
+//! use txxt::txxt::pipeline::TxxtPipeline;
+//!
+//! // Use default stable pipeline (indentation lexer + reference parser)
+//! let pipeline = TxxtPipeline::default();
+//! let doc = pipeline.parse("hello world").expect("Failed to parse");
+//!
+//! // Use specific lexer/parser combination
+//! let pipeline = TxxtPipeline::new("linebased", "homy");
+//! let doc = pipeline.parse("hello world").expect("Failed to parse");
+//! ```
+//!
 //! # Sample Sources
 //!
 //! The `txxt_sources` module provides access to verified txxt sample files for testing.
