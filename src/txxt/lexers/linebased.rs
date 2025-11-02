@@ -1,8 +1,12 @@
 //! Line-based lexer pipeline module
 //!
-//! This module provides the linebased line-based lexer pipeline that:
-//! - Flattens tokens into line tokens
-//! - Transforms line tokens into a hierarchical tree
+//! In this design we do two important things:
+//! 1. We group tokens into lines.
+//! 2. We have a token tree, that is where inner structures are represented as token vectors, since txxt is a hierarchical format.
+//!
+//! This allows us, in the matching linebased parser to match patters much easier, since we can match
+//! full lines and clearly see the structure, since the regext approach cannot count and keep tabs
+//! of indent and dedent levels.
 
 pub mod pipeline;
 pub mod tokens;
