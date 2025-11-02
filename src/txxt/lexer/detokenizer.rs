@@ -64,7 +64,7 @@ pub fn detokenize(tokens: &[Token]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::lexer::{tokenize, transform_indentation};
+    use crate::txxt::lexer::{sem_indentation, tokenize};
 
     // ===== Stage 0/1: Basic detokenization with raw tokens (no indentation handling) =====
 
@@ -107,7 +107,7 @@ mod tests {
     fn test_detokenize_with_semantic_indentation() {
         let source = "1. Session\n    - Item 1\n        - Nested Item\n    - Item 2";
         let raw_tokenss = tokenize(source);
-        let tokenss = transform_indentation(raw_tokenss);
+        let tokenss = sem_indentation(raw_tokenss);
         let tokens: Vec<_> = tokenss.into_iter().map(|(t, _)| t).collect();
         let detokenized = detokenize(&tokens);
         assert_eq!(detokenized, source);
@@ -127,7 +127,7 @@ mod tests {
 
     fn test_roundtrip_semantic_tokens(source: &str, snapshot_name: &str) {
         let raw_tokenss = tokenize(source);
-        let tokenss = transform_indentation(raw_tokenss);
+        let tokenss = sem_indentation(raw_tokenss);
         let tokens: Vec<_> = tokenss.into_iter().map(|(t, _)| t).collect();
         let detokenized = detokenize(&tokens);
         insta::assert_snapshot!(snapshot_name, detokenized);

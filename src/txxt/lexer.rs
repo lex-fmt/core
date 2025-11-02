@@ -7,7 +7,7 @@
 //! 1. Core tokenization using logos lexer
 //! 2. Common Transformation pipeline:
 //!    - Whitespace remainder processing ./transformations/transform_whitespace.rs
-//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ./transformations/transform_indentation.rs
+//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ./transformations/sem_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ./transformations/transform_blanklines.rs
 //! 3. Line-based pipeline (experimental):
 //!    - Flatten tokens into line tokens
@@ -38,8 +38,8 @@ pub use detokenizer::detokenize;
 pub use indentation::tokenize;
 pub use tokens::Token;
 pub use transformations::{
-    experimental_lex, experimental_lex_stage, process_whitespace_remainders, transform_blank_lines,
-    transform_indentation, PipelineOutput, PipelineStage,
+    experimental_lex, experimental_lex_stage, process_whitespace_remainders, sem_indentation,
+    transform_blank_lines, PipelineOutput, PipelineStage,
 };
 
 // Re-export line-based types for convenience
@@ -64,13 +64,13 @@ pub(crate) fn ensure_source_ends_with_newline(source: &str) -> String {
 /// Processing pipeline:
 /// 1. tokenize() - raw tokens with source locations
 /// 2. process_whitespace_remainders() - handle whitespace with locations
-/// 3. transform_indentation() - convert Indent tokens with location tracking
+/// 3. sem_indentation() - convert Indent tokens with location tracking
 /// 4. transform_blank_lines() - convert Newline sequences with location tracking
 pub fn lex(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
     let source_with_newline = ensure_source_ends_with_newline(source);
 
     let tokenss = tokenize(&source_with_newline);
     let tokens_after_whitespace = process_whitespace_remainders(tokenss);
-    let tokens_after_indentation = transform_indentation(tokens_after_whitespace);
+    let tokens_after_indentation = sem_indentation(tokens_after_whitespace);
     transform_blank_lines(tokens_after_indentation)
 }

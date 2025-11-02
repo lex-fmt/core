@@ -6,7 +6,7 @@
 //! 1. Core tokenization using logos lexer
 //! 2. Common Transformation pipeline:
 //!    - Whitespace remainder processing ../transformations/transform_whitespace.rs
-//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ../transformations/transform_indentation.rs
+//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ../transformations/sem_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ../transformations/transform_blanklines.rs
 //! 3. Line-based processing:
 //!    - Flatten tokens into line tokens
@@ -24,7 +24,7 @@ use crate::txxt::lexer::linebased::transformations::{
 };
 use crate::txxt::lexer::tokens::Token;
 use crate::txxt::lexer::transformations::{
-    process_whitespace_remainders, transform_blank_lines, transform_indentation,
+    process_whitespace_remainders, sem_indentation, transform_blank_lines,
 };
 
 /// Error type for experimental pipeline operations
@@ -158,7 +158,7 @@ pub fn experimental_lex_stage(source: &str, stage: PipelineStage) -> PipelineOut
     }
 
     // Stage 3: Indentation transformation
-    let after_indentation = transform_indentation(after_whitespace);
+    let after_indentation = sem_indentation(after_whitespace);
 
     if stage == PipelineStage::AfterIndentation {
         return PipelineOutput::Tokens(after_indentation);
