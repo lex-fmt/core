@@ -522,11 +522,6 @@ impl TxxtGrammarRules {
             return None;
         }
 
-        // Special case: lone blank line (returns 1 to skip it, doesn't generate content)
-        if token_types[0] == LineTokenType::BlankLine {
-            return Some(1);
-        }
-
         // Paragraph matches until we hit a BLANK_LINE, INDENT, or DEDENT
         let mut count = 0;
         for token_type in token_types {
