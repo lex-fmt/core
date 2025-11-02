@@ -15,16 +15,19 @@ use chumsky::primitive::filter;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::txxt::ast::traits::AstNode;
 use crate::txxt::ast::{
-    Annotation, ContentItem, Definition, ForeignBlock, Label, List, ListItem, Location, Paragraph,
-    Parameter, Session, TextContent, TextLine,
+    Annotation, ContentItem, ForeignBlock, Label, ListItem, Location, Paragraph, Parameter,
+    TextContent, TextLine,
 };
 use crate::txxt::lexers::Token;
-// Location utilities are now imported from crate::txxt::parsers::common::location
-use crate::txxt::parsers::common::location::{
-    aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
-    compute_location_from_locations,
+// Location utilities and AST builders are now imported from crate::txxt::parsers::common
+use crate::txxt::parsers::common::{
+    build_annotation, build_definition, build_foreign_block, build_list, build_paragraph,
+    build_session,
+    location::{
+        aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
+        compute_location_from_locations,
+    },
 };
 
 /// Type alias for token with location
@@ -118,7 +121,7 @@ pub(crate) fn paragraph(
         .repeated()
         .at_least(1)
         .map(move |line_locations_list: Vec<Vec<Range<usize>>>| {
-            let lines = line_locations_list
+            let text_lines: Vec<(String, Location)> = line_locations_list
                 .iter()
                 .map(|locations| {
                     let text = extract_text_from_locations(&source, locations);
@@ -129,9 +132,7 @@ pub(crate) fn paragraph(
                         let range = compute_byte_range_bounds(locations);
                         byte_range_to_location(&source, &range)
                     };
-                    let text_content = TextContent::from_string(text, Some(line_location));
-                    let text_line = TextLine::new(text_content).at(line_location);
-                    ContentItem::TextLine(text_line)
+                    (text, line_location)
                 })
                 .collect();
 
@@ -147,7 +148,12 @@ pub(crate) fn paragraph(
                 }
             };
 
-            Paragraph { lines, location }
+            // Use common builder to create paragraph
+            if let ContentItem::Paragraph(para) = build_paragraph(text_lines, location) {
+                para
+            } else {
+                unreachable!("build_paragraph always returns Paragraph")
+            }
         })
 }
 
@@ -255,29 +261,16 @@ where
                     label,
                     label_range,
                     parameters,
-                    header_range,
+                    header_range: _,
                 } = header_info;
 
                 let label_text = label.unwrap_or_default();
                 let label_location = label_range.map_or(Location::default(), |s| {
                     byte_range_to_location(&source_for_block, &s)
                 });
-                let label = Label::new(label_text).at(label_location);
 
-                let header_location = byte_range_to_location(&source_for_block, &header_range);
-
-                // Collect locations from header and content to compute overall annotation span
-                let mut location_sources: Vec<Location> = vec![header_location];
-                location_sources.extend(content.iter().map(|item| item.location()));
-                location_sources.push(label_location);
-                let location = compute_location_from_locations(&location_sources);
-
-                ContentItem::Annotation(Annotation {
-                    label,
-                    parameters,
-                    content,
-                    location,
-                })
+                // Use common builder to create annotation
+                build_annotation(label_text, label_location, parameters, content)
             })
     };
 
@@ -292,44 +285,29 @@ where
                     label,
                     label_range,
                     parameters,
-                    header_range,
+                    header_range: _,
                 } = header_info;
 
                 let label_text = label.unwrap_or_default();
                 let label_location = label_range.map_or(Location::default(), |s| {
                     byte_range_to_location(&source_for_single_line, &s)
                 });
-                let label = Label::new(label_text).at(label_location);
 
-                // Handle content if present and compute paragraph location
-                let (content, paragraph_location) = if let Some(locations) = content_location {
+                // Handle content if present
+                let content = if let Some(locations) = content_location {
                     let text = extract_text_from_locations(&source_for_single_line, &locations);
                     let range = compute_byte_range_bounds(&locations);
                     let paragraph_location =
                         byte_range_to_location(&source_for_single_line, &range);
-                    let text_content = TextContent::from_string(text, Some(paragraph_location));
-                    let text_line = TextLine::new(text_content).at(paragraph_location);
-                    let paragraph = Paragraph {
-                        lines: vec![ContentItem::TextLine(text_line)],
-                        location: paragraph_location,
-                    };
-                    (vec![ContentItem::Paragraph(paragraph)], paragraph_location)
+                    let text_line_item =
+                        build_paragraph(vec![(text, paragraph_location)], paragraph_location);
+                    vec![text_line_item]
                 } else {
-                    (vec![], Location::default())
+                    vec![]
                 };
 
-                let header_location =
-                    byte_range_to_location(&source_for_single_line, &header_range);
-
-                let location_sources = vec![header_location, label_location, paragraph_location];
-                let location = compute_location_from_locations(&location_sources);
-
-                ContentItem::Annotation(Annotation {
-                    label,
-                    parameters,
-                    content,
-                    location,
-                })
+                // Use common builder to create annotation
+                build_annotation(label_text, label_location, parameters, content)
             })
     };
 
@@ -370,15 +348,9 @@ where
         .map(move |((subject_text, subject_location), content)| {
             let subject_location =
                 byte_range_to_location(&source_for_definition, &subject_location);
-            let subject = TextContent::from_string(subject_text, Some(subject_location));
 
-            let location = aggregate_locations(subject_location, &content);
-
-            ContentItem::Definition(Definition {
-                subject,
-                content,
-                location,
-            })
+            // Use common builder to create definition
+            build_definition(subject_text, subject_location, content)
         })
 }
 
@@ -417,15 +389,9 @@ where
         )
         .map(move |((title_text, title_location), content)| {
             let title_location = byte_range_to_location(&source_for_session, &title_location);
-            let title = TextContent::from_string(title_text, Some(title_location));
 
-            let location = aggregate_locations(title_location, &content);
-
-            ContentItem::Session(Session {
-                title,
-                content,
-                location,
-            })
+            // Use common builder to create session
+            build_session(title_text, title_location, content)
         })
 }
 
@@ -501,14 +467,10 @@ where
         });
 
     single_list_item.repeated().at_least(2).map(|items| {
-        let locations: Vec<Location> = items.iter().map(|item| item.location).collect();
-        let location = compute_location_from_locations(&locations);
         let content_items: Vec<ContentItem> =
             items.into_iter().map(ContentItem::ListItem).collect();
-        ContentItem::List(List {
-            content: content_items,
-            location,
-        })
+        // Use common builder to create list
+        build_list(content_items)
     })
 }
 
@@ -603,7 +565,6 @@ pub(crate) fn foreign_block(
         .map(
             move |(((subject_text, subject_location), content_locations), closing_annotation)| {
                 let subject_location = byte_range_to_location(&source, &subject_location);
-                let subject = TextContent::from_string(subject_text, Some(subject_location));
 
                 let (content_text, content_location) = if let Some(locations) = content_locations {
                     if locations.is_empty() {
@@ -618,19 +579,17 @@ pub(crate) fn foreign_block(
                     (String::new(), Location::default())
                 };
 
-                let content = TextContent::from_string(content_text, Some(content_location));
-                let location_sources = vec![
+                // Use common builder to create foreign block
+                if let ContentItem::ForeignBlock(fb) = build_foreign_block(
+                    subject_text,
                     subject_location,
+                    content_text,
                     content_location,
-                    closing_annotation.location,
-                ];
-                let location = compute_location_from_locations(&location_sources);
-
-                ForeignBlock {
-                    subject,
-                    content,
                     closing_annotation,
-                    location,
+                ) {
+                    fb
+                } else {
+                    unreachable!("build_foreign_block always returns ForeignBlock")
                 }
             },
         )

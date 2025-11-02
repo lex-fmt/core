@@ -97,8 +97,9 @@ pub fn _lex(source: &str) -> Result<LineContainerToken, PipelineError> {
 /// Attach source spans to line tokens by matching tokens in the original token stream.
 ///
 /// This function pairs the line tokens (which have been transformed/grouped) with their
-/// original source spans from the pipeline. Each line token gets assigned a span that covers
-/// all the tokens that make up that line.
+/// original source spans from the pipeline. Each line token gets:
+/// - Individual token_spans for each source_token (enables byte-accurate text extraction from token subsets)
+/// - An overall source_span that covers all the tokens that make up that line
 fn attach_spans_to_line_tokens(
     line_tokens: &mut [LineToken],
     tokens_with_spans: &[(Token, std::ops::Range<usize>)],
@@ -113,6 +114,7 @@ fn attach_spans_to_line_tokens(
 
         let line_start = tokens_with_spans[source_idx].1.start;
         let mut line_end = line_start;
+        let mut token_spans = Vec::new();
 
         // Consume tokens from the source stream that match this line token's source_tokens
         for expected_token in &line_token.source_tokens {
@@ -120,13 +122,15 @@ fn attach_spans_to_line_tokens(
                 let (actual_token, span) = &tokens_with_spans[source_idx];
                 // Check if tokens match (they should, since we derived line_tokens from these)
                 if std::mem::discriminant(actual_token) == std::mem::discriminant(expected_token) {
+                    token_spans.push(span.clone());
                     line_end = span.end;
                     source_idx += 1;
                 }
             }
         }
 
-        // Attach the span to this line token
+        // Attach the token spans and overall span to this line token
+        line_token.token_spans = token_spans;
         line_token.source_span = Some(line_start..line_end);
     }
 }
