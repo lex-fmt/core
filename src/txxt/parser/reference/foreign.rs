@@ -16,7 +16,7 @@ use super::definitions::definition_subject;
 use crate::txxt::ast::{
     Annotation, ContentItem, ForeignBlock, Label, Location, Paragraph, TextContent,
 };
-use crate::txxt::lexer::Token;
+use crate::txxt::lexers::Token;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
@@ -156,7 +156,7 @@ pub(crate) fn foreign_block(
 
 #[cfg(test)]
 mod tests {
-    use crate::txxt::lexer::lex;
+    use crate::txxt::lexers::lex;
     use crate::txxt::parser::reference::api::parse;
     use crate::txxt::processor::txxt_sources::TxxtSources;
 

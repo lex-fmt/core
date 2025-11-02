@@ -8,7 +8,7 @@
 //! A label is distinguished from a parameter key by the absence of an '=' sign
 //! immediately following it (after optional whitespace).
 
-use crate::txxt::lexer::Token;
+use crate::txxt::lexers::Token;
 use chumsky::{prelude::*, Stream};
 use std::ops::Range;
 
@@ -112,7 +112,7 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range
 #[cfg(test)]
 mod tests {
 
-    use crate::txxt::lexer::lex;
+    use crate::txxt::lexers::lex;
     use crate::txxt::parser::parse;
 
     #[test]

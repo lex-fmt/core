@@ -1,7 +1,7 @@
 //! Unit tests for the txxt processor API
 
 use std::fs;
-use txxt::txxt::lexer::Token;
+use txxt::txxt::lexers::Token;
 use txxt::txxt::processor::{
     format_tokenss, process_file, OutputFormat, ProcessingError, ProcessingSpec, ProcessingStage,
 };

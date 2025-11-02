@@ -13,7 +13,7 @@ use std::ops::Range;
 
 #[allow(unused_imports)] // Container is used in tests
 use crate::txxt::ast::{Container, ContentItem, Document};
-use crate::txxt::lexer::Token;
+use crate::txxt::lexers::Token;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
@@ -117,7 +117,7 @@ pub fn parse_with_source(
 mod tests {
     use super::*;
     use crate::txxt::ast::{AstNode, Position};
-    use crate::txxt::lexer::lex;
+    use crate::txxt::lexers::lex;
     use crate::txxt::processor::txxt_sources::TxxtSources;
     use std::sync::Arc;
 
