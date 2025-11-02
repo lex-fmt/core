@@ -11,11 +11,52 @@
 //! The tree walking is completely decoupled from grammar/pattern matching,
 //! making it testable and maintainable independently.
 
+use super::declarative_grammar;
 use super::txxt_grammar::TxxtGrammarRules;
 use crate::txxt::ast::elements::{BlankLineGroup, Paragraph};
 use crate::txxt::ast::TextContent;
+use crate::txxt::lexers::linebased::tokens::LineContainerToken;
 use crate::txxt::lexers::{LineTokenTree, LineTokenType};
 use crate::txxt::parsers::{ContentItem, Document, Location, Position, Session};
+
+/// Parse using the new declarative grammar engine (Delivery 2).
+///
+/// This is the main entry point for the new linebased parser using LineContainerToken.
+/// It uses the declarative grammar matcher and recursive descent parser.
+///
+/// # Arguments
+/// * `tree` - The token tree from the linebased lexer (LineContainerToken)
+/// * `source` - The original source text (for location tracking)
+///
+/// # Returns
+/// A Document AST if successful
+pub fn parse_experimental_v2(tree: LineContainerToken, source: &str) -> Result<Document, String> {
+    // Extract children from root container
+    let children = match tree {
+        LineContainerToken::Container { children, .. } => children,
+        LineContainerToken::Token(_) => {
+            return Err("Expected root container, found single token".to_string())
+        }
+    };
+
+    // Use declarative grammar engine to parse
+    let content = declarative_grammar::parse_with_declarative_grammar(children, source)?;
+
+    // Create the root session containing all top-level content
+    let root = Session {
+        title: TextContent::from_string("root".to_string(), None),
+        content,
+        location: Location {
+            start: Position { line: 0, column: 0 },
+            end: Position { line: 0, column: 0 },
+        },
+    };
+
+    Ok(Document {
+        metadata: vec![],
+        root,
+    })
+}
 
 /// Parse a semantic line token tree into an AST Document.
 ///
