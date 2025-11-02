@@ -42,6 +42,10 @@ pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
         }
         ContentItem::Annotation(ann) => build_annotation_snapshot(ann),
         ContentItem::TextLine(tl) => AstSnapshot::new("TextLine".to_string(), tl.display_label()),
+        ContentItem::BlankLineGroup(blg) => AstSnapshot::new(
+            "BlankLineGroup".to_string(),
+            format!("{} line(s)", blg.count),
+        ),
     }
 }
 

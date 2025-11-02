@@ -194,6 +194,9 @@ mod tests {
                                 fb.closing_annotation.label.value
                             );
                         }
+                        ContentItem::BlankLineGroup(blg) => {
+                            println!("  {}: BlankLineGroup ({})", i, blg.count);
+                        }
                     }
                 }
                 // This is actually fine - empty session
