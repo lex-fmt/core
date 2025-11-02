@@ -146,7 +146,7 @@ impl Lexer for LinebasedLexerImpl {
 
     fn tokenize(&self, source: &str) -> Result<LexerOutput, LexError> {
         // Call the actual linebased lexer
-        let trees = crate::txxt::lexers::experimental_lex(source)
+        let trees = crate::txxt::lexers::_lex(source)
             .map_err(|e| LexError::TokenizationFailed(format!("{:?}", e)))?;
         Ok(LexerOutput::LineTokenTrees(trees))
     }

@@ -1,4 +1,4 @@
-//! Experimental Parser Unwrapper - Pattern to AST Conversion
+//! Linebased Parser Unwrapper - Pattern to AST Conversion
 //!
 //! This module handles converting matched patterns and tokens into AST nodes.
 //! It reuses existing element builders from src/txxt/parser/elements/ which properly

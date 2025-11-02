@@ -8,7 +8,5 @@ pub mod pipeline;
 pub mod tokens;
 pub mod transformations;
 
-pub use pipeline::{
-    experimental_lex, experimental_lex_stage, PipelineError, PipelineOutput, PipelineStage,
-};
+pub use pipeline::{PipelineError, PipelineOutput, PipelineStage, _lex, _lex_stage};
 pub use tokens::{LineToken, LineTokenTree, LineTokenType};

@@ -1,5 +1,5 @@
 ---
-source: tests/_parser_kitchensink.rs
+source: tests/experimental_parser_kitchensink.rs
 expression: snapshot
 ---
 Document with 8 root items:

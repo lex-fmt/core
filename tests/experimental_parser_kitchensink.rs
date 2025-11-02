@@ -4,16 +4,16 @@
 //! produces the correct AST structure for a complex, comprehensive test file.
 //! Any regression in parsing will be caught automatically.
 
-use txxt::txxt::lexers::transformations::experimental_lex;
+use txxt::txxt::lexers::transformations::_lex;
 use txxt::txxt::parsers::homy::engine::parse_experimental;
 use txxt::txxt::parsers::ContentItem;
 
 #[test]
-fn experimental_parser_kitchensink_snapshot() {
+fn _parser_kitchensink_snapshot() {
     let source = std::fs::read_to_string("docs/specs/v1/regression-bugs/kitchensink.txxt")
         .expect("Could not read kitchensink.txxt");
 
-    let tree = experimental_lex(&source).expect("Failed to tokenize");
+    let tree = _lex(&source).expect("Failed to tokenize");
     let doc = parse_experimental(tree, &source).expect("Parser failed");
 
     // Create a readable representation of the AST for snapshot testing

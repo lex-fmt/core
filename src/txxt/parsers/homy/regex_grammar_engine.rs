@@ -1,4 +1,4 @@
-//! Experimental Regex Grammar Engine
+//! Linebased Regex Grammar Engine
 //!
 //! A generic, standalone regex-based pattern matching engine for token sequences.
 //! This engine is completely decoupled from txxt - it works with any token type names.
