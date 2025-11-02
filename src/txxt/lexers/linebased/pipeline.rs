@@ -351,6 +351,9 @@ mod tests {
                     LineTokenTree::Token(t) => {
                         eprintln!("  [{}] Token: {:?}", i, t.line_type);
                     }
+                    LineTokenTree::Container(c) => {
+                        eprintln!("  [{}] Container: {} tokens", i, c.source_tokens.len());
+                    }
                     LineTokenTree::Block(_) => {
                         eprintln!("  [{}] Block", i);
                     }

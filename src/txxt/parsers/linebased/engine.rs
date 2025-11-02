@@ -47,31 +47,69 @@ pub fn parse_experimental(tree: Vec<LineTokenTree>, source: &str) -> Result<Docu
     })
 }
 
+/// Expand LineContainerTokens in a tree back into a flat sequence of LineTokenTree nodes.
+///
+/// This integrates LineContainerToken expansion into the tree walking by converting:
+/// - Container(LineContainerToken) → Multiple Token(LineToken) nodes at same level
+/// - Block stays as Block (but may contain containers that need expansion)
+///
+/// This ensures that from the parser's perspective, containers are transparent and
+/// the same logic applies as before, just with tokens grouped into containers first.
+fn expand_containers(tree: &[LineTokenTree]) -> Vec<LineTokenTree> {
+    let mut expanded = Vec::new();
+
+    for node in tree {
+        match node {
+            LineTokenTree::Container(container) => {
+                // Expand container into individual Token nodes
+                for line_token in &container.source_tokens {
+                    expanded.push(LineTokenTree::Token(line_token.clone()));
+                }
+            }
+            LineTokenTree::Block(block_children) => {
+                // Recursively expand children in the block
+                let expanded_children = expand_containers(block_children);
+                expanded.push(LineTokenTree::Block(expanded_children));
+            }
+            LineTokenTree::Token(token) => {
+                // Keep tokens as-is
+                expanded.push(LineTokenTree::Token(token.clone()));
+            }
+        }
+    }
+
+    expanded
+}
+
 /// Recursively walk the token tree and parse content at each level.
 ///
 /// Algorithm:
-/// 1. Convert tree nodes to token types at current level
-/// 2. Apply pattern matching using grammar rules
-/// 3. For each matched pattern:
+/// 1. Expand LineContainerTokens back to flat token sequence
+/// 2. Convert tree nodes to token types at current level
+/// 3. Apply pattern matching using grammar rules
+/// 4. For each matched pattern:
 ///    - If it includes a nested block, recursively parse it
 ///    - Use unwrapper to convert pattern + tokens → AST node
-/// 4. Return the list of content items
+/// 5. Return the list of content items
 fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentItem>, String> {
+    // First, expand all containers to flatten the two-level grouping back to one level
+    let expanded_tree = expand_containers(tree);
     let grammar =
         TxxtGrammarRules::new().map_err(|e| format!("Failed to create grammar rules: {}", e))?;
 
     let mut content_items = Vec::new();
     let mut i = 0;
 
-    while i < tree.len() {
+    while i < expanded_tree.len() {
         // Extract token types at current level (including blank lines - needed for pattern matching!)
-        let remaining_tree = &tree[i..];
+        let remaining_tree = &expanded_tree[i..];
         let token_types: Vec<LineTokenType> = remaining_tree
             .iter()
             .map_while(|node| {
                 match node {
                     LineTokenTree::Token(line_token) => Some(line_token.line_type),
                     LineTokenTree::Block(_) => None, // Stop at blocks
+                    LineTokenTree::Container(_) => None, // Should never happen after expansion
                 }
             })
             .collect();
