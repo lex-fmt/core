@@ -43,6 +43,7 @@
 //! ```
 
 use crate::txxt::lexers::{lex, Token};
+use crate::txxt::pipeline::TxxtPipeline;
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -284,66 +285,34 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                     format_tokenss(&tokens, &spec.format)
                 }
                 ProcessingStage::Ast => {
-                    // Parse the document - all documents now include full location information
-                    let doc = if matches!(spec.format, OutputFormat::AstPosition) {
-                        crate::txxt::parsers::parse(crate::txxt::lexers::lex(&content), &content)
-                            .map_err(|errs| {
-                                let error_details = errs
-                                    .iter()
-                                    .map(|e| {
-                                        format!(
-                                            "  Parse error at span {:?}: reason={:?}, found={:?}",
-                                            e.span(),
-                                            e.reason(),
-                                            e.found()
-                                        )
-                                    })
-                                    .collect::<Vec<_>>()
-                                    .join("\n");
-                                ProcessingError::IoError(format!(
-                                    "Failed to parse document:\n{}",
-                                    error_details
-                                ))
-                            })?
-                    } else {
-                        crate::txxt::parsers::parse_document(&content).map_err(|errs| {
-                            let error_details = errs
-                                .iter()
-                                .map(|e| {
-                                    format!(
-                                        "  Parse error at span {:?}: reason={:?}, found={:?}",
-                                        e.span(),
-                                        e.reason(),
-                                        e.found()
-                                    )
-                                })
-                                .collect::<Vec<_>>()
-                                .join("\n");
-                            ProcessingError::IoError(format!(
-                                "Failed to parse document:\n{}",
-                                error_details
-                            ))
-                        })?
-                    };
+                    // Parse the document using the default pipeline
+                    // The default pipeline uses indentation lexer + reference parser
+                    let doc = TxxtPipeline::default().parse(&content).map_err(|e| {
+                        ProcessingError::IoError(format!("Failed to parse document: {}", e))
+                    })?;
 
                     // Format according to output format
                     match spec.format {
                         OutputFormat::AstTag => Ok(crate::txxt::parsers::serialize_ast_tag(&doc)),
                         OutputFormat::AstTreeviz => Ok(crate::txxt::parsers::to_treeviz_str(&doc)),
                         OutputFormat::AstExperimentalTag => {
-                            // Use experimental parser
-                            let tree = crate::txxt::lexers::experimental_lex(&content)
-                                .map_err(|e| ProcessingError::IoError(format!("Experimental lexer failed: {:?}", e)))?;
-                            let doc_exp = crate::txxt::parsers::homy::parse_experimental(tree, &content)
-                                .map_err(|e| ProcessingError::IoError(format!("Experimental parser failed: {}", e)))?;
+                            // Use experimental parser (linebased lexer + homy parser)
+                            let doc_exp = TxxtPipeline::new("linebased", "homy")
+                                .parse(&content)
+                                .map_err(|e| ProcessingError::IoError(format!(
+                                    "Experimental parser failed: {}",
+                                    e
+                                )))?;
                             Ok(crate::txxt::parsers::serialize_ast_tag(&doc_exp))
                         }
                         OutputFormat::AstExperimentalTreeviz => {
-                            // Use experimental parser
-                            let tree = crate::txxt::lexers::experimental_lex(&content)
-                                .map_err(|e| ProcessingError::IoError(format!("Experimental lexer failed: {:?}", e)))?;
-                            let doc_exp = crate::txxt::parsers::homy::parse_experimental(tree, &content)
-                                .map_err(|e| ProcessingError::IoError(format!("Experimental parser failed: {}", e)))?;
+                            // Use experimental parser (linebased lexer + homy parser)
+                            let doc_exp = TxxtPipeline::new("linebased", "homy")
+                                .parse(&content)
+                                .map_err(|e| ProcessingError::IoError(format!(
+                                    "Experimental parser failed: {}",
+                                    e
+                                )))?;
                             Ok(crate::txxt::parsers::to_treeviz_str(&doc_exp))
                         }
                         OutputFormat::AstPosition => {

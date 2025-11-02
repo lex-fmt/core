@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn test_pipeline_available_lexers() {
         let lexers = TxxtPipeline::available_lexers();
-        assert!(lexers.len() > 0);
+        assert!(!lexers.is_empty());
         assert!(lexers.contains(&"indentation".to_string()));
         assert!(lexers.contains(&"linebased".to_string()));
     }
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn test_pipeline_available_parsers() {
         let parsers = TxxtPipeline::available_parsers();
-        assert!(parsers.len() > 0);
+        assert!(!parsers.is_empty());
         assert!(parsers.contains(&"reference".to_string()));
         assert!(parsers.contains(&"homy".to_string()));
     }
