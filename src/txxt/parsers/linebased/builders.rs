@@ -34,6 +34,42 @@ fn extract_text_from_line_token(token: &LineToken, source: &str) -> Result<Strin
     Ok(extract_text_from_span(source, span))
 }
 
+/// Extract text from a subset of token slice using byte range extraction.
+/// This is the unified approach - use the same byte-range logic as reference parser.
+fn extract_text_from_token_slice(
+    token: &LineToken,
+    start_idx: usize,
+    end_idx: usize,
+    source: &str,
+) -> Result<String, String> {
+    if start_idx > token.token_spans.len() || end_idx > token.token_spans.len() {
+        return Err(format!(
+            "Token slice indices out of bounds: start_idx={}, end_idx={}, len={}",
+            start_idx,
+            end_idx,
+            token.token_spans.len()
+        ));
+    }
+    if start_idx > end_idx {
+        return Err("Invalid token slice: start > end".to_string());
+    }
+
+    // Get the byte ranges for the slice
+    let spans = &token.token_spans[start_idx..end_idx];
+    if spans.is_empty() {
+        return Ok(String::new());
+    }
+
+    let start = spans.first().map(|s| s.start).unwrap_or(0);
+    let end = spans.last().map(|s| s.end).unwrap_or(0);
+
+    if start >= end || end > source.len() {
+        return Ok(String::new());
+    }
+
+    Ok(source[start..end].trim().to_string())
+}
+
 // Location utilities are now provided by crate::txxt::parsers::common::location
 // See that module for compute_location_from_locations, aggregate_locations, etc.
 
@@ -123,16 +159,20 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
     // Parse based on what we found
     if dcolon_count >= 2 {
         // We have :: label :: [text]
-        // Extract label tokens between the two :: markers
+        // Extract label tokens between the two :: markers using byte-range extraction
         let first_dcolon = first_dcolon_idx.unwrap();
         let second_dcolon = second_dcolon_start.unwrap();
 
-        let label_tokens = &token.source_tokens[first_dcolon + 1..second_dcolon];
-        let label_text = extract_text_from_tokens(label_tokens);
+        let label_text =
+            extract_text_from_token_slice(token, first_dcolon + 1, second_dcolon, source)?;
 
-        // Extract text after second ::
-        let remaining_tokens = &token.source_tokens[second_dcolon + 1..];
-        let trailing_text = extract_text_from_tokens(remaining_tokens);
+        // Extract text after second :: using byte-range extraction
+        let trailing_text = extract_text_from_token_slice(
+            token,
+            second_dcolon + 1,
+            token.source_tokens.len(),
+            source,
+        )?;
 
         // Build content with optional trailing text
         let content = if !trailing_text.is_empty() {
@@ -148,7 +188,7 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
     }
 
     // Fallback: single-line annotation without trailing text
-    let label_text = extract_text_from_token(token);
+    let label_text = extract_text_from_line_token(token, source)?;
 
     // Use common builder to create annotation
     let annotation = build_annotation(label_text, location, vec![], vec![]);
@@ -639,14 +679,15 @@ mod tests {
         let mut token = make_line_token(
             LineTokenType::AnnotationStartLine,
             vec![
-                Token::TxxtMarker,
-                Token::Whitespace,
-                Token::Text("note".to_string()),
-                Token::Whitespace,
-                Token::TxxtMarker,
+                Token::TxxtMarker,               // 0..2 (::)
+                Token::Whitespace,               // 2..3 ( )
+                Token::Text("note".to_string()), // 3..7
+                Token::Whitespace,               // 7..8 ( )
+                Token::TxxtMarker,               // 8..10 (::)
             ],
         );
-        // Simulate source span: ":: note ::" at bytes 0-10
+        // Set accurate token spans matching source
+        token.token_spans = vec![0..2, 2..3, 3..7, 7..8, 8..10];
         token.source_span = Some(0..10);
 
         let source = ":: note ::\nSome text\n";
