@@ -285,22 +285,21 @@ fn try_match_foreign_block(
 /// Try to match a session pattern
 /// Pattern: [BLANK_LINE?] <ANY_LINE> BLANK_LINE BLOCK
 ///
-/// This function uses try_session_from_tree which is self-contained and validates the entire pattern.
-/// However, we want blank lines to appear as separate BlankLineGroup nodes in the AST.
-/// So this function returns consumed count NOT including the blank line after the lead.
-/// That blank line will be picked up by walk_and_parse as a separate entity.
+/// This function uses try_session_from_tree which validates and fully consumes the entire pattern.
+/// The grammar rule is self-contained and returns the total consumed count.
+/// We extract the content and return the full consumed count (including leading blank, lead, blank after, and block).
 fn try_match_session(
     tree: &[LineTokenTree],
     grammar: &TxxtGrammarRules,
     source: &str,
 ) -> Result<Option<(ContentItem, usize)>, String> {
-    if let Some(_total_consumed) = grammar.try_session_from_tree(tree) {
-        // The grammar validates the entire pattern exists.
-        // We need to find lead and block, then return consumed NOT including the blank line after lead
+    if let Some(total_consumed) = grammar.try_session_from_tree(tree) {
+        // Grammar has validated the entire pattern: [blank?] lead blank block
+        // Now extract content from the identified positions
 
         let mut lead_tree_idx = 0;
 
-        // Check if there's a leading blank line
+        // Check if there's a leading blank line at position 0
         if matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
         {
             lead_tree_idx = 1;
@@ -315,9 +314,8 @@ fn try_match_session(
                 let block_content = walk_and_parse(block_children, source)?;
                 let item = super::unwrapper::unwrap_session(lead_token, block_content, source)?;
 
-                // Return consumed count: just the lead (and any leading blank)
-                // The blank AFTER the lead will be processed by walk_and_parse as a separate BlankLineGroup
-                return Ok(Some((item, lead_tree_idx + 1)));
+                // Return the total consumed count from grammar (includes everything)
+                return Ok(Some((item, total_consumed)));
             }
         }
     }
