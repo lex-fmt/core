@@ -416,6 +416,12 @@ impl TxxtGrammarRules {
     /// - The lead can be ANY line type except annotation (which stands alone)
     ///
     /// Note: A SESSION requires a blank line AFTER the lead (distinguishes from DEFINITION)
+    ///
+    /// This function is self-contained: it matches and consumes the entire session pattern
+    /// including any leading blank line, the lead, the blank line after lead, and the block.
+    ///
+    /// # Returns
+    /// The consumed count for the entire matched pattern (includes everything: optional leading blank, lead, blank, block).
     pub fn try_session_from_tree(
         &self,
         tree: &[crate::txxt::lexers::LineTokenTree],
@@ -442,23 +448,24 @@ impl TxxtGrammarRules {
         if !lead_is_valid {
             return None;
         }
-        idx += 1;
+        idx += 1; // Move past lead
 
         // Must have a BLANK_LINE after lead
         let has_blank_after = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
         if !has_blank_after {
             return None;
         }
-        idx += 1;
+        idx += 1; // Move past blank
 
         // Must have a BLOCK (indented content) after blank
         let has_block = matches!(tree.get(idx), Some(LineTokenTree::Block(_)));
         if !has_block {
             return None;
         }
-        idx += 1;
+        idx += 1; // Move past block
 
-        // Successfully matched: (blank?) lead blank block
+        // Successfully matched entire pattern
+        // Return total consumed count
         Some(idx)
     }
 
@@ -513,11 +520,6 @@ impl TxxtGrammarRules {
     pub fn try_paragraph(&self, token_types: &[LineTokenType]) -> Option<usize> {
         if token_types.is_empty() {
             return None;
-        }
-
-        // Special case: lone blank line (returns 1 to skip it, doesn't generate content)
-        if token_types[0] == LineTokenType::BlankLine {
-            return Some(1);
         }
 
         // Paragraph matches until we hit a BLANK_LINE, INDENT, or DEDENT

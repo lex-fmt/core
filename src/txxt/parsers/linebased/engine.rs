@@ -12,6 +12,7 @@
 //! making it testable and maintainable independently.
 
 use super::txxt_grammar::TxxtGrammarRules;
+use crate::txxt::ast::elements::{BlankLineGroup, Paragraph};
 use crate::txxt::ast::TextContent;
 use crate::txxt::lexers::{LineTokenTree, LineTokenType};
 use crate::txxt::parsers::{ContentItem, Document, Location, Position, Session};
@@ -79,7 +80,7 @@ fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentIte
         // Try to match a pattern
         let (item, consumed) = parse_node_at_level(remaining_tree, &token_types, &grammar, source)?;
 
-        // Skip structural blank lines (paragraphs created from standalone blank lines)
+        // Convert blank line paragraphs to BlankLineGroup nodes
         // These are detected as single-line paragraphs from BlankLine tokens
         let is_blank_line_paragraph = if let LineTokenTree::Token(token) = &remaining_tree[0] {
             token.line_type == LineTokenType::BlankLine
@@ -89,11 +90,58 @@ fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentIte
             false
         };
 
-        if !is_blank_line_paragraph {
-            content_items.push(item);
-        }
+        if is_blank_line_paragraph {
+            // Collect consecutive blank line tokens
+            let mut blank_count = 0;
+            let mut blank_tokens = Vec::new();
+            let mut idx = 0;
 
-        i += consumed;
+            while idx < remaining_tree.len() {
+                if let LineTokenTree::Token(token) = &remaining_tree[idx] {
+                    if token.line_type == LineTokenType::BlankLine {
+                        blank_count += 1;
+                        blank_tokens.extend(token.source_tokens.clone());
+                        idx += 1;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            // Create BlankLineGroup with the first token's location
+            if let LineTokenTree::Token(first_token) = &remaining_tree[0] {
+                let location = if let Some(span) = &first_token.source_span {
+                    // Calculate location from source span
+                    let start_line = source[..span.start].matches('\n').count();
+                    let end_line = source[..span.end].matches('\n').count();
+                    Location {
+                        start: Position {
+                            line: start_line,
+                            column: 0,
+                        },
+                        end: Position {
+                            line: end_line + 1,
+                            column: 0,
+                        },
+                    }
+                } else {
+                    Location::new(Position::new(0, 0), Position::new(0, 0))
+                };
+
+                let blank_group = BlankLineGroup::new(blank_count, blank_tokens).at(location);
+                content_items.push(ContentItem::BlankLineGroup(blank_group));
+                i += blank_count;
+            } else {
+                // Fallback if we can't process blank lines properly
+                content_items.push(item);
+                i += consumed;
+            }
+        } else {
+            content_items.push(item);
+            i += consumed;
+        }
     }
 
     Ok(content_items)
@@ -108,14 +156,40 @@ fn try_match_block_annotation(
 ) -> Result<Option<(ContentItem, usize)>, String> {
     if let Some(consumed) = grammar.try_annotation_from_tree(tree) {
         if let LineTokenTree::Token(opening_token) = &tree[0] {
-            let block_idx = if matches!(tree.get(1), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
-            {
-                2
-            } else {
-                1
-            };
+            let mut block_content = vec![];
+            let mut block_idx = 1;
+
+            // Check for optional blank line after opening annotation
+            if let Some(LineTokenTree::Token(blank_token)) = tree.get(1) {
+                if blank_token.line_type == LineTokenType::BlankLine {
+                    // Create BlankLineGroup for the blank line
+                    let location = if let Some(span) = &blank_token.source_span {
+                        let start_line = source[..span.start].matches('\n').count();
+                        let end_line = source[..span.end].matches('\n').count();
+                        Location {
+                            start: Position {
+                                line: start_line,
+                                column: 0,
+                            },
+                            end: Position {
+                                line: end_line + 1,
+                                column: 0,
+                            },
+                        }
+                    } else {
+                        Location::new(Position::new(0, 0), Position::new(0, 0))
+                    };
+
+                    let blank_group =
+                        BlankLineGroup::new(1, blank_token.source_tokens.clone()).at(location);
+                    block_content.push(ContentItem::BlankLineGroup(blank_group));
+                    block_idx = 2;
+                }
+            }
+
             if let LineTokenTree::Block(block_children) = &tree[block_idx] {
-                let block_content = walk_and_parse(block_children, source)?;
+                let parsed_block = walk_and_parse(block_children, source)?;
+                block_content.extend(parsed_block);
                 let item = super::unwrapper::unwrap_annotation_with_content(
                     opening_token,
                     block_content,
@@ -210,24 +284,38 @@ fn try_match_foreign_block(
 
 /// Try to match a session pattern
 /// Pattern: [BLANK_LINE?] <ANY_LINE> BLANK_LINE BLOCK
+///
+/// This function uses try_session_from_tree which validates and fully consumes the entire pattern.
+/// The grammar rule is self-contained and returns the total consumed count.
+/// We extract the content and return the full consumed count (including leading blank, lead, blank after, and block).
 fn try_match_session(
     tree: &[LineTokenTree],
     grammar: &TxxtGrammarRules,
     source: &str,
 ) -> Result<Option<(ContentItem, usize)>, String> {
-    if let Some(consumed) = grammar.try_session_from_tree(tree) {
-        let lead_idx = if matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
-        {
-            1
-        } else {
-            0
-        };
+    if let Some(total_consumed) = grammar.try_session_from_tree(tree) {
+        // Grammar has validated the entire pattern: [blank?] lead blank block
+        // Now extract content from the identified positions
 
-        if let LineTokenTree::Token(lead_token) = &tree[lead_idx] {
-            if let LineTokenTree::Block(block_children) = &tree[consumed - 1] {
+        let mut lead_tree_idx = 0;
+
+        // Check if there's a leading blank line at position 0
+        if matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine)
+        {
+            lead_tree_idx = 1;
+        }
+
+        // lead is at lead_tree_idx
+        // blank is at lead_tree_idx + 1
+        // block is at lead_tree_idx + 2
+
+        if let Some(LineTokenTree::Token(lead_token)) = tree.get(lead_tree_idx) {
+            if let Some(LineTokenTree::Block(block_children)) = tree.get(lead_tree_idx + 2) {
                 let block_content = walk_and_parse(block_children, source)?;
                 let item = super::unwrapper::unwrap_session(lead_token, block_content, source)?;
-                return Ok(Some((item, consumed)));
+
+                // Return the total consumed count from grammar (includes everything)
+                return Ok(Some((item, total_consumed)));
             }
         }
     }
@@ -273,18 +361,42 @@ fn try_match_list(
                 if item_token.line_type == LineTokenType::ListLine {
                     tree_idx += 1;
 
-                    let has_blank = matches!(tree.get(tree_idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
-                    if has_blank {
-                        tree_idx += 1;
+                    // Check if there's a blank line before the content block
+                    let mut nested_content = vec![];
+
+                    if let Some(LineTokenTree::Token(blank_token)) = tree.get(tree_idx) {
+                        if blank_token.line_type == LineTokenType::BlankLine {
+                            // Create BlankLineGroup for the blank line before content
+                            let location = if let Some(span) = &blank_token.source_span {
+                                let start_line = source[..span.start].matches('\n').count();
+                                let end_line = source[..span.end].matches('\n').count();
+                                Location {
+                                    start: Position {
+                                        line: start_line,
+                                        column: 0,
+                                    },
+                                    end: Position {
+                                        line: end_line + 1,
+                                        column: 0,
+                                    },
+                                }
+                            } else {
+                                Location::new(Position::new(0, 0), Position::new(0, 0))
+                            };
+
+                            let blank_group =
+                                BlankLineGroup::new(1, blank_token.source_tokens.clone())
+                                    .at(location);
+                            nested_content.push(ContentItem::BlankLineGroup(blank_group));
+                            tree_idx += 1;
+                        }
                     }
 
-                    let nested_content =
-                        if let Some(LineTokenTree::Block(block_children)) = tree.get(tree_idx) {
-                            tree_idx += 1;
-                            walk_and_parse(block_children, source)?
-                        } else {
-                            vec![]
-                        };
+                    if let Some(LineTokenTree::Block(block_children)) = tree.get(tree_idx) {
+                        tree_idx += 1;
+                        let block_content = walk_and_parse(block_children, source)?;
+                        nested_content.extend(block_content);
+                    }
 
                     let item =
                         super::unwrapper::unwrap_list_item(item_token, nested_content, source)?;
@@ -340,6 +452,20 @@ fn parse_node_at_level(
 ) -> Result<(ContentItem, usize), String> {
     if tree.is_empty() {
         return Err("Empty tree at node level".to_string());
+    }
+
+    // Special case: BlankLine tokens are handled separately by walk_and_parse
+    // They'll be converted to BlankLineGroup nodes there, so we return a dummy Paragraph
+    // that walk_and_parse will recognize and convert.
+    if let LineTokenTree::Token(token) = &tree[0] {
+        if token.line_type == LineTokenType::BlankLine {
+            // Create a minimal paragraph that walk_and_parse will recognize and convert
+            let paragraph = Paragraph {
+                lines: vec![],
+                location: Location::new(Position::new(0, 0), Position::new(0, 0)),
+            };
+            return Ok((ContentItem::Paragraph(paragraph), 1));
+        }
     }
 
     // Check if a Block follows the current tokens (implicit INDENT)

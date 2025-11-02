@@ -38,6 +38,11 @@ pub trait Visitor {
     fn visit_text_line(&mut self, _text_line: &super::elements::paragraph::TextLine) {}
     fn visit_foreign_block(&mut self, _foreign_block: &super::ForeignBlock) {}
     fn visit_annotation(&mut self, _annotation: &super::Annotation) {}
+    fn visit_blank_line_group(
+        &mut self,
+        _blank_line_group: &super::elements::blank_line_group::BlankLineGroup,
+    ) {
+    }
 }
 
 /// Helper function to visit all children in a ContentItem slice

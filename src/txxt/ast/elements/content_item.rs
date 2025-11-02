@@ -11,6 +11,7 @@
 use super::super::location::{Location, Position};
 use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
+use super::blank_line_group::BlankLineGroup;
 use super::definition::Definition;
 use super::foreign::ForeignBlock;
 use super::list::{List, ListItem};
@@ -29,6 +30,7 @@ pub enum ContentItem {
     Definition(Definition),
     Annotation(Annotation),
     ForeignBlock(ForeignBlock),
+    BlankLineGroup(BlankLineGroup),
 }
 
 impl AstNode for ContentItem {
@@ -42,6 +44,7 @@ impl AstNode for ContentItem {
             ContentItem::Definition(d) => d.node_type(),
             ContentItem::Annotation(a) => a.node_type(),
             ContentItem::ForeignBlock(fb) => fb.node_type(),
+            ContentItem::BlankLineGroup(blg) => blg.node_type(),
         }
     }
 
@@ -55,6 +58,7 @@ impl AstNode for ContentItem {
             ContentItem::Definition(d) => d.display_label(),
             ContentItem::Annotation(a) => a.display_label(),
             ContentItem::ForeignBlock(fb) => fb.display_label(),
+            ContentItem::BlankLineGroup(blg) => blg.display_label(),
         }
     }
 
@@ -68,6 +72,7 @@ impl AstNode for ContentItem {
             ContentItem::Definition(d) => d.location(),
             ContentItem::Annotation(a) => a.location(),
             ContentItem::ForeignBlock(fb) => fb.location(),
+            ContentItem::BlankLineGroup(blg) => blg.location(),
         }
     }
 
@@ -81,6 +86,7 @@ impl AstNode for ContentItem {
             ContentItem::Definition(d) => d.accept(visitor),
             ContentItem::Annotation(a) => a.accept(visitor),
             ContentItem::ForeignBlock(fb) => fb.accept(visitor),
+            ContentItem::BlankLineGroup(blg) => blg.accept(visitor),
         }
     }
 }
@@ -96,6 +102,7 @@ impl ContentItem {
             ContentItem::Definition(d) => d.node_type(),
             ContentItem::Annotation(a) => a.node_type(),
             ContentItem::ForeignBlock(fb) => fb.node_type(),
+            ContentItem::BlankLineGroup(blg) => blg.node_type(),
         }
     }
 
@@ -109,6 +116,7 @@ impl ContentItem {
             ContentItem::Definition(d) => d.display_label(),
             ContentItem::Annotation(a) => a.display_label(),
             ContentItem::ForeignBlock(fb) => fb.display_label(),
+            ContentItem::BlankLineGroup(blg) => blg.display_label(),
         }
     }
 
@@ -181,6 +189,10 @@ impl ContentItem {
         matches!(self, ContentItem::ForeignBlock(_))
     }
 
+    pub fn is_blank_line_group(&self) -> bool {
+        matches!(self, ContentItem::BlankLineGroup(_))
+    }
+
     pub fn as_paragraph(&self) -> Option<&Paragraph> {
         if let ContentItem::Paragraph(p) = self {
             Some(p)
@@ -231,6 +243,14 @@ impl ContentItem {
         }
     }
 
+    pub fn as_blank_line_group(&self) -> Option<&BlankLineGroup> {
+        if let ContentItem::BlankLineGroup(blg) = self {
+            Some(blg)
+        } else {
+            None
+        }
+    }
+
     pub fn as_paragraph_mut(&mut self) -> Option<&mut Paragraph> {
         if let ContentItem::Paragraph(p) = self {
             Some(p)
@@ -276,6 +296,14 @@ impl ContentItem {
     pub fn as_foreign_block_mut(&mut self) -> Option<&mut ForeignBlock> {
         if let ContentItem::ForeignBlock(fb) = self {
             Some(fb)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_blank_line_group_mut(&mut self) -> Option<&mut BlankLineGroup> {
+        if let ContentItem::BlankLineGroup(blg) = self {
+            Some(blg)
         } else {
             None
         }
@@ -344,6 +372,7 @@ impl fmt::Display for ContentItem {
             ContentItem::ForeignBlock(fb) => {
                 write!(f, "ForeignBlock('{}')", fb.subject.as_string())
             }
+            ContentItem::BlankLineGroup(blg) => write!(f, "{}", blg),
         }
     }
 }
