@@ -293,68 +293,47 @@ impl GrammarMatcher {
         Some(PatternMatch::AnnotationSingle { start_idx: 0 })
     }
 
-    /// Parse list: extract indices and items from consumed tokens
+    /// Parse list: extract list items by scanning grammar string for item positions
     fn parse_list(tokens: &[LineContainerToken], consumed_count: usize) -> Option<PatternMatch> {
         if consumed_count < 3 {
             return None;
         }
 
-        let blank_idx = 0;
+        // Use regex to extract list item positions from grammar string
+        let grammar_str = Self::tokens_to_grammar_string(&tokens[..consumed_count])?;
+
+        // Find all <list-item-line> and <subject-or-list-item-line> positions in grammar string
+        // Then map them to token indices
+        let list_item_pattern =
+            Regex::new(r"(<list-item-line>|<subject-or-list-item-line>)(<container>)?").ok()?;
+
         let mut items = Vec::new();
-        let mut idx = 1;
-        let mut trailing_blank = false;
+        let mut token_idx = 1; // Skip blank-line at index 0
 
-        // Check if last token is a blank line
-        if consumed_count > 1 {
-            if let LineContainerToken::Token(t) = &tokens[consumed_count - 1] {
-                if matches!(t.line_type, LineTokenType::BlankLine) {
-                    trailing_blank = true;
-                }
-            }
-        }
+        for mat in list_item_pattern.find_iter(&grammar_str) {
+            let matched_text = mat.as_str();
 
-        let end_idx = if trailing_blank {
-            consumed_count - 1
-        } else {
-            consumed_count
-        };
+            // This match represents one list item (+ optional container)
+            let item_idx = token_idx;
+            token_idx += 1; // Consumed the list item itself
 
-        // Collect list items (with optional containers)
-        while idx < end_idx {
-            if let LineContainerToken::Token(t) = &tokens[idx] {
-                if matches!(
-                    t.line_type,
-                    LineTokenType::ListLine | LineTokenType::SubjectOrListItemLine
-                ) {
-                    let item_idx = idx;
-                    idx += 1;
-
-                    // Check for optional container after item
-                    let content_idx = if idx < end_idx {
-                        if let LineContainerToken::Container { .. } = &tokens[idx] {
-                            let ci = Some(idx);
-                            idx += 1;
-                            ci
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-
-                    items.push((item_idx, content_idx));
-                } else {
-                    break;
-                }
-            } else if let LineContainerToken::Container { .. } = &tokens[idx] {
-                idx += 1;
+            // Check if match includes a container
+            let content_idx = if matched_text.contains("<container>") {
+                let ci = Some(token_idx);
+                token_idx += 1; // Consumed the container
+                ci
             } else {
-                break;
-            }
+                None
+            };
+
+            items.push((item_idx, content_idx));
         }
 
         if items.len() >= 2 {
-            Some(PatternMatch::List { blank_idx, items })
+            Some(PatternMatch::List {
+                blank_idx: 0,
+                items,
+            })
         } else {
             None
         }
