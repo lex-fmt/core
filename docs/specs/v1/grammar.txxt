@@ -159,16 +159,67 @@ Grammar for txxt
             Parsers, AST builders, formatters, and tests must provide or preserve these spans. Helper APIs in the codebase therefore require explicit offsets when constructing tokens.
 
     2.3. Line Tokens
-        2.3.1 Core Line Types
-            <plain-dashed-line> = <indent>? <plain-marker> <text-span>+ <line-break>
-            <ordered-line> = <indent>? <ordered-marker> <text-span>+ <line-break>
-            <subject-line> = <indent>?  <text-span>+ <subject> <line-break>
-            <blank-line> = <whitespace>* <line-break>
-            <text-line> = <indent>? <text-span>+ <line-break>
-        2.3.2 Composite Line Types:
-            <list-item-line> = <plain-dashed-line> | <ordered-line>
-            <session-title-line> = <ordered-line> | <subject-line> | <text-line>
-            <any-line> = <list-item-line> | <session-title-line> | <text-line>
+
+        Line tokens are high-level classifications assigned to each logical line during lexer transformation.
+        These types are mutually exclusive and determined by the line's syntactic features.
+
+        2.3.1 Line Token Classification
+
+            Classification Order (priority-based - first match wins):
+
+            1. blank-line-group:
+                <blank-line-group> = (<whitespace>* <line-break>)+
+                A group of one or more consecutive blank lines (functionally identical to a single blank line).
+                Contains only whitespace and newlines.
+
+            2. annotation-end-line:
+                <annotation-end-line> = <indent>? <txxt-marker> <whitespace>* <line-break>
+                A line containing ONLY the txxt-marker (::) and optional whitespace.
+                Used to close annotation blocks and foreign blocks.
+
+            3. annotation-start-line:
+                <annotation-start-line> = <indent>? <txxt-marker> <whitespace> (<label> <whitespace>)? <parameters>? <whitespace> <txxt-marker> <whitespace>* <line-break>
+                Follows annotation grammar: starts with ::, has optional label and/or parameters, ends with ::
+                Can have optional trailing content after closing marker.
+
+            4. subject-or-list-item-line:
+                <subject-or-list-item-line> = <indent>? <list-marker> <whitespace> <text-span>+ <colon> <line-break>
+                A line that starts with a list marker AND ends with a colon.
+                Example: "1. This is a list item or subject:"
+                Note: Classification prefers list-marker over colon when both are present.
+
+            5. list-item-line:
+                <list-item-line> = <indent>? <list-marker> <whitespace> <text-span>+ <line-break>
+                Starts with a list marker (dash, number with period/paren, letter, or Roman numeral) followed by whitespace.
+                Does NOT end with a colon.
+                <list-marker> = <dash> | (<number> | <letter> | <roman-numeral>) (<period> | <close-paren>)
+
+            6. subject-line:
+                <subject-line> = <indent>? <text-span>+ <colon> <line-break>
+                Any line ending with a colon, except those starting with a list marker.
+                Used for definitions, sessions, and subjects.
+
+            7. content-line (paragraph fallback):
+                <content-line> = <indent>? <text-span>+ <line-break>
+                Any non-blank line that doesn't match the above patterns.
+                Forms paragraphs when consecutive.
+
+        2.3.2 Line Family Names (semantic groupings, not token types):
+
+            <blank-line> = <blank-line-group>
+                Functional unit representing one or more consecutive blank lines.
+
+            <annotation-line> = <annotation-start-line> | <annotation-end-line>
+                Any line with txxt-markers, used for semantic pattern matching in parser.
+
+            <any-line> = any non-blank line
+                Any line that is not blank.
+
+            <all-line> = any line
+                All line types including blank lines.
+
+            <content-line> = any-line that is not annotation-start-line nor annotation-end-line
+                Lines that carry document content (text, lists, subjects, etc.)
 
 
 3. Element Grammar
@@ -234,3 +285,117 @@ Grammar for txxt
     <content> = (<foreign-block> | <annotation> | <paragraph> | <list> | <definition> | <session>)*
 
     Parse order: <foreign-block> | <annotation> | <list> | <definition> | <session> | <paragraph>
+
+4. Implementation Notes: Differences from Formal Specification
+
+    This section documents where the actual implementation in the codebase differs from or clarifies the formal grammar specification.
+
+    4.1. Annotation Elements
+
+        Specification compliance: FULL
+
+        All four annotation forms are correctly implemented:
+        - Marker form: :: label :: (empty, no content)
+        - Single-line form: :: label :: inline text
+        - Block form: :: label :: <newline> <indent>content<dedent> ::
+        - Parameters-only: :: params :: (no label required)
+
+        Clarification: The grammar says "Either label or parameters must be present (or both)".
+        Implementation enforces this - both cannot be absent.
+
+        Constraint verification: Content cannot include sessions or nested annotations (enforced).
+
+    4.2. List Elements
+
+        Specification compliance: FULL with clarification
+
+        Implementation detail: While the grammar shows `<blank-line> <list-item-line>{2,*}`,
+        the blank line requirement is enforced but could be clearer. A list MUST:
+        - Be preceded by a blank line (or start at document beginning)
+        - Contain at least 2 list items
+        - NOT contain blank lines between items (would terminate the list)
+
+        Marker support: All marker types are supported:
+        - Plain: - (dash with space)
+        - Ordered: 1. or 1) (number with period or paren)
+        - Letter: a. or a) (single letter with period or paren)
+        - Roman: I. or I) (Roman numerals with period or paren)
+
+        Single items: A single list-item-line (without blank line prefix) becomes a paragraph,
+        not a list. This correctly implements "Single list-item-lines become paragraphs".
+
+    4.3. Definition Elements
+
+        Specification has incomplete description.
+
+        What the spec says:
+        - <definition-content> = (<paragraph> | <list>)+
+        - NO blank line between subject and content
+
+        What the implementation actually does:
+        - Content can include NESTED DEFINITIONS (not mentioned in spec)
+        - This is a recursive capability: definitions can contain other definitions
+        - Example valid structure: Definition > List > Definition > Paragraph
+
+        This is a significant extension not documented in the formal grammar.
+        The intent appears to support hierarchical outline structures.
+
+    4.4. Session Elements
+
+        Specification compliance: FULL
+
+        Key distinction from definitions (correctly specified):
+        - Sessions REQUIRE a blank line after the title (definitions don't)
+        - Sessions CAN contain nested sessions (definitions cannot)
+        - Sessions can contain paragraphs, lists, definitions, and other sessions
+
+        Title flexibility: Any text can be a session title (it's just <text-line> or <subject-line>).
+        The presence of a blank line after determines if it's a session vs a definition.
+
+    4.5. Foreign Block Elements
+
+        Specification compliance: MOSTLY - with one clarification
+
+        What the spec says:
+        - Two forms: block form (with indented content) and marker form (no content)
+        - Closing annotation is listed as <closing-annotation> with optional content
+
+        What implementation clarifies:
+        - Closing annotation MUST be present (not truly optional, grammar is slightly misleading)
+        - The closing annotation can include trailing text after the second :: marker
+        - This trailing text becomes part of the annotation, not separate paragraph content
+        - Content is NOT parsed (preserves raw whitespace/formatting exactly)
+
+        Indentation Wall rule: Correctly enforced - content must be indented deeper than subject.
+
+    4.6. Paragraph Elements
+
+        Specification compliance: PARTIAL - implementation is more sophisticated
+
+        What the spec says:
+        - <paragraph> = <any-line>+
+        - Simple: consecutive non-blank lines form a paragraph
+
+        What implementation adds:
+        - Each line is wrapped in a TextLine object (not just raw text)
+        - Lines are separated by newline tokens (preserved in structure)
+        - This allows formatters to reconstruct exact source spacing
+
+        This is not a functional difference but a structural one that enables
+        more accurate source-round-tripping in tools like formatters.
+
+    4.7. Parsing Precedence Order
+
+        The parser attempts matches in this order:
+        1. foreign-block (requires closing annotation - must try first for disambiguation)
+        2. annotation (single-line annotations with ::)
+        3. list (requires preceding blank line)
+        4. definition (requires subject + immediate indent)
+        5. session (requires subject + blank line + indent)
+        6. paragraph (fallback - catches everything else)
+
+        This order is CRITICAL for correct parsing because:
+        - Foreign blocks are unique (only elements with closing annotation)
+        - Lists are distinguished by blank line + multiple items
+        - Definitions vs sessions are distinguished by blank line presence
+        - Paragraphs catch any remaining lines
