@@ -14,7 +14,7 @@ use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Session, TextContent, TextLine,
 };
-use crate::txxt::lexer::tokens::{LineToken, Token};
+use crate::txxt::lexer::{LineToken, Token};
 use crate::txxt::parser::{ContentItem, Location, Position};
 
 /// Stub: Convert a line token to a Paragraph ContentItem.
@@ -448,7 +448,7 @@ pub fn unwrap_foreign_block(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::lexer::tokens::{LineTokenType, Token};
+    use crate::txxt::lexer::{LineTokenType, Token};
 
     fn make_line_token(line_type: LineTokenType, tokens: Vec<Token>) -> LineToken {
         LineToken {

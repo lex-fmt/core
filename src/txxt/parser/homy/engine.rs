@@ -13,8 +13,7 @@
 
 use super::txxt_grammar::TxxtGrammarRules;
 use crate::txxt::ast::TextContent;
-use crate::txxt::lexer::tokens::LineTokenType;
-use crate::txxt::lexer::transformations::transform_indentation_to_token_tree::LineTokenTree;
+use crate::txxt::lexer::{LineTokenTree, LineTokenType};
 use crate::txxt::parser::{ContentItem, Document, Location, Position, Session};
 
 /// Parse a semantic line token tree into an AST Document.

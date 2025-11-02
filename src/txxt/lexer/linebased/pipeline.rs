@@ -18,9 +18,12 @@ use std::fmt;
 
 use crate::txxt::lexer::ensure_source_ends_with_newline;
 use crate::txxt::lexer::indentation::tokenize;
-use crate::txxt::lexer::tokens::{LineToken, Token};
-use crate::txxt::lexer::transformations::{
+use crate::txxt::lexer::linebased::tokens::{LineToken, LineTokenTree};
+use crate::txxt::lexer::linebased::transformations::{
     experimental_transform_indentation_to_token_tree, experimental_transform_to_line_tokens,
+};
+use crate::txxt::lexer::tokens::Token;
+use crate::txxt::lexer::transformations::{
     process_whitespace_remainders, transform_blank_lines, transform_indentation,
 };
 
@@ -68,7 +71,7 @@ pub enum PipelineOutput {
     /// Line tokens
     LineTokens(Vec<LineToken>),
     /// Token tree
-    TokenTree(Vec<crate::txxt::lexer::LineTokenTree>),
+    TokenTree(Vec<LineTokenTree>),
 }
 
 /// Main experimental lexer pipeline.
@@ -81,9 +84,7 @@ pub enum PipelineOutput {
 /// # Returns
 /// A Result containing a vector of LineTokenTree nodes, or a PipelineError if the
 /// pipeline stage returns an unexpected output type (which should not happen in normal usage).
-pub fn experimental_lex(
-    source: &str,
-) -> Result<Vec<crate::txxt::lexer::LineTokenTree>, PipelineError> {
+pub fn experimental_lex(source: &str) -> Result<Vec<LineTokenTree>, PipelineError> {
     let output = experimental_lex_stage(source, PipelineStage::TokenTree);
     match output {
         PipelineOutput::TokenTree(tree) => Ok(tree),
@@ -347,10 +348,10 @@ mod tests {
             eprintln!("TokenTree (count={}): ", tree.len());
             for (i, node) in tree.iter().enumerate() {
                 match node {
-                    crate::txxt::lexer::LineTokenTree::Token(t) => {
+                    LineTokenTree::Token(t) => {
                         eprintln!("  [{}] Token: {:?}", i, t.line_type);
                     }
-                    crate::txxt::lexer::LineTokenTree::Block(_) => {
+                    LineTokenTree::Block(_) => {
                         eprintln!("  [{}] Block", i);
                     }
                 }
