@@ -417,8 +417,11 @@ impl TxxtGrammarRules {
     ///
     /// Note: A SESSION requires a blank line AFTER the lead (distinguishes from DEFINITION)
     ///
-    /// Returns the consumed count NOT including the blank line after the lead.
-    /// The blank line will be handled by the parent container as a BlankLineGroup node.
+    /// This function is self-contained: it matches and consumes the entire session pattern
+    /// including any leading blank line, the lead, the blank line after lead, and the block.
+    ///
+    /// # Returns
+    /// The consumed count for the entire matched pattern (includes everything: optional leading blank, lead, blank, block).
     pub fn try_session_from_tree(
         &self,
         tree: &[crate::txxt::lexers::LineTokenTree],
@@ -445,25 +448,24 @@ impl TxxtGrammarRules {
         if !lead_is_valid {
             return None;
         }
-        idx += 1;
+        idx += 1; // Move past lead
 
         // Must have a BLANK_LINE after lead
         let has_blank_after = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::BlankLine);
         if !has_blank_after {
             return None;
         }
-        // DO NOT increment idx here - blank line will be consumed by parent as BlankLineGroup
-        // idx += 1;
+        idx += 1; // Move past blank
 
         // Must have a BLOCK (indented content) after blank
-        let has_block = matches!(tree.get(idx + 1), Some(LineTokenTree::Block(_)));
+        let has_block = matches!(tree.get(idx), Some(LineTokenTree::Block(_)));
         if !has_block {
             return None;
         }
-        // idx += 1;  // Also don't consume the block itself
+        idx += 1; // Move past block
 
-        // Successfully matched: (blank?) lead [blank block to be handled by parent]
-        // Return count up to but NOT including the blank line
+        // Successfully matched entire pattern
+        // Return total consumed count
         Some(idx)
     }
 
