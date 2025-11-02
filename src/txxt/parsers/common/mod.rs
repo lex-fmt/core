@@ -8,7 +8,7 @@ pub mod location;
 
 pub use builders::{
     build_annotation, build_definition, build_foreign_block, build_list, build_list_item,
-    build_paragraph, build_session,
+    build_paragraph, build_session, extract_text_from_span,
 };
 pub use interface::{
     LineBasedParserImpl, ParseError, Parser, ParserInput, ParserRegistry, ReferenceParserImpl,
