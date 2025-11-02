@@ -45,7 +45,7 @@ pub use transformations::{
 };
 
 // Re-export line-based types for convenience
-pub use linebased::{LineToken, LineTokenTree, LineTokenType};
+pub use linebased::{LineContainerToken, LineToken, LineTokenTree, LineTokenType};
 
 /// Preprocesses source text to ensure it ends with a newline.
 ///

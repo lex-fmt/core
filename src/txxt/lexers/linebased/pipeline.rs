@@ -18,7 +18,7 @@ use std::fmt;
 
 use crate::txxt::lexers::ensure_source_ends_with_newline;
 use crate::txxt::lexers::indentation::tokenize;
-use crate::txxt::lexers::linebased::tokens::{LineToken, LineTokenTree};
+use crate::txxt::lexers::linebased::tokens::{LineContainerToken, LineToken};
 use crate::txxt::lexers::linebased::transformations::{
     _indentation_to_token_tree, _to_line_tokens,
 };
@@ -70,8 +70,8 @@ pub enum PipelineOutput {
     Tokens(Vec<(Token, std::ops::Range<usize>)>),
     /// Line tokens
     LineTokens(Vec<LineToken>),
-    /// Token tree
-    TokenTree(Vec<LineTokenTree>),
+    /// Token tree (root container with all line tokens and nested containers)
+    TokenTree(LineContainerToken),
 }
 
 /// Main linebased lexer pipeline.
@@ -82,9 +82,9 @@ pub enum PipelineOutput {
 /// * `source` - The input source text
 ///
 /// # Returns
-/// A Result containing a vector of LineTokenTree nodes, or a PipelineError if the
-/// pipeline stage returns an unexpected output type (which should not happen in normal usage).
-pub fn _lex(source: &str) -> Result<Vec<LineTokenTree>, PipelineError> {
+/// A Result containing a LineContainerToken (root node representing the entire hierarchical tree),
+/// or a PipelineError if the pipeline stage returns an unexpected output type.
+pub fn _lex(source: &str) -> Result<LineContainerToken, PipelineError> {
     let output = _lex_stage(source, PipelineStage::TokenTree);
     match output {
         PipelineOutput::TokenTree(tree) => Ok(tree),
@@ -331,6 +331,9 @@ mod tests {
 
     #[test]
     fn test_pipeline_blank_line_preservation() {
+        use crate::txxt::lexers::linebased::transformations::unwrap_container_to_token_tree;
+        use crate::txxt::lexers::LineTokenTree;
+
         let source = "Para 1\n\nPara 2";
 
         // Check LineTokens stage
@@ -345,8 +348,9 @@ mod tests {
         // Check TokenTree stage
         let tree_output = _lex_stage(source, PipelineStage::TokenTree);
         if let PipelineOutput::TokenTree(tree) = tree_output {
-            eprintln!("TokenTree (count={}): ", tree.len());
-            for (i, node) in tree.iter().enumerate() {
+            let legacy_tree = unwrap_container_to_token_tree(&tree);
+            eprintln!("TokenTree (count={}): ", legacy_tree.len());
+            for (i, node) in legacy_tree.iter().enumerate() {
                 match node {
                     LineTokenTree::Token(t) => {
                         eprintln!("  [{}] Token: {:?}", i, t.line_type);
