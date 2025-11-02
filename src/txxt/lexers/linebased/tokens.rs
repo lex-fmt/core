@@ -3,7 +3,7 @@
 //! This module contains token types specific to the line-based lexer pipeline:
 //! - LineToken: Represents a logical line created from grouped raw tokens
 //! - LineTokenType: Classification of line types
-//! - LineTokenTree: Hierarchical tree structure for indentation-based nesting
+//! - LineContainerToken: Hierarchical tree structure where nodes are either line tokens or nested containers
 
 use std::fmt;
 
@@ -80,14 +80,51 @@ impl fmt::Display for LineTokenType {
     }
 }
 
-/// A container for multiple line tokens at the same indentation level.
+/// The primary tree structure for the lexer output.
 ///
-/// This represents the second grouping level: multiple LineTokens that are at the same
-/// indentation level are grouped together in a LineContainerToken. This preserves both
-/// the individual line structure (for location tracking) and the block structure
-/// (for understanding which lines belong together at the same level).
+/// This is a recursive enum representing the complete hierarchical structure of line tokens.
+/// Every node in the tree is either a line token or a container of child nodes.
+///
+/// The tree is built by processing IndentLevel/DedentLevel markers:
+/// - Token variant: A single line token (e.g., SubjectLine, ParagraphLine, ListLine)
+/// - Container variant: A grouped set of child nodes at a deeper indentation level
+///
+/// This structure allows the parser to match patterns by checking token types while
+/// maintaining the complete source structure (source spans, source tokens, nesting).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct LineContainerToken {
+pub enum LineContainerToken {
+    /// A single line token
+    Token(LineToken),
+
+    /// A container of child nodes (represents indented content or grouped lines at same level)
+    ///
+    /// children: The line tokens and nested containers at this level
+    /// source_span: The byte range covering all children in this container
+    Container {
+        children: Vec<LineContainerToken>,
+        source_span: Option<std::ops::Range<usize>>,
+    },
+}
+
+impl LineContainerToken {
+    /// Check if this container is empty (only valid for root containers)
+    pub fn is_empty(&self) -> bool {
+        match self {
+            LineContainerToken::Token(_) => false,
+            LineContainerToken::Container { children, .. } => children.is_empty(),
+        }
+    }
+}
+
+/// TEMPORARY: Legacy token tree structure for parser compatibility.
+///
+/// This is kept for Delivery 1 to allow the parser to work unchanged while the lexer
+/// outputs the new LineContainerToken structure. The unwrapper function converts
+/// LineContainerToken to Vec<LineTokenTree> for the parser.
+///
+/// In Delivery 2, this will be removed and the parser will work directly with LineContainerToken.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct LineContainerTokenLegacy {
     /// The line tokens that comprise this container (all at the same indentation level)
     pub source_tokens: Vec<LineToken>,
 
@@ -96,19 +133,17 @@ pub struct LineContainerToken {
     pub source_span: Option<std::ops::Range<usize>>,
 }
 
-/// A tree node in the hierarchical token structure.
+/// TEMPORARY: Legacy token tree enum for parser compatibility.
 ///
-/// The tree is built by processing IndentLevel/DedentLevel markers:
-/// - Token variant holds a single LineToken
-/// - Container variant holds a LineContainerToken (multiple tokens at same level)
-/// - Block variant holds a vector of tree nodes (children at deeper indentation)
+/// This is kept for Delivery 1 to allow the parser to work unchanged.
+/// In Delivery 2, this will be removed entirely.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LineTokenTree {
     /// A single line token
     Token(LineToken),
 
     /// A container of line tokens at the same indentation level
-    Container(LineContainerToken),
+    Container(LineContainerTokenLegacy),
 
     /// A block of nested tokens (represents indented content)
     Block(Vec<LineTokenTree>),
