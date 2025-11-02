@@ -80,6 +80,31 @@ impl fmt::Display for LineTokenType {
     }
 }
 
+impl LineTokenType {
+    /// Format token type as grammar notation: `<token-name>`
+    ///
+    /// Converts UPPER_CASE_WITH_UNDERSCORES to <lower-case-with-dashes>
+    ///
+    /// Examples:
+    /// - BlankLine -> `<blank-line>`
+    /// - AnnotationStartLine -> `<annotation-start-line>`
+    /// - SubjectLine -> `<subject-line>`
+    pub fn to_grammar_string(&self) -> String {
+        let name = match self {
+            LineTokenType::BlankLine => "blank-line",
+            LineTokenType::AnnotationEndLine => "annotation-end-line",
+            LineTokenType::AnnotationStartLine => "annotation-start-line",
+            LineTokenType::SubjectLine => "subject-line",
+            LineTokenType::ListLine => "list-line",
+            LineTokenType::SubjectOrListItemLine => "subject-or-list-item-line",
+            LineTokenType::ParagraphLine => "paragraph-line",
+            LineTokenType::IndentLevel => "indent",
+            LineTokenType::DedentLevel => "dedent",
+        };
+        format!("<{}>", name)
+    }
+}
+
 /// The primary tree structure for the lexer output.
 ///
 /// This is a recursive enum representing the complete hierarchical structure of line tokens.
@@ -147,4 +172,97 @@ pub enum LineTokenTree {
 
     /// A block of nested tokens (represents indented content)
     Block(Vec<LineTokenTree>),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_token_type_to_grammar_string() {
+        assert_eq!(LineTokenType::BlankLine.to_grammar_string(), "<blank-line>");
+        assert_eq!(
+            LineTokenType::AnnotationStartLine.to_grammar_string(),
+            "<annotation-start-line>"
+        );
+        assert_eq!(
+            LineTokenType::AnnotationEndLine.to_grammar_string(),
+            "<annotation-end-line>"
+        );
+        assert_eq!(
+            LineTokenType::SubjectLine.to_grammar_string(),
+            "<subject-line>"
+        );
+        assert_eq!(LineTokenType::ListLine.to_grammar_string(), "<list-line>");
+        assert_eq!(
+            LineTokenType::SubjectOrListItemLine.to_grammar_string(),
+            "<subject-or-list-item-line>"
+        );
+        assert_eq!(
+            LineTokenType::ParagraphLine.to_grammar_string(),
+            "<paragraph-line>"
+        );
+        assert_eq!(LineTokenType::IndentLevel.to_grammar_string(), "<indent>");
+        assert_eq!(LineTokenType::DedentLevel.to_grammar_string(), "<dedent>");
+    }
+
+    #[test]
+    fn test_token_sequence_formatting() {
+        // Test creating a sequence of tokens and formatting them
+        let tokens = [
+            LineTokenType::SubjectLine,
+            LineTokenType::IndentLevel,
+            LineTokenType::ParagraphLine,
+            LineTokenType::DedentLevel,
+        ];
+
+        let formatted = tokens
+            .iter()
+            .map(|t| t.to_grammar_string())
+            .collect::<Vec<_>>()
+            .join("");
+
+        assert_eq!(formatted, "<subject-line><indent><paragraph-line><dedent>");
+    }
+
+    #[test]
+    fn test_blank_line_group_formatting() {
+        let tokens = [
+            LineTokenType::BlankLine,
+            LineTokenType::BlankLine,
+            LineTokenType::BlankLine,
+        ];
+
+        let formatted = tokens
+            .iter()
+            .map(|t| t.to_grammar_string())
+            .collect::<Vec<_>>()
+            .join("");
+
+        assert_eq!(formatted, "<blank-line><blank-line><blank-line>");
+    }
+
+    #[test]
+    fn test_complex_pattern_formatting() {
+        // Session pattern: blank + content + blank + container
+        let tokens = [
+            LineTokenType::BlankLine,
+            LineTokenType::SubjectLine,
+            LineTokenType::BlankLine,
+            LineTokenType::IndentLevel,
+            LineTokenType::ParagraphLine,
+            LineTokenType::DedentLevel,
+        ];
+
+        let formatted = tokens
+            .iter()
+            .map(|t| t.to_grammar_string())
+            .collect::<Vec<_>>()
+            .join("");
+
+        assert_eq!(
+            formatted,
+            "<blank-line><subject-line><blank-line><indent><paragraph-line><dedent>"
+        );
+    }
 }
