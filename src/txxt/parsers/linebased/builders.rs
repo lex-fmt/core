@@ -11,20 +11,65 @@
 //! 4. Handling recursive content from nested blocks
 
 use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::traits::AstNode;
-use crate::txxt::ast::{
-    Annotation, Definition, Label, List, ListItem, Paragraph, Session, TextContent, TextLine,
-};
+use crate::txxt::ast::{Annotation, Label};
 use crate::txxt::lexers::{LineToken, Token};
-use crate::txxt::parsers::common::location::{
-    aggregate_locations, compute_location_from_locations, default_location,
+use crate::txxt::parsers::common::{
+    build_annotation, build_definition, build_foreign_block, build_list, build_list_item,
+    build_paragraph, build_session, extract_text_from_span,
+    location::{compute_location_from_locations, default_location},
 };
 use crate::txxt::parsers::{ContentItem, Location};
 
 // ============================================================================
-// LOCATION UTILITIES
+// TEXT AND LOCATION EXTRACTION
 // ============================================================================
-//
+
+/// Extract text from a LineToken using its source_span.
+/// REQUIRES: source_span must be set.
+fn extract_text_from_line_token(token: &LineToken, source: &str) -> Result<String, String> {
+    let span = token
+        .source_span
+        .as_ref()
+        .ok_or_else(|| "LineToken must have source_span set".to_string())?;
+    Ok(extract_text_from_span(source, span))
+}
+
+/// Extract text from a subset of token slice using byte range extraction.
+/// This is the unified approach - use the same byte-range logic as reference parser.
+fn extract_text_from_token_slice(
+    token: &LineToken,
+    start_idx: usize,
+    end_idx: usize,
+    source: &str,
+) -> Result<String, String> {
+    if start_idx > token.token_spans.len() || end_idx > token.token_spans.len() {
+        return Err(format!(
+            "Token slice indices out of bounds: start_idx={}, end_idx={}, len={}",
+            start_idx,
+            end_idx,
+            token.token_spans.len()
+        ));
+    }
+    if start_idx > end_idx {
+        return Err("Invalid token slice: start > end".to_string());
+    }
+
+    // Get the byte ranges for the slice
+    let spans = &token.token_spans[start_idx..end_idx];
+    if spans.is_empty() {
+        return Ok(String::new());
+    }
+
+    let start = spans.first().map(|s| s.start).unwrap_or(0);
+    let end = spans.last().map(|s| s.end).unwrap_or(0);
+
+    if start >= end || end > source.len() {
+        return Ok(String::new());
+    }
+
+    Ok(source[start..end].trim().to_string())
+}
+
 // Location utilities are now provided by crate::txxt::parsers::common::location
 // See that module for compute_location_from_locations, aggregate_locations, etc.
 
@@ -34,25 +79,16 @@ use crate::txxt::parsers::{ContentItem, Location};
 /// Later, this will be enhanced with pattern matching to recognize
 /// Sessions, Definitions, Lists, etc.
 pub fn unwrap_token_to_paragraph(token: &LineToken, source: &str) -> Result<ContentItem, String> {
-    // Extract text from the token
-    let text_content = extract_text_from_token(token);
+    // Extract text from source_span - not from token iteration
+    let text_content = extract_text_from_line_token(token, source)?;
 
     // Extract location from source span
     let location = extract_location_from_token(token, source);
 
-    // Create a TextLine from the text
-    let text_line = TextLine {
-        content: TextContent::from_string(text_content, None),
-        location,
-    };
+    // Use common builder to create paragraph with single line
+    let paragraph = build_paragraph(vec![(text_content, location)], location);
 
-    // Wrap in a Paragraph
-    let paragraph = Paragraph {
-        lines: vec![ContentItem::TextLine(text_line)],
-        location,
-    };
-
-    Ok(ContentItem::Paragraph(paragraph))
+    Ok(paragraph)
 }
 
 /// Convert multiple line tokens to a single Paragraph ContentItem with multiple lines.
@@ -68,25 +104,20 @@ pub fn unwrap_tokens_to_paragraph(
     }
 
     // Extract combined location spanning all tokens
-    let location = extract_location_from_tokens(&tokens, source);
+    let overall_location = extract_location_from_tokens(&tokens, source);
 
-    // Create a TextLine for each token with its own location
-    let lines: Vec<ContentItem> = tokens
-        .into_iter()
-        .map(|token| {
-            let text_content = extract_text_from_token(&token);
-            let line_location = extract_location_from_token(&token, source);
-            ContentItem::TextLine(TextLine {
-                content: TextContent::from_string(text_content, None),
-                location: line_location,
-            })
-        })
-        .collect();
+    // Extract text and location for each line
+    let mut text_lines = Vec::new();
+    for token in tokens.iter() {
+        let text_content = extract_text_from_line_token(token, source)?;
+        let line_location = extract_location_from_token(token, source);
+        text_lines.push((text_content, line_location));
+    }
 
-    // Wrap all lines in a single Paragraph with combined location
-    let paragraph = Paragraph { lines, location };
+    // Use common builder to create paragraph from all lines
+    let paragraph = build_paragraph(text_lines, overall_location);
 
-    Ok(ContentItem::Paragraph(paragraph))
+    Ok(paragraph)
 }
 
 /// Convert an annotation line token to an Annotation ContentItem.
@@ -126,53 +157,40 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
     // Parse based on what we found
     if dcolon_count >= 2 {
         // We have :: label :: [text]
-        // Extract label tokens between the two :: markers
+        // Extract label tokens between the two :: markers using byte-range extraction
         let first_dcolon = first_dcolon_idx.unwrap();
         let second_dcolon = second_dcolon_start.unwrap();
 
-        let label_tokens = &token.source_tokens[first_dcolon + 1..second_dcolon];
-        let label_text = extract_text_from_tokens(label_tokens);
+        let label_text =
+            extract_text_from_token_slice(token, first_dcolon + 1, second_dcolon, source)?;
 
-        // Extract text after second ::
-        let remaining_tokens = &token.source_tokens[second_dcolon + 1..];
-        let trailing_text = extract_text_from_tokens(remaining_tokens);
+        // Extract text after second :: using byte-range extraction
+        let trailing_text = extract_text_from_token_slice(
+            token,
+            second_dcolon + 1,
+            token.source_tokens.len(),
+            source,
+        )?;
 
-        // Create annotation with proper location
-        let mut annotation = Annotation {
-            label: Label::from_string(&label_text),
-            parameters: vec![],
-            content: vec![],
-            location,
+        // Build content with optional trailing text
+        let content = if !trailing_text.is_empty() {
+            let text_line_item = build_paragraph(vec![(trailing_text, location)], location);
+            vec![text_line_item]
+        } else {
+            vec![]
         };
 
-        // If there's trailing text, create a paragraph as content
-        if !trailing_text.is_empty() {
-            let text_line = TextLine {
-                content: TextContent::from_string(trailing_text, None),
-                location,
-            };
-            let paragraph = Paragraph {
-                lines: vec![ContentItem::TextLine(text_line)],
-                location,
-            };
-            annotation.content.push(ContentItem::Paragraph(paragraph));
-        }
-
-        return Ok(ContentItem::Annotation(annotation));
+        // Use common builder to create annotation
+        let annotation = build_annotation(label_text, location, vec![], content);
+        return Ok(annotation);
     }
 
     // Fallback: single-line annotation without trailing text
-    let text_content = extract_text_from_token(token);
+    let label_text = extract_text_from_line_token(token, source)?;
 
-    // Create an annotation with the extracted text and proper location
-    let annotation = Annotation {
-        label: Label::from_string(&text_content),
-        parameters: vec![],
-        content: vec![],
-        location,
-    };
-
-    Ok(ContentItem::Annotation(annotation))
+    // Use common builder to create annotation
+    let annotation = build_annotation(label_text, location, vec![], vec![]);
+    Ok(annotation)
 }
 
 /// Create an annotation with block content from an opening annotation token and parsed content
@@ -181,113 +199,15 @@ pub fn unwrap_annotation_with_content(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Extract text content from the opening annotation
-    let text_content = extract_text_from_token(opening_token);
+    // Extract text content from the opening annotation using unified span-based extraction
+    let label_text = extract_text_from_line_token(opening_token, source)?;
 
     // Extract location from the opening token
     let location = extract_location_from_token(opening_token, source);
 
-    // Create an annotation with the extracted text and content
-    let annotation = Annotation {
-        label: Label::from_string(&text_content),
-        parameters: vec![],
-        content,
-        location,
-    };
-
-    Ok(ContentItem::Annotation(annotation))
-}
-
-/// Extract human-readable text from a line token's source tokens.
-///
-/// Extracts semantic content from all token types (Text, Number, Dash, etc.)
-/// while skipping whitespace, newlines, and synthetic indentation tokens.
-/// This provides proper text reconstruction for annotations, definitions, and other
-/// semantic structures that may contain non-Text tokens (e.g., numbers in ordered lists).
-fn extract_text_from_token(token: &LineToken) -> String {
-    extract_text_from_tokens(&token.source_tokens)
-}
-
-/// Extract text from a slice of tokens, properly handling all token types.
-///
-/// Extracts semantic content from all tokens (Text, Number, Dash, Period, etc.)
-/// while skipping whitespace, newlines, and synthetic indentation tokens.
-/// Concatenates tokens directly, preserving the original token structure without
-/// forcing spaces between everything (unlike simple join which always adds spaces).
-fn extract_text_from_tokens(tokens: &[Token]) -> String {
-    let mut result = String::new();
-    let mut prev_was_content = false;
-
-    for token in tokens {
-        match token {
-            // Semantic content tokens - extract their string representation
-            Token::Text(s) => {
-                // Add space before text if previous token was content
-                if prev_was_content {
-                    result.push(' ');
-                }
-                result.push_str(s);
-                prev_was_content = true;
-            }
-            Token::Number(s) => {
-                // Add space before number if previous token was content
-                if prev_was_content {
-                    result.push(' ');
-                }
-                result.push_str(s);
-                prev_was_content = true;
-            }
-            // Punctuation and symbols - no spaces around them
-            Token::Dash => {
-                result.push('-');
-                prev_was_content = true;
-            }
-            Token::Period => {
-                result.push('.');
-                prev_was_content = true;
-            }
-            Token::OpenParen => {
-                result.push('(');
-                prev_was_content = true;
-            }
-            Token::CloseParen => {
-                result.push(')');
-                prev_was_content = false; // Reset for next token
-            }
-            Token::Colon => {
-                result.push(':');
-                prev_was_content = true;
-            }
-            Token::Comma => {
-                result.push(',');
-                prev_was_content = true;
-            }
-            Token::Quote => {
-                result.push('"');
-                prev_was_content = true;
-            }
-            Token::Equals => {
-                result.push('=');
-                prev_was_content = true;
-            }
-            Token::TxxtMarker => {
-                result.push_str("::");
-                prev_was_content = true;
-            }
-
-            // Whitespace and newlines - skip these
-            Token::Whitespace | Token::Newline | Token::BlankLine | Token::Indent => {
-                // Skip whitespace
-            }
-
-            // Synthetic tokens - skip (generated during transformation)
-            Token::IndentLevel | Token::DedentLevel => {
-                // Skip synthetic tokens
-            }
-        }
-    }
-
-    result
+    // Use common builder to create annotation
+    let annotation = build_annotation(label_text, location, vec![], content);
+    Ok(annotation)
 }
 
 /// Extract location information from a LineToken using its source span
@@ -349,17 +269,14 @@ pub fn unwrap_session(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    let title_text = extract_text_from_token(subject_token);
-    let title = TextContent::from_string(title_text, None);
+    let title_text = extract_text_from_line_token(subject_token, source)?;
 
     // Extract location from the subject token
     let title_location = extract_location_from_token(subject_token, source);
 
-    // Aggregate title location with all child content locations
-    let location = aggregate_locations(title_location, &content);
-
-    let session = Session::new(title, content).at(location);
-    Ok(ContentItem::Session(session))
+    // Use common builder to create session
+    let session = build_session(title_text, title_location, content);
+    Ok(session)
 }
 
 /// Create a Definition AST node from a subject token and content
@@ -373,17 +290,14 @@ pub fn unwrap_definition(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    let subject_text = extract_text_from_token(subject_token);
-    let subject = TextContent::from_string(subject_text, None);
+    let subject_text = extract_text_from_line_token(subject_token, source)?;
 
     // Extract location from the subject token
     let subject_location = extract_location_from_token(subject_token, source);
 
-    // Aggregate subject location with all child content locations
-    let location = aggregate_locations(subject_location, &content);
-
-    let definition = Definition::new(subject, content).at(location);
-    Ok(ContentItem::Definition(definition))
+    // Use common builder to create definition
+    let definition = build_definition(subject_text, subject_location, content);
+    Ok(definition)
 }
 
 /// Create a List AST node from multiple list item tokens
@@ -397,17 +311,9 @@ pub fn unwrap_list(list_items: Vec<ContentItem>, _source: &str) -> Result<Conten
         return Err("Cannot create list with no items".to_string());
     }
 
-    // Aggregate location from all child list items
-    let locations: Vec<Location> = list_items.iter().map(|item| item.location()).collect();
-
-    let location = if locations.is_empty() {
-        default_location()
-    } else {
-        compute_location_from_locations(&locations)
-    };
-
-    let list = List::new(list_items).at(location);
-    Ok(ContentItem::List(list))
+    // Use common builder to create list
+    let list = build_list(list_items);
+    Ok(list)
 }
 
 /// Create a ListItem AST node from a list line token and optional nested content
@@ -421,26 +327,14 @@ pub fn unwrap_list_item(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    let item_text = extract_text_from_token(item_token);
+    let item_text = extract_text_from_line_token(item_token, source)?;
 
     // Extract location from the item token
     let item_location = extract_location_from_token(item_token, source);
 
-    // Aggregate with child content locations if present
-    let location = if content.is_empty() {
-        item_location
-    } else {
-        aggregate_locations(item_location, &content)
-    };
-
-    let list_item = if content.is_empty() {
-        ListItem::new(item_text).at(location)
-    } else {
-        let text_content = TextContent::from_string(item_text, None);
-        ListItem::with_text_content(text_content, content).at(location)
-    };
-
-    Ok(ContentItem::ListItem(list_item))
+    // Use common builder to create list item
+    let list_item = build_list_item(item_text, item_location, content);
+    Ok(list_item)
 }
 
 /// Create a ForeignBlock AST node from subject, content, and closing annotation
@@ -455,17 +349,29 @@ pub fn unwrap_foreign_block(
     closing_annotation_token: &LineToken,
     source: &str,
 ) -> Result<ContentItem, String> {
-    let subject_text = extract_text_from_token(subject_token);
+    let subject_text = extract_text_from_line_token(subject_token, source)?;
+    let subject_location = extract_location_from_token(subject_token, source);
 
     // Combine all content lines into a single text block
-    let content_text = content_lines
-        .iter()
-        .map(|token| extract_text_from_token(token))
-        .collect::<Vec<_>>()
-        .join("\n");
+    let mut content_text = String::new();
+    for (idx, token) in content_lines.iter().enumerate() {
+        if idx > 0 {
+            content_text.push('\n');
+        }
+        content_text.push_str(&extract_text_from_line_token(token, source)?);
+    }
+
+    // Compute content location from all content lines
+    let content_location = if content_lines.is_empty() {
+        Location::default()
+    } else {
+        // Convert Vec<&LineToken> to Vec<LineToken> for the function
+        let tokens: Vec<LineToken> = content_lines.iter().map(|t| (*t).clone()).collect();
+        extract_location_from_tokens(&tokens, source)
+    };
 
     // Create the closing annotation with proper location
-    let annotation_text = extract_text_from_token(closing_annotation_token);
+    let annotation_text = extract_text_from_line_token(closing_annotation_token, source)?;
     let annotation_location = extract_location_from_token(closing_annotation_token, source);
     let closing_annotation = Annotation {
         label: Label::from_string(&annotation_text),
@@ -474,42 +380,35 @@ pub fn unwrap_foreign_block(
         location: annotation_location,
     };
 
-    // Aggregate location from subject, content lines, and closing annotation
-    let subject_location = extract_location_from_token(subject_token, source);
+    // Use common builder to create foreign block
+    let foreign_block = build_foreign_block(
+        subject_text,
+        subject_location,
+        content_text,
+        content_location,
+        closing_annotation,
+    );
 
-    // Convert content_lines from Vec<&LineToken> to locations
-    let content_locations: Vec<Location> = content_lines
-        .iter()
-        .filter_map(|token| {
-            token.source_span.as_ref().map(|span| {
-                let source_location = SourceLocation::new(source);
-                source_location.range_to_location(span)
-            })
-        })
-        .collect();
-
-    let mut locations = vec![subject_location, annotation_location];
-    locations.extend(content_locations);
-    let combined_location = compute_location_from_locations(&locations);
-
-    let foreign_block =
-        crate::txxt::ast::ForeignBlock::new(subject_text, content_text, closing_annotation)
-            .at(combined_location);
-
-    Ok(ContentItem::ForeignBlock(foreign_block))
+    Ok(foreign_block)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::txxt::ast::{ListItem, Paragraph, TextContent};
     use crate::txxt::lexers::{LineTokenType, Token};
     use crate::txxt::parsers::Position;
 
     fn make_line_token(line_type: LineTokenType, tokens: Vec<Token>) -> LineToken {
+        // Create a reasonable default span - in tests, source is usually small
+        // This span should work with test sources
+        // token_spans will be populated during pipeline processing
+        let num_tokens = tokens.len();
         LineToken {
             source_tokens: tokens,
+            token_spans: vec![0..1000; num_tokens], // Default span for each token in tests
             line_type,
-            source_span: None,
+            source_span: Some(0..1000), // Large span to accommodate test sources
         }
     }
 
@@ -600,60 +499,6 @@ mod tests {
         assert!(matches!(item, ContentItem::Paragraph(_)));
     }
 
-    #[test]
-    fn test_extract_text_with_single_token() {
-        let token = make_line_token(
-            LineTokenType::ParagraphLine,
-            vec![Token::Text("Single".to_string())],
-        );
-
-        let text = extract_text_from_token(&token);
-        assert_eq!(text, "Single");
-    }
-
-    #[test]
-    fn test_extract_text_handles_all_token_types() {
-        let token = make_line_token(
-            LineTokenType::SubjectLine,
-            vec![
-                Token::Text("Title".to_string()),
-                Token::Colon,
-                Token::Newline,
-            ],
-        );
-
-        let text = extract_text_from_token(&token);
-        // Now properly handles all semantic content tokens, including Colon
-        // Punctuation is directly concatenated without spaces
-        // Newline is still filtered out as it's whitespace
-        assert_eq!(text, "Title:");
-    }
-
-    #[test]
-    fn test_extract_text_multiple_text_tokens() {
-        let token = make_line_token(
-            LineTokenType::ParagraphLine,
-            vec![
-                Token::Text("Hello".to_string()),
-                Token::Whitespace,
-                Token::Text("world".to_string()),
-            ],
-        );
-
-        let text = extract_text_from_token(&token);
-        // Should join text tokens with space
-        assert!(text.contains("Hello"));
-        assert!(text.contains("world"));
-    }
-
-    #[test]
-    fn test_extract_text_empty_token() {
-        let token = make_line_token(LineTokenType::BlankLine, vec![]);
-
-        let text = extract_text_from_token(&token);
-        assert_eq!(text, "");
-    }
-
     // ========== LOCATION PRESERVATION TESTS ==========
     // These tests verify that location information flows from source spans
     // through the unwrapper functions into the AST nodes
@@ -688,14 +533,15 @@ mod tests {
         let mut token = make_line_token(
             LineTokenType::AnnotationStartLine,
             vec![
-                Token::TxxtMarker,
-                Token::Whitespace,
-                Token::Text("note".to_string()),
-                Token::Whitespace,
-                Token::TxxtMarker,
+                Token::TxxtMarker,               // 0..2 (::)
+                Token::Whitespace,               // 2..3 ( )
+                Token::Text("note".to_string()), // 3..7
+                Token::Whitespace,               // 7..8 ( )
+                Token::TxxtMarker,               // 8..10 (::)
             ],
         );
-        // Simulate source span: ":: note ::" at bytes 0-10
+        // Set accurate token spans matching source
+        token.token_spans = vec![0..2, 2..3, 3..7, 7..8, 8..10];
         token.source_span = Some(0..10);
 
         let source = ":: note ::\nSome text\n";
@@ -817,28 +663,6 @@ mod tests {
             assert_eq!(para.location.start.column, 0);
             assert_eq!(para.location.end.line, 1);
             assert_eq!(para.location.end.column, 6);
-        } else {
-            panic!("Expected Paragraph");
-        }
-    }
-
-    #[test]
-    fn test_location_without_span_uses_default() {
-        // If no source_span is set, location should be default (0,0)..(0,0)
-        let token = make_line_token(
-            LineTokenType::ParagraphLine,
-            vec![Token::Text("Text".to_string())],
-        );
-        // Note: source_span is None by default
-
-        let source = "Text\n";
-        let result = unwrap_token_to_paragraph(&token, source);
-        assert!(result.is_ok());
-
-        if let Ok(ContentItem::Paragraph(para)) = result {
-            // Without a source span, location should be default
-            assert_eq!(para.location.start, Position { line: 0, column: 0 });
-            assert_eq!(para.location.end, Position { line: 0, column: 0 });
         } else {
             panic!("Expected Paragraph");
         }

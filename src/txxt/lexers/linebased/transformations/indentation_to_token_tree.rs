@@ -213,6 +213,7 @@ mod tests {
     fn make_line_token(line_type: LineTokenType, tokens: Vec<Token>) -> LineToken {
         LineToken {
             source_tokens: tokens,
+            token_spans: Vec::new(),
             line_type,
             source_span: None,
         }
