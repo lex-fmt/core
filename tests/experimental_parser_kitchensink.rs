@@ -1,6 +1,6 @@
-//! Integration test for experimental parser using the kitchensink test file.
+//! Integration test for linebased parser using the kitchensink test file.
 //!
-//! This test uses insta snapshot testing to ensure the experimental parser
+//! This test uses insta snapshot testing to ensure the linebased parser
 //! produces the correct AST structure for a complex, comprehensive test file.
 //! Any regression in parsing will be caught automatically.
 

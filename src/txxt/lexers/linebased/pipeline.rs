@@ -27,7 +27,7 @@ use crate::txxt::lexers::transformations::{
     process_whitespace_remainders, sem_indentation, transform_blank_lines,
 };
 
-/// Error type for experimental pipeline operations
+/// Error type for linebased pipeline operations
 #[derive(Debug, Clone, PartialEq)]
 pub enum PipelineError {
     /// Unexpected output type from a pipeline stage
@@ -44,7 +44,7 @@ impl fmt::Display for PipelineError {
 
 impl std::error::Error for PipelineError {}
 
-/// Represents a stage in the experimental pipeline for debugging/testing
+/// Represents a stage in the linebased pipeline for debugging/testing
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PipelineStage {
     /// Raw tokens from logos lexer
@@ -74,7 +74,7 @@ pub enum PipelineOutput {
     TokenTree(Vec<LineTokenTree>),
 }
 
-/// Main experimental lexer pipeline.
+/// Main linebased lexer pipeline.
 ///
 /// Runs all transformations in sequence and returns the final token tree.
 ///
@@ -171,7 +171,7 @@ pub fn _lex_stage(source: &str, stage: PipelineStage) -> PipelineOutput {
         return PipelineOutput::Tokens(after_blank_lines.clone());
     }
 
-    // Stage 5: Line token transformation (experimental)
+    // Stage 5: Line token transformation (linebased)
     // Extract tokens for transformation (spans are in after_blank_lines)
     let tokens_for_line_tokens: Vec<Token> =
         after_blank_lines.iter().map(|(t, _)| t.clone()).collect();
@@ -185,7 +185,7 @@ pub fn _lex_stage(source: &str, stage: PipelineStage) -> PipelineOutput {
         return PipelineOutput::LineTokens(line_tokens.clone());
     }
 
-    // Stage 6: Indentation-to-token-tree transformation (experimental)
+    // Stage 6: Indentation-to-token-tree transformation (linebased)
     let token_tree = _indentation_to_token_tree(line_tokens);
 
     PipelineOutput::TokenTree(token_tree)

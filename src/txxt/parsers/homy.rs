@@ -9,7 +9,7 @@
 //! ## Design
 //!
 //! The parser operates in phases:
-//! 1. Receive a LineTokenTree from the experimental lexer
+//! 1. Receive a LineTokenTree from the linebased lexer
 //! 2. Walk the tree recursively, flattening tokens at each level
 //! 3. Use the regex grammar engine to match patterns against token sequences
 //! 4. Convert matched patterns to AST nodes via the unwrapper

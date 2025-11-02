@@ -9,7 +9,7 @@
 //!    - Whitespace remainder processing ./transformations/normalize_whitespace.rs
 //!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ./transformations/sem_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ./transformations/transform_blanklines.rs
-//! 3. Line-based pipeline (experimental):
+//! 3. Line-based pipeline (linebased):
 //!    - Flatten tokens into line tokens
 //!    - Transform line tokens into a hierarchical tree
 //!
