@@ -30,18 +30,23 @@ pub fn snapshot_node<T: AstNode>(node: &T) -> AstSnapshot {
 /// Build snapshot from a concrete ContentItem enum
 ///
 /// This is the preferred way to call the snapshot builder since it avoids unsafe casting.
-pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
+/// Note: BlankLineGroup nodes are excluded from snapshots (they're syntactic, not semantic).
+pub fn snapshot_from_content(item: &ContentItem) -> Option<AstSnapshot> {
     match item {
-        ContentItem::Session(session) => build_session_snapshot(session),
-        ContentItem::Paragraph(para) => build_paragraph_snapshot(para),
-        ContentItem::List(list) => build_list_snapshot(list),
-        ContentItem::ListItem(li) => build_list_item_snapshot(li),
-        ContentItem::Definition(def) => build_definition_snapshot(def),
-        ContentItem::ForeignBlock(fb) => {
-            AstSnapshot::new("ForeignBlock".to_string(), fb.display_label())
+        ContentItem::Session(session) => Some(build_session_snapshot(session)),
+        ContentItem::Paragraph(para) => Some(build_paragraph_snapshot(para)),
+        ContentItem::List(list) => Some(build_list_snapshot(list)),
+        ContentItem::ListItem(li) => Some(build_list_item_snapshot(li)),
+        ContentItem::Definition(def) => Some(build_definition_snapshot(def)),
+        ContentItem::ForeignBlock(fb) => Some(AstSnapshot::new(
+            "ForeignBlock".to_string(),
+            fb.display_label(),
+        )),
+        ContentItem::Annotation(ann) => Some(build_annotation_snapshot(ann)),
+        ContentItem::TextLine(tl) => {
+            Some(AstSnapshot::new("TextLine".to_string(), tl.display_label()))
         }
-        ContentItem::Annotation(ann) => build_annotation_snapshot(ann),
-        ContentItem::TextLine(tl) => AstSnapshot::new("TextLine".to_string(), tl.display_label()),
+        ContentItem::BlankLineGroup(_) => None, // BlankLineGroup is excluded from snapshots
     }
 }
 
@@ -61,8 +66,11 @@ pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
     );
 
     // Flatten the root session - its children become direct children of the Document
+    // Skip BlankLineGroup nodes (syntactic, not semantic)
     for child in &doc.root.content {
-        snapshot.children.push(snapshot_from_content(child));
+        if let Some(child_snapshot) = snapshot_from_content(child) {
+            snapshot.children.push(child_snapshot);
+        }
     }
 
     snapshot
@@ -71,7 +79,9 @@ pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
 fn build_session_snapshot(session: &Session) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("Session".to_string(), session.display_label());
     for child in session.children() {
-        snapshot.children.push(snapshot_from_content(child));
+        if let Some(child_snapshot) = snapshot_from_content(child) {
+            snapshot.children.push(child_snapshot);
+        }
     }
     snapshot
 }
@@ -79,7 +89,9 @@ fn build_session_snapshot(session: &Session) -> AstSnapshot {
 fn build_paragraph_snapshot(para: &Paragraph) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("Paragraph".to_string(), para.display_label());
     for line in &para.lines {
-        snapshot.children.push(snapshot_from_content(line));
+        if let Some(line_snapshot) = snapshot_from_content(line) {
+            snapshot.children.push(line_snapshot);
+        }
     }
     snapshot
 }
@@ -87,7 +99,9 @@ fn build_paragraph_snapshot(para: &Paragraph) -> AstSnapshot {
 fn build_list_snapshot(list: &List) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("List".to_string(), list.display_label());
     for item in &list.content {
-        snapshot.children.push(snapshot_from_content(item));
+        if let Some(item_snapshot) = snapshot_from_content(item) {
+            snapshot.children.push(item_snapshot);
+        }
     }
     snapshot
 }
@@ -95,7 +109,9 @@ fn build_list_snapshot(list: &List) -> AstSnapshot {
 fn build_list_item_snapshot(item: &ListItem) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("ListItem".to_string(), item.display_label());
     for child in item.children() {
-        snapshot.children.push(snapshot_from_content(child));
+        if let Some(child_snapshot) = snapshot_from_content(child) {
+            snapshot.children.push(child_snapshot);
+        }
     }
     snapshot
 }
@@ -103,7 +119,9 @@ fn build_list_item_snapshot(item: &ListItem) -> AstSnapshot {
 fn build_definition_snapshot(def: &Definition) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("Definition".to_string(), def.display_label());
     for child in def.children() {
-        snapshot.children.push(snapshot_from_content(child));
+        if let Some(child_snapshot) = snapshot_from_content(child) {
+            snapshot.children.push(child_snapshot);
+        }
     }
     snapshot
 }
@@ -111,7 +129,9 @@ fn build_definition_snapshot(def: &Definition) -> AstSnapshot {
 fn build_annotation_snapshot(ann: &Annotation) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("Annotation".to_string(), ann.display_label());
     for child in ann.children() {
-        snapshot.children.push(snapshot_from_content(child));
+        if let Some(child_snapshot) = snapshot_from_content(child) {
+            snapshot.children.push(child_snapshot);
+        }
     }
     snapshot
 }
