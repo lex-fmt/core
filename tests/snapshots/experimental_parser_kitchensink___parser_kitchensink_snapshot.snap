@@ -1,6 +1,5 @@
 ---
 source: tests/experimental_parser_kitchensink.rs
-assertion_line: 21
 expression: snapshot
 ---
 Document with 8 root items:
@@ -39,7 +38,7 @@ Document with 8 root items:
       [1] TextLine: function example(){
     [1] Paragraph with 1 line(s):       [0] TextLine: }
   [6] Annotation with 0 parameter(s) and 0 content item(s):
-[6] Session with 3 item(s):
+[6] Session with 4 item(s):
   [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker- style foreign blocks. {{paragraph}}
   [1] Annotation with 0 parameter(s) and 3 content item(s):
     [0] Paragraph with 1 line(s):       [0] TextLine: This is a block annotation. {{paragraph}}
@@ -47,7 +46,6 @@ Document with 8 root items:
     [2] List with 2 item(s):
       [0] List item with 0 content item(s):
       [1] List item with 0 content item(s):
-  [2] Paragraph with 2 line(s): 
-    [0] TextLine: Image Reference( Marker Foreign Block):
-    [1] TextLine: :: image src=" logo. png" alt=" Txxt Logo"::
+  [2] Paragraph with 1 line(s):     [0] TextLine: Image Reference( Marker Foreign Block):
+  [3] Annotation with 0 parameter(s) and 0 content item(s):
 [7] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}
