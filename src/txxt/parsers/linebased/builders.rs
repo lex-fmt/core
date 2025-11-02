@@ -11,7 +11,6 @@
 //! 4. Handling recursive content from nested blocks
 
 use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::{Annotation, Label};
 use crate::txxt::lexers::LineToken;
 use crate::txxt::parsers::common::{
     build_annotation, build_definition, build_foreign_block, build_list, build_list_item,
@@ -370,15 +369,14 @@ pub fn unwrap_foreign_block(
         extract_location_from_tokens(&tokens, source)
     };
 
-    // Create the closing annotation with proper location
+    // Create the closing annotation with proper location using common builder
     let annotation_text = extract_text_from_line_token(closing_annotation_token, source)?;
     let annotation_location = extract_location_from_token(closing_annotation_token, source);
-    let closing_annotation = Annotation {
-        label: Label::from_string(&annotation_text),
-        parameters: vec![],
-        content: vec![],
-        location: annotation_location,
-    };
+    let closing_annotation =
+        match build_annotation(annotation_text, annotation_location, vec![], vec![]) {
+            ContentItem::Annotation(annotation) => annotation,
+            _ => unreachable!("build_annotation always returns Annotation"),
+        };
 
     // Use common builder to create foreign block
     let foreign_block = build_foreign_block(
@@ -395,7 +393,6 @@ pub fn unwrap_foreign_block(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::ast::{ListItem, Paragraph, TextContent};
     use crate::txxt::lexers::{LineTokenType, Token};
     use crate::txxt::parsers::Position;
 
@@ -681,20 +678,14 @@ mod tests {
         );
         subject_token.source_span = Some(0..14);
 
-        // Create mock child content with known locations:
+        // Create mock child content with known locations using common builder:
         // Child 1: line 1, columns 4-20 (nested paragraph)
         let child1_location = Location::new(Position::new(1, 4), Position::new(1, 20));
-        let child1 = ContentItem::Paragraph(Paragraph {
-            lines: vec![],
-            location: child1_location,
-        });
+        let child1 = build_paragraph(vec![], child1_location);
 
         // Child 2: line 2, columns 4-25 (another nested paragraph)
         let child2_location = Location::new(Position::new(2, 4), Position::new(2, 25));
-        let child2 = ContentItem::Paragraph(Paragraph {
-            lines: vec![],
-            location: child2_location,
-        });
+        let child2 = build_paragraph(vec![], child2_location);
 
         let source = "Session Title:\n    First line\n    Second line\n";
         let result = unwrap_session(&subject_token, vec![child1, child2], source);
@@ -720,20 +711,14 @@ mod tests {
         );
         subject_token.source_span = Some(0..5);
 
-        // Create mock child content with known locations:
+        // Create mock child content with known locations using common builder:
         // Child 1: line 1, columns 4-18
         let child1_location = Location::new(Position::new(1, 4), Position::new(1, 18));
-        let child1 = ContentItem::Paragraph(Paragraph {
-            lines: vec![],
-            location: child1_location,
-        });
+        let child1 = build_paragraph(vec![], child1_location);
 
         // Child 2: line 2, columns 4-22
         let child2_location = Location::new(Position::new(2, 4), Position::new(2, 22));
-        let child2 = ContentItem::Paragraph(Paragraph {
-            lines: vec![],
-            location: child2_location,
-        });
+        let child2 = build_paragraph(vec![], child2_location);
 
         let source = "Term:\n    Definition part 1\n    Definition part 2\n";
         let result = unwrap_definition(&subject_token, vec![child1, child2], source);
@@ -763,13 +748,10 @@ mod tests {
         );
         item_token.source_span = Some(0..14);
 
-        // Create mock nested content:
+        // Create mock nested content using common builder:
         // Nested child: line 1, columns 4-30
         let nested_location = Location::new(Position::new(1, 4), Position::new(1, 30));
-        let nested_content = ContentItem::Paragraph(Paragraph {
-            lines: vec![],
-            location: nested_location,
-        });
+        let nested_content = build_paragraph(vec![], nested_location);
 
         let source = "- Item text\n    Nested content here\n";
         let result = unwrap_list_item(&item_token, vec![nested_content], source);
@@ -790,29 +772,17 @@ mod tests {
     fn test_unwrap_list_aggregates_all_item_locations() {
         // Create mock list items with different locations
 
-        // Item 1: line 0, columns 0-8 ("- Item 1" = 8 chars)
+        // Item 1: line 0, columns 0-8 ("- Item 1" = 8 chars) using common builder
         let item1_location = Location::new(Position::new(0, 0), Position::new(0, 8));
-        let item1 = ContentItem::ListItem(ListItem {
-            text: vec![TextContent::from_string("Item 1".to_string(), None)],
-            content: vec![],
-            location: item1_location,
-        });
+        let item1 = build_list_item("Item 1".to_string(), item1_location, vec![]);
 
-        // Item 2: line 1, columns 0-8 ("- Item 2" = 8 chars)
+        // Item 2: line 1, columns 0-8 ("- Item 2" = 8 chars) using common builder
         let item2_location = Location::new(Position::new(1, 0), Position::new(1, 8));
-        let item2 = ContentItem::ListItem(ListItem {
-            text: vec![TextContent::from_string("Item 2".to_string(), None)],
-            content: vec![],
-            location: item2_location,
-        });
+        let item2 = build_list_item("Item 2".to_string(), item2_location, vec![]);
 
-        // Item 3: line 2, columns 0-8 ("- Item 3" = 8 chars)
+        // Item 3: line 2, columns 0-8 ("- Item 3" = 8 chars) using common builder
         let item3_location = Location::new(Position::new(2, 0), Position::new(2, 8));
-        let item3 = ContentItem::ListItem(ListItem {
-            text: vec![TextContent::from_string("Item 3".to_string(), None)],
-            content: vec![],
-            location: item3_location,
-        });
+        let item3 = build_list_item("Item 3".to_string(), item3_location, vec![]);
 
         let source = "- Item 1\n- Item 2\n- Item 3\n";
         let result = unwrap_list(vec![item1, item2, item3], source);
@@ -846,15 +816,12 @@ mod tests {
         subject_token.source_span = Some(0..20);
 
         // Child starting earlier on line 0 (edge case: child starts before or overlaps with header)
-        // This tests that min/max logic correctly computes bounding box
+        // This tests that min/max logic correctly computes bounding box using common builder
         let child_location = Location::new(
             Position::new(0, 15), // Overlaps with header end
             Position::new(3, 10), // Extends beyond header
         );
-        let child = ContentItem::Paragraph(Paragraph {
-            lines: vec![],
-            location: child_location,
-        });
+        let child = build_paragraph(vec![], child_location);
 
         let source = "Multi-line\n Title:\n    Content line 1\n    Content line 2\n";
         let result = unwrap_session(&subject_token, vec![child], source);
