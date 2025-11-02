@@ -15,8 +15,12 @@
 //! for comprehensive documentation on using verified txxt sources and AST assertions.
 
 // Parser implementations
+pub mod common;
 pub mod homy;
 pub mod reference;
+
+// Re-export common parser interfaces
+pub use common::{ParseError, Parser, ParserInput, ParserRegistry};
 
 // Re-export AST types and utilities from the ast module
 pub use crate::txxt::ast::{

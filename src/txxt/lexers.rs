@@ -28,12 +28,14 @@
 //!   transformation step, separate from all other tokenization, which helps a lot.
 //! - At some point in the spec, we will handle blocks much like markdown's fenced blocks,that display non-txxt strings. In these cases, while we may parse (for indentation)the lines, we never want to emit the indent and dedent tokens. Having this happen two stages gives us more flexibility on how to handle these cases.
 
+pub mod common;
 pub mod detokenizer;
 pub mod indentation;
 pub mod linebased;
 pub mod tokens;
 pub mod transformations;
 
+pub use common::{LexError, Lexer, LexerOutput, LexerRegistry};
 pub use detokenizer::detokenize;
 pub use indentation::tokenize;
 pub use tokens::Token;
