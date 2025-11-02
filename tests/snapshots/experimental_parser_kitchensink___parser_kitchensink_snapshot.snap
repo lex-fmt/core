@@ -2,49 +2,70 @@
 source: tests/experimental_parser_kitchensink.rs
 expression: snapshot
 ---
-Document with 8 root items:
+Document with 12 root items:
 
 [0] Paragraph with 1 line(s):   [0] TextLine: Kitchensink Test Document {{paragraph}}
-[1] Paragraph with 1 line(s):   [0] TextLine: This document includes all major features of the txxt language to serve as a comprehensive" kitchensink" regression test for the parser. {{paragraph}}
-[2] Paragraph with 2 line(s): 
+[1] BlankLineGroup with 1 line(s)
+[2] Paragraph with 1 line(s):   [0] TextLine: This document includes all major features of the txxt language to serve as a comprehensive" kitchensink" regression test for the parser. {{paragraph}}
+[3] BlankLineGroup with 1 line(s)
+[4] Paragraph with 2 line(s): 
   [0] TextLine: This is a two- lined paragraph.
   [1] TextLine: First, a simple definition at the root level. {{paragraph}}
-[3] Definition with 2 item(s):
+[5] BlankLineGroup with 1 line(s)
+[6] Definition with 3 item(s):
   [0] Paragraph with 1 line(s):     [0] TextLine: This definition contains a paragraph and a list to test mixed content at the top level. {{definition}}
-  [1] List with 2 item(s):
+  [1] BlankLineGroup with 1 line(s)
+  [2] List with 2 item(s):
     [0] List item with 0 content item(s):
-    [1] List item with 0 content item(s):
-[4] Paragraph with 1 line(s):   [0] TextLine: This is a marker annotation at the root level, attached to the definition above.
-[5] Session with 6 item(s):
+    [1] List item with 1 content item(s):
+      [0] BlankLineGroup with 1 line(s)
+[7] Paragraph with 1 line(s):   [0] TextLine: This is a marker annotation at the root level, attached to the definition above.
+[8] BlankLineGroup with 1 line(s)
+[9] Session with 10 item(s):
   [0] Paragraph with 1 line(s):     [0] TextLine: This session acts as the main container for testing nested structures. It starts with a simple paragraph. {{paragraph}}
-  [1] List with 2 item(s):
+  [1] BlankLineGroup with 1 line(s)
+  [2] List with 2 item(s):
     [0] List item with 0 content item(s):
-    [1] List item with 0 content item(s):
-  [2] Annotation with 0 parameter(s) and 1 content item(s):
+    [1] List item with 1 content item(s):
+      [0] BlankLineGroup with 1 line(s)
+  [3] Annotation with 0 parameter(s) and 1 content item(s):
     [0] Paragraph with 1 line(s):       [0] TextLine: This is a single- line annotation inside the session.
-  [3] Session with 3 item(s):
+  [4] BlankLineGroup with 1 line(s)
+  [5] Session with 4 item(s):
     [0] Paragraph with 1 line(s):       [0] TextLine: This is a second- level session containing a definition and a list with nested content. {{paragraph}}
-    [1] Definition with 2 item(s):
+    [1] BlankLineGroup with 1 line(s)
+    [2] Definition with 3 item(s):
       [0] Paragraph with 1 line(s):         [0] TextLine: This definition is inside a nested session and contains a list. {{definition}}
-      [1] List with 2 item(s):
+      [1] BlankLineGroup with 1 line(s)
+      [2] List with 2 item(s):
         [0] List item with 0 content item(s):
-        [1] List item with 0 content item(s):
-    [2] List with 2 item(s):
-      [0] List item with 2 content item(s):
+        [1] List item with 1 content item(s):
+          [0] BlankLineGroup with 1 line(s)
+    [3] List with 2 item(s):
+      [0] List item with 3 content item(s):
         [0] Paragraph with 1 line(s):           [0] TextLine: This list item contains a nested paragraph. {{paragraph}}
-        [1] List with 2 item(s):
+        [1] BlankLineGroup with 1 line(s)
+        [2] List with 2 item(s):
           [0] List item with 0 content item(s):
           [1] List item with 0 content item(s):
-      [1] List item with 0 content item(s):
-  [4] Paragraph with 1 line(s):     [0] TextLine: A paragraph back at the first level of nesting. {{paragraph}}
-  [5] ForeignBlock with 59 content line(s)
-[6] Session with 3 item(s):
+      [1] List item with 1 content item(s):
+        [0] BlankLineGroup with 1 line(s)
+  [6] Paragraph with 1 line(s):     [0] TextLine: A paragraph back at the first level of nesting. {{paragraph}}
+  [7] BlankLineGroup with 1 line(s)
+  [8] ForeignBlock with 59 content line(s)
+  [9] BlankLineGroup with 1 line(s)
+[10] Session with 6 item(s):
   [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker- style foreign blocks. {{paragraph}}
-  [1] Annotation with 0 parameter(s) and 3 content item(s):
+  [1] BlankLineGroup with 1 line(s)
+  [2] Annotation with 0 parameter(s) and 5 content item(s):
     [0] Paragraph with 1 line(s):       [0] TextLine: This is a block annotation. {{paragraph}}
-    [1] Paragraph with 1 line(s):       [0] TextLine: It contains a paragraph and a list. {{paragraph}}
-    [2] List with 2 item(s):
+    [1] BlankLineGroup with 1 line(s)
+    [2] Paragraph with 1 line(s):       [0] TextLine: It contains a paragraph and a list. {{paragraph}}
+    [3] BlankLineGroup with 1 line(s)
+    [4] List with 2 item(s):
       [0] List item with 0 content item(s):
       [1] List item with 0 content item(s):
-  [2] ForeignBlock with 0 content line(s)
-[7] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}
+  [3] BlankLineGroup with 1 line(s)
+  [4] ForeignBlock with 0 content line(s)
+  [5] BlankLineGroup with 1 line(s)
+[11] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}
