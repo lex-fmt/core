@@ -36,13 +36,14 @@ pub mod transformations;
 
 pub use detokenizer::detokenize;
 pub use indentation::tokenize;
-pub use tokens::{LineToken, LineTokenType, Token};
-pub use transformations::transform_indentation_to_token_tree::LineTokenTree;
+pub use tokens::Token;
 pub use transformations::{
     experimental_lex, experimental_lex_stage, process_whitespace_remainders, transform_blank_lines,
-    transform_indentation, transform_indentation_to_token_tree, transform_to_line_tokens,
-    PipelineOutput, PipelineStage,
+    transform_indentation, PipelineOutput, PipelineStage,
 };
+
+// Re-export line-based types for convenience
+pub use linebased::{LineToken, LineTokenTree, LineTokenType};
 
 /// Preprocesses source text to ensure it ends with a newline.
 ///

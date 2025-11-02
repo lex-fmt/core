@@ -11,21 +11,7 @@
 //! This tree structure preserves all original LineTokens (including source_tokens),
 //! and can later be consumed by pattern-matching parsers that work on named token types.
 
-use crate::txxt::lexer::tokens::LineToken;
-
-/// A tree node in the hierarchical token structure.
-///
-/// The tree is built by processing IndentLevel/DedentLevel markers:
-/// - Token variant holds a single LineToken
-/// - Block variant holds a vector of tree nodes (children at deeper indentation)
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum LineTokenTree {
-    /// A single line token
-    Token(LineToken),
-
-    /// A block of nested tokens (represents indented content)
-    Block(Vec<LineTokenTree>),
-}
+use crate::txxt::lexer::linebased::tokens::{LineToken, LineTokenType, LineTokenTree};
 
 /// Transform flat line tokens into hierarchical token tree.
 ///
@@ -62,11 +48,11 @@ pub fn experimental_transform_indentation_to_token_tree(
 
     for token in tokens {
         match &token.line_type {
-            crate::txxt::lexer::tokens::LineTokenType::IndentLevel => {
+            LineTokenType::IndentLevel => {
                 // Start a new nested level
                 stack.push(Vec::new());
             }
-            crate::txxt::lexer::tokens::LineTokenType::DedentLevel => {
+            LineTokenType::DedentLevel => {
                 // Close current level and add it as a Block to parent
                 // Even empty blocks are preserved - they may be semantically meaningful
                 // (e.g., an empty session body, though this shouldn't occur in valid txxt)
@@ -90,7 +76,7 @@ pub fn experimental_transform_indentation_to_token_tree(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::lexer::tokens::{LineTokenType, Token};
+    use crate::txxt::lexer::tokens::Token;
 
     fn make_line_token(line_type: LineTokenType, tokens: Vec<Token>) -> LineToken {
         LineToken {
@@ -493,3 +479,4 @@ mod tests {
         }
     }
 }
+

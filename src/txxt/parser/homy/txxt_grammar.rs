@@ -8,7 +8,7 @@
 //!
 //! More complex patterns are added in subsequent steps (foreign blocks, lists, definitions, sessions).
 
-use crate::txxt::lexer::tokens::LineTokenType;
+use crate::txxt::lexer::LineTokenType;
 use crate::txxt::parser::homy::regex_grammar_engine::{RegexGrammarMatcher, TokenSeq};
 
 /// Convert LineTokenType enum to its string representation for pattern matching
@@ -826,8 +826,8 @@ mod tests {
     #[test]
     fn test_step1_integration_annotation_and_paragraph() {
         // Step 1: Test that we can parse annotations and paragraphs
-        use crate::txxt::lexer::tokens::{LineToken, LineTokenType, Token};
-        use crate::txxt::lexer::transformations::transform_indentation_to_token_tree::LineTokenTree;
+        use crate::txxt::lexer::LineTokenTree;
+        use crate::txxt::lexer::{LineToken, LineTokenType, Token};
         use crate::txxt::parser::homy::parse_experimental;
 
         // Create a simple tree with annotation and paragraph

@@ -15,7 +15,8 @@
 //! - PARAGRAPH_LINE: Any other line
 //! - INDENT_LEVEL / DEDENT_LEVEL: Structural tokens (pass through unchanged)
 
-use crate::txxt::lexer::tokens::{LineToken, LineTokenType, Token};
+use crate::txxt::lexer::linebased::tokens::{LineToken, LineTokenType};
+use crate::txxt::lexer::tokens::Token;
 
 /// Transform flat token stream into line tokens.
 ///

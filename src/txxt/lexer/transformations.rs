@@ -17,8 +17,6 @@
 
 pub mod transform_blanklines;
 pub mod transform_indentation;
-pub mod transform_indentation_to_token_tree;
-pub mod transform_to_line_tokens;
 pub mod transform_whitespace;
 
 // Re-export the experimental pipeline from the linebased module
@@ -27,6 +25,4 @@ pub use crate::txxt::lexer::linebased::{
 };
 pub use transform_blanklines::transform_blank_lines;
 pub use transform_indentation::transform_indentation;
-pub use transform_indentation_to_token_tree::experimental_transform_indentation_to_token_tree;
-pub use transform_to_line_tokens::experimental_transform_to_line_tokens;
 pub use transform_whitespace::process_whitespace_remainders;
