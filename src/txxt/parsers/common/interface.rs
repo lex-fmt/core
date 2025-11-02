@@ -65,6 +65,7 @@ pub trait Parser: Send + Sync {
 ///
 /// This registry holds all available parser implementations and provides
 /// methods to select and use them.
+#[derive(Clone)]
 pub struct ParserRegistry {
     parsers: std::collections::HashMap<String, std::sync::Arc<dyn Parser>>,
 }
