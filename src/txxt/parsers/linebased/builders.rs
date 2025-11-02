@@ -16,8 +16,9 @@ use crate::txxt::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Session, TextContent, TextLine,
 };
 use crate::txxt::lexers::{LineToken, Token};
-use crate::txxt::parsers::common::location::{
-    aggregate_locations, compute_location_from_locations, default_location,
+use crate::txxt::parsers::common::{
+    build_paragraph,
+    location::{aggregate_locations, compute_location_from_locations, default_location},
 };
 use crate::txxt::parsers::{ContentItem, Location};
 
@@ -40,19 +41,10 @@ pub fn unwrap_token_to_paragraph(token: &LineToken, source: &str) -> Result<Cont
     // Extract location from source span
     let location = extract_location_from_token(token, source);
 
-    // Create a TextLine from the text
-    let text_line = TextLine {
-        content: TextContent::from_string(text_content, None),
-        location,
-    };
+    // Use common builder to create paragraph with single line
+    let paragraph = build_paragraph(vec![(text_content, location)], location);
 
-    // Wrap in a Paragraph
-    let paragraph = Paragraph {
-        lines: vec![ContentItem::TextLine(text_line)],
-        location,
-    };
-
-    Ok(ContentItem::Paragraph(paragraph))
+    Ok(paragraph)
 }
 
 /// Convert multiple line tokens to a single Paragraph ContentItem with multiple lines.
@@ -68,25 +60,22 @@ pub fn unwrap_tokens_to_paragraph(
     }
 
     // Extract combined location spanning all tokens
-    let location = extract_location_from_tokens(&tokens, source);
+    let overall_location = extract_location_from_tokens(&tokens, source);
 
-    // Create a TextLine for each token with its own location
-    let lines: Vec<ContentItem> = tokens
-        .into_iter()
+    // Extract text and location for each line
+    let text_lines: Vec<(String, Location)> = tokens
+        .iter()
         .map(|token| {
-            let text_content = extract_text_from_token(&token);
-            let line_location = extract_location_from_token(&token, source);
-            ContentItem::TextLine(TextLine {
-                content: TextContent::from_string(text_content, None),
-                location: line_location,
-            })
+            let text_content = extract_text_from_token(token);
+            let line_location = extract_location_from_token(token, source);
+            (text_content, line_location)
         })
         .collect();
 
-    // Wrap all lines in a single Paragraph with combined location
-    let paragraph = Paragraph { lines, location };
+    // Use common builder to create paragraph from all lines
+    let paragraph = build_paragraph(text_lines, overall_location);
 
-    Ok(ContentItem::Paragraph(paragraph))
+    Ok(paragraph)
 }
 
 /// Convert an annotation line token to an Annotation ContentItem.
