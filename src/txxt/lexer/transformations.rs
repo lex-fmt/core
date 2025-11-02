@@ -10,8 +10,8 @@
 //! 4. transform_blank_lines() - converts consecutive Newline tokens to BlankLine tokens
 //!
 //! Experimental transformations (for the experimental 3-pass parser):
-//! - experimental_transform_to_line_tokens() - flat tokens → line tokens (Pass 0)
-//! - experimental_transform_indentation_to_token_tree() - line tokens → hierarchical tree (Pass 1)
+//! - experimental_to_line_tokens() - flat tokens → line tokens (Pass 0)
+//! - experimental_indentation_to_token_tree() - line tokens → hierarchical tree (Pass 1)
 //!
 //! The line-based pipeline that orchestrates all transformations is now in the `linebased` module.
 

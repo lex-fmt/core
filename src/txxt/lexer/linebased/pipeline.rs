@@ -20,7 +20,7 @@ use crate::txxt::lexer::ensure_source_ends_with_newline;
 use crate::txxt::lexer::indentation::tokenize;
 use crate::txxt::lexer::linebased::tokens::{LineToken, LineTokenTree};
 use crate::txxt::lexer::linebased::transformations::{
-    experimental_transform_indentation_to_token_tree, experimental_transform_to_line_tokens,
+    experimental_indentation_to_token_tree, experimental_to_line_tokens,
 };
 use crate::txxt::lexer::tokens::Token;
 use crate::txxt::lexer::transformations::{
@@ -175,7 +175,7 @@ pub fn experimental_lex_stage(source: &str, stage: PipelineStage) -> PipelineOut
     // Extract tokens for transformation (spans are in after_blank_lines)
     let tokens_for_line_tokens: Vec<Token> =
         after_blank_lines.iter().map(|(t, _)| t.clone()).collect();
-    let mut line_tokens = experimental_transform_to_line_tokens(tokens_for_line_tokens);
+    let mut line_tokens = experimental_to_line_tokens(tokens_for_line_tokens);
 
     // Now attach source spans to the line tokens we created
     // This is done here in the pipeline where we have access to both the tokens and their spans
@@ -186,7 +186,7 @@ pub fn experimental_lex_stage(source: &str, stage: PipelineStage) -> PipelineOut
     }
 
     // Stage 6: Indentation-to-token-tree transformation (experimental)
-    let token_tree = experimental_transform_indentation_to_token_tree(line_tokens);
+    let token_tree = experimental_indentation_to_token_tree(line_tokens);
 
     PipelineOutput::TokenTree(token_tree)
 }
