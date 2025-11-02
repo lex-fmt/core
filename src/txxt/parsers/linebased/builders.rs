@@ -16,49 +16,17 @@ use crate::txxt::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Session, TextContent, TextLine,
 };
 use crate::txxt::lexers::{LineToken, Token};
-use crate::txxt::parsers::{ContentItem, Location, Position};
+use crate::txxt::parsers::common::location::{
+    aggregate_locations, compute_location_from_locations, default_location,
+};
+use crate::txxt::parsers::{ContentItem, Location};
 
 // ============================================================================
 // LOCATION UTILITIES
 // ============================================================================
-
-/// Compute location bounds from multiple locations (Location-level aggregation)
-///
-/// This creates a bounding box that encompasses all provided locations by taking:
-/// - The minimum start line/column across all locations
-/// - The maximum end line/column across all locations
-///
-/// This matches the reference parser's approach for location aggregation.
-fn compute_location_from_locations(locations: &[Location]) -> Location {
-    if locations.is_empty() {
-        return default_location();
-    }
-    let start_line = locations.iter().map(|sp| sp.start.line).min().unwrap_or(0);
-    let start_col = locations
-        .iter()
-        .map(|sp| sp.start.column)
-        .min()
-        .unwrap_or(0);
-    let end_line = locations.iter().map(|sp| sp.end.line).max().unwrap_or(0);
-    let end_col = locations.iter().map(|sp| sp.end.column).max().unwrap_or(0);
-    Location::new(
-        Position::new(start_line, start_col),
-        Position::new(end_line, end_col),
-    )
-}
-
-/// Aggregate location from a primary location and child content items
-///
-/// Creates a bounding box that encompasses the primary location and all child content.
-/// This is commonly used when building container nodes (sessions, lists, definitions)
-/// that need to include the location of their title/header and all child items.
-///
-/// This matches the reference parser's approach for hierarchical location aggregation.
-fn aggregate_locations(primary: Location, children: &[ContentItem]) -> Location {
-    let mut sources = vec![primary];
-    sources.extend(children.iter().map(|item| item.location()));
-    compute_location_from_locations(&sources)
-}
+//
+// Location utilities are now provided by crate::txxt::parsers::common::location
+// See that module for compute_location_from_locations, aggregate_locations, etc.
 
 /// Stub: Convert a line token to a Paragraph ContentItem.
 ///
@@ -370,16 +338,6 @@ fn extract_location_from_tokens(tokens: &[LineToken], source: &str) -> Location 
     }
 }
 
-/// Create a default location (for now, until we add proper location tracking from source)
-///
-/// Used when source span information is not available.
-fn default_location() -> Location {
-    Location {
-        start: Position { line: 0, column: 0 },
-        end: Position { line: 0, column: 0 },
-    }
-}
-
 /// Create a Session AST node from a subject line token and content
 ///
 /// Used by the parser when it matches: SUBJECT_LINE + BLANK_LINE + INDENT
@@ -545,6 +503,7 @@ pub fn unwrap_foreign_block(
 mod tests {
     use super::*;
     use crate::txxt::lexers::{LineTokenType, Token};
+    use crate::txxt::parsers::Position;
 
     fn make_line_token(line_type: LineTokenType, tokens: Vec<Token>) -> LineToken {
         LineToken {

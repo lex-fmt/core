@@ -7,10 +7,16 @@
 // Only re-export what's actually used by the parser
 pub(crate) use super::builders::{paragraph, token};
 
-// Utility re-exports for backward compatibility (not currently used)
+// Import location utilities from common module
+#[allow(unused_imports)]
+pub(crate) use crate::txxt::parsers::common::location::{
+    aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
+    compute_location_from_locations,
+};
+
+// Re-export other utilities from builders
 #[allow(unused_imports)]
 pub(crate) use super::builders::{
-    aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
-    compute_location_from_locations, extract_text_from_locations,
-    extract_tokens_to_text_and_location, is_text_token, text_line, ParserError, TokenLocation,
+    extract_text_from_locations, extract_tokens_to_text_and_location, is_text_token, text_line,
+    ParserError, TokenLocation,
 };
