@@ -12,7 +12,7 @@
 
 use crate::txxt::ast::location::SourceLocation;
 use crate::txxt::ast::{Annotation, Label};
-use crate::txxt::lexers::{LineToken, Token};
+use crate::txxt::lexers::LineToken;
 use crate::txxt::parsers::common::{
     build_annotation, build_definition, build_foreign_block, build_list, build_list_item,
     build_paragraph, build_session, extract_text_from_span,
