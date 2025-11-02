@@ -394,6 +394,7 @@ pub fn unwrap_foreign_block(
     source: &str,
 ) -> Result<ContentItem, String> {
     let subject_text = extract_text_from_token(subject_token);
+    let subject_location = extract_location_from_token(subject_token, source);
 
     // Combine all content lines into a single text block
     let content_text = content_lines
@@ -401,6 +402,15 @@ pub fn unwrap_foreign_block(
         .map(|token| extract_text_from_token(token))
         .collect::<Vec<_>>()
         .join("\n");
+
+    // Compute content location from all content lines
+    let content_location = if content_lines.is_empty() {
+        Location::default()
+    } else {
+        // Convert Vec<&LineToken> to Vec<LineToken> for the function
+        let tokens: Vec<LineToken> = content_lines.iter().map(|t| (*t).clone()).collect();
+        extract_location_from_tokens(&tokens, source)
+    };
 
     // Create the closing annotation with proper location
     let annotation_text = extract_text_from_token(closing_annotation_token);
@@ -413,7 +423,13 @@ pub fn unwrap_foreign_block(
     };
 
     // Use common builder to create foreign block
-    let foreign_block = build_foreign_block(subject_text, content_text, closing_annotation);
+    let foreign_block = build_foreign_block(
+        subject_text,
+        subject_location,
+        content_text,
+        content_location,
+        closing_annotation,
+    );
 
     Ok(foreign_block)
 }

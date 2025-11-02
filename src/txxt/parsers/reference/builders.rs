@@ -22,7 +22,8 @@ use crate::txxt::ast::{
 use crate::txxt::lexers::Token;
 // Location utilities and AST builders are now imported from crate::txxt::parsers::common
 use crate::txxt::parsers::common::{
-    build_annotation, build_definition, build_list, build_paragraph, build_session,
+    build_annotation, build_definition, build_foreign_block, build_list, build_paragraph,
+    build_session,
     location::{
         aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
         compute_location_from_locations,
@@ -564,7 +565,6 @@ pub(crate) fn foreign_block(
         .map(
             move |(((subject_text, subject_location), content_locations), closing_annotation)| {
                 let subject_location = byte_range_to_location(&source, &subject_location);
-                let subject = TextContent::from_string(subject_text, Some(subject_location));
 
                 let (content_text, content_location) = if let Some(locations) = content_locations {
                     if locations.is_empty() {
@@ -579,19 +579,17 @@ pub(crate) fn foreign_block(
                     (String::new(), Location::default())
                 };
 
-                let content = TextContent::from_string(content_text, Some(content_location));
-                let location_sources = vec![
+                // Use common builder to create foreign block
+                if let ContentItem::ForeignBlock(fb) = build_foreign_block(
+                    subject_text,
                     subject_location,
+                    content_text,
                     content_location,
-                    closing_annotation.location,
-                ];
-                let location = compute_location_from_locations(&location_sources);
-
-                ForeignBlock {
-                    subject,
-                    content,
                     closing_annotation,
-                    location,
+                ) {
+                    fb
+                } else {
+                    unreachable!("build_foreign_block always returns ForeignBlock")
                 }
             },
         )

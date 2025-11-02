@@ -17,7 +17,7 @@ use crate::txxt::ast::{
 };
 use crate::txxt::parsers::ContentItem;
 
-use super::location::aggregate_locations;
+use super::location::{aggregate_locations, compute_location_from_locations};
 
 // ============================================================================
 // PARAGRAPH BUILDER
@@ -243,26 +243,42 @@ pub fn build_list_item(
 // FOREIGN BLOCK BUILDER
 // ============================================================================
 
-/// Build a ForeignBlock from subject and content lines.
+/// Build a ForeignBlock from subject, content, and closing annotation.
 ///
-/// The location is aggregated from the subject location and all content line locations.
+/// The location is aggregated from the subject, content, and closing annotation locations.
 ///
 /// # Arguments
 /// * `subject_text` - The foreign block subject (opening marker)
 /// * `subject_location` - The location of the subject
-/// * `content_lines` - The content lines of the foreign block
-/// * `closing_location` - The location of the closing marker
+/// * `content_text` - The content text of the foreign block
+/// * `content_location` - The location of the content
+/// * `closing_annotation` - The closing annotation with its location
 ///
 /// # Returns
 /// A ForeignBlock ContentItem
 pub fn build_foreign_block(
     subject_text: String,
+    subject_location: Location,
     content_text: String,
+    content_location: Location,
     closing_annotation: Annotation,
 ) -> ContentItem {
-    let foreign_block = ForeignBlock::new(subject_text, content_text, closing_annotation);
+    let subject = TextContent::from_string(subject_text, Some(subject_location));
+    let content = TextContent::from_string(content_text, Some(content_location));
 
-    // The location was already set by ForeignBlock during construction
-    // based on the annotation's location
+    let location_sources = vec![
+        subject_location,
+        content_location,
+        closing_annotation.location,
+    ];
+    let location = compute_location_from_locations(&location_sources);
+
+    let foreign_block = ForeignBlock {
+        subject,
+        content,
+        closing_annotation,
+        location,
+    };
+
     ContentItem::ForeignBlock(foreign_block)
 }
