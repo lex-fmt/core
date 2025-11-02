@@ -6,7 +6,7 @@
 //! The transformations are applied in order:
 //! 1. tokenize() - creates raw tokens with location information
 //! 2. process_whitespace_remainders() - handles txxt whitespace specification
-//! 3. transform_indentation() - converts Indent tokens to IndentLevel/DedentLevel tokens
+//! 3. sem_indentation() - converts Indent tokens to IndentLevel/DedentLevel tokens
 //! 4. transform_blank_lines() - converts consecutive Newline tokens to BlankLine tokens
 //!
 //! Experimental transformations (for the experimental 3-pass parser):
@@ -15,14 +15,14 @@
 //!
 //! The line-based pipeline that orchestrates all transformations is now in the `linebased` module.
 
-pub mod transform_blanklines;
-pub mod transform_indentation;
+pub mod blanklines;
+pub mod sem_indentation;
 pub mod transform_whitespace;
 
 // Re-export the experimental pipeline from the linebased module
 pub use crate::txxt::lexer::linebased::{
     experimental_lex, experimental_lex_stage, PipelineError, PipelineOutput, PipelineStage,
 };
-pub use transform_blanklines::transform_blank_lines;
-pub use transform_indentation::transform_indentation;
+pub use blanklines::transform_blank_lines;
+pub use sem_indentation::sem_indentation;
 pub use transform_whitespace::process_whitespace_remainders;

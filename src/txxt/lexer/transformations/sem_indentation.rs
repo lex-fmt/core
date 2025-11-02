@@ -67,7 +67,7 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
 /// Synthetic tokens (IndentLevel, DedentLevel) are given meaningful locations:
 /// - IndentLevel: location covers the Indent tokens it represents
 /// - DedentLevel: location at the start of the line where dedentation occurs
-pub fn transform_indentation(
+pub fn sem_indentation(
     tokens: Vec<(Token, std::ops::Range<usize>)>,
 ) -> Vec<(Token, std::ops::Range<usize>)> {
     // Extract just the tokens for processing
@@ -224,7 +224,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = strip_loc(transform_indentation(with_loc(input)));
+        let result = strip_loc(sem_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -253,7 +253,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = strip_loc(transform_indentation(with_loc(input)));
+        let result = strip_loc(sem_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -312,7 +312,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = strip_loc(transform_indentation(with_loc(input)));
+        let result = strip_loc(sem_indentation(with_loc(input)));
 
         // Expected: Indent for line 2, Indent for line 4, Dedent for line 5
         assert_eq!(
@@ -366,7 +366,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result_with_loc = transform_indentation(with_loc(input.clone()));
+        let result_with_loc = sem_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         // No changes expected - no indentation, no DedentLevel at EOF
@@ -376,14 +376,14 @@ mod tests {
     #[test]
     fn test_empty_input() {
         let input = vec![];
-        let result = strip_loc(transform_indentation(with_loc(input)));
+        let result = strip_loc(sem_indentation(with_loc(input)));
         assert_eq!(result, vec![]);
     }
 
     #[test]
     fn test_single_line() {
         let input = vec![Token::Text("a".to_string())];
-        let result = strip_loc(transform_indentation(with_loc(input)));
+        let result = strip_loc(sem_indentation(with_loc(input)));
         assert_eq!(result, vec![Token::Text("a".to_string())]);
     }
 
@@ -401,7 +401,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = strip_loc(transform_indentation(with_loc(input)));
+        let result = strip_loc(sem_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -434,7 +434,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = strip_loc(transform_indentation(with_loc(input)));
+        let result = strip_loc(sem_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -462,7 +462,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result = strip_loc(transform_indentation(with_loc(input)));
+        let result = strip_loc(sem_indentation(with_loc(input)));
 
         assert_eq!(
             result,
@@ -492,7 +492,7 @@ mod tests {
             // File ends here without explicit dedents
         ];
 
-        let result_with_loc = transform_indentation(with_loc(input.clone()));
+        let result_with_loc = sem_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
@@ -526,7 +526,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result_with_loc = transform_indentation(with_loc(input.clone()));
+        let result_with_loc = sem_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
@@ -564,7 +564,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result_with_loc = transform_indentation(with_loc(input.clone()));
+        let result_with_loc = sem_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
@@ -596,7 +596,7 @@ mod tests {
             Token::Text("c".to_string()),
         ];
 
-        let result_with_loc = transform_indentation(with_loc(input.clone()));
+        let result_with_loc = sem_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         assert_eq!(
@@ -668,7 +668,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let result_with_loc = transform_indentation(with_loc(input.clone()));
+        let result_with_loc = sem_indentation(with_loc(input.clone()));
         let result: Vec<Token> = result_with_loc.into_iter().map(|(t, _)| t).collect();
 
         // Expected: Level stays at 2, no dedent/re-indent around the blank line
@@ -711,7 +711,7 @@ mod tests {
             mk_token(Token::Text("b".to_string()), 6, 7), // "b" at position 6-7
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         // Expected:
         // - Text("a") with location 0..1
@@ -751,7 +751,7 @@ mod tests {
             mk_token(Token::Text("b".to_string()), 10, 11), // "b"
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         // Should have: Text, Newline, IndentLevel, IndentLevel, Text, DedentLevel, DedentLevel
         assert_eq!(result.len(), 7);
@@ -783,7 +783,7 @@ mod tests {
             mk_token(Token::Text("c".to_string()), 8, 9), // "c" (dedented back to level 0)
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         // Expected:
         // - Text("a"), Newline, IndentLevel, Text("b"), Newline, DedentLevel, Text("c")
@@ -811,7 +811,7 @@ mod tests {
             mk_token(Token::Text("c".to_string()), 12, 13), // Back to level 0
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         // Expected: Text("a"), Newline, IndentLevel, IndentLevel, Text("b"), Newline, DedentLevel, DedentLevel, Text("c")
         // Should have 2 DedentLevel tokens before Text("c")
@@ -843,7 +843,7 @@ mod tests {
             mk_token(Token::Text("b".to_string()), 6, 7),
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         // Last token should be DedentLevel with location at EOF (7..7)
         let last = result.last().unwrap();
@@ -860,7 +860,7 @@ mod tests {
         //            23..27 "    ", 27..28 "-", 28..29 " ", 29..36 "Subitem", 36..37 " ", 37..38 "B"
 
         let tokens = crate::txxt::lexer::tokenize(source);
-        let result = transform_indentation(tokens);
+        let result = sem_indentation(tokens);
 
         // Find the IndentLevel token
         let indent_level_pos = result
@@ -911,7 +911,7 @@ mod tests {
             mk_token(Token::Text("b".to_string()), 7, 8),
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         // The IndentLevel should still have correct location
         let indent_pos = result
@@ -938,7 +938,7 @@ mod tests {
             // EOF at indent level 2 - should emit 2 dedents
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         let dedent_count = result
             .iter()
@@ -969,7 +969,7 @@ mod tests {
             mk_token(Token::Text("e".to_string()), 16, 17), // Back at level 0
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         let dedent_count = result
             .iter()
@@ -1005,7 +1005,7 @@ mod tests {
             // EOF at level 2 - should emit 2 dedents
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         let dedent_count = result
             .iter()
@@ -1042,7 +1042,7 @@ mod tests {
             // EOF at level 1 - should emit 1 dedent
         ];
 
-        let result: Vec<(Token, std::ops::Range<usize>)> = transform_indentation(input);
+        let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         let dedent_count = result
             .iter()
