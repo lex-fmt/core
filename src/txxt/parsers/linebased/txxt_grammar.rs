@@ -15,9 +15,11 @@ use crate::txxt::parsers::linebased::regex_grammar_engine::{RegexGrammarMatcher,
 fn token_type_to_string(token_type: &LineTokenType) -> String {
     match token_type {
         LineTokenType::BlankLine => "BLANK_LINE",
-        LineTokenType::AnnotationLine => "ANNOTATION_LINE",
+        LineTokenType::AnnotationEndLine => "ANNOTATION_LINE",
+        LineTokenType::AnnotationStartLine => "ANNOTATION_LINE",
         LineTokenType::SubjectLine => "SUBJECT_LINE",
         LineTokenType::ListLine => "LIST_LINE",
+        LineTokenType::SubjectOrListItemLine => "LIST_LINE",
         LineTokenType::ParagraphLine => "PARAGRAPH_LINE",
         LineTokenType::IndentLevel => "INDENT",
         LineTokenType::DedentLevel => "DEDENT",
@@ -46,8 +48,10 @@ pub enum LeadType {
 /// Analyze a line token to determine its lead type
 pub fn analyze_lead(token: &crate::txxt::lexers::LineToken) -> LeadType {
     match token.line_type {
-        LineTokenType::AnnotationLine => LeadType::Annotation,
-        LineTokenType::ListLine => LeadType::SeqMarker,
+        LineTokenType::AnnotationEndLine | LineTokenType::AnnotationStartLine => {
+            LeadType::Annotation
+        }
+        LineTokenType::ListLine | LineTokenType::SubjectOrListItemLine => LeadType::SeqMarker,
         LineTokenType::SubjectLine => LeadType::SubjectLine,
         LineTokenType::ParagraphLine => LeadType::PlainText,
         _ => LeadType::PlainText,
@@ -156,8 +160,10 @@ impl TxxtGrammarRules {
                 && indent_idx.is_some()
             {
                 dedent_idx = Some(i);
-            } else if *token_type == LineTokenType::AnnotationLine
-                && annotation_idx.is_none()
+            } else if matches!(
+                token_type,
+                LineTokenType::AnnotationEndLine | LineTokenType::AnnotationStartLine
+            ) && annotation_idx.is_none()
                 && dedent_idx.is_some()
             {
                 annotation_idx = Some(i);
@@ -205,13 +211,13 @@ impl TxxtGrammarRules {
             idx += 1;
         }
 
-        // Check what comes next: BLOCK or ANNOTATION_LINE
+        // Check what comes next: BLOCK or ANNOTATION_LINE (start or end)
         match tree.get(idx) {
             // Form 1: BLOCK + ANNOTATION_LINE (block form with content)
             Some(LineTokenTree::Block(_)) => {
                 idx += 1;
                 // Must have a closing ANNOTATION_LINE after the block
-                let has_closing_annotation = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::AnnotationLine);
+                let has_closing_annotation = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if matches!(t.line_type, LineTokenType::AnnotationEndLine | LineTokenType::AnnotationStartLine));
                 if has_closing_annotation {
                     idx += 1;
                     return Some(idx); // Successfully matched: subject (blank?) block annotation
@@ -219,7 +225,12 @@ impl TxxtGrammarRules {
                 None
             }
             // Form 2: ANNOTATION_LINE directly (marker form, no content block)
-            Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::AnnotationLine => {
+            Some(LineTokenTree::Token(t))
+                if matches!(
+                    t.line_type,
+                    LineTokenType::AnnotationEndLine | LineTokenType::AnnotationStartLine
+                ) =>
+            {
                 idx += 1;
                 Some(idx) // Successfully matched: subject (blank?) annotation
             }
@@ -485,7 +496,7 @@ impl TxxtGrammarRules {
         }
 
         // Must start with ANNOTATION_LINE (opening)
-        let opening_is_annotation = matches!(tree.first(), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::AnnotationLine);
+        let opening_is_annotation = matches!(tree.first(), Some(LineTokenTree::Token(t)) if matches!(t.line_type, LineTokenType::AnnotationEndLine | LineTokenType::AnnotationStartLine));
         if !opening_is_annotation {
             return None;
         }
@@ -506,7 +517,7 @@ impl TxxtGrammarRules {
         idx += 1;
 
         // Must have a closing ANNOTATION_LINE (::)
-        let has_closing = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if t.line_type == LineTokenType::AnnotationLine);
+        let has_closing = matches!(tree.get(idx), Some(LineTokenTree::Token(t)) if matches!(t.line_type, LineTokenType::AnnotationEndLine | LineTokenType::AnnotationStartLine));
         if !has_closing {
             return None;
         }
@@ -558,7 +569,11 @@ mod tests {
             "BLANK_LINE"
         );
         assert_eq!(
-            token_type_to_string(&LineTokenType::AnnotationLine),
+            token_type_to_string(&LineTokenType::AnnotationEndLine),
+            "ANNOTATION_LINE"
+        );
+        assert_eq!(
+            token_type_to_string(&LineTokenType::AnnotationStartLine),
             "ANNOTATION_LINE"
         );
         assert_eq!(
@@ -574,7 +589,7 @@ mod tests {
     #[test]
     fn test_token_types_to_string() {
         let tokens = vec![
-            LineTokenType::AnnotationLine,
+            LineTokenType::AnnotationStartLine,
             LineTokenType::BlankLine,
             LineTokenType::ParagraphLine,
         ];
@@ -591,7 +606,7 @@ mod tests {
     #[test]
     fn test_annotation_pattern_match() {
         let rules = TxxtGrammarRules::new().unwrap();
-        let tokens = vec![LineTokenType::AnnotationLine];
+        let tokens = vec![LineTokenType::AnnotationStartLine];
 
         let result = rules.try_annotation(&tokens);
         assert_eq!(result, Some(1));
@@ -708,7 +723,7 @@ mod tests {
             LineTokenType::IndentLevel,
             LineTokenType::ParagraphLine,
             LineTokenType::DedentLevel,
-            LineTokenType::AnnotationLine,
+            LineTokenType::AnnotationEndLine,
         ];
 
         let result = rules.try_foreign_block(&tokens);
@@ -837,10 +852,12 @@ mod tests {
             LineTokenTree::Token(LineToken {
                 source_tokens: vec![
                     Token::TxxtMarker,
+                    Token::Whitespace,
                     Token::Text("note".to_string()),
+                    Token::Whitespace,
                     Token::TxxtMarker,
                 ],
-                line_type: LineTokenType::AnnotationLine,
+                line_type: LineTokenType::AnnotationStartLine,
                 source_span: None,
             }),
             LineTokenTree::Token(LineToken {
@@ -883,7 +900,11 @@ mod tests {
             "BLANK_LINE"
         );
         assert_eq!(
-            token_type_to_string(&LineTokenType::AnnotationLine),
+            token_type_to_string(&LineTokenType::AnnotationStartLine),
+            "ANNOTATION_LINE"
+        );
+        assert_eq!(
+            token_type_to_string(&LineTokenType::AnnotationEndLine),
             "ANNOTATION_LINE"
         );
         assert_eq!(
@@ -891,6 +912,10 @@ mod tests {
             "SUBJECT_LINE"
         );
         assert_eq!(token_type_to_string(&LineTokenType::ListLine), "LIST_LINE");
+        assert_eq!(
+            token_type_to_string(&LineTokenType::SubjectOrListItemLine),
+            "LIST_LINE"
+        );
         assert_eq!(
             token_type_to_string(&LineTokenType::ParagraphLine),
             "PARAGRAPH_LINE"
@@ -903,13 +928,21 @@ mod tests {
     fn test_analyze_lead_all_types() {
         use crate::txxt::lexers::{LineToken, Token};
 
-        // Test annotation line
-        let annotation_token = LineToken {
+        // Test annotation start line
+        let annotation_start_token = LineToken {
             source_tokens: vec![Token::TxxtMarker],
-            line_type: LineTokenType::AnnotationLine,
+            line_type: LineTokenType::AnnotationStartLine,
             source_span: None,
         };
-        assert_eq!(analyze_lead(&annotation_token), LeadType::Annotation);
+        assert_eq!(analyze_lead(&annotation_start_token), LeadType::Annotation);
+
+        // Test annotation end line
+        let annotation_end_token = LineToken {
+            source_tokens: vec![Token::TxxtMarker],
+            line_type: LineTokenType::AnnotationEndLine,
+            source_span: None,
+        };
+        assert_eq!(analyze_lead(&annotation_end_token), LeadType::Annotation);
 
         // Test list line
         let list_token = LineToken {
@@ -918,6 +951,14 @@ mod tests {
             source_span: None,
         };
         assert_eq!(analyze_lead(&list_token), LeadType::SeqMarker);
+
+        // Test subject or list item line
+        let subject_or_list_token = LineToken {
+            source_tokens: vec![Token::Dash],
+            line_type: LineTokenType::SubjectOrListItemLine,
+            source_span: None,
+        };
+        assert_eq!(analyze_lead(&subject_or_list_token), LeadType::SeqMarker);
 
         // Test subject line
         let subject_token = LineToken {
