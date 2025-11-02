@@ -18,10 +18,15 @@
 //! 8. blank_line_group (one or more consecutive blank lines)
 
 use super::unwrapper;
-use crate::txxt::lexers::linebased::tokens::{LineContainerToken, LineToken, LineTokenType};
+use crate::txxt::lexers::linebased::tokens::{LineContainerToken, LineToken};
 use crate::txxt::parsers::ContentItem;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::ops::Range;
+
+/// Lazy-compiled regex for extracting list items from the list group capture
+static LIST_ITEM_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(<list-line>|<subject-or-list-item-line>)(<container>)?").unwrap());
 
 /// Grammar patterns as regex rules with names and patterns
 /// Order matters: patterns are tried in declaration order for correct disambiguation
@@ -29,48 +34,42 @@ const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
     // Foreign Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
     (
         "foreign_block",
-        r"^(<subject-line>|<subject-or-list-item-line>)(<blank-line>)?(<container>)?(<annotation-end-line>)",
+        r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<blank><blank-line>)?(?P<content><container>)?(?P<closing><annotation-end-line>)",
     ),
     // Annotation (multi-line with markers): <annotation-start-line><container><annotation-end-line>
     (
         "annotation_block_with_end",
-        r"^(<annotation-start-line>)(<container>)(<annotation-end-line>)",
+        r"^(?P<start><annotation-start-line>)(?P<content><container>)(?P<end><annotation-end-line>)",
     ),
     // Annotation (multi-line without end marker): <annotation-start-line><container>
     (
         "annotation_block",
-        r"^(<annotation-start-line>)(<container>)",
+        r"^(?P<start><annotation-start-line>)(?P<content><container>)",
     ),
     // Annotation (single-line): <annotation-start-line><content>
-    // NOTE: <content> is implicit (the rest of the line), doesn't appear in token sequence
-    ("annotation_single", r"^(<annotation-start-line>)"),
-    // List: <blank-line><list-item-line><container>?<list-item-line><container>?{1,+}<blank-line>?
-    // NOTE: Simplified to: blank + at least 2 list items (with optional containers)
+    ("annotation_single", r"^(?P<start><annotation-start-line>)"),
+    // List: <blank-line><list-line><container>?<list-line><container>?{1,+}<blank-line>?
     (
         "list",
-        r"^(<blank-line>)((<list-item-line>)(<container>)?){2,}(<blank-line>)?",
+        r"^(?P<blank><blank-line>)(?P<items>((<list-line>|<subject-or-list-item-line>)(<container>)?){2,})(?P<trailing_blank><blank-line>)?",
     ),
     // Session: <content-line><blank-line><container>
-    // content-line = paragraph-line | subject-line | list-item-line | subject-or-list-item-line
-    // NOTE: Must come before definition to take precedence (both have subject + container, but session has blank in between)
     (
         "session",
-        r"^(<paragraph-line>|<subject-line>|<list-item-line>|<subject-or-list-item-line>)(<blank-line>)(<container>)",
+        r"^(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>)(?P<content><container>)",
     ),
     // Definition: <subject-line>|<subject-or-list-item-line><container>
-    // NOTE: No blank line between subject and container
     (
         "definition",
-        r"^(<subject-line>|<subject-or-list-item-line>)(<container>)",
+        r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<content><container>)",
     ),
     // Paragraph: <content-line>+
-    // content-line = paragraph-line | subject-line | list-item-line | subject-or-list-item-line
     (
         "paragraph",
-        r"^(<paragraph-line>|<subject-line>|<list-item-line>|<subject-or-list-item-line>)+",
+        r"^(?P<lines>(<paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)+)",
     ),
     // Blank lines: <blank-line-group>
-    ("blank_line_group", r"^(<blank-line>)+"),
+    ("blank_line_group", r"^(?P<lines>(<blank-line>)+)"),
 ];
 
 /// Represents the result of pattern matching at one level
@@ -140,31 +139,69 @@ impl GrammarMatcher {
         // Try each pattern in order
         for (pattern_name, pattern_regex_str) in GRAMMAR_PATTERNS {
             if let Ok(regex) = Regex::new(pattern_regex_str) {
-                if let Some(mat) = regex.find(&token_string) {
-                    // Match found - now determine how many tokens were consumed
-                    let consumed_count = Self::count_consumed_tokens(&token_string[..mat.end()]);
+                if let Some(caps) = regex.captures(&token_string) {
+                    let full_match = caps.get(0).unwrap();
+                    let consumed_count = Self::count_consumed_tokens(full_match.as_str());
 
-                    // Extract pattern details based on pattern name
+                    // Use captures to extract indices and build the pattern
                     let pattern = match *pattern_name {
-                        "foreign_block" => {
-                            Self::parse_foreign_block(remaining_tokens, consumed_count)?
+                        "foreign_block" => PatternMatch::ForeignBlock {
+                            subject_idx: 0,
+                            blank_idx: caps.name("blank").map(|_| 1),
+                            content_idx: caps
+                                .name("content")
+                                .map(|_| caps.name("blank").map_or(1, |_| 2)),
+                            closing_idx: consumed_count - 1,
+                        },
+                        "annotation_block_with_end" => PatternMatch::AnnotationBlock {
+                            start_idx: 0,
+                            content_idx: 1,
+                            end_idx: 2,
+                        },
+                        "annotation_block" => PatternMatch::AnnotationBlock {
+                            start_idx: 0,
+                            content_idx: 1,
+                            end_idx: 1,
+                        },
+                        "annotation_single" => PatternMatch::AnnotationSingle { start_idx: 0 },
+                        "list" => {
+                            let items_str = caps.name("items").unwrap().as_str();
+                            let mut items = Vec::new();
+                            let mut token_idx = 1; // Start after the blank line
+                            for item_cap in LIST_ITEM_REGEX.find_iter(items_str) {
+                                let has_container = item_cap.as_str().contains("<container>");
+                                items.push((
+                                    token_idx,
+                                    if has_container {
+                                        Some(token_idx + 1)
+                                    } else {
+                                        None
+                                    },
+                                ));
+                                token_idx += if has_container { 2 } else { 1 };
+                            }
+                            PatternMatch::List {
+                                blank_idx: 0,
+                                items,
+                            }
                         }
-                        "annotation_block_with_end" => {
-                            Self::parse_annotation_block_with_end(remaining_tokens, consumed_count)?
-                        }
-                        "annotation_block" => {
-                            Self::parse_annotation_block(remaining_tokens, consumed_count)?
-                        }
-                        "annotation_single" => {
-                            Self::parse_annotation_single(remaining_tokens, consumed_count)?
-                        }
-                        "list" => Self::parse_list(remaining_tokens, consumed_count)?,
-                        "definition" => Self::parse_definition(remaining_tokens, consumed_count)?,
-                        "session" => Self::parse_session(remaining_tokens, consumed_count)?,
-                        "paragraph" => Self::parse_paragraph(remaining_tokens, consumed_count)?,
-                        "blank_line_group" => {
-                            Self::parse_blank_line_group(remaining_tokens, consumed_count)?
-                        }
+                        "session" => PatternMatch::Session {
+                            subject_idx: 0,
+                            blank_idx: 1,
+                            content_idx: 2,
+                        },
+                        "definition" => PatternMatch::Definition {
+                            subject_idx: 0,
+                            content_idx: 1,
+                        },
+                        "paragraph" => PatternMatch::Paragraph {
+                            start_idx: 0,
+                            end_idx: consumed_count - 1,
+                        },
+                        "blank_line_group" => PatternMatch::BlankLineGroup {
+                            start_idx: 0,
+                            end_idx: consumed_count - 1,
+                        },
                         _ => continue,
                     };
 
@@ -200,204 +237,6 @@ impl GrammarMatcher {
     /// Each token type in angle brackets represents one token
     fn count_consumed_tokens(grammar_str: &str) -> usize {
         grammar_str.matches('<').count()
-    }
-
-    /// Parse foreign block: extract indices from consumed tokens
-    fn parse_foreign_block(
-        tokens: &[LineContainerToken],
-        consumed_count: usize,
-    ) -> Option<PatternMatch> {
-        if !(2..=4).contains(&consumed_count) {
-            return None;
-        }
-
-        let subject_idx = 0;
-        let mut blank_idx = None;
-        let mut content_idx = None;
-        let mut closing_idx = subject_idx + 1;
-
-        let mut current_idx = 1;
-
-        // Check for optional blank line
-        if current_idx < consumed_count {
-            if let LineContainerToken::Token(t) = &tokens[current_idx] {
-                if matches!(t.line_type, LineTokenType::BlankLine) {
-                    blank_idx = Some(current_idx);
-                    current_idx += 1;
-                }
-            }
-        }
-
-        // Check for optional container
-        if current_idx < consumed_count {
-            if let LineContainerToken::Container { .. } = &tokens[current_idx] {
-                content_idx = Some(current_idx);
-                current_idx += 1;
-            }
-        }
-
-        // Must have closing annotation
-        if current_idx < consumed_count {
-            closing_idx = current_idx;
-        }
-
-        Some(PatternMatch::ForeignBlock {
-            subject_idx,
-            blank_idx,
-            content_idx,
-            closing_idx,
-        })
-    }
-
-    /// Parse annotation block with end marker: extract indices from consumed tokens
-    fn parse_annotation_block_with_end(
-        _tokens: &[LineContainerToken],
-        consumed_count: usize,
-    ) -> Option<PatternMatch> {
-        if consumed_count != 3 {
-            return None;
-        }
-
-        Some(PatternMatch::AnnotationBlock {
-            start_idx: 0,
-            content_idx: 1,
-            end_idx: 2,
-        })
-    }
-
-    /// Parse annotation block without end marker: extract indices from consumed tokens
-    fn parse_annotation_block(
-        _tokens: &[LineContainerToken],
-        consumed_count: usize,
-    ) -> Option<PatternMatch> {
-        if consumed_count != 2 {
-            return None;
-        }
-
-        Some(PatternMatch::AnnotationBlock {
-            start_idx: 0,
-            content_idx: 1,
-            end_idx: 1, // No separate end marker
-        })
-    }
-
-    /// Parse annotation single: extract indices from consumed tokens
-    fn parse_annotation_single(
-        _tokens: &[LineContainerToken],
-        consumed_count: usize,
-    ) -> Option<PatternMatch> {
-        if consumed_count != 1 {
-            return None;
-        }
-
-        Some(PatternMatch::AnnotationSingle { start_idx: 0 })
-    }
-
-    /// Parse list: extract list items by scanning grammar string for item positions
-    fn parse_list(tokens: &[LineContainerToken], consumed_count: usize) -> Option<PatternMatch> {
-        if consumed_count < 3 {
-            return None;
-        }
-
-        // Use regex to extract list item positions from grammar string
-        let grammar_str = Self::tokens_to_grammar_string(&tokens[..consumed_count])?;
-
-        // Find all <list-item-line> and <subject-or-list-item-line> positions in grammar string
-        // Then map them to token indices
-        let list_item_pattern =
-            Regex::new(r"(<list-item-line>|<subject-or-list-item-line>)(<container>)?").ok()?;
-
-        let mut items = Vec::new();
-        let mut token_idx = 1; // Skip blank-line at index 0
-
-        for mat in list_item_pattern.find_iter(&grammar_str) {
-            let matched_text = mat.as_str();
-
-            // This match represents one list item (+ optional container)
-            let item_idx = token_idx;
-            token_idx += 1; // Consumed the list item itself
-
-            // Check if match includes a container
-            let content_idx = if matched_text.contains("<container>") {
-                let ci = Some(token_idx);
-                token_idx += 1; // Consumed the container
-                ci
-            } else {
-                None
-            };
-
-            items.push((item_idx, content_idx));
-        }
-
-        if items.len() >= 2 {
-            Some(PatternMatch::List {
-                blank_idx: 0,
-                items,
-            })
-        } else {
-            None
-        }
-    }
-
-    /// Parse definition: extract indices from consumed tokens
-    fn parse_definition(
-        _tokens: &[LineContainerToken],
-        consumed_count: usize,
-    ) -> Option<PatternMatch> {
-        if consumed_count != 2 {
-            return None;
-        }
-
-        Some(PatternMatch::Definition {
-            subject_idx: 0,
-            content_idx: 1,
-        })
-    }
-
-    /// Parse session: extract indices from consumed tokens
-    fn parse_session(
-        _tokens: &[LineContainerToken],
-        consumed_count: usize,
-    ) -> Option<PatternMatch> {
-        if consumed_count != 3 {
-            return None;
-        }
-
-        Some(PatternMatch::Session {
-            subject_idx: 0,
-            blank_idx: 1,
-            content_idx: 2,
-        })
-    }
-
-    /// Parse paragraph: extract indices from consumed tokens
-    fn parse_paragraph(
-        _tokens: &[LineContainerToken],
-        consumed_count: usize,
-    ) -> Option<PatternMatch> {
-        if consumed_count < 1 {
-            return None;
-        }
-
-        Some(PatternMatch::Paragraph {
-            start_idx: 0,
-            end_idx: consumed_count - 1,
-        })
-    }
-
-    /// Parse blank line group: extract indices from consumed tokens
-    fn parse_blank_line_group(
-        _tokens: &[LineContainerToken],
-        consumed_count: usize,
-    ) -> Option<PatternMatch> {
-        if consumed_count < 1 {
-            return None;
-        }
-
-        Some(PatternMatch::BlankLineGroup {
-            start_idx: 0,
-            end_idx: consumed_count - 1,
-        })
     }
 }
 
