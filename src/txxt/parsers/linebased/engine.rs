@@ -48,31 +48,69 @@ pub fn parse_experimental(tree: Vec<LineTokenTree>, source: &str) -> Result<Docu
     })
 }
 
+/// Expand LineContainerTokens in a tree back into a flat sequence of LineTokenTree nodes.
+///
+/// This integrates LineContainerToken expansion into the tree walking by converting:
+/// - Container(LineContainerToken) → Multiple Token(LineToken) nodes at same level
+/// - Block stays as Block (but may contain containers that need expansion)
+///
+/// This ensures that from the parser's perspective, containers are transparent and
+/// the same logic applies as before, just with tokens grouped into containers first.
+fn expand_containers(tree: &[LineTokenTree]) -> Vec<LineTokenTree> {
+    let mut expanded = Vec::new();
+
+    for node in tree {
+        match node {
+            LineTokenTree::Container(container) => {
+                // Expand container into individual Token nodes
+                for line_token in &container.source_tokens {
+                    expanded.push(LineTokenTree::Token(line_token.clone()));
+                }
+            }
+            LineTokenTree::Block(block_children) => {
+                // Recursively expand children in the block
+                let expanded_children = expand_containers(block_children);
+                expanded.push(LineTokenTree::Block(expanded_children));
+            }
+            LineTokenTree::Token(token) => {
+                // Keep tokens as-is
+                expanded.push(LineTokenTree::Token(token.clone()));
+            }
+        }
+    }
+
+    expanded
+}
+
 /// Recursively walk the token tree and parse content at each level.
 ///
 /// Algorithm:
-/// 1. Convert tree nodes to token types at current level
-/// 2. Apply pattern matching using grammar rules
-/// 3. For each matched pattern:
+/// 1. Expand LineContainerTokens back to flat token sequence
+/// 2. Convert tree nodes to token types at current level
+/// 3. Apply pattern matching using grammar rules
+/// 4. For each matched pattern:
 ///    - If it includes a nested block, recursively parse it
 ///    - Use unwrapper to convert pattern + tokens → AST node
-/// 4. Return the list of content items
+/// 5. Return the list of content items
 fn walk_and_parse(tree: &[LineTokenTree], source: &str) -> Result<Vec<ContentItem>, String> {
+    // First, expand all containers to flatten the two-level grouping back to one level
+    let expanded_tree = expand_containers(tree);
     let grammar =
         TxxtGrammarRules::new().map_err(|e| format!("Failed to create grammar rules: {}", e))?;
 
     let mut content_items = Vec::new();
     let mut i = 0;
 
-    while i < tree.len() {
+    while i < expanded_tree.len() {
         // Extract token types at current level (including blank lines - needed for pattern matching!)
-        let remaining_tree = &tree[i..];
+        let remaining_tree = &expanded_tree[i..];
         let token_types: Vec<LineTokenType> = remaining_tree
             .iter()
             .map_while(|node| {
                 match node {
                     LineTokenTree::Token(line_token) => Some(line_token.line_type),
                     LineTokenTree::Block(_) => None, // Stop at blocks
+                    LineTokenTree::Container(_) => None, // Should never happen after expansion
                 }
             })
             .collect();
@@ -549,13 +587,16 @@ fn parse_node_at_level(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::txxt::lexers::linebased::transformations::unwrap_container_to_token_tree;
     use crate::txxt::lexers::transformations::_lex;
 
     #[test]
     fn test_parse_simple_paragraphs() {
         // Use tokens from the linebased lexer pipeline (returns token tree directly)
         let source = "Simple paragraph\n";
-        let tree = _lex(source).expect("Failed to tokenize");
+        let container = _lex(source).expect("Failed to tokenize");
+
+        let tree = unwrap_container_to_token_tree(&container);
 
         let result = parse_experimental(tree, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -570,7 +611,9 @@ mod tests {
     fn test_parse_definition() {
         // Use tokens from the linebased lexer pipeline
         let source = "Definition:\n    This is the definition content\n";
-        let tree = _lex(source).expect("Failed to tokenize");
+        let container = _lex(source).expect("Failed to tokenize");
+
+        let tree = unwrap_container_to_token_tree(&container);
 
         let result = parse_experimental(tree, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -589,7 +632,9 @@ mod tests {
     fn test_parse_session() {
         // Use tokens from the linebased lexer pipeline
         let source = "Session:\n\n    Session content here\n";
-        let tree = _lex(source).expect("Failed to tokenize");
+        let container = _lex(source).expect("Failed to tokenize");
+
+        let tree = unwrap_container_to_token_tree(&container);
 
         let result = parse_experimental(tree, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -608,7 +653,9 @@ mod tests {
     fn test_parse_annotation() {
         // Use tokens from the linebased lexer pipeline
         let source = ":: note ::\n";
-        let tree = _lex(source).expect("Failed to tokenize");
+        let container = _lex(source).expect("Failed to tokenize");
+
+        let tree = unwrap_container_to_token_tree(&container);
 
         let result = parse_experimental(tree, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -627,7 +674,9 @@ mod tests {
     fn test_annotations_120_simple() {
         let source = std::fs::read_to_string("docs/specs/v1/samples/120-annotations-simple.txxt")
             .expect("Could not read 120 sample");
-        let tree = _lex(&source).expect("Failed to tokenize");
+        let container = _lex(&source).expect("Failed to tokenize");
+
+        let tree = unwrap_container_to_token_tree(&container);
         let doc = parse_experimental(tree, &source).expect("Parser failed");
 
         eprintln!("\n=== 120 ANNOTATIONS SIMPLE ===");
@@ -674,7 +723,9 @@ mod tests {
         let source =
             std::fs::read_to_string("docs/specs/v1/samples/130-annotations-block-content.txxt")
                 .expect("Could not read 130 sample");
-        let tree = _lex(&source).expect("Failed to tokenize");
+        let container = _lex(&source).expect("Failed to tokenize");
+
+        let tree = unwrap_container_to_token_tree(&container);
         let doc = parse_experimental(tree, &source).expect("Parser failed");
 
         eprintln!("\n=== 130 ANNOTATIONS BLOCK CONTENT ===");
@@ -747,7 +798,9 @@ Paragraph before session.
 Final paragraph.
 "#;
 
-        let tree = _lex(source).expect("Failed to tokenize");
+        let container = _lex(source).expect("Failed to tokenize");
+
+        let tree = unwrap_container_to_token_tree(&container);
         let doc = parse_experimental(tree, source).expect("Parser failed");
 
         eprintln!("\n=== ANNOTATIONS + TRIFECTA COMBINED ===");
