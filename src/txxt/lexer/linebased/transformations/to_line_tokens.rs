@@ -41,7 +41,7 @@ use crate::txxt::lexer::tokens::Token;
 ///     LineToken { source_tokens: [Text("Content"), Newline], line_type: ParagraphLine, source_span: None },
 ///   ]
 /// ```
-pub fn experimental_transform_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
+pub fn experimental_to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
     let mut line_tokens = Vec::new();
     let mut current_line = Vec::new();
 
@@ -412,7 +412,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let line_tokens = experimental_transform_to_line_tokens(tokens.clone());
+        let line_tokens = experimental_to_line_tokens(tokens.clone());
 
         assert_eq!(line_tokens.len(), 3);
 
@@ -452,7 +452,7 @@ mod tests {
             Token::Newline,
         ];
 
-        let line_tokens = experimental_transform_to_line_tokens(tokens);
+        let line_tokens = experimental_to_line_tokens(tokens);
 
         // Should produce: paragraph, blank line, list line
         assert_eq!(line_tokens.len(), 3);

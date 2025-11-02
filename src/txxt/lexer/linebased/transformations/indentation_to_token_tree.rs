@@ -11,7 +11,7 @@
 //! This tree structure preserves all original LineTokens (including source_tokens),
 //! and can later be consumed by pattern-matching parsers that work on named token types.
 
-use crate::txxt::lexer::linebased::tokens::{LineToken, LineTokenType, LineTokenTree};
+use crate::txxt::lexer::linebased::tokens::{LineToken, LineTokenTree, LineTokenType};
 
 /// Transform flat line tokens into hierarchical token tree.
 ///
@@ -41,9 +41,7 @@ use crate::txxt::lexer::linebased::tokens::{LineToken, LineTokenType, LineTokenT
 ///     Token(ParagraphLine),
 ///   ]
 /// ```
-pub fn experimental_transform_indentation_to_token_tree(
-    tokens: Vec<LineToken>,
-) -> Vec<LineTokenTree> {
+pub fn experimental_indentation_to_token_tree(tokens: Vec<LineToken>) -> Vec<LineTokenTree> {
     let mut stack: Vec<Vec<LineTokenTree>> = vec![Vec::new()]; // Start with root level
 
     for token in tokens {
@@ -93,7 +91,7 @@ mod tests {
             vec![Token::Text("hello".to_string())],
         )];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         assert_eq!(result.len(), 1);
         assert!(matches!(result[0], LineTokenTree::Token(_)));
@@ -116,7 +114,7 @@ mod tests {
             ),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         assert_eq!(result.len(), 3);
         assert!(matches!(result[0], LineTokenTree::Token(_)));
@@ -139,7 +137,7 @@ mod tests {
             make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         assert_eq!(result.len(), 2);
         assert!(matches!(result[0], LineTokenTree::Token(_)));
@@ -178,7 +176,7 @@ mod tests {
             make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         assert_eq!(result.len(), 2);
 
@@ -211,7 +209,7 @@ mod tests {
             make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         assert_eq!(result.len(), 2);
 
@@ -257,7 +255,7 @@ mod tests {
             make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         assert_eq!(result.len(), 4);
         assert!(matches!(result[0], LineTokenTree::Token(_))); // Title1
@@ -289,7 +287,7 @@ mod tests {
             ),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         assert_eq!(result.len(), 4);
         assert!(matches!(result[0], LineTokenTree::Token(_)));
@@ -315,7 +313,7 @@ mod tests {
             make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         // Check that first token preserved source_tokens
         if let LineTokenTree::Token(line_token) = &result[0] {
@@ -338,7 +336,7 @@ mod tests {
             ),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         // Empty blocks ARE preserved - they may be semantically meaningful
         assert_eq!(result.len(), 3);
@@ -379,7 +377,7 @@ mod tests {
             make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         // Verify structure depth
         assert_eq!(result.len(), 2);
@@ -433,7 +431,7 @@ mod tests {
             make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         assert_eq!(result.len(), 2);
         assert!(matches!(result[0], LineTokenTree::Token(_)));
@@ -469,7 +467,7 @@ mod tests {
             make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
         ];
 
-        let result = experimental_transform_indentation_to_token_tree(input);
+        let result = experimental_indentation_to_token_tree(input);
 
         if let LineTokenTree::Block(block) = &result[1] {
             assert_eq!(block.len(), 3); // Para1, BlankLine, Para2
@@ -479,4 +477,3 @@ mod tests {
         }
     }
 }
-
