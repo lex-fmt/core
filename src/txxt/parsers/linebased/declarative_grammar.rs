@@ -17,7 +17,7 @@
 //! 7. paragraph (any content-line or sequence thereof)
 //! 8. blank_line_group (one or more consecutive blank lines)
 
-use super::unwrapper;
+use super::builders;
 use crate::txxt::lexers::linebased::tokens::{LineContainerToken, LineToken};
 use crate::txxt::parsers::ContentItem;
 use once_cell::sync::Lazy;
@@ -301,7 +301,7 @@ fn convert_pattern_to_item(
                 Vec::new()
             };
 
-            unwrapper::unwrap_foreign_block(subject_token, content_lines, closing_token, source)
+            builders::unwrap_foreign_block(subject_token, content_lines, closing_token, source)
         }
         PatternMatch::AnnotationBlock {
             start_idx,
@@ -315,15 +315,15 @@ fn convert_pattern_to_item(
                 &tokens[pattern_offset + content_idx]
             {
                 let content = parse_with_declarative_grammar(children.clone(), source)?;
-                unwrapper::unwrap_annotation_with_content(start_token, content, source)
+                builders::unwrap_annotation_with_content(start_token, content, source)
             } else {
                 // Fallback to single-line annotation if no container
-                unwrapper::unwrap_annotation(start_token, source)
+                builders::unwrap_annotation(start_token, source)
             }
         }
         PatternMatch::AnnotationSingle { start_idx } => {
             let start_token = extract_line_token(&tokens[pattern_offset + start_idx])?;
-            unwrapper::unwrap_annotation(start_token, source)
+            builders::unwrap_annotation(start_token, source)
         }
         PatternMatch::List {
             blank_idx: _,
@@ -346,11 +346,11 @@ fn convert_pattern_to_item(
                     Vec::new()
                 };
 
-                let list_item = unwrapper::unwrap_list_item(item_token, content, source)?;
+                let list_item = builders::unwrap_list_item(item_token, content, source)?;
                 list_items.push(list_item);
             }
 
-            unwrapper::unwrap_list(list_items, source)
+            builders::unwrap_list(list_items, source)
         }
         PatternMatch::Definition {
             subject_idx,
@@ -366,7 +366,7 @@ fn convert_pattern_to_item(
                 Vec::new()
             };
 
-            unwrapper::unwrap_definition(subject_token, content, source)
+            builders::unwrap_definition(subject_token, content, source)
         }
         PatternMatch::Session {
             subject_idx,
@@ -383,7 +383,7 @@ fn convert_pattern_to_item(
                 Vec::new()
             };
 
-            unwrapper::unwrap_session(subject_token, content, source)
+            builders::unwrap_session(subject_token, content, source)
         }
         PatternMatch::Paragraph { start_idx, end_idx } => {
             let paragraph_tokens: Vec<LineToken> = ((pattern_offset + start_idx)
@@ -391,7 +391,7 @@ fn convert_pattern_to_item(
                 .filter_map(|idx| extract_line_token(&tokens[idx]).ok().cloned())
                 .collect();
 
-            unwrapper::unwrap_tokens_to_paragraph(paragraph_tokens, source)
+            builders::unwrap_tokens_to_paragraph(paragraph_tokens, source)
         }
         PatternMatch::BlankLineGroup { .. } => {
             // BlankLineGroups should have been filtered out in parse_with_declarative_grammar
