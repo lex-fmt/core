@@ -4,7 +4,7 @@
 //!
 //! - **Reference Parser**: Traditional combinator-based parser (reference/)
 //!   - Contains element parsers and parser combinators
-//! - **Grammar Engine**: Regex-based grammar-driven parser (homy/)
+//! - **Grammar Engine**: Regex-based grammar-driven parser (linebased/)
 //!   - Uses regex matching and pattern unwrapping
 //!
 //! No shared code between parsers (each is completely independent).
@@ -16,7 +16,7 @@
 
 // Parser implementations
 pub mod common;
-pub mod homy;
+pub mod linebased;
 pub mod reference;
 
 // Re-export common parser interfaces

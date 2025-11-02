@@ -5,5 +5,5 @@
 pub mod interface;
 
 pub use interface::{
-    HomyParserImpl, ParseError, Parser, ParserInput, ParserRegistry, ReferenceParserImpl,
+    LineBasedParserImpl, ParseError, Parser, ParserInput, ParserRegistry, ReferenceParserImpl,
 };

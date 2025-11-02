@@ -14,7 +14,7 @@
 //! let doc = pipeline.parse("hello world").expect("Failed to parse");
 //!
 //! // Use specific combination
-//! let pipeline = TxxtPipeline::new("linebased", "homy");
+//! let pipeline = TxxtPipeline::new("linebased", "linebased");
 //! let doc = pipeline.parse("hello world").expect("Failed to parse");
 //!
 //! // Tokenize only
@@ -75,7 +75,7 @@ impl TxxtPipeline {
     ///
     /// # Arguments
     /// * `lexer_name` - Name of the lexer to use (e.g., "indentation", "linebased")
-    /// * `parser_name` - Name of the parser to use (e.g., "reference", "homy")
+    /// * `parser_name` - Name of the parser to use (e.g., "reference", "linebased")
     ///
     /// # Panics
     /// Panics if the registries are not initialized or lexer/parser not found
@@ -226,19 +226,19 @@ mod tests {
         let parsers = TxxtPipeline::available_parsers();
         assert!(!parsers.is_empty());
         assert!(parsers.contains(&"reference".to_string()));
-        assert!(parsers.contains(&"homy".to_string()));
+        assert!(parsers.contains(&"linebased".to_string()));
     }
 
     #[test]
     fn test_pipeline_available_configurations() {
         let configs = TxxtPipeline::available_configurations();
-        // Should have at least indentation+reference, indentation+homy,
-        // linebased+reference, linebased+homy
+        // Should have at least indentation+reference, indentation+linebased,
+        // linebased+reference, linebased+linebased
         assert!(configs.len() >= 4);
 
         // Check some valid combinations exist
         assert!(configs.contains(&("indentation".to_string(), "reference".to_string())));
-        assert!(configs.contains(&("indentation".to_string(), "homy".to_string())));
+        assert!(configs.contains(&("indentation".to_string(), "linebased".to_string())));
     }
 
     #[test]

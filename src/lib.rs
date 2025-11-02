@@ -15,7 +15,7 @@
 //!
 //! Hence the layour should be:
 //! src/txxt/parser
-//!   ├── homy       The homy parser design
+//!   ├── linebased       The linebased parser design
 //!   └── reference  The reference parser design
 //!   └── <common>   Shared code between the two designs
 
