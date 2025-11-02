@@ -11,14 +11,12 @@
 //! 4. Handling recursive content from nested blocks
 
 use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::traits::AstNode;
-use crate::txxt::ast::{
-    Annotation, Definition, Label, List, ListItem, Paragraph, Session, TextContent, TextLine,
-};
+use crate::txxt::ast::{Annotation, Label, Paragraph, TextContent, TextLine};
 use crate::txxt::lexers::{LineToken, Token};
 use crate::txxt::parsers::common::{
-    build_paragraph,
-    location::{aggregate_locations, compute_location_from_locations, default_location},
+    build_annotation, build_definition, build_foreign_block, build_list, build_list_item,
+    build_paragraph, build_session,
+    location::{compute_location_from_locations, default_location},
 };
 use crate::txxt::parsers::{ContentItem, Location};
 
@@ -126,16 +124,8 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
         let remaining_tokens = &token.source_tokens[second_dcolon + 1..];
         let trailing_text = extract_text_from_tokens(remaining_tokens);
 
-        // Create annotation with proper location
-        let mut annotation = Annotation {
-            label: Label::from_string(&label_text),
-            parameters: vec![],
-            content: vec![],
-            location,
-        };
-
-        // If there's trailing text, create a paragraph as content
-        if !trailing_text.is_empty() {
+        // Build content with optional trailing text
+        let content = if !trailing_text.is_empty() {
             let text_line = TextLine {
                 content: TextContent::from_string(trailing_text, None),
                 location,
@@ -144,24 +134,22 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
                 lines: vec![ContentItem::TextLine(text_line)],
                 location,
             };
-            annotation.content.push(ContentItem::Paragraph(paragraph));
-        }
+            vec![ContentItem::Paragraph(paragraph)]
+        } else {
+            vec![]
+        };
 
-        return Ok(ContentItem::Annotation(annotation));
+        // Use common builder to create annotation
+        let annotation = build_annotation(label_text, location, vec![], content);
+        return Ok(annotation);
     }
 
     // Fallback: single-line annotation without trailing text
-    let text_content = extract_text_from_token(token);
+    let label_text = extract_text_from_token(token);
 
-    // Create an annotation with the extracted text and proper location
-    let annotation = Annotation {
-        label: Label::from_string(&text_content),
-        parameters: vec![],
-        content: vec![],
-        location,
-    };
-
-    Ok(ContentItem::Annotation(annotation))
+    // Use common builder to create annotation
+    let annotation = build_annotation(label_text, location, vec![], vec![]);
+    Ok(annotation)
 }
 
 /// Create an annotation with block content from an opening annotation token and parsed content
@@ -171,20 +159,14 @@ pub fn unwrap_annotation_with_content(
     source: &str,
 ) -> Result<ContentItem, String> {
     // Extract text content from the opening annotation
-    let text_content = extract_text_from_token(opening_token);
+    let label_text = extract_text_from_token(opening_token);
 
     // Extract location from the opening token
     let location = extract_location_from_token(opening_token, source);
 
-    // Create an annotation with the extracted text and content
-    let annotation = Annotation {
-        label: Label::from_string(&text_content),
-        parameters: vec![],
-        content,
-        location,
-    };
-
-    Ok(ContentItem::Annotation(annotation))
+    // Use common builder to create annotation
+    let annotation = build_annotation(label_text, location, vec![], content);
+    Ok(annotation)
 }
 
 /// Extract human-readable text from a line token's source tokens.
@@ -339,16 +321,13 @@ pub fn unwrap_session(
     source: &str,
 ) -> Result<ContentItem, String> {
     let title_text = extract_text_from_token(subject_token);
-    let title = TextContent::from_string(title_text, None);
 
     // Extract location from the subject token
     let title_location = extract_location_from_token(subject_token, source);
 
-    // Aggregate title location with all child content locations
-    let location = aggregate_locations(title_location, &content);
-
-    let session = Session::new(title, content).at(location);
-    Ok(ContentItem::Session(session))
+    // Use common builder to create session
+    let session = build_session(title_text, title_location, content);
+    Ok(session)
 }
 
 /// Create a Definition AST node from a subject token and content
@@ -363,16 +342,13 @@ pub fn unwrap_definition(
     source: &str,
 ) -> Result<ContentItem, String> {
     let subject_text = extract_text_from_token(subject_token);
-    let subject = TextContent::from_string(subject_text, None);
 
     // Extract location from the subject token
     let subject_location = extract_location_from_token(subject_token, source);
 
-    // Aggregate subject location with all child content locations
-    let location = aggregate_locations(subject_location, &content);
-
-    let definition = Definition::new(subject, content).at(location);
-    Ok(ContentItem::Definition(definition))
+    // Use common builder to create definition
+    let definition = build_definition(subject_text, subject_location, content);
+    Ok(definition)
 }
 
 /// Create a List AST node from multiple list item tokens
@@ -386,17 +362,9 @@ pub fn unwrap_list(list_items: Vec<ContentItem>, _source: &str) -> Result<Conten
         return Err("Cannot create list with no items".to_string());
     }
 
-    // Aggregate location from all child list items
-    let locations: Vec<Location> = list_items.iter().map(|item| item.location()).collect();
-
-    let location = if locations.is_empty() {
-        default_location()
-    } else {
-        compute_location_from_locations(&locations)
-    };
-
-    let list = List::new(list_items).at(location);
-    Ok(ContentItem::List(list))
+    // Use common builder to create list
+    let list = build_list(list_items);
+    Ok(list)
 }
 
 /// Create a ListItem AST node from a list line token and optional nested content
@@ -415,21 +383,9 @@ pub fn unwrap_list_item(
     // Extract location from the item token
     let item_location = extract_location_from_token(item_token, source);
 
-    // Aggregate with child content locations if present
-    let location = if content.is_empty() {
-        item_location
-    } else {
-        aggregate_locations(item_location, &content)
-    };
-
-    let list_item = if content.is_empty() {
-        ListItem::new(item_text).at(location)
-    } else {
-        let text_content = TextContent::from_string(item_text, None);
-        ListItem::with_text_content(text_content, content).at(location)
-    };
-
-    Ok(ContentItem::ListItem(list_item))
+    // Use common builder to create list item
+    let list_item = build_list_item(item_text, item_location, content);
+    Ok(list_item)
 }
 
 /// Create a ForeignBlock AST node from subject, content, and closing annotation
@@ -463,34 +419,16 @@ pub fn unwrap_foreign_block(
         location: annotation_location,
     };
 
-    // Aggregate location from subject, content lines, and closing annotation
-    let subject_location = extract_location_from_token(subject_token, source);
+    // Use common builder to create foreign block
+    let foreign_block = build_foreign_block(subject_text, content_text, closing_annotation);
 
-    // Convert content_lines from Vec<&LineToken> to locations
-    let content_locations: Vec<Location> = content_lines
-        .iter()
-        .filter_map(|token| {
-            token.source_span.as_ref().map(|span| {
-                let source_location = SourceLocation::new(source);
-                source_location.range_to_location(span)
-            })
-        })
-        .collect();
-
-    let mut locations = vec![subject_location, annotation_location];
-    locations.extend(content_locations);
-    let combined_location = compute_location_from_locations(&locations);
-
-    let foreign_block =
-        crate::txxt::ast::ForeignBlock::new(subject_text, content_text, closing_annotation)
-            .at(combined_location);
-
-    Ok(ContentItem::ForeignBlock(foreign_block))
+    Ok(foreign_block)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::txxt::ast::ListItem;
     use crate::txxt::lexers::{LineTokenType, Token};
     use crate::txxt::parsers::Position;
 
