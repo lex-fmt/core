@@ -11,7 +11,7 @@
 //! 4. Handling recursive content from nested blocks
 
 use crate::txxt::ast::location::SourceLocation;
-use crate::txxt::ast::{Annotation, Label, Paragraph, TextContent, TextLine};
+use crate::txxt::ast::{Annotation, Label};
 use crate::txxt::lexers::{LineToken, Token};
 use crate::txxt::parsers::common::{
     build_annotation, build_definition, build_foreign_block, build_list, build_list_item,
@@ -126,15 +126,8 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
 
         // Build content with optional trailing text
         let content = if !trailing_text.is_empty() {
-            let text_line = TextLine {
-                content: TextContent::from_string(trailing_text, None),
-                location,
-            };
-            let paragraph = Paragraph {
-                lines: vec![ContentItem::TextLine(text_line)],
-                location,
-            };
-            vec![ContentItem::Paragraph(paragraph)]
+            let text_line_item = build_paragraph(vec![(trailing_text, location)], location);
+            vec![text_line_item]
         } else {
             vec![]
         };
@@ -428,7 +421,7 @@ pub fn unwrap_foreign_block(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::ast::ListItem;
+    use crate::txxt::ast::{ListItem, Paragraph, TextContent};
     use crate::txxt::lexers::{LineTokenType, Token};
     use crate::txxt::parsers::Position;
 
