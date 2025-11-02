@@ -4,6 +4,6 @@
 //! The tokenization is handled by the logos lexer library, which produces raw tokens
 //! with location information.
 
-pub mod lexer_impl;
+pub mod pipeline;
 
-pub use lexer_impl::tokenize;
+pub use pipeline::tokenize;
