@@ -104,15 +104,6 @@ pub fn parse(tokens: Vec<TokenLocation>, source: &str) -> Result<Document, Vec<P
     super::api::parse(tokens, source)
 }
 
-/// Backward-compatibility shim
-#[deprecated(note = "Use parse(tokens, source) instead")]
-pub fn parse_with_source(
-    tokens: Vec<TokenLocation>,
-    source: &str,
-) -> Result<Document, Vec<ParserError>> {
-    parse(tokens, source)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
