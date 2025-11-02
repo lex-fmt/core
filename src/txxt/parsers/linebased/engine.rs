@@ -258,6 +258,9 @@ fn try_match_foreign_block(
 
 /// Try to match a session pattern
 /// Pattern: [BLANK_LINE?] <ANY_LINE> BLANK_LINE BLOCK
+///
+/// Note: try_session_from_tree returns consumed count NOT including the blank line after the lead.
+/// The blank line will be created as a BlankLineGroup node by the parent parser.
 fn try_match_session(
     tree: &[LineTokenTree],
     grammar: &TxxtGrammarRules,
@@ -272,9 +275,11 @@ fn try_match_session(
         };
 
         if let LineTokenTree::Token(lead_token) = &tree[lead_idx] {
-            if let LineTokenTree::Block(block_children) = &tree[consumed - 1] {
+            // The blank line is at index `consumed`, and the block is at index `consumed + 1`
+            if let Some(LineTokenTree::Block(block_children)) = tree.get(consumed + 1) {
                 let block_content = walk_and_parse(block_children, source)?;
                 let item = super::unwrapper::unwrap_session(lead_token, block_content, source)?;
+                // Return consumed WITHOUT the blank line - it will be handled as BlankLineGroup
                 return Ok(Some((item, consumed)));
             }
         }
