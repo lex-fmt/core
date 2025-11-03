@@ -26,7 +26,7 @@
 //! - Simplify grammar matching (no need for blank-line+)
 //! - Make the AST less noisy while maintaining fidelity
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Visitor};
 use crate::txxt::lexers::Token;
 use std::fmt;
@@ -39,12 +39,12 @@ pub struct BlankLineGroup {
     /// The source tokens that make up this group
     pub source_tokens: Vec<Token>,
     /// The location of this group in the source
-    pub location: Location,
+    pub location: Range,
 }
 
 impl BlankLineGroup {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
 
     pub fn new(count: usize, source_tokens: Vec<Token>) -> Self {
@@ -55,7 +55,7 @@ impl BlankLineGroup {
         }
     }
 
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -74,8 +74,8 @@ impl AstNode for BlankLineGroup {
         }
     }
 
-    fn location(&self) -> Location {
-        self.location
+    fn range(&self) -> &Range {
+        &self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {

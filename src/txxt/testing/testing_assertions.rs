@@ -60,23 +60,27 @@ impl<'a> DocumentAssertion<'a> {
 
     /// Assert the root session location starts at the given line and column
     pub fn root_location_starts_at(self, expected_line: usize, expected_column: usize) -> Self {
-        let actual = self.doc.root.location;
+        let actual = self.doc.root.location.clone();
         assert_eq!(
-            actual.start.line, expected_line,
+            actual.clone().start.line,
+            expected_line,
             "Expected root session location start line {}, found {}",
-            expected_line, actual.start.line
+            expected_line,
+            actual.clone().start.line
         );
         assert_eq!(
-            actual.start.column, expected_column,
+            actual.clone().start.column,
+            expected_column,
             "Expected root session location start column {}, found {}",
-            expected_column, actual.start.column
+            expected_column,
+            actual.clone().start.column
         );
         self
     }
 
     /// Assert the root session location ends at the given line and column
     pub fn root_location_ends_at(self, expected_line: usize, expected_column: usize) -> Self {
-        let actual = self.doc.root.location;
+        let actual = self.doc.root.location.clone();
         assert_eq!(
             actual.end.line, expected_line,
             "Expected root session location end line {}, found {}",
@@ -92,10 +96,10 @@ impl<'a> DocumentAssertion<'a> {
 
     /// Assert the root session location contains the given position
     pub fn root_location_contains(self, line: usize, column: usize) -> Self {
-        use crate::txxt::ast::location::Position;
+        use crate::txxt::ast::range::Position;
 
         let pos = Position::new(line, column);
-        let location = self.doc.root.location;
+        let location = self.doc.root.location.clone();
         assert!(
             location.contains(pos),
             "Expected root session location {} to contain position {}:{}",
@@ -108,10 +112,10 @@ impl<'a> DocumentAssertion<'a> {
 
     /// Assert the root session location does NOT contain the given position
     pub fn root_location_excludes(self, line: usize, column: usize) -> Self {
-        use crate::txxt::ast::location::Position;
+        use crate::txxt::ast::range::Position;
 
         let pos = Position::new(line, column);
-        let location = self.doc.root.location;
+        let location = self.doc.root.location.clone();
         assert!(
             !location.contains(pos),
             "Expected root session location {} to NOT contain position {}:{}",
@@ -752,12 +756,12 @@ fn summarize_items(items: &[ContentItem]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::ast::location::{Location, Position};
+    use crate::txxt::ast::range::{Position, Range};
     use crate::txxt::ast::{Document, Session};
 
     #[test]
     fn test_root_location_starts_at() {
-        let location = Location::new(Position::new(0, 0), Position::new(0, 10));
+        let location = Range::new(0..0, Position::new(0, 0), Position::new(0, 10));
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
@@ -772,7 +776,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Expected root session location start line 5, found 0")]
     fn test_root_location_starts_at_fails_wrong_line() {
-        let location = Location::new(Position::new(0, 0), Position::new(0, 10));
+        let location = Range::new(0..0, Position::new(0, 0), Position::new(0, 10));
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
@@ -785,7 +789,7 @@ mod tests {
 
     #[test]
     fn test_root_location_ends_at() {
-        let location = Location::new(Position::new(0, 0), Position::new(2, 15));
+        let location = Range::new(0..0, Position::new(0, 0), Position::new(2, 15));
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
@@ -799,7 +803,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Expected root session location end column 10, found 15")]
     fn test_root_location_ends_at_fails_wrong_column() {
-        let location = Location::new(Position::new(0, 0), Position::new(2, 15));
+        let location = Range::new(0..0, Position::new(0, 0), Position::new(2, 15));
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
@@ -812,7 +816,7 @@ mod tests {
 
     #[test]
     fn test_root_location_contains() {
-        let location = Location::new(Position::new(1, 0), Position::new(3, 10));
+        let location = Range::new(0..0, Position::new(1, 0), Position::new(3, 10));
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
@@ -826,7 +830,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Expected root session location")]
     fn test_root_location_contains_fails() {
-        let location = Location::new(Position::new(1, 0), Position::new(3, 10));
+        let location = Range::new(0..0, Position::new(1, 0), Position::new(3, 10));
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
@@ -839,7 +843,7 @@ mod tests {
 
     #[test]
     fn test_root_location_excludes() {
-        let location = Location::new(Position::new(1, 0), Position::new(3, 10));
+        let location = Range::new(0..0, Position::new(1, 0), Position::new(3, 10));
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
@@ -853,7 +857,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Expected root session location")]
     fn test_root_location_excludes_fails() {
-        let location = Location::new(Position::new(1, 0), Position::new(3, 10));
+        let location = Range::new(0..0, Position::new(1, 0), Position::new(3, 10));
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
@@ -866,7 +870,7 @@ mod tests {
 
     #[test]
     fn test_location_assertions_are_fluent() {
-        let location = Location::new(Position::new(0, 0), Position::new(5, 20));
+        let location = Range::new(0..0, Position::new(0, 0), Position::new(5, 20));
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {

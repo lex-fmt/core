@@ -12,8 +12,9 @@
 //! making it testable and maintainable independently.
 
 use super::declarative_grammar;
+use crate::txxt::ast::Range;
 use crate::txxt::lexers::linebased::tokens::LineContainerToken;
-use crate::txxt::parsers::{ContentItem, Document, Location, Position};
+use crate::txxt::parsers::{ContentItem, Document, Position};
 
 /// Parse using the new declarative grammar engine (Delivery 2).
 ///
@@ -40,7 +41,8 @@ pub fn parse_experimental_v2(tree: LineContainerToken, source: &str) -> Result<D
 
     // Create the root session containing all top-level content using common builder
     use crate::txxt::parsers::common::builders::build_session;
-    let root_location = Location {
+    let root_location = Range {
+        span: 0..0,
         start: Position { line: 0, column: 0 },
         end: Position { line: 0, column: 0 },
     };

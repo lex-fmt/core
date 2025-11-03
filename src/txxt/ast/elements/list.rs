@@ -23,7 +23,7 @@
 //! - Labels (used by annotations in lists): docs/specs/v1/elements/labels.txxt
 //! - Parameters (used by annotations in lists): docs/specs/v1/elements/parameters.txxt
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
@@ -35,7 +35,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
     pub content: Vec<ContentItem>,
-    pub location: Location,
+    pub location: Range,
 }
 
 /// A list item has text and optional nested content
@@ -43,12 +43,12 @@ pub struct List {
 pub struct ListItem {
     pub(crate) text: Vec<TextContent>,
     pub content: Vec<ContentItem>,
-    pub location: Location,
+    pub location: Range,
 }
 
 impl List {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(items: Vec<ContentItem>) -> Self {
         Self {
@@ -57,11 +57,11 @@ impl List {
         }
     }
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
     /// Preferred builder
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -74,8 +74,8 @@ impl AstNode for List {
     fn display_label(&self) -> String {
         format!("{} items", self.content.len())
     }
-    fn location(&self) -> Location {
-        self.location
+    fn range(&self) -> &Range {
+        &self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -91,8 +91,8 @@ impl fmt::Display for List {
 }
 
 impl ListItem {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(text: String) -> Self {
         Self {
@@ -117,11 +117,11 @@ impl ListItem {
         }
     }
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
     /// Preferred builder
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -142,8 +142,8 @@ impl AstNode for ListItem {
             text.to_string()
         }
     }
-    fn location(&self) -> Location {
-        self.location
+    fn range(&self) -> &Range {
+        &self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -176,11 +176,12 @@ mod tests {
 
     #[test]
     fn test_list() {
-        let location = super::super::super::location::Location::new(
-            super::super::super::location::Position::new(1, 0),
-            super::super::super::location::Position::new(1, 10),
+        let location = super::super::super::range::Range::new(
+            0..0,
+            super::super::super::range::Position::new(1, 0),
+            super::super::super::range::Position::new(1, 10),
         );
-        let list = List::new(vec![]).at(location);
+        let list = List::new(vec![]).at(location.clone());
         assert_eq!(list.location, location);
     }
 }

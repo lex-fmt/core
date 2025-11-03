@@ -118,7 +118,7 @@
 //! See the module tests below (lines 127+) for comprehensive coverage.
 
 use std::fmt;
-use std::ops::Range;
+use std::ops::Range as ByteRange;
 
 /// Represents a position in source code (line and column)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -146,15 +146,16 @@ impl Default for Position {
 }
 
 /// Represents a location in source code (start and end positions)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Location {
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Range {
+    pub span: ByteRange<usize>,
     pub start: Position,
     pub end: Position,
 }
 
-impl Location {
-    pub fn new(start: Position, end: Position) -> Self {
-        Self { start, end }
+impl Range {
+    pub fn new(span: ByteRange<usize>, start: Position, end: Position) -> Self {
+        Self { span, start, end }
     }
 
     /// Check if a position is contained within this location
@@ -166,7 +167,7 @@ impl Location {
     }
 
     /// Check if another location overlaps with this location
-    pub fn overlaps(&self, other: Location) -> bool {
+    pub fn overlaps(&self, other: &Range) -> bool {
         self.contains(other.start)
             || self.contains(other.end)
             || other.contains(self.start)
@@ -174,15 +175,19 @@ impl Location {
     }
 }
 
-impl fmt::Display for Location {
+impl fmt::Display for Range {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}..{}", self.start, self.end)
     }
 }
 
-impl Default for Location {
+impl Default for Range {
     fn default() -> Self {
-        Self::new(Position::default(), Position::default())
+        Self::new(
+            ByteRange { start: 0, end: 0 },
+            Position::default(),
+            Position::default(),
+        )
     }
 }
 
@@ -219,8 +224,9 @@ impl SourceLocation {
     }
 
     /// Convert a byte range to a location
-    pub fn range_to_location(&self, range: &Range<usize>) -> Location {
-        Location::new(
+    pub fn byte_range_to_ast_range(&self, range: &ByteRange<usize>) -> Range {
+        Range::new(
+            range.clone(),
             self.byte_to_position(range.start),
             self.byte_to_position(range.end),
         )
@@ -267,7 +273,7 @@ mod tests {
     fn test_location_creation() {
         let start = Position::new(0, 0);
         let end = Position::new(2, 5);
-        let location = Location::new(start, end);
+        let location = Range::new(0..0, start, end);
 
         assert_eq!(location.start, start);
         assert_eq!(location.end, end);
@@ -276,7 +282,7 @@ mod tests {
     // @audit: no_source
     #[test]
     fn test_location_contains_single_line() {
-        let location = Location::new(Position::new(0, 0), Position::new(0, 10));
+        let location = Range::new(0..0, Position::new(0, 0), Position::new(0, 10));
 
         assert!(location.contains(Position::new(0, 0)));
         assert!(location.contains(Position::new(0, 5)));
@@ -289,7 +295,7 @@ mod tests {
     // @audit: no_source
     #[test]
     fn test_location_contains_multiline() {
-        let location = Location::new(Position::new(1, 5), Position::new(2, 10));
+        let location = Range::new(0..0, Position::new(1, 5), Position::new(2, 10));
 
         // Before location
         assert!(!location.contains(Position::new(1, 4)));
@@ -309,14 +315,14 @@ mod tests {
     // @audit: no_source
     #[test]
     fn test_location_overlaps() {
-        let location1 = Location::new(Position::new(0, 0), Position::new(1, 5));
-        let location2 = Location::new(Position::new(1, 0), Position::new(2, 5));
-        let location3 = Location::new(Position::new(3, 0), Position::new(4, 5));
+        let location1 = Range::new(0..0, Position::new(0, 0), Position::new(1, 5));
+        let location2 = Range::new(0..0, Position::new(1, 0), Position::new(2, 5));
+        let location3 = Range::new(0..0, Position::new(3, 0), Position::new(4, 5));
 
-        assert!(location1.overlaps(location2));
-        assert!(location2.overlaps(location1));
-        assert!(!location1.overlaps(location3));
-        assert!(!location3.overlaps(location1));
+        assert!(location1.overlaps(&location2));
+        assert!(location2.overlaps(&location1));
+        assert!(!location1.overlaps(&location3));
+        assert!(!location3.overlaps(&location1));
     }
 
     // @audit: no_source
@@ -329,7 +335,7 @@ mod tests {
     // @audit: no_source
     #[test]
     fn test_location_display() {
-        let location = Location::new(Position::new(1, 0), Position::new(2, 5));
+        let location = Range::new(0..0, Position::new(1, 0), Position::new(2, 5));
         assert_eq!(format!("{}", location), "1:0..2:5");
     }
 
@@ -372,7 +378,7 @@ mod tests {
     #[test]
     fn test_range_to_location_single_line() {
         let loc = SourceLocation::new("Hello World");
-        let location = loc.range_to_location(&(0..5));
+        let location = loc.byte_range_to_ast_range(&(0..5));
 
         assert_eq!(location.start, Position::new(0, 0));
         assert_eq!(location.end, Position::new(0, 5));
@@ -381,7 +387,7 @@ mod tests {
     #[test]
     fn test_range_to_location_multiline() {
         let loc = SourceLocation::new("Hello\nWorld\nTest");
-        let location = loc.range_to_location(&(6..12));
+        let location = loc.byte_range_to_ast_range(&(6..12));
 
         assert_eq!(location.start, Position::new(1, 0));
         assert_eq!(location.end, Position::new(2, 0));
@@ -409,13 +415,13 @@ mod tests {
 mod ast_integration_tests {
     use crate::txxt::ast::{
         elements::Session,
-        location::{Location, Position},
+        range::{Position, Range},
         traits::{AstNode, Container},
     };
 
     #[test]
     fn test_start_position() {
-        let location = Location::new(Position::new(1, 0), Position::new(1, 10));
+        let location = Range::new(0..0, Position::new(1, 0), Position::new(1, 10));
         let session = Session::with_title("Title".to_string()).at(location);
         assert_eq!(session.start_position(), Position::new(1, 0));
     }
@@ -426,8 +432,8 @@ mod ast_integration_tests {
         use crate::txxt::ast::elements::Document;
         use crate::txxt::ast::find_nodes_at_position;
 
-        let location1 = Location::new(Position::new(1, 0), Position::new(1, 10));
-        let location2 = Location::new(Position::new(2, 0), Position::new(2, 10));
+        let location1 = Range::new(0..0, Position::new(1, 0), Position::new(1, 10));
+        let location2 = Range::new(0..0, Position::new(2, 0), Position::new(2, 10));
         let session1 = Session::with_title("Title1".to_string()).at(location1);
         let session2 = Session::with_title("Title2".to_string()).at(location2);
         let document = Document::with_content(vec![
@@ -445,9 +451,9 @@ mod ast_integration_tests {
         use crate::txxt::ast::elements::{ContentItem, Document, Paragraph};
         use crate::txxt::ast::find_nodes_at_position;
 
-        let para_location = Location::new(Position::new(2, 0), Position::new(2, 10));
+        let para_location = Range::new(0..0, Position::new(2, 0), Position::new(2, 10));
         let paragraph = Paragraph::from_line("Nested".to_string()).at(para_location);
-        let session_location = Location::new(Position::new(1, 0), Position::new(3, 0));
+        let session_location = Range::new(0..0, Position::new(1, 0), Position::new(3, 0));
         let mut session = Session::with_title("Title".to_string()).at(session_location);
         session
             .children_mut()

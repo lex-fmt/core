@@ -40,11 +40,11 @@
 use crate::txxt::lexers::linebased::tokens::LineToken;
 use crate::txxt::lexers::tokens::Token;
 use crate::txxt::parsers::ContentItem;
-use std::ops::Range;
+use std::ops::Range as ByteRange;
 
 use super::builders;
 use super::token_processing::{
-    compute_bounding_box, extract_text, flatten_token_vecs, range_to_location,
+    byte_range_to_ast_range, compute_bounding_box, extract_text, flatten_token_vecs,
 };
 
 // ============================================================================
@@ -76,7 +76,7 @@ use super::token_processing::{
 /// ```
 pub fn build_paragraph_from_line_tokens(line_tokens: &[LineToken], source: &str) -> ContentItem {
     // Extract (text, location) for each line
-    let text_lines: Vec<(String, crate::txxt::ast::Location)> = line_tokens
+    let text_lines: Vec<(String, crate::txxt::ast::Range)> = line_tokens
         .iter()
         .map(|line_token| {
             // Get source tokens for this line
@@ -86,7 +86,7 @@ pub fn build_paragraph_from_line_tokens(line_tokens: &[LineToken], source: &str)
             let range = compute_bounding_box(&tokens);
 
             // Convert to location and extract text
-            let location = range_to_location(range.clone(), source);
+            let location = byte_range_to_ast_range(range.clone(), source);
             let text = extract_text(range, source);
 
             (text, location)
@@ -94,13 +94,13 @@ pub fn build_paragraph_from_line_tokens(line_tokens: &[LineToken], source: &str)
         .collect();
 
     // Compute overall location from all line tokens
-    let all_token_vecs: Vec<Vec<(Token, Range<usize>)>> = line_tokens
+    let all_token_vecs: Vec<Vec<(Token, ByteRange<usize>)>> = line_tokens
         .iter()
         .map(|lt| lt.source_token_pairs())
         .collect();
     let all_tokens = flatten_token_vecs(&all_token_vecs);
     let overall_range = compute_bounding_box(&all_tokens);
-    let overall_location = range_to_location(overall_range, source);
+    let overall_location = byte_range_to_ast_range(overall_range, source);
 
     // Call base builder
     builders::build_paragraph(text_lines, overall_location)
@@ -129,7 +129,7 @@ pub fn build_session_from_line_token(
     // Extract title text and location
     let title_tokens = title_token.source_token_pairs();
     let title_range = compute_bounding_box(&title_tokens);
-    let title_location = range_to_location(title_range.clone(), source);
+    let title_location = byte_range_to_ast_range(title_range.clone(), source);
     let title_text = extract_text(title_range, source);
 
     // Call base builder
@@ -159,7 +159,7 @@ pub fn build_definition_from_line_token(
     // Extract subject text and location
     let subject_tokens = subject_token.source_token_pairs();
     let subject_range = compute_bounding_box(&subject_tokens);
-    let subject_location = range_to_location(subject_range.clone(), source);
+    let subject_location = byte_range_to_ast_range(subject_range.clone(), source);
     let subject_text = extract_text(subject_range, source);
 
     // Call base builder
@@ -205,7 +205,7 @@ pub fn build_list_item_from_line_token(
     // Extract marker tokens
     let marker_tokens = marker_token.source_token_pairs();
     let marker_range = compute_bounding_box(&marker_tokens);
-    let marker_location = range_to_location(marker_range.clone(), source);
+    let marker_location = byte_range_to_ast_range(marker_range.clone(), source);
     let item_text = extract_text(marker_range, source);
 
     // Call base builder
@@ -237,7 +237,7 @@ pub fn build_annotation_from_line_token(
     // Extract label
     let label_tokens = label_token.source_token_pairs();
     let label_range = compute_bounding_box(&label_tokens);
-    let label_location = range_to_location(label_range.clone(), source);
+    let label_location = byte_range_to_ast_range(label_range.clone(), source);
     let label_text = extract_text(label_range, source);
 
     // Call base builder
@@ -264,14 +264,14 @@ pub fn build_annotation_from_line_token(
 pub fn build_foreign_block_from_line_token(
     subject_token: &LineToken,
     content_text: String,
-    content_location: crate::txxt::ast::Location,
+    content_location: crate::txxt::ast::Range,
     closing_annotation: crate::txxt::ast::Annotation,
     source: &str,
 ) -> ContentItem {
     // Extract subject
     let subject_tokens = subject_token.source_token_pairs();
     let subject_range = compute_bounding_box(&subject_tokens);
-    let subject_location = range_to_location(subject_range.clone(), source);
+    let subject_location = byte_range_to_ast_range(subject_range.clone(), source);
     let subject_text = extract_text(subject_range, source);
 
     // Call base builder
@@ -297,13 +297,13 @@ mod tests {
         let line_tokens = vec![
             LineToken {
                 source_tokens: vec![Token::Text("Hello".to_string())],
-                token_spans: vec![0..5],
+                token_spans: vec![ByteRange { start: 0, end: 5 }],
                 line_type: LineTokenType::ParagraphLine,
                 source_span: Some(0..5),
             },
             LineToken {
                 source_tokens: vec![Token::Text("World".to_string())],
-                token_spans: vec![6..11],
+                token_spans: vec![ByteRange { start: 6, end: 11 }],
                 line_type: LineTokenType::ParagraphLine,
                 source_span: Some(6..11),
             },
@@ -328,7 +328,10 @@ mod tests {
     fn test_build_session_from_line_token() {
         let title_token = LineToken {
             source_tokens: vec![Token::Text("Title".to_string()), Token::Colon],
-            token_spans: vec![0..5, 5..6],
+            token_spans: vec![
+                ByteRange { start: 0, end: 5 },
+                ByteRange { start: 5, end: 6 },
+            ],
             line_type: LineTokenType::SubjectLine,
             source_span: Some(0..6),
         };
@@ -351,7 +354,10 @@ mod tests {
     fn test_build_definition_from_line_token() {
         let subject_token = LineToken {
             source_tokens: vec![Token::Text("Subject".to_string()), Token::Colon],
-            token_spans: vec![0..7, 7..8],
+            token_spans: vec![
+                ByteRange { start: 0, end: 7 },
+                ByteRange { start: 7, end: 8 },
+            ],
             line_type: LineTokenType::SubjectLine,
             source_span: Some(0..8),
         };

@@ -14,7 +14,7 @@
 //! Learn More:
 //! - Parameters spec: docs/specs/v1/elements/parameters.txxt
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use std::fmt;
 
 /// A parameter represents a key-value pair
@@ -22,12 +22,12 @@ use std::fmt;
 pub struct Parameter {
     pub key: String,
     pub value: String,
-    pub location: Location,
+    pub location: Range,
 }
 
 impl Parameter {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
 
     pub fn new(key: String, value: String) -> Self {
@@ -38,11 +38,11 @@ impl Parameter {
         }
     }
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
     /// Preferred builder
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -60,11 +60,12 @@ mod tests {
 
     #[test]
     fn test_parameter() {
-        let location = super::super::super::location::Location::new(
-            super::super::super::location::Position::new(1, 0),
-            super::super::super::location::Position::new(1, 10),
+        let location = super::super::super::range::Range::new(
+            0..0,
+            super::super::super::range::Position::new(1, 0),
+            super::super::super::range::Position::new(1, 10),
         );
-        let param = Parameter::new("key".to_string(), "value".to_string()).at(location);
+        let param = Parameter::new("key".to_string(), "value".to_string()).at(location.clone());
         assert_eq!(param.location, location);
     }
 }

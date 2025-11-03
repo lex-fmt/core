@@ -12,7 +12,7 @@
 //! (.as_string(), future: .as_inlines()), which work regardless of the
 //! internal representation.
 
-use super::location::Location;
+use super::range::Range;
 
 /// Represents user-provided text content with source position tracking.
 ///
@@ -22,7 +22,7 @@ use super::location::Location;
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextContent {
     /// Location in the source covering this text
-    pub location: Option<Location>,
+    pub location: Option<Range>,
     /// Internal representation (evolves over time)
     inner: TextRepresentation,
 }
@@ -49,7 +49,7 @@ impl TextContent {
     /// * `location` - Optional source location of this text
     ///
     /// ```
-    pub fn from_string(text: String, location: Option<Location>) -> Self {
+    pub fn from_string(text: String, location: Option<Range>) -> Self {
         Self {
             location,
             inner: TextRepresentation::Text(text),
@@ -167,8 +167,8 @@ mod tests {
 
     #[test]
     fn test() {
-        let location = Location::new(Position::new(0, 0), Position::new(0, 5));
-        let content = TextContent::from_string("Hello".to_string(), Some(location));
+        let location = Range::new(0..0, Position::new(0, 0), Position::new(0, 5));
+        let content = TextContent::from_string("Hello".to_string(), Some(location.clone()));
         assert_eq!(content.location, Some(location));
     }
 
@@ -179,5 +179,5 @@ mod tests {
         assert_eq!(content.as_string(), "World");
     }
 
-    use super::super::location::Position;
+    use super::super::range::Position;
 }
