@@ -5,6 +5,7 @@
 pub mod builders;
 pub mod interface;
 pub mod location;
+pub mod token_processing;
 
 pub use builders::{
     build_annotation, build_definition, build_foreign_block, build_list, build_list_item,
