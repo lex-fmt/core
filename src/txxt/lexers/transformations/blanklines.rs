@@ -49,16 +49,14 @@ pub fn transform_blank_lines(
             // Emit the first Newline with its original location (ends the current line)
             result.push((Token::Newline, tokens[i].1.clone()));
 
-            // If we have 2+ consecutive newlines, also emit a BlankLine token
-            // The BlankLine location covers all the extra newlines (from 2nd to last)
+            // If we have 2+ consecutive newlines, emit a BlankLine token
+            // Store all the extra newline tokens (from 2nd onwards) as source_tokens
             if newline_count >= 2 {
-                // Calculate the location covering the extra newlines
-                // Start from the second newline, end at the last newline
-                let blank_line_start = tokens[i + 1].1.start;
-                let blank_line_end = tokens[j - 1].1.end;
-                let blank_line_location = blank_line_start..blank_line_end;
+                // Collect the extra newline tokens (from 2nd to last)
+                let source_tokens: Vec<(Token, std::ops::Range<usize>)> = tokens[i + 1..j].to_vec();
 
-                result.push((Token::BlankLine, blank_line_location));
+                // Placeholder span 0..0 - will never be used, AST construction unrolls source_tokens
+                result.push((Token::BlankLine(source_tokens), 0..0));
             }
 
             // Move past all the newlines we just processed
@@ -446,7 +444,7 @@ mod tests {
         // Find the BlankLine token
         let blank_line_pos = result
             .iter()
-            .position(|(t, _)| matches!(t, Token::BlankLine));
+            .position(|(t, _)| matches!(t, Token::BlankLine(_)));
         assert!(blank_line_pos.is_some(), "Should have a BlankLine token");
 
         let (blank_token, blank_location) = &result[blank_line_pos.unwrap()];

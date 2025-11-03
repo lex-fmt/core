@@ -5,7 +5,7 @@
 
 // Re-export parsers and utilities from consolidated builders module
 // Only re-export what's actually used by the parser
-pub(crate) use super::builders::{paragraph, token};
+pub(crate) use super::builders::paragraph;
 
 // Import location utilities from common module
 #[allow(unused_imports)]
