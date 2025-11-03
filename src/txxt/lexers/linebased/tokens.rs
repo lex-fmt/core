@@ -38,6 +38,24 @@ pub struct LineToken {
     pub source_span: Option<std::ops::Range<usize>>,
 }
 
+impl LineToken {
+    /// Get source tokens as (Token, Range<usize>) pairs.
+    ///
+    /// This creates owned pairs from the separate source_tokens and token_spans vectors.
+    /// Used by the AST construction facade to get tokens in the format expected by
+    /// the token processing utilities.
+    ///
+    /// Note: LineToken stores tokens and spans separately for serialization efficiency.
+    /// This method creates the paired format needed for location tracking.
+    pub fn source_token_pairs(&self) -> Vec<(Token, std::ops::Range<usize>)> {
+        self.source_tokens
+            .iter()
+            .zip(self.token_spans.iter())
+            .map(|(token, span)| (token.clone(), span.clone()))
+            .collect()
+    }
+}
+
 /// The classification of a line token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LineTokenType {
@@ -270,5 +288,32 @@ mod tests {
             formatted,
             "<blank-line><subject-line><blank-line><indent><paragraph-line><dedent>"
         );
+    }
+
+    #[test]
+    fn test_line_token_source_token_pairs() {
+        // Test that LineToken can provide source tokens in paired format
+        let line_token = LineToken {
+            source_tokens: vec![
+                Token::Text("hello".to_string()),
+                Token::Whitespace,
+                Token::Text("world".to_string()),
+            ],
+            token_spans: vec![0..5, 5..6, 6..11],
+            line_type: LineTokenType::ParagraphLine,
+            source_span: Some(0..11),
+        };
+
+        let pairs = line_token.source_token_pairs();
+        assert_eq!(pairs.len(), 3);
+        assert_eq!(pairs[0].1, 0..5);
+        assert_eq!(pairs[1].1, 5..6);
+        assert_eq!(pairs[2].1, 6..11);
+
+        // Verify tokens match
+        match &pairs[0].0 {
+            Token::Text(s) => assert_eq!(s, "hello"),
+            _ => panic!("Expected Text token"),
+        }
     }
 }

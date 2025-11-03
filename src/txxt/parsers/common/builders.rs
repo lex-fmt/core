@@ -12,7 +12,7 @@
 
 use crate::txxt::ast::traits::AstNode;
 use crate::txxt::ast::{
-    Annotation, Definition, ForeignBlock, Label, List, ListItem, Location, Paragraph, Parameter,
+    Annotation, Definition, ForeignBlock, Label, List, ListItem, Paragraph, Parameter, Range,
     Session, TextContent, TextLine,
 };
 use crate::txxt::parsers::ContentItem;
@@ -34,14 +34,11 @@ use super::location::{aggregate_locations, compute_location_from_locations};
 ///
 /// # Returns
 /// A Paragraph ContentItem
-pub fn build_paragraph(
-    text_lines: Vec<(String, Location)>,
-    overall_location: Location,
-) -> ContentItem {
+pub fn build_paragraph(text_lines: Vec<(String, Range)>, overall_location: Range) -> ContentItem {
     let lines: Vec<ContentItem> = text_lines
         .into_iter()
         .map(|(text, location)| {
-            let text_content = TextContent::from_string(text, Some(location));
+            let text_content = TextContent::from_string(text, Some(location.clone()));
             let text_line = TextLine::new(text_content).at(location);
             ContentItem::TextLine(text_line)
         })
@@ -70,10 +67,10 @@ pub fn build_paragraph(
 /// A Session ContentItem
 pub fn build_session(
     title_text: String,
-    title_location: Location,
+    title_location: Range,
     content: Vec<ContentItem>,
 ) -> ContentItem {
-    let title = TextContent::from_string(title_text, Some(title_location));
+    let title = TextContent::from_string(title_text, Some(title_location.clone()));
     let location = aggregate_locations(title_location, &content);
 
     let session = Session::new(title, content).at(location);
@@ -97,10 +94,10 @@ pub fn build_session(
 /// A Definition ContentItem
 pub fn build_definition(
     subject_text: String,
-    subject_location: Location,
+    subject_location: Range,
     content: Vec<ContentItem>,
 ) -> ContentItem {
-    let subject = TextContent::from_string(subject_text, Some(subject_location));
+    let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
     let location = aggregate_locations(subject_location, &content);
 
     let definition = Definition::new(subject, content).at(location);
@@ -125,11 +122,11 @@ pub fn build_definition(
 /// An Annotation ContentItem
 pub fn build_annotation(
     label_text: String,
-    label_location: Location,
+    label_location: Range,
     parameters: Vec<Parameter>,
     content: Vec<ContentItem>,
 ) -> ContentItem {
-    let label = Label::new(label_text).at(label_location);
+    let label = Label::new(label_text).at(label_location.clone());
     let location = aggregate_locations(label_location, &content);
 
     ContentItem::Annotation(Annotation {
@@ -154,21 +151,21 @@ pub fn build_annotation(
 /// # Returns
 /// A List ContentItem
 pub fn build_list(items: Vec<ContentItem>) -> ContentItem {
-    use crate::txxt::ast::location::Position;
+    use crate::txxt::ast::range::Position;
 
     if items.is_empty() {
         // Create an empty list with default location
         return ContentItem::List(List {
             content: vec![],
-            location: Location::default(),
+            location: Range::default(),
         });
     }
 
     // Compute location from all items
     let location = {
-        let item_locations: Vec<Location> = items.iter().map(|item| item.location()).collect();
+        let item_locations: Vec<Range> = items.iter().map(|item| item.range().clone()).collect();
         if item_locations.is_empty() {
-            Location::default()
+            Range::default()
         } else {
             // Find bounding box for all items
             let min_line = item_locations
@@ -190,7 +187,8 @@ pub fn build_list(items: Vec<ContentItem>) -> ContentItem {
                 .max()
                 .unwrap_or(0);
 
-            Location::new(
+            Range::new(
+                0..0, // This is an aggregated range, the original spans may not be contiguous
                 Position::new(min_line, min_col),
                 Position::new(max_line, max_col),
             )
@@ -220,7 +218,7 @@ pub fn build_list(items: Vec<ContentItem>) -> ContentItem {
 /// A ListItem ContentItem
 pub fn build_list_item(
     item_text: String,
-    item_location: Location,
+    item_location: Range,
     content: Vec<ContentItem>,
 ) -> ContentItem {
     let location = if content.is_empty() {
@@ -258,18 +256,18 @@ pub fn build_list_item(
 /// A ForeignBlock ContentItem
 pub fn build_foreign_block(
     subject_text: String,
-    subject_location: Location,
+    subject_location: Range,
     content_text: String,
-    content_location: Location,
+    content_location: Range,
     closing_annotation: Annotation,
 ) -> ContentItem {
-    let subject = TextContent::from_string(subject_text, Some(subject_location));
-    let content = TextContent::from_string(content_text, Some(content_location));
+    let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
+    let content = TextContent::from_string(content_text, Some(content_location.clone()));
 
     let location_sources = vec![
         subject_location,
         content_location,
-        closing_annotation.location,
+        closing_annotation.location.clone(),
     ];
     let location = compute_location_from_locations(&location_sources);
 
@@ -280,7 +278,7 @@ pub fn build_foreign_block(
         location,
     };
 
-    ContentItem::ForeignBlock(foreign_block)
+    ContentItem::ForeignBlock(Box::new(foreign_block))
 }
 
 // ============================================================================

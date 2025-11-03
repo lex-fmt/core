@@ -13,7 +13,7 @@
 //! - A single paragraph spans multiple lines until a blank line
 //! - Blank lines separate paragraphs; lists and sessions break flow
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, TextNode, Visitor};
 use std::fmt;
@@ -22,12 +22,12 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextLine {
     pub content: TextContent,
-    pub location: Location,
+    pub location: Range,
 }
 
 impl TextLine {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(content: TextContent) -> Self {
         Self {
@@ -37,11 +37,11 @@ impl TextLine {
     }
 
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
 
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -65,8 +65,8 @@ impl AstNode for TextLine {
         }
     }
 
-    fn location(&self) -> Location {
-        self.location
+    fn range(&self) -> &Range {
+        &self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -85,12 +85,12 @@ impl fmt::Display for TextLine {
 pub struct Paragraph {
     /// Lines stored as ContentItems (each a TextLine wrapping TextContent)
     pub lines: Vec<super::content_item::ContentItem>,
-    pub location: Location,
+    pub location: Range,
 }
 
 impl Paragraph {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(lines: Vec<super::content_item::ContentItem>) -> Self {
         Self {
@@ -107,7 +107,7 @@ impl Paragraph {
         }
     }
     /// Create a paragraph with a single line and attach a location
-    pub fn from_line_at(line: String, location: Location) -> Self {
+    pub fn from_line_at(line: String, location: Range) -> Self {
         let mut para = Self {
             lines: vec![super::content_item::ContentItem::TextLine(TextLine::new(
                 TextContent::from_string(line, None),
@@ -118,12 +118,12 @@ impl Paragraph {
         para
     }
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
     /// Preferred builder
-    pub fn at(mut self, location: Location) -> Self {
-        self.location = location;
+    pub fn at(mut self, location: Range) -> Self {
+        self.location = location.clone();
         // When a paragraph's location is set in tests, we should also update
         // the location of the single child TextLine for consistency, as this
         // is what the parser would do.
@@ -163,8 +163,8 @@ impl AstNode for Paragraph {
             text
         }
     }
-    fn location(&self) -> Location {
-        self.location
+    fn range(&self) -> &Range {
+        &self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -224,11 +224,12 @@ mod tests {
 
     #[test]
     fn test_paragraph() {
-        let location = Location::new(
-            super::super::super::location::Position::new(0, 0),
-            super::super::super::location::Position::new(0, 5),
+        let location = Range::new(
+            0..0,
+            super::super::super::range::Position::new(0, 0),
+            super::super::super::range::Position::new(0, 5),
         );
-        let para = Paragraph::from_line("Hello".to_string()).at(location);
+        let para = Paragraph::from_line("Hello".to_string()).at(location.clone());
 
         assert_eq!(para.location, location);
     }

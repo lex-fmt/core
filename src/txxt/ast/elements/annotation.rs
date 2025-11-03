@@ -41,7 +41,7 @@
 //! - Labels: docs/specs/v1/elements/labels.txxt
 //! - Parameters: docs/specs/v1/elements/parameters.txxt
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
 use super::content_item::ContentItem;
 use super::label::Label;
@@ -54,12 +54,12 @@ pub struct Annotation {
     pub label: Label,
     pub parameters: Vec<Parameter>,
     pub content: Vec<ContentItem>,
-    pub location: Location,
+    pub location: Range,
 }
 
 impl Annotation {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(label: Label, parameters: Vec<Parameter>, content: Vec<ContentItem>) -> Self {
         Self {
@@ -86,11 +86,11 @@ impl Annotation {
         }
     }
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
     /// Preferred builder
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -107,8 +107,8 @@ impl AstNode for Annotation {
             format!("{} ({} params)", self.label.value, self.parameters.len())
         }
     }
-    fn location(&self) -> Location {
-        self.location
+    fn range(&self) -> &Range {
+        &self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -147,11 +147,12 @@ mod tests {
 
     #[test]
     fn test_annotation_with_location() {
-        let location = super::super::super::location::Location::new(
-            super::super::super::location::Position::new(1, 0),
-            super::super::super::location::Position::new(1, 10),
+        let location = super::super::super::range::Range::new(
+            0..0,
+            super::super::super::range::Position::new(1, 0),
+            super::super::super::range::Position::new(1, 10),
         );
-        let annotation = Annotation::marker(Label::new("test".to_string())).at(location);
+        let annotation = Annotation::marker(Label::new("test".to_string())).at(location.clone());
         assert_eq!(annotation.location, location);
     }
 }
