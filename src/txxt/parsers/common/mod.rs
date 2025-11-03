@@ -2,6 +2,7 @@
 //!
 //! This module contains shared interfaces and utilities for parser implementations.
 
+pub mod ast_construction;
 pub mod builders;
 pub mod interface;
 pub mod location;
