@@ -240,7 +240,9 @@ impl SourceLocation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // @audit: no_source
 
+    // @audit: no_source
     #[test]
     fn test_position_creation() {
         let pos = Position::new(5, 10);
@@ -248,6 +250,7 @@ mod tests {
         assert_eq!(pos.column, 10);
     }
 
+    // @audit: no_source
     #[test]
     fn test_position_comparison() {
         let pos1 = Position::new(1, 5);
@@ -259,6 +262,7 @@ mod tests {
         assert!(pos1 < pos3);
     }
 
+    // @audit: no_source
     #[test]
     fn test_location_creation() {
         let start = Position::new(0, 0);
@@ -269,6 +273,7 @@ mod tests {
         assert_eq!(location.end, end);
     }
 
+    // @audit: no_source
     #[test]
     fn test_location_contains_single_line() {
         let location = Location::new(Position::new(0, 0), Position::new(0, 10));
@@ -281,6 +286,7 @@ mod tests {
         assert!(!location.contains(Position::new(1, 0)));
     }
 
+    // @audit: no_source
     #[test]
     fn test_location_contains_multiline() {
         let location = Location::new(Position::new(1, 5), Position::new(2, 10));
@@ -300,6 +306,7 @@ mod tests {
         assert!(!location.contains(Position::new(3, 0)));
     }
 
+    // @audit: no_source
     #[test]
     fn test_location_overlaps() {
         let location1 = Location::new(Position::new(0, 0), Position::new(1, 5));
@@ -312,18 +319,21 @@ mod tests {
         assert!(!location3.overlaps(location1));
     }
 
+    // @audit: no_source
     #[test]
     fn test_position_display() {
         let pos = Position::new(5, 10);
         assert_eq!(format!("{}", pos), "5:10");
     }
 
+    // @audit: no_source
     #[test]
     fn test_location_display() {
         let location = Location::new(Position::new(1, 0), Position::new(2, 5));
         assert_eq!(format!("{}", location), "1:0..2:5");
     }
 
+    // @audit: no_source
     #[test]
     fn test_byte_to_position_single_line() {
         let loc = SourceLocation::new("Hello");
@@ -332,6 +342,7 @@ mod tests {
         assert_eq!(loc.byte_to_position(4), Position::new(0, 4));
     }
 
+    // @audit: no_source
     #[test]
     fn test_byte_to_position_multiline() {
         let loc = SourceLocation::new("Hello\nworld\ntest");
@@ -349,6 +360,7 @@ mod tests {
         assert_eq!(loc.byte_to_position(15), Position::new(2, 3));
     }
 
+    // @audit: no_source
     #[test]
     fn test_byte_to_position_with_unicode() {
         let loc = SourceLocation::new("Hello\nwörld");
