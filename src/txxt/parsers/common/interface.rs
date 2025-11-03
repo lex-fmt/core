@@ -223,7 +223,6 @@ fn convert_token_trees_to_container(
                 let converted_children = children.iter().flat_map(convert_tree).collect();
                 vec![LineContainerToken::Container {
                     children: converted_children,
-                    source_span: None,
                 }]
             }
             LineTokenTree::Container(_) => {
@@ -236,10 +235,7 @@ fn convert_token_trees_to_container(
     let children = trees.iter().flat_map(convert_tree).collect();
 
     // Wrap everything in a root container
-    LineContainerToken::Container {
-        children,
-        source_span: None,
-    }
+    LineContainerToken::Container { children }
 }
 
 #[cfg(test)]

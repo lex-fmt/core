@@ -15,12 +15,14 @@ use crate::txxt::lexers::tokens::Token;
 /// which groups raw tokens into semantic line units. Each line token stores:
 /// - The original raw tokens that created it (for location information and AST construction)
 /// - The line type (what kind of line this is)
-/// - The source span (byte range in source) for location tracking
 /// - Individual token spans (to enable byte-accurate text extraction from token subsets)
 ///
-/// By preserving raw tokens, their individual spans, and the overall line span, we can later
+/// By preserving raw tokens and their individual spans, we can later
 /// pass them directly to existing AST constructors (using the same unified approach as the
 /// reference parser), which handles all location tracking and AST node creation automatically.
+///
+/// Note: LineToken does NOT store an aggregate source_span. The AST construction facade
+/// will compute bounding boxes from the individual token_spans when needed.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LineToken {
     /// The original raw tokens that comprise this line
@@ -32,10 +34,6 @@ pub struct LineToken {
 
     /// The type/classification of this line
     pub line_type: LineTokenType,
-
-    /// The byte range in source code that this line spans
-    /// Used for location tracking and mapping AST nodes back to source
-    pub source_span: Option<std::ops::Range<usize>>,
 }
 
 impl LineToken {
@@ -139,20 +137,17 @@ impl LineTokenType {
 /// - Container variant: A grouped set of child nodes at a deeper indentation level
 ///
 /// This structure allows the parser to match patterns by checking token types while
-/// maintaining the complete source structure (source spans, source tokens, nesting).
+/// maintaining the complete source structure (source tokens, nesting).
+///
+/// Note: Container does NOT store an aggregate source_span. The AST construction facade
+/// will compute bounding boxes by recursively unrolling children to their source tokens.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LineContainerToken {
     /// A single line token
     Token(LineToken),
 
     /// A container of child nodes (represents indented content or grouped lines at same level)
-    ///
-    /// children: The line tokens and nested containers at this level
-    /// source_span: The byte range covering all children in this container
-    Container {
-        children: Vec<LineContainerToken>,
-        source_span: Option<std::ops::Range<usize>>,
-    },
+    Container { children: Vec<LineContainerToken> },
 }
 
 impl LineContainerToken {
@@ -301,7 +296,6 @@ mod tests {
             ],
             token_spans: vec![0..5, 5..6, 6..11],
             line_type: LineTokenType::ParagraphLine,
-            source_span: Some(0..11),
         };
 
         let pairs = line_token.source_token_pairs();
