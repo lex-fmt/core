@@ -69,19 +69,14 @@ pub fn _to_line_tokens(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Line
                 line_tokens.push(classify_and_create_line_token(current_line));
                 current_line = Vec::new();
             }
-            // For IndentLevel tokens, extract source_tokens from the token's field if present
-            // Otherwise store the IndentLevel token itself (for backward compatibility/testing)
+            // IndentLevel tokens ALWAYS contain source tokens in production:
+            // vec![(Token::Indent, range)] from sem_indentation transformation
             let (source_tokens, token_spans) = if let Token::IndentLevel(ref sources) = token {
-                if sources.is_empty() {
-                    // No source tokens stored - keep the IndentLevel token itself
-                    (vec![token.clone()], vec![span.clone()])
-                } else {
-                    // Extract the stored source tokens
-                    let (toks, spans): (Vec<_>, Vec<_>) = sources.iter().cloned().unzip();
-                    (toks, spans)
-                }
+                // Extract the stored source tokens
+                let (toks, spans): (Vec<_>, Vec<_>) = sources.iter().cloned().unzip();
+                (toks, spans)
             } else {
-                (vec![token.clone()], vec![span.clone()])
+                unreachable!("Token matches IndentLevel but pattern failed")
             };
             line_tokens.push(LineToken {
                 source_tokens,
@@ -96,7 +91,8 @@ pub fn _to_line_tokens(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Line
                 line_tokens.push(classify_and_create_line_token(current_line));
                 current_line = Vec::new();
             }
-            // DedentLevel has empty source_tokens (purely structural)
+            // DedentLevel tokens are purely structural - ALWAYS have empty source_tokens vec![]
+            // in production (sem_indentation.rs:133). Store the DedentLevel token itself.
             line_tokens.push(LineToken {
                 source_tokens: vec![token],
                 token_spans: vec![span],
@@ -111,19 +107,14 @@ pub fn _to_line_tokens(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Line
                 line_tokens.push(classify_and_create_line_token(current_line));
                 current_line = Vec::new();
             }
-            // For BlankLine tokens, extract source_tokens from the token's field if present
-            // Otherwise store the BlankLine token itself (for backward compatibility/testing)
+            // BlankLine tokens ALWAYS contain source tokens in production:
+            // vec![(Token::Newline, range), ...] from transform_blank_lines
             let (source_tokens, token_spans) = if let Token::BlankLine(ref sources) = token {
-                if sources.is_empty() {
-                    // No source tokens stored - keep the BlankLine token itself
-                    (vec![token.clone()], vec![span.clone()])
-                } else {
-                    // Extract the stored source tokens (Newline tokens from 2nd onwards)
-                    let (toks, spans): (Vec<_>, Vec<_>) = sources.iter().cloned().unzip();
-                    (toks, spans)
-                }
+                // Extract the stored source tokens (Newline tokens from 2nd onwards)
+                let (toks, spans): (Vec<_>, Vec<_>) = sources.iter().cloned().unzip();
+                (toks, spans)
             } else {
-                (vec![token.clone()], vec![span.clone()])
+                unreachable!("Token matches BlankLine but pattern failed")
             };
             line_tokens.push(LineToken {
                 source_tokens,
@@ -558,16 +549,18 @@ mod tests {
 
     #[test]
     fn test_transform_preserves_source_tokens() {
+        // Create realistic tokens with actual source tokens like production code does
         let tokens = vec![
-            Token::Text("Title".to_string()),
-            Token::Colon,
-            Token::Newline,
-            Token::IndentLevel(vec![]),
-            Token::Text("Content".to_string()),
-            Token::Newline,
+            (Token::Text("Title".to_string()), 0..5),
+            (Token::Colon, 5..6),
+            (Token::Newline, 6..7),
+            // IndentLevel with real source token (like sem_indentation creates)
+            (Token::IndentLevel(vec![(Token::Indent, 7..11)]), 0..0),
+            (Token::Text("Content".to_string()), 11..18),
+            (Token::Newline, 18..19),
         ];
 
-        let line_tokens = _to_line_tokens(with_dummy_spans(tokens.clone()));
+        let line_tokens = _to_line_tokens(tokens);
 
         assert_eq!(line_tokens.len(), 3);
 
@@ -582,12 +575,10 @@ mod tests {
             ]
         );
 
-        // Second: IndentLevel pass-through
+        // Second: IndentLevel extracts its source token (Token::Indent)
         assert_eq!(line_tokens[1].line_type, LineTokenType::IndentLevel);
-        assert_eq!(
-            line_tokens[1].source_tokens,
-            vec![Token::IndentLevel(vec![])]
-        );
+        assert_eq!(line_tokens[1].source_tokens, vec![Token::Indent]);
+        assert_eq!(line_tokens[1].token_spans, vec![7..11]);
 
         // Third: paragraph line
         assert_eq!(line_tokens[2].line_type, LineTokenType::ParagraphLine);
