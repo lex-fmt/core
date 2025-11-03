@@ -81,11 +81,7 @@ pub fn _indentation_to_token_tree(tokens: Vec<LineToken>) -> LineContainerToken 
                 }
                 // Close current level and add as nested container to parent
                 if let Some(children) = stack.pop() {
-                    let source_span = compute_span(&children);
-                    let nested_container = LineContainerToken::Container {
-                        children,
-                        source_span,
-                    };
+                    let nested_container = LineContainerToken::Container { children };
                     let parent_level = stack.last_mut().expect("Stack never empty");
                     parent_level.push(nested_container);
                 }
@@ -107,34 +103,9 @@ pub fn _indentation_to_token_tree(tokens: Vec<LineToken>) -> LineContainerToken 
 
     // Create root container from accumulated children
     let root_children = stack.pop().expect("Stack should contain root level");
-    let source_span = compute_span(&root_children);
 
     LineContainerToken::Container {
         children: root_children,
-        source_span,
-    }
-}
-
-/// Compute the combined source span from a list of container tokens.
-fn compute_span(children: &[LineContainerToken]) -> Option<std::ops::Range<usize>> {
-    let mut start: Option<usize> = None;
-    let mut end: Option<usize> = None;
-
-    for child in children {
-        let span = match child {
-            LineContainerToken::Token(token) => token.source_span.as_ref(),
-            LineContainerToken::Container { source_span, .. } => source_span.as_ref(),
-        };
-
-        if let Some(s) = span {
-            start = Some(start.map_or(s.start, |old| old.min(s.start)));
-            end = Some(end.map_or(s.end, |old| old.max(s.end)));
-        }
-    }
-
-    match (start, end) {
-        (Some(s), Some(e)) => Some(s..e),
-        _ => None,
     }
 }
 
@@ -155,10 +126,7 @@ pub fn unwrap_container_to_token_tree(
             LineContainerToken::Token(token) => {
                 vec![LineTokenTree::Token(token.clone())]
             }
-            LineContainerToken::Container {
-                children,
-                source_span,
-            } => {
+            LineContainerToken::Container { children } => {
                 let mut result = Vec::new();
                 let mut pending_tokens = Vec::new();
 
@@ -167,15 +135,12 @@ pub fn unwrap_container_to_token_tree(
                         LineContainerToken::Token(token) => {
                             pending_tokens.push(token.clone());
                         }
-                        LineContainerToken::Container {
-                            source_span: _nested_span,
-                            ..
-                        } => {
+                        LineContainerToken::Container { .. } => {
                             // Flush pending tokens as a Container before starting a Block
                             if !pending_tokens.is_empty() {
                                 let legacy_container = LineContainerTokenLegacy {
                                     source_tokens: std::mem::take(&mut pending_tokens),
-                                    source_span: source_span.clone(),
+                                    source_span: None, // No aggregate span - will be computed by AST construction
                                 };
                                 result.push(LineTokenTree::Container(legacy_container));
                             }
@@ -191,7 +156,7 @@ pub fn unwrap_container_to_token_tree(
                 if !pending_tokens.is_empty() {
                     let legacy_container = LineContainerTokenLegacy {
                         source_tokens: pending_tokens,
-                        source_span: source_span.clone(),
+                        source_span: None, // No aggregate span - will be computed by AST construction
                     };
                     result.push(LineTokenTree::Container(legacy_container));
                 }
@@ -215,7 +180,6 @@ mod tests {
             source_tokens: tokens,
             token_spans: Vec::new(),
             line_type,
-            source_span: None,
         }
     }
 
@@ -274,12 +238,12 @@ mod tests {
                 LineTokenType::SubjectLine,
                 vec![Token::Text("Title".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Indented".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);
@@ -307,7 +271,7 @@ mod tests {
                 LineTokenType::SubjectLine,
                 vec![Token::Text("Title".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Line1".to_string())],
@@ -324,7 +288,7 @@ mod tests {
                     Token::Text("Item".to_string()),
                 ],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);
@@ -351,18 +315,18 @@ mod tests {
                 LineTokenType::SubjectLine,
                 vec![Token::Text("Title".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Level1".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Level2".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);
@@ -394,22 +358,22 @@ mod tests {
                 LineTokenType::SubjectLine,
                 vec![Token::Text("Title1".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Content1".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
             make_line_token(
                 LineTokenType::SubjectLine,
                 vec![Token::Text("Title2".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Content2".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);
@@ -433,12 +397,12 @@ mod tests {
                 LineTokenType::SubjectLine,
                 vec![Token::Text("Subject".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Indented".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Para2".to_string())],
@@ -468,12 +432,12 @@ mod tests {
         ];
         let input = vec![
             make_line_token(LineTokenType::SubjectLine, test_tokens.clone()),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Content".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);
@@ -492,8 +456,8 @@ mod tests {
                 LineTokenType::SubjectLine,
                 vec![Token::Text("Title".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("After".to_string())],
@@ -522,24 +486,24 @@ mod tests {
                 LineTokenType::SubjectLine,
                 vec![Token::Text("L0".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("L1".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("L2".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("L3".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);
@@ -569,7 +533,7 @@ mod tests {
                 LineTokenType::SubjectLine,
                 vec![Token::Text("Subject".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ListLine,
                 vec![
@@ -591,13 +555,13 @@ mod tests {
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Paragraph".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Nested".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);
@@ -630,7 +594,7 @@ mod tests {
                 LineTokenType::SubjectLine,
                 vec![Token::Text("Subject".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel]),
+            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
             make_line_token(
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Para1".to_string())],
@@ -640,7 +604,7 @@ mod tests {
                 LineTokenType::ParagraphLine,
                 vec![Token::Text("Para2".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel]),
+            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);

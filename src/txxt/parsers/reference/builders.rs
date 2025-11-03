@@ -247,9 +247,9 @@ where
         header_for_block
             .then_ignore(token(Token::Newline))
             .then(
-                token(Token::IndentLevel)
+                filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
                     .ignore_then(items.clone())
-                    .then_ignore(token(Token::DedentLevel)),
+                    .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_)))),
             )
             .then_ignore(token(Token::TxxtMarker))
             .then_ignore(token(Token::Newline).or_not())
@@ -340,9 +340,9 @@ where
     let source_for_definition = source.clone();
     definition_subject(source.clone())
         .then(
-            token(Token::IndentLevel)
+            filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
                 .ignore_then(items)
-                .then_ignore(token(Token::DedentLevel)),
+                .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_)))),
         )
         .map(move |((subject_text, subject_location), content)| {
             let subject_location =
@@ -363,7 +363,7 @@ pub(crate) fn session_title(
 ) -> impl Parser<TokenLocation, (String, ByteRange<usize>), Error = ParserError> + Clone {
     text_line()
         .then_ignore(token(Token::Newline))
-        .then_ignore(token(Token::BlankLine))
+        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))))
         .map(move |locations| {
             let text = extract_text_from_locations(&source, &locations);
             let location = compute_byte_range_bounds(&locations);
@@ -382,9 +382,9 @@ where
     let source_for_session = source.clone();
     session_title(source.clone())
         .then(
-            token(Token::IndentLevel)
+            filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
                 .ignore_then(items)
-                .then_ignore(token(Token::DedentLevel)),
+                .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_)))),
         )
         .map(move |((title_text, title_location), content)| {
             let title_location = byte_range_to_location(&source_for_session, &title_location);
@@ -450,9 +450,9 @@ where
     let single_list_item = list_item_line(source.clone())
         .then_ignore(token(Token::Newline))
         .then(
-            token(Token::IndentLevel)
+            filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
                 .ignore_then(items)
-                .then_ignore(token(Token::DedentLevel))
+                .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_))))
                 .or_not(),
         )
         .map(move |((text, text_location), maybe_content)| {
@@ -484,23 +484,23 @@ pub(crate) fn foreign_block(
     let subject_parser = definition_subject(source.clone());
 
     // Parse content that handles nested indentation structures.
-    let with_content = token(Token::IndentLevel)
+    let with_content = filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
         .ignore_then(recursive(|nested_content| {
             choice((
                 // Handle nested indentation: properly matched pairs
-                token(Token::IndentLevel)
+                filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
                     .ignore_then(nested_content.clone())
-                    .then_ignore(token(Token::DedentLevel))
-                    .map(|_| (Token::IndentLevel, 0..0)), // Dummy token, won't be used
+                    .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_))))
+                    .map(|_| (Token::IndentLevel(vec![]), 0..0)), // Dummy token, won't be used
                 // Regular content token (not TxxtMarker, not DedentLevel)
                 filter(|(t, _location): &TokenLocation| {
-                    !matches!(t, Token::TxxtMarker | Token::DedentLevel)
+                    !matches!(t, Token::TxxtMarker | Token::DedentLevel(_))
                 }),
             ))
             .repeated()
             .at_least(1)
         }))
-        .then_ignore(token(Token::DedentLevel))
+        .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_))))
         .map(|tokens: Vec<TokenLocation>| {
             tokens
                 .into_iter()
@@ -554,7 +554,7 @@ pub(crate) fn foreign_block(
         });
 
     subject_parser
-        .then_ignore(token(Token::BlankLine).repeated())
+        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))).repeated())
         .then(with_content.or_not())
         .then(closing_annotation_parser)
         .then_ignore(token(Token::Newline).or_not())

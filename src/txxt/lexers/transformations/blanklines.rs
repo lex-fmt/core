@@ -49,16 +49,14 @@ pub fn transform_blank_lines(
             // Emit the first Newline with its original location (ends the current line)
             result.push((Token::Newline, tokens[i].1.clone()));
 
-            // If we have 2+ consecutive newlines, also emit a BlankLine token
-            // The BlankLine location covers all the extra newlines (from 2nd to last)
+            // If we have 2+ consecutive newlines, emit a BlankLine token
+            // Store all the extra newline tokens (from 2nd onwards) as source_tokens
             if newline_count >= 2 {
-                // Calculate the location covering the extra newlines
-                // Start from the second newline, end at the last newline
-                let blank_line_start = tokens[i + 1].1.start;
-                let blank_line_end = tokens[j - 1].1.end;
-                let blank_line_location = blank_line_start..blank_line_end;
+                // Collect the extra newline tokens (from 2nd to last)
+                let source_tokens: Vec<(Token, std::ops::Range<usize>)> = tokens[i + 1..j].to_vec();
 
-                result.push((Token::BlankLine, blank_line_location));
+                // Placeholder span 0..0 - will never be used, AST construction unrolls source_tokens
+                result.push((Token::BlankLine(source_tokens), 0..0));
             }
 
             // Move past all the newlines we just processed
@@ -87,7 +85,18 @@ mod tests {
     }
 
     fn strip_loc(pairs: Tokens) -> Vec<Token> {
-        pairs.into_iter().map(|(t, _)| t).collect()
+        pairs
+            .into_iter()
+            .map(|(t, _)| {
+                // Normalize source_tokens to empty for test comparison
+                match t {
+                    Token::IndentLevel(_) => Token::IndentLevel(vec![]),
+                    Token::DedentLevel(_) => Token::DedentLevel(vec![]),
+                    Token::BlankLine(_) => Token::BlankLine(vec![]),
+                    other => other,
+                }
+            })
+            .collect()
     }
 
     #[test]
@@ -122,7 +131,7 @@ mod tests {
             vec![
                 Token::Text("t".to_string()),
                 Token::Newline,
-                Token::BlankLine,
+                Token::BlankLine(vec![]),
                 Token::Text("t".to_string())
             ]
         );
@@ -143,7 +152,7 @@ mod tests {
             vec![
                 Token::Text("t".to_string()),
                 Token::Newline,
-                Token::BlankLine,
+                Token::BlankLine(vec![]),
                 Token::Text("t".to_string())
             ]
         );
@@ -167,10 +176,10 @@ mod tests {
             vec![
                 Token::Text("t".to_string()),
                 Token::Newline,
-                Token::BlankLine,
+                Token::BlankLine(vec![]),
                 Token::Text("t".to_string()),
                 Token::Newline,
-                Token::BlankLine,
+                Token::BlankLine(vec![]),
                 Token::Text("t".to_string())
             ]
         );
@@ -185,7 +194,7 @@ mod tests {
             vec![
                 Token::Text("t".to_string()),
                 Token::Newline,
-                Token::BlankLine
+                Token::BlankLine(vec![])
             ]
         );
     }
@@ -198,7 +207,7 @@ mod tests {
             result,
             vec![
                 Token::Newline,
-                Token::BlankLine,
+                Token::BlankLine(vec![]),
                 Token::Text("t".to_string())
             ]
         );
@@ -222,7 +231,7 @@ mod tests {
             vec![
                 Token::Text("t".to_string()),
                 Token::Newline,
-                Token::BlankLine,
+                Token::BlankLine(vec![]),
                 Token::Text("t".to_string())
             ]
         );
@@ -239,7 +248,7 @@ mod tests {
     fn test_only_newlines() {
         let input = vec![Token::Newline, Token::Newline, Token::Newline];
         let result = strip_loc(transform_blank_lines(with_loc(input)));
-        assert_eq!(result, vec![Token::Newline, Token::BlankLine]);
+        assert_eq!(result, vec![Token::Newline, Token::BlankLine(vec![])]);
     }
 
     #[test]
@@ -264,7 +273,7 @@ mod tests {
                 Token::Dash,
                 Token::Whitespace,
                 Token::Newline,
-                Token::BlankLine,
+                Token::BlankLine(vec![]),
                 Token::Text("t".to_string())
             ]
         );
@@ -283,7 +292,7 @@ mod tests {
         let expected: Tokens = vec![
             mk_token(Token::Text("t".to_string()), 0, 4),
             mk_token(Token::Newline, 4, 5),
-            mk_token(Token::BlankLine, 5, 6),
+            mk_token(Token::BlankLine(vec![(Token::Newline, 5..6)]), 0, 0),
             mk_token(Token::Text("t".to_string()), 6, 10),
         ];
         assert_eq!(result, expected);
@@ -310,8 +319,8 @@ mod tests {
         assert_eq!(result.len(), 4);
         assert_eq!(result[0], mk_token(Token::Text("a".to_string()), 0, 1));
         assert_eq!(result[1], mk_token(Token::Newline, 1, 2));
-        assert_eq!(result[2].0, Token::BlankLine);
-        assert_eq!(result[2].1, 2..3, "BlankLine should cover the 2nd newline");
+        assert_eq!(result[2].0, Token::BlankLine(vec![(Token::Newline, 2..3)]));
+        assert_eq!(result[2].1, 0..0, "BlankLine uses placeholder span");
         assert_eq!(result[3], mk_token(Token::Text("b".to_string()), 3, 4));
     }
 
@@ -332,12 +341,11 @@ mod tests {
 
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
-        assert_eq!(result[2].0, Token::BlankLine);
         assert_eq!(
-            result[2].1,
-            2..4,
-            "BlankLine should cover 2nd and 3rd newlines (2..4)"
+            result[2].0,
+            Token::BlankLine(vec![(Token::Newline, 2..3), (Token::Newline, 3..4)])
         );
+        assert_eq!(result[2].1, 0..0, "BlankLine uses placeholder span");
     }
 
     #[test]
@@ -359,12 +367,16 @@ mod tests {
 
         // Expected: Text("a"), Newline, BlankLine, Text("b")
         assert_eq!(result.len(), 4);
-        assert_eq!(result[2].0, Token::BlankLine);
         assert_eq!(
-            result[2].1,
-            2..6,
-            "BlankLine should cover newlines 2-5 (positions 2..6)"
+            result[2].0,
+            Token::BlankLine(vec![
+                (Token::Newline, 2..3),
+                (Token::Newline, 3..4),
+                (Token::Newline, 4..5),
+                (Token::Newline, 5..6)
+            ])
         );
+        assert_eq!(result[2].1, 0..0, "BlankLine uses placeholder span");
     }
 
     #[test]
@@ -388,13 +400,16 @@ mod tests {
         // Expected: Text("a"), Newline, BlankLine, Text("b"), Newline, BlankLine, Text("c")
         assert_eq!(result.len(), 7);
 
-        // First BlankLine
-        assert_eq!(result[2].0, Token::BlankLine);
-        assert_eq!(result[2].1, 2..3, "First BlankLine should be at 2..3");
+        // First BlankLine (contains 2nd newline)
+        assert_eq!(result[2].0, Token::BlankLine(vec![(Token::Newline, 2..3)]));
+        assert_eq!(result[2].1, 0..0, "BlankLine uses placeholder span");
 
-        // Second BlankLine
-        assert_eq!(result[5].0, Token::BlankLine);
-        assert_eq!(result[5].1, 5..7, "Second BlankLine should be at 5..7");
+        // Second BlankLine (contains 2nd and 3rd newlines)
+        assert_eq!(
+            result[5].0,
+            Token::BlankLine(vec![(Token::Newline, 5..6), (Token::Newline, 6..7)])
+        );
+        assert_eq!(result[5].1, 0..0, "BlankLine uses placeholder span");
     }
 
     #[test]
@@ -412,8 +427,8 @@ mod tests {
         // Expected: Newline, BlankLine, Text("a")
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], mk_token(Token::Newline, 0, 1));
-        assert_eq!(result[1].0, Token::BlankLine);
-        assert_eq!(result[1].1, 1..2, "BlankLine at start should be at 1..2");
+        assert_eq!(result[1].0, Token::BlankLine(vec![(Token::Newline, 1..2)]));
+        assert_eq!(result[1].1, 0..0, "BlankLine uses placeholder span");
     }
 
     #[test]
@@ -430,8 +445,8 @@ mod tests {
 
         // Expected: Text("a"), Newline, BlankLine
         assert_eq!(result.len(), 3);
-        assert_eq!(result[2].0, Token::BlankLine);
-        assert_eq!(result[2].1, 2..3, "BlankLine at end should be at 2..3");
+        assert_eq!(result[2].0, Token::BlankLine(vec![(Token::Newline, 2..3)]));
+        assert_eq!(result[2].1, 0..0, "BlankLine uses placeholder span");
     }
 
     #[test]
@@ -446,24 +461,27 @@ mod tests {
         // Find the BlankLine token
         let blank_line_pos = result
             .iter()
-            .position(|(t, _)| matches!(t, Token::BlankLine));
+            .position(|(t, _)| matches!(t, Token::BlankLine(_)));
         assert!(blank_line_pos.is_some(), "Should have a BlankLine token");
 
         let (blank_token, blank_location) = &result[blank_line_pos.unwrap()];
-        assert_eq!(*blank_token, Token::BlankLine);
-        assert_ne!(
-            *blank_location,
-            0..0,
-            "BlankLine should not have empty location"
-        );
-        assert_eq!(
-            blank_location.start, 16,
-            "BlankLine should start at position 16"
-        );
-        assert_eq!(
-            blank_location.end, 17,
-            "BlankLine should end at position 17"
-        );
+        // BlankLine should contain the 2nd newline token with its span
+        assert!(matches!(blank_token, Token::BlankLine(_)));
+        if let Token::BlankLine(source_tokens) = blank_token {
+            assert_eq!(
+                source_tokens.len(),
+                1,
+                "BlankLine should have one source token"
+            );
+            assert_eq!(source_tokens[0].0, Token::Newline);
+            assert_eq!(
+                source_tokens[0].1,
+                16..17,
+                "Source newline should be at 16..17"
+            );
+        }
+        // BlankLine uses placeholder span
+        assert_eq!(*blank_location, 0..0, "BlankLine uses placeholder span");
     }
 
     #[test]
