@@ -183,8 +183,8 @@ mod proptest_tests {
             let tokens = lex(&input);
             for (token, _) in tokens {
                 match token {
-                    Token::TxxtMarker | Token::Indent | Token::IndentLevel | Token::DedentLevel |
-                    Token::BlankLine | Token::Whitespace | Token::Newline | Token::Dash | Token::Period |
+                    Token::TxxtMarker | Token::Indent | Token::IndentLevel(_) | Token::DedentLevel(_) |
+                    Token::BlankLine(_) | Token::Whitespace | Token::Newline | Token::Dash | Token::Period |
                     Token::OpenParen | Token::CloseParen | Token::Colon | Token::Comma |
                     Token::Quote | Token::Equals | Token::Number(_) | Token::Text(_) => {
                         // All valid tokens
@@ -207,19 +207,19 @@ mod proptest_tests {
             if input.is_empty() {
                 // No indentation means no indent/dedent tokens
                 let indent_related_count = tokens.iter().filter(|(t, _)| {
-                    matches!(t, Token::IndentLevel | Token::DedentLevel | Token::Indent)
+                    matches!(t, Token::IndentLevel(_) | Token::DedentLevel(_) | Token::Indent)
                 }).count();
                 assert_eq!(indent_related_count, 0);
             } else if !input.chars().any(|c| !c.is_whitespace()) {
                 // Pure whitespace (with or without indentation) becomes a blank line
                 // Blank lines don't produce IndentLevel tokens
                 let indent_related_count = tokens.iter().filter(|(t, _)| {
-                    matches!(t, Token::IndentLevel | Token::DedentLevel | Token::Indent)
+                    matches!(t, Token::IndentLevel(_) | Token::DedentLevel(_) | Token::Indent)
                 }).count();
                 assert_eq!(indent_related_count, 0);
             } else {
                 // Input has actual content after indentation
-                let indent_level_count = tokens.iter().filter(|(t, _)| matches!(t, Token::IndentLevel)).count();
+                let indent_level_count = tokens.iter().filter(|(t, _)| matches!(t, Token::IndentLevel(_))).count();
 
                 // Count expected indent levels based on input
                 let expected_indents = {
@@ -378,12 +378,12 @@ mod integration_tests {
                 (Token::Whitespace, 10, 11),
                 (Token::Text("Title".to_string()), 11, 16),
                 (Token::Newline, 16, 17),
-                (Token::IndentLevel, 17, 21),
+                (Token::IndentLevel(vec![(Token::Indent, 17..21)]), 0, 0),
                 (Token::Text("Content".to_string()), 21, 28),
                 (Token::Whitespace, 28, 29),
                 (Token::Text("here".to_string()), 29, 33),
                 (Token::Newline, 33, 34),
-                (Token::DedentLevel, 34, 34),
+                (Token::DedentLevel(vec![]), 0, 0),
             ])
         );
     }
@@ -425,7 +425,7 @@ mod integration_tests {
                 (Token::Whitespace, 2, 3),
                 (Token::Text("Session".to_string()), 3, 10),
                 (Token::Newline, 10, 11),
-                (Token::IndentLevel, 11, 15),
+                (Token::IndentLevel(vec![(Token::Indent, 11..15)]), 0, 0),
                 (Token::Dash, 15, 16),
                 (Token::Whitespace, 16, 17),
                 (Token::Text("Item".to_string()), 17, 21),
@@ -438,8 +438,8 @@ mod integration_tests {
                 (Token::Whitespace, 34, 35),
                 (Token::Number("2".to_string()), 35, 36),
                 (Token::Newline, 36, 37),
-                (Token::BlankLine, 37, 38),
-                (Token::DedentLevel, 38, 38),
+                (Token::BlankLine(vec![(Token::Newline, 37..38)]), 0, 0),
+                (Token::DedentLevel(vec![]), 0, 0),
                 (Token::Text("Paragraph".to_string()), 38, 47),
                 (Token::Whitespace, 47, 48),
                 (Token::Text("after".to_string()), 48, 53),

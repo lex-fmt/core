@@ -44,8 +44,15 @@ expression: tokens
         34..35,
     ),
     (
-        BlankLine,
-        35..36,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    35..36,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -152,8 +159,15 @@ expression: tokens
         110..111,
     ),
     (
-        BlankLine,
-        111..112,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    111..112,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Number(
@@ -210,12 +224,26 @@ expression: tokens
         145..146,
     ),
     (
-        BlankLine,
-        146..147,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    146..147,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        IndentLevel,
-        147..151,
+        IndentLevel(
+            [
+                (
+                    Indent,
+                    147..151,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -312,8 +340,15 @@ expression: tokens
         208..209,
     ),
     (
-        BlankLine,
-        209..210,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    209..210,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Number(
@@ -390,12 +425,26 @@ expression: tokens
         254..255,
     ),
     (
-        BlankLine,
-        255..256,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    255..256,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        IndentLevel,
-        260..264,
+        IndentLevel(
+            [
+                (
+                    Indent,
+                    260..264,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -492,8 +541,15 @@ expression: tokens
         322..323,
     ),
     (
-        BlankLine,
-        323..324,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    323..324,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -560,12 +616,21 @@ expression: tokens
         378..379,
     ),
     (
-        BlankLine,
-        379..380,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    379..380,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        DedentLevel,
-        380..380,
+        DedentLevel(
+            [],
+        ),
+        0..0,
     ),
     (
         Number(
@@ -642,12 +707,26 @@ expression: tokens
         425..426,
     ),
     (
-        BlankLine,
-        426..427,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    426..427,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        IndentLevel,
-        431..435,
+        IndentLevel(
+            [
+                (
+                    Indent,
+                    431..435,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -734,8 +813,15 @@ expression: tokens
         487..488,
     ),
     (
-        BlankLine,
-        488..489,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    488..489,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Number(
@@ -822,12 +908,26 @@ expression: tokens
         543..544,
     ),
     (
-        BlankLine,
-        544..545,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    544..545,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        IndentLevel,
-        553..557,
+        IndentLevel(
+            [
+                (
+                    Indent,
+                    553..557,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -924,8 +1024,15 @@ expression: tokens
         614..615,
     ),
     (
-        BlankLine,
-        615..616,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    615..616,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -1002,16 +1109,27 @@ expression: tokens
         682..683,
     ),
     (
-        BlankLine,
-        683..684,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    683..684,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        DedentLevel,
-        684..684,
+        DedentLevel(
+            [],
+        ),
+        0..0,
     ),
     (
-        DedentLevel,
-        684..684,
+        DedentLevel(
+            [],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -1088,12 +1206,21 @@ expression: tokens
         734..735,
     ),
     (
-        BlankLine,
-        735..736,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    735..736,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        DedentLevel,
-        736..736,
+        DedentLevel(
+            [],
+        ),
+        0..0,
     ),
     (
         Number(
@@ -1160,12 +1287,26 @@ expression: tokens
         777..778,
     ),
     (
-        BlankLine,
-        778..779,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    778..779,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        IndentLevel,
-        779..783,
+        IndentLevel(
+            [
+                (
+                    Indent,
+                    779..783,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -1292,8 +1433,15 @@ expression: tokens
         855..856,
     ),
     (
-        BlankLine,
-        856..857,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    856..857,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Number(
@@ -1370,12 +1518,26 @@ expression: tokens
         899..900,
     ),
     (
-        BlankLine,
-        900..901,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    900..901,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        IndentLevel,
-        905..909,
+        IndentLevel(
+            [
+                (
+                    Indent,
+                    905..909,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
         Text(
@@ -1462,16 +1624,27 @@ expression: tokens
         973..974,
     ),
     (
-        BlankLine,
-        974..975,
+        BlankLine(
+            [
+                (
+                    Newline,
+                    974..975,
+                ),
+            ],
+        ),
+        0..0,
     ),
     (
-        DedentLevel,
-        975..975,
+        DedentLevel(
+            [],
+        ),
+        0..0,
     ),
     (
-        DedentLevel,
-        975..975,
+        DedentLevel(
+            [],
+        ),
+        0..0,
     ),
     (
         Text(

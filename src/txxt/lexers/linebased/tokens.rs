@@ -296,7 +296,6 @@ mod tests {
             ],
             token_spans: vec![0..5, 5..6, 6..11],
             line_type: LineTokenType::ParagraphLine,
-            source_span: Some(0..11),
         };
 
         let pairs = line_token.source_token_pairs();
