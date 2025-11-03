@@ -180,7 +180,6 @@ mod tests {
             source_tokens: tokens,
             token_spans: Vec::new(),
             line_type,
-            source_span: None,
         }
     }
 

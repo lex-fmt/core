@@ -104,7 +104,7 @@ fn test_blank_line_group_structure_source_tokens() {
             let has_blank_line_token = blg
                 .source_tokens
                 .iter()
-                .any(|t| matches!(t, txxt::txxt::lexers::Token::BlankLine));
+                .any(|t| matches!(t, txxt::txxt::lexers::Token::BlankLine(_)));
             assert!(has_blank_line_token, "Should contain BlankLine token");
             return;
         }
