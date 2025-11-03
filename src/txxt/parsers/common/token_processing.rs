@@ -48,6 +48,24 @@ pub fn unroll<T: SourceTokenProvider>(tokens: &[T]) -> Vec<(Token, Range<usize>)
         .collect()
 }
 
+/// Flatten a collection of token vectors into a single flat list.
+///
+/// This is useful for token types (like LineToken) that provide source tokens
+/// as owned Vec rather than borrowed slices. It simply concatenates all the vectors.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let line_tokens: Vec<LineToken> = /* ... parsed tokens ... */;
+/// let token_vecs: Vec<Vec<(Token, Range<usize>)>> = line_tokens.iter()
+///     .map(|lt| lt.source_token_pairs())
+///     .collect();
+/// let flat_tokens = flatten_token_vecs(&token_vecs);
+/// ```
+pub fn flatten_token_vecs(token_vecs: &[Vec<(Token, Range<usize>)>]) -> Vec<(Token, Range<usize>)> {
+    token_vecs.iter().flat_map(|v| v.iter().cloned()).collect()
+}
+
 /// Compute the bounding box (minimum start, maximum end) from a list of tokens.
 ///
 /// Returns the smallest `Range<usize>` that encompasses all token ranges.
@@ -289,5 +307,40 @@ mod tests {
         ];
         let text = tokens_to_text(&tokens, source);
         assert_eq!(text, "hello ");
+    }
+
+    #[test]
+    fn test_flatten_token_vecs_empty() {
+        let vecs: Vec<Vec<(Token, Range<usize>)>> = vec![];
+        let flattened = flatten_token_vecs(&vecs);
+        assert_eq!(flattened.len(), 0);
+    }
+
+    #[test]
+    fn test_flatten_token_vecs_single() {
+        let vecs = vec![vec![
+            (Token::Text("hello".to_string()), 0..5),
+            (Token::Whitespace, 5..6),
+        ]];
+        let flattened = flatten_token_vecs(&vecs);
+        assert_eq!(flattened.len(), 2);
+        assert_eq!(flattened[0].1, 0..5);
+        assert_eq!(flattened[1].1, 5..6);
+    }
+
+    #[test]
+    fn test_flatten_token_vecs_multiple() {
+        let vecs = vec![
+            vec![(Token::Text("hello".to_string()), 0..5)],
+            vec![
+                (Token::Whitespace, 5..6),
+                (Token::Text("world".to_string()), 6..11),
+            ],
+        ];
+        let flattened = flatten_token_vecs(&vecs);
+        assert_eq!(flattened.len(), 3);
+        assert_eq!(flattened[0].1, 0..5);
+        assert_eq!(flattened[1].1, 5..6);
+        assert_eq!(flattened[2].1, 6..11);
     }
 }
