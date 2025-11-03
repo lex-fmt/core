@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Generate AST files for all txxt specification files
+# Generate AST files for all lex specification files
 #
-# This script processes all .txxt files in docs/specs/v1 and generates
+# This script processes all .lex files in docs/specs/v1 and generates
 # corresponding AST output files based on the specified format.
 #
 # Usage:
@@ -68,8 +68,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SPECS_DIR="$PROJECT_ROOT/docs/specs/v1"
 
 # Temporary files for tracking
-ERROR_FILE="/tmp/txxt_ast_errors_$$.txt"
-COUNT_FILE="/tmp/txxt_ast_counts_$$.txt"
+ERROR_FILE="/tmp/lex_ast_errors_$$.txt"
+COUNT_FILE="/tmp/lex_ast_counts_$$.txt"
 
 # Initialize counters
 echo "0" > "$COUNT_FILE"
@@ -87,19 +87,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "🔍 Finding all .txxt files in docs/specs/v1..."
+echo "🔍 Finding all .lex files in docs/specs/v1..."
 echo "📋 Format: $FORMAT"
 echo ""
 
 # Count files first
-TXXT_COUNT=$(find "$SPECS_DIR" -type f -name "*.txxt" 2>/dev/null | wc -l | tr -d ' ')
+lex_COUNT=$(find "$SPECS_DIR" -type f -name "*.lex" 2>/dev/null | wc -l | tr -d ' ')
 
-if [ "$TXXT_COUNT" -eq "0" ]; then
-    echo "❌ No .txxt files found in $SPECS_DIR"
+if [ "$lex_COUNT" -eq "0" ]; then
+    echo "❌ No .lex files found in $SPECS_DIR"
     exit 1
 fi
 
-echo "📝 Found $TXXT_COUNT .txxt file(s) to process"
+echo "📝 Found $lex_COUNT .lex file(s) to process"
 echo ""
 
 # Clean up existing files
@@ -131,17 +131,17 @@ echo ""
 cd "$PROJECT_ROOT"
 
 # Process each file
-find "$SPECS_DIR" -type f -name "*.txxt" | sort | while read -r TXXT_FILE; do
+find "$SPECS_DIR" -type f -name "*.lex" | sort | while read -r lex_FILE; do
     # Get relative path from project root
-    REL_PATH="${TXXT_FILE#$PROJECT_ROOT/}"
+    REL_PATH="${lex_FILE#$PROJECT_ROOT/}"
     
     # Calculate output path: same path but with the format-specific extension
-    OUTPUT_FILE="${TXXT_FILE}${EXTENSION}"
+    OUTPUT_FILE="${lex_FILE}${EXTENSION}"
     
     echo -n "Processing: $REL_PATH ... "
     
     # Run the cargo command and capture output and exit code
-    OUTPUT=$(cargo run --bin txxt -- "$TXXT_FILE" "$FORMAT" 2>&1) && EXIT_CODE=0 || EXIT_CODE=$?
+    OUTPUT=$(cargo run --bin lex -- "$lex_FILE" "$FORMAT" 2>&1) && EXIT_CODE=0 || EXIT_CODE=$?
     
     if [ $EXIT_CODE -eq 0 ]; then
         # Command succeeded, save output to file

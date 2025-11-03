@@ -17,7 +17,7 @@ rg --type rust '#\[test\]' -A 50 tests/ | \
   wc -l
 
 echo ""
-echo "3. Tests with hardcoded txxt source strings:"
+echo "3. Tests with hardcoded lex source strings:"
 rg --type rust '#\[test\]' -A 30 tests/ | \
   rg 'let.*=.*".*\{.*\}"' | \
   wc -l

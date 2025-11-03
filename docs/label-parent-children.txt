@@ -1,4 +1,4 @@
-There is a design issue, compounded by a bunch of halfway refactors that have left part of the design and everything up to the final implementation very confusing in txxt.
+There is a design issue, compounded by a bunch of halfway refactors that have left part of the design and everything up to the final implementation very confusing in lex.
 This has spawned a number of problems and issues (#85 #86 and many more)
 
 This document aims to give context and the rationale so that we can plan how best to address it.
@@ -6,10 +6,10 @@ This document aims to give context and the rationale so that we can plan how bes
 1. The Principle
 
     To avoid confusion with the current names, I'll use names that are neither implemented nor suggested.
-    The core characteristic of txxt is that all elements are nestable. The only exception being paragraphs for obvious reasons.
+    The core characteristic of lex is that all elements are nestable. The only exception being paragraphs for obvious reasons.
 
     Every element has a standard form. It has a "lead" (as in news lead), the thing that draws attention to it. Mostly a short bit of text.
-    And it may have content, which are, by txxt's recursive nature, its children.
+    And it may have content, which are, by lex's recursive nature, its children.
 
     The base form is:
 
@@ -118,7 +118,7 @@ This document aims to give context and the rationale so that we can plan how bes
             Content
 
         Aside from the shorthand form that hides the common design, the label is different in that it can be omitted, and is a machine readable identifier, not really content. Which makes more sense when you remember that annotations are metadata, not content.
-        The label can be omitted because, unlike all others, this element has explicit syntax (txxt marker) that can clearly demarcate the element.
+        The label can be omitted because, unlike all others, this element has explicit syntax (lex marker) that can clearly demarcate the element.
 
         Structure:
         <annotation>
@@ -143,7 +143,7 @@ This document aims to give context and the rationale so that we can plan how bes
         Session          Title                 yes                  Dedent          Required        Blank Lines
         Definition       Term                  yes                  Dedent          Forbidden       Text + colon (subject)
         Foreign          Subject               no                  Notation        Optional        Text + colon (subject)
-        Annotation       Label (optional)      no                   Dedent          Optional        txxt-marker
+        Annotation       Label (optional)      no                   Dedent          Optional        lex-marker
 
 
 

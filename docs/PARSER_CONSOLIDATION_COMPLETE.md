@@ -9,9 +9,11 @@ The complete unification of AST node construction between the reference and line
 ## Phases of Consolidation
 
 ### Phase 1: Architectural Resolution (PR #141)
+
 **Goal**: Resolve the blocker preventing full unification
 
 **Changes**:
+
 - Extended `LineToken` structure with `token_spans: Vec<Range<usize>>`
 - Updated `attach_spans_to_line_tokens()` to preserve per-token byte ranges
 - Implemented unified byte-range text extraction in linebased builders
@@ -19,13 +21,16 @@ The complete unification of AST node construction between the reference and line
 **Result**: Both parsers now have identical token representations with byte ranges
 
 **Commit**:
+
 - `f798b4d` - refactor: Add per-token spans to LineToken structure
 - `6a02e84` - refactor: Update linebased builders to use byte-range text extraction
 
 ### Phase 2: Consistency Unification (Commit e14bdf4)
+
 **Goal**: Ensure uniform text extraction across all parser functions
 
 **Changes**:
+
 - Removed legacy token-iteration extraction functions
 - Unified all `unwrap_*` functions to use span-based extraction
 - Removed 4 legacy tests for deprecated extraction methods
@@ -33,9 +38,11 @@ The complete unification of AST node construction between the reference and line
 **Result**: Single, consistent extraction strategy throughout linebased module
 
 **Commit**:
+
 - `e14bdf4` - refactor: Unify text extraction in linebased builders to use span-based approach
 
 ### Phase 3: Complete Builder Consolidation (Current)
+
 **Goal**: Verify and document that consolidation is complete
 
 **Discovery**: Consolidation was already complete after Phase 1 and 2!
@@ -44,7 +51,7 @@ The complete unification of AST node construction between the reference and line
 
 ### Unified AST Builders (Single Source of Truth)
 
-Located in: `src/txxt/parsers/common/builders.rs`
+Located in: `src/lex/parsers/common/builders.rs`
 
 ```
 build_paragraph()      → Creates Paragraph nodes
@@ -59,9 +66,10 @@ extract_text_from_span() → Extracts text from byte ranges
 
 ### Reference Parser Integration
 
-Located in: `src/txxt/parsers/reference/builders.rs`
+Located in: `src/lex/parsers/reference/builders.rs`
 
 **Parser-Specific Code** (necessary):
+
 - Parser combinators (chumsky-based)
 - Text/location extraction for combinator-based parsing
 - Tests for reference parser behavior
@@ -69,7 +77,7 @@ Located in: `src/txxt/parsers/reference/builders.rs`
 **Builders Used**: All from common/builders.rs (verified)
 
 ```rust
-use crate::txxt::parsers::common::{
+use crate::lex::parsers::common::{
     build_annotation, build_definition, build_foreign_block,
     build_list, build_paragraph, build_session,
     location::{aggregate_locations, byte_range_to_location, ...}
@@ -78,9 +86,10 @@ use crate::txxt::parsers::common::{
 
 ### Linebased Parser Integration
 
-Located in: `src/txxt/parsers/linebased/builders.rs`
+Located in: `src/lex/parsers/linebased/builders.rs`
 
 **Parser-Specific Code** (necessary):
+
 - Text extraction from LineToken format
 - Location extraction from LineToken spans
 - Adapter functions (unwrap_*) that bridge LineToken → common builders
@@ -89,7 +98,7 @@ Located in: `src/txxt/parsers/linebased/builders.rs`
 **Builders Used**: All from common/builders.rs (verified)
 
 ```rust
-use crate::txxt::parsers::common::{
+use crate::lex::parsers::common::{
     build_annotation, build_definition, build_foreign_block,
     build_list, build_list_item, build_paragraph, build_session,
     extract_text_from_span,
@@ -98,6 +107,7 @@ use crate::txxt::parsers::common::{
 ```
 
 **Adapter Functions**:
+
 ```rust
 pub fn unwrap_token_to_paragraph(token, source)      // → build_paragraph()
 pub fn unwrap_tokens_to_paragraph(tokens, source)    // → build_paragraph()
@@ -151,6 +161,7 @@ Result: Identical AST structure ✅
 ### Call Graph Verification
 
 ✅ Reference parser calls `build_*()` functions
+
 ```
 reference/builders.rs imports from common/builders.rs
 paragraph() → build_paragraph()
@@ -160,6 +171,7 @@ annotation() → build_annotation()
 ```
 
 ✅ Linebased parser calls `build_*()` functions
+
 ```
 linebased/builders.rs imports from common/builders.rs
 unwrap_token_to_paragraph() → build_paragraph()
@@ -190,6 +202,7 @@ The `unwrap_*` functions are **NOT duplicate builders** - they are **essential a
 4. **Call** common builders with extracted data
 
 This is the correct architecture for:
+
 - Supporting multiple parser implementations
 - Maintaining single source of truth for AST construction
 - Preventing code duplication
@@ -205,6 +218,7 @@ After PR #141 merged, both parsers were already unified because:
 4. **Location tracking** unified with common utilities
 
 The remaining parser-specific code is exactly what should remain:
+
 - **Reference**: Combinator-based parser logic
 - **Linebased**: Declarative grammar matcher + pattern adapters
 
@@ -246,6 +260,7 @@ AST output:                Identical ✓
 **Parser unification for AST construction is COMPLETE.**
 
 Both parsers now:
+
 - ✅ Use identical builder implementations
 - ✅ Produce identical AST from identical source
 - ✅ Have identical location tracking

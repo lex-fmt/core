@@ -1,10 +1,10 @@
-//! Property-based tests for the txxt lexer using sample documents
+//! Property-based tests for the lex lexer using sample documents
 //!
-//! These tests ensure that the lexer can handle all valid txxt documents
+//! These tests ensure that the lexer can handle all valid lex documents
 //! from our sample collection without panicking or producing invalid tokens.
 
+use lex::lex::lexers::{lex, Token};
 use proptest::prelude::*;
-use txxt::txxt::lexers::{lex, Token};
 
 /// Sample document snapshot tests
 #[cfg(test)]
@@ -19,7 +19,7 @@ mod sample_document_tests {
 
     #[test]
     fn test_000_paragraphs_tokenization() {
-        let content = read_sample_document("docs/specs/v1/samples/000-paragraphs.txxt");
+        let content = read_sample_document("docs/specs/v1/samples/000-paragraphs.lex");
         let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
@@ -28,7 +28,7 @@ mod sample_document_tests {
     #[test]
     fn test_010_sessions_flat_single_tokenization() {
         let content =
-            read_sample_document("docs/specs/v1/samples/010-paragraphs-sessions-flat-single.txxt");
+            read_sample_document("docs/specs/v1/samples/010-paragraphs-sessions-flat-single.lex");
         let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
@@ -36,9 +36,8 @@ mod sample_document_tests {
 
     #[test]
     fn test_020_sessions_flat_multiple_tokenization() {
-        let content = read_sample_document(
-            "docs/specs/v1/samples/020-paragraphs-sessions-flat-multiple.txxt",
-        );
+        let content =
+            read_sample_document("docs/specs/v1/samples/020-paragraphs-sessions-flat-multiple.lex");
         let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
@@ -47,7 +46,7 @@ mod sample_document_tests {
     #[test]
     fn test_030_sessions_nested_tokenization() {
         let content = read_sample_document(
-            "docs/specs/v1/samples/030-paragraphs-sessions-nested-multiple.txxt",
+            "docs/specs/v1/samples/030-paragraphs-sessions-nested-multiple.lex",
         );
         let tokens = lex(&content);
 
@@ -56,7 +55,7 @@ mod sample_document_tests {
 
     #[test]
     fn test_040_lists_tokenization() {
-        let content = read_sample_document("docs/specs/v1/samples/040-lists.txxt");
+        let content = read_sample_document("docs/specs/v1/samples/040-lists.lex");
         let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
@@ -64,7 +63,7 @@ mod sample_document_tests {
 
     #[test]
     fn test_050_paragraph_lists_tokenization() {
-        let content = read_sample_document("docs/specs/v1/samples/050-paragraph-lists.txxt");
+        let content = read_sample_document("docs/specs/v1/samples/050-paragraph-lists.lex");
         let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
@@ -72,7 +71,7 @@ mod sample_document_tests {
 
     #[test]
     fn test_050_trifecta_flat_tokenization() {
-        let content = read_sample_document("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
+        let content = read_sample_document("docs/specs/v1/samples/050-trifecta-flat-simple.lex");
         let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
@@ -80,20 +79,20 @@ mod sample_document_tests {
 
     #[test]
     fn test_060_trifecta_nesting_tokenization() {
-        let content = read_sample_document("docs/specs/v1/samples/060-trifecta-nesting.txxt");
+        let content = read_sample_document("docs/specs/v1/samples/060-trifecta-nesting.lex");
         let tokens = lex(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
 }
 
-/// Property-based tests for txxt lexer
+/// Property-based tests for lex lexer
 #[cfg(test)]
 mod proptest_tests {
     use super::*;
 
-    /// Generate valid txxt text content
-    fn txxt_text_strategy() -> impl Strategy<Value = String> {
+    /// Generate valid lex text content
+    fn lex_text_strategy() -> impl Strategy<Value = String> {
         prop::collection::vec(
             prop_oneof![
                 // Simple text
@@ -153,12 +152,12 @@ mod proptest_tests {
         ]
     }
 
-    /// Generate valid txxt documents
-    fn txxt_document_strategy() -> impl Strategy<Value = String> {
+    /// Generate valid lex documents
+    fn lex_document_strategy() -> impl Strategy<Value = String> {
         prop::collection::vec(
             prop_oneof![
                 // Paragraphs
-                txxt_text_strategy(),
+                lex_text_strategy(),
                 // List items
                 list_item_strategy(),
                 // Session titles
@@ -172,18 +171,18 @@ mod proptest_tests {
     // Property-based tests using the strategies above
     proptest! {
         #[test]
-        fn test_tokenize_never_panics(input in txxt_document_strategy()) {
-            // The lexer should never panic on any valid txxt input
+        fn test_tokenize_never_panics(input in lex_document_strategy()) {
+            // The lexer should never panic on any valid lex input
             let _tokens = lex(&input);
         }
 
         #[test]
-        fn test_tokenize_produces_valid_tokens(input in txxt_document_strategy()) {
+        fn test_tokenize_produces_valid_tokens(input in lex_document_strategy()) {
             // All tokens should be valid Token variants
             let tokens = lex(&input);
             for (token, _) in tokens {
                 match token {
-                    Token::TxxtMarker | Token::Indent | Token::IndentLevel(_) | Token::DedentLevel(_) |
+                    Token::LexMarker | Token::Indent | Token::IndentLevel(_) | Token::DedentLevel(_) |
                     Token::BlankLine(_) | Token::Whitespace | Token::Newline | Token::Dash | Token::Period |
                     Token::OpenParen | Token::CloseParen | Token::Colon | Token::Comma |
                     Token::Quote | Token::Equals | Token::Number(_) | Token::Text(_) => {
@@ -264,7 +263,7 @@ mod proptest_tests {
         }
 
         #[test]
-        fn test_multiline_tokenization(input in txxt_text_strategy()) {
+        fn test_multiline_tokenization(input in lex_text_strategy()) {
             // Multiline text should contain Newline tokens
             let tokens = lex(&input);
 
@@ -297,11 +296,11 @@ mod proptest_tests {
     }
 }
 
-/// Integration tests for specific txxt patterns
+/// Integration tests for specific lex patterns
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use txxt::txxt::testing::factories::mk_tokens;
+    use lex::lex::testing::factories::mk_tokens;
 
     #[test]
     fn test_paragraph_pattern() {
@@ -389,7 +388,7 @@ mod integration_tests {
     }
 
     #[test]
-    fn test_txxt_marker_pattern() {
+    fn test_lex_marker_pattern() {
         let input = "Some text :: marker";
         let tokens = lex(input);
 
@@ -402,7 +401,7 @@ mod integration_tests {
                 (Token::Whitespace, 4, 5),
                 (Token::Text("text".to_string()), 5, 9),
                 (Token::Whitespace, 9, 10),
-                (Token::TxxtMarker, 10, 12),
+                (Token::LexMarker, 10, 12),
                 (Token::Whitespace, 12, 13),
                 (Token::Text("marker".to_string()), 13, 19),
                 (Token::Newline, 19, 20),

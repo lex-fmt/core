@@ -6,17 +6,15 @@
 //! - BlankLineGroup nodes are accessible via the visitor pattern
 //! - Blank lines in nested structures (definitions, sessions, lists) can contain BlankLineGroup nodes
 
-use txxt::txxt::ast::AstNode;
-use txxt::txxt::ast::Document;
-use txxt::txxt::parsers::{parse_document as parse_doc, ContentItem};
+use lex::lex::ast::AstNode;
+use lex::lex::ast::Document;
+use lex::lex::parsers::{parse_document as parse_doc, ContentItem};
 
 fn parse_document(source: &str) -> Document {
     parse_doc(source).expect("Failed to parse document")
 }
 
-fn find_blank_line_groups(
-    items: &[ContentItem],
-) -> Vec<&txxt::txxt::ast::elements::BlankLineGroup> {
+fn find_blank_line_groups(items: &[ContentItem]) -> Vec<&lex::lex::ast::elements::BlankLineGroup> {
     items
         .iter()
         .filter_map(|item| {
@@ -104,7 +102,7 @@ fn test_blank_line_group_structure_source_tokens() {
             let has_blank_line_token = blg
                 .source_tokens
                 .iter()
-                .any(|t| matches!(t, txxt::txxt::lexers::Token::BlankLine(_)));
+                .any(|t| matches!(t, lex::lex::lexers::Token::BlankLine(_)));
             assert!(has_blank_line_token, "Should contain BlankLine token");
             return;
         }

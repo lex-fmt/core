@@ -1,4 +1,4 @@
-//! Rich terminal viewer app for txxt
+//! Rich terminal viewer app for lex
 #[path = "viewer/app.rs"]
 pub mod app;
 #[path = "viewer/fileviewer.rs"]
