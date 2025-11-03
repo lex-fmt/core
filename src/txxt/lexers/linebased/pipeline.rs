@@ -94,44 +94,6 @@ pub fn _lex(source: &str) -> Result<LineContainerToken, PipelineError> {
     }
 }
 
-/// Attach source spans to line tokens by matching tokens in the original token stream.
-///
-/// This function pairs the line tokens (which have been transformed/grouped) with their
-/// original source spans from the pipeline. Each line token gets:
-/// - Individual token_spans for each source_token (enables byte-accurate text extraction from token subsets)
-/// - An overall source_span that covers all the tokens that make up that line
-fn attach_spans_to_line_tokens(
-    line_tokens: &mut [LineToken],
-    tokens_with_spans: &[(Token, std::ops::Range<usize>)],
-) {
-    let mut source_idx = 0;
-
-    for line_token in line_tokens.iter_mut() {
-        // Find the tokens in the original stream that match this line token's source_tokens
-        if source_idx >= tokens_with_spans.len() {
-            break;
-        }
-
-        let mut token_spans = Vec::new();
-
-        // Consume tokens from the source stream that match this line token's source_tokens
-        for expected_token in &line_token.source_tokens {
-            if source_idx < tokens_with_spans.len() {
-                let (actual_token, span) = &tokens_with_spans[source_idx];
-                // Check if tokens match (they should, since we derived line_tokens from these)
-                if std::mem::discriminant(actual_token) == std::mem::discriminant(expected_token) {
-                    token_spans.push(span.clone());
-                    source_idx += 1;
-                }
-            }
-        }
-
-        // Attach the token spans to this line token
-        // Note: No aggregate source_span - AST construction will compute bounding box from token_spans
-        line_token.token_spans = token_spans;
-    }
-}
-
 /// Linebased lexer pipeline with stage-based output.
 ///
 /// Returns the pipeline output at any requested stage for debugging/testing.
@@ -173,14 +135,8 @@ pub fn _lex_stage(source: &str, stage: PipelineStage) -> PipelineOutput {
     }
 
     // Stage 5: Line token transformation (linebased)
-    // Extract tokens for transformation (spans are in after_blank_lines)
-    let tokens_for_line_tokens: Vec<Token> =
-        after_blank_lines.iter().map(|(t, _)| t.clone()).collect();
-    let mut line_tokens = _to_line_tokens(tokens_for_line_tokens);
-
-    // Now attach source spans to the line tokens we created
-    // This is done here in the pipeline where we have access to both the tokens and their spans
-    attach_spans_to_line_tokens(&mut line_tokens, &after_blank_lines);
+    // Pass the full (Token, Range) tuples - _to_line_tokens now handles both tokens and spans
+    let line_tokens = _to_line_tokens(after_blank_lines.clone());
 
     if stage == PipelineStage::LineTokens {
         return PipelineOutput::LineTokens(line_tokens.clone());
