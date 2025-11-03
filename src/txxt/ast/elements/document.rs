@@ -20,7 +20,7 @@
 //! - Document-level metadata via annotations
 //! - All body content accessible via document.root.content
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
@@ -60,7 +60,7 @@ impl Document {
         Self { metadata, root }
     }
 
-    pub fn with_root_location(mut self, location: Location) -> Self {
+    pub fn with_root_location(mut self, location: Range) -> Self {
         self.root.location = location;
         self
     }
@@ -95,8 +95,8 @@ impl Document {
     }
 
     /// Convenience accessor for the root session's location
-    pub fn root_location(&self) -> Location {
-        self.root.location
+    pub fn root_location(&self) -> Range {
+        self.root.location.clone()
     }
 
     pub fn count_by_type(&self) -> (usize, usize, usize, usize) {
@@ -132,8 +132,8 @@ impl AstNode for Document {
         )
     }
 
-    fn location(&self) -> Location {
-        self.root.location
+    fn range(&self) -> &Range {
+        &self.root.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -177,7 +177,7 @@ impl fmt::Display for Document {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::location::Position;
+    use super::super::super::range::Position;
     use super::super::paragraph::Paragraph;
     use super::super::session::Session;
     use super::*;
@@ -199,15 +199,21 @@ mod tests {
 
         // Create paragraph 1 with properly located TextLine
         let text_line1 = TextLine::new(TextContent::from_string("First".to_string(), None))
-            .at(Location::new(Position::new(0, 0), Position::new(0, 5)));
-        let para1 = Paragraph::new(vec![ContentItem::TextLine(text_line1)])
-            .at(Location::new(Position::new(0, 0), Position::new(0, 5)));
+            .at(Range::new(0..0, Position::new(0, 0), Position::new(0, 5)));
+        let para1 = Paragraph::new(vec![ContentItem::TextLine(text_line1)]).at(Range::new(
+            0..0,
+            Position::new(0, 0),
+            Position::new(0, 5),
+        ));
 
         // Create paragraph 2 with properly located TextLine
         let text_line2 = TextLine::new(TextContent::from_string("Second".to_string(), None))
-            .at(Location::new(Position::new(1, 0), Position::new(1, 6)));
-        let para2 = Paragraph::new(vec![ContentItem::TextLine(text_line2)])
-            .at(Location::new(Position::new(1, 0), Position::new(1, 6)));
+            .at(Range::new(0..0, Position::new(1, 0), Position::new(1, 6)));
+        let para2 = Paragraph::new(vec![ContentItem::TextLine(text_line2)]).at(Range::new(
+            0..0,
+            Position::new(1, 0),
+            Position::new(1, 6),
+        ));
 
         let doc = Document::with_content(vec![
             ContentItem::Paragraph(para1),

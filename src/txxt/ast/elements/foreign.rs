@@ -32,7 +32,7 @@
 //! - Foreign blocks spec: docs/specs/v1/elements/foreign.txxt
 //!
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Visitor;
@@ -45,12 +45,12 @@ pub struct ForeignBlock {
     pub subject: TextContent,
     pub content: TextContent,
     pub closing_annotation: Annotation,
-    pub location: Location,
+    pub location: Range,
 }
 
 impl ForeignBlock {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(subject: String, content: String, closing_annotation: Annotation) -> Self {
         Self {
@@ -69,11 +69,11 @@ impl ForeignBlock {
         }
     }
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
     /// Preferred builder
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -91,8 +91,8 @@ impl AstNode for ForeignBlock {
             subject_text.to_string()
         }
     }
-    fn location(&self) -> Location {
-        self.location
+    fn range(&self) -> &Range {
+        &self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {

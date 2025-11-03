@@ -23,7 +23,7 @@
 //!
 //!     Here is where we stop.
 //!
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
 use super::content_item::ContentItem;
@@ -34,12 +34,12 @@ use std::fmt;
 pub struct Session {
     pub title: TextContent,
     pub content: Vec<ContentItem>,
-    pub location: Location,
+    pub location: Range,
 }
 
 impl Session {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(title: TextContent, content: Vec<ContentItem>) -> Self {
         Self {
@@ -56,11 +56,11 @@ impl Session {
         }
     }
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
     /// Preferred builder
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -73,8 +73,8 @@ impl AstNode for Session {
     fn display_label(&self) -> String {
         self.title.as_string().to_string()
     }
-    fn location(&self) -> Location {
-        self.location
+    fn range(&self) -> &Range {
+        &self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -125,11 +125,12 @@ mod tests {
 
     #[test]
     fn test_session() {
-        let location = super::super::super::location::Location::new(
-            super::super::super::location::Position::new(1, 0),
-            super::super::super::location::Position::new(1, 10),
+        let location = super::super::super::range::Range::new(
+            0..0,
+            super::super::super::range::Position::new(1, 0),
+            super::super::super::range::Position::new(1, 10),
         );
-        let session = Session::with_title("Title".to_string()).at(location);
+        let session = Session::with_title("Title".to_string()).at(location.clone());
         assert_eq!(session.location, location);
     }
 }

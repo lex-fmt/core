@@ -8,7 +8,7 @@
 //! - A session containing paragraphs and a list
 //! - A paragraph followed by a definition and an annotation
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::blank_line_group::BlankLineGroup;
@@ -29,7 +29,7 @@ pub enum ContentItem {
     TextLine(TextLine),
     Definition(Definition),
     Annotation(Annotation),
-    ForeignBlock(ForeignBlock),
+    ForeignBlock(Box<ForeignBlock>),
     BlankLineGroup(BlankLineGroup),
 }
 
@@ -62,17 +62,17 @@ impl AstNode for ContentItem {
         }
     }
 
-    fn location(&self) -> Location {
+    fn range(&self) -> &Range {
         match self {
-            ContentItem::Paragraph(p) => p.location(),
-            ContentItem::Session(s) => s.location(),
-            ContentItem::List(l) => l.location(),
-            ContentItem::ListItem(li) => li.location(),
-            ContentItem::TextLine(tl) => tl.location(),
-            ContentItem::Definition(d) => d.location(),
-            ContentItem::Annotation(a) => a.location(),
-            ContentItem::ForeignBlock(fb) => fb.location(),
-            ContentItem::BlankLineGroup(blg) => blg.location(),
+            ContentItem::Paragraph(p) => p.range(),
+            ContentItem::Session(s) => s.range(),
+            ContentItem::List(l) => l.range(),
+            ContentItem::ListItem(li) => li.range(),
+            ContentItem::TextLine(tl) => tl.range(),
+            ContentItem::Definition(d) => d.range(),
+            ContentItem::Annotation(a) => a.range(),
+            ContentItem::ForeignBlock(fb) => fb.range(),
+            ContentItem::BlankLineGroup(blg) => blg.range(),
         }
     }
 
@@ -327,7 +327,7 @@ impl ContentItem {
         // location contains the position.
         // If nested elements were found, they would have been returned above.
         // If no nested results were found, this item is the deepest element at the position.
-        if self.location().contains(pos) {
+        if self.range().contains(pos) {
             Some(self)
         } else {
             None
@@ -379,14 +379,17 @@ impl fmt::Display for ContentItem {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::location::{Location, Position};
+    use super::super::super::range::{Position, Range};
     use super::super::paragraph::Paragraph;
     use super::*;
 
     #[test]
     fn test_element_at_simple_paragraph() {
-        let para = Paragraph::from_line("Test".to_string())
-            .at(Location::new(Position::new(0, 0), Position::new(0, 4)));
+        let para = Paragraph::from_line("Test".to_string()).at(Range::new(
+            0..0,
+            Position::new(0, 0),
+            Position::new(0, 4),
+        ));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 2);
@@ -400,8 +403,11 @@ mod tests {
 
     #[test]
     fn test_element_at_position_outside_location() {
-        let para = Paragraph::from_line("Test".to_string())
-            .at(Location::new(Position::new(0, 0), Position::new(0, 4)));
+        let para = Paragraph::from_line("Test".to_string()).at(Range::new(
+            0..0,
+            Position::new(0, 0),
+            Position::new(0, 4),
+        ));
         let item = ContentItem::Paragraph(para);
 
         let pos = Position::new(0, 10);
@@ -421,8 +427,11 @@ mod tests {
 
     #[test]
     fn test_element_at_nested_session() {
-        let para = Paragraph::from_line("Nested".to_string())
-            .at(Location::new(Position::new(1, 0), Position::new(1, 6)));
+        let para = Paragraph::from_line("Nested".to_string()).at(Range::new(
+            0..0,
+            Position::new(1, 0),
+            Position::new(1, 6),
+        ));
         let session = Session::new(
             super::super::super::text_content::TextContent::from_string(
                 "Section".to_string(),
@@ -430,7 +439,7 @@ mod tests {
             ),
             vec![ContentItem::Paragraph(para)],
         )
-        .at(Location::new(Position::new(0, 0), Position::new(2, 0)));
+        .at(Range::new(0..0, Position::new(0, 0), Position::new(2, 0)));
         let item = ContentItem::Session(session);
 
         let pos = Position::new(1, 3);

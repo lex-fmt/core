@@ -4,7 +4,7 @@
 //! to AST node information across all node types.
 
 use super::elements::ContentItem;
-use super::location::{Location, Position};
+use super::range::{Position, Range};
 use super::text_content::TextContent;
 
 /// Visitor trait for traversing the AST
@@ -56,9 +56,9 @@ pub fn visit_children(visitor: &mut dyn Visitor, items: &[ContentItem]) {
 pub trait AstNode {
     fn node_type(&self) -> &'static str;
     fn display_label(&self) -> String;
-    fn location(&self) -> Location;
+    fn range(&self) -> &Range;
     fn start_position(&self) -> Position {
-        self.location().start
+        self.range().start
     }
 
     /// Accept a visitor for traversing this node and its children

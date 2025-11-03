@@ -10,7 +10,8 @@
 
 use std::collections::HashSet;
 use txxt::txxt::ast::elements::content_item::ContentItem;
-use txxt::txxt::ast::location::{Location, Position};
+use txxt::txxt::ast::range::{Position, Range};
+use txxt::txxt::ast::traits::AstNode;
 use txxt::txxt::ast::{snapshot_visitor::snapshot_from_document, AstSnapshot};
 use txxt::txxt::parsers::Document;
 
@@ -251,14 +252,14 @@ impl Model {
     ///
     /// Returns the text range (start and end position) for the given node.
     /// The location indicates where in the source text this node is located.
-    pub fn get_location_for_node(&self, node_id: NodeId) -> Option<Location> {
-        use txxt::txxt::ast::traits::AstNode;
+    pub fn get_location_for_node(&self, node_id: NodeId) -> Option<Range> {
         if node_id.path().is_empty() {
             // Document doesn't have a location; the root session does
-            return Some(self.document.root.location());
+            return Some(self.document.root.location.clone());
         }
 
-        self.get_node(node_id).map(|(item, _depth)| item.location())
+        self.get_node(node_id)
+            .map(|(item, _depth)| item.range().clone())
     }
 
     /// Get the ancestors of a node (path from root to node, not including the node itself)
