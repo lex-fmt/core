@@ -83,6 +83,7 @@ mod sample_document_tests {
         insta::assert_debug_snapshot!(tokens);
     }
 
+    // @audit: manual_construction
     #[test]
     fn test_060_trifecta_nesting_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/060-trifecta-nesting.txxt");
@@ -176,12 +177,14 @@ mod proptest_tests {
 
     // Property-based tests using the strategies above
     proptest! {
+        // @audit: manual_construction
         #[test]
         fn test_tokenize_never_panics(input in txxt_document_strategy()) {
             // The lexer should never panic on any valid txxt input
             let _tokens = lex(&input);
         }
 
+        // @audit: manual_construction
         #[test]
         fn test_tokenize_produces_valid_tokens(input in txxt_document_strategy()) {
             // All tokens should be valid Token variants
@@ -198,6 +201,7 @@ mod proptest_tests {
             }
         }
 
+        // @audit: manual_construction
         #[test]
         fn test_indentation_tokenization(input in indentation_strategy()) {
             // Indentation should produce appropriate indentation-related tokens
@@ -239,6 +243,7 @@ mod proptest_tests {
             }
         }
 
+        // @audit: manual_construction
         #[test]
         fn test_list_item_tokenization(input in list_item_strategy()) {
             // List items should contain appropriate markers
@@ -255,6 +260,7 @@ mod proptest_tests {
             }
         }
 
+        // @audit: manual_construction
         #[test]
         fn test_session_title_tokenization(input in session_title_strategy()) {
             // Session titles should contain appropriate markers

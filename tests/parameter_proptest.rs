@@ -70,7 +70,9 @@ fn parameter_list_strategy() -> impl Strategy<Value = String> {
 mod proptest_tests {
     use super::*;
 
+    // @audit: hardcoded_source
     proptest! {
+        // @audit: hardcoded_source
         #[test]
         fn test_single_parameter_parsing(param in parameter_strategy()) {
             let source = format!(":: note {} ::\n\nText. {{{{paragraph}}}}\n", param);
@@ -89,6 +91,7 @@ mod proptest_tests {
             }
         }
 
+        // @audit: hardcoded_source
         #[test]
         fn test_multiple_parameters_parsing(params in parameter_list_strategy()) {
             let source = format!(":: note {} ::\n\nText. {{{{paragraph}}}}\n", params);
@@ -104,6 +107,7 @@ mod proptest_tests {
             }
         }
 
+        // @audit: hardcoded_source
         #[test]
         fn test_parameter_key_preservation(key in parameter_key_strategy(), value in unquoted_value_strategy()) {
             let source = format!(":: note {}={} ::\n\nText. {{{{paragraph}}}}\n", key, value);
@@ -118,6 +122,7 @@ mod proptest_tests {
             }
         }
 
+        // @audit: hardcoded_source
         #[test]
         fn test_quoted_value_preservation(key in parameter_key_strategy(), value in quoted_value_strategy()) {
             let source = format!(":: note {}=\"{}\" ::\n\nText. {{{{paragraph}}}}\n", key, value);

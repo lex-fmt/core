@@ -198,7 +198,9 @@ pub fn _lex_stage(source: &str, stage: PipelineStage) -> PipelineOutput {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // @audit: hardcoded_source
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_empty_input() {
         let result = _lex("").expect("Pipeline should not fail");
@@ -206,6 +208,7 @@ mod tests {
         assert!(result.is_empty());
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_single_paragraph() {
         let source = "Hello world";
@@ -214,6 +217,7 @@ mod tests {
         assert!(!result.is_empty());
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_multiple_paragraphs() {
         let source = "First paragraph\n\nSecond paragraph";
@@ -221,6 +225,7 @@ mod tests {
         assert!(!result.is_empty());
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_with_indentation() {
         let source = "Title:\n    Indented content\n    More indented";
@@ -228,6 +233,7 @@ mod tests {
         assert!(!result.is_empty());
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_stage_raw_tokens() {
         let source = "Hello world";
@@ -238,6 +244,7 @@ mod tests {
         }
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_stage_after_whitespace() {
         let source = "Hello world";
@@ -248,6 +255,7 @@ mod tests {
         }
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_stage_after_indentation() {
         let source = "Hello:\n    World";
@@ -258,6 +266,7 @@ mod tests {
         }
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_stage_after_blank_lines() {
         let source = "Hello\n\nWorld";
@@ -268,6 +277,7 @@ mod tests {
         }
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_stage_line_tokens() {
         let source = "Title:\n    Content";
@@ -278,6 +288,7 @@ mod tests {
         }
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_stage_token_tree() {
         let source = "Title:\n    Content";
@@ -288,6 +299,7 @@ mod tests {
         }
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_pipeline_consistency_across_stages() {
         let source = "Item 1\n\n- First\n- Second";
@@ -312,6 +324,7 @@ mod tests {
         assert!(matches!(tree, PipelineOutput::TokenTree(_)));
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_list_structure() {
         let source = "Items:\n    - First\n    - Second\n    - Third";
@@ -319,6 +332,7 @@ mod tests {
         assert!(!result.is_empty());
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_nested_indentation() {
         let source = "Level 1:\n    Level 2:\n        Level 3 content";
@@ -326,6 +340,7 @@ mod tests {
         assert!(!result.is_empty());
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_with_blank_lines() {
         let source = "Para 1\n\nPara 2\n\nPara 3";
@@ -333,6 +348,7 @@ mod tests {
         assert!(!result.is_empty());
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_pipeline_blank_line_preservation() {
         use crate::txxt::lexers::linebased::transformations::unwrap_container_to_token_tree;
@@ -370,6 +386,7 @@ mod tests {
         }
     }
 
+    // @audit: hardcoded_source
     #[test]
     fn test_lex_mixed_content() {
         let source = "Title:\n\n    First paragraph\n\n    - List item 1\n    - List item 2";
