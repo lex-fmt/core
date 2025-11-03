@@ -6,7 +6,7 @@ Document with 8 root items:
 
 [0] Paragraph with 1 line(s):   [0] TextLine: Kitchensink Test Document {{paragraph}}
 
-[1] Paragraph with 1 line(s):   [0] TextLine: This document includes all major features of the txxt language to serve as a comprehensive "kitchensink" regression test for the parser. {{paragraph}}
+[1] Paragraph with 1 line(s):   [0] TextLine: This document includes all major features of the lex language to serve as a comprehensive "kitchensink" regression test for the parser. {{paragraph}}
 
 [2] Paragraph with 2 line(s): 
   [0] TextLine: This is a two-lined paragraph.

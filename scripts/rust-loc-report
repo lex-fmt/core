@@ -73,7 +73,7 @@ if current_file is not None:
     })
 
 # Generate the file-based table
-print('# Loc Counts txxt')
+print('# Loc Counts lex')
 print()
 print('Here\'s the table showing LOC counts for all files:')
 print()

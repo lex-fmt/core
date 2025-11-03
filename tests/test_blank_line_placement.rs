@@ -1,6 +1,6 @@
-use txxt::txxt::lexers::linebased::transformations::unwrap_container_to_token_tree;
-use txxt::txxt::lexers::transformations::_lex;
-use txxt::txxt::lexers::LineTokenTree;
+use lex::lex::lexers::linebased::transformations::unwrap_container_to_token_tree;
+use lex::lex::lexers::transformations::_lex;
+use lex::lex::lexers::LineTokenTree;
 
 #[test]
 fn test_blank_line_placement() {
