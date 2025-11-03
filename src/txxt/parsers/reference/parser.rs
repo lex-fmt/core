@@ -27,7 +27,6 @@ use super::combinators::paragraph;
 
 // Import parser builders from element modules
 use super::annotations::build_annotation_parser;
-use super::combinators::token;
 use super::definitions::build_definition_parser;
 use super::foreign::foreign_block;
 use super::lists::build_list_parser;
@@ -69,11 +68,11 @@ pub(crate) fn build_document_content_parser(
         };
 
         choice((
-            token(Token::BlankLine)
+            filter(|(t, _)| matches!(t, Token::BlankLine(_)))
                 .repeated()
                 .at_least(1)
                 .ignore_then(choice((
-                    filter(|(t, _)| matches!(t, Token::DedentLevel))
+                    filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
                         .rewind()
                         .to(vec![]),
                     items.clone(),
@@ -87,7 +86,7 @@ pub(crate) fn build_document_content_parser(
                     }
                     result
                 }),
-            filter(|(t, _)| matches!(t, Token::DedentLevel))
+            filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
                 .rewind()
                 .to(vec![]),
         ))

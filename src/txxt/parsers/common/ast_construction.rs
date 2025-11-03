@@ -299,13 +299,13 @@ mod tests {
                 source_tokens: vec![Token::Text("Hello".to_string())],
                 token_spans: vec![ByteRange { start: 0, end: 5 }],
                 line_type: LineTokenType::ParagraphLine,
-                source_span: Some(0..5),
+                // source_span removed - AST construction will compute from token_spans
             },
             LineToken {
                 source_tokens: vec![Token::Text("World".to_string())],
                 token_spans: vec![ByteRange { start: 6, end: 11 }],
                 line_type: LineTokenType::ParagraphLine,
-                source_span: Some(6..11),
+                // source_span removed - AST construction will compute from token_spans
             },
         ];
 
@@ -333,7 +333,7 @@ mod tests {
                 ByteRange { start: 5, end: 6 },
             ],
             line_type: LineTokenType::SubjectLine,
-            source_span: Some(0..6),
+            // source_span removed - AST construction will compute from token_spans
         };
 
         let source = "Title:";
@@ -359,7 +359,7 @@ mod tests {
                 ByteRange { start: 7, end: 8 },
             ],
             line_type: LineTokenType::SubjectLine,
-            source_span: Some(0..8),
+            // source_span removed - AST construction will compute from token_spans
         };
 
         let source = "Subject:";

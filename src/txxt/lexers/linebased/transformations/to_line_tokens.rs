@@ -49,11 +49,11 @@ pub fn _to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
 
     for token in tokens {
         let is_newline = matches!(token, Token::Newline);
-        let is_blank_line_token = matches!(token, Token::BlankLine);
+        let is_blank_line_token = matches!(token, Token::BlankLine(_));
 
         // Structural tokens (IndentLevel, DedentLevel, BlankLine) are pass-through
         // They appear alone, not as part of lines
-        if matches!(token, Token::IndentLevel) {
+        if matches!(token, Token::IndentLevel(_)) {
             if !current_line.is_empty() {
                 line_tokens.push(classify_and_create_line_token(current_line));
                 current_line = Vec::new();
@@ -62,12 +62,11 @@ pub fn _to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
                 source_tokens: vec![token],
                 token_spans: Vec::new(),
                 line_type: LineTokenType::IndentLevel,
-                source_span: None,
             });
             continue;
         }
 
-        if matches!(token, Token::DedentLevel) {
+        if matches!(token, Token::DedentLevel(_)) {
             if !current_line.is_empty() {
                 line_tokens.push(classify_and_create_line_token(current_line));
                 current_line = Vec::new();
@@ -76,7 +75,6 @@ pub fn _to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
                 source_tokens: vec![token],
                 token_spans: Vec::new(),
                 line_type: LineTokenType::DedentLevel,
-                source_span: None,
             });
             continue;
         }
@@ -91,7 +89,6 @@ pub fn _to_line_tokens(tokens: Vec<Token>) -> Vec<LineToken> {
                 source_tokens: vec![token],
                 token_spans: Vec::new(),
                 line_type: LineTokenType::BlankLine,
-                source_span: None,
             });
             continue;
         }
@@ -121,7 +118,6 @@ fn classify_and_create_line_token(tokens: Vec<Token>) -> LineToken {
         source_tokens: tokens,
         token_spans: Vec::new(),
         line_type,
-        source_span: None,
     }
 }
 
@@ -182,7 +178,7 @@ fn is_blank_line(tokens: &[Token]) -> bool {
     tokens.iter().all(|t| {
         matches!(
             t,
-            Token::Whitespace | Token::Indent | Token::Newline | Token::BlankLine
+            Token::Whitespace | Token::Indent | Token::Newline | Token::BlankLine(_)
         )
     })
 }
@@ -510,7 +506,7 @@ mod tests {
             Token::Text("Title".to_string()),
             Token::Colon,
             Token::Newline,
-            Token::IndentLevel,
+            Token::IndentLevel(vec![]),
             Token::Text("Content".to_string()),
             Token::Newline,
         ];
@@ -532,7 +528,10 @@ mod tests {
 
         // Second: IndentLevel pass-through
         assert_eq!(line_tokens[1].line_type, LineTokenType::IndentLevel);
-        assert_eq!(line_tokens[1].source_tokens, vec![Token::IndentLevel]);
+        assert_eq!(
+            line_tokens[1].source_tokens,
+            vec![Token::IndentLevel(vec![])]
+        );
 
         // Third: paragraph line
         assert_eq!(line_tokens[2].line_type, LineTokenType::ParagraphLine);

@@ -105,49 +105,32 @@ pub fn sem_indentation(
         // Calculate the target indentation level for this line
         let target_level = line_indent_level;
 
-        // Generate appropriate IndentLevel/DedentLevel tokens with meaningful locations
+        // Generate appropriate IndentLevel/DedentLevel tokens storing source tokens
         match target_level.cmp(&current_level) {
             std::cmp::Ordering::Greater => {
-                // IndentLevel tokens: each gets the location of its corresponding Indent token
+                // IndentLevel tokens: each stores the original Indent token it replaces
                 let indent_start_idx = line_start;
                 for level_idx in 0..(target_level - current_level) {
                     let indent_token_idx = indent_start_idx + current_level + level_idx;
-                    if indent_token_idx < token_kinds.len()
+                    let source_tokens = if indent_token_idx < token_kinds.len()
                         && matches!(token_kinds[indent_token_idx], Token::Indent)
                     {
-                        // Use the location of the Indent token
-                        let location = tokens[indent_token_idx].1.clone();
-                        result.push((Token::IndentLevel, location));
+                        // Store the original (Token::Indent, Range<usize>) pair
+                        vec![tokens[indent_token_idx].clone()]
                     } else {
-                        // Fallback: use the location of the first content token on this line
-                        let fallback_location = if line_start < token_kinds.len() {
-                            tokens[line_start].1.start..tokens[line_start].1.start
-                        } else {
-                            0..0
-                        };
-                        result.push((Token::IndentLevel, fallback_location));
-                    }
+                        // No corresponding Indent token (shouldn't happen in well-formed input)
+                        vec![]
+                    };
+                    // Placeholder span 0..0 - will never be used, AST construction unrolls source_tokens
+                    result.push((Token::IndentLevel(source_tokens), 0..0));
                 }
             }
             std::cmp::Ordering::Less => {
-                // DedentLevel tokens: use the location at the start of the new line (where dedent occurs)
-                // This represents the position where we "return" to a previous indentation level
-                let dedent_location = if line_start < token_kinds.len() {
-                    // Point to the start of the first token on the new line
-                    let start = tokens[line_start].1.start;
-                    start..start
-                } else {
-                    // End of file: use empty location at the end
-                    let end = if !token_kinds.is_empty() {
-                        tokens.last().unwrap().1.end
-                    } else {
-                        0
-                    };
-                    end..end
-                };
-
+                // DedentLevel tokens: purely structural, don't replace any tokens
+                // Store empty source_tokens since dedents are synthetic markers
                 for _ in 0..(current_level - target_level) {
-                    result.push((Token::DedentLevel, dedent_location.clone()));
+                    // Placeholder span 0..0 - will never be used
+                    result.push((Token::DedentLevel(vec![]), 0..0));
                 }
             }
             std::cmp::Ordering::Equal => {
@@ -182,16 +165,9 @@ pub fn sem_indentation(
     }
 
     // Add dedents to close all remaining indentation levels
-    // These occur at the end of file, so use the end position
-    let eof_location = if !token_kinds.is_empty() {
-        let end = tokens.last().unwrap().1.end;
-        end..end
-    } else {
-        0..0
-    };
-
+    // These occur at the end of file - they don't replace any tokens
     for _ in 0..current_level {
-        result.push((Token::DedentLevel, eof_location.clone()));
+        result.push((Token::DedentLevel(vec![]), 0..0));
     }
 
     result
@@ -865,7 +841,7 @@ mod tests {
         // Find the IndentLevel token
         let indent_level_pos = result
             .iter()
-            .position(|(t, _)| matches!(t, Token::IndentLevel))
+            .position(|(t, _)| matches!(t, Token::IndentLevel(_)))
             .unwrap();
         let (indent_token, indent_location) = &result[indent_level_pos];
 
@@ -887,7 +863,7 @@ mod tests {
         // Find the DedentLevel token (should be at end)
         let dedent_pos = result
             .iter()
-            .position(|(t, _)| matches!(t, Token::DedentLevel))
+            .position(|(t, _)| matches!(t, Token::DedentLevel(_)))
             .unwrap();
         let (dedent_token, dedent_location) = &result[dedent_pos];
 
@@ -916,7 +892,7 @@ mod tests {
         // The IndentLevel should still have correct location
         let indent_pos = result
             .iter()
-            .position(|(t, _)| matches!(t, Token::IndentLevel))
+            .position(|(t, _)| matches!(t, Token::IndentLevel(_)))
             .unwrap();
         assert_eq!(
             result[indent_pos].1,
@@ -942,7 +918,7 @@ mod tests {
 
         let dedent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::DedentLevel))
+            .filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
             .count();
 
         assert_eq!(
@@ -973,11 +949,11 @@ mod tests {
 
         let dedent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::DedentLevel))
+            .filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
             .count();
         let indent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::IndentLevel))
+            .filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
             .count();
 
         // Should have 2 indents and 2 dedents for the two cycles
@@ -1009,11 +985,11 @@ mod tests {
 
         let dedent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::DedentLevel))
+            .filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
             .count();
         let indent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::IndentLevel))
+            .filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
             .count();
 
         assert_eq!(
@@ -1046,7 +1022,7 @@ mod tests {
 
         let dedent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::DedentLevel))
+            .filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
             .count();
 
         assert_eq!(

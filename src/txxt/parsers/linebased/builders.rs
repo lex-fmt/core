@@ -24,14 +24,18 @@ use crate::txxt::parsers::ContentItem;
 // TEXT AND LOCATION EXTRACTION
 // ============================================================================
 
-/// Extract text from a LineToken using its source_span.
-/// REQUIRES: source_span must be set.
+/// Extract text from a LineToken by computing bounding box from token_spans.
 fn extract_text_from_line_token(token: &LineToken, source: &str) -> Result<String, String> {
-    let span = token
-        .source_span
-        .as_ref()
-        .ok_or_else(|| "LineToken must have source_span set".to_string())?;
-    Ok(extract_text_from_span(source, span))
+    if token.token_spans.is_empty() {
+        return Err("LineToken has no token_spans".to_string());
+    }
+
+    // Compute bounding box from token_spans
+    let min_start = token.token_spans.iter().map(|r| r.start).min().unwrap();
+    let max_end = token.token_spans.iter().map(|r| r.end).max().unwrap();
+    let span = min_start..max_end;
+
+    Ok(extract_text_from_span(source, &span))
 }
 
 /// Extract text from a subset of token slice using byte range extraction.
@@ -190,19 +194,23 @@ pub fn unwrap_annotation_with_content(
     Ok(annotation)
 }
 
-/// Extract location information from a LineToken using its source span
+/// Extract location information from a LineToken by computing bounding box from token_spans
 ///
-/// This uses the source_span stored in the LineToken to determine the exact
-/// line and column positions in the source code. If no source span is available,
+/// This computes the bounding box from the token_spans to determine the exact
+/// line and column positions in the source code. If no token spans are available,
 /// returns a default location.
 fn extract_location_from_token(token: &LineToken, source: &str) -> Range {
-    match &token.source_span {
-        Some(span) => {
-            let source_location = SourceLocation::new(source);
-            source_location.byte_range_to_ast_range(span)
-        }
-        None => default_location(),
+    if token.token_spans.is_empty() {
+        return default_location();
     }
+
+    // Compute bounding box from token_spans
+    let min_start = token.token_spans.iter().map(|r| r.start).min().unwrap();
+    let max_end = token.token_spans.iter().map(|r| r.end).max().unwrap();
+    let span = min_start..max_end;
+
+    let source_location = SourceLocation::new(source);
+    source_location.byte_range_to_ast_range(&span)
 }
 
 /// Extract a combined location that spans multiple tokens
@@ -219,14 +227,21 @@ fn extract_location_from_tokens(tokens: &[LineToken], source: &str) -> Range {
         return default_location();
     }
 
-    // Convert each token's span to a Location
+    // Convert each token's bounding box to a Location
     let locations: Vec<Range> = tokens
         .iter()
         .filter_map(|token| {
-            token.source_span.as_ref().map(|span| {
+            if token.token_spans.is_empty() {
+                None
+            } else {
+                // Compute bounding box from token_spans
+                let min_start = token.token_spans.iter().map(|r| r.start).min().unwrap();
+                let max_end = token.token_spans.iter().map(|r| r.end).max().unwrap();
+                let span = min_start..max_end;
+
                 let source_location = SourceLocation::new(source);
-                source_location.byte_range_to_ast_range(span)
-            })
+                Some(source_location.byte_range_to_ast_range(&span))
+            }
         })
         .collect();
 

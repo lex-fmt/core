@@ -107,13 +107,11 @@ fn attach_spans_to_line_tokens(
     let mut source_idx = 0;
 
     for line_token in line_tokens.iter_mut() {
-        // Find the start of this line's tokens in the original stream
+        // Find the tokens in the original stream that match this line token's source_tokens
         if source_idx >= tokens_with_spans.len() {
             break;
         }
 
-        let line_start = tokens_with_spans[source_idx].1.start;
-        let mut line_end = line_start;
         let mut token_spans = Vec::new();
 
         // Consume tokens from the source stream that match this line token's source_tokens
@@ -123,15 +121,14 @@ fn attach_spans_to_line_tokens(
                 // Check if tokens match (they should, since we derived line_tokens from these)
                 if std::mem::discriminant(actual_token) == std::mem::discriminant(expected_token) {
                     token_spans.push(span.clone());
-                    line_end = span.end;
                     source_idx += 1;
                 }
             }
         }
 
-        // Attach the token spans and overall span to this line token
+        // Attach the token spans to this line token
+        // Note: No aggregate source_span - AST construction will compute bounding box from token_spans
         line_token.token_spans = token_spans;
-        line_token.source_span = Some(line_start..line_end);
     }
 }
 
