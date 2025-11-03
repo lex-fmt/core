@@ -10,14 +10,15 @@
 //! 3. Facade handles: unrolling, location conversion, calling base builders
 //! 4. Handling recursive content from nested blocks
 
-use crate::txxt::ast::location::SourceLocation;
+use crate::txxt::ast::range::SourceLocation;
+use crate::txxt::ast::Range;
 use crate::txxt::lexers::LineToken;
 use crate::txxt::parsers::common::ast_construction;
 use crate::txxt::parsers::common::{
     build_annotation, build_paragraph, extract_text_from_span,
     location::{compute_location_from_locations, default_location},
 };
-use crate::txxt::parsers::{ContentItem, Location};
+use crate::txxt::parsers::ContentItem;
 
 // ============================================================================
 // TEXT AND LOCATION EXTRACTION
@@ -156,7 +157,10 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
         // Note: We use build_paragraph directly here because we've already extracted the text
         // and can't easily create a proper LineToken for the facade
         let content = if !trailing_text.is_empty() {
-            vec![build_paragraph(vec![(trailing_text, location)], location)]
+            vec![build_paragraph(
+                vec![(trailing_text, location.clone())],
+                location.clone(),
+            )]
         } else {
             vec![]
         };
@@ -191,11 +195,11 @@ pub fn unwrap_annotation_with_content(
 /// This uses the source_span stored in the LineToken to determine the exact
 /// line and column positions in the source code. If no source span is available,
 /// returns a default location.
-fn extract_location_from_token(token: &LineToken, source: &str) -> Location {
+fn extract_location_from_token(token: &LineToken, source: &str) -> Range {
     match &token.source_span {
         Some(span) => {
             let source_location = SourceLocation::new(source);
-            source_location.range_to_location(span)
+            source_location.byte_range_to_ast_range(span)
         }
         None => default_location(),
     }
@@ -210,18 +214,18 @@ fn extract_location_from_token(token: &LineToken, source: &str) -> Location {
 ///
 /// This approach is semantically correct for hierarchical/non-contiguous children
 /// and avoids issues with assuming contiguous byte ranges.
-fn extract_location_from_tokens(tokens: &[LineToken], source: &str) -> Location {
+fn extract_location_from_tokens(tokens: &[LineToken], source: &str) -> Range {
     if tokens.is_empty() {
         return default_location();
     }
 
     // Convert each token's span to a Location
-    let locations: Vec<Location> = tokens
+    let locations: Vec<Range> = tokens
         .iter()
         .filter_map(|token| {
             token.source_span.as_ref().map(|span| {
                 let source_location = SourceLocation::new(source);
-                source_location.range_to_location(span)
+                source_location.byte_range_to_ast_range(span)
             })
         })
         .collect();
@@ -322,7 +326,7 @@ pub fn unwrap_foreign_block(
 
     // Compute content location from all content lines
     let content_location = if content_lines.is_empty() {
-        Location::default()
+        Range::default()
     } else {
         // Convert Vec<&LineToken> to Vec<LineToken> for the function
         let tokens: Vec<LineToken> = content_lines.iter().map(|t| (*t).clone()).collect();

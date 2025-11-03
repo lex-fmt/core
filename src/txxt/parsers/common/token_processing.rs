@@ -13,9 +13,9 @@
 //! 3. Convert byte ranges to human-readable locations
 //! 4. Extract text from ranges
 
-use crate::txxt::ast::location::{Location, SourceLocation};
+use crate::txxt::ast::range::{Range, SourceLocation};
 use crate::txxt::lexers::tokens::Token;
-use std::ops::Range;
+use std::ops::Range as ByteRange;
 
 /// Trait that any token structure can implement to provide access to source tokens.
 ///
@@ -25,7 +25,7 @@ pub trait SourceTokenProvider {
     ///
     /// For atomic tokens (direct from Logos), this returns a slice containing just that token.
     /// For aggregate tokens (from transformations), this returns all the original tokens.
-    fn source_tokens(&self) -> &[(Token, Range<usize>)];
+    fn source_tokens(&self) -> &[(Token, ByteRange<usize>)];
 }
 
 /// Unroll a collection of tokens to a flat list of original Logos tokens.
@@ -41,7 +41,7 @@ pub trait SourceTokenProvider {
 /// let flat_tokens = unroll(&line_tokens);
 /// // flat_tokens now contains all original Logos tokens
 /// ```
-pub fn unroll<T: SourceTokenProvider>(tokens: &[T]) -> Vec<(Token, Range<usize>)> {
+pub fn unroll<T: SourceTokenProvider>(tokens: &[T]) -> Vec<(Token, ByteRange<usize>)> {
     tokens
         .iter()
         .flat_map(|t| t.source_tokens().iter().cloned())
@@ -62,7 +62,9 @@ pub fn unroll<T: SourceTokenProvider>(tokens: &[T]) -> Vec<(Token, Range<usize>)
 ///     .collect();
 /// let flat_tokens = flatten_token_vecs(&token_vecs);
 /// ```
-pub fn flatten_token_vecs(token_vecs: &[Vec<(Token, Range<usize>)>]) -> Vec<(Token, Range<usize>)> {
+pub fn flatten_token_vecs(
+    token_vecs: &[Vec<(Token, ByteRange<usize>)>],
+) -> Vec<(Token, ByteRange<usize>)> {
     token_vecs.iter().flat_map(|v| v.iter().cloned()).collect()
 }
 
@@ -85,7 +87,7 @@ pub fn flatten_token_vecs(token_vecs: &[Vec<(Token, Range<usize>)>]) -> Vec<(Tok
 /// let bbox = compute_bounding_box(&tokens);
 /// assert_eq!(bbox, 0..11);
 /// ```
-pub fn compute_bounding_box(tokens: &[(Token, Range<usize>)]) -> Range<usize> {
+pub fn compute_bounding_box(tokens: &[(Token, ByteRange<usize>)]) -> ByteRange<usize> {
     assert!(
         !tokens.is_empty(),
         "Cannot compute bounding box from empty token list"
@@ -120,9 +122,9 @@ pub fn compute_bounding_box(tokens: &[(Token, Range<usize>)]) -> Range<usize> {
 /// assert_eq!(location.end.line, 0);
 /// assert_eq!(location.end.column, 5);
 /// ```
-pub fn range_to_location(range: Range<usize>, source: &str) -> Location {
+pub fn byte_range_to_ast_range(range: ByteRange<usize>, source: &str) -> Range {
     let source_location = SourceLocation::new(source);
-    source_location.range_to_location(&range)
+    source_location.byte_range_to_ast_range(&range)
 }
 
 /// Extract text from the source string at the given range.
@@ -138,7 +140,7 @@ pub fn range_to_location(range: Range<usize>, source: &str) -> Location {
 /// let text = extract_text(0..5, "hello world");
 /// assert_eq!(text, "hello");
 /// ```
-pub fn extract_text(range: Range<usize>, source: &str) -> String {
+pub fn extract_text(range: ByteRange<usize>, source: &str) -> String {
     source[range].to_string()
 }
 
@@ -149,9 +151,9 @@ pub fn extract_text(range: Range<usize>, source: &str) -> String {
 /// # Panics
 ///
 /// Panics if tokens is empty.
-pub fn tokens_to_location(tokens: &[(Token, Range<usize>)], source: &str) -> Location {
+pub fn tokens_to_ast_range(tokens: &[(Token, ByteRange<usize>)], source: &str) -> Range {
     let range = compute_bounding_box(tokens);
-    range_to_location(range, source)
+    byte_range_to_ast_range(range, source)
 }
 
 /// High-level convenience: extract text directly from tokens.
@@ -161,7 +163,7 @@ pub fn tokens_to_location(tokens: &[(Token, Range<usize>)], source: &str) -> Loc
 /// # Panics
 ///
 /// Panics if tokens is empty.
-pub fn tokens_to_text(tokens: &[(Token, Range<usize>)], source: &str) -> String {
+pub fn tokens_to_text(tokens: &[(Token, ByteRange<usize>)], source: &str) -> String {
     let range = compute_bounding_box(tokens);
     extract_text(range, source)
 }
@@ -169,22 +171,25 @@ pub fn tokens_to_text(tokens: &[(Token, Range<usize>)], source: &str) -> String 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::txxt::ast::location::Position;
+    use crate::txxt::ast::range::Position;
 
     // Mock token provider for testing
     struct MockToken {
-        tokens: Vec<(Token, Range<usize>)>,
+        tokens: Vec<(Token, ByteRange<usize>)>,
     }
 
     impl SourceTokenProvider for MockToken {
-        fn source_tokens(&self) -> &[(Token, Range<usize>)] {
+        fn source_tokens(&self) -> &[(Token, ByteRange<usize>)] {
             &self.tokens
         }
     }
 
     #[test]
     fn test_compute_bounding_box_single_token() {
-        let tokens = vec![(Token::Text("hello".to_string()), 0..5)];
+        let tokens = vec![(
+            Token::Text("hello".to_string()),
+            ByteRange { start: 0, end: 5 },
+        )];
         let bbox = compute_bounding_box(&tokens);
         assert_eq!(bbox, 0..5);
     }
@@ -192,9 +197,15 @@ mod tests {
     #[test]
     fn test_compute_bounding_box_multiple_contiguous() {
         let tokens = vec![
-            (Token::Text("hello".to_string()), 0..5),
-            (Token::Whitespace, 5..6),
-            (Token::Text("world".to_string()), 6..11),
+            (
+                Token::Text("hello".to_string()),
+                ByteRange { start: 0, end: 5 },
+            ),
+            (Token::Whitespace, ByteRange { start: 5, end: 6 }),
+            (
+                Token::Text("world".to_string()),
+                ByteRange { start: 6, end: 11 },
+            ),
         ];
         let bbox = compute_bounding_box(&tokens);
         assert_eq!(bbox, 0..11);
@@ -204,8 +215,14 @@ mod tests {
     fn test_compute_bounding_box_non_contiguous() {
         // In case tokens have gaps (shouldn't happen normally, but test it)
         let tokens = vec![
-            (Token::Text("hello".to_string()), 0..5),
-            (Token::Text("world".to_string()), 10..15),
+            (
+                Token::Text("hello".to_string()),
+                ByteRange { start: 0, end: 5 },
+            ),
+            (
+                Token::Text("world".to_string()),
+                ByteRange { start: 10, end: 15 },
+            ),
         ];
         let bbox = compute_bounding_box(&tokens);
         assert_eq!(bbox, 0..15);
@@ -214,36 +231,48 @@ mod tests {
     #[test]
     #[should_panic(expected = "Cannot compute bounding box from empty token list")]
     fn test_compute_bounding_box_empty_panics() {
-        let tokens: Vec<(Token, Range<usize>)> = vec![];
+        let tokens: Vec<(Token, ByteRange<usize>)> = vec![];
         compute_bounding_box(&tokens);
     }
 
     #[test]
     fn test_extract_text_simple() {
         let source = "hello world";
-        assert_eq!(extract_text(0..5, source), "hello");
-        assert_eq!(extract_text(6..11, source), "world");
+        assert_eq!(
+            extract_text(ByteRange { start: 0, end: 5 }, source),
+            "hello"
+        );
+        assert_eq!(
+            extract_text(ByteRange { start: 6, end: 11 }, source),
+            "world"
+        );
     }
 
     #[test]
     fn test_extract_text_multiline() {
         let source = "line one\nline two\nline three";
-        assert_eq!(extract_text(0..8, source), "line one");
-        assert_eq!(extract_text(9..17, source), "line two");
+        assert_eq!(
+            extract_text(ByteRange { start: 0, end: 8 }, source),
+            "line one"
+        );
+        assert_eq!(
+            extract_text(ByteRange { start: 9, end: 17 }, source),
+            "line two"
+        );
     }
 
     #[test]
     fn test_extract_text_unicode() {
         let source = "hello 世界";
         // "世界" is 6 bytes (3 bytes per character)
-        let text = extract_text(6..12, source);
+        let text = extract_text(ByteRange { start: 6, end: 12 }, source);
         assert_eq!(text, "世界");
     }
 
     #[test]
     fn test_range_to_location_single_line() {
         let source = "hello world";
-        let location = range_to_location(0..5, source);
+        let location = byte_range_to_ast_range(ByteRange { start: 0, end: 5 }, source);
         assert_eq!(location.start, Position::new(0, 0));
         assert_eq!(location.end, Position::new(0, 5));
     }
@@ -251,7 +280,7 @@ mod tests {
     #[test]
     fn test_range_to_location_multiline() {
         let source = "line one\nline two\nline three";
-        let location = range_to_location(0..17, source);
+        let location = byte_range_to_ast_range(ByteRange { start: 0, end: 17 }, source);
         // Should span from (0,0) to end of "line two"
         assert_eq!(location.start, Position::new(0, 0));
         assert_eq!(location.end, Position::new(1, 8));
@@ -260,7 +289,10 @@ mod tests {
     #[test]
     fn test_unroll_single_token() {
         let mock = MockToken {
-            tokens: vec![(Token::Text("hello".to_string()), 0..5)],
+            tokens: vec![(
+                Token::Text("hello".to_string()),
+                ByteRange { start: 0, end: 5 },
+            )],
         };
         let unrolled = unroll(&[mock]);
         assert_eq!(unrolled.len(), 1);
@@ -270,12 +302,18 @@ mod tests {
     #[test]
     fn test_unroll_multiple_tokens() {
         let mock1 = MockToken {
-            tokens: vec![(Token::Text("hello".to_string()), 0..5)],
+            tokens: vec![(
+                Token::Text("hello".to_string()),
+                ByteRange { start: 0, end: 5 },
+            )],
         };
         let mock2 = MockToken {
             tokens: vec![
-                (Token::Whitespace, 5..6),
-                (Token::Text("world".to_string()), 6..11),
+                (Token::Whitespace, ByteRange { start: 5, end: 6 }),
+                (
+                    Token::Text("world".to_string()),
+                    ByteRange { start: 6, end: 11 },
+                ),
             ],
         };
         let unrolled = unroll(&[mock1, mock2]);
@@ -289,11 +327,17 @@ mod tests {
     fn test_tokens_to_location_convenience() {
         let source = "hello world";
         let tokens = vec![
-            (Token::Text("hello".to_string()), 0..5),
-            (Token::Whitespace, 5..6),
-            (Token::Text("world".to_string()), 6..11),
+            (
+                Token::Text("hello".to_string()),
+                ByteRange { start: 0, end: 5 },
+            ),
+            (Token::Whitespace, ByteRange { start: 5, end: 6 }),
+            (
+                Token::Text("world".to_string()),
+                ByteRange { start: 6, end: 11 },
+            ),
         ];
-        let location = tokens_to_location(&tokens, source);
+        let location = tokens_to_ast_range(&tokens, source);
         assert_eq!(location.start, Position::new(0, 0));
         assert_eq!(location.end, Position::new(0, 11));
     }
@@ -302,8 +346,11 @@ mod tests {
     fn test_tokens_to_text_convenience() {
         let source = "hello world";
         let tokens = vec![
-            (Token::Text("hello".to_string()), 0..5),
-            (Token::Whitespace, 5..6),
+            (
+                Token::Text("hello".to_string()),
+                ByteRange { start: 0, end: 5 },
+            ),
+            (Token::Whitespace, ByteRange { start: 5, end: 6 }),
         ];
         let text = tokens_to_text(&tokens, source);
         assert_eq!(text, "hello ");
@@ -311,7 +358,7 @@ mod tests {
 
     #[test]
     fn test_flatten_token_vecs_empty() {
-        let vecs: Vec<Vec<(Token, Range<usize>)>> = vec![];
+        let vecs: Vec<Vec<(Token, ByteRange<usize>)>> = vec![];
         let flattened = flatten_token_vecs(&vecs);
         assert_eq!(flattened.len(), 0);
     }
@@ -319,8 +366,11 @@ mod tests {
     #[test]
     fn test_flatten_token_vecs_single() {
         let vecs = vec![vec![
-            (Token::Text("hello".to_string()), 0..5),
-            (Token::Whitespace, 5..6),
+            (
+                Token::Text("hello".to_string()),
+                ByteRange { start: 0, end: 5 },
+            ),
+            (Token::Whitespace, ByteRange { start: 5, end: 6 }),
         ]];
         let flattened = flatten_token_vecs(&vecs);
         assert_eq!(flattened.len(), 2);
@@ -331,10 +381,16 @@ mod tests {
     #[test]
     fn test_flatten_token_vecs_multiple() {
         let vecs = vec![
-            vec![(Token::Text("hello".to_string()), 0..5)],
+            vec![(
+                Token::Text("hello".to_string()),
+                ByteRange { start: 0, end: 5 },
+            )],
             vec![
-                (Token::Whitespace, 5..6),
-                (Token::Text("world".to_string()), 6..11),
+                (Token::Whitespace, ByteRange { start: 5, end: 6 }),
+                (
+                    Token::Text("world".to_string()),
+                    ByteRange { start: 6, end: 11 },
+                ),
             ],
         ];
         let flattened = flatten_token_vecs(&vecs);

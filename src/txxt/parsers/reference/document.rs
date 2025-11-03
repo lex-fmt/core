@@ -20,9 +20,9 @@ type ParserError = Simple<TokenLocation>;
 /// for the actual document content parsing logic.
 pub fn document(source: &str) -> impl Parser<TokenLocation, Document, Error = ParserError> + Clone {
     super::parser::build_document_content_parser(source).map(|content| {
-        let content_locations = content
+        let content_locations: Vec<crate::txxt::ast::range::Range> = content
             .iter()
-            .map(|item| item.location())
+            .map(|item| item.range().clone())
             .collect::<Vec<_>>();
         let location = compute_location_from_locations(&content_locations);
 

@@ -59,7 +59,7 @@ pub(crate) fn build_document_content_parser(
             let annotation_parser = build_annotation_parser(source.clone(), items.clone());
 
             choice((
-                foreign_block(source.clone()).map(ContentItem::ForeignBlock),
+                foreign_block(source.clone()).map(|fb| ContentItem::ForeignBlock(Box::new(fb))),
                 annotation_parser,
                 list_parser,
                 definition_parser,
@@ -470,9 +470,9 @@ mod tests {
 
         assert_eq!(doc.root.content.len(), 1);
         let para = doc.root.content[0].as_paragraph().unwrap();
-        let location = para.location();
-        assert_eq!(location.start.line, 0);
-        assert_eq!(location.start.column, 0);
+        let range = para.range();
+        assert_eq!(range.start.line, 0);
+        assert_eq!(range.start.column, 0);
     }
 
     #[test]
@@ -488,9 +488,9 @@ mod tests {
         assert_eq!(para.lines.len(), 2);
 
         // Location should cover both lines
-        let location = para.location();
-        assert_eq!(location.start.line, 0);
-        assert_eq!(location.end.line, 1);
+        let range = para.range();
+        assert_eq!(range.start.line, 0);
+        assert_eq!(range.end.line, 1);
     }
 
     #[test]
@@ -537,14 +537,14 @@ mod tests {
 
         // First paragraph should be at line 0
         if let Some(para) = items.first().and_then(|item| item.as_paragraph()) {
-            let location = para.location();
-            assert_eq!(location.start.line, 0);
+            let range = para.range();
+            assert_eq!(range.start.line, 0);
         }
 
         // Second paragraph should be at line 2
         if let Some(para) = items.get(1).and_then(|item| item.as_paragraph()) {
-            let location = para.location();
-            assert_eq!(location.start.line, 2);
+            let range = para.range();
+            assert_eq!(range.start.line, 2);
         }
     }
 
@@ -580,11 +580,11 @@ mod tests {
         }
 
         // But new version should have positions on the paragraph and text
-        let para_location = para_new.location();
-        assert!(para_location.start <= para_location.end);
+        let para_range = para_new.range();
+        assert!(para_range.start <= para_range.end);
         if let ContentItem::TextLine(tl) = &para_new.lines[0] {
-            let line_location = tl.location();
-            assert!(line_location.start <= line_location.end);
+            let line_range = tl.range();
+            assert!(line_range.start <= line_range.end);
         }
     }
 
@@ -595,19 +595,19 @@ mod tests {
         let doc = parse(tokens, input).expect("Failed to parse with positions");
 
         let para = doc.root.content[0].as_paragraph().unwrap();
-        let location = para.location();
+        let range = para.range();
 
         // Should contain position in the middle
-        assert!(location.contains(Position::new(0, 5)));
+        assert!(range.contains(Position::new(0, 5)));
 
         // Should contain start
-        assert!(location.contains(location.start));
+        assert!(range.contains(range.start));
 
         // Should contain end
-        assert!(location.contains(location.end));
+        assert!(range.contains(range.end));
 
         // Should?? contain position after end
-        assert!(!location.contains(Position::new(0, 11)));
+        assert!(!range.contains(Position::new(0, 11)));
     }
 
     #[test]
@@ -627,9 +627,9 @@ mod tests {
             .find(|item| item.is_session())
             .expect("Should have a session");
 
-        let session_location = session.location();
+        let session_range = session.range();
         assert!(
-            session_location.start <= session_location.end,
+            session_range.start <= session_range.end,
             "Session should have location"
         );
 
@@ -641,18 +641,18 @@ mod tests {
             if let Some(para_item) = children.first() {
                 if para_item.is_paragraph() {
                     let para = para_item.as_paragraph().unwrap();
-                    let location = para.location();
+                    let range = para.range();
                     assert!(
-                        location.start <= location.end,
+                        range.start <= range.end,
                         "Nested paragraph should have location, but got {:?}",
-                        location
+                        range
                     );
 
                     println!(
                         "Nested paragraph location: {:?} to {:?}",
-                        location.start, location.end
+                        range.start, range.end
                     );
-                    assert_eq!(location.start.line, 4, "Paragraph should be at line 4");
+                    assert_eq!(range.start.line, 4, "Paragraph should be at line 4");
                 }
             }
         }
@@ -666,16 +666,16 @@ mod tests {
         let doc = parse(tokens, &source).expect("Failed to parse ensemble sample");
 
         // Document doesn't have its own location; location comes from root
-        let root_location = doc.root.location();
+        let root_range = doc.root.range();
         assert!(
-            root_location.start <= root_location.end,
+            root_range.start <= root_range.end,
             "Root session should have a location"
         );
 
         for item in &doc.root.content {
-            let item_location = item.location();
+            let item_range = item.range();
             assert!(
-                item_location.start <= item_location.end,
+                item_range.start <= item_range.end,
                 "{} should have a location",
                 item.node_type()
             );
@@ -684,9 +684,9 @@ mod tests {
                 ContentItem::Paragraph(paragraph) => {
                     for line in &paragraph.lines {
                         if let ContentItem::TextLine(tl) = line {
-                            let line_location = tl.location();
+                            let line_range = tl.range();
                             assert!(
-                                line_location.start <= line_location.end,
+                                line_range.start <= line_range.end,
                                 "Paragraph line should have location"
                             );
                         }
@@ -698,9 +698,9 @@ mod tests {
                         "Session title is missing location"
                     );
                     for child in &session.content {
-                        let child_location = child.location();
+                        let child_range = child.range();
                         assert!(
-                            child_location.start <= child_location.end,
+                            child_range.start <= child_range.end,
                             "Session child should have location"
                         );
                     }
@@ -711,9 +711,9 @@ mod tests {
                         "Definition subject should have location"
                     );
                     for child in &definition.content {
-                        let child_location = child.location();
+                        let child_range = child.range();
                         assert!(
-                            child_location.start <= child_location.end,
+                            child_range.start <= child_range.end,
                             "Definition child should have location"
                         );
                     }
@@ -728,9 +728,9 @@ mod tests {
                                 );
                             }
                             for child in &list_item.content {
-                                let child_location = child.location();
+                                let child_range = child.range();
                                 assert!(
-                                    child_location.start <= child_location.end,
+                                    child_range.start <= child_range.end,
                                     "Nested list item child should have location"
                                 );
                             }
@@ -759,9 +759,9 @@ mod tests {
 
         for annotation in annotations {
             for child in &annotation.content {
-                let child_location = child.location();
+                let child_range = child.range();
                 assert!(
-                    child_location.start <= child_location.end,
+                    child_range.start <= child_range.end,
                     "Annotation content should have a location"
                 );
             }
@@ -800,9 +800,9 @@ mod tests {
 
             let closing = &block.closing_annotation;
             for child in &closing.content {
-                let child_location = child.location();
+                let child_range = child.range();
                 assert!(
-                    child_location.start <= child_location.end,
+                    child_range.start <= child_range.end,
                     "Closing annotation content should have a location"
                 );
             }

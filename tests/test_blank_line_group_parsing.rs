@@ -34,11 +34,11 @@ fn test_blank_line_group_location_visitor() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    // Find blank line groups and verify location() works
+    // Find blank line groups and verify location field works
     for item in &doc.root.content {
         if let ContentItem::BlankLineGroup(blg) = item {
-            // Test that location() method is callable and works without panic
-            let _loc = blg.location();
+            // Test that location field is accessible and works without panic
+            let _loc = &blg.location;
             return;
         }
     }

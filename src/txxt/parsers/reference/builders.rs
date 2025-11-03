@@ -12,11 +12,11 @@
 
 use chumsky::prelude::*;
 use chumsky::primitive::filter;
-use std::ops::Range;
+use std::ops::Range as ByteRange;
 use std::sync::Arc;
 
 use crate::txxt::ast::{
-    ContentItem, ForeignBlock, Label, ListItem, Location, Paragraph, Parameter, TextContent,
+    ContentItem, ForeignBlock, Label, ListItem, Paragraph, Parameter, Range, TextContent,
 };
 use crate::txxt::lexers::Token;
 // Location utilities and AST builders are now imported from crate::txxt::parsers::common
@@ -27,7 +27,7 @@ use crate::txxt::parsers::common::{
 };
 
 /// Type alias for token with location
-pub(crate) type TokenLocation = (Token, Range<usize>);
+pub(crate) type TokenLocation = (Token, ByteRange<usize>);
 
 /// Type alias for parser error
 pub(crate) type ParserError = Simple<TokenLocation>;
@@ -60,7 +60,7 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
 }
 
 /// Helper: extract text from multiple locations
-pub(crate) fn extract_text_from_locations(source: &str, locations: &[Range<usize>]) -> String {
+pub(crate) fn extract_text_from_locations(source: &str, locations: &[ByteRange<usize>]) -> String {
     if locations.is_empty() {
         return String::new();
     }
@@ -79,8 +79,8 @@ pub(crate) fn extract_text_from_locations(source: &str, locations: &[Range<usize
 pub(crate) fn extract_tokens_to_text_and_location(
     source: &Arc<String>,
     tokens: Vec<TokenLocation>,
-) -> (String, Range<usize>) {
-    let locations: Vec<Range<usize>> = tokens.into_iter().map(|(_, s)| s).collect();
+) -> (String, ByteRange<usize>) {
+    let locations: Vec<ByteRange<usize>> = tokens.into_iter().map(|(_, s)| s).collect();
     let text = extract_text_from_locations(source, &locations);
     let location = compute_byte_range_bounds(&locations);
     (text, location)
@@ -98,7 +98,7 @@ pub(crate) fn token(t: Token) -> impl Parser<TokenLocation, (), Error = ParserEr
 /// Parse a text line (sequence of text and whitespace tokens)
 /// Returns the collected locations for this line
 pub(crate) fn text_line(
-) -> impl Parser<TokenLocation, Vec<Range<usize>>, Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, Vec<ByteRange<usize>>, Error = ParserError> + Clone {
     filter(|(t, _location): &TokenLocation| is_text_token(t))
         .repeated()
         .at_least(1)
@@ -116,14 +116,14 @@ pub(crate) fn paragraph(
         .then_ignore(token(Token::Newline))
         .repeated()
         .at_least(1)
-        .map(move |line_locations_list: Vec<Vec<Range<usize>>>| {
-            let text_lines: Vec<(String, Location)> = line_locations_list
+        .map(move |line_locations_list: Vec<Vec<ByteRange<usize>>>| {
+            let text_lines: Vec<(String, Range)> = line_locations_list
                 .iter()
                 .map(|locations| {
                     let text = extract_text_from_locations(&source, locations);
                     // Compute location for this line
                     let line_location = if locations.is_empty() {
-                        Location::default()
+                        Range::default()
                     } else {
                         let range = compute_byte_range_bounds(locations);
                         byte_range_to_location(&source, &range)
@@ -134,10 +134,10 @@ pub(crate) fn paragraph(
 
             // Compute overall location from all collected line locations
             let location = {
-                let all_locations: Vec<Range<usize>> =
+                let all_locations: Vec<ByteRange<usize>> =
                     line_locations_list.into_iter().flatten().collect();
                 if all_locations.is_empty() {
-                    Location::default()
+                    Range::default()
                 } else {
                     let range = compute_byte_range_bounds(&all_locations);
                     byte_range_to_location(&source, &range)
@@ -161,10 +161,10 @@ pub(crate) fn paragraph(
 #[derive(Clone, Debug)]
 pub(crate) struct AnnotationHeader {
     pub label: Option<String>,
-    pub label_range: Option<Range<usize>>,
+    pub label_range: Option<ByteRange<usize>>,
     pub parameters: Vec<Parameter>,
     #[allow(dead_code)]
-    pub header_range: Range<usize>,
+    pub header_range: ByteRange<usize>,
 }
 
 pub(crate) fn annotation_header(
@@ -262,7 +262,7 @@ where
                 } = header_info;
 
                 let label_text = label.unwrap_or_default();
-                let label_location = label_range.map_or(Location::default(), |s| {
+                let label_location = label_range.map_or(Range::default(), |s| {
                     byte_range_to_location(&source_for_block, &s)
                 });
 
@@ -286,7 +286,7 @@ where
                 } = header_info;
 
                 let label_text = label.unwrap_or_default();
-                let label_location = label_range.map_or(Location::default(), |s| {
+                let label_location = label_range.map_or(Range::default(), |s| {
                     byte_range_to_location(&source_for_single_line, &s)
                 });
 
@@ -296,8 +296,10 @@ where
                     let range = compute_byte_range_bounds(&locations);
                     let paragraph_location =
                         byte_range_to_location(&source_for_single_line, &range);
-                    let text_line_item =
-                        build_paragraph(vec![(text, paragraph_location)], paragraph_location);
+                    let text_line_item = build_paragraph(
+                        vec![(text, paragraph_location.clone())],
+                        paragraph_location,
+                    );
                     vec![text_line_item]
                 } else {
                     vec![]
@@ -318,7 +320,7 @@ where
 /// Parse a definition subject
 pub(crate) fn definition_subject(
     source: Arc<String>,
-) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, (String, ByteRange<usize>), Error = ParserError> + Clone {
     filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
@@ -358,7 +360,7 @@ where
 /// Parse a session title
 pub(crate) fn session_title(
     source: Arc<String>,
-) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, (String, ByteRange<usize>), Error = ParserError> + Clone {
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(token(Token::BlankLine))
@@ -399,7 +401,7 @@ where
 /// Parse a list item line - a line that starts with a list marker
 pub(crate) fn list_item_line(
     source: Arc<String>,
-) -> impl Parser<TokenLocation, (String, Range<usize>), Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, (String, ByteRange<usize>), Error = ParserError> + Clone {
     let rest_of_line = filter(|(t, _location): &TokenLocation| is_text_token(t)).repeated();
 
     let dash_pattern = filter(|(t, _): &TokenLocation| matches!(t, Token::Dash))
@@ -456,7 +458,7 @@ where
         .map(move |((text, text_location), maybe_content)| {
             let content = maybe_content.unwrap_or_default();
             let line_location = byte_range_to_location(&source_for_list, &text_location);
-            let text_content = TextContent::from_string(text, Some(line_location));
+            let text_content = TextContent::from_string(text, Some(line_location.clone()));
 
             let location = aggregate_locations(line_location, &content);
 
@@ -521,7 +523,7 @@ pub(crate) fn foreign_block(
             } = header_info;
 
             let label_text = label.unwrap_or_default();
-            let label_location = label_range.map_or(Location::default(), |range| {
+            let label_location = label_range.map_or(Range::default(), |range| {
                 byte_range_to_location(&source_for_annotation, &range)
             });
             let label = Label::new(label_text).at(label_location);
@@ -532,11 +534,13 @@ pub(crate) fn foreign_block(
                 let paragraph_location = byte_range_to_location(&source_for_annotation, &range);
 
                 // Use common builder
-                let paragraph =
-                    build_paragraph(vec![(text, paragraph_location)], paragraph_location);
+                let paragraph = build_paragraph(
+                    vec![(text, paragraph_location.clone())],
+                    paragraph_location.clone(),
+                );
                 (vec![paragraph], paragraph_location)
             } else {
-                (vec![], Location::default())
+                (vec![], Range::default())
             };
 
             // Use common builder - extract label value and location to reconstruct
@@ -560,7 +564,7 @@ pub(crate) fn foreign_block(
 
                 let (content_text, content_location) = if let Some(locations) = content_locations {
                     if locations.is_empty() {
-                        (String::new(), Location::default())
+                        (String::new(), Range::default())
                     } else {
                         let text = extract_text_from_locations(&source, &locations);
                         let range = compute_byte_range_bounds(&locations);
@@ -568,7 +572,7 @@ pub(crate) fn foreign_block(
                         (text, location)
                     }
                 } else {
-                    (String::new(), Location::default())
+                    (String::new(), Range::default())
                 };
 
                 // Use common builder to create foreign block
@@ -579,7 +583,7 @@ pub(crate) fn foreign_block(
                     content_location,
                     closing_annotation,
                 ) {
-                    fb
+                    *fb
                 } else {
                     unreachable!("build_foreign_block always returns ForeignBlock")
                 }
@@ -596,7 +600,9 @@ pub(crate) fn foreign_block(
 /// Extracts a label location from the beginning of the token slice if present.
 /// A label is identified as an identifier (Text, Dash, Number, Period tokens)
 /// that is NOT followed by an equals sign.
-pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range<usize>>, usize) {
+pub(crate) fn parse_label_from_tokens(
+    tokens: &[TokenLocation],
+) -> (Option<ByteRange<usize>>, usize) {
     if tokens.is_empty() {
         return (None, 0);
     }
@@ -678,9 +684,9 @@ pub(crate) fn parse_label_from_tokens(tokens: &[TokenLocation]) -> (Option<Range
 /// Parameter with source text locations for later extraction
 #[derive(Debug, Clone)]
 pub(crate) struct ParameterWithLocations {
-    pub(crate) key_location: Range<usize>,
-    pub(crate) value_location: Option<Range<usize>>,
-    pub(crate) range: Range<usize>,
+    pub(crate) key_location: ByteRange<usize>,
+    pub(crate) value_location: Option<ByteRange<usize>>,
+    pub(crate) range: ByteRange<usize>,
 }
 
 /// Convert a parameter from locations to final AST
@@ -703,7 +709,7 @@ pub(crate) fn convert_parameter(source: &str, param: ParameterWithLocations) -> 
 }
 
 /// Extract text from source using a location range
-fn extract_text_param<'a>(source: &'a str, location: &Range<usize>) -> &'a str {
+fn extract_text_param<'a>(source: &'a str, location: &ByteRange<usize>) -> &'a str {
     &source[location.start..location.end]
 }
 
@@ -722,8 +728,8 @@ pub(crate) fn parse_parameters_from_tokens(
 
     #[derive(Clone)]
     struct ParsedValue {
-        location: Option<Range<usize>>,
-        last_consumed: Range<usize>,
+        location: Option<ByteRange<usize>>,
+        last_consumed: ByteRange<usize>,
     }
 
     type ParserError = Simple<TokenLocation>;
@@ -740,7 +746,7 @@ pub(crate) fn parse_parameters_from_tokens(
     .map(|(_, span)| span.clone())
     .repeated()
     .at_least(1)
-    .map(|segments: Vec<Range<usize>>| {
+    .map(|segments: Vec<ByteRange<usize>>| {
         let start = segments.first().map(|range| range.start).unwrap_or(0);
         let end = segments.last().map(|range| range.end).unwrap_or(start);
         start..end
@@ -761,7 +767,7 @@ pub(crate) fn parse_parameters_from_tokens(
         unquoted_value_segment
             .repeated()
             .at_least(1)
-            .map(|segments: Vec<Range<usize>>| {
+            .map(|segments: Vec<ByteRange<usize>>| {
                 let start = segments.first().map(|range| range.start).unwrap_or(0);
                 let end = segments.last().map(|range| range.end).unwrap_or(start);
                 let last_consumed = segments.last().cloned().unwrap_or(start..end);

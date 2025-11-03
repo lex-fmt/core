@@ -16,19 +16,19 @@
 //! Learn More:
 //! - Labels spec: docs/specs/v1/elements/labels.txxt
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use std::fmt;
 
 /// A label represents a named identifier in txxt documents
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Label {
     pub value: String,
-    pub location: Location,
+    pub location: Range,
 }
 
 impl Label {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(value: String) -> Self {
         Self {
@@ -43,11 +43,11 @@ impl Label {
         }
     }
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
     /// Preferred builder: `at(location)`
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -65,11 +65,12 @@ mod tests {
 
     #[test]
     fn test_label() {
-        let location = super::super::super::location::Location::new(
-            super::super::super::location::Position::new(1, 0),
-            super::super::super::location::Position::new(1, 10),
+        let location = super::super::super::range::Range::new(
+            0..0,
+            super::super::super::range::Position::new(1, 0),
+            super::super::super::range::Position::new(1, 10),
         );
-        let label = Label::new("test".to_string()).at(location);
+        let label = Label::new("test".to_string()).at(location.clone());
         assert_eq!(label.location, location);
     }
 }

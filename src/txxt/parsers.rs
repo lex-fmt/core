@@ -25,7 +25,7 @@ pub use common::{ParseError, Parser, ParserInput, ParserRegistry};
 // Re-export AST types and utilities from the ast module
 pub use crate::txxt::ast::{
     format_at_position, Annotation, AstNode, Container, ContentItem, Definition, Document,
-    ForeignBlock, Label, List, ListItem, Location, Paragraph, Parameter, Position, Session,
+    ForeignBlock, Label, List, ListItem, Paragraph, Parameter, Position, Range, Session,
     SourceLocation, TextNode,
 };
 

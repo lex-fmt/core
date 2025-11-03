@@ -21,7 +21,7 @@
 //! - The definition spec: docs/specs/v1/elements/definitions.txxt
 //! - The definition sample: docs/specs/v1/samples/element-based/definitions/definitions.simple.txxt
 
-use super::super::location::{Location, Position};
+use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
 use super::content_item::ContentItem;
@@ -32,12 +32,12 @@ use std::fmt;
 pub struct Definition {
     pub subject: TextContent,
     pub content: Vec<ContentItem>,
-    pub location: Location,
+    pub location: Range,
 }
 
 impl Definition {
-    fn default_location() -> Location {
-        Location::new(Position::new(0, 0), Position::new(0, 0))
+    fn default_location() -> Range {
+        Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(subject: TextContent, content: Vec<ContentItem>) -> Self {
         Self {
@@ -54,11 +54,11 @@ impl Definition {
         }
     }
     #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Location) -> Self {
+    pub fn with_location(self, location: Range) -> Self {
         self.at(location)
     }
     /// Preferred builder
-    pub fn at(mut self, location: Location) -> Self {
+    pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
     }
@@ -76,8 +76,8 @@ impl AstNode for Definition {
             subject_text.to_string()
         }
     }
-    fn location(&self) -> Location {
-        self.location
+    fn range(&self) -> &Range {
+        &self.location
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
@@ -115,11 +115,12 @@ mod tests {
 
     #[test]
     fn test_definition() {
-        let location = super::super::super::location::Location::new(
-            super::super::super::location::Position::new(1, 0),
-            super::super::super::location::Position::new(1, 10),
+        let location = super::super::super::range::Range::new(
+            0..0,
+            super::super::super::range::Position::new(1, 0),
+            super::super::super::range::Position::new(1, 10),
         );
-        let definition = Definition::with_subject("Subject".to_string()).at(location);
+        let definition = Definition::with_subject("Subject".to_string()).at(location.clone());
         assert_eq!(definition.location, location);
     }
 }
