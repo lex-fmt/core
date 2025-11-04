@@ -8,7 +8,7 @@ Introduction
 
 Tokenization Model
 
-	The lexer always emits *spanned tokens*: every token variant is paired with a byte-range from the original source. Synthetic tokens that are introduced by the transformation pipeline (IndentLevel, DedentLevel, BlankLine) also receive meaningful spans derived from surrounding content.
+	The lexer always emits *spanned tokens*: every token variant is paired with a byte-range from the original source. Synthetic tokens that are introduced by the transformation pipeline (Indent, Dedent, BlankLine) also receive meaningful spans derived from surrounding content.
 
 	Downstream code and tests MUST assume locations are mandatory. There are no "location-less" tokens any more, so helper APIs (including the testing factories) always require start/end offsets. This keeps the parser, AST builder, and tooling aligned around a single source of truth for slice boundaries.
 

@@ -6,7 +6,7 @@
 //! 1. Core tokenization using logos lexer
 //! 2. Common Transformation pipeline:
 //!    - Whitespace remainder processing ../transformations/normalize_whitespace.rs
-//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ../transformations/sem_indentation.rs
+//!    - Indentation transformation (Indent -> Indent/Dedent) ../transformations/sem_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ../transformations/transform_blanklines.rs
 //! 3. Line-based processing:
 //!    - Flatten tokens into line tokens
@@ -18,7 +18,7 @@ use std::fmt;
 
 use crate::lex::lexers::ensure_source_ends_with_newline;
 use crate::lex::lexers::indentation::tokenize;
-use crate::lex::lexers::linebased::tokens::{LineContainerToken, LineToken};
+use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken};
 use crate::lex::lexers::linebased::transformations::{_indentation_to_token_tree, _to_line_tokens};
 use crate::lex::lexers::tokens::Token;
 use crate::lex::lexers::transformations::{
@@ -49,7 +49,7 @@ pub enum PipelineStage {
     RawTokens,
     /// After whitespace remainder processing
     AfterWhitespace,
-    /// After indentation transformation (Indent -> IndentLevel/DedentLevel)
+    /// After indentation transformation (Indent -> Indent/Dedent)
     AfterIndentation,
     /// After blank line transformation (consecutive Newlines -> BlankLine)
     AfterBlankLines,
@@ -69,7 +69,7 @@ pub enum PipelineOutput {
     /// Line tokens
     LineTokens(Vec<LineToken>),
     /// Token tree (root container with all line tokens and nested containers)
-    TokenTree(LineContainerToken),
+    TokenTree(LineContainer),
 }
 
 /// Main linebased lexer pipeline.
@@ -82,7 +82,7 @@ pub enum PipelineOutput {
 /// # Returns
 /// A Result containing a LineContainerToken (root node representing the entire hierarchical tree),
 /// or a PipelineError if the pipeline stage returns an unexpected output type.
-pub fn _lex(source: &str) -> Result<LineContainerToken, PipelineError> {
+pub fn _lex(source: &str) -> Result<LineContainer, PipelineError> {
     let output = _lex_stage(source, PipelineStage::TokenTree);
     match output {
         PipelineOutput::TokenTree(tree) => Ok(tree),

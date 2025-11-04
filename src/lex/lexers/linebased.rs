@@ -13,4 +13,4 @@ pub mod tokens;
 pub mod transformations;
 
 pub use pipeline::{PipelineError, PipelineOutput, PipelineStage, _lex, _lex_stage};
-pub use tokens::{LineContainerToken, LineToken, LineTokenType};
+pub use tokens::{LineContainer, LineToken, LineType};

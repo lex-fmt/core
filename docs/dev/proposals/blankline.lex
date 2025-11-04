@@ -32,8 +32,8 @@
       pass will be added after the initial lexing. This pass will scan the token stream and replace any 
       sequence of two or more consecutive Newline tokens with a single BlankLine token. This moves the 
       responsibility of identifying paragraph breaks from the parser to the lexer, where it belongs. This is 
-      consistent with the existing architecture, which already uses a transform to generate IndentLevel and 
-      DedentLevel tokens.
+      consistent with the existing architecture, which already uses a transform to generate Indent and 
+      Dedent tokens.
 
    3. Simplify the Parser:
        - The paragraph() parser in src/lex/parser/parser.rs will be modified to no longer consume any 
@@ -99,8 +99,8 @@
       pass will be added after the initial lexing. This pass will scan the token stream and replace any 
       sequence of two or more consecutive Newline tokens with a single BlankLine token. This moves the 
       responsibility of identifying paragraph breaks from the parser to the lexer, where it belongs. This is 
-      consistent with the existing architecture, which already uses a transform to generate IndentLevel and 
-      DedentLevel tokens.
+      consistent with the existing architecture, which already uses a transform to generate Indent and 
+      Dedent tokens.
 
    3. Simplify the Parser:
        - The paragraph() parser in src/lex/parser/parser.rs will be modified to no longer consume any 

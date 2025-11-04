@@ -33,7 +33,7 @@ pub struct LineToken {
     pub token_spans: Vec<std::ops::Range<usize>>,
 
     /// The type/classification of this line
-    pub line_type: LineTokenType,
+    pub line_type: LineType,
 }
 
 impl LineToken {
@@ -56,7 +56,7 @@ impl LineToken {
 
 /// The classification of a line token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum LineTokenType {
+pub enum LineType {
     /// Blank line (empty or whitespace only)
     BlankLine,
 
@@ -79,30 +79,30 @@ pub enum LineTokenType {
     ParagraphLine,
 
     /// Indentation marker (pass-through from prior transformation)
-    IndentLevel,
+    Indent,
 
     /// Dedentation marker (pass-through from prior transformation)
-    DedentLevel,
+    Dedent,
 }
 
-impl fmt::Display for LineTokenType {
+impl fmt::Display for LineType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
-            LineTokenType::BlankLine => "BLANK_LINE",
-            LineTokenType::AnnotationEndLine => "ANNOTATION_END_LINE",
-            LineTokenType::AnnotationStartLine => "ANNOTATION_START_LINE",
-            LineTokenType::SubjectLine => "SUBJECT_LINE",
-            LineTokenType::ListLine => "LIST_LINE",
-            LineTokenType::SubjectOrListItemLine => "SUBJECT_OR_LIST_ITEM_LINE",
-            LineTokenType::ParagraphLine => "PARAGRAPH_LINE",
-            LineTokenType::IndentLevel => "INDENT",
-            LineTokenType::DedentLevel => "DEDENT",
+            LineType::BlankLine => "BLANK_LINE",
+            LineType::AnnotationEndLine => "ANNOTATION_END_LINE",
+            LineType::AnnotationStartLine => "ANNOTATION_START_LINE",
+            LineType::SubjectLine => "SUBJECT_LINE",
+            LineType::ListLine => "LIST_LINE",
+            LineType::SubjectOrListItemLine => "SUBJECT_OR_LIST_ITEM_LINE",
+            LineType::ParagraphLine => "PARAGRAPH_LINE",
+            LineType::Indent => "INDENT",
+            LineType::Dedent => "DEDENT",
         };
         write!(f, "{}", name)
     }
 }
 
-impl LineTokenType {
+impl LineType {
     /// Format token type as grammar notation: `<token-name>`
     ///
     /// Converts UPPER_CASE_WITH_UNDERSCORES to <lower-case-with-dashes>
@@ -113,15 +113,15 @@ impl LineTokenType {
     /// - SubjectLine -> `<subject-line>`
     pub fn to_grammar_string(&self) -> String {
         let name = match self {
-            LineTokenType::BlankLine => "blank-line",
-            LineTokenType::AnnotationEndLine => "annotation-end-line",
-            LineTokenType::AnnotationStartLine => "annotation-start-line",
-            LineTokenType::SubjectLine => "subject-line",
-            LineTokenType::ListLine => "list-line",
-            LineTokenType::SubjectOrListItemLine => "subject-or-list-item-line",
-            LineTokenType::ParagraphLine => "paragraph-line",
-            LineTokenType::IndentLevel => "indent",
-            LineTokenType::DedentLevel => "dedent",
+            LineType::BlankLine => "blank-line",
+            LineType::AnnotationEndLine => "annotation-end-line",
+            LineType::AnnotationStartLine => "annotation-start-line",
+            LineType::SubjectLine => "subject-line",
+            LineType::ListLine => "list-line",
+            LineType::SubjectOrListItemLine => "subject-or-list-item-line",
+            LineType::ParagraphLine => "paragraph-line",
+            LineType::Indent => "indent",
+            LineType::Dedent => "dedent",
         };
         format!("<{}>", name)
     }
@@ -132,7 +132,7 @@ impl LineTokenType {
 /// This is a recursive enum representing the complete hierarchical structure of line tokens.
 /// Every node in the tree is either a line token or a container of child nodes.
 ///
-/// The tree is built by processing IndentLevel/DedentLevel markers:
+/// The tree is built by processing Indent/Dedent markers:
 /// - Token variant: A single line token (e.g., SubjectLine, ParagraphLine, ListLine)
 /// - Container variant: A grouped set of child nodes at a deeper indentation level
 ///
@@ -142,20 +142,20 @@ impl LineTokenType {
 /// Note: Container does NOT store an aggregate source_span. The AST construction facade
 /// will compute bounding boxes by recursively unrolling children to their source tokens.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum LineContainerToken {
+pub enum LineContainer {
     /// A single line token
     Token(LineToken),
 
     /// A container of child nodes (represents indented content or grouped lines at same level)
-    Container { children: Vec<LineContainerToken> },
+    Container { children: Vec<LineContainer> },
 }
 
-impl LineContainerToken {
+impl LineContainer {
     /// Check if this container is empty (only valid for root containers)
     pub fn is_empty(&self) -> bool {
         match self {
-            LineContainerToken::Token(_) => false,
-            LineContainerToken::Container { children, .. } => children.is_empty(),
+            LineContainer::Token(_) => false,
+            LineContainer::Container { children, .. } => children.is_empty(),
         }
     }
 }
@@ -166,40 +166,37 @@ mod tests {
 
     #[test]
     fn test_token_type_to_grammar_string() {
-        assert_eq!(LineTokenType::BlankLine.to_grammar_string(), "<blank-line>");
+        assert_eq!(LineType::BlankLine.to_grammar_string(), "<blank-line>");
         assert_eq!(
-            LineTokenType::AnnotationStartLine.to_grammar_string(),
+            LineType::AnnotationStartLine.to_grammar_string(),
             "<annotation-start-line>"
         );
         assert_eq!(
-            LineTokenType::AnnotationEndLine.to_grammar_string(),
+            LineType::AnnotationEndLine.to_grammar_string(),
             "<annotation-end-line>"
         );
+        assert_eq!(LineType::SubjectLine.to_grammar_string(), "<subject-line>");
+        assert_eq!(LineType::ListLine.to_grammar_string(), "<list-line>");
         assert_eq!(
-            LineTokenType::SubjectLine.to_grammar_string(),
-            "<subject-line>"
-        );
-        assert_eq!(LineTokenType::ListLine.to_grammar_string(), "<list-line>");
-        assert_eq!(
-            LineTokenType::SubjectOrListItemLine.to_grammar_string(),
+            LineType::SubjectOrListItemLine.to_grammar_string(),
             "<subject-or-list-item-line>"
         );
         assert_eq!(
-            LineTokenType::ParagraphLine.to_grammar_string(),
+            LineType::ParagraphLine.to_grammar_string(),
             "<paragraph-line>"
         );
-        assert_eq!(LineTokenType::IndentLevel.to_grammar_string(), "<indent>");
-        assert_eq!(LineTokenType::DedentLevel.to_grammar_string(), "<dedent>");
+        assert_eq!(LineType::Indent.to_grammar_string(), "<indent>");
+        assert_eq!(LineType::Dedent.to_grammar_string(), "<dedent>");
     }
 
     #[test]
     fn test_token_sequence_formatting() {
         // Test creating a sequence of tokens and formatting them
         let tokens = [
-            LineTokenType::SubjectLine,
-            LineTokenType::IndentLevel,
-            LineTokenType::ParagraphLine,
-            LineTokenType::DedentLevel,
+            LineType::SubjectLine,
+            LineType::Indent,
+            LineType::ParagraphLine,
+            LineType::Dedent,
         ];
 
         let formatted = tokens
@@ -214,9 +211,9 @@ mod tests {
     #[test]
     fn test_blank_line_group_formatting() {
         let tokens = [
-            LineTokenType::BlankLine,
-            LineTokenType::BlankLine,
-            LineTokenType::BlankLine,
+            LineType::BlankLine,
+            LineType::BlankLine,
+            LineType::BlankLine,
         ];
 
         let formatted = tokens
@@ -232,12 +229,12 @@ mod tests {
     fn test_complex_pattern_formatting() {
         // Session pattern: blank + content + blank + container
         let tokens = [
-            LineTokenType::BlankLine,
-            LineTokenType::SubjectLine,
-            LineTokenType::BlankLine,
-            LineTokenType::IndentLevel,
-            LineTokenType::ParagraphLine,
-            LineTokenType::DedentLevel,
+            LineType::BlankLine,
+            LineType::SubjectLine,
+            LineType::BlankLine,
+            LineType::Indent,
+            LineType::ParagraphLine,
+            LineType::Dedent,
         ];
 
         let formatted = tokens
@@ -262,7 +259,7 @@ mod tests {
                 Token::Text("world".to_string()),
             ],
             token_spans: vec![0..5, 5..6, 6..11],
-            line_type: LineTokenType::ParagraphLine,
+            line_type: LineType::ParagraphLine,
         };
 
         let pairs = line_token.source_token_pairs();
