@@ -214,22 +214,17 @@ pub fn line_container_to_token_stream(container: crate::lex::lexers::LineContain
         }
     }
 
-    // Start conversion - if it's a single token, wrap in a vec
-    // If it's a container, convert its children
-    match container {
-        LineContainer::Token(line_token) => {
-            let line_type = Some(line_token.line_type);
-            TokenStream::Tree(vec![TokenStreamNode {
-                tokens: line_token.source_token_pairs(),
-                children: None,
-                line_type,
-            }])
-        }
-        LineContainer::Container { children } => {
-            let nodes: Vec<TokenStreamNode> = children.into_iter().map(convert_node).collect();
-            TokenStream::Tree(nodes)
-        }
-    }
+    // Normalize root handling: treat both Token and Container uniformly
+    // If the input is a single Token, treat it as a Container with one child
+    // This makes round-trip conversion symmetrical with token_stream_to_line_container
+    let children = match container {
+        LineContainer::Token(line_token) => vec![LineContainer::Token(line_token)],
+        LineContainer::Container { children } => children,
+    };
+
+    // Convert all children to TokenStreamNodes
+    let nodes: Vec<TokenStreamNode> = children.into_iter().map(convert_node).collect();
+    TokenStream::Tree(nodes)
 }
 
 /// Convert a TokenStream::Tree back to a LineContainer.
