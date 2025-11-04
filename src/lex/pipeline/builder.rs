@@ -1,11 +1,11 @@
-//! Core TokenStream-based pipeline builder for lexer transformations
+//! Low-level TokenStream transformation pipeline builder
 //!
-//! This module provides the new, unified `Pipeline` builder that chains StreamMapper
-//! transformations together. This is the primary interface for the TokenStream
-//! architecture, replacing the legacy orchestration system.
+//! This module provides the `Pipeline` builder that chains StreamMapper transformations
+//! together. This is the low-level interface for building TokenStream transformation
+//! pipelines (NormalizeWhitespace, SemanticIndentation, ToLineTokens, etc.).
 //!
-//! For the legacy pipeline infrastructure (LexerRegistry/ParserRegistry), see
-//! `legacy_orchestration` module.
+//! For high-level lexer/parser orchestration (selecting lexer and parser combinations),
+//! see the `orchestration` module which provides the `LexPipeline` API.
 //!
 //! # Design
 //!
@@ -15,11 +15,11 @@
 //! 3. Applies each transformation in sequence via StreamMapper trait
 //! 4. Returns final `TokenStream` (can be Flat or Tree depending on transformations)
 //!
-//! # Progressive Integration
+//! # Architecture
 //!
-//! This pipeline is designed for progressive integration. As transformations are
-//! migrated to TokenStream, they're added here. Legacy code calls this pipeline
-//! and uses adapters for remaining non-migrated transformations.
+//! This is the **internal transformation infrastructure**. It handles the low-level
+//! token transformations that happen after base tokenization and before parsing.
+//! For selecting which lexer/parser to use, see `LexPipeline` in the orchestration module.
 //!
 //! # Examples
 //!
