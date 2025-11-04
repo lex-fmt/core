@@ -10,6 +10,11 @@
 //! - `token_stream_to_flat()` - Convert TokenStream::Flat back to flat vector (safe, rejects Tree)
 //! - `flatten_token_stream()` - Flatten any TokenStream to flat vector (uses unroll for Tree)
 //!
+//! # Parser Adapters
+//!
+//! Wrap existing parsers to work with TokenStream:
+//! - `parse_with_token_stream()` - Adapter for reference parser using TokenStream input
+//!
 //! # Design
 //!
 //! These adapters are temporary scaffolding for the migration. They allow us to:
@@ -141,6 +146,60 @@ pub fn token_stream_to_flat(
 /// ```
 pub fn flatten_token_stream(stream: TokenStream) -> Vec<(Token, ByteRange<usize>)> {
     stream.unroll()
+}
+
+/// Parse a TokenStream using the reference parser with adapter.
+///
+/// This function integrates the reference parser into the TokenStream architecture
+/// by adapting the input from `TokenStream` to `Vec<(Token, Range)>`.
+///
+/// The reference parser expects a flat token stream, so this adapter:
+/// 1. Converts TokenStream::Flat to flat vector (safe, rejects Tree)
+/// 2. Calls the reference parser
+/// 3. Returns the Document (no output adapter needed - Document is final)
+///
+/// This allows testing the new TokenStream architecture with the existing parser
+/// during the migration phase. Once all transformations use TokenStream, this
+/// adapter can be removed and the parser can consume TokenStream directly.
+///
+/// # Arguments
+///
+/// * `stream` - The TokenStream to parse (must be Flat variant)
+/// * `source` - The original source text for location tracking
+///
+/// # Returns
+///
+/// The parsed Document or an adapter error
+///
+/// # Errors
+///
+/// Returns `AdapterError::ExpectedFlat` if stream is Tree variant.
+/// Returns `AdapterError::Error` if parsing fails.
+///
+/// # Examples
+///
+/// ```ignore
+/// let tokens = vec![(Token::Text("hello".into()), 0..5)];
+/// let stream = flat_to_token_stream(tokens);
+/// let doc = parse_with_token_stream(stream, "hello")?;
+/// ```
+pub fn parse_with_token_stream(
+    stream: TokenStream,
+    source: &str,
+) -> Result<crate::lex::parsers::Document, AdapterError> {
+    // Adapt input: TokenStream -> Vec<(Token, Range)>
+    let tokens = token_stream_to_flat(stream)?;
+
+    // Call reference parser
+    crate::lex::parsers::reference::parse(tokens, source).map_err(|errors| {
+        // Convert parser errors to adapter error
+        let error_msg = errors
+            .iter()
+            .map(|e| format!("{:?}", e))
+            .collect::<Vec<_>>()
+            .join("; ");
+        AdapterError::Error(format!("Parsing failed: {}", error_msg))
+    })
 }
 
 #[cfg(test)]
@@ -419,5 +478,95 @@ mod tests {
         assert_eq!(result[1].1, 1..2);
         assert_eq!(result[2].1, 10..11);
         assert_eq!(result[3].1, 11..12);
+    }
+
+    // Parser adapter tests
+    #[test]
+    fn test_parse_with_token_stream_simple() {
+        // Test parsing a simple paragraph through the adapter
+        let source = "Hello world\n";
+
+        // Tokenize using existing lexer
+        let tokens = crate::lex::lexers::tokenize(source);
+
+        // Convert to TokenStream
+        let stream = flat_to_token_stream(tokens);
+
+        // Parse through adapter
+        let result = parse_with_token_stream(stream, source);
+
+        assert!(result.is_ok(), "Failed to parse: {:?}", result);
+        let doc = result.unwrap();
+        assert_eq!(doc.root.content.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_with_token_stream_rejects_tree() {
+        use crate::lex::pipeline::stream::TokenStreamNode;
+
+        // Tree streams should be rejected
+        let node = TokenStreamNode {
+            tokens: vec![(Token::Text("test".to_string()), 0..4)],
+            children: None,
+        };
+        let stream = TokenStream::Tree(vec![node]);
+
+        let result = parse_with_token_stream(stream, "test");
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), AdapterError::ExpectedFlat);
+    }
+
+    #[test]
+    fn test_parse_with_token_stream_complex_document() {
+        // Test a more complex document with sessions and lists
+        let source = "1. Session Title\n\n    Session content.\n\n";
+
+        let tokens = crate::lex::lexers::tokenize(source);
+        let stream = flat_to_token_stream(tokens);
+
+        let result = parse_with_token_stream(stream, source);
+
+        assert!(result.is_ok(), "Failed to parse: {:?}", result);
+        let doc = result.unwrap();
+
+        // Should have one session
+        assert_eq!(doc.root.content.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_with_token_stream_preserves_locations() {
+        // Verify that locations are preserved through the adapter
+        let source = "Hello world\n";
+
+        let tokens = crate::lex::lexers::tokenize(source);
+        let stream = flat_to_token_stream(tokens);
+
+        let result = parse_with_token_stream(stream, source);
+
+        assert!(result.is_ok());
+        let doc = result.unwrap();
+
+        // Verify document has location information
+        let root_loc = doc.root_location();
+        assert!(root_loc.start < root_loc.end);
+    }
+
+    #[test]
+    fn test_parse_with_token_stream_round_trip() {
+        // Test that we can go: tokens -> stream -> parser -> document
+        let source = "Paragraph one\n\nParagraph two\n";
+
+        // Original path
+        let tokens1 = crate::lex::lexers::tokenize(source);
+        let doc1 = crate::lex::parsers::reference::parse(tokens1, source).unwrap();
+
+        // TokenStream path
+        let tokens2 = crate::lex::lexers::tokenize(source);
+        let stream = flat_to_token_stream(tokens2);
+        let doc2 = parse_with_token_stream(stream, source).unwrap();
+
+        // Both should produce the same number of items
+        assert_eq!(doc1.root.content.len(), doc2.root.content.len());
     }
 }
