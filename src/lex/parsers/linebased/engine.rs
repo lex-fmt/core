@@ -60,8 +60,7 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::transformations::PipelineError;
-    use crate::lex::lexers::transformations::_lex;
+    use crate::lex::lexers::linebased::{PipelineError, _lex};
     use crate::lex::parsers::ContentItem;
 
     // Helper to prepare token stream and call pipeline
