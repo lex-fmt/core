@@ -1,161 +1,143 @@
-//! Linebased transformation: raw tokens → line tokens
+//! Line token grouping and classification mapper for TokenStream pipeline
 //!
-//! This transformation converts a flat stream of raw tokens (output from the current
-//! lexer's 3 existing steps) into line tokens, where each token represents one logical line.
+//! This mapper converts a flat stream of tokens into a shallow tree of line-classified nodes.
+//! Each node represents one logical line with its LineType classification.
 //!
-//! Each line token stores the original raw tokens that created it, allowing later
-//! stages to pass these tokens directly to existing AST constructors, which automatically
-//! handles location tracking and AST creation.
+//! # Logic
 //!
-//! Line token types:
-//! - BLANK_LINE: Empty line
-//! - ANNOTATION_END_LINE: Line containing only :: marker
-//! - ANNOTATION_START_LINE: Line following annotation grammar: :: <label>? <params>? :: <content>?
-//! - SUBJECT_LINE: Line ending with colon
-//! - LIST_LINE: Line starting with list marker (-, 1., a., I., etc.)
-//! - SUBJECT_OR_LIST_ITEM_LINE: Line starting with list marker and ending with colon
-//! - PARAGRAPH_LINE: Any other line
-//! - INDENT_LEVEL / DEDENT_LEVEL: Structural tokens (pass through unchanged)
+//! 1. Groups consecutive tokens into lines (delimited by Newline tokens)
+//! 2. Classifies each line according to its content (SubjectLine, ListLine, etc.)
+//! 3. Handles structural tokens (Indent, Dedent, BlankLine) as standalone nodes
+//! 4. Creates TokenStreamNodes with line_type set and children: None (shallow tree)
+//!
+//! # Input/Output
+//!
+//! - **Input**: `TokenStream::Flat` - flat token stream after whitespace/indentation/blanklines processing
+//! - **Output**: `TokenStream::Tree` - shallow tree with one node per line, no nesting
+//!
+//! This is a pure adaptation of the existing to_line_tokens transformation
+//! to the TokenStream architecture.
 
-use crate::lex::lexers::linebased::tokens::{LineToken, LineType};
+use crate::lex::lexers::linebased::tokens::LineType;
 use crate::lex::lexers::tokens::Token;
+use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
+use crate::lex::pipeline::stream::{TokenStream, TokenStreamNode};
+use std::ops::Range as ByteRange;
 
-/// Transform flat token stream into line tokens.
+/// A mapper that groups tokens into classified lines.
 ///
-/// Groups consecutive tokens into semantic line units. Each line token preserves
-/// the original raw tokens with their spans and classifies the line type.
-///
-/// Input: Flat token stream from lexer transformations (whitespace, indentation, blank-line processed)
-///        as (Token, Range<usize>) tuples
-/// Output: Vector of LineTokens where each token represents one logical line with both
-///         source_tokens and token_spans properly populated
-///
-/// Example:
-/// ```text
-/// Input tokens:
-///   [(Text("Title"), 0..5), (Colon, 5..6), (Newline, 6..7), (Indent, 7..11), (Text("Content"), 11..18), (Newline, 18..19)]
-///
-/// Output line tokens:
-///   [
-///     LineToken {
-///       source_tokens: [Text("Title"), Colon, Newline],
-///       token_spans: [0..5, 5..6, 6..7],
-///       line_type: SubjectLine
-///     },
-///     LineToken {
-///       source_tokens: [Indent],
-///       token_spans: [7..11],
-///       line_type: Indent
-///     },
-///     LineToken {
-///       source_tokens: [Text("Content"), Newline],
-///       token_spans: [11..18, 18..19],
-///       line_type: ParagraphLine
-///     },
-///   ]
-/// ```
-pub fn _to_line_tokens(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<LineToken> {
-    let mut line_tokens = Vec::new();
-    let mut current_line = Vec::new();
+/// This transformation only operates on flat token streams and produces a shallow
+/// tree structure where each node represents one line with its classification.
+pub struct ToLineTokensMapper;
 
-    for (token, span) in tokens {
-        let is_newline = matches!(token, Token::Newline);
-        let is_blank_line_token = matches!(token, Token::BlankLine(_));
-
-        // Structural tokens (Indent, Dedent, BlankLine) are pass-through
-        // They appear alone, not as part of lines
-        if matches!(token, Token::Indent(_)) {
-            if !current_line.is_empty() {
-                line_tokens.push(classify_and_create_line_token(current_line));
-                current_line = Vec::new();
-            }
-            // Indent tokens ALWAYS contain source tokens in production:
-            // vec![(Token::Indent, range)] from sem_indentation transformation
-            let (source_tokens, token_spans) = if let Token::Indent(ref sources) = token {
-                // Extract the stored source tokens
-                let (toks, spans): (Vec<_>, Vec<_>) = sources.iter().cloned().unzip();
-                (toks, spans)
-            } else {
-                unreachable!("Token matches Indent but pattern failed")
-            };
-            line_tokens.push(LineToken {
-                source_tokens,
-                token_spans,
-                line_type: LineType::Indent,
-            });
-            continue;
-        }
-
-        if matches!(token, Token::Dedent(_)) {
-            if !current_line.is_empty() {
-                line_tokens.push(classify_and_create_line_token(current_line));
-                current_line = Vec::new();
-            }
-            // Dedent tokens are purely structural - ALWAYS have empty source_tokens vec![]
-            // in production (sem_indentation.rs:133). Store the Dedent token itself.
-            line_tokens.push(LineToken {
-                source_tokens: vec![token],
-                token_spans: vec![span],
-                line_type: LineType::Dedent,
-            });
-            continue;
-        }
-
-        // BlankLine tokens are also structural - they represent a blank line by themselves
-        if is_blank_line_token {
-            if !current_line.is_empty() {
-                line_tokens.push(classify_and_create_line_token(current_line));
-                current_line = Vec::new();
-            }
-            // BlankLine tokens ALWAYS contain source tokens in production:
-            // vec![(Token::Newline, range), ...] from transform_blank_lines
-            let (source_tokens, token_spans) = if let Token::BlankLine(ref sources) = token {
-                // Extract the stored source tokens (Newline tokens from 2nd onwards)
-                let (toks, spans): (Vec<_>, Vec<_>) = sources.iter().cloned().unzip();
-                (toks, spans)
-            } else {
-                unreachable!("Token matches BlankLine but pattern failed")
-            };
-            line_tokens.push(LineToken {
-                source_tokens,
-                token_spans,
-                line_type: LineType::BlankLine,
-            });
-            continue;
-        }
-
-        // Accumulate token-span tuples for current line
-        current_line.push((token, span));
-
-        // Newline marks end of line
-        if is_newline {
-            line_tokens.push(classify_and_create_line_token(current_line));
-            current_line = Vec::new();
-        }
+impl ToLineTokensMapper {
+    /// Create a new ToLineTokensMapper.
+    pub fn new() -> Self {
+        ToLineTokensMapper
     }
-
-    // Handle any remaining tokens (if input doesn't end with newline)
-    if !current_line.is_empty() {
-        line_tokens.push(classify_and_create_line_token(current_line));
-    }
-
-    line_tokens
 }
 
-/// Classify tokens and create a line token with the appropriate type.
-///
-/// Takes a vector of (Token, Range) tuples and unzips them into separate
-/// source_tokens and token_spans vectors for the LineToken.
-fn classify_and_create_line_token(token_tuples: Vec<(Token, std::ops::Range<usize>)>) -> LineToken {
-    // Unzip the tuples into separate vectors
-    let (source_tokens, token_spans): (Vec<Token>, Vec<std::ops::Range<usize>>) =
-        token_tuples.into_iter().unzip();
+impl Default for ToLineTokensMapper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-    let line_type = classify_line_tokens(&source_tokens);
-    LineToken {
-        source_tokens,
-        token_spans,
-        line_type,
+impl StreamMapper for ToLineTokensMapper {
+    fn map_flat(
+        &mut self,
+        tokens: Vec<(Token, ByteRange<usize>)>,
+    ) -> Result<TokenStream, TransformationError> {
+        let mut nodes = Vec::new();
+        let mut current_line = Vec::new();
+
+        for (token, span) in tokens {
+            let is_newline = matches!(token, Token::Newline);
+            let is_blank_line_token = matches!(token, Token::BlankLine(_));
+
+            // Structural tokens (Indent, Dedent, BlankLine) are pass-through
+            // They appear alone, not as part of lines
+            if let Token::Indent(ref sources) = token {
+                // Flush any accumulated line first
+                if !current_line.is_empty() {
+                    nodes.push(classify_and_create_node(current_line));
+                    current_line = Vec::new();
+                }
+                // Extract the stored source tokens from Indent
+                let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
+                    sources.iter().cloned().unzip();
+                nodes.push(TokenStreamNode {
+                    tokens: source_tokens.into_iter().zip(token_spans).collect(),
+                    children: None,
+                    line_type: Some(LineType::Indent),
+                });
+                continue;
+            }
+
+            if let Token::Dedent(_) = token {
+                // Flush any accumulated line first
+                if !current_line.is_empty() {
+                    nodes.push(classify_and_create_node(current_line));
+                    current_line = Vec::new();
+                }
+                // Dedent tokens are purely structural - store the Dedent token itself
+                nodes.push(TokenStreamNode {
+                    tokens: vec![(token, span)],
+                    children: None,
+                    line_type: Some(LineType::Dedent),
+                });
+                continue;
+            }
+
+            // BlankLine tokens are also structural - they represent a blank line by themselves
+            if is_blank_line_token {
+                // Flush any accumulated line first
+                if !current_line.is_empty() {
+                    nodes.push(classify_and_create_node(current_line));
+                    current_line = Vec::new();
+                }
+                // Extract the stored source tokens from BlankLine
+                if let Token::BlankLine(ref sources) = token {
+                    let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
+                        sources.iter().cloned().unzip();
+                    nodes.push(TokenStreamNode {
+                        tokens: source_tokens.into_iter().zip(token_spans).collect(),
+                        children: None,
+                        line_type: Some(LineType::BlankLine),
+                    });
+                }
+                continue;
+            }
+
+            // Accumulate token-span tuples for current line
+            current_line.push((token, span));
+
+            // Newline marks end of line
+            if is_newline {
+                nodes.push(classify_and_create_node(current_line));
+                current_line = Vec::new();
+            }
+        }
+
+        // Handle any remaining tokens (if input doesn't end with newline)
+        if !current_line.is_empty() {
+            nodes.push(classify_and_create_node(current_line));
+        }
+
+        Ok(TokenStream::Tree(nodes))
+    }
+}
+
+/// Classify tokens and create a TokenStreamNode with the appropriate LineType.
+fn classify_and_create_node(token_tuples: Vec<(Token, ByteRange<usize>)>) -> TokenStreamNode {
+    // Extract just the tokens for classification
+    let tokens: Vec<Token> = token_tuples.iter().map(|(t, _)| t.clone()).collect();
+    let line_type = classify_line_tokens(&tokens);
+
+    TokenStreamNode {
+        tokens: token_tuples,
+        children: None,
+        line_type: Some(line_type),
     }
 }
 
@@ -354,6 +336,15 @@ fn ends_with_colon(tokens: &[Token]) -> bool {
 mod tests {
     use super::*;
 
+    // Test helper: Convert Vec<Token> to Vec<(Token, Range)> with dummy spans
+    fn with_dummy_spans(tokens: Vec<Token>) -> Vec<(Token, ByteRange<usize>)> {
+        tokens
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| (t, i..i + 1))
+            .collect()
+    }
+
     #[test]
     fn test_blank_line_classification() {
         let tokens = vec![Token::Whitespace, Token::Newline];
@@ -538,15 +529,6 @@ mod tests {
         assert_eq!(line, LineType::ParagraphLine);
     }
 
-    // Test helper: Convert Vec<Token> to Vec<(Token, Range)> with dummy spans
-    fn with_dummy_spans(tokens: Vec<Token>) -> Vec<(Token, std::ops::Range<usize>)> {
-        tokens
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| (t, i..i + 1))
-            .collect()
-    }
-
     #[test]
     fn test_transform_preserves_source_tokens() {
         // Create realistic tokens with actual source tokens like production code does
@@ -560,32 +542,34 @@ mod tests {
             (Token::Newline, 18..19),
         ];
 
-        let line_tokens = _to_line_tokens(tokens);
+        let mut mapper = ToLineTokensMapper::new();
+        let result = mapper.map_flat(tokens).unwrap();
 
-        assert_eq!(line_tokens.len(), 3);
+        match result {
+            TokenStream::Tree(nodes) => {
+                assert_eq!(nodes.len(), 3);
 
-        // First line: subject line with source tokens preserved
-        assert_eq!(line_tokens[0].line_type, LineType::SubjectLine);
-        assert_eq!(
-            line_tokens[0].source_tokens,
-            vec![
-                Token::Text("Title".to_string()),
-                Token::Colon,
-                Token::Newline,
-            ]
-        );
+                // First line: subject line with source tokens preserved
+                assert_eq!(nodes[0].line_type, Some(LineType::SubjectLine));
+                assert_eq!(nodes[0].tokens.len(), 3);
+                assert!(matches!(nodes[0].tokens[0].0, Token::Text(_)));
+                assert!(matches!(nodes[0].tokens[1].0, Token::Colon));
+                assert!(matches!(nodes[0].tokens[2].0, Token::Newline));
 
-        // Second: Indent extracts its source token (Token::Indent)
-        assert_eq!(line_tokens[1].line_type, LineType::Indent);
-        assert_eq!(line_tokens[1].source_tokens, vec![Token::Indentation]);
-        assert_eq!(line_tokens[1].token_spans, vec![7..11]);
+                // Second: Indent extracts its source token (Token::Indentation)
+                assert_eq!(nodes[1].line_type, Some(LineType::Indent));
+                assert_eq!(nodes[1].tokens.len(), 1);
+                assert!(matches!(nodes[1].tokens[0].0, Token::Indentation));
+                assert_eq!(nodes[1].tokens[0].1, 7..11);
 
-        // Third: paragraph line
-        assert_eq!(line_tokens[2].line_type, LineType::ParagraphLine);
-        assert_eq!(
-            line_tokens[2].source_tokens,
-            vec![Token::Text("Content".to_string()), Token::Newline,]
-        );
+                // Third: paragraph line
+                assert_eq!(nodes[2].line_type, Some(LineType::ParagraphLine));
+                assert_eq!(nodes[2].tokens.len(), 2);
+                assert!(matches!(nodes[2].tokens[0].0, Token::Text(_)));
+                assert!(matches!(nodes[2].tokens[1].0, Token::Newline));
+            }
+            _ => panic!("Expected Tree stream"),
+        }
     }
 
     #[test]
@@ -601,13 +585,19 @@ mod tests {
             Token::Newline,
         ];
 
-        let line_tokens = _to_line_tokens(with_dummy_spans(tokens));
+        let mut mapper = ToLineTokensMapper::new();
+        let result = mapper.map_flat(with_dummy_spans(tokens)).unwrap();
 
-        // Should produce: paragraph, blank line, list line
-        assert_eq!(line_tokens.len(), 3);
-        assert_eq!(line_tokens[0].line_type, LineType::ParagraphLine);
-        assert_eq!(line_tokens[1].line_type, LineType::BlankLine);
-        assert_eq!(line_tokens[2].line_type, LineType::ListLine);
+        match result {
+            TokenStream::Tree(nodes) => {
+                // Should produce: paragraph, blank line, list line
+                assert_eq!(nodes.len(), 3);
+                assert_eq!(nodes[0].line_type, Some(LineType::ParagraphLine));
+                assert_eq!(nodes[1].line_type, Some(LineType::BlankLine));
+                assert_eq!(nodes[2].line_type, Some(LineType::ListLine));
+            }
+            _ => panic!("Expected Tree stream"),
+        }
     }
 
     #[test]
@@ -664,5 +654,57 @@ mod tests {
         let line = classify_line_tokens(&tokens);
         // ANNOTATION_START_LINE takes precedence (checked before SUBJECT_LINE)
         assert_eq!(line, LineType::AnnotationStartLine);
+    }
+
+    #[test]
+    fn test_mapper_produces_shallow_tree() {
+        // Verify that all nodes have children: None (shallow tree)
+        let tokens = vec![
+            (Token::Text("Line1".to_string()), 0..5),
+            (Token::Newline, 5..6),
+            (Token::Text("Line2".to_string()), 6..11),
+            (Token::Newline, 11..12),
+        ];
+
+        let mut mapper = ToLineTokensMapper::new();
+        let result = mapper.map_flat(tokens).unwrap();
+
+        match result {
+            TokenStream::Tree(nodes) => {
+                assert_eq!(nodes.len(), 2);
+                // All nodes should have no children (shallow tree)
+                for node in &nodes {
+                    assert!(node.children.is_none());
+                }
+            }
+            _ => panic!("Expected Tree stream"),
+        }
+    }
+
+    #[test]
+    fn test_preserves_token_ranges() {
+        // Verify that byte ranges are preserved exactly
+        let tokens = vec![
+            (Token::Text("hello".to_string()), 0..5),
+            (Token::Whitespace, 5..6),
+            (Token::Text("world".to_string()), 6..11),
+            (Token::Newline, 11..12),
+        ];
+
+        let mut mapper = ToLineTokensMapper::new();
+        let result = mapper.map_flat(tokens).unwrap();
+
+        match result {
+            TokenStream::Tree(nodes) => {
+                assert_eq!(nodes.len(), 1);
+                let node = &nodes[0];
+                // Verify each range is preserved exactly
+                assert_eq!(node.tokens[0].1, 0..5);
+                assert_eq!(node.tokens[1].1, 5..6);
+                assert_eq!(node.tokens[2].1, 6..11);
+                assert_eq!(node.tokens[3].1, 11..12);
+            }
+            _ => panic!("Expected Tree stream"),
+        }
     }
 }

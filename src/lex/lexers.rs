@@ -40,19 +40,16 @@ pub mod common;
 pub mod detokenizer;
 pub mod linebased;
 pub mod tokens;
-pub mod transformations;
 
 pub use base_tokenization::tokenize;
 pub use common::{LexError, Lexer, LexerOutput, LexerRegistry};
 pub use detokenizer::detokenize;
 pub use tokens::Token;
-pub use transformations::{
-    _lex, _lex_stage, process_whitespace_remainders, sem_indentation, transform_blank_lines,
-    PipelineOutput, PipelineStage,
-};
-
 // Re-export line-based types for convenience
-pub use linebased::{LineContainer, LineToken, LineType};
+pub use linebased::{
+    LineContainer, LineToken, LineType, PipelineError, PipelineOutput, PipelineStage, _lex,
+    _lex_stage,
+};
 
 /// Preprocesses source text to ensure it ends with a newline.
 ///
@@ -72,19 +69,36 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
 /// Synthetic tokens (Indent, Dedent, BlankLine) have meaningful locations
 /// Processing pipeline:
 /// 1. Base tokenization (done by caller) - raw tokens with source locations
-/// 2. NormalizeWhitespace - handle whitespace remainders with locations
+/// 2. NormalizeWhitespace - handle whitespace remainders with locations (uses new TokenStream mapper)
 /// 3. SemanticIndentation - convert Indentation tokens with location tracking
 /// 4. TransformBlankLines - convert Newline sequences with location tracking
 pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
-    // Define the transformation pipeline
-    let transformations: Vec<Box<dyn transformations::Transformation>> = vec![
-        Box::new(transformations::NormalizeWhitespace),
-        Box::new(transformations::SemanticIndentation),
-        Box::new(transformations::TransformBlankLines),
-    ];
+    use crate::lex::pipeline::stream::TokenStream;
+    use crate::lex::pipeline::{
+        BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper,
+    };
 
-    // Apply transformations in sequence
-    transformations
-        .iter()
-        .fold(tokens, |acc, transform| transform.transform(acc))
+    // Start with TokenStream::Flat and chain transformations
+    let mut current_stream = TokenStream::Flat(tokens);
+
+    // Stage 1: NormalizeWhitespace
+    let mut normalize_mapper = NormalizeWhitespaceMapper::new();
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut normalize_mapper)
+            .expect("NormalizeWhitespace transformation failed");
+
+    // Stage 2: SemanticIndentation
+    let mut semantic_indent_mapper = SemanticIndentationMapper::new();
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut semantic_indent_mapper)
+            .expect("SemanticIndentation transformation failed");
+
+    // Stage 3: BlankLines
+    let mut blank_lines_mapper = BlankLinesMapper::new();
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut blank_lines_mapper)
+            .expect("BlankLines transformation failed");
+
+    // Unroll the final stream to get flat tokens for backward compatibility
+    current_stream.unroll()
 }

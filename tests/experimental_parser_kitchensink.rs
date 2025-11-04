@@ -4,7 +4,7 @@
 //! produces the correct AST structure for a complex, comprehensive test file.
 //! Any regression in parsing will be caught automatically.
 
-use lex::lex::lexers::transformations::_lex;
+use lex::lex::lexers::linebased::_lex;
 use lex::lex::parsers::linebased::parse_experimental_v2;
 use lex::lex::parsers::ContentItem;
 

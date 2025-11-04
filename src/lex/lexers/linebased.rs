@@ -10,7 +10,6 @@
 
 pub mod pipeline;
 pub mod tokens;
-pub mod transformations;
 
 pub use pipeline::{PipelineError, PipelineOutput, PipelineStage, _lex, _lex_stage};
 pub use tokens::{LineContainer, LineToken, LineType};
