@@ -39,12 +39,12 @@ pub mod base_tokenization;
 pub mod common;
 pub mod detokenizer;
 pub mod linebased;
-pub mod tokens;
+pub mod tokens_core;
 
 pub use base_tokenization::tokenize;
 pub use common::{LexError, Lexer, LexerOutput, LexerRegistry};
 pub use detokenizer::detokenize;
-pub use tokens::Token;
+pub use tokens_core::Token;
 // Re-export line-based types for convenience
 pub use linebased::{
     LineContainer, LineToken, LineType, PipelineError, PipelineOutput, PipelineStage, _lex,

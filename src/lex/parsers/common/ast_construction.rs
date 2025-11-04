@@ -37,8 +37,8 @@
 //! // Facade handles unrolling, location conversion, and calls base builder
 //! ```
 
-use crate::lex::lexers::linebased::tokens::LineToken;
-use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::linebased::tokens_linebased::LineToken;
+use crate::lex::lexers::tokens_core::Token;
 use crate::lex::parsers::ContentItem;
 use std::ops::Range as ByteRange;
 
@@ -287,8 +287,8 @@ pub fn build_foreign_block_from_line_token(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::linebased::tokens::LineType;
-    use crate::lex::lexers::tokens::Token;
+    use crate::lex::lexers::linebased::tokens_linebased::LineType;
+    use crate::lex::lexers::tokens_core::Token;
 
     #[test]
     fn test_build_paragraph_from_line_tokens() {

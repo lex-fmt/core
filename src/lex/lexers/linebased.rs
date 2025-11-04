@@ -9,7 +9,7 @@
 //! of indent and dedent levels.
 
 pub mod pipeline;
-pub mod tokens;
+pub mod tokens_linebased;
 
 pub use pipeline::{PipelineError, PipelineOutput, PipelineStage, _lex, _lex_stage};
-pub use tokens::{LineContainer, LineToken, LineType};
+pub use tokens_linebased::{LineContainer, LineToken, LineType};

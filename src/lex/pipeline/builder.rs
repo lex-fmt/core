@@ -142,7 +142,7 @@ impl Default for Pipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::tokens::Token;
+    use crate::lex::lexers::tokens_core::Token;
     use std::ops::Range as ByteRange;
 
     // Dummy mapper for testing - counts tokens

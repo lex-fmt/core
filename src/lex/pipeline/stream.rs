@@ -16,8 +16,8 @@
 //! Transformations create aggregate tokens that store these original pairs.
 //! The `unroll()` method provides universal access back to the ground truth for AST building.
 
-use crate::lex::lexers::linebased::tokens::LineType;
-use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::linebased::tokens_linebased::LineType;
+use crate::lex::lexers::tokens_core::Token;
 use std::ops::Range as ByteRange;
 
 /// A unified representation of a token collection that can be either a flat

@@ -18,8 +18,8 @@
 //! This is a pure adaptation of the existing to_line_tokens transformation
 //! to the TokenStream architecture.
 
-use crate::lex::lexers::linebased::tokens::LineType;
-use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::linebased::tokens_linebased::LineType;
+use crate::lex::lexers::tokens_core::Token;
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::{TokenStream, TokenStreamNode};
 use std::ops::Range as ByteRange;
