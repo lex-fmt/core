@@ -10,6 +10,12 @@
 //! - `token_stream_to_flat()` - Convert TokenStream::Flat back to flat vector (safe, rejects Tree)
 //! - `flatten_token_stream()` - Flatten any TokenStream to flat vector (uses unroll for Tree)
 //!
+//! # Tree Adapters
+//!
+//! Convert between `LineContainer` and `TokenStream::Tree`:
+//! - `line_container_to_token_stream()` - Convert LineContainer to TokenStream::Tree
+//! - `token_stream_to_line_container()` - Convert TokenStream::Tree back to LineContainer
+//!
 //! # Parser Adapters
 //!
 //! Wrap existing parsers to work with TokenStream:
@@ -24,7 +30,7 @@
 //! 4. Eventually remove adapters once migration is complete
 
 use crate::lex::lexers::tokens::Token;
-use crate::lex::pipeline::stream::TokenStream;
+use crate::lex::pipeline::stream::{TokenStream, TokenStreamNode};
 use std::ops::Range as ByteRange;
 
 /// Error type for adapter operations
@@ -32,6 +38,8 @@ use std::ops::Range as ByteRange;
 pub enum AdapterError {
     /// Attempted to convert a Tree variant to flat
     ExpectedFlat,
+    /// Attempted to convert a Flat variant to tree
+    ExpectedTree,
     /// Generic adapter error
     Error(String),
 }
@@ -41,6 +49,9 @@ impl std::fmt::Display for AdapterError {
         match self {
             AdapterError::ExpectedFlat => {
                 write!(f, "Expected TokenStream::Flat, but found TokenStream::Tree")
+            }
+            AdapterError::ExpectedTree => {
+                write!(f, "Expected TokenStream::Tree, but found TokenStream::Flat")
             }
             AdapterError::Error(msg) => write!(f, "Adapter error: {}", msg),
         }
@@ -146,6 +157,148 @@ pub fn token_stream_to_flat(
 /// ```
 pub fn flatten_token_stream(stream: TokenStream) -> Vec<(Token, ByteRange<usize>)> {
     stream.unroll()
+}
+
+/// Convert a LineContainer to a TokenStream::Tree.
+///
+/// This adapter converts the linebased lexer's hierarchical LineContainer structure
+/// to the unified TokenStream::Tree format.
+///
+/// LineContainer structure:
+/// - `LineContainer::Token(LineToken)` - A single line with tokens
+/// - `LineContainer::Container { children }` - A container with nested children
+///
+/// Maps to TokenStream::Tree where each LineToken becomes a TokenStreamNode.
+///
+/// # Arguments
+///
+/// * `container` - The LineContainer to convert
+///
+/// # Returns
+///
+/// A TokenStream::Tree representing the hierarchical structure
+///
+/// # Examples
+///
+/// ```ignore
+/// let line_container = LineContainer::Token(line_token);
+/// let stream = line_container_to_token_stream(line_container);
+/// assert!(matches!(stream, TokenStream::Tree(_)));
+/// ```
+pub fn line_container_to_token_stream(container: crate::lex::lexers::LineContainer) -> TokenStream {
+    use crate::lex::lexers::LineContainer;
+
+    fn convert_node(lc: LineContainer) -> TokenStreamNode {
+        match lc {
+            LineContainer::Token(line_token) => {
+                // Convert LineToken to TokenStreamNode
+                // LineToken has source_tokens and token_spans
+                let tokens = line_token.source_token_pairs();
+                TokenStreamNode {
+                    tokens,
+                    children: None,
+                }
+            }
+            LineContainer::Container { children } => {
+                // Container becomes a node with empty tokens and children as Tree
+                let child_nodes: Vec<TokenStreamNode> =
+                    children.into_iter().map(convert_node).collect();
+                TokenStreamNode {
+                    tokens: vec![],
+                    children: Some(Box::new(TokenStream::Tree(child_nodes))),
+                }
+            }
+        }
+    }
+
+    // Start conversion - if it's a single token, wrap in a vec
+    // If it's a container, convert its children
+    match container {
+        LineContainer::Token(line_token) => TokenStream::Tree(vec![TokenStreamNode {
+            tokens: line_token.source_token_pairs(),
+            children: None,
+        }]),
+        LineContainer::Container { children } => {
+            let nodes: Vec<TokenStreamNode> = children.into_iter().map(convert_node).collect();
+            TokenStream::Tree(nodes)
+        }
+    }
+}
+
+/// Convert a TokenStream::Tree back to a LineContainer.
+///
+/// This adapter converts the unified TokenStream::Tree back to the linebased
+/// lexer's LineContainer format.
+///
+/// For safety during migration, this function rejects Flat variants.
+/// Use `flatten_token_stream()` if you need to explicitly flatten first.
+///
+/// # Arguments
+///
+/// * `stream` - The TokenStream to convert (must be Tree variant)
+///
+/// # Returns
+///
+/// The LineContainer structure
+///
+/// # Errors
+///
+/// Returns `AdapterError::ExpectedTree` if stream is Flat variant.
+///
+/// # Examples
+///
+/// ```ignore
+/// let stream = TokenStream::Tree(vec![node]);
+/// let container = token_stream_to_line_container(stream)?;
+/// ```
+pub fn token_stream_to_line_container(
+    stream: TokenStream,
+) -> Result<crate::lex::lexers::LineContainer, AdapterError> {
+    use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+
+    match stream {
+        TokenStream::Flat(_) => Err(AdapterError::ExpectedTree),
+        TokenStream::Tree(nodes) => {
+            fn convert_node(node: TokenStreamNode) -> LineContainer {
+                if node.tokens.is_empty() && node.children.is_some() {
+                    // This was a Container node
+                    let children_stream = node.children.unwrap();
+                    match *children_stream {
+                        TokenStream::Tree(child_nodes) => {
+                            let children = child_nodes.into_iter().map(convert_node).collect();
+                            LineContainer::Container { children }
+                        }
+                        TokenStream::Flat(_) => {
+                            // Shouldn't happen in well-formed tree
+                            LineContainer::Container { children: vec![] }
+                        }
+                    }
+                } else {
+                    // This was a Token node
+                    let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
+                        node.tokens.into_iter().unzip();
+
+                    // We can't recover the original LineType, so use ParagraphLine as default
+                    // This is a limitation of the adapter - LineType info is lost in TokenStream
+                    let line_token = LineToken {
+                        source_tokens,
+                        token_spans,
+                        line_type: LineType::ParagraphLine,
+                    };
+                    LineContainer::Token(line_token)
+                }
+            }
+
+            // If there's only one node and it's a container, return that container
+            // Otherwise, wrap all nodes in a container
+            if nodes.len() == 1 {
+                Ok(convert_node(nodes.into_iter().next().unwrap()))
+            } else {
+                let children = nodes.into_iter().map(convert_node).collect();
+                Ok(LineContainer::Container { children })
+            }
+        }
+    }
 }
 
 /// Parse a TokenStream using the reference parser with adapter.
@@ -568,5 +721,183 @@ mod tests {
 
         // Both should produce the same number of items
         assert_eq!(doc1.root.content.len(), doc2.root.content.len());
+    }
+
+    // Tree adapter tests
+    #[test]
+    fn test_line_container_to_token_stream_single_token() {
+        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+
+        // Create a simple LineContainer with one token
+        #[allow(clippy::single_range_in_vec_init)]
+        let line_token = LineToken {
+            source_tokens: vec![Token::Text("hello".to_string())],
+            token_spans: vec![0..5], // Single range in vec - intentional for LineToken
+            line_type: LineType::ParagraphLine,
+        };
+        let container = LineContainer::Token(line_token);
+
+        let stream = line_container_to_token_stream(container);
+
+        match stream {
+            TokenStream::Tree(nodes) => {
+                assert_eq!(nodes.len(), 1);
+                assert_eq!(nodes[0].tokens.len(), 1);
+                assert_eq!(nodes[0].tokens[0].0, Token::Text("hello".to_string()));
+                assert!(nodes[0].children.is_none());
+            }
+            _ => panic!("Expected TokenStream::Tree"),
+        }
+    }
+
+    #[test]
+    fn test_line_container_to_token_stream_container() {
+        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+
+        // Create a container with multiple children
+        #[allow(clippy::single_range_in_vec_init)]
+        let child1 = LineContainer::Token(LineToken {
+            source_tokens: vec![Token::Text("line1".to_string())],
+            token_spans: vec![0..5], // Single range - intentional
+            line_type: LineType::ParagraphLine,
+        });
+        #[allow(clippy::single_range_in_vec_init)]
+        let child2 = LineContainer::Token(LineToken {
+            source_tokens: vec![Token::Text("line2".to_string())],
+            token_spans: vec![6..11], // Single range - intentional
+            line_type: LineType::ParagraphLine,
+        });
+
+        let container = LineContainer::Container {
+            children: vec![child1, child2],
+        };
+
+        let stream = line_container_to_token_stream(container);
+
+        match stream {
+            TokenStream::Tree(nodes) => {
+                assert_eq!(nodes.len(), 2);
+                assert_eq!(nodes[0].tokens[0].0, Token::Text("line1".to_string()));
+                assert_eq!(nodes[1].tokens[0].0, Token::Text("line2".to_string()));
+            }
+            _ => panic!("Expected TokenStream::Tree"),
+        }
+    }
+
+    #[test]
+    fn test_token_stream_to_line_container_simple() {
+        let node = TokenStreamNode {
+            tokens: vec![(Token::Text("hello".to_string()), 0..5)],
+            children: None,
+        };
+        let stream = TokenStream::Tree(vec![node]);
+
+        let result = token_stream_to_line_container(stream);
+        assert!(result.is_ok());
+
+        let container = result.unwrap();
+        match container {
+            crate::lex::lexers::LineContainer::Token(line_token) => {
+                assert_eq!(line_token.source_tokens.len(), 1);
+                assert_eq!(
+                    line_token.source_tokens[0],
+                    Token::Text("hello".to_string())
+                );
+            }
+            _ => panic!("Expected LineContainer::Token"),
+        }
+    }
+
+    #[test]
+    fn test_token_stream_to_line_container_rejects_flat() {
+        let stream = TokenStream::Flat(vec![(Token::Text("test".to_string()), 0..4)]);
+        let result = token_stream_to_line_container(stream);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), AdapterError::ExpectedTree);
+    }
+
+    #[test]
+    fn test_tree_adapter_round_trip() {
+        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+
+        // Create original LineContainer
+        let original = LineContainer::Token(LineToken {
+            source_tokens: vec![
+                Token::Text("hello".to_string()),
+                Token::Whitespace,
+                Token::Text("world".to_string()),
+            ],
+            token_spans: vec![0..5, 5..6, 6..11],
+            line_type: LineType::ParagraphLine,
+        });
+
+        // Convert to TokenStream
+        let stream = line_container_to_token_stream(original.clone());
+
+        // Convert back to LineContainer
+        let result = token_stream_to_line_container(stream).unwrap();
+
+        // Verify tokens match (note: LineType will be ParagraphLine as default)
+        match (original, result) {
+            (LineContainer::Token(orig), LineContainer::Token(converted)) => {
+                assert_eq!(orig.source_tokens, converted.source_tokens);
+                assert_eq!(orig.token_spans, converted.token_spans);
+            }
+            _ => panic!("Expected both to be Token variants"),
+        }
+    }
+
+    #[test]
+    fn test_tree_adapter_preserves_ranges() {
+        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+
+        let line_token = LineToken {
+            source_tokens: vec![Token::Text("test".to_string()), Token::Newline],
+            token_spans: vec![0..4, 4..5],
+            line_type: LineType::ParagraphLine,
+        };
+        let container = LineContainer::Token(line_token);
+
+        let stream = line_container_to_token_stream(container);
+        let result = token_stream_to_line_container(stream).unwrap();
+
+        match result {
+            crate::lex::lexers::LineContainer::Token(line_token) => {
+                assert_eq!(line_token.token_spans[0], 0..4);
+                assert_eq!(line_token.token_spans[1], 4..5);
+            }
+            _ => panic!("Expected Token variant"),
+        }
+    }
+
+    #[test]
+    fn test_tree_adapter_nested_structure() {
+        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+
+        // Create nested structure: container with children
+        #[allow(clippy::single_range_in_vec_init)]
+        let child = LineContainer::Token(LineToken {
+            source_tokens: vec![Token::Text("child".to_string())],
+            token_spans: vec![10..15], // Single range - intentional
+            line_type: LineType::ParagraphLine,
+        });
+
+        let parent = LineContainer::Container {
+            children: vec![child],
+        };
+
+        let stream = line_container_to_token_stream(parent);
+
+        match stream {
+            TokenStream::Tree(nodes) => {
+                // Container becomes one node in the tree
+                assert_eq!(nodes.len(), 1);
+                // The node represents the child token
+                assert_eq!(nodes[0].tokens.len(), 1);
+                assert_eq!(nodes[0].tokens[0].0, Token::Text("child".to_string()));
+            }
+            _ => panic!("Expected TokenStream::Tree"),
+        }
     }
 }
