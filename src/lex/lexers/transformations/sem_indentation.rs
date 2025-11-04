@@ -4,6 +4,30 @@
 //! based on the indentation levels in the document.
 
 use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::transformations::Transformation;
+
+/// Semantic indentation transformation
+///
+/// Converts raw Indentation tokens into semantic Indent and Dedent token pairs
+/// based on indentation level changes between lines.
+pub struct SemanticIndentation;
+
+impl Transformation for SemanticIndentation {
+    fn name(&self) -> &str {
+        "semantic_indentation"
+    }
+
+    fn description(&self) -> &str {
+        "Convert raw Indentation tokens to semantic Indent/Dedent pairs based on nesting levels"
+    }
+
+    fn transform(
+        &self,
+        tokens: Vec<(Token, std::ops::Range<usize>)>,
+    ) -> Vec<(Token, std::ops::Range<usize>)> {
+        sem_indentation(tokens)
+    }
+}
 
 /// Transform raw Indent tokens into semantic Indent and Dedent tokens
 ///

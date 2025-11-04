@@ -73,11 +73,19 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
 /// Synthetic tokens (Indent, Dedent, BlankLine) have meaningful locations
 /// Processing pipeline:
 /// 1. Base tokenization (done by caller) - raw tokens with source locations
-/// 2. process_whitespace_remainders() - handle whitespace with locations
-/// 3. sem_indentation() - convert Indent tokens with location tracking
-/// 4. transform_blank_lines() - convert Newline sequences with location tracking
+/// 2. NormalizeWhitespace - handle whitespace remainders with locations
+/// 3. SemanticIndentation - convert Indentation tokens with location tracking
+/// 4. TransformBlankLines - convert Newline sequences with location tracking
 pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
-    let tokens_after_whitespace = process_whitespace_remainders(tokens);
-    let tokens_after_indentation = sem_indentation(tokens_after_whitespace);
-    transform_blank_lines(tokens_after_indentation)
+    // Define the transformation pipeline
+    let transformations: Vec<Box<dyn transformations::Transformation>> = vec![
+        Box::new(transformations::NormalizeWhitespace),
+        Box::new(transformations::SemanticIndentation),
+        Box::new(transformations::TransformBlankLines),
+    ];
+
+    // Apply transformations in sequence
+    transformations
+        .iter()
+        .fold(tokens, |acc, transform| transform.transform(acc))
 }
