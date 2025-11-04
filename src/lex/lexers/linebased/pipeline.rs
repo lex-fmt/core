@@ -105,34 +105,39 @@ pub fn _lex_stage(
     stage: PipelineStage,
 ) -> PipelineOutput {
     // Stage 1: Raw tokenization (already done by caller)
-    let raw_tokens = tokens;
     if stage == PipelineStage::RawTokens {
-        return PipelineOutput::Tokens(raw_tokens);
+        return PipelineOutput::Tokens(tokens);
     }
 
-    // Stage 2: Whitespace remainder processing
-    let normalize_ws = NormalizeWhitespace;
-    let after_whitespace = normalize_ws.transform(raw_tokens);
+    // Stages 2-4: Apply common transformations using trait objects and fold
+    // Define the transformations in the same style as the indentation pipeline
+    let transformations: Vec<Box<dyn Transformation>> = vec![
+        Box::new(NormalizeWhitespace),
+        Box::new(SemanticIndentation),
+        Box::new(TransformBlankLines),
+    ];
 
+    // Apply each transformation sequentially, checking for early return at each stage
+    // Stage 2: After whitespace
+    let mut current_tokens = tokens;
+    current_tokens = transformations[0].transform(current_tokens);
     if stage == PipelineStage::AfterWhitespace {
-        return PipelineOutput::Tokens(after_whitespace);
+        return PipelineOutput::Tokens(current_tokens);
     }
 
-    // Stage 3: Indentation transformation
-    let sem_indent = SemanticIndentation;
-    let after_indentation = sem_indent.transform(after_whitespace);
-
+    // Stage 3: After indentation
+    current_tokens = transformations[1].transform(current_tokens);
     if stage == PipelineStage::AfterIndentation {
-        return PipelineOutput::Tokens(after_indentation);
+        return PipelineOutput::Tokens(current_tokens);
     }
 
-    // Stage 4: Blank line transformation
-    let blank_lines = TransformBlankLines;
-    let after_blank_lines = blank_lines.transform(after_indentation);
-
+    // Stage 4: After blank lines
+    current_tokens = transformations[2].transform(current_tokens);
     if stage == PipelineStage::AfterBlankLines {
-        return PipelineOutput::Tokens(after_blank_lines.clone());
+        return PipelineOutput::Tokens(current_tokens.clone());
     }
+
+    let after_blank_lines = current_tokens;
 
     // Stage 5: Line token transformation (linebased)
     // Pass the full (Token, Range) tuples - _to_line_tokens now handles both tokens and spans
