@@ -381,10 +381,10 @@ expression: tokens
         0..0,
     ),
     (
-        IndentLevel(
+        Indent(
             [
                 (
-                    Indent,
+                    Indentation,
                     242..246,
                 ),
             ],
@@ -592,7 +592,7 @@ expression: tokens
         0..0,
     ),
     (
-        DedentLevel(
+        Dedent(
             [],
         ),
         0..0,
@@ -683,10 +683,10 @@ expression: tokens
         0..0,
     ),
     (
-        IndentLevel(
+        Indent(
             [
                 (
-                    Indent,
+                    Indentation,
                     418..422,
                 ),
             ],
@@ -879,7 +879,7 @@ expression: tokens
         0..0,
     ),
     (
-        DedentLevel(
+        Dedent(
             [],
         ),
         0..0,
@@ -970,10 +970,10 @@ expression: tokens
         0..0,
     ),
     (
-        IndentLevel(
+        Indent(
             [
                 (
-                    Indent,
+                    Indentation,
                     577..581,
                 ),
             ],
@@ -1278,7 +1278,7 @@ expression: tokens
         0..0,
     ),
     (
-        DedentLevel(
+        Dedent(
             [],
         ),
         0..0,
@@ -1561,10 +1561,10 @@ expression: tokens
         0..0,
     ),
     (
-        IndentLevel(
+        Indent(
             [
                 (
-                    Indent,
+                    Indentation,
                     916..920,
                 ),
             ],
@@ -1931,7 +1931,7 @@ expression: tokens
         0..0,
     ),
     (
-        DedentLevel(
+        Dedent(
             [],
         ),
         0..0,

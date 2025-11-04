@@ -18,7 +18,7 @@ The lex language
 
     The core syntax for the language is multi-line. That is, the same line contents in different groupings can vary in meaning. 
     
-    All lexer stages emit tokens paired with their byte-range location (`start..end`). Locations are mandatory for every token, including semantic tokens such as IndentLevel, DedentLevel, and BlankLine. Downstream tooling must preserve these spans.
+    All lexer stages emit tokens paired with their byte-range location (`start..end`). Locations are mandatory for every token, including semantic tokens such as Indent, Dedent, and BlankLine. Downstream tooling must preserve these spans.
      
 2. Indentation
     

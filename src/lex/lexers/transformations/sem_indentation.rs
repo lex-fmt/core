@@ -1,30 +1,30 @@
 //! Indentation transformation for lex lexer
 //!
-//! This module transforms raw Indent tokens into semantic IndentLevel and DedentLevel tokens
+//! This module transforms raw Indent tokens into semantic Indent and Dedent tokens
 //! based on the indentation levels in the document.
 
 use crate::lex::lexers::tokens::Token;
 
-/// Transform raw Indent tokens into semantic IndentLevel and DedentLevel tokens
+/// Transform raw Indent tokens into semantic Indent and Dedent tokens
 ///
 /// This function processes a token stream and converts consecutive Indent tokens
-/// into appropriate IndentLevel and DedentLevel tokens based on the indentation level changes.
+/// into appropriate Indent and Dedent tokens based on the indentation level changes.
 ///
 /// # Algorithm
 ///
 /// 1. Track the current indentation level (number of Indent tokens)
 /// 2. For each line, count the Indent tokens at the beginning
 /// 3. Compare with the previous line's indentation level:
-///    - If greater: emit IndentLevel tokens for each additional level
-///    - If less: emit DedentLevel tokens for each reduced level
+///    - If greater: emit Indent tokens for each additional level
+///    - If less: emit Dedent tokens for each reduced level
 ///    - If equal: no indentation tokens needed
 /// 4. Replace Indent tokens with the appropriate semantic tokens
-/// 5. Always add a final DedentLevel to close the document structure
+/// 5. Always add a final Dedent to close the document structure
 ///
 /// # Example
 ///
 /// Input tokens: `[Text, Newline, Indent, Indent, Dash, Newline, Indent, Text]`
-/// Output tokens: `[Text, Newline, IndentLevel, IndentLevel, Dash, Newline, DedentLevel, Text, DedentLevel]`
+/// Output tokens: `[Text, Newline, Indent, Indent, Dash, Newline, Dedent, Text, Dedent]`
 /// Find the start of the current line, going backwards from the given position
 fn find_line_start(tokens: &[Token], mut pos: usize) -> usize {
     // Go backwards to find the previous newline or start of document
@@ -42,7 +42,7 @@ fn is_line_blank(tokens: &[Token], line_start: usize) -> bool {
     let mut i = line_start;
 
     // Skip any indentation tokens at the beginning
-    while i < tokens.len() && matches!(tokens[i], Token::Indent) {
+    while i < tokens.len() && matches!(tokens[i], Token::Indentation) {
         i += 1;
     }
 
@@ -55,7 +55,7 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
     let mut count = 0;
     let mut i = start;
 
-    while i < tokens.len() && matches!(tokens[i], Token::Indent) {
+    while i < tokens.len() && matches!(tokens[i], Token::Indentation) {
         count += 1;
         i += 1;
     }
@@ -64,9 +64,9 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
 }
 
 /// Transform indentation while preserving source locations
-/// Synthetic tokens (IndentLevel, DedentLevel) are given meaningful locations:
-/// - IndentLevel: location covers the Indent tokens it represents
-/// - DedentLevel: location at the start of the line where dedentation occurs
+/// Synthetic tokens (Indent, Dedent) are given meaningful locations:
+/// - Indent: location covers the Indent tokens it represents
+/// - Dedent: location at the start of the line where dedentation occurs
 pub fn sem_indentation(
     tokens: Vec<(Token, std::ops::Range<usize>)>,
 ) -> Vec<(Token, std::ops::Range<usize>)> {
@@ -105,15 +105,15 @@ pub fn sem_indentation(
         // Calculate the target indentation level for this line
         let target_level = line_indent_level;
 
-        // Generate appropriate IndentLevel/DedentLevel tokens storing source tokens
+        // Generate appropriate Indent/Dedent tokens storing source tokens
         match target_level.cmp(&current_level) {
             std::cmp::Ordering::Greater => {
-                // IndentLevel tokens: each stores the original Indent token it replaces
+                // Indent tokens: each stores the original Indent token it replaces
                 let indent_start_idx = line_start;
                 for level_idx in 0..(target_level - current_level) {
                     let indent_token_idx = indent_start_idx + current_level + level_idx;
                     let source_tokens = if indent_token_idx < token_kinds.len()
-                        && matches!(token_kinds[indent_token_idx], Token::Indent)
+                        && matches!(token_kinds[indent_token_idx], Token::Indentation)
                     {
                         // Store the original (Token::Indent, Range<usize>) pair
                         vec![tokens[indent_token_idx].clone()]
@@ -122,15 +122,15 @@ pub fn sem_indentation(
                         vec![]
                     };
                     // Placeholder span 0..0 - will never be used, AST construction unrolls source_tokens
-                    result.push((Token::IndentLevel(source_tokens), 0..0));
+                    result.push((Token::Indent(source_tokens), 0..0));
                 }
             }
             std::cmp::Ordering::Less => {
-                // DedentLevel tokens: purely structural, don't replace any tokens
+                // Dedent tokens: purely structural, don't replace any tokens
                 // Store empty source_tokens since dedents are synthetic markers
                 for _ in 0..(current_level - target_level) {
                     // Placeholder span 0..0 - will never be used
-                    result.push((Token::DedentLevel(vec![]), 0..0));
+                    result.push((Token::Dedent(vec![]), 0..0));
                 }
             }
             std::cmp::Ordering::Equal => {
@@ -144,7 +144,7 @@ pub fn sem_indentation(
         // Skip the initial Indent tokens that were processed as indentation
         let mut j = line_start;
         for _ in 0..line_indent_level {
-            if j < token_kinds.len() && matches!(token_kinds[j], Token::Indent) {
+            if j < token_kinds.len() && matches!(token_kinds[j], Token::Indentation) {
                 j += 1;
             }
         }
@@ -167,7 +167,7 @@ pub fn sem_indentation(
     // Add dedents to close all remaining indentation levels
     // These occur at the end of file - they don't replace any tokens
     for _ in 0..current_level {
-        result.push((Token::DedentLevel(vec![]), 0..0));
+        result.push((Token::Dedent(vec![]), 0..0));
     }
 
     result
@@ -192,8 +192,8 @@ mod tests {
             .map(|(t, _)| {
                 // Normalize source_tokens to empty for test comparison
                 match t {
-                    Token::IndentLevel(_) => Token::IndentLevel(vec![]),
-                    Token::DedentLevel(_) => Token::DedentLevel(vec![]),
+                    Token::Indent(_) => Token::Indent(vec![]),
+                    Token::Dedent(_) => Token::Dedent(vec![]),
                     Token::BlankLine(_) => Token::BlankLine(vec![]),
                     other => other,
                 }
@@ -206,7 +206,7 @@ mod tests {
         let input = vec![
             Token::Text("a".to_string()),
             Token::Newline,
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
             Token::Newline,
         ];
@@ -218,10 +218,10 @@ mod tests {
             vec![
                 Token::Text("a".to_string()),
                 Token::Newline,
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
                 Token::Dash,
                 Token::Newline,
-                Token::DedentLevel(vec![]), // Dedent from level 1 to level 0
+                Token::Dedent(vec![]), // Dedent from level 1 to level 0
             ]
         );
     }
@@ -231,11 +231,11 @@ mod tests {
         let input = vec![
             Token::Text("a".to_string()),
             Token::Newline,
-            Token::Indent,
-            Token::Indent,
+            Token::Indentation,
+            Token::Indentation,
             Token::Dash,
             Token::Newline,
-            Token::Indent,
+            Token::Indentation,
             Token::Text("b".to_string()),
             Token::Newline,
         ];
@@ -247,14 +247,14 @@ mod tests {
             vec![
                 Token::Text("a".to_string()),
                 Token::Newline,
-                Token::IndentLevel(vec![]),
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
+                Token::Indent(vec![]),
                 Token::Dash,
                 Token::Newline,
-                Token::DedentLevel(vec![]),
+                Token::Dedent(vec![]),
                 Token::Text("b".to_string()),
                 Token::Newline,
-                Token::DedentLevel(vec![]), // Dedent from level 1 to level 0
+                Token::Dedent(vec![]), // Dedent from level 1 to level 0
             ]
         );
     }
@@ -269,7 +269,7 @@ mod tests {
             Token::Text("Session".to_string()),
             Token::Newline,
             // Line 2: "    - Item 1"
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
             Token::Whitespace,
             Token::Text("Item".to_string()),
@@ -277,7 +277,7 @@ mod tests {
             Token::Number("1".to_string()),
             Token::Newline,
             // Line 3: "    - Item 2"
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
             Token::Whitespace,
             Token::Text("Item".to_string()),
@@ -285,8 +285,8 @@ mod tests {
             Token::Number("2".to_string()),
             Token::Newline,
             // Line 4: "        - Nested"
-            Token::Indent,
-            Token::Indent,
+            Token::Indentation,
+            Token::Indentation,
             Token::Dash,
             Token::Whitespace,
             Token::Text("Nested".to_string()),
@@ -312,7 +312,7 @@ mod tests {
                 Token::Text("Session".to_string()),
                 Token::Newline,
                 // Line 2
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
                 Token::Dash,
                 Token::Whitespace,
                 Token::Text("Item".to_string()),
@@ -327,14 +327,14 @@ mod tests {
                 Token::Number("2".to_string()),
                 Token::Newline,
                 // Line 4
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
                 Token::Dash,
                 Token::Whitespace,
                 Token::Text("Nested".to_string()),
                 Token::Newline,
                 // Line 5
-                Token::DedentLevel(vec![]),
-                Token::DedentLevel(vec![]),
+                Token::Dedent(vec![]),
+                Token::Dedent(vec![]),
                 Token::Number("2".to_string()),
                 Token::Period,
                 Token::Whitespace,
@@ -355,7 +355,7 @@ mod tests {
 
         let result = strip_loc(sem_indentation(with_loc(input.clone())));
 
-        // No changes expected - no indentation, no DedentLevel at EOF
+        // No changes expected - no indentation, no Dedent at EOF
         assert_eq!(result, input);
     }
 
@@ -379,7 +379,7 @@ mod tests {
         let input = vec![
             Token::Text("a".to_string()),
             Token::Newline,
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
             Token::Newline,
             Token::Newline, // blank line
@@ -394,11 +394,11 @@ mod tests {
             vec![
                 Token::Text("a".to_string()),
                 Token::Newline,
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
                 Token::Dash,
                 Token::Newline,
-                Token::Newline,             // blank line preserved
-                Token::DedentLevel(vec![]), // dedent from level 1 to level 0
+                Token::Newline,        // blank line preserved
+                Token::Dedent(vec![]), // dedent from level 1 to level 0
                 Token::Dash,
                 Token::Newline,
             ]
@@ -411,10 +411,10 @@ mod tests {
         let input = vec![
             Token::Text("a".to_string()),
             Token::Newline,
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
             Token::Newline,
-            Token::Indent,
+            Token::Indentation,
             Token::Newline, // blank line with indentation
             Token::Dash,
             Token::Newline,
@@ -427,11 +427,11 @@ mod tests {
             vec![
                 Token::Text("a".to_string()),
                 Token::Newline,
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
                 Token::Dash,
                 Token::Newline,
-                Token::Newline,             // blank line preserved
-                Token::DedentLevel(vec![]), // dedent from level 1 to level 0
+                Token::Newline,        // blank line preserved
+                Token::Dedent(vec![]), // dedent from level 1 to level 0
                 Token::Dash,
                 Token::Newline,
             ]
@@ -442,8 +442,8 @@ mod tests {
     fn test_whitespace_remainders() {
         // Test case with whitespace remainders (10 spaces = 2 indent levels + 2 remaining)
         let input = vec![
-            Token::Indent,
-            Token::Indent,
+            Token::Indentation,
+            Token::Indentation,
             Token::Text("  hello".to_string()), // This represents "  hello" (2 spaces + text)
             Token::Newline,
         ];
@@ -453,12 +453,12 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                Token::IndentLevel(vec![]),
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
+                Token::Indent(vec![]),
                 Token::Text("  hello".to_string()),
                 Token::Newline,
-                Token::DedentLevel(vec![]), // Dedent from level 2 to level 1
-                Token::DedentLevel(vec![]), // Dedent from level 1 to level 0
+                Token::Dedent(vec![]), // Dedent from level 2 to level 1
+                Token::Dedent(vec![]), // Dedent from level 1 to level 0
             ]
         );
     }
@@ -469,11 +469,11 @@ mod tests {
         let input = vec![
             Token::Text("a".to_string()),
             Token::Newline,
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
             Token::Newline,
-            Token::Indent,
-            Token::Indent,
+            Token::Indentation,
+            Token::Indentation,
             Token::Text("b".to_string()),
             // File ends here without explicit dedents
         ];
@@ -485,13 +485,13 @@ mod tests {
             vec![
                 Token::Text("a".to_string()),
                 Token::Newline,
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
                 Token::Dash,
                 Token::Newline,
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
                 Token::Text("b".to_string()),
-                Token::DedentLevel(vec![]), // Should dedent from level 2 to level 1
-                Token::DedentLevel(vec![]), // Should dedent from level 1 to level 0
+                Token::Dedent(vec![]), // Should dedent from level 2 to level 1
+                Token::Dedent(vec![]), // Should dedent from level 1 to level 0
             ]
         );
     }
@@ -502,9 +502,9 @@ mod tests {
         let input = vec![
             Token::Text("a".to_string()),
             Token::Newline,
-            Token::Indent,
-            Token::Indent,
-            Token::Indent,
+            Token::Indentation,
+            Token::Indentation,
+            Token::Indentation,
             Token::Dash,
             Token::Newline,
             Token::Text("b".to_string()), // Back to level 0
@@ -518,14 +518,14 @@ mod tests {
             vec![
                 Token::Text("a".to_string()),
                 Token::Newline,
-                Token::IndentLevel(vec![]),
-                Token::IndentLevel(vec![]),
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
+                Token::Indent(vec![]),
+                Token::Indent(vec![]),
                 Token::Dash,
                 Token::Newline,
-                Token::DedentLevel(vec![]), // Dedent from level 3 to level 2
-                Token::DedentLevel(vec![]), // Dedent from level 2 to level 1
-                Token::DedentLevel(vec![]), // Dedent from level 1 to level 0
+                Token::Dedent(vec![]), // Dedent from level 3 to level 2
+                Token::Dedent(vec![]), // Dedent from level 2 to level 1
+                Token::Dedent(vec![]), // Dedent from level 1 to level 0
                 Token::Text("b".to_string()),
                 Token::Newline,
             ]
@@ -538,7 +538,7 @@ mod tests {
         let input = vec![
             Token::Text("a".to_string()),
             Token::Newline,
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
             Token::Newline,
             Token::Newline, // blank line 1
@@ -555,14 +555,14 @@ mod tests {
             vec![
                 Token::Text("a".to_string()),
                 Token::Newline,
-                Token::IndentLevel(vec![]),
+                Token::Indent(vec![]),
                 Token::Dash,
                 Token::Newline,
-                Token::Newline,             // blank line 1
-                Token::Newline,             // blank line 2
-                Token::Newline,             // blank line 3
-                Token::DedentLevel(vec![]), // Dedent from level 1 to level 0
-                Token::Dash,                // Now at level 0
+                Token::Newline,        // blank line 1
+                Token::Newline,        // blank line 2
+                Token::Newline,        // blank line 3
+                Token::Dedent(vec![]), // Dedent from level 1 to level 0
+                Token::Dash,           // Now at level 0
                 Token::Newline,
             ]
         );
@@ -596,8 +596,8 @@ mod tests {
     #[test]
     fn test_count_line_indent_steps() {
         let tokens = vec![
-            Token::Indent,
-            Token::Indent,
+            Token::Indentation,
+            Token::Indentation,
             Token::Dash,
             Token::Text("a".to_string()),
         ];
@@ -611,7 +611,7 @@ mod tests {
         let tokens = vec![
             Token::Text("a".to_string()),
             Token::Newline,
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
         ];
 
@@ -631,21 +631,21 @@ mod tests {
 
         let input = vec![
             // Line 1: "        Foo" (2 indent levels)
-            Token::Indent,
-            Token::Indent,
+            Token::Indentation,
+            Token::Indentation,
             Token::Text("Foo".to_string()),
             Token::Newline,
             // Line 2: "        Foo2" (2 indent levels)
-            Token::Indent,
-            Token::Indent,
+            Token::Indentation,
+            Token::Indentation,
             Token::Text("Foo2".to_string()),
             Token::Newline,
             // Line 3: "    " (1 indent level BUT NO CONTENT - should be ignored)
-            Token::Indent,
+            Token::Indentation,
             Token::Newline,
             // Line 4: "        Bar" (2 indent levels)
-            Token::Indent,
-            Token::Indent,
+            Token::Indentation,
+            Token::Indentation,
             Token::Text("Bar".to_string()),
             Token::Newline,
         ];
@@ -657,8 +657,8 @@ mod tests {
             result,
             vec![
                 // Line 1
-                Token::IndentLevel(vec![]), // From 0 to 1
-                Token::IndentLevel(vec![]), // From 1 to 2
+                Token::Indent(vec![]), // From 0 to 1
+                Token::Indent(vec![]), // From 1 to 2
                 Token::Text("Foo".to_string()),
                 Token::Newline,
                 // Line 2
@@ -670,25 +670,25 @@ mod tests {
                 Token::Text("Bar".to_string()), // Still at level 2, no dedent/re-indent!
                 Token::Newline,
                 // EOF
-                Token::DedentLevel(vec![]), // From 2 to 1
-                Token::DedentLevel(vec![]), // From 1 to 0
+                Token::Dedent(vec![]), // From 2 to 1
+                Token::Dedent(vec![]), // From 1 to 0
             ],
             "Blank lines with only spaces should NOT produce dedent/indent tokens"
         );
     }
 
     // ========== location TESTS ==========
-    // Tests to verify that synthetic tokens (IndentLevel, DedentLevel) have correct locations
+    // Tests to verify that synthetic tokens (Indent, Dedent) have correct locations
 
     #[test]
     fn test_indent_level_tokens_have_correct_locations() {
-        // Test: IndentLevel tokens should have locations that correspond to the Indent tokens they represent
+        // Test: Indent tokens should have locations that correspond to the Indent tokens they represent
         // Input: "a\n    b" (a, newline, 4 spaces, b)
         use crate::lex::testing::factories::{mk_token, Tokens};
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1), // "a" at position 0-1
             mk_token(Token::Newline, 1, 2),               // "\n" at position 1-2
-            mk_token(Token::Indent, 2, 6),                // "    " (4 spaces) at position 2-6
+            mk_token(Token::Indentation, 2, 6),           // "    " (4 spaces) at position 2-6
             mk_token(Token::Text("b".to_string()), 6, 7), // "b" at position 6-7
         ];
 
@@ -697,59 +697,59 @@ mod tests {
         // Expected:
         // - Text("a") with location 0..1
         // - Newline with location 1..2
-        // - IndentLevel with location 2..6 (covers the Indent token)
+        // - Indent with location 2..6 (covers the Indent token)
         // - Text("b") with location 6..7
-        // - DedentLevel with location 7..7 (at EOF)
+        // - Dedent with location 7..7 (at EOF)
 
         assert_eq!(result.len(), 5);
         assert_eq!(result[0], mk_token(Token::Text("a".to_string()), 0, 1));
         assert_eq!(result[1], mk_token(Token::Newline, 1, 2));
-        // IndentLevel stores the original Indent token with its span
-        assert_eq!(result[2].0, Token::IndentLevel(vec![(Token::Indent, 2..6)]));
-        assert_eq!(result[2].1, 0..0, "IndentLevel uses placeholder span");
+        // Indent stores the original Indent token with its span
+        assert_eq!(result[2].0, Token::Indent(vec![(Token::Indentation, 2..6)]));
+        assert_eq!(result[2].1, 0..0, "Indent uses placeholder span");
         assert_eq!(result[3], mk_token(Token::Text("b".to_string()), 6, 7));
-        // DedentLevel has no source tokens (purely structural)
-        assert_eq!(result[4].0, Token::DedentLevel(vec![]));
-        assert_eq!(result[4].1, 0..0, "DedentLevel uses placeholder span");
+        // Dedent has no source tokens (purely structural)
+        assert_eq!(result[4].0, Token::Dedent(vec![]));
+        assert_eq!(result[4].1, 0..0, "Dedent uses placeholder span");
     }
 
     #[test]
     fn test_multiple_indent_levels_have_correct_locations() {
-        // Test: Multiple IndentLevel tokens should each have locations of their respective Indent tokens
+        // Test: Multiple Indent tokens should each have locations of their respective Indent tokens
         // Input: "a\n        b" (a, newline, 8 spaces = 2 indent levels, b)
         use crate::lex::testing::factories::{mk_token, Tokens};
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1),   // "a"
             mk_token(Token::Newline, 1, 2),                 // "\n"
-            mk_token(Token::Indent, 2, 6),                  // first 4 spaces (indent level 1)
-            mk_token(Token::Indent, 6, 10),                 // second 4 spaces (indent level 2)
+            mk_token(Token::Indentation, 2, 6),             // first 4 spaces (indent level 1)
+            mk_token(Token::Indentation, 6, 10),            // second 4 spaces (indent level 2)
             mk_token(Token::Text("b".to_string()), 10, 11), // "b"
         ];
 
         let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
-        // Should have: Text, Newline, IndentLevel, IndentLevel, Text, DedentLevel, DedentLevel
+        // Should have: Text, Newline, Indent, Indent, Text, Dedent, Dedent
         assert_eq!(result.len(), 7);
-        // First IndentLevel stores first Indent token
-        assert_eq!(result[2].0, Token::IndentLevel(vec![(Token::Indent, 2..6)]));
-        assert_eq!(result[2].1, 0..0, "IndentLevel uses placeholder span");
-        // Second IndentLevel stores second Indent token
+        // First Indent stores first Indent token
+        assert_eq!(result[2].0, Token::Indent(vec![(Token::Indentation, 2..6)]));
+        assert_eq!(result[2].1, 0..0, "Indent uses placeholder span");
+        // Second Indent stores second Indent token
         assert_eq!(
             result[3].0,
-            Token::IndentLevel(vec![(Token::Indent, 6..10)])
+            Token::Indent(vec![(Token::Indentation, 6..10)])
         );
-        assert_eq!(result[3].1, 0..0, "IndentLevel uses placeholder span");
+        assert_eq!(result[3].1, 0..0, "Indent uses placeholder span");
     }
 
     #[test]
     fn test_dedent_level_tokens_have_correct_locations() {
-        // Test: DedentLevel tokens should have locations at the position where dedentation occurs
+        // Test: Dedent tokens should have locations at the position where dedentation occurs
         // Input: "a\n    b\nc" (a, newline, 4 spaces, b, newline, c)
         use crate::lex::testing::factories::{mk_token, Tokens};
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1), // "a"
             mk_token(Token::Newline, 1, 2),               // "\n"
-            mk_token(Token::Indent, 2, 6),                // "    "
+            mk_token(Token::Indentation, 2, 6),           // "    "
             mk_token(Token::Text("b".to_string()), 6, 7), // "b"
             mk_token(Token::Newline, 7, 8),               // "\n"
             mk_token(Token::Text("c".to_string()), 8, 9), // "c" (dedented back to level 0)
@@ -758,23 +758,23 @@ mod tests {
         let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
         // Expected:
-        // - Text("a"), Newline, IndentLevel, Text("b"), Newline, DedentLevel, Text("c")
+        // - Text("a"), Newline, Indent, Text("b"), Newline, Dedent, Text("c")
         assert_eq!(result.len(), 7);
-        // DedentLevel has no source tokens (purely structural)
-        assert_eq!(result[5].0, Token::DedentLevel(vec![]));
-        assert_eq!(result[5].1, 0..0, "DedentLevel uses placeholder span");
+        // Dedent has no source tokens (purely structural)
+        assert_eq!(result[5].0, Token::Dedent(vec![]));
+        assert_eq!(result[5].1, 0..0, "Dedent uses placeholder span");
     }
 
     #[test]
     fn test_multiple_dedent_levels_have_correct_locations() {
-        // Test: Multiple DedentLevel tokens should all have the same location (position of dedentation)
+        // Test: Multiple Dedent tokens should all have the same location (position of dedentation)
         // Input: "a\n        b\nc" (2 levels in, then 2 levels out)
         use crate::lex::testing::factories::{mk_token, Tokens};
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1),
             mk_token(Token::Newline, 1, 2),
-            mk_token(Token::Indent, 2, 6),
-            mk_token(Token::Indent, 6, 10),
+            mk_token(Token::Indentation, 2, 6),
+            mk_token(Token::Indentation, 6, 10),
             mk_token(Token::Text("b".to_string()), 10, 11),
             mk_token(Token::Newline, 11, 12),
             mk_token(Token::Text("c".to_string()), 12, 13), // Back to level 0
@@ -782,35 +782,35 @@ mod tests {
 
         let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
-        // Expected: Text("a"), Newline, IndentLevel, IndentLevel, Text("b"), Newline, DedentLevel, DedentLevel, Text("c")
-        // Should have 2 DedentLevel tokens before Text("c")
+        // Expected: Text("a"), Newline, Indent, Indent, Text("b"), Newline, Dedent, Dedent, Text("c")
+        // Should have 2 Dedent tokens before Text("c")
         assert_eq!(result.len(), 9);
-        // DedentLevel tokens have no source tokens (purely structural)
-        assert_eq!(result[6].0, Token::DedentLevel(vec![]));
-        assert_eq!(result[6].1, 0..0, "DedentLevel uses placeholder span");
-        assert_eq!(result[7].0, Token::DedentLevel(vec![]));
-        assert_eq!(result[7].1, 0..0, "DedentLevel uses placeholder span");
+        // Dedent tokens have no source tokens (purely structural)
+        assert_eq!(result[6].0, Token::Dedent(vec![]));
+        assert_eq!(result[6].1, 0..0, "Dedent uses placeholder span");
+        assert_eq!(result[7].0, Token::Dedent(vec![]));
+        assert_eq!(result[7].1, 0..0, "Dedent uses placeholder span");
         assert_eq!(result[8], mk_token(Token::Text("c".to_string()), 12, 13));
     }
 
     #[test]
     fn test_eof_dedent_uses_correct_location() {
-        // Test: DedentLevel tokens at end of file should use the EOF position
+        // Test: Dedent tokens at end of file should use the EOF position
         // Input: "a\n    b" (ends while indented)
         use crate::lex::testing::factories::{mk_token, Tokens};
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1),
             mk_token(Token::Newline, 1, 2),
-            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Indentation, 2, 6),
             mk_token(Token::Text("b".to_string()), 6, 7),
         ];
 
         let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
-        // Last token should be DedentLevel
+        // Last token should be Dedent
         let last = result.last().unwrap();
-        assert_eq!(last.0, Token::DedentLevel(vec![]));
-        assert_eq!(last.1, 0..0, "DedentLevel uses placeholder span");
+        assert_eq!(last.0, Token::Dedent(vec![]));
+        assert_eq!(last.1, 0..0, "Dedent uses placeholder span");
     }
 
     #[test]
@@ -824,41 +824,41 @@ mod tests {
         let tokens = crate::lex::lexers::tokenize(source);
         let result = sem_indentation(tokens);
 
-        // Find the IndentLevel token
+        // Find the Indent token
         let indent_level_pos = result
             .iter()
-            .position(|(t, _)| matches!(t, Token::IndentLevel(_)))
+            .position(|(t, _)| matches!(t, Token::Indent(_)))
             .unwrap();
         let (indent_token, indent_location) = &result[indent_level_pos];
 
-        // IndentLevel should contain the original Indent token with its span
-        assert!(matches!(indent_token, Token::IndentLevel(_)));
-        if let Token::IndentLevel(source_tokens) = indent_token {
+        // Indent should contain the original Indent token with its span
+        assert!(matches!(indent_token, Token::Indent(_)));
+        if let Token::Indent(source_tokens) = indent_token {
             assert_eq!(
                 source_tokens.len(),
                 1,
-                "IndentLevel should have one source token"
+                "Indent should have one source token"
             );
-            assert_eq!(source_tokens[0].0, Token::Indent);
+            assert_eq!(source_tokens[0].0, Token::Indentation);
             assert_eq!(
                 source_tokens[0].1,
                 7..11,
                 "Source Indent should be at 7..11"
             );
         }
-        // IndentLevel uses placeholder span
-        assert_eq!(*indent_location, 0..0, "IndentLevel uses placeholder span");
+        // Indent uses placeholder span
+        assert_eq!(*indent_location, 0..0, "Indent uses placeholder span");
 
-        // Find the DedentLevel token (should be at end)
+        // Find the Dedent token (should be at end)
         let dedent_pos = result
             .iter()
-            .position(|(t, _)| matches!(t, Token::DedentLevel(_)))
+            .position(|(t, _)| matches!(t, Token::Dedent(_)))
             .unwrap();
         let (dedent_token, dedent_location) = &result[dedent_pos];
 
-        // DedentLevel has no source tokens (purely structural)
-        assert_eq!(*dedent_token, Token::DedentLevel(vec![]));
-        assert_eq!(*dedent_location, 0..0, "DedentLevel uses placeholder span");
+        // Dedent has no source tokens (purely structural)
+        assert_eq!(*dedent_token, Token::Dedent(vec![]));
+        assert_eq!(*dedent_location, 0..0, "Dedent uses placeholder span");
     }
 
     #[test]
@@ -869,22 +869,18 @@ mod tests {
             mk_token(Token::Text("a".to_string()), 0, 1),
             mk_token(Token::Newline, 1, 2),
             mk_token(Token::Newline, 2, 3), // Blank line (will be handled by blank_line_transform)
-            mk_token(Token::Indent, 3, 7),
+            mk_token(Token::Indentation, 3, 7),
             mk_token(Token::Text("b".to_string()), 7, 8),
         ];
 
         let result: Vec<(Token, std::ops::Range<usize>)> = sem_indentation(input);
 
-        // The IndentLevel should use placeholder span
+        // The Indent should use placeholder span
         let indent_pos = result
             .iter()
-            .position(|(t, _)| matches!(t, Token::IndentLevel(_)))
+            .position(|(t, _)| matches!(t, Token::Indent(_)))
             .unwrap();
-        assert_eq!(
-            result[indent_pos].1,
-            0..0,
-            "IndentLevel uses placeholder span"
-        );
+        assert_eq!(result[indent_pos].1, 0..0, "Indent uses placeholder span");
     }
 
     #[test]
@@ -894,8 +890,8 @@ mod tests {
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1),
             mk_token(Token::Newline, 1, 2),
-            mk_token(Token::Indent, 2, 6),
-            mk_token(Token::Indent, 6, 10),
+            mk_token(Token::Indentation, 2, 6),
+            mk_token(Token::Indentation, 6, 10),
             mk_token(Token::Text("b".to_string()), 10, 11),
             // EOF at indent level 2 - should emit 2 dedents
         ];
@@ -904,7 +900,7 @@ mod tests {
 
         let dedent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
+            .filter(|(t, _)| matches!(t, Token::Dedent(_)))
             .count();
 
         assert_eq!(
@@ -920,12 +916,12 @@ mod tests {
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1),
             mk_token(Token::Newline, 1, 2),
-            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Indentation, 2, 6),
             mk_token(Token::Text("b".to_string()), 6, 7),
             mk_token(Token::Newline, 7, 8),
             mk_token(Token::Text("c".to_string()), 8, 9), // Back at level 0
             mk_token(Token::Newline, 9, 10),
-            mk_token(Token::Indent, 10, 14),
+            mk_token(Token::Indentation, 10, 14),
             mk_token(Token::Text("d".to_string()), 14, 15),
             mk_token(Token::Newline, 15, 16),
             mk_token(Token::Text("e".to_string()), 16, 17), // Back at level 0
@@ -935,34 +931,34 @@ mod tests {
 
         let dedent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
+            .filter(|(t, _)| matches!(t, Token::Dedent(_)))
             .count();
         let indent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
+            .filter(|(t, _)| matches!(t, Token::Indent(_)))
             .count();
 
         // Should have 2 indents and 2 dedents for the two cycles
-        assert_eq!(indent_count, 2, "Should have 2 IndentLevel tokens");
-        assert_eq!(dedent_count, 2, "Should have 2 DedentLevel tokens");
+        assert_eq!(indent_count, 2, "Should have 2 Indent tokens");
+        assert_eq!(dedent_count, 2, "Should have 2 Dedent tokens");
     }
 
     #[test]
     fn test_deep_nesting_unbalanced() {
         // Test case: nested indentation (one level deeper each line)
         // Line 1: "a" (level 0)
-        // Line 2: 1 indent + "b" (level 1) → emits 1 IndentLevel
-        // Line 3: 2 indents + "c" (level 2) → emits 1 IndentLevel
+        // Line 2: 1 indent + "b" (level 1) → emits 1 Indent
+        // Line 3: 2 indents + "c" (level 2) → emits 1 Indent
         // EOF at level 2 - should emit 2 dedents to close
         use crate::lex::testing::factories::{mk_token, Tokens};
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1),
             mk_token(Token::Newline, 1, 2),
-            mk_token(Token::Indent, 2, 6),
+            mk_token(Token::Indentation, 2, 6),
             mk_token(Token::Text("b".to_string()), 6, 7),
             mk_token(Token::Newline, 7, 8),
-            mk_token(Token::Indent, 8, 12),
-            mk_token(Token::Indent, 12, 16),
+            mk_token(Token::Indentation, 8, 12),
+            mk_token(Token::Indentation, 12, 16),
             mk_token(Token::Text("c".to_string()), 16, 17),
             // EOF at level 2 - should emit 2 dedents
         ];
@@ -971,20 +967,20 @@ mod tests {
 
         let dedent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
+            .filter(|(t, _)| matches!(t, Token::Dedent(_)))
             .count();
         let indent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
+            .filter(|(t, _)| matches!(t, Token::Indent(_)))
             .count();
 
         assert_eq!(
             indent_count, 2,
-            "Should have 2 IndentLevel tokens (1 for 0→1, 1 for 1→2)"
+            "Should have 2 Indent tokens (1 for 0→1, 1 for 1→2)"
         );
         assert_eq!(
             dedent_count, 2,
-            "Should have 2 DedentLevel tokens to close 2 open indentation levels at EOF"
+            "Should have 2 Dedent tokens to close 2 open indentation levels at EOF"
         );
     }
 
@@ -995,8 +991,8 @@ mod tests {
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1),
             mk_token(Token::Newline, 1, 2),
-            mk_token(Token::Indent, 2, 6),
-            mk_token(Token::Indent, 6, 10),
+            mk_token(Token::Indentation, 2, 6),
+            mk_token(Token::Indentation, 6, 10),
             mk_token(Token::Text("b".to_string()), 10, 11),
             mk_token(Token::Newline, 11, 12),
             mk_token(Token::Text("c".to_string()), 12, 13), // Back to level 1
@@ -1008,7 +1004,7 @@ mod tests {
 
         let dedent_count = result
             .iter()
-            .filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
+            .filter(|(t, _)| matches!(t, Token::Dedent(_)))
             .count();
 
         assert_eq!(

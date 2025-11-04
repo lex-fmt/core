@@ -11,7 +11,7 @@
 //! 1. Core tokenization using logos lexer
 //! 2. Common Transformation pipeline:
 //!    - Whitespace remainder processing ./transformations/normalize_whitespace.rs
-//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ./transformations/sem_indentation.rs
+//!    - Indentation transformation (Indent -> Indent/Dedent) ./transformations/sem_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ./transformations/transform_blanklines.rs
 //! 3. Line-based pipeline (linebased):
 //!    - Flatten tokens into line tokens
@@ -52,7 +52,7 @@ pub use transformations::{
 };
 
 // Re-export line-based types for convenience
-pub use linebased::{LineContainerToken, LineToken, LineTokenType};
+pub use linebased::{LineContainer, LineToken, LineType};
 
 /// Preprocesses source text to ensure it ends with a newline.
 ///
@@ -69,7 +69,7 @@ pub(crate) fn ensure_source_ends_with_newline(source: &str) -> String {
 
 /// Main lexer function that returns fully processed tokens with locations
 /// Returns tokens with their corresponding source locations
-/// Synthetic tokens (IndentLevel, DedentLevel, BlankLine) have meaningful locations
+/// Synthetic tokens (Indent, Dedent, BlankLine) have meaningful locations
 /// Processing pipeline:
 /// 1. tokenize() - raw tokens with source locations
 /// 2. process_whitespace_remainders() - handle whitespace with locations

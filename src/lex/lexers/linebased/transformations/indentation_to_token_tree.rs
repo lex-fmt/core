@@ -1,41 +1,41 @@
 //! Linebased transformation: flat line tokens → hierarchical container token tree
 //!
 //! This transformation converts a flat stream of line tokens (which include
-//! IndentLevel/DedentLevel markers) into a hierarchical tree structure.
+//! Indent/Dedent markers) into a hierarchical tree structure.
 //!
 //! The output is a single LineContainerToken representing the root of the entire tree.
 //! The tree represents the indentation-based nesting structure:
-//! - IndentLevel markers trigger creation of new nested container levels
-//! - DedentLevel markers close nested containers and return to parent level
+//! - Indent markers trigger creation of new nested container levels
+//! - Dedent markers close nested containers and return to parent level
 //! - All other tokens (LineTokens) are children of containers at the same level
 //!
 //! This tree structure preserves all original LineTokens (including source_tokens),
 //! and can be consumed by pattern-matching parsers that check token types
 //! (e.g., <container>, <subject-line>, <paragraph-line>).
 
-use crate::lex::lexers::linebased::tokens::{LineContainerToken, LineToken, LineTokenType};
+use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
 
 /// Transform flat line tokens into a hierarchical container token tree.
 ///
-/// Converts a flat sequence of LineTokens (with IndentLevel/DedentLevel markers)
+/// Converts a flat sequence of LineTokens (with Indent/Dedent markers)
 /// into a tree where every node is a LineContainerToken.
 ///
-/// Groups line tokens based on IndentLevel/DedentLevel markers:
-/// - Each IndentLevel triggers a new nested container
-/// - Each DedentLevel closes the current container and returns to parent
+/// Groups line tokens based on Indent/Dedent markers:
+/// - Each Indent triggers a new nested container
+/// - Each Dedent closes the current container and returns to parent
 /// - Line tokens at same indentation level become children of a container
 ///
-/// Input: Flat sequence of LineTokens (with structural IndentLevel/DedentLevel tokens)
+/// Input: Flat sequence of LineTokens (with structural Indent/Dedent tokens)
 /// Output: Root LineContainerToken containing the entire hierarchical tree
 ///
 /// Example:
 /// ```text
 /// Input line tokens:
 ///   LineToken(SubjectLine),
-///   LineToken(IndentLevel),
+///   LineToken(Indent),
 ///   LineToken(ParagraphLine),
 ///   LineToken(ParagraphLine),
-///   LineToken(DedentLevel),
+///   LineToken(Dedent),
 ///   LineToken(ParagraphLine),
 ///
 /// Output tree (single root):
@@ -52,36 +52,36 @@ use crate::lex::lexers::linebased::tokens::{LineContainerToken, LineToken, LineT
 ///     ]
 ///   }
 /// ```
-pub fn _indentation_to_token_tree(tokens: Vec<LineToken>) -> LineContainerToken {
+pub fn _indentation_to_token_tree(tokens: Vec<LineToken>) -> LineContainer {
     // Stack of pending children at each indentation level
     // Each level accumulates tokens/containers that become children of a container
-    let mut stack: Vec<Vec<LineContainerToken>> = vec![Vec::new()];
+    let mut stack: Vec<Vec<LineContainer>> = vec![Vec::new()];
     let mut pending_tokens: Vec<LineToken> = Vec::new();
 
     for token in tokens {
         match &token.line_type {
-            LineTokenType::IndentLevel => {
+            LineType::Indent => {
                 // Flush pending tokens before entering nested level
                 if !pending_tokens.is_empty() {
                     for line_token in pending_tokens.drain(..) {
                         let current_level = stack.last_mut().expect("Stack never empty");
-                        current_level.push(LineContainerToken::Token(line_token));
+                        current_level.push(LineContainer::Token(line_token));
                     }
                 }
                 // Start a new nesting level
                 stack.push(Vec::new());
             }
-            LineTokenType::DedentLevel => {
+            LineType::Dedent => {
                 // Flush pending tokens before closing level
                 if !pending_tokens.is_empty() {
                     for line_token in pending_tokens.drain(..) {
                         let current_level = stack.last_mut().expect("Stack never empty");
-                        current_level.push(LineContainerToken::Token(line_token));
+                        current_level.push(LineContainer::Token(line_token));
                     }
                 }
                 // Close current level and add as nested container to parent
                 if let Some(children) = stack.pop() {
-                    let nested_container = LineContainerToken::Container { children };
+                    let nested_container = LineContainer::Container { children };
                     let parent_level = stack.last_mut().expect("Stack never empty");
                     parent_level.push(nested_container);
                 }
@@ -97,14 +97,14 @@ pub fn _indentation_to_token_tree(tokens: Vec<LineToken>) -> LineContainerToken 
     if !pending_tokens.is_empty() {
         for line_token in pending_tokens.drain(..) {
             let root_level = stack.last_mut().expect("Stack never empty");
-            root_level.push(LineContainerToken::Token(line_token));
+            root_level.push(LineContainer::Token(line_token));
         }
     }
 
     // Create root container from accumulated children
     let root_children = stack.pop().expect("Stack should contain root level");
 
-    LineContainerToken::Container {
+    LineContainer::Container {
         children: root_children,
     }
 }
@@ -114,7 +114,7 @@ mod tests {
     use super::*;
     use crate::lex::lexers::tokens::Token;
 
-    fn make_line_token(line_type: LineTokenType, tokens: Vec<Token>) -> LineToken {
+    fn make_line_token(line_type: LineType, tokens: Vec<Token>) -> LineToken {
         LineToken {
             source_tokens: tokens,
             token_spans: Vec::new(),
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn test_single_token_no_indentation() {
         let input = vec![make_line_token(
-            LineTokenType::ParagraphLine,
+            LineType::ParagraphLine,
             vec![Token::Text("hello".to_string())],
         )];
 
@@ -133,9 +133,9 @@ mod tests {
 
         // Verify the result is a container with one child token
         match result {
-            LineContainerToken::Container { children } => {
+            LineContainer::Container { children } => {
                 assert_eq!(children.len(), 1);
-                assert!(matches!(children[0], LineContainerToken::Token(_)));
+                assert!(matches!(children[0], LineContainer::Token(_)));
             }
             _ => panic!("Expected Container"),
         }
@@ -145,15 +145,15 @@ mod tests {
     fn test_multiple_tokens_same_level() {
         let input = vec![
             make_line_token(
-                LineTokenType::SubjectLine,
+                LineType::SubjectLine,
                 vec![Token::Text("Title".to_string())],
             ),
             make_line_token(
-                LineTokenType::ParagraphLine,
+                LineType::ParagraphLine,
                 vec![Token::Text("Para1".to_string())],
             ),
             make_line_token(
-                LineTokenType::ParagraphLine,
+                LineType::ParagraphLine,
                 vec![Token::Text("Para2".to_string())],
             ),
         ];
@@ -162,11 +162,11 @@ mod tests {
 
         // All tokens at same level should be children of root container
         match result {
-            LineContainerToken::Container { children } => {
+            LineContainer::Container { children } => {
                 assert_eq!(children.len(), 3);
                 assert!(children
                     .iter()
-                    .all(|c| matches!(c, LineContainerToken::Token(_))));
+                    .all(|c| matches!(c, LineContainer::Token(_))));
             }
             _ => panic!("Expected Container"),
         }
@@ -176,25 +176,25 @@ mod tests {
     fn test_single_indent_level() {
         let input = vec![
             make_line_token(
-                LineTokenType::SubjectLine,
+                LineType::SubjectLine,
                 vec![Token::Text("Title".to_string())],
             ),
-            make_line_token(LineTokenType::IndentLevel, vec![Token::IndentLevel(vec![])]),
+            make_line_token(LineType::Indent, vec![Token::Indent(vec![])]),
             make_line_token(
-                LineTokenType::ParagraphLine,
+                LineType::ParagraphLine,
                 vec![Token::Text("Indented".to_string())],
             ),
-            make_line_token(LineTokenType::DedentLevel, vec![Token::DedentLevel(vec![])]),
+            make_line_token(LineType::Dedent, vec![Token::Dedent(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);
 
         // Root should have title token and nested container
         match result {
-            LineContainerToken::Container { children } => {
+            LineContainer::Container { children } => {
                 assert_eq!(children.len(), 2);
-                assert!(matches!(children[0], LineContainerToken::Token(_)));
-                assert!(matches!(children[1], LineContainerToken::Container { .. }));
+                assert!(matches!(children[0], LineContainer::Token(_)));
+                assert!(matches!(children[1], LineContainer::Container { .. }));
             }
             _ => panic!("Expected Container"),
         }

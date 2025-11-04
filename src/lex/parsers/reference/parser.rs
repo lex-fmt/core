@@ -72,7 +72,7 @@ pub(crate) fn build_document_content_parser(
                 .repeated()
                 .at_least(1)
                 .ignore_then(choice((
-                    filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
+                    filter(|(t, _)| matches!(t, Token::Dedent(_)))
                         .rewind()
                         .to(vec![]),
                     items.clone(),
@@ -86,7 +86,7 @@ pub(crate) fn build_document_content_parser(
                     }
                     result
                 }),
-            filter(|(t, _)| matches!(t, Token::DedentLevel(_)))
+            filter(|(t, _)| matches!(t, Token::Dedent(_)))
                 .rewind()
                 .to(vec![]),
         ))

@@ -90,8 +90,8 @@ mod tests {
             .map(|(t, _)| {
                 // Normalize source_tokens to empty for test comparison
                 match t {
-                    Token::IndentLevel(_) => Token::IndentLevel(vec![]),
-                    Token::DedentLevel(_) => Token::DedentLevel(vec![]),
+                    Token::Indent(_) => Token::Indent(vec![]),
+                    Token::Dedent(_) => Token::Dedent(vec![]),
                     Token::BlankLine(_) => Token::BlankLine(vec![]),
                     other => other,
                 }
