@@ -1,22 +1,22 @@
 [package]
-name = "txxt"
+name = "lex"
 version = "0.1.0"
 edition = "2021"
-authors = ["txxt contributors"]
-description = "A parser for the txxt format"
+authors = ["lex contributors"]
+description = "A parser for the lex format"
 license = "MIT"
-repository = "https://github.com/adebert/txxt"
-keywords = ["parser", "format", "txxt"]
+repository = "https://github.com/adebert/lex"
+keywords = ["parser", "format", "lex"]
 categories = ["parsing", "text-processing"]
 
 [lib]
-# Disable doctests for the library; docs contain txxt examples that aren't Rust
+# Disable doctests for the library; docs contain lex examples that aren't Rust
 doctest = false
 
 [[bin]]
-name = "txxt"
-path = "src/bin/txxt.rs"
-# We use plenty of txxt in code docs, and having to explicitly avoid error is not worth it
+name = "lex"
+path = "src/bin/lex.rs"
+# We use plenty of lex in code docs, and having to explicitly avoid error is not worth it
 doctest = false
 
 [dependencies]

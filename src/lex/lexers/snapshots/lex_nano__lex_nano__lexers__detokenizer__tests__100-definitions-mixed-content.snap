@@ -1,0 +1,52 @@
+---
+source: src/lex/lexer/detokenizer.rs
+assertion_line: 124
+expression: detokenized
+---
+Definitions with Mixed Content Test {{paragraph}}
+
+This document tests definitions containing both paragraphs and lists {{paragraph}}
+
+Programming Language:
+    A formal language comprising a set of instructions that produce various kinds of output. {{paragraph}} {{definition}}
+
+    - Compiled languages {{list-item}}
+    - Interpreted languages {{list-item}}
+    - Scripting languages {{list-item}}
+
+HTTP Methods:
+    - GET: Retrieve a resource {{list-item}} {{definition}}
+    - POST: Create a new resource {{list-item}}
+    - PUT: Update an existing resource {{list-item}}
+    - DELETE: Remove a resource {{list-item}}
+
+Data Structure:
+    A way of organizing and storing data so that it can be accessed and modified efficiently. {{paragraph}} {{definition}}
+
+    - Arrays {{list-item}}
+    - Linked lists {{list-item}}
+    - Stacks {{list-item}}
+    - Queues {{list-item}}
+
+    - Trees {{list-item}}
+    - Graphs {{list-item}}
+    - Hash tables {{list-item}}
+
+Regular paragraph between definitions. {{paragraph}}
+
+Design Pattern:
+    A reusable solution to a commonly occurring problem in software design. {{paragraph}} {{definition}}
+
+    - Singleton {{list-item}}
+    - Factory {{list-item}}
+    - Builder {{list-item}}
+
+    - Adapter {{list-item}}
+    - Decorator {{list-item}}
+    - Facade {{list-item}}
+
+    - Observer {{list-item}}
+    - Strategy {{list-item}}
+    - Command {{list-item}}
+
+End of document. {{paragraph}}

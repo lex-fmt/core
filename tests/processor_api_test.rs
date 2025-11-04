@@ -1,10 +1,10 @@
-//! Unit tests for the txxt processor API
+//! Unit tests for the lex processor API
 
-use std::fs;
-use txxt::txxt::lexers::Token;
-use txxt::txxt::processor::{
+use lex::lex::lexers::Token;
+use lex::lex::processor::{
     format_tokenss, process_file, OutputFormat, ProcessingError, ProcessingSpec, ProcessingStage,
 };
+use std::fs;
 
 #[cfg(test)]
 mod tests {
@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn test_token_display_format() {
         // Test that tokens display with lowercase dash-separated names
-        assert_eq!(format!("{}", Token::TxxtMarker), "<txxt-marker>");
+        assert_eq!(format!("{}", Token::LexMarker), "<lex-marker>");
         assert_eq!(format!("{}", Token::Indent), "<indent>");
         assert_eq!(format!("{}", Token::Whitespace), "<whitespace>");
         assert_eq!(format!("{}", Token::Newline), "<newline>");
@@ -122,7 +122,7 @@ mod tests {
     fn test_file_processing() {
         // Create a temporary test file
         let test_content = "1. Hello world\n    - Item 1";
-        let test_file = "test_api.txxt";
+        let test_file = "test_api.lex";
 
         fs::write(test_file, test_content).unwrap();
 
@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn test_file_not_found_error() {
         let spec = ProcessingSpec::from_string("token-simple").unwrap();
-        let result = process_file("nonexistent.txxt", &spec);
+        let result = process_file("nonexistent.lex", &spec);
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_ast_treeviz_format_complex() {
-        let file_path = "docs/specs/v1/samples/060-trifecta-nesting.txxt";
+        let file_path = "docs/specs/v1/samples/060-trifecta-nesting.lex";
         let spec = ProcessingSpec::from_string("ast-treeviz").unwrap();
         let result = process_file(file_path, &spec).unwrap();
 

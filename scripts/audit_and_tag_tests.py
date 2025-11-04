@@ -3,7 +3,7 @@
 Scan all Rust test files and detect three types of violations:
 1. no_source: AST nodes/tokens created without proper source/location data
 2. manual_construction: Tokens/tags created manually instead of using factories
-3. hardcoded_source: Tests using ad hoc hardcoded txxt source strings
+3. hardcoded_source: Tests using ad hoc hardcoded lex source strings
 """
 
 import re
