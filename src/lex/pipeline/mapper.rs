@@ -166,7 +166,7 @@ pub trait StreamMapper {
 /// ```
 pub fn walk_stream(
     stream: TokenStream,
-    mapper: &mut impl StreamMapper,
+    mapper: &mut (impl StreamMapper + ?Sized),
 ) -> Result<TokenStream, TransformationError> {
     match stream {
         TokenStream::Flat(tokens) => mapper.map_flat(tokens),
@@ -200,7 +200,7 @@ pub fn walk_stream(
 /// The transformed node
 fn walk_node(
     node: TokenStreamNode,
-    mapper: &mut impl StreamMapper,
+    mapper: &mut (impl StreamMapper + ?Sized),
 ) -> Result<TokenStreamNode, TransformationError> {
     // Pre-order: enter the node
     let mut node_after_enter = mapper.enter_node(node)?;
