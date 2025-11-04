@@ -5,9 +5,10 @@
 //!
 //! # Flat Adapters
 //!
-//! Convert between `Vec<(Token, Range<usize>)>` and `TokenStream::Flat`:
+//! Convert between `Vec<(Token, Range<usize>)>` and `TokenStream`:
 //! - `flat_to_token_stream()` - Convert flat vector to TokenStream
-//! - `token_stream_to_flat()` - Convert TokenStream back to flat vector
+//! - `token_stream_to_flat()` - Convert TokenStream::Flat back to flat vector (safe, rejects Tree)
+//! - `flatten_token_stream()` - Flatten any TokenStream to flat vector (uses unroll for Tree)
 //!
 //! # Design
 //!
@@ -104,6 +105,42 @@ pub fn token_stream_to_flat(
         TokenStream::Flat(tokens) => Ok(tokens),
         TokenStream::Tree(_) => Err(AdapterError::ExpectedFlat),
     }
+}
+
+/// Flatten any TokenStream to a flat token vector using unroll().
+///
+/// Unlike `token_stream_to_flat()`, this function handles both Flat and Tree variants.
+/// For Tree variants, it uses the `unroll()` method to recursively extract all tokens.
+///
+/// This is useful for:
+/// - Debugging (inspect all tokens in a tree)
+/// - Testing (verify tree contents)
+/// - Non-parser contexts where you explicitly want to flatten a tree
+///
+/// **Warning**: Using this in parser adapters defeats the purpose of Tree structures.
+/// Prefer `token_stream_to_flat()` during migration to catch incorrect usage early.
+///
+/// # Arguments
+///
+/// * `stream` - The TokenStream to flatten (Flat or Tree)
+///
+/// # Returns
+///
+/// A flat vector containing all tokens in document order
+///
+/// # Examples
+///
+/// ```ignore
+/// // Flatten a Flat stream (equivalent to token_stream_to_flat)
+/// let flat = TokenStream::Flat(vec![(Token::Text("hello".into()), 0..5)]);
+/// let tokens = flatten_token_stream(flat);
+///
+/// // Flatten a Tree stream (uses unroll)
+/// let tree = TokenStream::Tree(vec![...]);
+/// let tokens = flatten_token_stream(tree); // Recursively extracts all tokens
+/// ```
+pub fn flatten_token_stream(stream: TokenStream) -> Vec<(Token, ByteRange<usize>)> {
+    stream.unroll()
 }
 
 #[cfg(test)]
@@ -292,5 +329,95 @@ mod tests {
         }
 
         assert_eq!(current, original);
+    }
+
+    #[test]
+    fn test_flatten_token_stream_with_flat() {
+        // flatten_token_stream should work with Flat variant
+        let tokens = vec![
+            (Token::Text("hello".to_string()), 0..5),
+            (Token::Whitespace, 5..6),
+        ];
+
+        let stream = TokenStream::Flat(tokens.clone());
+        let result = flatten_token_stream(stream);
+
+        assert_eq!(result, tokens);
+    }
+
+    #[test]
+    fn test_flatten_token_stream_with_tree() {
+        use crate::lex::pipeline::stream::TokenStreamNode;
+
+        // flatten_token_stream should flatten Tree using unroll
+        let node = TokenStreamNode {
+            tokens: vec![(Token::Text("parent".to_string()), 0..6)],
+            children: Some(Box::new(TokenStream::Flat(vec![(
+                Token::Text("child".to_string()),
+                10..15,
+            )]))),
+        };
+        let stream = TokenStream::Tree(vec![node]);
+
+        let result = flatten_token_stream(stream);
+
+        // Should get all tokens in document order
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].0, Token::Text("parent".to_string()));
+        assert_eq!(result[0].1, 0..6);
+        assert_eq!(result[1].0, Token::Text("child".to_string()));
+        assert_eq!(result[1].1, 10..15);
+    }
+
+    #[test]
+    fn test_flatten_token_stream_with_nested_tree() {
+        use crate::lex::pipeline::stream::TokenStreamNode;
+
+        // Test deeply nested structure
+        let grandchild = TokenStream::Flat(vec![(Token::Text("grandchild".to_string()), 20..30)]);
+
+        let child = TokenStreamNode {
+            tokens: vec![(Token::Text("child".to_string()), 10..15)],
+            children: Some(Box::new(grandchild)),
+        };
+
+        let root = TokenStreamNode {
+            tokens: vec![(Token::Text("root".to_string()), 0..4)],
+            children: Some(Box::new(TokenStream::Tree(vec![child]))),
+        };
+
+        let stream = TokenStream::Tree(vec![root]);
+        let result = flatten_token_stream(stream);
+
+        // Should get all three tokens in document order
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].0, Token::Text("root".to_string()));
+        assert_eq!(result[1].0, Token::Text("child".to_string()));
+        assert_eq!(result[2].0, Token::Text("grandchild".to_string()));
+    }
+
+    #[test]
+    fn test_flatten_preserves_all_ranges() {
+        use crate::lex::pipeline::stream::TokenStreamNode;
+
+        // Verify that flatten preserves exact ranges from nested structure
+        let node = TokenStreamNode {
+            tokens: vec![
+                (Token::Text("a".to_string()), 0..1),
+                (Token::Whitespace, 1..2),
+            ],
+            children: Some(Box::new(TokenStream::Flat(vec![
+                (Token::Text("b".to_string()), 10..11),
+                (Token::Newline, 11..12),
+            ]))),
+        };
+
+        let stream = TokenStream::Tree(vec![node]);
+        let result = flatten_token_stream(stream);
+
+        assert_eq!(result[0].1, 0..1);
+        assert_eq!(result[1].1, 1..2);
+        assert_eq!(result[2].1, 10..11);
+        assert_eq!(result[3].1, 11..12);
     }
 }
