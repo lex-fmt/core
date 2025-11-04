@@ -130,8 +130,12 @@ impl Lexer for IndentationLexerImpl {
     }
 
     fn tokenize(&self, source: &str) -> Result<LexerOutput, LexError> {
-        // Call the actual indentation lexer
-        let output = crate::lex::lexers::lex(source);
+        // Perform base tokenization
+        let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(source);
+        let tokens = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+
+        // Call the actual indentation lexer pipeline
+        let output = crate::lex::lexers::lex(tokens);
         Ok(LexerOutput::Tokens(output))
     }
 }
@@ -145,8 +149,12 @@ impl Lexer for LinebasedLexerImpl {
     }
 
     fn tokenize(&self, source: &str) -> Result<LexerOutput, LexError> {
-        // Call the actual linebased lexer and return container directly
-        let container = crate::lex::lexers::_lex(source)
+        // Perform base tokenization
+        let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(source);
+        let tokens = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+
+        // Call the actual linebased lexer pipeline and return container directly
+        let container = crate::lex::lexers::_lex(tokens)
             .map_err(|e| LexError::TokenizationFailed(format!("{:?}", e)))?;
         Ok(LexerOutput::LineContainer(container))
     }
