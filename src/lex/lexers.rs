@@ -73,35 +73,32 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
 /// 3. SemanticIndentation - convert Indentation tokens with location tracking
 /// 4. TransformBlankLines - convert Newline sequences with location tracking
 pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
-    use crate::lex::pipeline::adapters::token_stream_to_flat;
     use crate::lex::pipeline::stream::TokenStream;
     use crate::lex::pipeline::{
         BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper,
     };
 
-    // Stage 1: NormalizeWhitespace using new TokenStream mapper
+    // Start with TokenStream::Flat and chain transformations
+    let mut current_stream = TokenStream::Flat(tokens);
+
+    // Stage 1: NormalizeWhitespace
     let mut normalize_mapper = NormalizeWhitespaceMapper::new();
-    let token_stream = TokenStream::Flat(tokens);
-    let transformed_stream =
-        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut normalize_mapper)
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut normalize_mapper)
             .expect("NormalizeWhitespace transformation failed");
-    let mut current_tokens = token_stream_to_flat(transformed_stream)
-        .expect("Expected Flat stream from NormalizeWhitespace");
 
-    // Stage 2: SemanticIndentation using new TokenStream mapper
+    // Stage 2: SemanticIndentation
     let mut semantic_indent_mapper = SemanticIndentationMapper::new();
-    let token_stream = TokenStream::Flat(current_tokens);
-    let transformed_stream =
-        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut semantic_indent_mapper)
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut semantic_indent_mapper)
             .expect("SemanticIndentation transformation failed");
-    current_tokens = token_stream_to_flat(transformed_stream)
-        .expect("Expected Flat stream from SemanticIndentation");
 
-    // Stage 3: BlankLines using new TokenStream mapper
+    // Stage 3: BlankLines
     let mut blank_lines_mapper = BlankLinesMapper::new();
-    let token_stream = TokenStream::Flat(current_tokens);
-    let transformed_stream =
-        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut blank_lines_mapper)
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut blank_lines_mapper)
             .expect("BlankLines transformation failed");
-    token_stream_to_flat(transformed_stream).expect("Expected Flat stream from BlankLines")
+
+    // Unroll the final stream to get flat tokens for backward compatibility
+    current_stream.unroll()
 }

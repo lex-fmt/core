@@ -227,6 +227,62 @@ pub fn line_container_to_token_stream(container: crate::lex::lexers::LineContain
     TokenStream::Tree(nodes)
 }
 
+/// Convert a TokenStream::Tree to a flat vector of LineTokens.
+///
+/// This adapter converts a TokenStream::Tree (shallow, from ToLineTokensMapper)
+/// back to the Vec<LineToken> format for backward compatibility.
+///
+/// For safety during migration, this function rejects Flat variants and deeply
+/// nested trees (only accepts shallow trees where each node is a line).
+///
+/// # Arguments
+///
+/// * `stream` - The TokenStream to convert (must be shallow Tree variant)
+///
+/// # Returns
+///
+/// The Vec<LineToken> structure
+///
+/// # Errors
+///
+/// Returns `AdapterError::ExpectedTree` if stream is Flat variant.
+///
+/// # Examples
+///
+/// ```ignore
+/// let stream = TokenStream::Tree(vec![node]);
+/// let line_tokens = token_stream_to_line_tokens(stream)?;
+/// ```
+pub fn token_stream_to_line_tokens(
+    stream: TokenStream,
+) -> Result<Vec<crate::lex::lexers::linebased::tokens::LineToken>, AdapterError> {
+    use crate::lex::lexers::linebased::tokens::{LineToken, LineType};
+
+    match stream {
+        TokenStream::Flat(_) => Err(AdapterError::ExpectedTree),
+        TokenStream::Tree(nodes) => {
+            let line_tokens: Vec<LineToken> = nodes
+                .into_iter()
+                .map(|node| {
+                    let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
+                        node.tokens.into_iter().unzip();
+
+                    // Use the preserved LineType, or default to ParagraphLine if not set
+                    let line_type = node.line_type.unwrap_or(LineType::ParagraphLine);
+
+                    LineToken {
+                        source_tokens,
+                        token_spans,
+                        line_type,
+                    }
+                })
+                .collect();
+
+            Ok(line_tokens)
+        }
+    }
+}
+
 /// Convert a TokenStream::Tree back to a LineContainer.
 ///
 /// This adapter converts the unified TokenStream::Tree back to the linebased
@@ -261,42 +317,72 @@ pub fn token_stream_to_line_container(
     match stream {
         TokenStream::Flat(_) => Err(AdapterError::ExpectedTree),
         TokenStream::Tree(nodes) => {
-            fn convert_node(node: TokenStreamNode) -> LineContainer {
+            // Convert nodes into LineContainers, handling the special case where
+            // a node has both tokens and children (which needs to become [Token, Container])
+            let mut result_children = Vec::new();
+
+            for node in nodes {
                 if node.tokens.is_empty() && node.children.is_some() {
-                    // This was a Container node
+                    // This was a pure Container node (no tokens of its own)
                     let children_stream = node.children.unwrap();
                     match *children_stream {
                         TokenStream::Tree(child_nodes) => {
-                            let children = child_nodes.into_iter().map(convert_node).collect();
-                            LineContainer::Container { children }
+                            // Recursively convert children
+                            let child_result =
+                                token_stream_to_line_container(TokenStream::Tree(child_nodes))?;
+                            result_children.push(child_result);
                         }
                         TokenStream::Flat(_) => {
                             // Shouldn't happen in well-formed tree
-                            LineContainer::Container { children: vec![] }
+                            result_children.push(LineContainer::Container { children: vec![] });
                         }
                     }
-                } else {
-                    // This was a Token node
+                } else if node.children.is_some() {
+                    // This node has BOTH tokens AND children
+                    // In LineContainer, we need to add Token and then Container as siblings
                     let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
                         node.tokens.into_iter().unzip();
-
-                    // Use the preserved LineType, or default to ParagraphLine if not set
-                    // (e.g., for nodes created by transformations that don't use LineType)
                     let line_type = node.line_type.unwrap_or(LineType::ParagraphLine);
-
                     let line_token = LineToken {
                         source_tokens,
                         token_spans,
                         line_type,
                     };
-                    LineContainer::Token(line_token)
+
+                    // Add the token first
+                    result_children.push(LineContainer::Token(line_token));
+
+                    // Then convert and add the children container
+                    let children_stream = node.children.unwrap();
+                    match *children_stream {
+                        TokenStream::Tree(child_nodes) => {
+                            let child_result =
+                                token_stream_to_line_container(TokenStream::Tree(child_nodes))?;
+                            result_children.push(child_result);
+                        }
+                        TokenStream::Flat(_) => {
+                            result_children.push(LineContainer::Container { children: vec![] });
+                        }
+                    }
+                } else {
+                    // This node has only tokens, no children - simple Token
+                    let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
+                        node.tokens.into_iter().unzip();
+                    let line_type = node.line_type.unwrap_or(LineType::ParagraphLine);
+                    let line_token = LineToken {
+                        source_tokens,
+                        token_spans,
+                        line_type,
+                    };
+                    result_children.push(LineContainer::Token(line_token));
                 }
             }
 
             // Always wrap in a Container at the root level
             // The linebased parser expects the root to be a Container
-            let children = nodes.into_iter().map(convert_node).collect();
-            Ok(LineContainer::Container { children })
+            Ok(LineContainer::Container {
+                children: result_children,
+            })
         }
     }
 }

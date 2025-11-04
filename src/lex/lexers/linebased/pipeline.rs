@@ -17,11 +17,11 @@
 use std::fmt;
 
 use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken};
-use crate::lex::lexers::linebased::transformations::{_indentation_to_token_tree, _to_line_tokens};
 use crate::lex::lexers::tokens::Token;
-use crate::lex::pipeline::adapters::token_stream_to_flat;
+use crate::lex::pipeline::adapters::{token_stream_to_line_container, token_stream_to_line_tokens};
 use crate::lex::pipeline::{
-    BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper,
+    BlankLinesMapper, IndentationToTreeMapper, NormalizeWhitespaceMapper,
+    SemanticIndentationMapper, ToLineTokensMapper,
 };
 
 /// Error type for linebased pipeline operations
@@ -105,70 +105,69 @@ pub fn _lex_stage(
     tokens: Vec<(Token, std::ops::Range<usize>)>,
     stage: PipelineStage,
 ) -> PipelineOutput {
+    use crate::lex::pipeline::stream::TokenStream;
+
     // Stage 1: Raw tokenization (already done by caller)
     if stage == PipelineStage::RawTokens {
         return PipelineOutput::Tokens(tokens);
     }
 
-    // Stage 2: After whitespace - using new TokenStream mapper
-    let mut current_tokens = tokens;
+    // Start with TokenStream::Flat
+    let mut current_stream = TokenStream::Flat(tokens);
 
-    // Apply NormalizeWhitespace using new StreamMapper directly
-    use crate::lex::pipeline::stream::TokenStream;
+    // Stage 2: NormalizeWhitespace mapper
     let mut normalize_mapper = NormalizeWhitespaceMapper::new();
-    let token_stream = TokenStream::Flat(current_tokens);
-
-    // Walk the stream through the mapper
-    let transformed_stream =
-        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut normalize_mapper)
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut normalize_mapper)
             .expect("NormalizeWhitespace transformation failed");
 
-    // Convert back to flat tokens
-    current_tokens = token_stream_to_flat(transformed_stream)
-        .expect("Expected Flat stream from NormalizeWhitespace");
-
     if stage == PipelineStage::AfterWhitespace {
-        return PipelineOutput::Tokens(current_tokens);
+        // Convert back to flat tokens for this output stage
+        return PipelineOutput::Tokens(current_stream.unroll());
     }
 
-    // Stage 3: SemanticIndentation using new TokenStream mapper
+    // Stage 3: SemanticIndentation mapper
     let mut semantic_indent_mapper = SemanticIndentationMapper::new();
-    let token_stream = TokenStream::Flat(current_tokens);
-    let transformed_stream =
-        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut semantic_indent_mapper)
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut semantic_indent_mapper)
             .expect("SemanticIndentation transformation failed");
-    current_tokens = token_stream_to_flat(transformed_stream)
-        .expect("Expected Flat stream from SemanticIndentation");
 
     if stage == PipelineStage::AfterIndentation {
-        return PipelineOutput::Tokens(current_tokens);
+        return PipelineOutput::Tokens(current_stream.unroll());
     }
 
-    // Stage 4: BlankLines using new TokenStream mapper
+    // Stage 4: BlankLines mapper
     let mut blank_lines_mapper = BlankLinesMapper::new();
-    let token_stream = TokenStream::Flat(current_tokens);
-    let transformed_stream =
-        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut blank_lines_mapper)
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut blank_lines_mapper)
             .expect("BlankLines transformation failed");
-    current_tokens =
-        token_stream_to_flat(transformed_stream).expect("Expected Flat stream from BlankLines");
 
     if stage == PipelineStage::AfterBlankLines {
-        return PipelineOutput::Tokens(current_tokens.clone());
+        return PipelineOutput::Tokens(current_stream.unroll());
     }
 
-    let after_blank_lines = current_tokens;
-
-    // Stage 5: Line token transformation (linebased)
-    // Pass the full (Token, Range) tuples - _to_line_tokens now handles both tokens and spans
-    let line_tokens = _to_line_tokens(after_blank_lines.clone());
+    // Stage 5: ToLineTokens mapper (Flat → Shallow Tree with LineType)
+    let mut to_line_tokens_mapper = ToLineTokensMapper::new();
+    current_stream =
+        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut to_line_tokens_mapper)
+            .expect("ToLineTokens transformation failed");
 
     if stage == PipelineStage::LineTokens {
-        return PipelineOutput::LineTokens(line_tokens.clone());
+        // Convert TokenStream::Tree to Vec<LineToken> for backward compatibility
+        let line_tokens = token_stream_to_line_tokens(current_stream.clone())
+            .expect("Expected Tree stream from ToLineTokens");
+        return PipelineOutput::LineTokens(line_tokens);
     }
 
-    // Stage 6: Indentation-to-token-tree transformation (linebased)
-    let token_tree = _indentation_to_token_tree(line_tokens);
+    // Stage 6: IndentationToTree mapper (Shallow Tree → Nested Tree)
+    let mut indentation_mapper = IndentationToTreeMapper::new();
+    current_stream = indentation_mapper
+        .transform(current_stream)
+        .expect("IndentationToTree transformation failed");
+
+    // Convert final TokenStream::Tree to LineContainer for backward compatibility
+    let token_tree = token_stream_to_line_container(current_stream)
+        .expect("Expected Tree stream from IndentationToTree");
 
     PipelineOutput::TokenTree(token_tree)
 }
