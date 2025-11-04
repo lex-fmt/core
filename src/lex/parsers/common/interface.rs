@@ -34,8 +34,8 @@ impl std::error::Error for ParseError {}
 pub enum ParserInput {
     /// Standard token stream with source locations (for reference parser)
     Tokens(Vec<(crate::lex::lexers::Token, std::ops::Range<usize>)>),
-    /// Line-based token trees (for linebased parser)
-    LineTokenTrees(Vec<crate::lex::lexers::LineTokenTree>),
+    /// Line-based hierarchical container token (for linebased parser)
+    LineContainer(crate::lex::lexers::LineContainerToken),
 }
 
 /// Trait for pluggable parser implementations
@@ -164,8 +164,8 @@ impl Parser for ReferenceParserImpl {
                 crate::lex::parsers::parse(tokens, source)
                     .map_err(|_| ParseError::ParsingFailed("Reference parser failed".to_string()))
             }
-            ParserInput::LineTokenTrees(_) => Err(ParseError::IncompatibleInput(
-                "Reference parser requires token stream, not line token trees".to_string(),
+            ParserInput::LineContainer(_) => Err(ParseError::IncompatibleInput(
+                "Reference parser requires token stream, not line container".to_string(),
             )),
         }
     }
@@ -189,53 +189,21 @@ impl Parser for LineBasedParserImpl {
         source: &str,
     ) -> Result<crate::lex::parsers::Document, ParseError> {
         match input {
-            ParserInput::LineTokenTrees(trees) => {
-                // The new declarative grammar parser uses LineContainerToken directly
-                // For backward compatibility, convert Vec<LineTokenTree> back to LineContainerToken
-                let container = convert_token_trees_to_container(&trees);
+            ParserInput::LineContainer(container) => {
+                // Pass container directly to the declarative grammar parser
                 crate::lex::parsers::linebased::parse_experimental_v2(container, source).map_err(
                     |e| ParseError::ParsingFailed(format!("LineBased parser failed: {}", e)),
                 )
             }
             ParserInput::Tokens(_) => Err(ParseError::IncompatibleInput(
-                "LineBased parser requires line token trees, not token stream".to_string(),
+                "LineBased parser requires LineContainer, not token stream".to_string(),
             )),
         }
     }
 
     fn supports_input(&self, input: &ParserInput) -> bool {
-        matches!(input, ParserInput::LineTokenTrees(_))
+        matches!(input, ParserInput::LineContainer(_))
     }
-}
-
-/// Convert Vec<LineTokenTree> back to LineContainerToken for the new parser
-/// This is a backward compatibility bridge while the lexer pipeline transitions
-fn convert_token_trees_to_container(
-    trees: &[crate::lex::lexers::LineTokenTree],
-) -> crate::lex::lexers::LineContainerToken {
-    use crate::lex::lexers::{LineContainerToken, LineTokenTree};
-
-    // Convert the tree structure back to LineContainerToken format
-    fn convert_tree(tree: &LineTokenTree) -> Vec<LineContainerToken> {
-        match tree {
-            LineTokenTree::Token(token) => vec![LineContainerToken::Token(token.clone())],
-            LineTokenTree::Block(children) => {
-                let converted_children = children.iter().flat_map(convert_tree).collect();
-                vec![LineContainerToken::Container {
-                    children: converted_children,
-                }]
-            }
-            LineTokenTree::Container(_) => {
-                // Skip legacy containers (shouldn't happen in new code)
-                vec![]
-            }
-        }
-    }
-
-    let children = trees.iter().flat_map(convert_tree).collect();
-
-    // Wrap everything in a root container
-    LineContainerToken::Container { children }
 }
 
 #[cfg(test)]
@@ -307,19 +275,19 @@ mod tests {
     }
 
     #[test]
-    fn test_reference_parser_does_not_support_tree() {
+    fn test_reference_parser_does_not_support_container() {
         let parser = ReferenceParserImpl;
-        let tree = crate::lex::lexers::LineTokenTree::Block(vec![]);
-        let input = ParserInput::LineTokenTrees(vec![tree]);
+        let container = crate::lex::lexers::LineContainerToken::Container { children: vec![] };
+        let input = ParserInput::LineContainer(container);
 
         assert!(!parser.supports_input(&input));
     }
 
     #[test]
-    fn test_linebased_parser_supports_tree() {
+    fn test_linebased_parser_supports_container() {
         let parser = LineBasedParserImpl;
-        let tree = crate::lex::lexers::LineTokenTree::Block(vec![]);
-        let input = ParserInput::LineTokenTrees(vec![tree]);
+        let container = crate::lex::lexers::LineContainerToken::Container { children: vec![] };
+        let input = ParserInput::LineContainer(container);
 
         assert!(parser.supports_input(&input));
     }
@@ -337,9 +305,9 @@ mod tests {
         let mut registry = ParserRegistry::new();
         registry.register(std::sync::Arc::new(ReferenceParserImpl));
 
-        // Try to parse with reference parser and an incompatible input (line token trees)
-        let tree = crate::lex::lexers::LineTokenTree::Block(vec![]);
-        let input = ParserInput::LineTokenTrees(vec![tree]);
+        // Try to parse with reference parser and an incompatible input (line container)
+        let container = crate::lex::lexers::LineContainerToken::Container { children: vec![] };
+        let input = ParserInput::LineContainer(container);
         let result = registry.parse("reference", input, "test");
 
         assert!(result.is_err());

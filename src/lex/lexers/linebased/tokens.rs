@@ -160,39 +160,6 @@ impl LineContainerToken {
     }
 }
 
-/// TEMPORARY: Legacy token tree structure for parser compatibility.
-///
-/// This is kept for Delivery 1 to allow the parser to work unchanged while the lexer
-/// outputs the new LineContainerToken structure. The unwrapper function converts
-/// LineContainerToken to Vec<LineTokenTree> for the parser.
-///
-/// In Delivery 2, this will be removed and the parser will work directly with LineContainerToken.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct LineContainerTokenLegacy {
-    /// The line tokens that comprise this container (all at the same indentation level)
-    pub source_tokens: Vec<LineToken>,
-
-    /// The byte range in source code that this container spans
-    /// Used for location tracking and mapping AST nodes back to source
-    pub source_span: Option<std::ops::Range<usize>>,
-}
-
-/// TEMPORARY: Legacy token tree enum for parser compatibility.
-///
-/// This is kept for Delivery 1 to allow the parser to work unchanged.
-/// In Delivery 2, this will be removed entirely.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum LineTokenTree {
-    /// A single line token
-    Token(LineToken),
-
-    /// A container of line tokens at the same indentation level
-    Container(LineContainerTokenLegacy),
-
-    /// A block of nested tokens (represents indented content)
-    Block(Vec<LineTokenTree>),
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
