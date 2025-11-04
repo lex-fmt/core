@@ -6,7 +6,9 @@
 pub mod blank_lines;
 pub mod normalize_whitespace;
 pub mod semantic_indentation;
+pub mod to_line_tokens;
 
 pub use blank_lines::BlankLinesMapper;
 pub use normalize_whitespace::NormalizeWhitespaceMapper;
 pub use semantic_indentation::SemanticIndentationMapper;
+pub use to_line_tokens::ToLineTokensMapper;
