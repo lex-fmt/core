@@ -7,6 +7,7 @@
 //! - Adapters for migration (`flat_to_token_stream`, `token_stream_to_flat`)
 
 pub mod adapters;
+pub mod adapters_linebased;
 pub mod builder;
 pub mod legacy_orchestration;
 pub mod mapper;
