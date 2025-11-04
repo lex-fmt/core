@@ -42,10 +42,7 @@ impl Label {
             location: Self::default_location(),
         }
     }
-    #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Range) -> Self {
-        self.at(location)
-    }
+
     /// Preferred builder: `at(location)`
     pub fn at(mut self, location: Range) -> Self {
         self.location = location;
