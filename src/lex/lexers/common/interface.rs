@@ -32,8 +32,8 @@ impl std::error::Error for LexError {}
 pub enum LexerOutput {
     /// Standard token stream with source locations
     Tokens(Vec<(crate::lex::lexers::Token, std::ops::Range<usize>)>),
-    /// Line-based token tree (from linebased lexer)
-    LineTokenTrees(Vec<crate::lex::lexers::LineTokenTree>),
+    /// Line-based hierarchical container token (from linebased lexer)
+    LineContainer(crate::lex::lexers::LineContainerToken),
 }
 
 /// Trait for pluggable lexer implementations
@@ -145,14 +145,10 @@ impl Lexer for LinebasedLexerImpl {
     }
 
     fn tokenize(&self, source: &str) -> Result<LexerOutput, LexError> {
-        // Call the actual linebased lexer
+        // Call the actual linebased lexer and return container directly
         let container = crate::lex::lexers::_lex(source)
             .map_err(|e| LexError::TokenizationFailed(format!("{:?}", e)))?;
-        // Unwrap the new LineContainerToken structure to legacy LineTokenTree for parser compatibility
-        let trees = crate::lex::lexers::linebased::transformations::unwrap_container_to_token_tree(
-            &container,
-        );
-        Ok(LexerOutput::LineTokenTrees(trees))
+        Ok(LexerOutput::LineContainer(container))
     }
 }
 
@@ -236,10 +232,10 @@ mod tests {
 
         assert!(result.is_ok());
         match result.unwrap() {
-            LexerOutput::LineTokenTrees(_) => {
-                // Success - linebased lexer produces tree
+            LexerOutput::LineContainer(_) => {
+                // Success - linebased lexer produces container
             }
-            _ => panic!("Expected LineTokenTrees output from linebased lexer"),
+            _ => panic!("Expected LineContainer output from linebased lexer"),
         }
     }
 
@@ -268,10 +264,10 @@ mod tests {
         assert!(result.is_ok());
 
         match result.unwrap() {
-            LexerOutput::LineTokenTrees(_) => {
+            LexerOutput::LineContainer(_) => {
                 // Success
             }
-            _ => panic!("Expected LineTokenTrees from linebased lexer"),
+            _ => panic!("Expected LineContainer from linebased lexer"),
         }
     }
 }

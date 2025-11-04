@@ -302,38 +302,20 @@ mod tests {
     // @audit: hardcoded_source
     #[test]
     fn test_pipeline_blank_line_preservation() {
-        use crate::lex::lexers::linebased::transformations::unwrap_container_to_token_tree;
-        use crate::lex::lexers::LineTokenTree;
-
         let source = "Para 1\n\nPara 2";
 
         // Check LineTokens stage
         let line_tokens_output = _lex_stage(source, PipelineStage::LineTokens);
         if let PipelineOutput::LineTokens(tokens) = line_tokens_output {
-            eprintln!("LineTokens (count={}): ", tokens.len());
-            for (i, token) in tokens.iter().enumerate() {
-                eprintln!("  [{}] {:?}", i, token.line_type);
-            }
+            // Should have 3 line tokens: Para1, BlankLine, Para2
+            assert_eq!(tokens.len(), 3);
         }
 
         // Check TokenTree stage
         let tree_output = _lex_stage(source, PipelineStage::TokenTree);
         if let PipelineOutput::TokenTree(tree) = tree_output {
-            let legacy_tree = unwrap_container_to_token_tree(&tree);
-            eprintln!("TokenTree (count={}): ", legacy_tree.len());
-            for (i, node) in legacy_tree.iter().enumerate() {
-                match node {
-                    LineTokenTree::Token(t) => {
-                        eprintln!("  [{}] Token: {:?}", i, t.line_type);
-                    }
-                    LineTokenTree::Container(c) => {
-                        eprintln!("  [{}] Container: {} tokens", i, c.source_tokens.len());
-                    }
-                    LineTokenTree::Block(_) => {
-                        eprintln!("  [{}] Block", i);
-                    }
-                }
-            }
+            // Verify we get a container with children
+            assert!(!tree.is_empty());
         }
     }
 

@@ -6,8 +6,29 @@
 //! - Test with actual parsed data, not mocked structures
 
 use super::ast_construction::*;
+use crate::lex::lexers::{LineContainerToken, LineToken, LineTokenType};
 use crate::lex::parsers::ContentItem;
 use crate::lex::processor::lex_sources::LexSources;
+
+/// Helper function to extract all line tokens from a container recursively
+fn extract_line_tokens(container: &LineContainerToken) -> Vec<LineToken> {
+    fn extract_recursive(container: &LineContainerToken, result: &mut Vec<LineToken>) {
+        match container {
+            LineContainerToken::Token(token) => {
+                result.push(token.clone());
+            }
+            LineContainerToken::Container { children } => {
+                for child in children {
+                    extract_recursive(child, result);
+                }
+            }
+        }
+    }
+
+    let mut result = Vec::new();
+    extract_recursive(container, &mut result);
+    result
+}
 
 #[test]
 fn test_build_paragraph_from_real_tokens() {
@@ -20,23 +41,13 @@ fn test_build_paragraph_from_real_tokens() {
 
     let container = result.unwrap();
 
-    // Get line tokens from the container
-    let line_tokens = crate::lex::lexers::linebased::transformations::indentation_to_token_tree::unwrap_container_to_token_tree(&container);
+    // Extract all line tokens from the container
+    let all_tokens = extract_line_tokens(&container);
 
     // Extract paragraph line tokens (skip blank lines)
-    let paragraph_tokens: Vec<crate::lex::lexers::linebased::tokens::LineToken> = line_tokens
-        .iter()
-        .filter_map(|tree| match tree {
-            crate::lex::lexers::linebased::tokens::LineTokenTree::Token(lt)
-                if matches!(
-                    lt.line_type,
-                    crate::lex::lexers::linebased::tokens::LineTokenType::ParagraphLine
-                ) =>
-            {
-                Some(lt.clone())
-            }
-            _ => None,
-        })
+    let paragraph_tokens: Vec<LineToken> = all_tokens
+        .into_iter()
+        .filter(|lt| matches!(lt.line_type, LineTokenType::ParagraphLine))
         .take(2) // Take first 2 paragraph lines
         .collect();
 
@@ -67,20 +78,12 @@ fn test_build_session_with_real_tokens() {
     assert!(result.is_ok(), "Failed to lex source");
 
     let container = result.unwrap();
-    let line_tokens = crate::lex::lexers::linebased::transformations::indentation_to_token_tree::unwrap_container_to_token_tree(&container);
+    let all_tokens = extract_line_tokens(&container);
 
     // Find a subject line (session title)
-    let subject_token = line_tokens.iter().find_map(|tree| match tree {
-        crate::lex::lexers::linebased::tokens::LineTokenTree::Token(lt)
-            if matches!(
-                lt.line_type,
-                crate::lex::lexers::linebased::tokens::LineTokenType::SubjectLine
-            ) =>
-        {
-            Some(lt)
-        }
-        _ => None,
-    });
+    let subject_token = all_tokens
+        .iter()
+        .find(|lt| matches!(lt.line_type, LineTokenType::SubjectLine));
 
     if let Some(title_token) = subject_token {
         let session = build_session_from_line_token(title_token, vec![], &source);
@@ -106,20 +109,12 @@ fn test_build_definition_with_real_tokens() {
     assert!(result.is_ok(), "Failed to lex source");
 
     let container = result.unwrap();
-    let line_tokens = crate::lex::lexers::linebased::transformations::indentation_to_token_tree::unwrap_container_to_token_tree(&container);
+    let all_tokens = extract_line_tokens(&container);
 
     // Find a subject line (definition subject)
-    let subject_token = line_tokens.iter().find_map(|tree| match tree {
-        crate::lex::lexers::linebased::tokens::LineTokenTree::Token(lt)
-            if matches!(
-                lt.line_type,
-                crate::lex::lexers::linebased::tokens::LineTokenType::SubjectLine
-            ) =>
-        {
-            Some(lt)
-        }
-        _ => None,
-    });
+    let subject_token = all_tokens
+        .iter()
+        .find(|lt| matches!(lt.line_type, LineTokenType::SubjectLine));
 
     if let Some(subj_token) = subject_token {
         let definition = build_definition_from_line_token(subj_token, vec![], &source);

@@ -125,7 +125,7 @@ impl LexPipeline {
         // Convert lexer output to parser input
         let parser_input = match lexer_output {
             LexerOutput::Tokens(tokens) => ParserInput::Tokens(tokens),
-            LexerOutput::LineTokenTrees(trees) => ParserInput::LineTokenTrees(trees),
+            LexerOutput::LineContainer(container) => ParserInput::LineContainer(container),
         };
 
         // Parse
