@@ -1,6 +1,6 @@
 //! Grammar Rules as Regex Patterns - Validation Test
 //!
-//! This file translates the txxt grammar rules (from docs/specs/v1/grammar.txxt)
+//! This file translates the lex grammar rules (from docs/specs/v1/grammar.lex)
 //! into regex patterns and validates them against sample token sequences.
 //!
 //! No parser engine, no AST construction - just grammar validation.
@@ -13,7 +13,7 @@ use regex::Regex;
 // GRAMMAR RULE DEFINITIONS (as Regex Patterns)
 // ============================================================================
 //
-// IMPORTANT: Line type definitions from grammar.txxt:
+// IMPORTANT: Line type definitions from grammar.lex:
 // - content-line: any-line that is NOT (annotation-start-line OR annotation-end-line)
 // - any-line: any non-blank line
 // - This means: content-line = paragraph-line | subject-line | list-item-line | subject-or-list-item-line

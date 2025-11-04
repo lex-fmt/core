@@ -156,7 +156,7 @@ mod tests {
     #[test]
     fn test_app_creation() {
         let content = "test".to_string();
-        let doc = txxt::txxt::parsers::parse_document(&content).unwrap();
+        let doc = lex::lex::parsers::parse_document(&content).unwrap();
         let model = Model::new(doc);
         let app = App::new(model, content);
 
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn test_focus_toggle() {
         let content = "test".to_string();
-        let doc = txxt::txxt::parsers::parse_document(&content).unwrap();
+        let doc = lex::lex::parsers::parse_document(&content).unwrap();
         let model = Model::new(doc);
         let mut app = App::new(model, content);
 

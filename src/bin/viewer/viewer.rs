@@ -11,6 +11,7 @@ use super::model::Model;
 use super::ui;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use lex::lex::parsers::parse_document;
 use ratatui::layout::Rect;
 use ratatui::prelude::{CrosstermBackend, Terminal};
 use ratatui::Frame;
@@ -18,7 +19,6 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
-use txxt::txxt::parsers::parse_document;
 
 use super::model::NodeId;
 
@@ -66,7 +66,7 @@ pub fn run_viewer(file_path: PathBuf) -> io::Result<()> {
     let document = parse_document(&content).map_err(|e| {
         io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("Failed to parse txxt document: {:?}", e),
+            format!("Failed to parse lex document: {:?}", e),
         )
     })?;
 

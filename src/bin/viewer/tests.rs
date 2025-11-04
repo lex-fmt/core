@@ -1,4 +1,4 @@
-//! Test infrastructure for txxt
+//! Test infrastructure for lex
 //!
 //! Provides utilities for testing the full application including:
 //! - TestApp: wrapper for testing the application
@@ -29,7 +29,7 @@ impl TestApp {
     /// Create a test app with specific content
     pub fn with_content(content: &str) -> Self {
         let document =
-            txxt::txxt::parsers::parse_document(content).expect("Failed to parse test document");
+            lex::lex::parsers::parse_document(content).expect("Failed to parse test document");
         let model = Model::new(document);
         let app = App::new(model, content.to_string());
 
@@ -64,7 +64,7 @@ impl TestApp {
 
         self.terminal
             .draw(|frame| {
-                let file_name = "test.txxt";
+                let file_name = "test.lex";
                 ui::render(frame, &self.app, file_name);
             })
             .expect("Failed to draw");
@@ -441,15 +441,15 @@ fn test_tree_selection_emits_select_node_event() {
 
 #[test]
 fn test_nested_elements_have_location_information() {
-    // ISSUE: The txxt parser does not set location information on nested elements.
-    // This causes txxt to be unable to highlight tree nodes when the cursor is on
+    // ISSUE: The lex parser does not set location information on nested elements.
+    // This causes lex to be unable to highlight tree nodes when the cursor is on
     // their text in the file viewer, because get_node_at_position() relies on
     // document.elements_at() which depends on location information.
     //
     // This test verifies the issue: nested paragraph/list elements should have
     // location information just like their parent session elements do.
 
-    let app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
+    let app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.lex");
 
     let flattened = app.app().model.flattened_tree();
 
@@ -484,7 +484,7 @@ fn test_nested_elements_have_location_information() {
         assert!(
             child_location.is_some(),
             "Nested element {:?} should have location information, but it doesn't. \
-             This is a txxt parser issue: location information is not set on nested elements.",
+             This is a lex parser issue: location information is not set on nested elements.",
             child_node_id.path()
         );
     } else {
@@ -498,7 +498,7 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
     // FileViewer cursor on nested element → get_node_at_position finds it →
     // emit event → model updates → tree should highlight
 
-    let mut app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
+    let mut app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.lex");
 
     // Navigate the tree to a nested element to know where it is
     app.send_key(KeyCode::Tab); // Focus tree viewer
@@ -528,7 +528,7 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
                 );
 
                 // Try to find the node using document.element_at
-                use txxt::txxt::ast::range::Position;
+                use lex::lex::ast::range::Position;
                 let pos = Position::new(location.start.line, location.start.column);
                 let element = app.app().model.document.element_at(pos);
                 // Verify document.element_at() now finds nested elements
@@ -584,7 +584,7 @@ fn test_tree_viewer_expand_collapse_indicators() {
     // - ▶ for collapsed nodes with children
     // - two spaces for leaf nodes (no children)
 
-    let mut app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
+    let mut app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.lex");
 
     // Switch to tree viewer
     app.send_key(KeyCode::Tab);
@@ -675,7 +675,7 @@ fn test_tree_viewer_expand_collapse_indicators() {
 #[test]
 fn test_tree_viewer_leaf_nodes_have_alignment_spacing() {
     // Verify that leaf nodes (without children) show proper spacing for alignment
-    let app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.txxt");
+    let app = TestApp::with_file("docs/specs/v1/samples/050-trifecta-flat-simple.lex");
 
     let flattened = app.app().model.flattened_tree();
 

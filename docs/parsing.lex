@@ -1,0 +1,391 @@
+Parsing lex: A Guide
+
+Introduction
+
+	The lex format, although brain dead simple, is actually pretty tricky to parse. The core difficulty being the combination of significant indentation and lack of explicit syntax tokens, which makes disambiguation trickier.
+
+	That is not to say, however, that it is not parsable—it is—but it requires careful planning and attention to detail.
+
+Tokenization Model
+
+	The lexer always emits *spanned tokens*: every token variant is paired with a byte-range from the original source. Synthetic tokens that are introduced by the transformation pipeline (IndentLevel, DedentLevel, BlankLine) also receive meaningful spans derived from surrounding content.
+
+	Downstream code and tests MUST assume locations are mandatory. There are no "location-less" tokens any more, so helper APIs (including the testing factories) always require start/end offsets. This keeps the parser, AST builder, and tooling aligned around a single source of truth for slice boundaries.
+
+The Parse Order
+
+	Parse order is critical. The elements must be parsed in this exact sequence:
+
+		Foreign Block → Annotation → List → Definition → Session → Paragraph
+
+	The order exists because of syntactic overlap: session titles, definitions, and list items all share similar patterns, and all are valid paragraphs if their specific rules aren't met.
+
+Foreign Blocks
+
+	Parse foreign blocks FIRST, before all other elements.
+
+	Why first:
+
+		- Content contains raw text (not lex)
+		- Could contain indent/dedent tokens that would confuse other parsers
+		- Detection is unambiguous via the indentation wall
+
+	Pattern to match:
+
+		<subject-line> <blank-line>? <indented-content>? <closing-annotation>
+
+	The indentation wall:
+
+		The subject line establishes the base indentation level (the "wall"). Everything between the subject and closing annotation must be indented past this wall.
+
+		Valid:
+			Subject:
+			    content (indented past wall)
+			        more content (further indented - preserved)
+			:: label ::
+
+		Invalid:
+			Subject:
+			  content (not enough indent - breaks the wall)
+
+	The wall ensures:
+
+		- Unambiguous content boundaries without escaping
+		- Content can contain :: markers (they're ignored if indented)
+		- Clean detection of closing annotation
+
+	Detecting the closing annotation:
+
+		<dedent>+ <annotation-tokens>
+		(dedent back to wall level + annotation syntax)
+
+	Two forms exist:
+
+		Block form (embedded text content):
+			Subject:
+			    raw content here
+			    preserves all formatting
+			:: label params ::
+
+		Marker form (no content, typically for binary references):
+			Subject:
+			:: label params :: optional caption text
+
+	Content preservation:
+
+		Everything between subject and closing annotation is preserved exactly:
+			- All whitespace (spaces, blank lines)
+			- Special characters (no escaping needed)
+			- Indentation beyond the wall (part of content)
+
+Annotations
+
+	Parse annotations SECOND, after foreign blocks.
+
+	Why second:
+
+		Annotations have explicit :: markers which makes them unambiguous to detect. They take precedence over other elements due to their distinct syntax.
+
+	Pattern to detect:
+
+		:: <label-or-params> :: <optional-content>
+
+	The :: markers bound the annotation. The parser must stop at the closing :: to prevent consuming text content.
+
+	Three forms:
+
+		Marker form (no content):
+			:: label ::
+			:: label params ::
+
+		Single-line form (inline text):
+			:: label :: text content here
+			:: label params :: text content here
+
+		Block form (indented content - note TWO closing :: markers):
+			:: label ::
+			    indented paragraph or list
+			::
+
+	Label and parameter requirements:
+
+		- Either label or parameters must be present (or both)
+		- Labels: letter (letter | digit | "_" | "-" | ".")*
+		- Parameters: key=value format, comma separated
+		- Parameters are order-preserving (stored as list, not map)
+
+	Content:
+
+		- Can be empty (marker form)
+		- Inline text (single-line form)
+		- Block content (paragraphs/lists, but NOT sessions or nested annotations)
+
+	Attachment rules:
+
+		Annotations are metadata, not document content. They attach to:
+			- Previous element: the previous non-blank line element in the same container
+			- Document level: when first in document, up to a blank line or any other element
+			- Parent: if no previous element exists, attaches to parent container
+
+	Invalid annotations gracefully degrade to paragraph parsing (e.g., missing closing markers).
+
+	Multiple annotations can attach to the same node. They are stored as a list, so duplicate labels/params are allowed.
+
+Lists
+
+	Parse lists THIRD, after annotations.
+
+	Why third:
+
+		Lists require specific conditions that must be checked before falling through to definitions or paragraphs.
+
+	Detection rules:
+
+		- Blank line before first item (critical for disambiguation)
+		- At least 2 consecutive list item lines
+		- List item pattern: (dash | number | letter | roman) (period | paren) space
+
+	Minimum items:
+
+		Lists REQUIRE 2 or more items. A single dash-prefixed line is a paragraph, not a list.
+
+	The blank line rule:
+
+		Lists REQUIRE a preceding blank line for disambiguation from paragraphs containing dash-prefixed text.
+
+		Paragraph (no list):
+			Some text
+			- This dash is just text, not a list item
+
+		List (has blank line):
+			Some text
+
+			- This is a list item
+			- Second item
+
+	No blank lines BETWEEN list items:
+
+		- Item one
+		- Item two
+
+		- This starts a NEW list (blank line terminates previous)
+
+	List item markers:
+
+		Plain (unordered):
+			- Item text here
+
+		Numbered:
+			1. First item
+			2. Second item
+
+		Alphabetical:
+			a. First item
+			b. Second item
+
+		Parenthetical:
+			1) First item
+			2) Second item
+
+		Roman numerals:
+			I. First item
+			II. Second item
+
+	Mixing markers:
+
+		List items can mix different marker styles within the same list. The first item's style sets the semantic type.
+
+	Content:
+
+		List items contain text on the same line as the marker. Indented content can contain paragraphs and nested lists (cannot contain sessions or annotations).
+
+	Block termination:
+
+		Lists end on:
+			- Blank line
+			- Dedent (back to parent level)
+			- End of document
+			- Start of new element at same/lower indent level
+
+	Lists without preceding blank line or with only one item degrade to paragraphs.
+
+Definitions
+
+	Parse definitions FOURTH, after lists.
+
+	Why fourth:
+
+		Definitions share the colon-ending pattern with sessions, but are distinguished by the absence of a blank line after the subject.
+
+	Pattern to match:
+
+		<subject-line-ending-with-colon>
+		<indent><paragraph-or-list>
+
+	Key rule: NO blank line between subject and content
+
+		A blank line would make it a session instead.
+
+	Subject line:
+
+		- Ends with colon (:)
+		- Colon is a marker, not part of the subject text
+		- Subject extracted without the colon
+
+	Content:
+
+		- Must be indented immediately after subject (no blank line)
+		- Can contain paragraphs and lists
+		- Can contain nested definitions
+		- CANNOT contain sessions (keeps definitions focused)
+		- CANNOT contain annotations with block content (annotations can only be markers/single-line)
+
+	Disambiguation from sessions:
+
+		Definition (no blank line):
+			API Endpoint:
+			    A URL that provides access...
+
+		Session (has blank line):
+			API Endpoint:
+
+			    A URL that provides access...
+
+		The presence/absence of blank line after subject determines which element type.
+
+	Block termination:
+
+		Definitions end on:
+			- Dedent (back to subject level or less)
+			- End of document
+			- No closing marker needed
+
+	Invalid definitions (subject with no indented content) degrade to paragraphs.
+
+Sessions
+
+	Parse sessions FIFTH, after definitions.
+
+	Why fifth:
+
+		Sessions also use colon-ending titles, but require a blank line after the title. This blank line is the key disambiguator from definitions.
+
+	Pattern to match:
+
+		<session-title-line>
+		<blank-line>
+		<indent><any-line>
+
+	The blank line distinguishes sessions from definitions.
+
+	Session titles:
+
+		- End with colon (:)
+		- Colon is a marker, not part of the title text
+		- Title extracted without the colon
+
+	Content:
+
+		- Must have blank line after title
+		- Must be indented
+		- Can contain any elements: paragraphs, lists, definitions, nested sessions, annotations, foreign blocks
+
+	Arbitrary nesting:
+
+		Sessions can be arbitrarily nested. Each nested session follows the same pattern: title, blank line, indented content.
+
+		The AST structure:
+			<session>
+			    <title>
+			    <blank-line>
+			    <session-container>
+			        <paragraph>
+			        <nested-session>
+			        ...
+			    </session-container>
+			</session>
+
+	Block termination:
+
+		Sessions end on:
+			- Dedent (back to title level or less)
+			- End of document
+
+	Invalid sessions (title with no blank line or no indented content) degrade to definitions or paragraphs.
+
+Paragraphs
+
+	Parse paragraphs LAST, as the catch-all element.
+
+	Why last:
+
+		Paragraphs match anything that doesn't match patterns 1-5. This makes lex forgiving—ambiguous content defaults to paragraph.
+
+	The catch-all rule:
+
+		If text doesn't match foreign blocks, annotations, lists, definitions, or sessions, it's a paragraph.
+
+	Pattern to match:
+
+		One or more consecutive non-blank lines of text.
+
+	No special markers or syntax required.
+
+	Paragraph boundaries:
+
+		Paragraphs are separated by:
+			- Blank lines (one or more)
+			- Different element types
+			- Dedent (back to parent level)
+			- End of document
+
+	Continuous text (no blank lines) forms single paragraph:
+
+		This is line one
+		This is line two
+		This is still the same paragraph
+
+	Blank line creates new paragraph:
+
+		First paragraph here.
+
+		Second paragraph here.
+
+	Content:
+
+		Paragraphs contain plain text with inline formatting. No nesting of other elements within paragraphs. No special parsing of paragraph content (text is text).
+
+	The paragraph parser:
+
+		- Matches non-blank lines
+		- Stops at blank lines, dedents, or other elements
+		- Groups consecutive lines into single paragraph
+
+	This "catch-all" behavior makes lex forgiving and flexible. Invalid or ambiguous elements gracefully degrade to paragraphs.
+
+Recursion and Nesting
+
+	Sessions can be arbitrarily nested, creating recursive parsing scenarios.
+
+	When parsing session content, the parser recursively applies the same element detection rules (foreign blocks → annotations → lists → definitions → sessions → paragraphs) to the indented content.
+
+	Other elements (definitions, lists, annotations with block content) also contain nested content that must be parsed recursively, but with constraints:
+
+		- Definitions can contain paragraphs, lists, and nested definitions (but NOT sessions)
+		- Lists contain only text items (no nested elements)
+		- Annotation block content can contain paragraphs and lists (but NOT sessions or nested annotations)
+
+	The parser must track indentation levels to properly delimit nested structures and maintain the "wall" boundaries.
+
+Summary
+
+	The key to parsing lex is respecting the parse order and understanding the disambiguation rules:
+
+		1. Foreign blocks: indentation wall + closing annotation
+		2. Annotations: explicit :: markers
+		3. Lists: blank line before + 2+ items
+		4. Definitions: colon-ending subject + NO blank line + indented content
+		5. Sessions: colon-ending title + blank line + indented content
+		6. Paragraphs: everything else
+
+	Each element has clear detection rules. When rules aren't met, elements gracefully degrade to paragraphs. This makes lex both precise and forgiving.

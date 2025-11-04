@@ -59,7 +59,7 @@ fn render_error_too_narrow(frame: &mut Frame, area: Rect) {
 }
 
 fn render_title_bar(frame: &mut Frame, area: Rect, file_name: &str) {
-    let title = format!("txxt:: {}", file_name);
+    let title = format!("lex:: {}", file_name);
     let paragraph = Paragraph::new(title).style(
         Style::default()
             .fg(Color::Black)

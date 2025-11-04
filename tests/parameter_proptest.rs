@@ -6,8 +6,8 @@
 //! - Parameters are separated by commas only (not whitespace)
 //! - Whitespace around parameters is ignored
 
+use lex::lex::parsers::parse_document;
 use proptest::prelude::*;
-use txxt::txxt::parsers::parse_document;
 
 /// Generate valid parameter keys
 fn parameter_key_strategy() -> impl Strategy<Value = String> {
