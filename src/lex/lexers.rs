@@ -40,16 +40,16 @@ pub mod common;
 pub mod detokenizer;
 pub mod linebased;
 pub mod tokens;
-pub mod transformations;
 
 pub use base_tokenization::tokenize;
 pub use common::{LexError, Lexer, LexerOutput, LexerRegistry};
 pub use detokenizer::detokenize;
 pub use tokens::Token;
-pub use transformations::{PipelineOutput, PipelineStage, _lex, _lex_stage};
-
 // Re-export line-based types for convenience
-pub use linebased::{LineContainer, LineToken, LineType};
+pub use linebased::{
+    LineContainer, LineToken, LineType, PipelineError, PipelineOutput, PipelineStage, _lex,
+    _lex_stage,
+};
 
 /// Preprocesses source text to ensure it ends with a newline.
 ///
