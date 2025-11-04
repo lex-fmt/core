@@ -1,8 +1,11 @@
-//! Token stream pipeline for lexer transformations
+//! Core TokenStream-based pipeline builder for lexer transformations
 //!
-//! This module provides the core pipeline infrastructure that chains StreamMapper
-//! transformations together. The pipeline handles the complete tokenization and
-//! transformation flow using the unified TokenStream architecture.
+//! This module provides the new, unified `Pipeline` builder that chains StreamMapper
+//! transformations together. This is the primary interface for the TokenStream
+//! architecture, replacing the legacy orchestration system.
+//!
+//! For the legacy pipeline infrastructure (LexerRegistry/ParserRegistry), see
+//! `legacy_orchestration` module.
 //!
 //! # Design
 //!
