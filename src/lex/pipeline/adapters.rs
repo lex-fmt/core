@@ -19,7 +19,7 @@
 //! # Parser Adapters
 //!
 //! Wrap existing parsers to work with TokenStream:
-//! - `parse_with_token_stream()` - Adapter for reference parser using TokenStream input
+//! - `adapt_reference_parser()` - Adapter for reference parser using TokenStream input
 //!
 //! # Design
 //!
@@ -306,7 +306,7 @@ pub fn token_stream_to_line_container(
     }
 }
 
-/// Parse a TokenStream using the reference parser with adapter.
+/// Adapt the reference parser to work with TokenStream input.
 ///
 /// This function integrates the reference parser into the TokenStream architecture
 /// by adapting the input from `TokenStream` to `Vec<(Token, Range)>`.
@@ -339,9 +339,9 @@ pub fn token_stream_to_line_container(
 /// ```ignore
 /// let tokens = vec![(Token::Text("hello".into()), 0..5)];
 /// let stream = flat_to_token_stream(tokens);
-/// let doc = parse_with_token_stream(stream, "hello")?;
+/// let doc = adapt_reference_parser(stream, "hello")?;
 /// ```
-pub fn parse_with_token_stream(
+pub fn adapt_reference_parser(
     stream: TokenStream,
     source: &str,
 ) -> Result<crate::lex::parsers::Document, AdapterError> {
@@ -360,7 +360,7 @@ pub fn parse_with_token_stream(
     })
 }
 
-/// Parse a TokenStream using the linebased parser with adapter.
+/// Adapt the linebased parser to work with TokenStream input.
 ///
 /// This function integrates the linebased parser into the TokenStream architecture
 /// by adapting the input from `TokenStream::Tree` to `LineContainer`.
@@ -392,9 +392,9 @@ pub fn parse_with_token_stream(
 ///
 /// ```ignore
 /// let stream = TokenStream::Tree(vec![node]);
-/// let doc = parse_linebased_with_token_stream(stream, "hello")?;
+/// let doc = adapt_linebased_parser(stream, "hello")?;
 /// ```
-pub fn parse_linebased_with_token_stream(
+pub fn adapt_linebased_parser(
     stream: TokenStream,
     source: &str,
 ) -> Result<crate::lex::parsers::Document, AdapterError> {
@@ -691,7 +691,7 @@ mod tests {
 
     // Parser adapter tests
     #[test]
-    fn test_parse_with_token_stream_simple() {
+    fn test_adapt_reference_parser_simple() {
         // Test parsing a simple paragraph through the adapter
         let source = "Hello world\n";
 
@@ -702,7 +702,7 @@ mod tests {
         let stream = flat_to_token_stream(tokens);
 
         // Parse through adapter
-        let result = parse_with_token_stream(stream, source);
+        let result = adapt_reference_parser(stream, source);
 
         assert!(result.is_ok(), "Failed to parse: {:?}", result);
         let doc = result.unwrap();
@@ -710,7 +710,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_with_token_stream_rejects_tree() {
+    fn test_adapt_reference_parser_rejects_tree() {
         use crate::lex::pipeline::stream::TokenStreamNode;
 
         // Tree streams should be rejected
@@ -721,21 +721,21 @@ mod tests {
         };
         let stream = TokenStream::Tree(vec![node]);
 
-        let result = parse_with_token_stream(stream, "test");
+        let result = adapt_reference_parser(stream, "test");
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), AdapterError::ExpectedFlat);
     }
 
     #[test]
-    fn test_parse_with_token_stream_complex_document() {
+    fn test_adapt_reference_parser_complex_document() {
         // Test a more complex document with sessions and lists
         let source = "1. Session Title\n\n    Session content.\n\n";
 
         let tokens = crate::lex::lexers::tokenize(source);
         let stream = flat_to_token_stream(tokens);
 
-        let result = parse_with_token_stream(stream, source);
+        let result = adapt_reference_parser(stream, source);
 
         assert!(result.is_ok(), "Failed to parse: {:?}", result);
         let doc = result.unwrap();
@@ -745,14 +745,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_with_token_stream_preserves_locations() {
+    fn test_adapt_reference_parser_preserves_locations() {
         // Verify that locations are preserved through the adapter
         let source = "Hello world\n";
 
         let tokens = crate::lex::lexers::tokenize(source);
         let stream = flat_to_token_stream(tokens);
 
-        let result = parse_with_token_stream(stream, source);
+        let result = adapt_reference_parser(stream, source);
 
         assert!(result.is_ok());
         let doc = result.unwrap();
@@ -763,7 +763,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_with_token_stream_round_trip() {
+    fn test_adapt_reference_parser_round_trip() {
         // Test that we can go: tokens -> stream -> parser -> document
         let source = "Paragraph one\n\nParagraph two\n";
 
@@ -774,7 +774,7 @@ mod tests {
         // TokenStream path
         let tokens2 = crate::lex::lexers::tokenize(source);
         let stream = flat_to_token_stream(tokens2);
-        let doc2 = parse_with_token_stream(stream, source).unwrap();
+        let doc2 = adapt_reference_parser(stream, source).unwrap();
 
         // Both should produce the same number of items
         assert_eq!(doc1.root.content.len(), doc2.root.content.len());
@@ -990,7 +990,7 @@ mod tests {
 
     // LineBased parser adapter tests
     #[test]
-    fn test_parse_linebased_with_token_stream_simple() {
+    fn test_adapt_linebased_parser_simple() {
         use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
 
         // Create a simple paragraph
@@ -1016,7 +1016,7 @@ mod tests {
         let stream = line_container_to_token_stream(container);
 
         // Parse through adapter
-        let result = parse_linebased_with_token_stream(stream, source);
+        let result = adapt_linebased_parser(stream, source);
 
         assert!(result.is_ok(), "Failed to parse: {:?}", result);
         let doc = result.unwrap();
@@ -1024,18 +1024,18 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_linebased_with_token_stream_rejects_flat() {
+    fn test_adapt_linebased_parser_rejects_flat() {
         // Flat streams should be rejected
         let stream = TokenStream::Flat(vec![(Token::Text("test".to_string()), 0..4)]);
 
-        let result = parse_linebased_with_token_stream(stream, "test");
+        let result = adapt_linebased_parser(stream, "test");
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), AdapterError::ExpectedTree);
     }
 
     #[test]
-    fn test_parse_linebased_with_token_stream_round_trip() {
+    fn test_adapt_linebased_parser_round_trip() {
         use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
 
         // Create a simple structure
@@ -1063,7 +1063,7 @@ mod tests {
 
         // TokenStream path
         let stream = line_container_to_token_stream(container);
-        let doc2 = parse_linebased_with_token_stream(stream, source).unwrap();
+        let doc2 = adapt_linebased_parser(stream, source).unwrap();
 
         // Both should produce the same number of items
         assert_eq!(doc1.root.content.len(), doc2.root.content.len());
