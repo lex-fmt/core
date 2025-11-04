@@ -1,35 +1,72 @@
 Lexing
 
-	Tokenization is handled by logos, the lexer generator library. The base_tokenization.rs  will use it to generate the core Lex tokens defined in tokens_core.rs.
+	Tokenization is handled by logos, the lexer generator library. The base_tokenization.rs module uses it to tokenize Lex source text into the core tokens defined in tokens_core.rs.
 
 	Base Tokenization:
-		Tokenizing a string source of Lex into tokens.
-	:: file src=src/lex/lexers/tokens_core.rs :: 
-	
+		Converting source text string into a sequence of tokens
+		:: file src/lex/lexers/base_tokenization.rs ::
+		:: file src/lex/lexers/tokens_core.rs ::
+
 1. Parsing Leverage: Higher Level Tokens
 
-	Lex is an unconventional language which, from a general perspecitve, makes it parsing challenge: revcursive, statefull (in parts) and indentation significant. While this is a fact, the format has been design with specific contrainst that, leveraged will simplify parsing enormously. 
+	Lex is an unconventional language which, from a general perspective, makes it a parsing challenge: recursive, stateful (in parts) and indentation significant. While this is a fact, the format has been designed with specific constraints that, when leveraged, will simplify parsing enormously.
 
-	In order to do so, we do need to group tokens into higher orders ones: first to lines , then levels. 
+	The linebased parser specifically requires tokens grouped into higher order structures: first into lines, then into levels (hierarchical nesting based on indentation). Other parsers may work directly with the flat token stream.
 
-2. Pipeline & Transformations:
-	
-	In order to foster easy experimentation between shifiting complexity between the parser and the lexer, Lex has a extendable and declarative pipeline manager that can chain transformations.
+2. Pipeline & Transformations
 
-	The pipeline is a declarative sequence of transformations to be applied to a TokenStream of core tokens.
-	All pipelines will start with the core tokenations, convert them to a TokenStream and then apply it's transformations in order, feeding one's TokenStream output as the input to the next until all transoformations have been applied and generated the final TokenStream.
+	In order to foster easy experimentation between shifting complexity between the parser and the lexer, Lex has an extendable and declarative pipeline manager that can chain transformations.
 
-	Transformations are designed to be chained into pipelines. Here is what the full lexing looks like: 
+	The pipeline is a declarative sequence of transformations to be applied to a TokenStream of core tokens. All pipelines will start with the core tokenization, convert them to a TokenStream and then apply its transformations in order, feeding one's TokenStream output as the input to the next until all transformations have been applied and generated the final TokenStream.
 
-	Lexer:
-		Pipeline -> Core Tokens -> Token Stream -> [ Transformation N ...] -> TokenStream
-	Parsing:
-		Token Stream -> Parsing -> Core Tokens -> AST Building
+	Transformations are designed to be chained into pipelines. Here is what the full lexing and parsing flow looks like:
 
+	Lexing Pipeline:
+		Source Text → Base Tokenization → TokenStream::Flat → [Transformations] → TokenStream
 
-	Transformations receive a TokenStream and will return one on output. This is the contract that enables us to keep decouples but composable transformations.
+	Parsing Flow:
+		TokenStream → Adapter → Parser Input Format → Parser → AST
 
-3. Token Streams
+	Transformations receive a TokenStream and return one as output. This is the contract that enables us to keep decoupled but composable transformations.
 
+3. The Two Lexer Pipelines
 
-	The common data structure that allows different transformations to take place is the Token Stream [src/lex/pipeline/stream.rs]. From a single vector to a full tree of tokens, the format offers standard interfaces for various transformations. See the full documentation [docs/dev/guides/on-tokenstreams.lex] for them .
+	There are currently two lexer pipelines serving different parsers:
+
+	Simple Pipeline (lex):
+		Used by the reference parser
+		:: file src/lex/lexers.rs ::
+		Three transformations:
+			NormalizeWhitespace → SemanticIndentation → BlankLines
+		Output: Flat TokenStream (converted to Vec<Token> for parser)
+
+	LineBased Pipeline (_lex):
+		Used by the linebased parser
+		:: file src/lex/lexers/linebased/pipeline.rs ::
+		Five transformations:
+			NormalizeWhitespace → SemanticIndentation → BlankLines → ToLineTokens → IndentationToTree
+		Output: Nested TokenStream (converted to LineContainer for parser)
+
+	Both pipelines share the first three transformations, then the linebased pipeline adds two more to group tokens into lines and build hierarchical structure.
+
+4. Token Streams
+
+	The common data structure that allows different transformations to take place is the Token Stream.
+	:: file src/lex/pipeline/stream.rs ::
+
+	From a single vector to a full tree of tokens, the format offers standard interfaces for various transformations. See the full documentation for details:
+	:: file docs/dev/guides/on-tokenstreams.lex ::
+
+5. Adapters at Architectural Boundaries
+
+	Token Streams are the internal transformation currency. At the lexer→parser boundary, adapters convert TokenStream to parser-specific formats:
+
+	For Reference Parser:
+		TokenStream::Flat → Vec<(Token, Range<usize>)>
+		:: file src/lex/pipeline/adapters.rs ::
+
+	For LineBased Parser:
+		TokenStream::Tree → LineContainer
+		:: file src/lex/pipeline/adapters_linebased.rs ::
+
+	The transformation pipeline itself is adapter-free and operates purely on TokenStream throughout.
