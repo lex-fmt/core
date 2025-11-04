@@ -20,4 +20,6 @@ pub use legacy_orchestration::{LexPipeline, PipelineError};
 pub use builder::Pipeline;
 
 // Re-export concrete mapper implementations
-pub use mappers::{BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper};
+pub use mappers::{
+    BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper, ToLineTokensMapper,
+};
