@@ -775,6 +775,45 @@ mod tests {
         assert_eq!(doc1.root.content.len(), doc2.root.content.len());
     }
 
+    #[test]
+    fn test_adapt_reference_parser_error_formatting() {
+        // Test that parser errors are properly formatted and don't panic
+        // Create a token stream that will cause a parse error
+        // An incomplete annotation marker (just "::") will trigger parser errors
+        let source = "::\n";
+        let tokens = crate::lex::lexers::tokenize(source);
+        let stream = flat_to_token_stream(tokens);
+
+        let result = adapt_reference_parser(stream, source);
+
+        // Should return an error
+        assert!(
+            result.is_err(),
+            "Expected parser error for incomplete annotation"
+        );
+
+        // Verify the error is formatted correctly
+        match result.unwrap_err() {
+            AdapterError::Error(msg) => {
+                // Should contain "Parsing failed:" prefix
+                assert!(
+                    msg.starts_with("Parsing failed:"),
+                    "Error message should start with 'Parsing failed:', got: {}",
+                    msg
+                );
+                // Should not be empty
+                assert!(!msg.is_empty(), "Error message should not be empty");
+                // Should contain some indication of what went wrong
+                assert!(
+                    msg.len() > "Parsing failed:".len(),
+                    "Error message should contain details, got: {}",
+                    msg
+                );
+            }
+            other => panic!("Expected AdapterError::Error, got: {:?}", other),
+        }
+    }
+
     // Tree adapter tests
     #[test]
     fn test_line_container_to_token_stream_single_token() {
