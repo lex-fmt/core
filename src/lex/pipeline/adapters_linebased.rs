@@ -117,8 +117,8 @@ pub fn line_container_to_token_stream(container: crate::lex::lexers::LineContain
 /// ```
 pub fn token_stream_to_line_tokens(
     stream: TokenStream,
-) -> Result<Vec<crate::lex::lexers::linebased::tokens::LineToken>, AdapterError> {
-    use crate::lex::lexers::linebased::tokens::{LineToken, LineType};
+) -> Result<Vec<crate::lex::lexers::linebased::tokens_linebased::LineToken>, AdapterError> {
+    use crate::lex::lexers::linebased::tokens_linebased::{LineToken, LineType};
 
     match stream {
         TokenStream::Flat(_) => Err(AdapterError::ExpectedTree),
@@ -174,7 +174,7 @@ pub fn token_stream_to_line_tokens(
 pub fn token_stream_to_line_container(
     stream: TokenStream,
 ) -> Result<crate::lex::lexers::LineContainer, AdapterError> {
-    use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+    use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
     match stream {
         TokenStream::Flat(_) => Err(AdapterError::ExpectedTree),
@@ -298,12 +298,12 @@ pub fn adapt_linebased_parser(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::tokens::Token;
+    use crate::lex::lexers::tokens_core::Token;
 
     // Tree adapter tests
     #[test]
     fn test_line_container_to_token_stream_single_token() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         // Create a simple LineContainer with one token
         #[allow(clippy::single_range_in_vec_init)]
@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn test_line_container_to_token_stream_container() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         // Create a container with multiple children
         #[allow(clippy::single_range_in_vec_init)]
@@ -404,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_tree_adapter_round_trip() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         // Create original LineContainer (wrapped in Container as root)
         #[allow(clippy::single_range_in_vec_init)]
@@ -451,7 +451,7 @@ mod tests {
 
     #[test]
     fn test_tree_adapter_preserves_ranges() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         #[allow(clippy::single_range_in_vec_init)]
         let line_token = LineToken {
@@ -480,7 +480,7 @@ mod tests {
 
     #[test]
     fn test_tree_adapter_nested_structure() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         // Create nested structure: container with children
         #[allow(clippy::single_range_in_vec_init)]
@@ -511,7 +511,7 @@ mod tests {
     // LineBased parser adapter tests
     #[test]
     fn test_adapt_linebased_parser_simple() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         // Create a simple paragraph
         let source = "Hello world\n";
@@ -556,7 +556,7 @@ mod tests {
 
     #[test]
     fn test_adapt_linebased_parser_round_trip() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         // Create a simple structure
         let source = "Paragraph text\n";
@@ -592,7 +592,7 @@ mod tests {
     // LineType preservation tests
     #[test]
     fn test_line_type_preservation_paragraph() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         #[allow(clippy::single_range_in_vec_init)]
         let line_token = LineToken {
@@ -618,7 +618,7 @@ mod tests {
 
     #[test]
     fn test_line_type_preservation_subject() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         #[allow(clippy::single_range_in_vec_init)]
         let line_token = LineToken {
@@ -644,7 +644,7 @@ mod tests {
 
     #[test]
     fn test_line_type_preservation_list() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         #[allow(clippy::single_range_in_vec_init)]
         let line_token = LineToken {
@@ -670,7 +670,7 @@ mod tests {
 
     #[test]
     fn test_line_type_round_trip_preservation() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         // Test all LineType variants round-trip correctly
         let line_types = vec![
@@ -721,7 +721,7 @@ mod tests {
 
     #[test]
     fn test_line_type_container_has_none() {
-        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+        use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 
         // When a Container has nested Containers, those inner containers should have line_type = None
         #[allow(clippy::single_range_in_vec_init)]

@@ -29,7 +29,7 @@
 //! 3. Gradually migrate parsers to use TokenStream directly
 //! 4. Eventually remove adapters once migration is complete
 
-use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::tokens_core::Token;
 use crate::lex::pipeline::stream::TokenStream;
 use std::ops::Range as ByteRange;
 

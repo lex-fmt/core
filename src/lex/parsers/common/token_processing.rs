@@ -14,7 +14,7 @@
 //! 4. Extract text from ranges
 
 use crate::lex::ast::range::{Range, SourceLocation};
-use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::tokens_core::Token;
 use std::ops::Range as ByteRange;
 
 /// Trait that any token structure can implement to provide access to source tokens.

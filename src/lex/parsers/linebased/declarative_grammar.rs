@@ -18,7 +18,7 @@
 //! 8. blank_line_group (one or more consecutive blank lines)
 
 use super::builders;
-use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken};
+use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken};
 use crate::lex::parsers::ContentItem;
 use once_cell::sync::Lazy;
 use regex::Regex;
