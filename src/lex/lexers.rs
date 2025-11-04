@@ -46,9 +46,7 @@ pub use base_tokenization::tokenize;
 pub use common::{LexError, Lexer, LexerOutput, LexerRegistry};
 pub use detokenizer::detokenize;
 pub use tokens::Token;
-pub use transformations::{
-    _lex, _lex_stage, sem_indentation, transform_blank_lines, PipelineOutput, PipelineStage,
-};
+pub use transformations::{PipelineOutput, PipelineStage, _lex, _lex_stage};
 
 // Re-export line-based types for convenience
 pub use linebased::{LineContainer, LineToken, LineType};
@@ -77,7 +75,9 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
 pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
     use crate::lex::pipeline::adapters::token_stream_to_flat;
     use crate::lex::pipeline::stream::TokenStream;
-    use crate::lex::pipeline::NormalizeWhitespaceMapper;
+    use crate::lex::pipeline::{
+        BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper,
+    };
 
     // Stage 1: NormalizeWhitespace using new TokenStream mapper
     let mut normalize_mapper = NormalizeWhitespaceMapper::new();
@@ -85,17 +85,23 @@ pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops
     let transformed_stream =
         crate::lex::pipeline::mapper::walk_stream(token_stream, &mut normalize_mapper)
             .expect("NormalizeWhitespace transformation failed");
-    let current_tokens = token_stream_to_flat(transformed_stream)
+    let mut current_tokens = token_stream_to_flat(transformed_stream)
         .expect("Expected Flat stream from NormalizeWhitespace");
 
-    // Stages 2-3: Apply remaining transformations using legacy interface
-    let remaining_transformations: Vec<Box<dyn transformations::Transformation>> = vec![
-        Box::new(transformations::SemanticIndentation),
-        Box::new(transformations::TransformBlankLines),
-    ];
+    // Stage 2: SemanticIndentation using new TokenStream mapper
+    let mut semantic_indent_mapper = SemanticIndentationMapper::new();
+    let token_stream = TokenStream::Flat(current_tokens);
+    let transformed_stream =
+        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut semantic_indent_mapper)
+            .expect("SemanticIndentation transformation failed");
+    current_tokens = token_stream_to_flat(transformed_stream)
+        .expect("Expected Flat stream from SemanticIndentation");
 
-    // Apply remaining transformations in sequence
-    remaining_transformations
-        .iter()
-        .fold(current_tokens, |acc, transform| transform.transform(acc))
+    // Stage 3: BlankLines using new TokenStream mapper
+    let mut blank_lines_mapper = BlankLinesMapper::new();
+    let token_stream = TokenStream::Flat(current_tokens);
+    let transformed_stream =
+        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut blank_lines_mapper)
+            .expect("BlankLines transformation failed");
+    token_stream_to_flat(transformed_stream).expect("Expected Flat stream from BlankLines")
 }

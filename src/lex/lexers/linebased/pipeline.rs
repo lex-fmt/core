@@ -19,11 +19,10 @@ use std::fmt;
 use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken};
 use crate::lex::lexers::linebased::transformations::{_indentation_to_token_tree, _to_line_tokens};
 use crate::lex::lexers::tokens::Token;
-use crate::lex::lexers::transformations::{
-    SemanticIndentation, TransformBlankLines, Transformation,
-};
 use crate::lex::pipeline::adapters::token_stream_to_flat;
-use crate::lex::pipeline::NormalizeWhitespaceMapper;
+use crate::lex::pipeline::{
+    BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper,
+};
 
 /// Error type for linebased pipeline operations
 #[derive(Debug, Clone, PartialEq)]
@@ -132,18 +131,28 @@ pub fn _lex_stage(
         return PipelineOutput::Tokens(current_tokens);
     }
 
-    // Stages 3-4: Apply remaining transformations using trait objects
-    let remaining_transformations: Vec<Box<dyn Transformation>> =
-        vec![Box::new(SemanticIndentation), Box::new(TransformBlankLines)];
+    // Stage 3: SemanticIndentation using new TokenStream mapper
+    let mut semantic_indent_mapper = SemanticIndentationMapper::new();
+    let token_stream = TokenStream::Flat(current_tokens);
+    let transformed_stream =
+        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut semantic_indent_mapper)
+            .expect("SemanticIndentation transformation failed");
+    current_tokens = token_stream_to_flat(transformed_stream)
+        .expect("Expected Flat stream from SemanticIndentation");
 
-    // Stage 3: After indentation
-    current_tokens = remaining_transformations[0].transform(current_tokens);
     if stage == PipelineStage::AfterIndentation {
         return PipelineOutput::Tokens(current_tokens);
     }
 
-    // Stage 4: After blank lines
-    current_tokens = remaining_transformations[1].transform(current_tokens);
+    // Stage 4: BlankLines using new TokenStream mapper
+    let mut blank_lines_mapper = BlankLinesMapper::new();
+    let token_stream = TokenStream::Flat(current_tokens);
+    let transformed_stream =
+        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut blank_lines_mapper)
+            .expect("BlankLines transformation failed");
+    current_tokens =
+        token_stream_to_flat(transformed_stream).expect("Expected Flat stream from BlankLines");
+
     if stage == PipelineStage::AfterBlankLines {
         return PipelineOutput::Tokens(current_tokens.clone());
     }
