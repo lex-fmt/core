@@ -38,7 +38,6 @@
 pub mod base_tokenization;
 pub mod common;
 pub mod detokenizer;
-pub mod indentation;
 pub mod linebased;
 pub mod tokens;
 pub mod transformations;
