@@ -20,7 +20,7 @@ use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken};
 use crate::lex::lexers::linebased::transformations::{_indentation_to_token_tree, _to_line_tokens};
 use crate::lex::lexers::tokens::Token;
 use crate::lex::lexers::transformations::{
-    process_whitespace_remainders, sem_indentation, transform_blank_lines,
+    NormalizeWhitespace, SemanticIndentation, TransformBlankLines, Transformation,
 };
 
 /// Error type for linebased pipeline operations
@@ -111,21 +111,24 @@ pub fn _lex_stage(
     }
 
     // Stage 2: Whitespace remainder processing
-    let after_whitespace = process_whitespace_remainders(raw_tokens);
+    let normalize_ws = NormalizeWhitespace;
+    let after_whitespace = normalize_ws.transform(raw_tokens);
 
     if stage == PipelineStage::AfterWhitespace {
         return PipelineOutput::Tokens(after_whitespace);
     }
 
     // Stage 3: Indentation transformation
-    let after_indentation = sem_indentation(after_whitespace);
+    let sem_indent = SemanticIndentation;
+    let after_indentation = sem_indent.transform(after_whitespace);
 
     if stage == PipelineStage::AfterIndentation {
         return PipelineOutput::Tokens(after_indentation);
     }
 
     // Stage 4: Blank line transformation
-    let after_blank_lines = transform_blank_lines(after_indentation);
+    let blank_lines = TransformBlankLines;
+    let after_blank_lines = blank_lines.transform(after_indentation);
 
     if stage == PipelineStage::AfterBlankLines {
         return PipelineOutput::Tokens(after_blank_lines.clone());
