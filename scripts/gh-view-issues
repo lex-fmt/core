@@ -1,0 +1,29 @@
+#!/usr/bin/env zsh
+
+# Usage: gh-view-issues <issue1> <issue2> ... or <start>:<end>
+
+if [[ $# -eq 0 ]]; then
+    echo "Usage: gh-view-issues <issue1> <issue2> ... or <start>:<end>" >&2
+    exit 1
+fi
+
+view_issue() {
+    local issue=$1
+    echo "=== Issue #$issue ==="
+    gh issue view "$issue"
+    echo ""
+}
+
+for arg in "$@"; do
+    if [[ "$arg" == *:* ]]; then
+        # Range format (e.g., 154:164)
+        start="${arg%%:*}"
+        end="${arg##*:}"
+        for ((i=start; i<=end; i++)); do
+            view_issue "$i"
+        done
+    else
+        # Individual issue number
+        view_issue "$arg"
+    fi
+done
