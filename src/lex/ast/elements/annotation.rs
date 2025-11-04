@@ -85,10 +85,7 @@ impl Annotation {
             location: Self::default_location(),
         }
     }
-    #[deprecated(note = "Use at(location) instead")]
-    pub fn with_location(self, location: Range) -> Self {
-        self.at(location)
-    }
+
     /// Preferred builder
     pub fn at(mut self, location: Range) -> Self {
         self.location = location;
@@ -138,21 +135,5 @@ impl fmt::Display for Annotation {
             self.parameters.len(),
             self.content.len()
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_annotation_with_location() {
-        let location = super::super::super::range::Range::new(
-            0..0,
-            super::super::super::range::Position::new(1, 0),
-            super::super::super::range::Position::new(1, 10),
-        );
-        let annotation = Annotation::marker(Label::new("test".to_string())).at(location.clone());
-        assert_eq!(annotation.location, location);
     }
 }
