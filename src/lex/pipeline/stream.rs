@@ -16,6 +16,7 @@
 //! Transformations create aggregate tokens that store these original pairs.
 //! The `unroll()` method provides universal access back to the ground truth for AST building.
 
+use crate::lex::lexers::linebased::tokens::LineType;
 use crate::lex::lexers::tokens::Token;
 use std::ops::Range as ByteRange;
 
@@ -76,6 +77,11 @@ pub enum TokenStream {
 ///   This list is always flat and preserves the ground truth from the lexer.
 /// - `children`: Optional nested children for this node. `None` means no indented
 ///   block follows. `Some` contains the `TokenStream` for the entire nested block.
+/// - `line_type`: Optional line type information from the linebased lexer pipeline.
+///   Used to preserve LineType classification (SubjectLine, ListLine, etc.) when
+///   converting between TokenStream and LineContainer. `None` for nodes that don't
+///   represent a single line (e.g., intermediate container nodes, or nodes from
+///   transformations that don't use LineType).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TokenStreamNode {
     /// The original source tokens that constitute this node's specific line or level.
@@ -88,6 +94,13 @@ pub struct TokenStreamNode {
     /// `None` signifies no indented block follows.
     /// `Some` contains the `TokenStream` for the entire nested block.
     pub children: Option<Box<TokenStream>>,
+
+    /// Optional line type classification for this node.
+    ///
+    /// Preserves LineType information from the linebased lexer pipeline.
+    /// `None` for nodes that don't represent a classified line (e.g., container nodes,
+    /// or nodes from transformations that don't use the LineType system).
+    pub line_type: Option<LineType>,
 }
 
 impl TokenStream {
@@ -186,6 +199,7 @@ mod tests {
         let node = TokenStreamNode {
             tokens: tokens.clone(),
             children: None,
+            line_type: None,
         };
 
         let stream = TokenStream::Tree(vec![node]);
@@ -202,6 +216,7 @@ mod tests {
         let node = TokenStreamNode {
             tokens: parent_tokens.clone(),
             children: Some(Box::new(TokenStream::Flat(child_tokens.clone()))),
+            line_type: None,
         };
 
         let stream = TokenStream::Tree(vec![node]);
@@ -218,10 +233,12 @@ mod tests {
         let node1 = TokenStreamNode {
             tokens: vec![(Token::Text("first".to_string()), 0..5)],
             children: None,
+            line_type: None,
         };
         let node2 = TokenStreamNode {
             tokens: vec![(Token::Text("second".to_string()), 6..12)],
             children: None,
+            line_type: None,
         };
 
         let stream = TokenStream::Tree(vec![node1, node2]);
@@ -249,12 +266,14 @@ mod tests {
         let child1_node = TokenStreamNode {
             tokens: child1_tokens.clone(),
             children: Some(Box::new(grandchild_stream)),
+            line_type: None,
         };
 
         let root_tokens = vec![(Token::Text("root".to_string()), 0..4)];
         let root_node = TokenStreamNode {
             tokens: root_tokens.clone(),
             children: Some(Box::new(TokenStream::Tree(vec![child1_node]))),
+            line_type: None,
         };
 
         let stream = TokenStream::Tree(vec![root_node]);
@@ -272,6 +291,7 @@ mod tests {
         let node1 = TokenStreamNode {
             tokens: vec![(Token::Text("first".to_string()), 0..5)],
             children: None,
+            line_type: None,
         };
         let node2 = TokenStreamNode {
             tokens: vec![(Token::Text("second".to_string()), 6..12)],
@@ -279,10 +299,12 @@ mod tests {
                 Token::Text("nested".to_string()),
                 20..26,
             )]))),
+            line_type: None,
         };
         let node3 = TokenStreamNode {
             tokens: vec![(Token::Text("third".to_string()), 30..35)],
             children: None,
+            line_type: None,
         };
 
         let stream = TokenStream::Tree(vec![node1, node2, node3]);
@@ -313,6 +335,7 @@ mod tests {
         let node = TokenStreamNode {
             tokens: tokens.clone(),
             children: None,
+            line_type: None,
         };
 
         let unrolled = node.unroll();
@@ -327,6 +350,7 @@ mod tests {
         let node = TokenStreamNode {
             tokens: parent_tokens.clone(),
             children: Some(Box::new(TokenStream::Flat(child_tokens.clone()))),
+            line_type: None,
         };
 
         let unrolled = node.unroll();
@@ -348,6 +372,7 @@ mod tests {
         let node = TokenStreamNode {
             tokens: tokens.clone(),
             children: None,
+            line_type: None,
         };
 
         let stream = TokenStream::Tree(vec![node]);
@@ -375,16 +400,19 @@ mod tests {
                 (Token::Text("More".to_string()), 20..24),
             ],
             children: None,
+            line_type: None,
         };
 
         let title_node = TokenStreamNode {
             tokens: vec![(Token::Text("Title".to_string()), 0..5)],
             children: Some(Box::new(TokenStream::Tree(vec![content_node]))),
+            line_type: None,
         };
 
         let end_node = TokenStreamNode {
             tokens: vec![(Token::Text("End".to_string()), 30..33)],
             children: None,
+            line_type: None,
         };
 
         let stream = TokenStream::Tree(vec![title_node, end_node]);
