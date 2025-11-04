@@ -515,6 +515,96 @@ mod tests {
         assert_eq!(find_line_start(&tokens, 3), 2);
     }
 
+    #[test]
+    fn test_source_tokens_captured_in_indent() {
+        // Verify that Indent tokens capture their source Indentation tokens (Immutable Log principle)
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indentation, 2, 6), // 4 spaces
+            mk_token(Token::Text("b".to_string()), 6, 7),
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(input).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                // Find the Indent token
+                let indent_pos = tokens
+                    .iter()
+                    .position(|(t, _)| matches!(t, Token::Indent(_)))
+                    .expect("Should have Indent token");
+
+                // Verify source_tokens are captured correctly
+                if let Token::Indent(source_tokens) = &tokens[indent_pos].0 {
+                    assert_eq!(
+                        source_tokens.len(),
+                        1,
+                        "Indent should capture 1 source Indentation token"
+                    );
+                    assert_eq!(source_tokens[0].0, Token::Indentation);
+                    assert_eq!(
+                        source_tokens[0].1,
+                        2..6,
+                        "Source token should have correct range"
+                    );
+                } else {
+                    panic!("Expected Indent token");
+                }
+
+                // Verify placeholder span is used
+                assert_eq!(tokens[indent_pos].1, 0..0, "Indent uses placeholder span");
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_source_tokens_captured_in_multiple_indents() {
+        // Verify that multiple Indent tokens each capture their respective source tokens
+        let input: Tokens = vec![
+            mk_token(Token::Text("a".to_string()), 0, 1),
+            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::Indentation, 2, 6), // First indent level
+            mk_token(Token::Indentation, 6, 10), // Second indent level
+            mk_token(Token::Text("b".to_string()), 10, 11),
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(input).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                // Find Indent tokens
+                let indent_positions: Vec<_> = tokens
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, (t, _))| {
+                        if matches!(t, Token::Indent(_)) {
+                            Some(i)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                assert_eq!(indent_positions.len(), 2, "Should have 2 Indent tokens");
+
+                // Verify first Indent captures first Indentation token
+                if let Token::Indent(source_tokens) = &tokens[indent_positions[0]].0 {
+                    assert_eq!(source_tokens.len(), 1);
+                    assert_eq!(source_tokens[0].1, 2..6, "First Indent source range");
+                }
+
+                // Verify second Indent captures second Indentation token
+                if let Token::Indent(source_tokens) = &tokens[indent_positions[1]].0 {
+                    assert_eq!(source_tokens.len(), 1);
+                    assert_eq!(source_tokens[0].1, 6..10, "Second Indent source range");
+                }
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
     // Additional comprehensive tests for edge cases
     #[test]
     fn test_blank_line_with_spaces_does_not_dedent() {

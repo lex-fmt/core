@@ -1,8 +1,10 @@
-//! High-level unified pipeline API for lex parsing
+//! Legacy pipeline orchestration for lexer/parser combinations
 //!
-//! This module provides the `LexPipeline` struct which offers a convenient,
-//! high-level interface for tokenizing and parsing lex documents using
-//! any combination of lexer and parser implementations.
+//! This module provides the old `LexPipeline` infrastructure that manages multiple
+//! lexer/parser combinations through registries. This is legacy code maintained
+//! for backwards compatibility while experimental pipelines are being evaluated.
+//!
+//! For the new TokenStream-based pipeline, see the `pipeline` module.
 //!
 //! # Examples
 //!

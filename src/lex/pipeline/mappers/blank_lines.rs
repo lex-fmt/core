@@ -48,29 +48,28 @@ impl StreamMapper for BlankLinesMapper {
 
         while i < tokens.len() {
             if matches!(tokens[i].0, Token::Newline) {
-                // Count consecutive Newline tokens and collect their locations
-                let mut newline_count = 0;
-                let mut j = i;
-                while j < tokens.len() && matches!(tokens[j].0, Token::Newline) {
-                    newline_count += 1;
-                    j += 1;
+                // Count consecutive Newline tokens
+                let start = i;
+                let mut end = i;
+                while end < tokens.len() && matches!(tokens[end].0, Token::Newline) {
+                    end += 1;
                 }
+                let newline_count = end - start;
 
-                // Emit the first Newline with its original location (ends the current line)
-                result.push((Token::Newline, tokens[i].1.clone()));
+                // Always emit the first newline
+                result.push(tokens[start].clone());
 
                 // If we have 2+ consecutive newlines, emit a BlankLine token
                 // Store all the extra newline tokens (from 2nd onwards) as source_tokens
                 if newline_count >= 2 {
-                    // Collect the extra newline tokens (from 2nd to last)
-                    let source_tokens: Vec<(Token, ByteRange<usize>)> = tokens[i + 1..j].to_vec();
-
+                    let source_tokens: Vec<(Token, ByteRange<usize>)> =
+                        tokens[start + 1..end].to_vec();
                     // Placeholder span 0..0 - will never be used, AST construction unrolls source_tokens
                     result.push((Token::BlankLine(source_tokens), 0..0));
                 }
 
-                // Move past all the newlines we just processed
-                i = j;
+                // Move past all processed newlines
+                i = end;
             } else {
                 // Non-newline token, just copy it with its location
                 result.push(tokens[i].clone());
@@ -373,6 +372,28 @@ mod tests {
         let result = mapper.map_flat(input).unwrap();
         match result {
             TokenStream::Flat(tokens) => {
+                // Verify source_tokens are captured correctly (Immutable Log principle)
+                assert_eq!(tokens.len(), 4);
+                if let Token::BlankLine(source_tokens) = &tokens[2].0 {
+                    assert_eq!(
+                        source_tokens.len(),
+                        1,
+                        "BlankLine should capture 1 source token"
+                    );
+                    assert_eq!(
+                        source_tokens[0].0,
+                        Token::Newline,
+                        "Source token should be Newline"
+                    );
+                    assert_eq!(
+                        source_tokens[0].1,
+                        5..6,
+                        "Source token should have correct range"
+                    );
+                } else {
+                    panic!("Expected BlankLine token at position 2");
+                }
+
                 let expected: Tokens = vec![
                     mk_token(Token::Text("t".to_string()), 0, 4),
                     mk_token(Token::Newline, 4, 5),
@@ -426,6 +447,22 @@ mod tests {
         match result {
             TokenStream::Flat(tokens) => {
                 assert_eq!(tokens.len(), 4);
+
+                // Verify source_tokens are captured correctly (Immutable Log principle)
+                if let Token::BlankLine(source_tokens) = &tokens[2].0 {
+                    assert_eq!(
+                        source_tokens.len(),
+                        2,
+                        "BlankLine should capture 2 source tokens"
+                    );
+                    assert_eq!(source_tokens[0].0, Token::Newline);
+                    assert_eq!(source_tokens[0].1, 2..3, "First source token range");
+                    assert_eq!(source_tokens[1].0, Token::Newline);
+                    assert_eq!(source_tokens[1].1, 3..4, "Second source token range");
+                } else {
+                    panic!("Expected BlankLine token at position 2");
+                }
+
                 assert_eq!(
                     tokens[2].0,
                     Token::BlankLine(vec![(Token::Newline, 2..3), (Token::Newline, 3..4)])
