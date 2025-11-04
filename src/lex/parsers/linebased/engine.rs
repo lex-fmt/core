@@ -13,7 +13,7 @@
 
 use super::declarative_grammar;
 use crate::lex::ast::Range;
-use crate::lex::lexers::linebased::tokens::LineContainerToken;
+use crate::lex::lexers::linebased::tokens::LineContainer;
 use crate::lex::parsers::{ContentItem, Document, Position};
 
 /// Parse using the new declarative grammar engine (Delivery 2).
@@ -27,11 +27,11 @@ use crate::lex::parsers::{ContentItem, Document, Position};
 ///
 /// # Returns
 /// A Document AST if successful
-pub fn parse_experimental_v2(tree: LineContainerToken, source: &str) -> Result<Document, String> {
+pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Document, String> {
     // Extract children from root container
     let children = match tree {
-        LineContainerToken::Container { children, .. } => children,
-        LineContainerToken::Token(_) => {
+        LineContainer::Container { children, .. } => children,
+        LineContainer::Token(_) => {
             return Err("Expected root container, found single token".to_string())
         }
     };

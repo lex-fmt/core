@@ -52,7 +52,7 @@ pub use transformations::{
 };
 
 // Re-export line-based types for convenience
-pub use linebased::{LineContainerToken, LineToken, LineTokenType};
+pub use linebased::{LineContainer, LineToken, LineType};
 
 /// Preprocesses source text to ensure it ends with a newline.
 ///

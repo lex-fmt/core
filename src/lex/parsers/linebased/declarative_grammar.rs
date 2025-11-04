@@ -18,7 +18,7 @@
 //! 8. blank_line_group (one or more consecutive blank lines)
 
 use super::builders;
-use crate::lex::lexers::linebased::tokens::{LineContainerToken, LineToken};
+use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken};
 use crate::lex::parsers::ContentItem;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -125,7 +125,7 @@ impl GrammarMatcher {
     ///
     /// Returns (matched_pattern, consumed_indices)
     fn try_match(
-        tokens: &[LineContainerToken],
+        tokens: &[LineContainer],
         start_idx: usize,
     ) -> Option<(PatternMatch, Range<usize>)> {
         if start_idx >= tokens.len() {
@@ -214,14 +214,14 @@ impl GrammarMatcher {
     }
 
     /// Convert remaining tokens to grammar notation string
-    fn tokens_to_grammar_string(tokens: &[LineContainerToken]) -> Option<String> {
+    fn tokens_to_grammar_string(tokens: &[LineContainer]) -> Option<String> {
         let mut result = String::new();
         for token in tokens {
             match token {
-                LineContainerToken::Token(t) => {
+                LineContainer::Token(t) => {
                     result.push_str(&t.line_type.to_grammar_string());
                 }
-                LineContainerToken::Container { .. } => {
+                LineContainer::Container { .. } => {
                     result.push_str("<container>");
                 }
             }
@@ -242,7 +242,7 @@ impl GrammarMatcher {
 
 /// Main recursive descent parser using the declarative grammar
 pub fn parse_with_declarative_grammar(
-    tokens: Vec<LineContainerToken>,
+    tokens: Vec<LineContainer>,
     source: &str,
 ) -> Result<Vec<ContentItem>, String> {
     let mut items = Vec::new();
@@ -270,7 +270,7 @@ pub fn parse_with_declarative_grammar(
 /// pattern_offset: the index where the pattern starts in the tokens array
 /// (used to convert relative indices in the pattern to absolute indices)
 fn convert_pattern_to_item(
-    tokens: &[LineContainerToken],
+    tokens: &[LineContainer],
     pattern: &PatternMatch,
     pattern_offset: usize,
     source: &str,
@@ -287,7 +287,7 @@ fn convert_pattern_to_item(
 
             // Extract content lines from container if present
             let content_lines = if let Some(content_idx_val) = content_idx {
-                if let LineContainerToken::Container { children, .. } =
+                if let LineContainer::Container { children, .. } =
                     &tokens[pattern_offset + content_idx_val]
                 {
                     children
@@ -311,8 +311,7 @@ fn convert_pattern_to_item(
             let start_token = extract_line_token(&tokens[pattern_offset + start_idx])?;
 
             // Extract content from container
-            if let LineContainerToken::Container { children, .. } =
-                &tokens[pattern_offset + content_idx]
+            if let LineContainer::Container { children, .. } = &tokens[pattern_offset + content_idx]
             {
                 let content = parse_with_declarative_grammar(children.clone(), source)?;
                 builders::unwrap_annotation_with_content(start_token, content, source)
@@ -335,7 +334,7 @@ fn convert_pattern_to_item(
                 let item_token = extract_line_token(&tokens[pattern_offset + item_idx])?;
 
                 let content = if let Some(content_idx_val) = content_idx {
-                    if let LineContainerToken::Container { children, .. } =
+                    if let LineContainer::Container { children, .. } =
                         &tokens[pattern_offset + content_idx_val]
                     {
                         parse_with_declarative_grammar(children.clone(), source)?
@@ -358,7 +357,7 @@ fn convert_pattern_to_item(
         } => {
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
 
-            let content = if let LineContainerToken::Container { children, .. } =
+            let content = if let LineContainer::Container { children, .. } =
                 &tokens[pattern_offset + content_idx]
             {
                 parse_with_declarative_grammar(children.clone(), source)?
@@ -375,7 +374,7 @@ fn convert_pattern_to_item(
         } => {
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
 
-            let content = if let LineContainerToken::Container { children, .. } =
+            let content = if let LineContainer::Container { children, .. } =
                 &tokens[pattern_offset + content_idx]
             {
                 parse_with_declarative_grammar(children.clone(), source)?
@@ -402,9 +401,9 @@ fn convert_pattern_to_item(
 }
 
 /// Helper to extract a LineToken from a LineContainerToken
-fn extract_line_token(token: &LineContainerToken) -> Result<&LineToken, String> {
+fn extract_line_token(token: &LineContainer) -> Result<&LineToken, String> {
     match token {
-        LineContainerToken::Token(t) => Ok(t),
+        LineContainer::Token(t) => Ok(t),
         _ => Err("Expected LineToken, found Container".to_string()),
     }
 }
