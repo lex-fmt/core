@@ -16,8 +16,6 @@
 
 use std::fmt;
 
-use crate::lex::lexers::ensure_source_ends_with_newline;
-use crate::lex::lexers::indentation::tokenize;
 use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken};
 use crate::lex::lexers::linebased::transformations::{_indentation_to_token_tree, _to_line_tokens};
 use crate::lex::lexers::tokens::Token;
@@ -77,13 +75,13 @@ pub enum PipelineOutput {
 /// Runs all transformations in sequence and returns the final token tree.
 ///
 /// # Arguments
-/// * `source` - The input source text
+/// * `tokens` - The input token stream from base tokenization
 ///
 /// # Returns
 /// A Result containing a LineContainerToken (root node representing the entire hierarchical tree),
 /// or a PipelineError if the pipeline stage returns an unexpected output type.
-pub fn _lex(source: &str) -> Result<LineContainer, PipelineError> {
-    let output = _lex_stage(source, PipelineStage::TokenTree);
+pub fn _lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Result<LineContainer, PipelineError> {
+    let output = _lex_stage(tokens, PipelineStage::TokenTree);
     match output {
         PipelineOutput::TokenTree(tree) => Ok(tree),
         _ => Err(PipelineError::UnexpectedOutput(
@@ -97,16 +95,17 @@ pub fn _lex(source: &str) -> Result<LineContainer, PipelineError> {
 /// Returns the pipeline output at any requested stage for debugging/testing.
 ///
 /// # Arguments
-/// * `source` - The input source text
+/// * `tokens` - The input token stream from base tokenization
 /// * `stage` - The pipeline stage at which to return output
 ///
 /// # Returns
 /// Pipeline output at the requested stage
-pub fn _lex_stage(source: &str, stage: PipelineStage) -> PipelineOutput {
-    let source_with_newline = ensure_source_ends_with_newline(source);
-
-    // Stage 1: Raw tokenization
-    let raw_tokens = tokenize(&source_with_newline);
+pub fn _lex_stage(
+    tokens: Vec<(Token, std::ops::Range<usize>)>,
+    stage: PipelineStage,
+) -> PipelineOutput {
+    // Stage 1: Raw tokenization (already done by caller)
+    let raw_tokens = tokens;
     if stage == PipelineStage::RawTokens {
         return PipelineOutput::Tokens(raw_tokens);
     }
@@ -149,12 +148,20 @@ pub fn _lex_stage(source: &str, stage: PipelineStage) -> PipelineOutput {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // @audit: hardcoded_source
+    use crate::lex::lexers::base_tokenization::tokenize;
+    use crate::lex::lexers::ensure_source_ends_with_newline;
+
+    // Helper to prepare token stream from source
+    fn prepare_tokens(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
+        let source_with_newline = ensure_source_ends_with_newline(source);
+        tokenize(&source_with_newline)
+    }
 
     // @audit: hardcoded_source
     #[test]
     fn test_lex_empty_input() {
-        let result = _lex("").expect("Pipeline should not fail");
+        let tokens = prepare_tokens("");
+        let result = _lex(tokens).expect("Pipeline should not fail");
         // Empty input should produce empty tree
         assert!(result.is_empty());
     }
@@ -163,7 +170,8 @@ mod tests {
     #[test]
     fn test_lex_single_paragraph() {
         let source = "Hello world";
-        let result = _lex(source).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(source);
+        let result = _lex(tokens).expect("Pipeline should not fail");
         // Single paragraph should produce at least one token
         assert!(!result.is_empty());
     }
@@ -172,7 +180,8 @@ mod tests {
     #[test]
     fn test_lex_multiple_paragraphs() {
         let source = "First paragraph\n\nSecond paragraph";
-        let result = _lex(source).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(source);
+        let result = _lex(tokens).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
@@ -180,7 +189,8 @@ mod tests {
     #[test]
     fn test_lex_with_indentation() {
         let source = "Title:\n    Indented content\n    More indented";
-        let result = _lex(source).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(source);
+        let result = _lex(tokens).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
@@ -188,7 +198,8 @@ mod tests {
     #[test]
     fn test_lex_stage_raw_tokens() {
         let source = "Hello world";
-        let output = _lex_stage(source, PipelineStage::RawTokens);
+        let tokens = prepare_tokens(source);
+        let output = _lex_stage(tokens, PipelineStage::RawTokens);
         match output {
             PipelineOutput::Tokens(tokens) => assert!(!tokens.is_empty()),
             _ => panic!("Expected Tokens output"),
@@ -199,7 +210,8 @@ mod tests {
     #[test]
     fn test_lex_stage_after_whitespace() {
         let source = "Hello world";
-        let output = _lex_stage(source, PipelineStage::AfterWhitespace);
+        let tokens = prepare_tokens(source);
+        let output = _lex_stage(tokens, PipelineStage::AfterWhitespace);
         match output {
             PipelineOutput::Tokens(tokens) => assert!(!tokens.is_empty()),
             _ => panic!("Expected Tokens output"),
@@ -210,7 +222,8 @@ mod tests {
     #[test]
     fn test_lex_stage_after_indentation() {
         let source = "Hello:\n    World";
-        let output = _lex_stage(source, PipelineStage::AfterIndentation);
+        let tokens = prepare_tokens(source);
+        let output = _lex_stage(tokens, PipelineStage::AfterIndentation);
         match output {
             PipelineOutput::Tokens(tokens) => assert!(!tokens.is_empty()),
             _ => panic!("Expected Tokens output"),
@@ -221,7 +234,8 @@ mod tests {
     #[test]
     fn test_lex_stage_after_blank_lines() {
         let source = "Hello\n\nWorld";
-        let output = _lex_stage(source, PipelineStage::AfterBlankLines);
+        let tokens = prepare_tokens(source);
+        let output = _lex_stage(tokens, PipelineStage::AfterBlankLines);
         match output {
             PipelineOutput::Tokens(tokens) => assert!(!tokens.is_empty()),
             _ => panic!("Expected Tokens output"),
@@ -232,7 +246,8 @@ mod tests {
     #[test]
     fn test_lex_stage_line_tokens() {
         let source = "Title:\n    Content";
-        let output = _lex_stage(source, PipelineStage::LineTokens);
+        let tokens = prepare_tokens(source);
+        let output = _lex_stage(tokens, PipelineStage::LineTokens);
         match output {
             PipelineOutput::LineTokens(tokens) => assert!(!tokens.is_empty()),
             _ => panic!("Expected LineTokens output"),
@@ -243,7 +258,8 @@ mod tests {
     #[test]
     fn test_lex_stage_token_tree() {
         let source = "Title:\n    Content";
-        let output = _lex_stage(source, PipelineStage::TokenTree);
+        let tokens = prepare_tokens(source);
+        let output = _lex_stage(tokens, PipelineStage::TokenTree);
         match output {
             PipelineOutput::TokenTree(tree) => assert!(!tree.is_empty()),
             _ => panic!("Expected TokenTree output"),
@@ -256,22 +272,22 @@ mod tests {
         let source = "Item 1\n\n- First\n- Second";
 
         // Verify all stages return successfully
-        let raw = _lex_stage(source, PipelineStage::RawTokens);
+        let raw = _lex_stage(prepare_tokens(source), PipelineStage::RawTokens);
         assert!(matches!(raw, PipelineOutput::Tokens(_)));
 
-        let after_ws = _lex_stage(source, PipelineStage::AfterWhitespace);
+        let after_ws = _lex_stage(prepare_tokens(source), PipelineStage::AfterWhitespace);
         assert!(matches!(after_ws, PipelineOutput::Tokens(_)));
 
-        let after_ind = _lex_stage(source, PipelineStage::AfterIndentation);
+        let after_ind = _lex_stage(prepare_tokens(source), PipelineStage::AfterIndentation);
         assert!(matches!(after_ind, PipelineOutput::Tokens(_)));
 
-        let after_blank = _lex_stage(source, PipelineStage::AfterBlankLines);
+        let after_blank = _lex_stage(prepare_tokens(source), PipelineStage::AfterBlankLines);
         assert!(matches!(after_blank, PipelineOutput::Tokens(_)));
 
-        let line_tokens = _lex_stage(source, PipelineStage::LineTokens);
+        let line_tokens = _lex_stage(prepare_tokens(source), PipelineStage::LineTokens);
         assert!(matches!(line_tokens, PipelineOutput::LineTokens(_)));
 
-        let tree = _lex_stage(source, PipelineStage::TokenTree);
+        let tree = _lex_stage(prepare_tokens(source), PipelineStage::TokenTree);
         assert!(matches!(tree, PipelineOutput::TokenTree(_)));
     }
 
@@ -279,7 +295,8 @@ mod tests {
     #[test]
     fn test_lex_list_structure() {
         let source = "Items:\n    - First\n    - Second\n    - Third";
-        let result = _lex(source).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(source);
+        let result = _lex(tokens).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
@@ -287,7 +304,8 @@ mod tests {
     #[test]
     fn test_lex_nested_indentation() {
         let source = "Level 1:\n    Level 2:\n        Level 3 content";
-        let result = _lex(source).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(source);
+        let result = _lex(tokens).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
@@ -295,7 +313,8 @@ mod tests {
     #[test]
     fn test_lex_with_blank_lines() {
         let source = "Para 1\n\nPara 2\n\nPara 3";
-        let result = _lex(source).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(source);
+        let result = _lex(tokens).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
@@ -305,14 +324,14 @@ mod tests {
         let source = "Para 1\n\nPara 2";
 
         // Check LineTokens stage
-        let line_tokens_output = _lex_stage(source, PipelineStage::LineTokens);
+        let line_tokens_output = _lex_stage(prepare_tokens(source), PipelineStage::LineTokens);
         if let PipelineOutput::LineTokens(tokens) = line_tokens_output {
             // Should have 3 line tokens: Para1, BlankLine, Para2
             assert_eq!(tokens.len(), 3);
         }
 
         // Check TokenTree stage
-        let tree_output = _lex_stage(source, PipelineStage::TokenTree);
+        let tree_output = _lex_stage(prepare_tokens(source), PipelineStage::TokenTree);
         if let PipelineOutput::TokenTree(tree) = tree_output {
             // Verify we get a container with children
             assert!(!tree.is_empty());
@@ -323,14 +342,16 @@ mod tests {
     #[test]
     fn test_lex_mixed_content() {
         let source = "Title:\n\n    First paragraph\n\n    - List item 1\n    - List item 2";
-        let result = _lex(source).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(source);
+        let result = _lex(tokens).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_lex_with_annotations() {
         let source = ":: note ::\nSome text\n\n:: note :: with inline content";
-        let result = _lex(source).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(source);
+        let result = _lex(tokens).expect("Pipeline should not fail");
         assert!(!result.is_empty());
     }
 }
@@ -338,12 +359,21 @@ mod tests {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    use crate::lex::lexers::base_tokenization::tokenize;
+    use crate::lex::lexers::ensure_source_ends_with_newline;
+
+    // Helper to prepare token stream from source
+    fn prepare_tokens(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
+        let source_with_newline = ensure_source_ends_with_newline(source);
+        tokenize(&source_with_newline)
+    }
 
     #[test]
     fn test_pipeline_with_000_paragraphs() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/000-paragraphs.lex")
             .expect("Could not read sample file");
-        let tree = _lex(&content).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(&content);
+        let tree = _lex(tokens).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for paragraphs"
@@ -354,7 +384,8 @@ mod integration_tests {
     fn test_pipeline_with_040_lists() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/040-lists.lex")
             .expect("Could not read sample file");
-        let tree = _lex(&content).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(&content);
+        let tree = _lex(tokens).expect("Pipeline should not fail");
         assert!(!tree.is_empty(), "Token tree should not be empty for lists");
     }
 
@@ -362,7 +393,8 @@ mod integration_tests {
     fn test_pipeline_with_050_paragraph_lists() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/050-paragraph-lists.lex")
             .expect("Could not read sample file");
-        let tree = _lex(&content).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(&content);
+        let tree = _lex(tokens).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for mixed content"
@@ -373,7 +405,8 @@ mod integration_tests {
     fn test_pipeline_with_090_definitions() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/090-definitions-simple.lex")
             .expect("Could not read sample file");
-        let tree = _lex(&content).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(&content);
+        let tree = _lex(tokens).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for definitions"
@@ -384,7 +417,8 @@ mod integration_tests {
     fn test_pipeline_with_120_annotations() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/120-annotations-simple.lex")
             .expect("Could not read sample file");
-        let tree = _lex(&content).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(&content);
+        let tree = _lex(tokens).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for annotations"
@@ -397,7 +431,8 @@ mod integration_tests {
             "docs/specs/v1/samples/030-paragraphs-sessions-nested-multiple.lex",
         )
         .expect("Could not read sample file");
-        let tree = _lex(&content).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(&content);
+        let tree = _lex(tokens).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for nested sessions"
@@ -408,7 +443,8 @@ mod integration_tests {
     fn test_pipeline_with_070_nested_lists() {
         let content = std::fs::read_to_string("docs/specs/v1/samples/070-nested-lists-simple.lex")
             .expect("Could not read sample file");
-        let tree = _lex(&content).expect("Pipeline should not fail");
+        let tokens = prepare_tokens(&content);
+        let tree = _lex(tokens).expect("Pipeline should not fail");
         assert!(
             !tree.is_empty(),
             "Token tree should not be empty for nested lists"
@@ -421,22 +457,22 @@ mod integration_tests {
             .expect("Could not read sample file");
 
         // Verify all stages return successfully for real file
-        let raw = _lex_stage(&content, PipelineStage::RawTokens);
+        let raw = _lex_stage(prepare_tokens(&content), PipelineStage::RawTokens);
         assert!(matches!(raw, PipelineOutput::Tokens(_)));
 
-        let after_ws = _lex_stage(&content, PipelineStage::AfterWhitespace);
+        let after_ws = _lex_stage(prepare_tokens(&content), PipelineStage::AfterWhitespace);
         assert!(matches!(after_ws, PipelineOutput::Tokens(_)));
 
-        let after_ind = _lex_stage(&content, PipelineStage::AfterIndentation);
+        let after_ind = _lex_stage(prepare_tokens(&content), PipelineStage::AfterIndentation);
         assert!(matches!(after_ind, PipelineOutput::Tokens(_)));
 
-        let after_blank = _lex_stage(&content, PipelineStage::AfterBlankLines);
+        let after_blank = _lex_stage(prepare_tokens(&content), PipelineStage::AfterBlankLines);
         assert!(matches!(after_blank, PipelineOutput::Tokens(_)));
 
-        let line_tokens = _lex_stage(&content, PipelineStage::LineTokens);
+        let line_tokens = _lex_stage(prepare_tokens(&content), PipelineStage::LineTokens);
         assert!(matches!(line_tokens, PipelineOutput::LineTokens(_)));
 
-        let tree = _lex_stage(&content, PipelineStage::TokenTree);
+        let tree = _lex_stage(prepare_tokens(&content), PipelineStage::TokenTree);
         assert!(matches!(tree, PipelineOutput::TokenTree(_)));
     }
 }

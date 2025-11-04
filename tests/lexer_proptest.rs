@@ -6,6 +6,13 @@
 use lex::lex::lexers::{lex, Token};
 use proptest::prelude::*;
 
+/// Helper to prepare token stream and call lex pipeline
+fn lex_helper(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
+    let source_with_newline = lex::lex::lexers::ensure_source_ends_with_newline(source);
+    let token_stream = lex::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+    lex(token_stream)
+}
+
 /// Sample document snapshot tests
 #[cfg(test)]
 mod sample_document_tests {
@@ -20,7 +27,7 @@ mod sample_document_tests {
     #[test]
     fn test_000_paragraphs_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/000-paragraphs.lex");
-        let tokens = lex(&content);
+        let tokens = lex_helper(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -29,7 +36,7 @@ mod sample_document_tests {
     fn test_010_sessions_flat_single_tokenization() {
         let content =
             read_sample_document("docs/specs/v1/samples/010-paragraphs-sessions-flat-single.lex");
-        let tokens = lex(&content);
+        let tokens = lex_helper(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -38,7 +45,7 @@ mod sample_document_tests {
     fn test_020_sessions_flat_multiple_tokenization() {
         let content =
             read_sample_document("docs/specs/v1/samples/020-paragraphs-sessions-flat-multiple.lex");
-        let tokens = lex(&content);
+        let tokens = lex_helper(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -48,7 +55,7 @@ mod sample_document_tests {
         let content = read_sample_document(
             "docs/specs/v1/samples/030-paragraphs-sessions-nested-multiple.lex",
         );
-        let tokens = lex(&content);
+        let tokens = lex_helper(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -56,7 +63,7 @@ mod sample_document_tests {
     #[test]
     fn test_040_lists_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/040-lists.lex");
-        let tokens = lex(&content);
+        let tokens = lex_helper(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -64,7 +71,7 @@ mod sample_document_tests {
     #[test]
     fn test_050_paragraph_lists_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/050-paragraph-lists.lex");
-        let tokens = lex(&content);
+        let tokens = lex_helper(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -72,7 +79,7 @@ mod sample_document_tests {
     #[test]
     fn test_050_trifecta_flat_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/050-trifecta-flat-simple.lex");
-        let tokens = lex(&content);
+        let tokens = lex_helper(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -80,7 +87,7 @@ mod sample_document_tests {
     #[test]
     fn test_060_trifecta_nesting_tokenization() {
         let content = read_sample_document("docs/specs/v1/samples/060-trifecta-nesting.lex");
-        let tokens = lex(&content);
+        let tokens = lex_helper(&content);
 
         insta::assert_debug_snapshot!(tokens);
     }
@@ -173,13 +180,13 @@ mod proptest_tests {
         #[test]
         fn test_tokenize_never_panics(input in lex_document_strategy()) {
             // The lexer should never panic on any valid lex input
-            let _tokens = lex(&input);
+            let _tokens = lex_helper(&input);
         }
 
         #[test]
         fn test_tokenize_produces_valid_tokens(input in lex_document_strategy()) {
             // All tokens should be valid Token variants
-            let tokens = lex(&input);
+            let tokens = lex_helper(&input);
             for (token, _) in tokens {
                 match token {
                     Token::LexMarker | Token::Indentation | Token::Indent(_) | Token::Dedent(_) |
@@ -196,7 +203,7 @@ mod proptest_tests {
         fn test_indentation_tokenization(input in indentation_strategy()) {
             // Indentation should produce appropriate indentation-related tokens
             // Note: lex() transforms Indent tokens to Indent/Dedent
-            let tokens = lex(&input);
+            let tokens = lex_helper(&input);
 
             // After lex(), indentation tokens are transformed:
             // - Indent tokens become Indent tokens (only if line has content after indentation)
@@ -236,7 +243,7 @@ mod proptest_tests {
         #[test]
         fn test_list_item_tokenization(input in list_item_strategy()) {
             // List items should contain appropriate markers
-            let tokens = lex(&input);
+            let tokens = lex_helper(&input);
 
             if input.starts_with('-') {
                 assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Dash)));
@@ -252,7 +259,7 @@ mod proptest_tests {
         #[test]
         fn test_session_title_tokenization(input in session_title_strategy()) {
             // Session titles should contain appropriate markers
-            let tokens = lex(&input);
+            let tokens = lex_helper(&input);
 
             if input.contains(':') {
                 assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Colon)));
@@ -265,7 +272,7 @@ mod proptest_tests {
         #[test]
         fn test_multiline_tokenization(input in lex_text_strategy()) {
             // Multiline text should contain Newline tokens
-            let tokens = lex(&input);
+            let tokens = lex_helper(&input);
 
             if input.contains('\n') {
                 assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Newline)));
@@ -275,14 +282,14 @@ mod proptest_tests {
         #[test]
         fn test_empty_input_tokenization(input in "") {
             // Empty input should produce no tokens
-            let tokens = lex(&input);
+            let tokens = lex_helper(&input);
             assert!(tokens.is_empty());
         }
 
         #[test]
         fn test_whitespace_only_tokenization(input in "[ ]{0,10}") {
             // Whitespace-only input should produce appropriate tokens
-            let tokens = lex(&input);
+            let tokens = lex_helper(&input);
 
             if input.is_empty() {
                 assert!(tokens.is_empty());
@@ -305,7 +312,7 @@ mod integration_tests {
     #[test]
     fn test_paragraph_pattern() {
         let input = "This is a paragraph.\nIt has multiple lines.";
-        let tokens = lex(input);
+        let tokens = lex_helper(input);
 
         // Exact token sequence validation
         // lex() adds a trailing newline and applies full transformations
@@ -337,7 +344,7 @@ mod integration_tests {
     #[test]
     fn test_list_pattern() {
         let input = "- First item\n- Second item";
-        let tokens = lex(input);
+        let tokens = lex_helper(input);
 
         // Exact token sequence validation
         // lex() adds a trailing newline and applies full transformations
@@ -363,7 +370,7 @@ mod integration_tests {
     #[test]
     fn test_session_pattern() {
         let input = "1. Session Title\n    Content here";
-        let tokens = lex(input);
+        let tokens = lex_helper(input);
 
         // Exact token sequence validation
         // lex() transforms Indent -> Indent and adds trailing newline
@@ -390,7 +397,7 @@ mod integration_tests {
     #[test]
     fn test_lex_marker_pattern() {
         let input = "Some text :: marker";
-        let tokens = lex(input);
+        let tokens = lex_helper(input);
 
         // Exact token sequence validation
         // lex() adds a trailing newline
@@ -412,7 +419,7 @@ mod integration_tests {
     #[test]
     fn test_mixed_content_pattern() {
         let input = "1. Session\n    - Item 1\n    - Item 2\n\nParagraph after.";
-        let tokens = lex(input);
+        let tokens = lex_helper(input);
 
         // Exact token sequence validation
         // lex() transforms Indent -> Indent and consecutive Newlines -> BlankLine

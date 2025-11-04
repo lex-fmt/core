@@ -35,6 +35,7 @@
 //! want to emit the indent and dedent tokens. Having this happen two stages gives us more
 //! flexibility on how to handle these cases.
 
+pub mod base_tokenization;
 pub mod common;
 pub mod detokenizer;
 pub mod indentation;
@@ -42,9 +43,9 @@ pub mod linebased;
 pub mod tokens;
 pub mod transformations;
 
+pub use base_tokenization::tokenize;
 pub use common::{LexError, Lexer, LexerOutput, LexerRegistry};
 pub use detokenizer::detokenize;
-pub use indentation::tokenize;
 pub use tokens::Token;
 pub use transformations::{
     _lex, _lex_stage, process_whitespace_remainders, sem_indentation, transform_blank_lines,
@@ -59,7 +60,7 @@ pub use linebased::{LineContainer, LineToken, LineType};
 /// This is required for proper paragraph parsing at EOF.
 /// Returns the original string if it already ends with a newline, or empty string.
 /// Otherwise, appends a newline.
-pub(crate) fn ensure_source_ends_with_newline(source: &str) -> String {
+pub fn ensure_source_ends_with_newline(source: &str) -> String {
     if !source.is_empty() && !source.ends_with('\n') {
         format!("{}\n", source)
     } else {
@@ -67,19 +68,16 @@ pub(crate) fn ensure_source_ends_with_newline(source: &str) -> String {
     }
 }
 
-/// Main lexer function that returns fully processed tokens with locations
+/// Main indentation lexer pipeline that returns fully processed tokens with locations
 /// Returns tokens with their corresponding source locations
 /// Synthetic tokens (Indent, Dedent, BlankLine) have meaningful locations
 /// Processing pipeline:
-/// 1. tokenize() - raw tokens with source locations
+/// 1. Base tokenization (done by caller) - raw tokens with source locations
 /// 2. process_whitespace_remainders() - handle whitespace with locations
 /// 3. sem_indentation() - convert Indent tokens with location tracking
 /// 4. transform_blank_lines() - convert Newline sequences with location tracking
-pub fn lex(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
-    let source_with_newline = ensure_source_ends_with_newline(source);
-
-    let tokenss = tokenize(&source_with_newline);
-    let tokens_after_whitespace = process_whitespace_remainders(tokenss);
+pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
+    let tokens_after_whitespace = process_whitespace_remainders(tokens);
     let tokens_after_indentation = sem_indentation(tokens_after_whitespace);
     transform_blank_lines(tokens_after_indentation)
 }
