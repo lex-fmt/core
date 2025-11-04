@@ -5,13 +5,12 @@ Lexing
 	Base Tokenization:
 		Converting source text string into a sequence of tokens
 		:: file src/lex/lexers/base_tokenization.rs ::
-		:: file src/lex/lexers/tokens_core.rs ::
 
 1. Parsing Leverage: Higher Level Tokens
 
 	Lex is an unconventional language which, from a general perspective, makes it a parsing challenge: recursive, stateful (in parts) and indentation significant. While this is a fact, the format has been designed with specific constraints that, when leveraged, will simplify parsing enormously.
 
-	The linebased parser specifically requires tokens grouped into higher order structures: first into lines, then into levels (hierarchical nesting based on indentation). Other parsers may work directly with the flat token stream.
+	The linebased parser specifically requires tokens grouped into higher order structures: first into lines, then into levels (lines nested in hierarchical indentation). Other parsers may work directly with the flat token stream.
 
 2. Pipeline & Transformations
 
