@@ -18,7 +18,9 @@ use std::fmt;
 
 use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken};
 use crate::lex::lexers::tokens::Token;
-use crate::lex::pipeline::adapters::{token_stream_to_line_container, token_stream_to_line_tokens};
+use crate::lex::pipeline::adapters_linebased::{
+    token_stream_to_line_container, token_stream_to_line_tokens,
+};
 use crate::lex::pipeline::{
     BlankLinesMapper, IndentationToTreeMapper, NormalizeWhitespaceMapper,
     SemanticIndentationMapper, ToLineTokensMapper,
