@@ -33,7 +33,7 @@ pub enum LexerOutput {
     /// Standard token stream with source locations
     Tokens(Vec<(crate::lex::lexers::Token, std::ops::Range<usize>)>),
     /// Line-based hierarchical container token (from linebased lexer)
-    LineContainer(crate::lex::lexers::LineContainerToken),
+    LineContainer(crate::lex::lexers::LineContainer),
 }
 
 /// Trait for pluggable lexer implementations

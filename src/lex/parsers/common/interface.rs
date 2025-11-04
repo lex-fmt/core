@@ -35,7 +35,7 @@ pub enum ParserInput {
     /// Standard token stream with source locations (for reference parser)
     Tokens(Vec<(crate::lex::lexers::Token, std::ops::Range<usize>)>),
     /// Line-based hierarchical container token (for linebased parser)
-    LineContainer(crate::lex::lexers::LineContainerToken),
+    LineContainer(crate::lex::lexers::LineContainer),
 }
 
 /// Trait for pluggable parser implementations
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn test_reference_parser_does_not_support_container() {
         let parser = ReferenceParserImpl;
-        let container = crate::lex::lexers::LineContainerToken::Container { children: vec![] };
+        let container = crate::lex::lexers::LineContainer::Container { children: vec![] };
         let input = ParserInput::LineContainer(container);
 
         assert!(!parser.supports_input(&input));
@@ -286,7 +286,7 @@ mod tests {
     #[test]
     fn test_linebased_parser_supports_container() {
         let parser = LineBasedParserImpl;
-        let container = crate::lex::lexers::LineContainerToken::Container { children: vec![] };
+        let container = crate::lex::lexers::LineContainer::Container { children: vec![] };
         let input = ParserInput::LineContainer(container);
 
         assert!(parser.supports_input(&input));
@@ -306,7 +306,7 @@ mod tests {
         registry.register(std::sync::Arc::new(ReferenceParserImpl));
 
         // Try to parse with reference parser and an incompatible input (line container)
-        let container = crate::lex::lexers::LineContainerToken::Container { children: vec![] };
+        let container = crate::lex::lexers::LineContainer::Container { children: vec![] };
         let input = ParserInput::LineContainer(container);
         let result = registry.parse("reference", input, "test");
 

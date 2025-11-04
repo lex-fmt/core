@@ -17,7 +17,7 @@
 //! - PARAGRAPH_LINE: Any other line
 //! - INDENT_LEVEL / DEDENT_LEVEL: Structural tokens (pass through unchanged)
 
-use crate::lex::lexers::linebased::tokens::{LineToken, LineTokenType};
+use crate::lex::lexers::linebased::tokens::{LineToken, LineType};
 use crate::lex::lexers::tokens::Token;
 
 /// Transform flat token stream into line tokens.
@@ -81,7 +81,7 @@ pub fn _to_line_tokens(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Line
             line_tokens.push(LineToken {
                 source_tokens,
                 token_spans,
-                line_type: LineTokenType::IndentLevel,
+                line_type: LineType::IndentLevel,
             });
             continue;
         }
@@ -96,7 +96,7 @@ pub fn _to_line_tokens(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Line
             line_tokens.push(LineToken {
                 source_tokens: vec![token],
                 token_spans: vec![span],
-                line_type: LineTokenType::DedentLevel,
+                line_type: LineType::DedentLevel,
             });
             continue;
         }
@@ -119,7 +119,7 @@ pub fn _to_line_tokens(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Line
             line_tokens.push(LineToken {
                 source_tokens,
                 token_spans,
-                line_type: LineTokenType::BlankLine,
+                line_type: LineType::BlankLine,
             });
             continue;
         }
@@ -169,24 +169,24 @@ fn classify_and_create_line_token(token_tuples: Vec<(Token, std::ops::Range<usiz
 /// 5. List lines (starting with list marker)
 /// 6. Subject lines (ending with colon)
 /// 7. Default to paragraph
-fn classify_line_tokens(tokens: &[Token]) -> LineTokenType {
+fn classify_line_tokens(tokens: &[Token]) -> LineType {
     if tokens.is_empty() {
-        return LineTokenType::ParagraphLine;
+        return LineType::ParagraphLine;
     }
 
     // BLANK_LINE: Only whitespace and newline tokens
     if is_blank_line(tokens) {
-        return LineTokenType::BlankLine;
+        return LineType::BlankLine;
     }
 
     // ANNOTATION_END_LINE: Only :: marker (and optional whitespace/newline)
     if is_annotation_end_line(tokens) {
-        return LineTokenType::AnnotationEndLine;
+        return LineType::AnnotationEndLine;
     }
 
     // ANNOTATION_START_LINE: Follows annotation grammar with :: markers
     if is_annotation_start_line(tokens) {
-        return LineTokenType::AnnotationStartLine;
+        return LineType::AnnotationStartLine;
     }
 
     // Check if line both starts with list marker AND ends with colon
@@ -194,21 +194,21 @@ fn classify_line_tokens(tokens: &[Token]) -> LineTokenType {
     let has_colon = ends_with_colon(tokens);
 
     if has_list_marker && has_colon {
-        return LineTokenType::SubjectOrListItemLine;
+        return LineType::SubjectOrListItemLine;
     }
 
     // LIST_LINE: Starts with list marker
     if has_list_marker {
-        return LineTokenType::ListLine;
+        return LineType::ListLine;
     }
 
     // SUBJECT_LINE: Ends with colon
     if has_colon {
-        return LineTokenType::SubjectLine;
+        return LineType::SubjectLine;
     }
 
     // Default: PARAGRAPH_LINE
-    LineTokenType::ParagraphLine
+    LineType::ParagraphLine
 }
 
 /// Check if line is blank (only whitespace and newline)
@@ -358,7 +358,7 @@ mod tests {
     fn test_blank_line_classification() {
         let tokens = vec![Token::Whitespace, Token::Newline];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::BlankLine);
+        assert_eq!(line, LineType::BlankLine);
     }
 
     #[test]
@@ -372,14 +372,14 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::AnnotationStartLine);
+        assert_eq!(line, LineType::AnnotationStartLine);
     }
 
     #[test]
     fn test_annotation_end_line_classification() {
         let tokens = vec![Token::LexMarker, Token::Newline];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::AnnotationEndLine);
+        assert_eq!(line, LineType::AnnotationEndLine);
     }
 
     #[test]
@@ -391,7 +391,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::AnnotationEndLine);
+        assert_eq!(line, LineType::AnnotationEndLine);
     }
 
     #[test]
@@ -402,7 +402,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::SubjectLine);
+        assert_eq!(line, LineType::SubjectLine);
     }
 
     #[test]
@@ -418,7 +418,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::SubjectLine);
+        assert_eq!(line, LineType::SubjectLine);
     }
 
     #[test]
@@ -430,7 +430,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::ListLine);
+        assert_eq!(line, LineType::ListLine);
     }
 
     #[test]
@@ -443,7 +443,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::ListLine);
+        assert_eq!(line, LineType::ListLine);
     }
 
     #[test]
@@ -456,7 +456,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::ListLine);
+        assert_eq!(line, LineType::ListLine);
     }
 
     #[test]
@@ -469,7 +469,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::ListLine);
+        assert_eq!(line, LineType::ListLine);
     }
 
     #[test]
@@ -482,7 +482,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::ListLine);
+        assert_eq!(line, LineType::ListLine);
     }
 
     #[test]
@@ -495,7 +495,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::ListLine);
+        assert_eq!(line, LineType::ListLine);
     }
 
     #[test]
@@ -508,7 +508,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::ListLine);
+        assert_eq!(line, LineType::ListLine);
     }
 
     #[test]
@@ -521,7 +521,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::ListLine);
+        assert_eq!(line, LineType::ListLine);
     }
 
     #[test]
@@ -535,7 +535,7 @@ mod tests {
             Token::Newline,
         ];
         let line = classify_line_tokens(&tokens);
-        assert_eq!(line, LineTokenType::ParagraphLine);
+        assert_eq!(line, LineType::ParagraphLine);
     }
 
     // Test helper: Convert Vec<Token> to Vec<(Token, Range)> with dummy spans
@@ -565,7 +565,7 @@ mod tests {
         assert_eq!(line_tokens.len(), 3);
 
         // First line: subject line with source tokens preserved
-        assert_eq!(line_tokens[0].line_type, LineTokenType::SubjectLine);
+        assert_eq!(line_tokens[0].line_type, LineType::SubjectLine);
         assert_eq!(
             line_tokens[0].source_tokens,
             vec![
@@ -576,12 +576,12 @@ mod tests {
         );
 
         // Second: IndentLevel extracts its source token (Token::Indent)
-        assert_eq!(line_tokens[1].line_type, LineTokenType::IndentLevel);
+        assert_eq!(line_tokens[1].line_type, LineType::IndentLevel);
         assert_eq!(line_tokens[1].source_tokens, vec![Token::Indent]);
         assert_eq!(line_tokens[1].token_spans, vec![7..11]);
 
         // Third: paragraph line
-        assert_eq!(line_tokens[2].line_type, LineTokenType::ParagraphLine);
+        assert_eq!(line_tokens[2].line_type, LineType::ParagraphLine);
         assert_eq!(
             line_tokens[2].source_tokens,
             vec![Token::Text("Content".to_string()), Token::Newline,]
@@ -605,9 +605,9 @@ mod tests {
 
         // Should produce: paragraph, blank line, list line
         assert_eq!(line_tokens.len(), 3);
-        assert_eq!(line_tokens[0].line_type, LineTokenType::ParagraphLine);
-        assert_eq!(line_tokens[1].line_type, LineTokenType::BlankLine);
-        assert_eq!(line_tokens[2].line_type, LineTokenType::ListLine);
+        assert_eq!(line_tokens[0].line_type, LineType::ParagraphLine);
+        assert_eq!(line_tokens[1].line_type, LineType::BlankLine);
+        assert_eq!(line_tokens[2].line_type, LineType::ListLine);
     }
 
     #[test]
@@ -629,7 +629,7 @@ mod tests {
 
         let line = classify_line_tokens(&tokens);
         // Should be classified as SubjectOrListItemLine
-        assert_eq!(line, LineTokenType::SubjectOrListItemLine);
+        assert_eq!(line, LineType::SubjectOrListItemLine);
     }
 
     #[test]
@@ -642,7 +642,7 @@ mod tests {
         ];
         let line = classify_line_tokens(&tokens);
         // Colon is not at end, so not a subject line
-        assert_eq!(line, LineTokenType::ParagraphLine);
+        assert_eq!(line, LineType::ParagraphLine);
     }
 
     #[test]
@@ -663,6 +663,6 @@ mod tests {
 
         let line = classify_line_tokens(&tokens);
         // ANNOTATION_START_LINE takes precedence (checked before SUBJECT_LINE)
-        assert_eq!(line, LineTokenType::AnnotationStartLine);
+        assert_eq!(line, LineType::AnnotationStartLine);
     }
 }

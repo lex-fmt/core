@@ -287,7 +287,7 @@ pub fn build_foreign_block_from_line_token(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::linebased::tokens::LineTokenType;
+    use crate::lex::lexers::linebased::tokens::LineType;
     use crate::lex::lexers::tokens::Token;
 
     #[test]
@@ -298,13 +298,13 @@ mod tests {
             LineToken {
                 source_tokens: vec![Token::Text("Hello".to_string())],
                 token_spans: vec![ByteRange { start: 0, end: 5 }],
-                line_type: LineTokenType::ParagraphLine,
+                line_type: LineType::ParagraphLine,
                 // source_span removed - AST construction will compute from token_spans
             },
             LineToken {
                 source_tokens: vec![Token::Text("World".to_string())],
                 token_spans: vec![ByteRange { start: 6, end: 11 }],
-                line_type: LineTokenType::ParagraphLine,
+                line_type: LineType::ParagraphLine,
                 // source_span removed - AST construction will compute from token_spans
             },
         ];
@@ -332,7 +332,7 @@ mod tests {
                 ByteRange { start: 0, end: 5 },
                 ByteRange { start: 5, end: 6 },
             ],
-            line_type: LineTokenType::SubjectLine,
+            line_type: LineType::SubjectLine,
             // source_span removed - AST construction will compute from token_spans
         };
 
@@ -358,7 +358,7 @@ mod tests {
                 ByteRange { start: 0, end: 7 },
                 ByteRange { start: 7, end: 8 },
             ],
-            line_type: LineTokenType::SubjectLine,
+            line_type: LineType::SubjectLine,
             // source_span removed - AST construction will compute from token_spans
         };
 
