@@ -100,7 +100,7 @@ impl IndentationToTreeMapper {
                     // Flush pending nodes before entering nested level
                     if !pending_nodes.is_empty() {
                         let current_level = stack.last_mut().expect("Stack never empty");
-                        current_level.extend(pending_nodes.drain(..));
+                        current_level.append(&mut pending_nodes);
                     }
                     // Start a new nesting level
                     stack.push(Vec::new());
@@ -109,7 +109,7 @@ impl IndentationToTreeMapper {
                     // Flush pending nodes before closing level
                     if !pending_nodes.is_empty() {
                         let current_level = stack.last_mut().expect("Stack never empty");
-                        current_level.extend(pending_nodes.drain(..));
+                        current_level.append(&mut pending_nodes);
                     }
                     // Close current level and attach as children to last node in parent
                     if let Some(children_nodes) = stack.pop() {
@@ -141,7 +141,7 @@ impl IndentationToTreeMapper {
         // Flush any remaining pending nodes at root level
         if !pending_nodes.is_empty() {
             let root_level = stack.last_mut().expect("Stack never empty");
-            root_level.extend(pending_nodes.drain(..));
+            root_level.append(&mut pending_nodes);
         }
 
         // Return the root level nodes
