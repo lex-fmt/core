@@ -21,5 +21,6 @@ pub use builder::Pipeline;
 
 // Re-export concrete mapper implementations
 pub use mappers::{
-    BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper, ToLineTokensMapper,
+    BlankLinesMapper, IndentationToTreeMapper, NormalizeWhitespaceMapper,
+    SemanticIndentationMapper, ToLineTokensMapper,
 };
