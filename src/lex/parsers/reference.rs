@@ -7,7 +7,6 @@
 //!
 //! - `builders.rs`: Consolidated AST node building functions and location utilities
 //! - `parser.rs`: Main parser orchestration
-//! - `combinators.rs`: Parser combinators and primitives (legacy, to be deprecated)
 //! - `api.rs`: Public API entry points
 //! - Element parsers (annotations, definitions, document, etc.): Build element-specific parsers
 //!   and construct AST nodes for each lex element type
@@ -15,7 +14,6 @@
 pub mod annotations;
 pub mod api;
 pub mod builders;
-pub mod combinators;
 pub mod definitions;
 pub mod document;
 pub mod foreign;

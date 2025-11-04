@@ -1,10 +1,10 @@
-//! Legacy pipeline orchestration for lexer/parser combinations
+//! High-level pipeline orchestration for lexer/parser combinations
 //!
-//! This module provides the old `LexPipeline` infrastructure that manages multiple
-//! lexer/parser combinations through registries. This is legacy code maintained
-//! for backwards compatibility while experimental pipelines are being evaluated.
+//! This module provides the `LexPipeline` API that manages lexer and parser selection
+//! through registries. This is the **high-level user-facing API** for parsing lex documents.
 //!
-//! For the new TokenStream-based pipeline, see the `pipeline` module.
+//! For low-level TokenStream transformations, see the `builder` module which provides
+//! the `Pipeline` API for chaining StreamMapper transformations.
 //!
 //! # Examples
 //!

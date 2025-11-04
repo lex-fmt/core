@@ -3,9 +3,9 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-use super::combinators::compute_location_from_locations;
 use crate::lex::ast::{AstNode, Document};
 use crate::lex::lexers::Token;
+use crate::lex::parsers::common::location::compute_location_from_locations;
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);

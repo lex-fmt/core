@@ -112,7 +112,7 @@ pub fn unwrap_tokens_to_paragraph(
 /// - Label and parameters between :: markers
 /// - Optional trailing text after closing :: as a child paragraph
 pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem, String> {
-    use crate::lex::lexers::tokens::Token;
+    use crate::lex::lexers::tokens_core::Token;
 
     // Extract location from the token
     let location = extract_location_from_token(token, source);

@@ -7,7 +7,7 @@
 
 use std::fmt;
 
-use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::tokens_core::Token;
 
 /// A line token represents one logical line created from grouped raw tokens.
 ///

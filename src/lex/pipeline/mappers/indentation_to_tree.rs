@@ -20,7 +20,7 @@
 //! This is a pure adaptation of the existing indentation_to_token_tree transformation
 //! to the TokenStream architecture.
 
-use crate::lex::lexers::linebased::tokens::LineType;
+use crate::lex::lexers::linebased::tokens_linebased::LineType;
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::{TokenStream, TokenStreamNode};
 
@@ -46,7 +46,10 @@ impl Default for IndentationToTreeMapper {
 impl StreamMapper for IndentationToTreeMapper {
     fn map_flat(
         &mut self,
-        _tokens: Vec<(crate::lex::lexers::tokens::Token, std::ops::Range<usize>)>,
+        _tokens: Vec<(
+            crate::lex::lexers::tokens_core::Token,
+            std::ops::Range<usize>,
+        )>,
     ) -> Result<TokenStream, TransformationError> {
         Err(TransformationError::Error(
             "IndentationToTreeMapper requires Tree input, not Flat".to_string(),
@@ -153,7 +156,7 @@ impl IndentationToTreeMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::tokens::Token;
+    use crate::lex::lexers::tokens_core::Token;
 
     fn make_node(
         line_type: LineType,

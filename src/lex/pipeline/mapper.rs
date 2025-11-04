@@ -27,7 +27,7 @@
 //! let result = walk_stream(stream, &mut mapper)?;
 //! ```
 
-use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::tokens_core::Token;
 use crate::lex::pipeline::stream::{TokenStream, TokenStreamNode};
 use std::fmt;
 use std::ops::Range as ByteRange;

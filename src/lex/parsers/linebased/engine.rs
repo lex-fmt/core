@@ -13,7 +13,7 @@
 
 use super::declarative_grammar;
 use crate::lex::ast::Range;
-use crate::lex::lexers::linebased::tokens::LineContainer;
+use crate::lex::lexers::linebased::tokens_linebased::LineContainer;
 use crate::lex::parsers::{ContentItem, Document, Position};
 
 /// Parse using the new declarative grammar engine (Delivery 2).

@@ -1,7 +1,7 @@
 //! Detokenizer for the lex format
 //!
 //! This module provides functionality to convert a stream of tokens back into a string.
-use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::tokens_core::Token;
 
 #[cfg(test)]
 use insta;
