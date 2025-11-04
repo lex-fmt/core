@@ -1,11 +1,12 @@
 //! Lexer transformations for processing token streams
 //!
-//! This module contains the transformation pipeline that processes raw tokens from the lexer
-//! into semantically meaningful tokens for the parser.
+//! This module contains legacy transformation implementations that are being migrated
+//! to the new TokenStream architecture. The transformations process raw tokens from
+//! the lexer into semantically meaningful tokens for the parser.
 //!
 //! The transformations are applied in order:
 //! 1. tokenize() - creates raw tokens with location information
-//! 2. process_whitespace_remainders() - handles lex whitespace specification
+//! 2. normalize_whitespace - handles lex whitespace specification (MIGRATED to pipeline/mappers)
 //! 3. sem_indentation() - converts Indent tokens to Indent/Dedent tokens
 //! 4. transform_blank_lines() - converts consecutive Newline tokens to BlankLine tokens
 //!
@@ -17,7 +18,6 @@
 
 pub mod blanklines;
 pub mod interface;
-pub mod normalize_whitespace;
 pub mod sem_indentation;
 
 // Re-export the Transformation trait
@@ -25,7 +25,6 @@ pub use interface::Transformation;
 
 // Re-export transformation implementations
 pub use blanklines::TransformBlankLines;
-pub use normalize_whitespace::NormalizeWhitespace;
 pub use sem_indentation::SemanticIndentation;
 
 // Re-export the linebased pipeline from the linebased module
@@ -35,5 +34,4 @@ pub use crate::lex::lexers::linebased::{
 
 // Re-export transformation functions (kept for backward compatibility)
 pub use blanklines::transform_blank_lines;
-pub use normalize_whitespace::process_whitespace_remainders;
 pub use sem_indentation::sem_indentation;
