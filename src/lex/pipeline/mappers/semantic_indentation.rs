@@ -1,0 +1,564 @@
+//! Semantic indentation mapper for TokenStream pipeline
+//!
+//! This mapper transforms raw Indentation tokens into semantic Indent and Dedent
+//! token pairs based on indentation level changes between lines.
+//!
+//! # Algorithm
+//!
+//! 1. Track the current indentation level (number of Indentation tokens)
+//! 2. For each line, count the Indentation tokens at the beginning
+//! 3. Compare with the previous line's indentation level:
+//!    - If greater: emit Indent tokens for each additional level
+//!    - If less: emit Dedent tokens for each reduced level
+//!    - If equal: no indentation tokens needed
+//! 4. Replace Indentation tokens with the appropriate semantic tokens
+//! 5. Always add final Dedent tokens to close the document structure
+//!
+//! This is a pure adaptation of the existing sem_indentation transformation
+//! to the TokenStream architecture.
+
+use crate::lex::lexers::tokens::Token;
+use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
+use crate::lex::pipeline::stream::TokenStream;
+use std::ops::Range as ByteRange;
+
+/// A mapper that converts raw Indentation tokens to semantic Indent/Dedent pairs.
+///
+/// This transformation only operates on flat token streams and preserves all
+/// token ranges exactly as they appear in the source.
+pub struct SemanticIndentationMapper;
+
+impl SemanticIndentationMapper {
+    /// Create a new SemanticIndentationMapper.
+    pub fn new() -> Self {
+        SemanticIndentationMapper
+    }
+}
+
+impl Default for SemanticIndentationMapper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Find the start of the current line, going backwards from the given position
+fn find_line_start(tokens: &[Token], mut pos: usize) -> usize {
+    // Go backwards to find the previous newline or start of document
+    while pos > 0 {
+        pos -= 1;
+        if matches!(tokens[pos], Token::Newline) {
+            return pos + 1;
+        }
+    }
+    0
+}
+
+/// Check if a line is blank (only contains indentation and newline)
+fn is_line_blank(tokens: &[Token], line_start: usize) -> bool {
+    let mut i = line_start;
+
+    // Skip any indentation tokens at the beginning
+    while i < tokens.len() && matches!(tokens[i], Token::Indentation) {
+        i += 1;
+    }
+
+    // Check if the next token is a newline (or end of file)
+    i >= tokens.len() || matches!(tokens[i], Token::Newline)
+}
+
+/// Count consecutive Indentation tokens at the beginning of a line
+fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
+    let mut count = 0;
+    let mut i = start;
+
+    while i < tokens.len() && matches!(tokens[i], Token::Indentation) {
+        count += 1;
+        i += 1;
+    }
+
+    count
+}
+
+impl StreamMapper for SemanticIndentationMapper {
+    fn map_flat(
+        &mut self,
+        tokens: Vec<(Token, ByteRange<usize>)>,
+    ) -> Result<TokenStream, TransformationError> {
+        // Extract just the tokens for processing
+        let token_kinds: Vec<Token> = tokens.iter().map(|(t, _)| t.clone()).collect();
+
+        let mut result = Vec::new();
+        let mut current_level = 0;
+        let mut i = 0;
+
+        while i < tokens.len() {
+            // Find the start of the current line
+            let line_start = find_line_start(&token_kinds, i);
+
+            // Count Indentation tokens at the beginning of this line
+            let line_indent_level = count_line_indent_steps(&token_kinds, line_start);
+
+            // Check if this line is blank (only contains indentation and newline)
+            let is_blank_line = is_line_blank(&token_kinds, line_start);
+
+            // Skip blank lines - they don't affect indentation level
+            if is_blank_line {
+                let mut j = line_start;
+                while j < token_kinds.len() && !matches!(token_kinds[j], Token::Newline) {
+                    j += 1;
+                }
+                if j < token_kinds.len() && matches!(token_kinds[j], Token::Newline) {
+                    // Preserve the newline location
+                    result.push((Token::Newline, tokens[j].1.clone()));
+                    j += 1;
+                }
+                i = j;
+                continue;
+            }
+
+            // Calculate the target indentation level for this line
+            let target_level = line_indent_level;
+
+            // Generate appropriate Indent/Dedent tokens storing source tokens
+            match target_level.cmp(&current_level) {
+                std::cmp::Ordering::Greater => {
+                    // Indent tokens: each stores the original Indentation token it replaces
+                    let indent_start_idx = line_start;
+                    for level_idx in 0..(target_level - current_level) {
+                        let indent_token_idx = indent_start_idx + current_level + level_idx;
+                        let source_tokens = if indent_token_idx < token_kinds.len()
+                            && matches!(token_kinds[indent_token_idx], Token::Indentation)
+                        {
+                            // Store the original (Token::Indentation, Range<usize>) pair
+                            vec![tokens[indent_token_idx].clone()]
+                        } else {
+                            // No corresponding Indentation token (shouldn't happen in well-formed input)
+                            vec![]
+                        };
+                        // Placeholder span 0..0 - will never be used, AST construction unrolls source_tokens
+                        result.push((Token::Indent(source_tokens), 0..0));
+                    }
+                }
+                std::cmp::Ordering::Less => {
+                    // Dedent tokens: purely structural, don't replace any tokens
+                    // Store empty source_tokens since dedents are synthetic markers
+                    for _ in 0..(current_level - target_level) {
+                        // Placeholder span 0..0 - will never be used
+                        result.push((Token::Dedent(vec![]), 0..0));
+                    }
+                }
+                std::cmp::Ordering::Equal => {
+                    // No indentation change needed
+                }
+            }
+
+            // Update current level
+            current_level = target_level;
+
+            // Skip the initial Indentation tokens that were processed as indentation
+            let mut j = line_start;
+            for _ in 0..line_indent_level {
+                if j < token_kinds.len() && matches!(token_kinds[j], Token::Indentation) {
+                    j += 1;
+                }
+            }
+
+            // Process the rest of the line, keeping all remaining tokens with locations
+            while j < token_kinds.len() && !matches!(token_kinds[j], Token::Newline) {
+                result.push((token_kinds[j].clone(), tokens[j].1.clone()));
+                j += 1;
+            }
+
+            // Add the newline token if we haven't reached the end
+            if j < token_kinds.len() && matches!(token_kinds[j], Token::Newline) {
+                result.push((Token::Newline, tokens[j].1.clone()));
+                j += 1;
+            }
+
+            i = j;
+        }
+
+        // Add dedents to close all remaining indentation levels
+        // These occur at the end of file - they don't replace any tokens
+        for _ in 0..current_level {
+            result.push((Token::Dedent(vec![]), 0..0));
+        }
+
+        Ok(TokenStream::Flat(result))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lex::lexers::tokens::Token;
+    use crate::lex::testing::factories::{mk_token, Tokens};
+
+    fn with_loc(tokens: Vec<Token>) -> Tokens {
+        tokens
+            .into_iter()
+            .enumerate()
+            .map(|(idx, token)| mk_token(token, idx, idx + 1))
+            .collect()
+    }
+
+    fn strip_loc(pairs: Tokens) -> Vec<Token> {
+        pairs
+            .into_iter()
+            .map(|(t, _)| {
+                // Normalize source_tokens to empty for test comparison
+                match t {
+                    Token::Indent(_) => Token::Indent(vec![]),
+                    Token::Dedent(_) => Token::Dedent(vec![]),
+                    Token::BlankLine(_) => Token::BlankLine(vec![]),
+                    other => other,
+                }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_simple_indentation() {
+        let input = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Indentation,
+            Token::Dash,
+            Token::Newline,
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input)).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(
+                    stripped,
+                    vec![
+                        Token::Text("a".to_string()),
+                        Token::Newline,
+                        Token::Indent(vec![]),
+                        Token::Dash,
+                        Token::Newline,
+                        Token::Dedent(vec![]),
+                    ]
+                );
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_multiple_indent_levels() {
+        let input = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Indentation,
+            Token::Indentation,
+            Token::Dash,
+            Token::Newline,
+            Token::Indentation,
+            Token::Text("b".to_string()),
+            Token::Newline,
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input)).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(
+                    stripped,
+                    vec![
+                        Token::Text("a".to_string()),
+                        Token::Newline,
+                        Token::Indent(vec![]),
+                        Token::Indent(vec![]),
+                        Token::Dash,
+                        Token::Newline,
+                        Token::Dedent(vec![]),
+                        Token::Text("b".to_string()),
+                        Token::Newline,
+                        Token::Dedent(vec![]),
+                    ]
+                );
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_no_indentation() {
+        let input = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Text("b".to_string()),
+            Token::Newline,
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input.clone())).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(stripped, input);
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_empty_input() {
+        let input = vec![];
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input)).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(stripped, vec![]);
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_single_line() {
+        let input = vec![Token::Text("a".to_string())];
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input)).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(stripped, vec![Token::Text("a".to_string())]);
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_blank_lines() {
+        let input = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Indentation,
+            Token::Dash,
+            Token::Newline,
+            Token::Newline, // blank line
+            Token::Dash,
+            Token::Newline,
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input)).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(
+                    stripped,
+                    vec![
+                        Token::Text("a".to_string()),
+                        Token::Newline,
+                        Token::Indent(vec![]),
+                        Token::Dash,
+                        Token::Newline,
+                        Token::Newline,
+                        Token::Dedent(vec![]),
+                        Token::Dash,
+                        Token::Newline,
+                    ]
+                );
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_blank_lines_with_indentation() {
+        let input = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Indentation,
+            Token::Dash,
+            Token::Newline,
+            Token::Indentation,
+            Token::Newline, // blank line with indentation
+            Token::Dash,
+            Token::Newline,
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input)).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(
+                    stripped,
+                    vec![
+                        Token::Text("a".to_string()),
+                        Token::Newline,
+                        Token::Indent(vec![]),
+                        Token::Dash,
+                        Token::Newline,
+                        Token::Newline,
+                        Token::Dedent(vec![]),
+                        Token::Dash,
+                        Token::Newline,
+                    ]
+                );
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_file_ending_while_indented() {
+        let input = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Indentation,
+            Token::Dash,
+            Token::Newline,
+            Token::Indentation,
+            Token::Indentation,
+            Token::Text("b".to_string()),
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input)).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(
+                    stripped,
+                    vec![
+                        Token::Text("a".to_string()),
+                        Token::Newline,
+                        Token::Indent(vec![]),
+                        Token::Dash,
+                        Token::Newline,
+                        Token::Indent(vec![]),
+                        Token::Text("b".to_string()),
+                        Token::Dedent(vec![]),
+                        Token::Dedent(vec![]),
+                    ]
+                );
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_sharp_drop_in_indentation() {
+        let input = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Indentation,
+            Token::Indentation,
+            Token::Indentation,
+            Token::Dash,
+            Token::Newline,
+            Token::Text("b".to_string()),
+            Token::Newline,
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input)).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(
+                    stripped,
+                    vec![
+                        Token::Text("a".to_string()),
+                        Token::Newline,
+                        Token::Indent(vec![]),
+                        Token::Indent(vec![]),
+                        Token::Indent(vec![]),
+                        Token::Dash,
+                        Token::Newline,
+                        Token::Dedent(vec![]),
+                        Token::Dedent(vec![]),
+                        Token::Dedent(vec![]),
+                        Token::Text("b".to_string()),
+                        Token::Newline,
+                    ]
+                );
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+
+    #[test]
+    fn test_count_line_indent_steps() {
+        let tokens = vec![
+            Token::Indentation,
+            Token::Indentation,
+            Token::Dash,
+            Token::Text("a".to_string()),
+        ];
+
+        assert_eq!(count_line_indent_steps(&tokens, 0), 2);
+        assert_eq!(count_line_indent_steps(&tokens, 2), 0);
+    }
+
+    #[test]
+    fn test_find_line_start() {
+        let tokens = vec![
+            Token::Text("a".to_string()),
+            Token::Newline,
+            Token::Indentation,
+            Token::Dash,
+        ];
+
+        assert_eq!(find_line_start(&tokens, 0), 0);
+        assert_eq!(find_line_start(&tokens, 2), 2);
+        assert_eq!(find_line_start(&tokens, 3), 2);
+    }
+
+    // Additional comprehensive tests for edge cases
+    #[test]
+    fn test_blank_line_with_spaces_does_not_dedent() {
+        let input = vec![
+            Token::Indentation,
+            Token::Indentation,
+            Token::Text("Foo".to_string()),
+            Token::Newline,
+            Token::Indentation,
+            Token::Indentation,
+            Token::Text("Foo2".to_string()),
+            Token::Newline,
+            Token::Indentation,
+            Token::Newline,
+            Token::Indentation,
+            Token::Indentation,
+            Token::Text("Bar".to_string()),
+            Token::Newline,
+        ];
+
+        let mut mapper = SemanticIndentationMapper::new();
+        let result = mapper.map_flat(with_loc(input)).unwrap();
+        match result {
+            TokenStream::Flat(tokens) => {
+                let stripped = strip_loc(tokens);
+                assert_eq!(
+                    stripped,
+                    vec![
+                        Token::Indent(vec![]),
+                        Token::Indent(vec![]),
+                        Token::Text("Foo".to_string()),
+                        Token::Newline,
+                        Token::Text("Foo2".to_string()),
+                        Token::Newline,
+                        Token::Newline, // blank line preserved
+                        Token::Text("Bar".to_string()),
+                        Token::Newline,
+                        Token::Dedent(vec![]),
+                        Token::Dedent(vec![]),
+                    ],
+                    "Blank lines with only spaces should NOT produce dedent/indent tokens"
+                );
+            }
+            _ => panic!("Expected Flat stream"),
+        }
+    }
+}

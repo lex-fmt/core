@@ -20,4 +20,4 @@ pub use orchestration::{LexPipeline, PipelineError};
 pub use transformation_pipeline::Pipeline;
 
 // Re-export concrete mapper implementations
-pub use mappers::NormalizeWhitespaceMapper;
+pub use mappers::{BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper};
