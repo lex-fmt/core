@@ -7,6 +7,30 @@
 //! indentation levels are properly established before we identify blank lines.
 
 use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::transformations::Transformation;
+
+/// Blank line transformation
+///
+/// Converts sequences of consecutive Newline tokens (2 or more) into BlankLine tokens.
+/// This helps parsers identify paragraph boundaries and other blank-line-delimited structures.
+pub struct TransformBlankLines;
+
+impl Transformation for TransformBlankLines {
+    fn name(&self) -> &str {
+        "transform_blank_lines"
+    }
+
+    fn description(&self) -> &str {
+        "Convert consecutive Newline tokens (2+) into BlankLine tokens to mark paragraph boundaries"
+    }
+
+    fn transform(
+        &self,
+        tokens: Vec<(Token, std::ops::Range<usize>)>,
+    ) -> Vec<(Token, std::ops::Range<usize>)> {
+        transform_blank_lines(tokens)
+    }
+}
 
 /// Transform consecutive Newline tokens into BlankLine tokens
 ///

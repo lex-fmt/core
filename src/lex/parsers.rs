@@ -42,6 +42,8 @@ type ParseResult = Result<
 /// Main parser function that takes source text and returns a parsed document
 /// This is the primary entry point for parsing lex documents
 pub fn parse_document(source: &str) -> ParseResult {
-    let tokens = crate::lex::lexers::lex(source);
+    let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(source);
+    let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+    let tokens = crate::lex::lexers::lex(token_stream);
     parse(tokens, source)
 }

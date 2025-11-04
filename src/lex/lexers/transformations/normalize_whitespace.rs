@@ -7,6 +7,30 @@
 //! level tokens will be generated, and the remaining whitespaces will be considered part of the text."
 
 use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::transformations::Transformation;
+
+/// Whitespace normalization transformation
+///
+/// Removes remainder whitespace tokens that appear after indentation and before text content,
+/// according to the lex specification.
+pub struct NormalizeWhitespace;
+
+impl Transformation for NormalizeWhitespace {
+    fn name(&self) -> &str {
+        "normalize_whitespace"
+    }
+
+    fn description(&self) -> &str {
+        "Process whitespace remainders according to lex spec (removes remainder spaces after indentation)"
+    }
+
+    fn transform(
+        &self,
+        tokens: Vec<(Token, std::ops::Range<usize>)>,
+    ) -> Vec<(Token, std::ops::Range<usize>)> {
+        process_whitespace_remainders(tokens)
+    }
+}
 
 /// Process whitespace remainders while preserving source locations
 pub fn process_whitespace_remainders(

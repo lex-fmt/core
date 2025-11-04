@@ -257,8 +257,11 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     // Handle linebased pipeline formats first
     match &spec.format {
         OutputFormat::TokenLine => {
+            let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(&content);
+            let token_stream =
+                crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
             let line_tokens = crate::lex::lexers::_lex_stage(
-                &content,
+                token_stream,
                 crate::lex::lexers::PipelineStage::LineTokens,
             );
             if let crate::lex::lexers::PipelineOutput::LineTokens(tokens) = line_tokens {
@@ -271,7 +274,10 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
             ))
         }
         OutputFormat::TokenTree => {
-            let tree = crate::lex::lexers::_lex(&content)
+            let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(&content);
+            let token_stream =
+                crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+            let tree = crate::lex::lexers::_lex(token_stream)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
             let json = serde_json::to_string_pretty(&tree)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
@@ -281,7 +287,11 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
             // Non linebased format, continue with standard processing
             match spec.stage {
                 ProcessingStage::Token => {
-                    let tokens = lex(&content);
+                    let source_with_newline =
+                        crate::lex::lexers::ensure_source_ends_with_newline(&content);
+                    let token_stream =
+                        crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+                    let tokens = lex(token_stream);
                     format_tokenss(&tokens, &spec.format)
                 }
                 ProcessingStage::Ast => {
@@ -509,7 +519,11 @@ pub mod lex_sources {
                         ProcessingError::IoError(format!("Failed to read {}: {}", path, e))
                     })?;
 
-                    let tokens = lex(&content);
+                    let source_with_newline =
+                        crate::lex::lexers::ensure_source_ends_with_newline(&content);
+                    let token_stream =
+                        crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+                    let tokens = lex(token_stream);
                     let json = serde_json::to_string_pretty(&tokens).map_err(|e| {
                         ProcessingError::IoError(format!("Failed to serialize tokens: {}", e))
                     })?;
@@ -590,7 +604,9 @@ pub mod lex_sources {
         let content = r#"First paragraph
 Second paragraph"#;
 
-        let tokens = crate::lex::lexers::lex(content);
+        let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(content);
+        let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+        let tokens = crate::lex::lexers::lex(token_stream);
         let doc = crate::lex::parsers::parse(tokens, content).unwrap();
 
         // Check if locations are populated
