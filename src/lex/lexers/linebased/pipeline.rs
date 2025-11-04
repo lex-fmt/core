@@ -20,8 +20,10 @@ use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken};
 use crate::lex::lexers::linebased::transformations::{_indentation_to_token_tree, _to_line_tokens};
 use crate::lex::lexers::tokens::Token;
 use crate::lex::lexers::transformations::{
-    NormalizeWhitespace, SemanticIndentation, TransformBlankLines, Transformation,
+    SemanticIndentation, TransformBlankLines, Transformation,
 };
+use crate::lex::pipeline::adapters::token_stream_to_flat;
+use crate::lex::pipeline::NormalizeWhitespaceMapper;
 
 /// Error type for linebased pipeline operations
 #[derive(Debug, Clone, PartialEq)]
@@ -109,30 +111,39 @@ pub fn _lex_stage(
         return PipelineOutput::Tokens(tokens);
     }
 
-    // Stages 2-4: Apply common transformations using trait objects and fold
-    // Define the transformations in the same style as the indentation pipeline
-    let transformations: Vec<Box<dyn Transformation>> = vec![
-        Box::new(NormalizeWhitespace),
-        Box::new(SemanticIndentation),
-        Box::new(TransformBlankLines),
-    ];
-
-    // Apply each transformation sequentially, checking for early return at each stage
-    // Stage 2: After whitespace
+    // Stage 2: After whitespace - using new TokenStream mapper
     let mut current_tokens = tokens;
-    current_tokens = transformations[0].transform(current_tokens);
+
+    // Apply NormalizeWhitespace using new StreamMapper directly
+    use crate::lex::pipeline::stream::TokenStream;
+    let mut normalize_mapper = NormalizeWhitespaceMapper::new();
+    let token_stream = TokenStream::Flat(current_tokens);
+
+    // Walk the stream through the mapper
+    let transformed_stream =
+        crate::lex::pipeline::mapper::walk_stream(token_stream, &mut normalize_mapper)
+            .expect("NormalizeWhitespace transformation failed");
+
+    // Convert back to flat tokens
+    current_tokens = token_stream_to_flat(transformed_stream)
+        .expect("Expected Flat stream from NormalizeWhitespace");
+
     if stage == PipelineStage::AfterWhitespace {
         return PipelineOutput::Tokens(current_tokens);
     }
 
+    // Stages 3-4: Apply remaining transformations using trait objects
+    let remaining_transformations: Vec<Box<dyn Transformation>> =
+        vec![Box::new(SemanticIndentation), Box::new(TransformBlankLines)];
+
     // Stage 3: After indentation
-    current_tokens = transformations[1].transform(current_tokens);
+    current_tokens = remaining_transformations[0].transform(current_tokens);
     if stage == PipelineStage::AfterIndentation {
         return PipelineOutput::Tokens(current_tokens);
     }
 
     // Stage 4: After blank lines
-    current_tokens = transformations[2].transform(current_tokens);
+    current_tokens = remaining_transformations[1].transform(current_tokens);
     if stage == PipelineStage::AfterBlankLines {
         return PipelineOutput::Tokens(current_tokens.clone());
     }

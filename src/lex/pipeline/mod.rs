@@ -8,6 +8,7 @@
 
 pub mod adapters;
 pub mod mapper;
+pub mod mappers;
 pub mod orchestration;
 pub mod stream;
 pub mod transformation_pipeline;
@@ -17,3 +18,6 @@ pub use orchestration::{LexPipeline, PipelineError};
 
 // Re-export new TokenStream-based pipeline
 pub use transformation_pipeline::Pipeline;
+
+// Re-export concrete mapper implementations
+pub use mappers::NormalizeWhitespaceMapper;
