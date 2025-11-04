@@ -535,4 +535,93 @@ mod tests {
             _ => panic!("Expected error"),
         }
     }
+
+    #[test]
+    fn test_error_propagation_from_enter_node() {
+        struct FailingEnterMapper;
+
+        impl StreamMapper for FailingEnterMapper {
+            fn enter_node(
+                &mut self,
+                _node: TokenStreamNode,
+            ) -> Result<TokenStreamNode, TransformationError> {
+                Err(TransformationError::Error("enter_node error".to_string()))
+            }
+        }
+
+        let node = TokenStreamNode {
+            tokens: vec![(Token::Text("test".to_string()), 0..4)],
+            children: None,
+        };
+        let stream = TokenStream::Tree(vec![node]);
+        let mut mapper = FailingEnterMapper;
+        let result = walk_stream(stream, &mut mapper);
+
+        assert!(result.is_err());
+        match result {
+            Err(TransformationError::Error(msg)) => assert_eq!(msg, "enter_node error"),
+            _ => panic!("Expected error from enter_node"),
+        }
+    }
+
+    #[test]
+    fn test_error_propagation_from_exit_node() {
+        struct FailingExitMapper;
+
+        impl StreamMapper for FailingExitMapper {
+            fn exit_node(
+                &mut self,
+                _node: TokenStreamNode,
+            ) -> Result<TokenStreamNode, TransformationError> {
+                Err(TransformationError::Error("exit_node error".to_string()))
+            }
+        }
+
+        let node = TokenStreamNode {
+            tokens: vec![(Token::Text("test".to_string()), 0..4)],
+            children: None,
+        };
+        let stream = TokenStream::Tree(vec![node]);
+        let mut mapper = FailingExitMapper;
+        let result = walk_stream(stream, &mut mapper);
+
+        assert!(result.is_err());
+        match result {
+            Err(TransformationError::Error(msg)) => assert_eq!(msg, "exit_node error"),
+            _ => panic!("Expected error from exit_node"),
+        }
+    }
+
+    #[test]
+    fn test_error_propagation_from_nested_children() {
+        // Test that errors from deeply nested children propagate correctly
+        struct FailingFlatMapper;
+
+        impl StreamMapper for FailingFlatMapper {
+            fn map_flat(
+                &mut self,
+                _tokens: Vec<(Token, ByteRange<usize>)>,
+            ) -> Result<TokenStream, TransformationError> {
+                Err(TransformationError::Error("nested error".to_string()))
+            }
+        }
+
+        // Create a tree with nested children containing a flat stream
+        let node = TokenStreamNode {
+            tokens: vec![(Token::Text("parent".to_string()), 0..6)],
+            children: Some(Box::new(TokenStream::Flat(vec![(
+                Token::Text("child".to_string()),
+                10..15,
+            )]))),
+        };
+        let stream = TokenStream::Tree(vec![node]);
+        let mut mapper = FailingFlatMapper;
+        let result = walk_stream(stream, &mut mapper);
+
+        assert!(result.is_err());
+        match result {
+            Err(TransformationError::Error(msg)) => assert_eq!(msg, "nested error"),
+            _ => panic!("Expected error from nested flat stream"),
+        }
+    }
 }
