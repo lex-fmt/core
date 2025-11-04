@@ -289,14 +289,10 @@ pub fn token_stream_to_line_container(
                 }
             }
 
-            // If there's only one node and it's a container, return that container
-            // Otherwise, wrap all nodes in a container
-            if nodes.len() == 1 {
-                Ok(convert_node(nodes.into_iter().next().unwrap()))
-            } else {
-                let children = nodes.into_iter().map(convert_node).collect();
-                Ok(LineContainer::Container { children })
-            }
+            // Always wrap in a Container at the root level
+            // The linebased parser expects the root to be a Container
+            let children = nodes.into_iter().map(convert_node).collect();
+            Ok(LineContainer::Container { children })
         }
     }
 }
@@ -353,6 +349,52 @@ pub fn parse_with_token_stream(
             .join("; ");
         AdapterError::Error(format!("Parsing failed: {}", error_msg))
     })
+}
+
+/// Parse a TokenStream using the linebased parser with adapter.
+///
+/// This function integrates the linebased parser into the TokenStream architecture
+/// by adapting the input from `TokenStream::Tree` to `LineContainer`.
+///
+/// The linebased parser expects a hierarchical LineContainer structure, so this adapter:
+/// 1. Converts TokenStream::Tree to LineContainer (safe, rejects Flat)
+/// 2. Calls the linebased parser (parse_experimental_v2)
+/// 3. Returns the Document (no output adapter needed - Document is final)
+///
+/// This leverages token_processing.rs which already provides the LineContainer → tokens
+/// conversion for AST building. Once all transformations use TokenStream, this adapter
+/// can be removed and the parser can consume TokenStream directly.
+///
+/// # Arguments
+///
+/// * `stream` - The TokenStream to parse (must be Tree variant)
+/// * `source` - The original source text for location tracking
+///
+/// # Returns
+///
+/// The parsed Document or an adapter error
+///
+/// # Errors
+///
+/// Returns `AdapterError::ExpectedTree` if stream is Flat variant.
+/// Returns `AdapterError::Error` if parsing fails.
+///
+/// # Examples
+///
+/// ```ignore
+/// let stream = TokenStream::Tree(vec![node]);
+/// let doc = parse_linebased_with_token_stream(stream, "hello")?;
+/// ```
+pub fn parse_linebased_with_token_stream(
+    stream: TokenStream,
+    source: &str,
+) -> Result<crate::lex::parsers::Document, AdapterError> {
+    // Adapt input: TokenStream::Tree -> LineContainer
+    let container = token_stream_to_line_container(stream)?;
+
+    // Call linebased parser
+    crate::lex::parsers::linebased::parse_experimental_v2(container, source)
+        .map_err(|error| AdapterError::Error(format!("LineBased parsing failed: {}", error)))
 }
 
 #[cfg(test)]
@@ -796,15 +838,22 @@ mod tests {
         assert!(result.is_ok());
 
         let container = result.unwrap();
+        // Result is always wrapped in Container at root
         match container {
-            crate::lex::lexers::LineContainer::Token(line_token) => {
-                assert_eq!(line_token.source_tokens.len(), 1);
-                assert_eq!(
-                    line_token.source_tokens[0],
-                    Token::Text("hello".to_string())
-                );
+            crate::lex::lexers::LineContainer::Container { children } => {
+                assert_eq!(children.len(), 1);
+                match &children[0] {
+                    crate::lex::lexers::LineContainer::Token(line_token) => {
+                        assert_eq!(line_token.source_tokens.len(), 1);
+                        assert_eq!(
+                            line_token.source_tokens[0],
+                            Token::Text("hello".to_string())
+                        );
+                    }
+                    _ => panic!("Expected LineContainer::Token inside"),
+                }
             }
-            _ => panic!("Expected LineContainer::Token"),
+            _ => panic!("Expected LineContainer::Container at root"),
         }
     }
 
@@ -821,16 +870,19 @@ mod tests {
     fn test_tree_adapter_round_trip() {
         use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
 
-        // Create original LineContainer
-        let original = LineContainer::Token(LineToken {
-            source_tokens: vec![
-                Token::Text("hello".to_string()),
-                Token::Whitespace,
-                Token::Text("world".to_string()),
-            ],
-            token_spans: vec![0..5, 5..6, 6..11],
-            line_type: LineType::ParagraphLine,
-        });
+        // Create original LineContainer (wrapped in Container as root)
+        #[allow(clippy::single_range_in_vec_init)]
+        let original = LineContainer::Container {
+            children: vec![LineContainer::Token(LineToken {
+                source_tokens: vec![
+                    Token::Text("hello".to_string()),
+                    Token::Whitespace,
+                    Token::Text("world".to_string()),
+                ],
+                token_spans: vec![0..5, 5..6, 6..11],
+                line_type: LineType::ParagraphLine,
+            })],
+        };
 
         // Convert to TokenStream
         let stream = line_container_to_token_stream(original.clone());
@@ -840,11 +892,24 @@ mod tests {
 
         // Verify tokens match (note: LineType will be ParagraphLine as default)
         match (original, result) {
-            (LineContainer::Token(orig), LineContainer::Token(converted)) => {
-                assert_eq!(orig.source_tokens, converted.source_tokens);
-                assert_eq!(orig.token_spans, converted.token_spans);
+            (
+                LineContainer::Container {
+                    children: orig_children,
+                },
+                LineContainer::Container {
+                    children: res_children,
+                },
+            ) => {
+                assert_eq!(orig_children.len(), res_children.len());
+                match (&orig_children[0], &res_children[0]) {
+                    (LineContainer::Token(orig), LineContainer::Token(converted)) => {
+                        assert_eq!(orig.source_tokens, converted.source_tokens);
+                        assert_eq!(orig.token_spans, converted.token_spans);
+                    }
+                    _ => panic!("Expected both to contain Token"),
+                }
             }
-            _ => panic!("Expected both to be Token variants"),
+            _ => panic!("Expected both to be Container variants"),
         }
     }
 
@@ -852,22 +917,28 @@ mod tests {
     fn test_tree_adapter_preserves_ranges() {
         use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
 
+        #[allow(clippy::single_range_in_vec_init)]
         let line_token = LineToken {
             source_tokens: vec![Token::Text("test".to_string()), Token::Newline],
             token_spans: vec![0..4, 4..5],
             line_type: LineType::ParagraphLine,
         };
-        let container = LineContainer::Token(line_token);
+        let container = LineContainer::Container {
+            children: vec![LineContainer::Token(line_token)],
+        };
 
         let stream = line_container_to_token_stream(container);
         let result = token_stream_to_line_container(stream).unwrap();
 
         match result {
-            crate::lex::lexers::LineContainer::Token(line_token) => {
-                assert_eq!(line_token.token_spans[0], 0..4);
-                assert_eq!(line_token.token_spans[1], 4..5);
-            }
-            _ => panic!("Expected Token variant"),
+            crate::lex::lexers::LineContainer::Container { children } => match &children[0] {
+                crate::lex::lexers::LineContainer::Token(line_token) => {
+                    assert_eq!(line_token.token_spans[0], 0..4);
+                    assert_eq!(line_token.token_spans[1], 4..5);
+                }
+                _ => panic!("Expected Token inside Container"),
+            },
+            _ => panic!("Expected Container at root"),
         }
     }
 
@@ -899,5 +970,86 @@ mod tests {
             }
             _ => panic!("Expected TokenStream::Tree"),
         }
+    }
+
+    // LineBased parser adapter tests
+    #[test]
+    fn test_parse_linebased_with_token_stream_simple() {
+        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+
+        // Create a simple paragraph
+        let source = "Hello world\n";
+
+        #[allow(clippy::single_range_in_vec_init)]
+        let line_token = LineToken {
+            source_tokens: vec![
+                Token::Text("Hello".to_string()),
+                Token::Whitespace,
+                Token::Text("world".to_string()),
+                Token::Newline,
+            ],
+            token_spans: vec![0..5, 5..6, 6..11, 11..12],
+            line_type: LineType::ParagraphLine,
+        };
+
+        let container = LineContainer::Container {
+            children: vec![LineContainer::Token(line_token)],
+        };
+
+        // Convert to TokenStream
+        let stream = line_container_to_token_stream(container);
+
+        // Parse through adapter
+        let result = parse_linebased_with_token_stream(stream, source);
+
+        assert!(result.is_ok(), "Failed to parse: {:?}", result);
+        let doc = result.unwrap();
+        assert_eq!(doc.root.content.len(), 1); // Should have one paragraph
+    }
+
+    #[test]
+    fn test_parse_linebased_with_token_stream_rejects_flat() {
+        // Flat streams should be rejected
+        let stream = TokenStream::Flat(vec![(Token::Text("test".to_string()), 0..4)]);
+
+        let result = parse_linebased_with_token_stream(stream, "test");
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), AdapterError::ExpectedTree);
+    }
+
+    #[test]
+    fn test_parse_linebased_with_token_stream_round_trip() {
+        use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
+
+        // Create a simple structure
+        let source = "Paragraph text\n";
+
+        #[allow(clippy::single_range_in_vec_init)]
+        let line_token = LineToken {
+            source_tokens: vec![
+                Token::Text("Paragraph".to_string()),
+                Token::Whitespace,
+                Token::Text("text".to_string()),
+                Token::Newline,
+            ],
+            token_spans: vec![0..9, 9..10, 10..14, 14..15],
+            line_type: LineType::ParagraphLine,
+        };
+
+        let container = LineContainer::Container {
+            children: vec![LineContainer::Token(line_token)],
+        };
+
+        // Original path
+        let doc1 = crate::lex::parsers::linebased::parse_experimental_v2(container.clone(), source)
+            .unwrap();
+
+        // TokenStream path
+        let stream = line_container_to_token_stream(container);
+        let doc2 = parse_linebased_with_token_stream(stream, source).unwrap();
+
+        // Both should produce the same number of items
+        assert_eq!(doc1.root.content.len(), doc2.root.content.len());
     }
 }
