@@ -1,12 +1,12 @@
 //! Linebased transformation: flat line tokens → hierarchical container token tree
 //!
 //! This transformation converts a flat stream of line tokens (which include
-//! IndentLevel/DedentLevel markers) into a hierarchical tree structure.
+//! Indent/Dedent markers) into a hierarchical tree structure.
 //!
 //! The output is a single LineContainerToken representing the root of the entire tree.
 //! The tree represents the indentation-based nesting structure:
-//! - IndentLevel markers trigger creation of new nested container levels
-//! - DedentLevel markers close nested containers and return to parent level
+//! - Indent markers trigger creation of new nested container levels
+//! - Dedent markers close nested containers and return to parent level
 //! - All other tokens (LineTokens) are children of containers at the same level
 //!
 //! This tree structure preserves all original LineTokens (including source_tokens),
@@ -17,25 +17,25 @@ use crate::lex::lexers::linebased::tokens::{LineContainer, LineToken, LineType};
 
 /// Transform flat line tokens into a hierarchical container token tree.
 ///
-/// Converts a flat sequence of LineTokens (with IndentLevel/DedentLevel markers)
+/// Converts a flat sequence of LineTokens (with Indent/Dedent markers)
 /// into a tree where every node is a LineContainerToken.
 ///
-/// Groups line tokens based on IndentLevel/DedentLevel markers:
-/// - Each IndentLevel triggers a new nested container
-/// - Each DedentLevel closes the current container and returns to parent
+/// Groups line tokens based on Indent/Dedent markers:
+/// - Each Indent triggers a new nested container
+/// - Each Dedent closes the current container and returns to parent
 /// - Line tokens at same indentation level become children of a container
 ///
-/// Input: Flat sequence of LineTokens (with structural IndentLevel/DedentLevel tokens)
+/// Input: Flat sequence of LineTokens (with structural Indent/Dedent tokens)
 /// Output: Root LineContainerToken containing the entire hierarchical tree
 ///
 /// Example:
 /// ```text
 /// Input line tokens:
 ///   LineToken(SubjectLine),
-///   LineToken(IndentLevel),
+///   LineToken(Indent),
 ///   LineToken(ParagraphLine),
 ///   LineToken(ParagraphLine),
-///   LineToken(DedentLevel),
+///   LineToken(Dedent),
 ///   LineToken(ParagraphLine),
 ///
 /// Output tree (single root):
@@ -60,7 +60,7 @@ pub fn _indentation_to_token_tree(tokens: Vec<LineToken>) -> LineContainer {
 
     for token in tokens {
         match &token.line_type {
-            LineType::IndentLevel => {
+            LineType::Indent => {
                 // Flush pending tokens before entering nested level
                 if !pending_tokens.is_empty() {
                     for line_token in pending_tokens.drain(..) {
@@ -71,7 +71,7 @@ pub fn _indentation_to_token_tree(tokens: Vec<LineToken>) -> LineContainer {
                 // Start a new nesting level
                 stack.push(Vec::new());
             }
-            LineType::DedentLevel => {
+            LineType::Dedent => {
                 // Flush pending tokens before closing level
                 if !pending_tokens.is_empty() {
                     for line_token in pending_tokens.drain(..) {
@@ -179,12 +179,12 @@ mod tests {
                 LineType::SubjectLine,
                 vec![Token::Text("Title".to_string())],
             ),
-            make_line_token(LineType::IndentLevel, vec![Token::IndentLevel(vec![])]),
+            make_line_token(LineType::Indent, vec![Token::Indent(vec![])]),
             make_line_token(
                 LineType::ParagraphLine,
                 vec![Token::Text("Indented".to_string())],
             ),
-            make_line_token(LineType::DedentLevel, vec![Token::DedentLevel(vec![])]),
+            make_line_token(LineType::Dedent, vec![Token::Dedent(vec![])]),
         ];
 
         let result = _indentation_to_token_tree(input);

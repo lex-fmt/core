@@ -182,7 +182,7 @@ mod proptest_tests {
             let tokens = lex(&input);
             for (token, _) in tokens {
                 match token {
-                    Token::LexMarker | Token::Indent | Token::IndentLevel(_) | Token::DedentLevel(_) |
+                    Token::LexMarker | Token::Indentation | Token::Indent(_) | Token::Dedent(_) |
                     Token::BlankLine(_) | Token::Whitespace | Token::Newline | Token::Dash | Token::Period |
                     Token::OpenParen | Token::CloseParen | Token::Colon | Token::Comma |
                     Token::Quote | Token::Equals | Token::Number(_) | Token::Text(_) => {
@@ -195,30 +195,30 @@ mod proptest_tests {
         #[test]
         fn test_indentation_tokenization(input in indentation_strategy()) {
             // Indentation should produce appropriate indentation-related tokens
-            // Note: lex() transforms Indent tokens to IndentLevel/DedentLevel
+            // Note: lex() transforms Indent tokens to Indent/Dedent
             let tokens = lex(&input);
 
             // After lex(), indentation tokens are transformed:
-            // - Indent tokens become IndentLevel tokens (only if line has content after indentation)
-            // - Blank lines (indentation followed only by newline) don't produce IndentLevel
-            // - At end of file, DedentLevel tokens close the indentation
+            // - Indent tokens become Indent tokens (only if line has content after indentation)
+            // - Blank lines (indentation followed only by newline) don't produce Indent
+            // - At end of file, Dedent tokens close the indentation
 
             if input.is_empty() {
                 // No indentation means no indent/dedent tokens
                 let indent_related_count = tokens.iter().filter(|(t, _)| {
-                    matches!(t, Token::IndentLevel(_) | Token::DedentLevel(_) | Token::Indent)
+                    matches!(t, Token::Indent(_) | Token::Dedent(_) | Token::Indentation)
                 }).count();
                 assert_eq!(indent_related_count, 0);
             } else if !input.chars().any(|c| !c.is_whitespace()) {
                 // Pure whitespace (with or without indentation) becomes a blank line
-                // Blank lines don't produce IndentLevel tokens
+                // Blank lines don't produce Indent tokens
                 let indent_related_count = tokens.iter().filter(|(t, _)| {
-                    matches!(t, Token::IndentLevel(_) | Token::DedentLevel(_) | Token::Indent)
+                    matches!(t, Token::Indent(_) | Token::Dedent(_) | Token::Indentation)
                 }).count();
                 assert_eq!(indent_related_count, 0);
             } else {
                 // Input has actual content after indentation
-                let indent_level_count = tokens.iter().filter(|(t, _)| matches!(t, Token::IndentLevel(_))).count();
+                let indent_level_count = tokens.iter().filter(|(t, _)| matches!(t, Token::Indent(_))).count();
 
                 // Count expected indent levels based on input
                 let expected_indents = {
@@ -366,7 +366,7 @@ mod integration_tests {
         let tokens = lex(input);
 
         // Exact token sequence validation
-        // lex() transforms Indent -> IndentLevel and adds trailing newline
+        // lex() transforms Indent -> Indent and adds trailing newline
         assert_eq!(
             tokens,
             mk_tokens(&[
@@ -377,12 +377,12 @@ mod integration_tests {
                 (Token::Whitespace, 10, 11),
                 (Token::Text("Title".to_string()), 11, 16),
                 (Token::Newline, 16, 17),
-                (Token::IndentLevel(vec![(Token::Indent, 17..21)]), 0, 0),
+                (Token::Indent(vec![(Token::Indentation, 17..21)]), 0, 0),
                 (Token::Text("Content".to_string()), 21, 28),
                 (Token::Whitespace, 28, 29),
                 (Token::Text("here".to_string()), 29, 33),
                 (Token::Newline, 33, 34),
-                (Token::DedentLevel(vec![]), 0, 0),
+                (Token::Dedent(vec![]), 0, 0),
             ])
         );
     }
@@ -415,7 +415,7 @@ mod integration_tests {
         let tokens = lex(input);
 
         // Exact token sequence validation
-        // lex() transforms Indent -> IndentLevel and consecutive Newlines -> BlankLine
+        // lex() transforms Indent -> Indent and consecutive Newlines -> BlankLine
         assert_eq!(
             tokens,
             mk_tokens(&[
@@ -424,7 +424,7 @@ mod integration_tests {
                 (Token::Whitespace, 2, 3),
                 (Token::Text("Session".to_string()), 3, 10),
                 (Token::Newline, 10, 11),
-                (Token::IndentLevel(vec![(Token::Indent, 11..15)]), 0, 0),
+                (Token::Indent(vec![(Token::Indentation, 11..15)]), 0, 0),
                 (Token::Dash, 15, 16),
                 (Token::Whitespace, 16, 17),
                 (Token::Text("Item".to_string()), 17, 21),
@@ -438,7 +438,7 @@ mod integration_tests {
                 (Token::Number("2".to_string()), 35, 36),
                 (Token::Newline, 36, 37),
                 (Token::BlankLine(vec![(Token::Newline, 37..38)]), 0, 0),
-                (Token::DedentLevel(vec![]), 0, 0),
+                (Token::Dedent(vec![]), 0, 0),
                 (Token::Text("Paragraph".to_string()), 38, 47),
                 (Token::Whitespace, 47, 48),
                 (Token::Text("after".to_string()), 48, 53),

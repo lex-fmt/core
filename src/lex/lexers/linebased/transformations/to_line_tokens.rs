@@ -45,7 +45,7 @@ use crate::lex::lexers::tokens::Token;
 ///     LineToken {
 ///       source_tokens: [Indent],
 ///       token_spans: [7..11],
-///       line_type: IndentLevel
+///       line_type: Indent
 ///     },
 ///     LineToken {
 ///       source_tokens: [Text("Content"), Newline],
@@ -62,41 +62,41 @@ pub fn _to_line_tokens(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<Line
         let is_newline = matches!(token, Token::Newline);
         let is_blank_line_token = matches!(token, Token::BlankLine(_));
 
-        // Structural tokens (IndentLevel, DedentLevel, BlankLine) are pass-through
+        // Structural tokens (Indent, Dedent, BlankLine) are pass-through
         // They appear alone, not as part of lines
-        if matches!(token, Token::IndentLevel(_)) {
+        if matches!(token, Token::Indent(_)) {
             if !current_line.is_empty() {
                 line_tokens.push(classify_and_create_line_token(current_line));
                 current_line = Vec::new();
             }
-            // IndentLevel tokens ALWAYS contain source tokens in production:
+            // Indent tokens ALWAYS contain source tokens in production:
             // vec![(Token::Indent, range)] from sem_indentation transformation
-            let (source_tokens, token_spans) = if let Token::IndentLevel(ref sources) = token {
+            let (source_tokens, token_spans) = if let Token::Indent(ref sources) = token {
                 // Extract the stored source tokens
                 let (toks, spans): (Vec<_>, Vec<_>) = sources.iter().cloned().unzip();
                 (toks, spans)
             } else {
-                unreachable!("Token matches IndentLevel but pattern failed")
+                unreachable!("Token matches Indent but pattern failed")
             };
             line_tokens.push(LineToken {
                 source_tokens,
                 token_spans,
-                line_type: LineType::IndentLevel,
+                line_type: LineType::Indent,
             });
             continue;
         }
 
-        if matches!(token, Token::DedentLevel(_)) {
+        if matches!(token, Token::Dedent(_)) {
             if !current_line.is_empty() {
                 line_tokens.push(classify_and_create_line_token(current_line));
                 current_line = Vec::new();
             }
-            // DedentLevel tokens are purely structural - ALWAYS have empty source_tokens vec![]
-            // in production (sem_indentation.rs:133). Store the DedentLevel token itself.
+            // Dedent tokens are purely structural - ALWAYS have empty source_tokens vec![]
+            // in production (sem_indentation.rs:133). Store the Dedent token itself.
             line_tokens.push(LineToken {
                 source_tokens: vec![token],
                 token_spans: vec![span],
-                line_type: LineType::DedentLevel,
+                line_type: LineType::Dedent,
             });
             continue;
         }
@@ -216,7 +216,7 @@ fn is_blank_line(tokens: &[Token]) -> bool {
     tokens.iter().all(|t| {
         matches!(
             t,
-            Token::Whitespace | Token::Indent | Token::Newline | Token::BlankLine(_)
+            Token::Whitespace | Token::Indentation | Token::Newline | Token::BlankLine(_)
         )
     })
 }
@@ -226,7 +226,7 @@ fn is_annotation_end_line(tokens: &[Token]) -> bool {
     // Find all non-whitespace/non-newline tokens
     let content_tokens: Vec<_> = tokens
         .iter()
-        .filter(|t| !matches!(t, Token::Whitespace | Token::Newline | Token::Indent))
+        .filter(|t| !matches!(t, Token::Whitespace | Token::Newline | Token::Indentation))
         .collect();
 
     // Must have exactly one token and it must be LexMarker
@@ -253,7 +253,7 @@ fn is_annotation_start_line(tokens: &[Token]) -> bool {
     let mut first_marker_idx = None;
     for (i, token) in tokens.iter().enumerate() {
         match token {
-            Token::Indent | Token::Whitespace => continue,
+            Token::Indentation | Token::Whitespace => continue,
             Token::LexMarker => {
                 first_marker_idx = Some(i);
                 break;
@@ -287,7 +287,7 @@ fn has_list_marker(tokens: &[Token]) -> bool {
     let mut i = 0;
 
     // Skip leading indentation and whitespace
-    while i < tokens.len() && matches!(tokens[i], Token::Indent | Token::Whitespace) {
+    while i < tokens.len() && matches!(tokens[i], Token::Indentation | Token::Whitespace) {
         i += 1;
     }
 
@@ -462,7 +462,7 @@ mod tests {
     #[test]
     fn test_list_line_with_indentation() {
         let tokens = vec![
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
             Token::Whitespace,
             Token::Text("Item".to_string()),
@@ -554,8 +554,8 @@ mod tests {
             (Token::Text("Title".to_string()), 0..5),
             (Token::Colon, 5..6),
             (Token::Newline, 6..7),
-            // IndentLevel with real source token (like sem_indentation creates)
-            (Token::IndentLevel(vec![(Token::Indent, 7..11)]), 0..0),
+            // Indent with real source token (like sem_indentation creates)
+            (Token::Indent(vec![(Token::Indentation, 7..11)]), 0..0),
             (Token::Text("Content".to_string()), 11..18),
             (Token::Newline, 18..19),
         ];
@@ -575,9 +575,9 @@ mod tests {
             ]
         );
 
-        // Second: IndentLevel extracts its source token (Token::Indent)
-        assert_eq!(line_tokens[1].line_type, LineType::IndentLevel);
-        assert_eq!(line_tokens[1].source_tokens, vec![Token::Indent]);
+        // Second: Indent extracts its source token (Token::Indent)
+        assert_eq!(line_tokens[1].line_type, LineType::Indent);
+        assert_eq!(line_tokens[1].source_tokens, vec![Token::Indentation]);
         assert_eq!(line_tokens[1].token_spans, vec![7..11]);
 
         // Third: paragraph line

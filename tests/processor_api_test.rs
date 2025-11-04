@@ -58,7 +58,7 @@ mod tests {
     fn test_token_display_format() {
         // Test that tokens display with lowercase dash-separated names
         assert_eq!(format!("{}", Token::LexMarker), "<lex-marker>");
-        assert_eq!(format!("{}", Token::Indent), "<indent>");
+        assert_eq!(format!("{}", Token::Indentation), "<indentation>");
         assert_eq!(format!("{}", Token::Whitespace), "<whitespace>");
         assert_eq!(format!("{}", Token::Newline), "<newline>");
         assert_eq!(format!("{}", Token::Dash), "<dash>");
@@ -83,7 +83,7 @@ mod tests {
             Token::Whitespace,
             Token::Text("b".to_string()),
             Token::Newline,
-            Token::Indent,
+            Token::Indentation,
             Token::Dash,
         ];
 
@@ -93,7 +93,7 @@ mod tests {
         };
 
         let result = process_file_with_tokens(&tokens, &spec).unwrap();
-        let expected = "<text:a><whitespace><text:b><newline>\n<indent><dash>";
+        let expected = "<text:a><whitespace><text:b><newline>\n<indentation><dash>";
         assert_eq!(result, expected);
     }
 
@@ -134,7 +134,7 @@ mod tests {
         assert!(result.contains("<period>"));
         assert!(result.contains("<text:"));
         assert!(result.contains("<newline>"));
-        assert!(result.contains("<indent-level>"));
+        assert!(result.contains("<indent>"));
         assert!(result.contains("<dash>"));
 
         // Test token-json processing
@@ -145,7 +145,7 @@ mod tests {
         assert!(result.contains("\"Period\""));
         assert!(result.contains("\"Text\""));
         assert!(result.contains("\"Newline\""));
-        assert!(result.contains("\"IndentLevel\""));
+        assert!(result.contains("\"Indentation\""));
         assert!(result.contains("\"Dash\""));
 
         // Clean up

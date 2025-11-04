@@ -62,7 +62,7 @@ mod tests {
         assert_eq!(tokenss[6].0, Token::Newline); // "\n"
 
         // Expected tokens for "    - Item 1"
-        assert_eq!(tokenss[7].0, Token::Indent); // "    "
+        assert_eq!(tokenss[7].0, Token::Indentation); // "    "
         assert_eq!(tokenss[8].0, Token::Dash); // "-"
         assert_eq!(tokenss[9].0, Token::Whitespace); // " "
         assert_eq!(tokenss[10].0, Token::Text("Item".to_string())); // "Item"
@@ -71,7 +71,7 @@ mod tests {
         assert_eq!(tokenss[13].0, Token::Newline); // "\n"
 
         // Expected tokens for "    - Item 2"
-        assert_eq!(tokenss[14].0, Token::Indent); // "    "
+        assert_eq!(tokenss[14].0, Token::Indentation); // "    "
         assert_eq!(tokenss[15].0, Token::Dash); // "-"
         assert_eq!(tokenss[16].0, Token::Whitespace); // " "
         assert_eq!(tokenss[17].0, Token::Text("Item".to_string())); // "Item"
@@ -86,7 +86,7 @@ mod tests {
         // Expected: 3 spaces -> Whitespace, 1 tab -> Indent, 2 spaces -> Whitespace
         assert_eq!(tokenss.len(), 3);
         assert_eq!(tokenss[0].0, Token::Whitespace);
-        assert_eq!(tokenss[1].0, Token::Indent);
+        assert_eq!(tokenss[1].0, Token::Indentation);
         assert_eq!(tokenss[2].0, Token::Whitespace);
     }
 }
