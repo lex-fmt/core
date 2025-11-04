@@ -4,6 +4,7 @@
 //! - High-level pipeline orchestration (`LexPipeline`)
 //! - Low-level transformation infrastructure (`TokenStream`, `StreamMapper`)
 
+pub mod mapper;
 pub mod orchestration;
 pub mod stream;
 
