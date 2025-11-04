@@ -315,6 +315,7 @@ mod tests {
         let node = TokenStreamNode {
             tokens: vec![(Token::Text("hello".to_string()), 0..5)],
             children: None,
+            line_type: None,
         };
         let stream = TokenStream::Tree(vec![node]);
 
@@ -337,6 +338,7 @@ mod tests {
                 Token::Text("child".to_string()),
                 10..15,
             )]))),
+            line_type: None,
         };
         let stream = TokenStream::Tree(vec![node]);
 
@@ -360,11 +362,13 @@ mod tests {
         let child_node = TokenStreamNode {
             tokens: vec![(Token::Text("child".to_string()), 10..15)],
             children: Some(Box::new(grandchild_stream)),
+            line_type: None,
         };
 
         let root_node = TokenStreamNode {
             tokens: vec![(Token::Text("root".to_string()), 0..4)],
             children: Some(Box::new(TokenStream::Tree(vec![child_node]))),
+            line_type: None,
         };
 
         let stream = TokenStream::Tree(vec![root_node]);
@@ -409,6 +413,7 @@ mod tests {
                 Token::Text("child".to_string()),
                 10..15,
             )]))),
+            line_type: None,
         };
         let stream = TokenStream::Tree(vec![node]);
 
@@ -438,6 +443,7 @@ mod tests {
         let node = TokenStreamNode {
             tokens: vec![(Token::Text("hello".to_string()), 0..5)],
             children: None,
+            line_type: None,
         };
         let stream = TokenStream::Tree(vec![node]);
 
@@ -459,10 +465,12 @@ mod tests {
         let node1 = TokenStreamNode {
             tokens: vec![(Token::Text("first".to_string()), 0..5)],
             children: None,
+            line_type: None,
         };
         let node2 = TokenStreamNode {
             tokens: vec![(Token::Text("second".to_string()), 6..12)],
             children: None,
+            line_type: None,
         };
         let stream = TokenStream::Tree(vec![node1, node2]);
 
@@ -552,6 +560,7 @@ mod tests {
         let node = TokenStreamNode {
             tokens: vec![(Token::Text("test".to_string()), 0..4)],
             children: None,
+            line_type: None,
         };
         let stream = TokenStream::Tree(vec![node]);
         let mut mapper = FailingEnterMapper;
@@ -580,6 +589,7 @@ mod tests {
         let node = TokenStreamNode {
             tokens: vec![(Token::Text("test".to_string()), 0..4)],
             children: None,
+            line_type: None,
         };
         let stream = TokenStream::Tree(vec![node]);
         let mut mapper = FailingExitMapper;
@@ -613,6 +623,7 @@ mod tests {
                 Token::Text("child".to_string()),
                 10..15,
             )]))),
+            line_type: None,
         };
         let stream = TokenStream::Tree(vec![node]);
         let mut mapper = FailingFlatMapper;
