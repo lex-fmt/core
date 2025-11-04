@@ -23,7 +23,7 @@ type ParserError = Simple<TokenLocation>;
 
 // Parser combinators - kept for test support if needed
 #[allow(unused_imports)]
-use super::combinators::paragraph;
+use super::builders::paragraph;
 
 // Import parser builders from element modules
 use super::annotations::build_annotation_parser;
