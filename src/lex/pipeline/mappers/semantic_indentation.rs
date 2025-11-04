@@ -17,7 +17,7 @@
 //! This is a pure adaptation of the existing sem_indentation transformation
 //! to the TokenStream architecture.
 
-use crate::lex::lexers::tokens::Token;
+use crate::lex::lexers::tokens_core::Token;
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::TokenStream;
 use std::ops::Range as ByteRange;
@@ -191,7 +191,7 @@ impl StreamMapper for SemanticIndentationMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::tokens::Token;
+    use crate::lex::lexers::tokens_core::Token;
     use crate::lex::testing::factories::{mk_token, Tokens};
 
     fn with_loc(tokens: Vec<Token>) -> Tokens {
