@@ -874,12 +874,19 @@ mod tests {
     use crate::lex::parsers::ContentItem;
     use crate::lex::processor::lex_sources::LexSources;
 
+    // Helper to prepare token stream and call lex pipeline
+    fn lex_helper(source: &str) -> Vec<(crate::lex::lexers::Token, std::ops::Range<usize>)> {
+        let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(source);
+        let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+        lex(token_stream)
+    }
+
     // ========== ANNOTATION TESTS ==========
 
     #[test]
     fn test_annotation_marker_minimal() {
         let source = "Para one. {{paragraph}}\n\n:: note ::\n\nPara two. {{paragraph}}\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         assert_eq!(doc.root.content.len(), 3); // paragraph, annotation, paragraph
@@ -889,7 +896,7 @@ mod tests {
     #[test]
     fn test_annotation_single_line() {
         let source = "Para one. {{paragraph}}\n\n:: note :: This is inline text\n\nPara two. {{paragraph}}\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         assert_eq!(doc.root.content.len(), 3); // paragraph, annotation, paragraph
@@ -903,7 +910,7 @@ mod tests {
     fn test_verified_annotations_simple() {
         let source = LexSources::get_string("120-annotations-simple.lex")
             .expect("Failed to load sample file");
-        let tokens = lex(&source);
+        let tokens = lex_helper(&source);
         let doc = parse(tokens, &source).unwrap();
 
         // Find and verify :: note :: annotation
@@ -966,7 +973,7 @@ mod tests {
     fn test_unified_recursive_parser_simple() {
         // Minimal test for the unified recursive parser
         let source = "First paragraph\n\nDefinition:\n    Content of definition\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         println!("Testing simple definition with unified parser:");
         println!("Source: {:?}", source);
 
@@ -987,7 +994,7 @@ mod tests {
     fn test_unified_recursive_nested_definitions() {
         // Test nested definitions with the unified parser
         let source = "Outer:\n    Inner:\n        Nested content\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         println!("Testing nested definitions with unified parser:");
         println!("Source: {:?}", source);
 
@@ -1037,7 +1044,7 @@ mod tests {
     fn test_verified_definitions_simple() {
         let source = LexSources::get_string("090-definitions-simple.lex")
             .expect("Failed to load sample file");
-        let tokens = lex(&source);
+        let tokens = lex_helper(&source);
 
         let result = parse(tokens, &source);
         assert!(result.is_ok());
@@ -1053,7 +1060,7 @@ mod tests {
     #[test]
     fn test_simplest_dash_list() {
         let source = LexSources::get_string("040-lists.lex").unwrap();
-        let tokens = lex(&source);
+        let tokens = lex_helper(&source);
         let doc = parse(tokens, &source).unwrap();
 
         // Find the first list
@@ -1063,7 +1070,7 @@ mod tests {
     #[test]
     fn test_numbered_list() {
         let source = LexSources::get_string("040-lists.lex").unwrap();
-        let tokens = lex(&source);
+        let tokens = lex_helper(&source);
         let doc = parse(tokens, &source).unwrap();
 
         // Verify lists were parsed
@@ -1077,7 +1084,7 @@ mod tests {
     #[test]
     fn test_foreign_block_marker_form() {
         let source = "Image Reference:\n\n:: image type=jpg, src=sunset.jpg :: As the sun sets, we see a colored sea bed.\n\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         assert_eq!(doc.root.content.len(), 1);
@@ -1101,7 +1108,7 @@ mod tests {
     #[test]
     fn test_foreign_block_preserves_whitespace() {
         let source = "Indented Code:\n\n    // This has    multiple    spaces\n    const regex = /[a-z]+/g;\n    \n    console.log(\"Hello, World!\");\n\n:: javascript ::\n\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         let foreign_block = doc.root.content[0].as_foreign_block().unwrap();
@@ -1115,7 +1122,7 @@ mod tests {
     #[test]
     fn test_foreign_block_multiple_blocks() {
         let source = "First Block:\n\n    code1\n\n:: lang1 ::\n\nSecond Block:\n\n    code2\n\n:: lang2 ::\n\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         assert_eq!(doc.root.content.len(), 2);
@@ -1134,7 +1141,7 @@ mod tests {
     #[test]
     fn test_foreign_block_with_paragraphs() {
         let source = "Intro paragraph.\n\nCode Block:\n\n    function test() {\n        return true;\n    }\n\n:: javascript ::\n\nOutro paragraph.\n\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         assert_eq!(doc.root.content.len(), 3);
@@ -1147,7 +1154,7 @@ mod tests {
     fn test_verified_foreign_blocks_simple() {
         let source = LexSources::get_string("140-foreign-blocks-simple.lex")
             .expect("Failed to load sample file");
-        let tokens = lex(&source);
+        let tokens = lex_helper(&source);
         let doc = parse(tokens, &source).unwrap();
 
         // Find JavaScript code block
@@ -1174,7 +1181,7 @@ mod tests {
     #[test]
     fn test_annotation_with_label_only() {
         let source = ":: note ::\n\nText. {{paragraph}}\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -1185,7 +1192,7 @@ mod tests {
     #[test]
     fn test_annotation_with_label_and_parameters() {
         let source = ":: warning severity=high ::\n\nText. {{paragraph}}\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -1197,7 +1204,7 @@ mod tests {
     #[test]
     fn test_annotation_with_dotted_label() {
         let source = ":: python.typing ::\n\nText. {{paragraph}}\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -1208,7 +1215,7 @@ mod tests {
     #[test]
     fn test_annotation_parameters_only_no_label() {
         let source = ":: version=3.11 ::\n\nText. {{paragraph}}\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();
@@ -1221,7 +1228,7 @@ mod tests {
     #[test]
     fn test_annotation_with_dashed_label() {
         let source = ":: code-review ::\n\nText. {{paragraph}}\n";
-        let tokens = lex(source);
+        let tokens = lex_helper(source);
         let doc = parse(tokens, source).unwrap();
 
         let annotation = doc.root.content[0].as_annotation().unwrap();

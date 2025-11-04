@@ -13,7 +13,9 @@ fn _parser_kitchensink_snapshot() {
     let source = std::fs::read_to_string("docs/specs/v1/regression-bugs/kitchensink.lex")
         .expect("Could not read kitchensink.lex");
 
-    let container = _lex(&source).expect("Failed to tokenize");
+    let source_with_newline = lex::lex::lexers::ensure_source_ends_with_newline(&source);
+    let token_stream = lex::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+    let container = _lex(token_stream).expect("Failed to tokenize");
     let doc = parse_experimental_v2(container, &source).expect("Parser failed");
 
     // Create a readable representation of the AST for snapshot testing

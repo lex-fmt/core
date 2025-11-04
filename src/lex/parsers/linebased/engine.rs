@@ -60,14 +60,22 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lex::lexers::transformations::PipelineError;
     use crate::lex::lexers::transformations::_lex;
     use crate::lex::parsers::ContentItem;
+
+    // Helper to prepare token stream and call pipeline
+    fn lex_helper(source: &str) -> Result<crate::lex::lexers::LineContainer, PipelineError> {
+        let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(source);
+        let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+        _lex(token_stream)
+    }
 
     #[test]
     fn test_parse_simple_paragraphs() {
         // Use tokens from the linebased lexer pipeline
         let source = "Simple paragraph\n";
-        let container = _lex(source).expect("Failed to tokenize");
+        let container = lex_helper(source).expect("Failed to tokenize");
 
         let result = parse_experimental_v2(container, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -82,7 +90,7 @@ mod tests {
     fn test_parse_definition() {
         // Use tokens from the linebased lexer pipeline
         let source = "Definition:\n    This is the definition content\n";
-        let container = _lex(source).expect("Failed to tokenize");
+        let container = lex_helper(source).expect("Failed to tokenize");
 
         let result = parse_experimental_v2(container, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -101,7 +109,7 @@ mod tests {
     fn test_parse_session() {
         // Use tokens from the linebased lexer pipeline
         let source = "Session:\n\n    Session content here\n";
-        let container = _lex(source).expect("Failed to tokenize");
+        let container = lex_helper(source).expect("Failed to tokenize");
 
         let result = parse_experimental_v2(container, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -120,7 +128,7 @@ mod tests {
     fn test_parse_annotation() {
         // Use tokens from the linebased lexer pipeline
         let source = ":: note ::\n";
-        let container = _lex(source).expect("Failed to tokenize");
+        let container = lex_helper(source).expect("Failed to tokenize");
 
         let result = parse_experimental_v2(container, source);
         assert!(result.is_ok(), "Parser should succeed");
@@ -139,7 +147,7 @@ mod tests {
     fn test_annotations_120_simple() {
         let source = std::fs::read_to_string("docs/specs/v1/samples/120-annotations-simple.lex")
             .expect("Could not read 120 sample");
-        let container = _lex(&source).expect("Failed to tokenize");
+        let container = lex_helper(&source).expect("Failed to tokenize");
 
         let doc = parse_experimental_v2(container, &source).expect("Parser failed");
 
@@ -187,7 +195,7 @@ mod tests {
         let source =
             std::fs::read_to_string("docs/specs/v1/samples/130-annotations-block-content.lex")
                 .expect("Could not read 130 sample");
-        let container = _lex(&source).expect("Failed to tokenize");
+        let container = lex_helper(&source).expect("Failed to tokenize");
 
         let doc = parse_experimental_v2(container, &source).expect("Parser failed");
 
@@ -261,7 +269,7 @@ Paragraph before session.
 Final paragraph.
 "#;
 
-        let container = _lex(source).expect("Failed to tokenize");
+        let container = lex_helper(source).expect("Failed to tokenize");
 
         let doc = parse_experimental_v2(container, source).expect("Parser failed");
 

@@ -16,13 +16,24 @@
 //! The line-based pipeline that orchestrates all transformations is now in the `linebased` module.
 
 pub mod blanklines;
+pub mod interface;
 pub mod normalize_whitespace;
 pub mod sem_indentation;
+
+// Re-export the Transformation trait
+pub use interface::Transformation;
+
+// Re-export transformation implementations
+pub use blanklines::TransformBlankLines;
+pub use normalize_whitespace::NormalizeWhitespace;
+pub use sem_indentation::SemanticIndentation;
 
 // Re-export the linebased pipeline from the linebased module
 pub use crate::lex::lexers::linebased::{
     PipelineError, PipelineOutput, PipelineStage, _lex, _lex_stage,
 };
+
+// Re-export transformation functions (kept for backward compatibility)
 pub use blanklines::transform_blank_lines;
 pub use normalize_whitespace::process_whitespace_remainders;
 pub use sem_indentation::sem_indentation;

@@ -36,7 +36,9 @@ fn test_build_paragraph_from_real_tokens() {
     let source = LexSources::get_string("000-paragraphs.lex").expect("Failed to load sample");
 
     // Get real tokens using the linebased pipeline
-    let result = crate::lex::lexers::_lex(&source);
+    let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(&source);
+    let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+    let result = crate::lex::lexers::_lex(token_stream);
     assert!(result.is_ok(), "Failed to lex source");
 
     let container = result.unwrap();
@@ -74,7 +76,9 @@ fn test_build_session_with_real_tokens() {
         .expect("Failed to load sample");
 
     // Parse to get real tokens
-    let result = crate::lex::lexers::_lex(&source);
+    let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(&source);
+    let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+    let result = crate::lex::lexers::_lex(token_stream);
     assert!(result.is_ok(), "Failed to lex source");
 
     let container = result.unwrap();
@@ -105,7 +109,9 @@ fn test_build_definition_with_real_tokens() {
         LexSources::get_string("090-definitions-simple.lex").expect("Failed to load sample");
 
     // Parse to get real tokens
-    let result = crate::lex::lexers::_lex(&source);
+    let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(&source);
+    let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+    let result = crate::lex::lexers::_lex(token_stream);
     assert!(result.is_ok(), "Failed to lex source");
 
     let container = result.unwrap();

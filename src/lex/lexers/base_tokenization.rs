@@ -1,9 +1,10 @@
-//! Core tokenization implementation for the lex lexer
+//! Base tokenization implementation for the lex lexer
 //!
 //! This module provides the raw tokenization using the logos lexer library.
-//! The actual tokenization is handled entirely by logos. Additional transformations
-//! (whitespace processing, indentation transformation, blank line transformation)
-//! are applied by the transformation pipeline in the transformations module.
+//! This is the entry point where source strings become token streams.
+//!
+//! This is NOT a transformation - transformations operate on token streams.
+//! This is the source that creates the initial token stream from a string.
 
 use crate::lex::lexers::tokens::Token;
 use logos::Logos;
@@ -11,8 +12,12 @@ use logos::Logos;
 /// Tokenize source code with location information
 ///
 /// This function performs raw tokenization using the logos lexer, returning tokens
-/// paired with their source locations. Additional transformations (whitespace processing,
-/// indentation handling, blank line handling) should be applied by the caller.
+/// paired with their source locations. This is the base tokenization step that
+/// converts source strings into token streams.
+///
+/// Pipelines and transformations should operate on the token stream produced by this function,
+/// not call it directly. The caller (e.g., LexerRegistry implementations) should call this
+/// and pass the result to pipelines.
 pub fn tokenize(source: &str) -> Vec<(Token, logos::Span)> {
     let mut lexer = Token::lexer(source);
     let mut tokens = Vec::new();
