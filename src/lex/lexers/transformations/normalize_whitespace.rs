@@ -25,7 +25,7 @@ pub fn process_whitespace_remainders(
                 let mut j = i;
 
                 // Count consecutive Indent tokens before this Whitespace
-                while j > 0 && matches!(tokenss[j - 1].0, Token::Indent) {
+                while j > 0 && matches!(tokenss[j - 1].0, Token::Indentation) {
                     indent_count += 1;
                     j -= 1;
                 }
@@ -71,8 +71,8 @@ mod tests {
         // According to spec: 10 spaces = 2 indent levels (8 spaces) + 2 remaining spaces
         // The remaining 2 spaces should be considered part of the text, not separate whitespace
         assert_eq!(result.len(), 3); // Should be: [Indent, Indent, Text("  hello")]
-        assert_eq!(result[0], Token::Indent);
-        assert_eq!(result[1], Token::Indent);
+        assert_eq!(result[0], Token::Indentation);
+        assert_eq!(result[1], Token::Indentation);
         assert_eq!(result[2], Token::Text("hello".to_string()));
     }
 
@@ -92,7 +92,7 @@ mod tests {
     fn test_whitespace_after_indent_before_non_text() {
         // Whitespace after indent but before non-text token should be preserved
         let tokenss: Tokens = vec![
-            mk_token(Token::Indent, 0, 4),
+            mk_token(Token::Indentation, 0, 4),
             mk_token(Token::Whitespace, 4, 5),
             mk_token(Token::Dash, 5, 6),
         ];
@@ -108,9 +108,9 @@ mod tests {
         let result: Vec<Token> = results.into_iter().map(|(t, _)| t).collect();
 
         // 12 spaces = 3 indent levels (no remainder)
-        assert_eq!(result[0], Token::Indent);
-        assert_eq!(result[1], Token::Indent);
-        assert_eq!(result[2], Token::Indent);
+        assert_eq!(result[0], Token::Indentation);
+        assert_eq!(result[1], Token::Indentation);
+        assert_eq!(result[2], Token::Indentation);
         assert_eq!(result[3], Token::Text("hello".to_string()));
     }
 }

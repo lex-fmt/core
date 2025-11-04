@@ -285,10 +285,10 @@ expression: tokens
         0..0,
     ),
     (
-        IndentLevel(
+        Indent(
             [
                 (
-                    Indent,
+                    Indentation,
                     180..184,
                 ),
             ],
@@ -476,7 +476,7 @@ expression: tokens
         0..0,
     ),
     (
-        DedentLevel(
+        Dedent(
             [],
         ),
         0..0,
@@ -547,10 +547,10 @@ expression: tokens
         0..0,
     ),
     (
-        IndentLevel(
+        Indent(
             [
                 (
-                    Indent,
+                    Indentation,
                     330..334,
                 ),
             ],
@@ -643,7 +643,7 @@ expression: tokens
         0..0,
     ),
     (
-        DedentLevel(
+        Dedent(
             [],
         ),
         0..0,
@@ -779,10 +779,10 @@ expression: tokens
         0..0,
     ),
     (
-        IndentLevel(
+        Indent(
             [
                 (
-                    Indent,
+                    Indentation,
                     467..471,
                 ),
             ],
@@ -885,7 +885,7 @@ expression: tokens
         0..0,
     ),
     (
-        DedentLevel(
+        Dedent(
             [],
         ),
         0..0,
@@ -1011,10 +1011,10 @@ expression: tokens
         0..0,
     ),
     (
-        IndentLevel(
+        Indent(
             [
                 (
-                    Indent,
+                    Indentation,
                     616..620,
                 ),
             ],
@@ -1117,10 +1117,10 @@ expression: tokens
         0..0,
     ),
     (
-        IndentLevel(
+        Indent(
             [
                 (
-                    Indent,
+                    Indentation,
                     688..689,
                 ),
             ],
@@ -1283,13 +1283,13 @@ expression: tokens
         0..0,
     ),
     (
-        DedentLevel(
+        Dedent(
             [],
         ),
         0..0,
     ),
     (
-        DedentLevel(
+        Dedent(
             [],
         ),
         0..0,

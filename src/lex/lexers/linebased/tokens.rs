@@ -79,10 +79,10 @@ pub enum LineType {
     ParagraphLine,
 
     /// Indentation marker (pass-through from prior transformation)
-    IndentLevel,
+    Indent,
 
     /// Dedentation marker (pass-through from prior transformation)
-    DedentLevel,
+    Dedent,
 }
 
 impl fmt::Display for LineType {
@@ -95,8 +95,8 @@ impl fmt::Display for LineType {
             LineType::ListLine => "LIST_LINE",
             LineType::SubjectOrListItemLine => "SUBJECT_OR_LIST_ITEM_LINE",
             LineType::ParagraphLine => "PARAGRAPH_LINE",
-            LineType::IndentLevel => "INDENT",
-            LineType::DedentLevel => "DEDENT",
+            LineType::Indent => "INDENT",
+            LineType::Dedent => "DEDENT",
         };
         write!(f, "{}", name)
     }
@@ -120,8 +120,8 @@ impl LineType {
             LineType::ListLine => "list-line",
             LineType::SubjectOrListItemLine => "subject-or-list-item-line",
             LineType::ParagraphLine => "paragraph-line",
-            LineType::IndentLevel => "indent",
-            LineType::DedentLevel => "dedent",
+            LineType::Indent => "indent",
+            LineType::Dedent => "dedent",
         };
         format!("<{}>", name)
     }
@@ -132,7 +132,7 @@ impl LineType {
 /// This is a recursive enum representing the complete hierarchical structure of line tokens.
 /// Every node in the tree is either a line token or a container of child nodes.
 ///
-/// The tree is built by processing IndentLevel/DedentLevel markers:
+/// The tree is built by processing Indent/Dedent markers:
 /// - Token variant: A single line token (e.g., SubjectLine, ParagraphLine, ListLine)
 /// - Container variant: A grouped set of child nodes at a deeper indentation level
 ///
@@ -185,8 +185,8 @@ mod tests {
             LineType::ParagraphLine.to_grammar_string(),
             "<paragraph-line>"
         );
-        assert_eq!(LineType::IndentLevel.to_grammar_string(), "<indent>");
-        assert_eq!(LineType::DedentLevel.to_grammar_string(), "<dedent>");
+        assert_eq!(LineType::Indent.to_grammar_string(), "<indent>");
+        assert_eq!(LineType::Dedent.to_grammar_string(), "<dedent>");
     }
 
     #[test]
@@ -194,9 +194,9 @@ mod tests {
         // Test creating a sequence of tokens and formatting them
         let tokens = [
             LineType::SubjectLine,
-            LineType::IndentLevel,
+            LineType::Indent,
             LineType::ParagraphLine,
-            LineType::DedentLevel,
+            LineType::Dedent,
         ];
 
         let formatted = tokens
@@ -232,9 +232,9 @@ mod tests {
             LineType::BlankLine,
             LineType::SubjectLine,
             LineType::BlankLine,
-            LineType::IndentLevel,
+            LineType::Indent,
             LineType::ParagraphLine,
-            LineType::DedentLevel,
+            LineType::Dedent,
         ];
 
         let formatted = tokens

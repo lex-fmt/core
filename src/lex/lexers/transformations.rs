@@ -6,7 +6,7 @@
 //! The transformations are applied in order:
 //! 1. tokenize() - creates raw tokens with location information
 //! 2. process_whitespace_remainders() - handles lex whitespace specification
-//! 3. sem_indentation() - converts Indent tokens to IndentLevel/DedentLevel tokens
+//! 3. sem_indentation() - converts Indent tokens to Indent/Dedent tokens
 //! 4. transform_blank_lines() - converts consecutive Newline tokens to BlankLine tokens
 //!
 //! Linebased transformations (for the linebased 3-pass parser):

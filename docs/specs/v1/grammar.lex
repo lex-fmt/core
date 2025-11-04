@@ -154,7 +154,7 @@ Grammar for lex
 
         Token Locations
 
-            Every lexer stage returns tokens paired with a byte-range (`start..end`). The range always uses half-open semantics (inclusive start, exclusive end) and points back into the original UTF-8 source. Even synthetic tokens introduced by transformations (IndentLevel, DedentLevel, BlankLine) are assigned spans that either cover the whitespace they summarize or the boundary where the semantic event occurs.
+            Every lexer stage returns tokens paired with a byte-range (`start..end`). The range always uses half-open semantics (inclusive start, exclusive end) and points back into the original UTF-8 source. Even synthetic tokens introduced by transformations (Indent, Dedent, BlankLine) are assigned spans that either cover the whitespace they summarize or the boundary where the semantic event occurs.
 
             Parsers, AST builders, formatters, and tests must provide or preserve these spans. Helper APIs in the codebase therefore require explicit offsets when constructing tokens.
 

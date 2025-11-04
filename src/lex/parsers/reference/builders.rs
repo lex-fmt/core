@@ -247,9 +247,9 @@ where
         header_for_block
             .then_ignore(token(Token::Newline))
             .then(
-                filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
+                filter(|(t, _)| matches!(t, Token::Indent(_)))
                     .ignore_then(items.clone())
-                    .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_)))),
+                    .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_)))),
             )
             .then_ignore(token(Token::LexMarker))
             .then_ignore(token(Token::Newline).or_not())
@@ -340,9 +340,9 @@ where
     let source_for_definition = source.clone();
     definition_subject(source.clone())
         .then(
-            filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
+            filter(|(t, _)| matches!(t, Token::Indent(_)))
                 .ignore_then(items)
-                .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_)))),
+                .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_)))),
         )
         .map(move |((subject_text, subject_location), content)| {
             let subject_location =
@@ -382,9 +382,9 @@ where
     let source_for_session = source.clone();
     session_title(source.clone())
         .then(
-            filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
+            filter(|(t, _)| matches!(t, Token::Indent(_)))
                 .ignore_then(items)
-                .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_)))),
+                .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_)))),
         )
         .map(move |((title_text, title_location), content)| {
             let title_location = byte_range_to_location(&source_for_session, &title_location);
@@ -450,9 +450,9 @@ where
     let single_list_item = list_item_line(source.clone())
         .then_ignore(token(Token::Newline))
         .then(
-            filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
+            filter(|(t, _)| matches!(t, Token::Indent(_)))
                 .ignore_then(items)
-                .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_))))
+                .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_))))
                 .or_not(),
         )
         .map(move |((text, text_location), maybe_content)| {
@@ -484,23 +484,23 @@ pub(crate) fn foreign_block(
     let subject_parser = definition_subject(source.clone());
 
     // Parse content that handles nested indentation structures.
-    let with_content = filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
+    let with_content = filter(|(t, _)| matches!(t, Token::Indent(_)))
         .ignore_then(recursive(|nested_content| {
             choice((
                 // Handle nested indentation: properly matched pairs
-                filter(|(t, _)| matches!(t, Token::IndentLevel(_)))
+                filter(|(t, _)| matches!(t, Token::Indent(_)))
                     .ignore_then(nested_content.clone())
-                    .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_))))
-                    .map(|_| (Token::IndentLevel(vec![]), 0..0)), // Dummy token, won't be used
-                // Regular content token (not LexMarker, not DedentLevel)
+                    .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_))))
+                    .map(|_| (Token::Indent(vec![]), 0..0)), // Dummy token, won't be used
+                // Regular content token (not LexMarker, not Dedent)
                 filter(|(t, _location): &TokenLocation| {
-                    !matches!(t, Token::LexMarker | Token::DedentLevel(_))
+                    !matches!(t, Token::LexMarker | Token::Dedent(_))
                 }),
             ))
             .repeated()
             .at_least(1)
         }))
-        .then_ignore(filter(|(t, _)| matches!(t, Token::DedentLevel(_))))
+        .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_))))
         .map(|tokens: Vec<TokenLocation>| {
             tokens
                 .into_iter()

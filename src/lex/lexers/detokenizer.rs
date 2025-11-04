@@ -10,7 +10,7 @@ impl ToLexString for Token {
     fn to_lex_string(&self) -> String {
         match self {
             Token::LexMarker => "::".to_string(),
-            Token::Indent => "    ".to_string(),
+            Token::Indentation => "    ".to_string(),
             Token::Whitespace => " ".to_string(),
             Token::Newline => "\n".to_string(),
             Token::BlankLine(_) => "\n".to_string(), // BlankLine represents 2+ consecutive newlines, output as single newline
@@ -25,7 +25,7 @@ impl ToLexString for Token {
             Token::Number(s) => s.clone(),
             Token::Text(s) => s.clone(),
             // The following tokens are synthetic and should not be part of the detokenized output
-            Token::IndentLevel(_) | Token::DedentLevel(_) => String::new(),
+            Token::Indent(_) | Token::Dedent(_) => String::new(),
         }
     }
 }
@@ -42,8 +42,8 @@ pub fn detokenize(tokens: &[Token]) -> String {
 
     for token in tokens {
         match token {
-            Token::IndentLevel(_) => indent_level += 1,
-            Token::DedentLevel(_) => indent_level -= 1,
+            Token::Indent(_) => indent_level += 1,
+            Token::Dedent(_) => indent_level -= 1,
             Token::Newline => {
                 result.push('\n');
             }

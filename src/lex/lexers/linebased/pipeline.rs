@@ -6,7 +6,7 @@
 //! 1. Core tokenization using logos lexer
 //! 2. Common Transformation pipeline:
 //!    - Whitespace remainder processing ../transformations/normalize_whitespace.rs
-//!    - Indentation transformation (Indent -> IndentLevel/DedentLevel) ../transformations/sem_indentation.rs
+//!    - Indentation transformation (Indent -> Indent/Dedent) ../transformations/sem_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ../transformations/transform_blanklines.rs
 //! 3. Line-based processing:
 //!    - Flatten tokens into line tokens
@@ -49,7 +49,7 @@ pub enum PipelineStage {
     RawTokens,
     /// After whitespace remainder processing
     AfterWhitespace,
-    /// After indentation transformation (Indent -> IndentLevel/DedentLevel)
+    /// After indentation transformation (Indent -> Indent/Dedent)
     AfterIndentation,
     /// After blank line transformation (consecutive Newlines -> BlankLine)
     AfterBlankLines,

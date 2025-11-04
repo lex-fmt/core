@@ -24,7 +24,7 @@
 //!
 //! The lexer pipeline applies several transformations while preserving byte ranges:
 //! - **Whitespace processing**: Removes whitespace tokens, preserves ranges
-//! - **Indentation transformation**: Converts Indent tokens to IndentLevel tokens with meaningful ranges
+//! - **Indentation transformation**: Converts Indent tokens to Indent tokens with meaningful ranges
 //! - **Blank line transformation**: Converts multiple Newlines to BlankLine tokens with aggregated ranges
 //!
 //! See `src/lex/lexer/transformations/` for implementation details.
@@ -61,7 +61,7 @@
 //! #### Example: Session Parser (`src/lex/parser/elements/sessions.rs`)
 //!
 //! ```text
-//! Input tokens:  "Session Title" [tokens] DedentLevel
+//! Input tokens:  "Session Title" [tokens] Dedent
 //!                              ↓
 //! 1. Parse title → TextContent with Location(0:0..0:13)
 //! 2. Parse content (recursive) → [Paragraph, List, ...] each with Location
