@@ -60,7 +60,7 @@ Whitespace Handling in Lex
 		:: text ::
 
 		While this is their raw string, it's not it's content (that would not be a valid python program).  The block starts at column 0, since it's a the document's top level. This means that indentation +1 is column 3 (1 level up). 
-		Anything to the left of that is ilegal (such string would terminate the block, which needs to terminate on a annotation line.)
+		Anything to the left of that is illegal (such string would terminate the block, which needs to terminate on a annotation line.)
 
 		So the block sets a wall, o column number, where the content actually starts. In this case the content is: 
 			"\n"
@@ -75,7 +75,7 @@ Whitespace Handling in Lex
 
 		This is a Session 
 
-			And here is the sessions's content. The very same Foreig block is shown bellow.
+			And here is the sessions's content. The very same Foreign block is shown bellow.
 			This is a foreign block: 
 
 				def hello():
@@ -83,7 +83,7 @@ Whitespace Handling in Lex
 
 			:: python ::
 
-		Now, since the block is in a deeper documetn session, instead of starting at column 3, it starts at column 7.
+		Now, since the block is in a deeper document session, instead of starting at column 3, it starts at column 7.
 		But it's content is exactely the same, because we strip the indentation wll of the container block. Anything after that is the content for the block, including the leading spaces on the 3rd line (print).
 
 
@@ -91,8 +91,8 @@ Whitespace Handling in Lex
 
 		As we've shown , any number of spaces after the indentation wall is valid for a foreing block. That conetnt can be prefixed, by say 20 spaces as a grammar rule, and we can't manipulate it. 
 
-		But there is a catch here: by the time we actually get to foreign block parsing, we are looking at tokens. Hence all spaces are converted to indent/dedent/indentation tokes, because the tokenizer does not parse elements and it can't know this is a line holding foreign block content: it transforms whitespaces to indentation tokesn for any line. 
+		But there is a catch here: by the time we actually get to foreign block parsing, we are looking at tokens. Hence all spaces are converted to indent/dedent/indentation tokes, because the tokenizer does not parse elements and it can't know this is a line holding foreign block content: it transforms whitespaces to indentation tokens for any line. 
 
 		To cater for this, when parsing a foreign block, one must subtract the indentation wall of the block, and if present, subsitute indentation or indent tokens for spaces. After that, after the first non whitestpace char, the content is to be taken as is, no further processing.
 
-		That is to say, while we cannot process a foreign block line's content, we must split it from the txxt indendatoin wall, but otherwise keep them untouched.
+		That is to say, while we cannot process a foreign block line's content, we must split it from the txxt indentation wall, but otherwise keep them untouched.
