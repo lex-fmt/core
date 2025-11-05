@@ -264,6 +264,179 @@ pub fn build_foreign_block(
     ast_creation::create_foreign_block(data, closing_annotation, source)
 }
 
+// ============================================================================
+// REFERENCE PARSER API (tokens already normalized)
+// ============================================================================
+//
+// The reference parser works with flat token streams (Token, ByteRange) that
+// are already in normalized format. These functions skip the normalization
+// step and go straight to data extraction.
+
+use crate::lex::lexers::tokens_core::Token;
+use std::ops::Range as ByteRange;
+
+/// Build a Paragraph from already-normalized token lines (for reference parser).
+///
+/// # Arguments
+///
+/// * `token_lines` - Normalized token vectors, one per line
+/// * `source` - Original source string
+///
+/// # Returns
+///
+/// A Paragraph ContentItem
+pub fn build_paragraph_from_tokens(
+    token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
+    source: &str,
+) -> ContentItem {
+    // Skip normalization, tokens already normalized
+    // 1. Extract
+    let data = data_extraction::extract_paragraph_data(token_lines, source);
+
+    // 2. Create
+    ast_creation::create_paragraph(data, source)
+}
+
+/// Build a Session from already-normalized title tokens (for reference parser).
+///
+/// # Arguments
+///
+/// * `title_tokens` - Normalized tokens for the session title
+/// * `content` - Child content items (already constructed)
+/// * `source` - Original source string
+///
+/// # Returns
+///
+/// A Session ContentItem
+pub fn build_session_from_tokens(
+    title_tokens: Vec<(Token, ByteRange<usize>)>,
+    content: Vec<ContentItem>,
+    source: &str,
+) -> ContentItem {
+    // Skip normalization, tokens already normalized
+    // 1. Extract
+    let data = data_extraction::extract_session_data(title_tokens, source);
+
+    // 2. Create
+    ast_creation::create_session(data, content, source)
+}
+
+/// Build a Definition from already-normalized subject tokens (for reference parser).
+///
+/// # Arguments
+///
+/// * `subject_tokens` - Normalized tokens for the definition subject
+/// * `content` - Child content items (already constructed)
+/// * `source` - Original source string
+///
+/// # Returns
+///
+/// A Definition ContentItem
+pub fn build_definition_from_tokens(
+    subject_tokens: Vec<(Token, ByteRange<usize>)>,
+    content: Vec<ContentItem>,
+    source: &str,
+) -> ContentItem {
+    // Skip normalization, tokens already normalized
+    // 1. Extract
+    let data = data_extraction::extract_definition_data(subject_tokens, source);
+
+    // 2. Create
+    ast_creation::create_definition(data, content, source)
+}
+
+/// Build a ListItem from already-normalized marker tokens (for reference parser).
+///
+/// # Arguments
+///
+/// * `marker_tokens` - Normalized tokens for the list item marker and text
+/// * `content` - Child content items (already constructed)
+/// * `source` - Original source string
+///
+/// # Returns
+///
+/// A ListItem node (not wrapped in ContentItem)
+pub fn build_list_item_from_tokens(
+    marker_tokens: Vec<(Token, ByteRange<usize>)>,
+    content: Vec<ContentItem>,
+    source: &str,
+) -> ListItem {
+    // Skip normalization, tokens already normalized
+    // 1. Extract
+    let data = data_extraction::extract_list_item_data(marker_tokens, source);
+
+    // 2. Create
+    ast_creation::create_list_item(data, content, source)
+}
+
+/// Build an Annotation from already-normalized label tokens (for reference parser).
+///
+/// # Arguments
+///
+/// * `label_tokens` - Normalized tokens for the annotation label
+/// * `parameters` - Annotation parameters (already parsed)
+/// * `content` - Child content items (already constructed)
+/// * `source` - Original source string
+///
+/// # Returns
+///
+/// An Annotation ContentItem
+pub fn build_annotation_from_tokens(
+    label_tokens: Vec<(Token, ByteRange<usize>)>,
+    parameters: Vec<Parameter>,
+    content: Vec<ContentItem>,
+    source: &str,
+) -> ContentItem {
+    // Skip normalization, tokens already normalized
+    // 1. Extract
+    let data = data_extraction::extract_annotation_data(label_tokens, source);
+
+    // 2. Create
+    ast_creation::create_annotation(data, parameters, content, source)
+}
+
+/// Build a ForeignBlock from already-normalized tokens (for reference parser).
+///
+/// This implements indentation wall stripping - content at different nesting
+/// levels will have identical text after wall removal.
+///
+/// # Arguments
+///
+/// * `subject_tokens` - Normalized tokens for the foreign block subject
+/// * `content_token_lines` - Normalized token vectors for each content line
+/// * `closing_annotation` - The closing annotation node
+/// * `source` - Original source string
+///
+/// # Returns
+///
+/// A ForeignBlock ContentItem
+///
+/// # Example
+///
+/// ```rust,ignore
+/// // Tokens already normalized from reference parser
+/// let subject_tokens = vec![(Token::Text("Code".into()), 0..4)];
+/// let content_lines = vec![
+///     vec![(Token::Indentation, 6..10), (Token::Text("line1".into()), 10..15)],
+///     vec![(Token::Indentation, 16..20), (Token::Indentation, 20..24), (Token::Text("line2".into()), 24..29)],
+/// ];
+/// // After extraction, wall of 1 indent is stripped: "line1\n    line2"
+/// ```
+pub fn build_foreign_block_from_tokens(
+    subject_tokens: Vec<(Token, ByteRange<usize>)>,
+    content_token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
+    closing_annotation: Annotation,
+    source: &str,
+) -> ContentItem {
+    // Skip normalization, tokens already normalized
+    // 1. Extract (includes indentation wall stripping)
+    let data =
+        data_extraction::extract_foreign_block_data(subject_tokens, content_token_lines, source);
+
+    // 2. Create
+    ast_creation::create_foreign_block(data, closing_annotation, source)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

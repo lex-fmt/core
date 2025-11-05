@@ -385,15 +385,19 @@ pub fn extract_foreign_block_data(
     let mut first_line = true;
 
     for tokens in &content_token_lines {
+        // Add newline between lines (including before empty lines to preserve blank lines)
+        if !first_line {
+            content_text.push('\n');
+        }
+
+        // Extract text from tokens (empty lines will contribute empty string)
         if !tokens.is_empty() {
-            if !first_line {
-                content_text.push('\n');
-            }
             let byte_range = compute_bounding_box(tokens);
             let line_text = extract_text(byte_range, source);
             content_text.push_str(&line_text);
-            first_line = false;
         }
+
+        first_line = false;
     }
 
     // Compute overall content byte range (before wall stripping)
