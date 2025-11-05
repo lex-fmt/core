@@ -95,4 +95,4 @@ Whitespace Handling in Lex
 
 		To cater for this, when parsing a foreign block, one must subtract the indentation wall of the block, and if present, subsitute indentation or indent tokens for spaces. After that, after the first non whitestpace char, the content is to be taken as is, no further processing.
 
-		That is to say, while we cannot process a foreign block line's content, we must split it from the txxt indentation wall, but otherwise keep them untouched.
+		That is to say, while we cannot process a foreign block line's content, we must split it from the lex indentation wall, but otherwise keep them untouched.
