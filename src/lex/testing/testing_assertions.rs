@@ -558,19 +558,114 @@ impl<'a> AnnotationAssertion<'a> {
         );
         self
     }
-    pub fn has_parameter_with_value(self, key: &str, value: &str) -> Self {
-        let found = self
-            .annotation
-            .parameters
-            .iter()
-            .any(|p| p.key == key && p.value == value);
+
+    /// Assert that a parameter with the given key exists (any value)
+    pub fn has_parameter(self, key: &str) -> Self {
+        let found = self.annotation.parameters.iter().any(|p| p.key == key);
         assert!(
             found,
-            "{}: Expected parameter '{}={}' to exist",
-            self.context, key, value
+            "{}: Expected parameter with key '{}' to exist, but found parameters: [{}]",
+            self.context,
+            key,
+            self.annotation
+                .parameters
+                .iter()
+                .map(|p| format!("{}={}", p.key, p.value))
+                .collect::<Vec<_>>()
+                .join(", ")
         );
         self
     }
+
+    /// Assert that a parameter with the given key does NOT exist
+    pub fn no_parameter(self, key: &str) -> Self {
+        let found = self.annotation.parameters.iter().any(|p| p.key == key);
+        assert!(
+            !found,
+            "{}: Expected no parameter with key '{}', but found it with value '{}'",
+            self.context,
+            key,
+            self.annotation
+                .parameters
+                .iter()
+                .find(|p| p.key == key)
+                .map(|p| p.value.as_str())
+                .unwrap_or("")
+        );
+        self
+    }
+
+    /// Assert that a parameter with the given key has the expected value
+    pub fn has_parameter_with_value(self, key: &str, value: &str) -> Self {
+        let param = self.annotation.parameters.iter().find(|p| p.key == key);
+        match param {
+            Some(p) => {
+                assert_eq!(
+                    p.value, value,
+                    "{}: Expected parameter '{}' to have value '{}', but got '{}'",
+                    self.context, key, value, p.value
+                );
+            }
+            None => {
+                panic!(
+                    "{}: Expected parameter '{}={}' to exist, but parameter '{}' not found. Available parameters: [{}]",
+                    self.context,
+                    key,
+                    value,
+                    key,
+                    self.annotation
+                        .parameters
+                        .iter()
+                        .map(|p| format!("{}={}", p.key, p.value))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+        }
+        self
+    }
+
+    /// Assert on a specific parameter by index
+    pub fn parameter(self, index: usize, expected_key: &str, expected_value: &str) -> Self {
+        assert!(
+            index < self.annotation.parameters.len(),
+            "{}: Parameter index {} out of bounds (annotation has {} parameters)",
+            self.context,
+            index,
+            self.annotation.parameters.len()
+        );
+        let param = &self.annotation.parameters[index];
+        assert_eq!(
+            param.key, expected_key,
+            "{}: Expected parameter[{}].key to be '{}', but got '{}'",
+            self.context, index, expected_key, param.key
+        );
+        assert_eq!(
+            param.value, expected_value,
+            "{}: Expected parameter[{}].value to be '{}', but got '{}'",
+            self.context, index, expected_value, param.value
+        );
+        self
+    }
+
+    /// Assert that parameter at given index has the expected key (any value)
+    pub fn parameter_key(self, index: usize, expected_key: &str) -> Self {
+        assert!(
+            index < self.annotation.parameters.len(),
+            "{}: Parameter index {} out of bounds (annotation has {} parameters)",
+            self.context,
+            index,
+            self.annotation.parameters.len()
+        );
+        let param = &self.annotation.parameters[index];
+        assert_eq!(
+            param.key, expected_key,
+            "{}: Expected parameter[{}].key to be '{}', but got '{}'",
+            self.context, index, expected_key, param.key
+        );
+        self
+    }
+
     pub fn child_count(self, expected: usize) -> Self {
         let actual = self.annotation.children().len();
         assert_eq!(
@@ -750,14 +845,14 @@ fn summarize_items(items: &[ContentItem]) -> String {
 }
 
 // ============================================================================
-// Tests for Location Assertions
+// Tests for Assertions (these tests inspect raw AST)
 // ============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::lex::ast::range::{Position, Range};
-    use crate::lex::ast::{Document, Session};
+    use crate::lex::ast::{Annotation, Document, Label, Parameter, Session};
 
     #[test]
     fn test_root_location_starts_at() {
@@ -885,5 +980,260 @@ mod tests {
             .root_location_contains(2, 10)
             .root_location_excludes(10, 0)
             .item_count(0);
+    }
+
+    // ============================================================================
+    // Parameter Assertion Tests (these tests inspect raw AST)
+    // ============================================================================
+
+    fn create_test_annotation(label: &str, parameters: Vec<(&str, &str)>) -> Annotation {
+        let location = Range::new(0..0, Position::new(0, 0), Position::new(0, 10));
+        let label = Label::new(label.to_string()).at(location.clone());
+        let parameters: Vec<Parameter> = parameters
+            .into_iter()
+            .map(|(k, v)| Parameter {
+                key: k.to_string(),
+                value: v.to_string(),
+                location: location.clone(),
+            })
+            .collect();
+        Annotation {
+            label,
+            parameters,
+            content: vec![],
+            location,
+        }
+    }
+
+    #[test]
+    fn test_annotation_label_assertion() {
+        let annotation = create_test_annotation("test", vec![]);
+        // Directly verify the annotation has the expected label in raw AST
+        assert_eq!(annotation.label.value, "test");
+
+        // Now test the assertion API
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.label("test");
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected annotation label to be 'wrong'")]
+    fn test_annotation_label_assertion_fails() {
+        let annotation = create_test_annotation("test", vec![]);
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.label("wrong");
+    }
+
+    #[test]
+    fn test_parameter_count_assertion() {
+        let annotation = create_test_annotation("test", vec![("key1", "val1"), ("key2", "val2")]);
+        // Directly verify parameter count in raw AST
+        assert_eq!(annotation.parameters.len(), 2);
+
+        // Test assertion API
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.parameter_count(2);
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected 3 parameters, found 2 parameters")]
+    fn test_parameter_count_assertion_fails() {
+        let annotation = create_test_annotation("test", vec![("key1", "val1"), ("key2", "val2")]);
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.parameter_count(3);
+    }
+
+    #[test]
+    fn test_has_parameter_assertion() {
+        let annotation = create_test_annotation("test", vec![("foo", "bar"), ("baz", "qux")]);
+        // Directly verify parameter exists in raw AST
+        assert!(annotation.parameters.iter().any(|p| p.key == "foo"));
+
+        // Test assertion API
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.has_parameter("foo");
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected parameter with key 'missing'")]
+    fn test_has_parameter_assertion_fails() {
+        let annotation = create_test_annotation("test", vec![("foo", "bar")]);
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.has_parameter("missing");
+    }
+
+    #[test]
+    fn test_no_parameter_assertion() {
+        let annotation = create_test_annotation("test", vec![("foo", "bar")]);
+        // Directly verify parameter doesn't exist in raw AST
+        assert!(!annotation.parameters.iter().any(|p| p.key == "missing"));
+
+        // Test assertion API
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.no_parameter("missing");
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected no parameter with key 'foo'")]
+    fn test_no_parameter_assertion_fails() {
+        let annotation = create_test_annotation("test", vec![("foo", "bar")]);
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.no_parameter("foo");
+    }
+
+    #[test]
+    fn test_has_parameter_with_value_assertion() {
+        let annotation = create_test_annotation("test", vec![("key", "value"), ("other", "data")]);
+        // Directly verify parameter key-value pair in raw AST
+        let param = annotation.parameters.iter().find(|p| p.key == "key");
+        assert!(param.is_some());
+        assert_eq!(param.unwrap().value, "value");
+
+        // Test assertion API
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.has_parameter_with_value("key", "value");
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected parameter 'key' to have value 'wrong'")]
+    fn test_has_parameter_with_value_assertion_fails_wrong_value() {
+        let annotation = create_test_annotation("test", vec![("key", "value")]);
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.has_parameter_with_value("key", "wrong");
+    }
+
+    #[test]
+    #[should_panic(expected = "parameter 'missing' not found")]
+    fn test_has_parameter_with_value_assertion_fails_missing_key() {
+        let annotation = create_test_annotation("test", vec![("key", "value")]);
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.has_parameter_with_value("missing", "value");
+    }
+
+    #[test]
+    fn test_parameter_by_index_assertion() {
+        let annotation = create_test_annotation("test", vec![("first", "1"), ("second", "2")]);
+        // Directly verify parameter at index in raw AST
+        assert_eq!(annotation.parameters[0].key, "first");
+        assert_eq!(annotation.parameters[0].value, "1");
+        assert_eq!(annotation.parameters[1].key, "second");
+        assert_eq!(annotation.parameters[1].value, "2");
+
+        // Test assertion API
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion
+            .parameter(0, "first", "1")
+            .parameter(1, "second", "2");
+    }
+
+    #[test]
+    #[should_panic(expected = "Parameter index 2 out of bounds")]
+    fn test_parameter_by_index_assertion_out_of_bounds() {
+        let annotation = create_test_annotation("test", vec![("key", "value")]);
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.parameter(2, "key", "value");
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected parameter[0].key to be 'wrong'")]
+    fn test_parameter_by_index_assertion_fails_key() {
+        let annotation = create_test_annotation("test", vec![("key", "value")]);
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.parameter(0, "wrong", "value");
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected parameter[0].value to be 'wrong'")]
+    fn test_parameter_by_index_assertion_fails_value() {
+        let annotation = create_test_annotation("test", vec![("key", "value")]);
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion.parameter(0, "key", "wrong");
+    }
+
+    #[test]
+    fn test_parameter_key_by_index_assertion() {
+        let annotation = create_test_annotation("test", vec![("key1", "val1"), ("key2", "val2")]);
+        // Directly verify parameter keys in raw AST
+        assert_eq!(annotation.parameters[0].key, "key1");
+        assert_eq!(annotation.parameters[1].key, "key2");
+
+        // Test assertion API (doesn't check value)
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion
+            .parameter_key(0, "key1")
+            .parameter_key(1, "key2");
+    }
+
+    #[test]
+    fn test_fluent_parameter_assertions() {
+        let annotation = create_test_annotation(
+            "test",
+            vec![("foo", "bar"), ("baz", "qux"), ("other", "data")],
+        );
+
+        // Test fluent chaining of parameter assertions
+        let annotation_assertion = AnnotationAssertion {
+            annotation: &annotation,
+            context: "test".to_string(),
+        };
+        annotation_assertion
+            .label("test")
+            .parameter_count(3)
+            .has_parameter("foo")
+            .has_parameter("baz")
+            .has_parameter_with_value("foo", "bar")
+            .has_parameter_with_value("baz", "qux")
+            .parameter(0, "foo", "bar")
+            .parameter(1, "baz", "qux")
+            .no_parameter("missing")
+            .child_count(0);
     }
 }

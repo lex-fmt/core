@@ -205,13 +205,12 @@ pub fn create_list_item(data: ListItemData, content: Vec<ContentItem>, source: &
 
 /// Create an Annotation AST node from extracted annotation data.
 ///
-/// Converts byte range to AST Range, creates Label from label text,
+/// Converts byte ranges to AST Ranges, creates Label and Parameters from extracted data,
 /// and aggregates location from label and children.
 ///
 /// # Arguments
 ///
-/// * `data` - Extracted annotation data with label text and byte range
-/// * `parameters` - Annotation parameters (already parsed)
+/// * `data` - Extracted annotation data with label text, parameters, and byte ranges
 /// * `content` - Child content items
 /// * `source` - Original source string
 ///
@@ -220,12 +219,27 @@ pub fn create_list_item(data: ListItemData, content: Vec<ContentItem>, source: &
 /// An Annotation ContentItem
 pub fn create_annotation(
     data: AnnotationData,
-    parameters: Vec<crate::lex::ast::Parameter>,
     content: Vec<ContentItem>,
     source: &str,
 ) -> ContentItem {
+    use crate::lex::ast::Parameter;
+
     let label_location = byte_range_to_ast_range(data.label_byte_range, source);
     let label = Label::new(data.label_text).at(label_location.clone());
+
+    // Convert ParameterData to Parameter AST nodes
+    let parameters: Vec<Parameter> = data
+        .parameters
+        .into_iter()
+        .map(|param_data| {
+            let location = byte_range_to_ast_range(param_data.overall_byte_range, source);
+            Parameter {
+                key: param_data.key_text,
+                value: param_data.value_text.unwrap_or_default(),
+                location,
+            }
+        })
+        .collect();
 
     // Aggregate location from label and content
     let location = aggregate_locations(label_location, &content);
