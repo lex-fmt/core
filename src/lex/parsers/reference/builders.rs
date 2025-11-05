@@ -15,15 +15,10 @@ use chumsky::primitive::filter;
 use std::ops::Range as ByteRange;
 use std::sync::Arc;
 
-use crate::lex::ast::{
-    ContentItem, ForeignBlock, Label, ListItem, Paragraph, Parameter, Range, TextContent,
-};
+use crate::lex::ast::{ContentItem, ForeignBlock, Paragraph};
 use crate::lex::lexers::Token;
 // Location utilities and AST builders are now imported from crate::lex::parsers::common
 use crate::lex::parsers::common::ast_builder;
-use crate::lex::parsers::common::location::{
-    aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
-};
 
 /// Type alias for token with location
 pub(crate) type TokenLocation = (Token, ByteRange<usize>);
@@ -101,33 +96,6 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
     )
 }
 
-/// Helper: extract text from multiple locations
-pub(crate) fn extract_text_from_locations(source: &str, locations: &[ByteRange<usize>]) -> String {
-    if locations.is_empty() {
-        return String::new();
-    }
-    let start = locations.first().map(|s| s.start).unwrap_or(0);
-    let end = locations.last().map(|s| s.end).unwrap_or(0);
-
-    if start >= end || end > source.len() {
-        return String::new();
-    }
-
-    source[start..end].trim().to_string()
-}
-
-/// Helper: extract tokens to text and byte range location
-/// Converts a vector of token-location pairs to (extracted_text, byte_range)
-pub(crate) fn extract_tokens_to_text_and_location(
-    source: &Arc<String>,
-    tokens: Vec<TokenLocation>,
-) -> (String, ByteRange<usize>) {
-    let locations: Vec<ByteRange<usize>> = tokens.into_iter().map(|(_, s)| s).collect();
-    let text = extract_text_from_locations(source, &locations);
-    let location = compute_byte_range_bounds(&locations);
-    (text, location)
-}
-
 // ============================================================================
 // PARSER COMBINATORS
 // ============================================================================
@@ -138,16 +106,13 @@ pub(crate) fn token(t: Token) -> impl Parser<TokenLocation, (), Error = ParserEr
 }
 
 /// Parse a text line (sequence of text and whitespace tokens)
-/// Returns the collected locations for this line
+/// Returns the collected tokens (preserving both token and location info)
 pub(crate) fn text_line(
-) -> impl Parser<TokenLocation, Vec<ByteRange<usize>>, Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
     filter(|(t, _location): &TokenLocation| is_text_token(t))
         .repeated()
         .at_least(1)
-        .map(|tokenss: Vec<TokenLocation>| {
-            // Collect all locations for this line
-            tokenss.into_iter().map(|(_, s)| s).collect()
-        })
+    // No .map() - preserve tokens!
 }
 
 /// Parse a paragraph
@@ -158,41 +123,15 @@ pub(crate) fn paragraph(
         .then_ignore(token(Token::Newline))
         .repeated()
         .at_least(1)
-        .map(move |line_locations_list: Vec<Vec<ByteRange<usize>>>| {
-            let text_lines: Vec<(String, Range)> = line_locations_list
-                .iter()
-                .map(|locations| {
-                    let text = extract_text_from_locations(&source, locations);
-                    // Compute location for this line
-                    let line_location = if locations.is_empty() {
-                        Range::default()
-                    } else {
-                        let range = compute_byte_range_bounds(locations);
-                        byte_range_to_location(&source, &range)
-                    };
-                    (text, line_location)
-                })
-                .collect();
-
-            // Compute overall location from all collected line locations
-            let location = {
-                let all_locations: Vec<ByteRange<usize>> =
-                    line_locations_list.into_iter().flatten().collect();
-                if all_locations.is_empty() {
-                    Range::default()
-                } else {
-                    let range = compute_byte_range_bounds(&all_locations);
-                    byte_range_to_location(&source, &range)
-                }
-            };
-
-            // Use common builder to create paragraph
+        .map(move |token_lines: Vec<Vec<TokenLocation>>| {
+            // Now we have tokens! Use universal ast_builder pipeline
+            // normalize → extract → create
             if let ContentItem::Paragraph(para) =
-                ast_builder::build_paragraph_from_text(text_lines, location)
+                ast_builder::build_paragraph_from_tokens(token_lines, &source)
             {
                 para
             } else {
-                unreachable!("build_paragraph_from_text always returns Paragraph")
+                unreachable!("build_paragraph_from_tokens always returns Paragraph")
             }
         })
 }
@@ -201,75 +140,15 @@ pub(crate) fn paragraph(
 // ANNOTATION BUILDING
 // ============================================================================
 
-/// Parse the bounded region between :: markers
-#[derive(Clone, Debug)]
-pub(crate) struct AnnotationHeader {
-    pub label: Option<String>,
-    pub label_range: Option<ByteRange<usize>>,
-    pub parameters: Vec<Parameter>,
-    #[allow(dead_code)]
-    pub header_range: ByteRange<usize>,
-}
-
+/// Parse the tokens between :: markers (for annotation headers).
+///
+/// This just collects the tokens - label and parameter parsing is done
+/// by the universal pipeline in data_extraction.
 pub(crate) fn annotation_header(
-    source: Arc<String>,
-) -> impl Parser<TokenLocation, AnnotationHeader, Error = ParserError> + Clone {
-    let bounded_region =
-        filter(|(t, _): &TokenLocation| !matches!(t, Token::LexMarker | Token::Newline))
-            .repeated()
-            .at_least(1);
-
-    bounded_region.validate(move |tokens, location, emit| {
-        if tokens.is_empty() {
-            emit(ParserError::expected_input_found(location, None, None));
-            return AnnotationHeader {
-                label: None,
-                label_range: None,
-                parameters: Vec::new(),
-                header_range: 0..0,
-            };
-        }
-
-        let (label_location, mut i) = parse_label_from_tokens(&tokens);
-
-        if label_location.is_none() && i == 0 {
-            while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
-                i += 1;
-            }
-        }
-
-        let paramss = parse_parameters_from_tokens(&tokens[i..]);
-
-        let header_range_start = tokens.first().map(|(_, span)| span.start).unwrap_or(0);
-        let header_range_end = tokens
-            .last()
-            .map(|(_, span)| span.end)
-            .unwrap_or(header_range_start);
-        let header_range = header_range_start..header_range_end;
-
-        // Extract label text if present
-        let label = label_location.as_ref().map(|location| {
-            let text = if location.start < location.end && location.end <= source.len() {
-                source[location.start..location.end].trim().to_string()
-            } else {
-                String::new()
-            };
-            text
-        });
-
-        // Convert parameters to final types
-        let params = paramss
-            .into_iter()
-            .map(|p| convert_parameter(&source, p))
-            .collect();
-
-        AnnotationHeader {
-            label,
-            label_range: label_location,
-            parameters: params,
-            header_range,
-        }
-    })
+) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
+    filter(|(t, _): &TokenLocation| !matches!(t, Token::LexMarker | Token::Newline))
+        .repeated()
+        .at_least(1)
 }
 
 /// Build an annotation parser
@@ -280,9 +159,8 @@ pub(crate) fn build_annotation_parser<P>(
 where
     P: Parser<TokenLocation, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
 {
-    let source_for_header = source.clone();
     let header = token(Token::LexMarker)
-        .ignore_then(annotation_header(source_for_header))
+        .ignore_then(annotation_header())
         .then_ignore(token(Token::LexMarker));
 
     let block_form = {
@@ -297,26 +175,9 @@ where
             )
             .then_ignore(token(Token::LexMarker))
             .then_ignore(token(Token::Newline).or_not())
-            .map(move |(header_info, content)| {
-                let AnnotationHeader {
-                    label,
-                    label_range,
-                    parameters,
-                    header_range: _,
-                } = header_info;
-
-                let label_text = label.unwrap_or_default();
-                let label_location = label_range.map_or(Range::default(), |s| {
-                    byte_range_to_location(&source_for_block, &s)
-                });
-
-                // Use common builder to create annotation
-                ast_builder::build_annotation_from_text(
-                    label_text,
-                    label_location,
-                    parameters,
-                    content,
-                )
+            .map(move |(header_tokens, content)| {
+                // Use token-based API which will parse label AND parameters
+                ast_builder::build_annotation_from_tokens(header_tokens, content, &source_for_block)
             })
     };
 
@@ -326,40 +187,25 @@ where
         header_for_single
             .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
             .then_ignore(token(Token::Newline).or_not())
-            .map(move |(header_info, content_location)| {
-                let AnnotationHeader {
-                    label,
-                    label_range,
-                    parameters,
-                    header_range: _,
-                } = header_info;
-
-                let label_text = label.unwrap_or_default();
-                let label_location = label_range.map_or(Range::default(), |s| {
-                    byte_range_to_location(&source_for_single_line, &s)
-                });
-
+            .map(move |(header_tokens, content_tokens)| {
                 // Handle content if present
-                let content = if let Some(locations) = content_location {
-                    let text = extract_text_from_locations(&source_for_single_line, &locations);
-                    let range = compute_byte_range_bounds(&locations);
-                    let paragraph_location =
-                        byte_range_to_location(&source_for_single_line, &range);
-                    let text_line_item = ast_builder::build_paragraph_from_text(
-                        vec![(text, paragraph_location.clone())],
-                        paragraph_location,
+                let content = if let Some(tokens) = content_tokens {
+                    // Use universal ast_builder pipeline for paragraph
+                    // normalize → extract → create
+                    let paragraph = ast_builder::build_paragraph_from_tokens(
+                        vec![tokens],
+                        &source_for_single_line,
                     );
-                    vec![text_line_item]
+                    vec![paragraph]
                 } else {
                     vec![]
                 };
 
-                // Use common builder to create annotation
-                ast_builder::build_annotation_from_text(
-                    label_text,
-                    label_location,
-                    parameters,
+                // Use token-based API which will parse label AND parameters
+                ast_builder::build_annotation_from_tokens(
+                    header_tokens,
                     content,
+                    &source_for_single_line,
                 )
             })
     };
@@ -372,15 +218,15 @@ where
 // ============================================================================
 
 /// Parse a definition subject
+/// Returns tokens (not pre-extracted text) for universal pipeline
 pub(crate) fn definition_subject(
-    source: Arc<String>,
-) -> impl Parser<TokenLocation, (String, ByteRange<usize>), Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
     filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::Newline))
         .repeated()
         .at_least(1)
-        .map(move |tokenss| extract_tokens_to_text_and_location(&source, tokenss))
         .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
         .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Newline)).ignored())
+    // No .map() - preserve tokens!
 }
 
 /// Build a definition parser
@@ -391,19 +237,16 @@ pub(crate) fn build_definition_parser<P>(
 where
     P: Parser<TokenLocation, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
 {
-    let source_for_definition = source.clone();
-    definition_subject(source.clone())
+    definition_subject()
         .then(
             filter(|(t, _)| matches!(t, Token::Indent(_)))
                 .ignore_then(items)
                 .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_)))),
         )
-        .map(move |((subject_text, subject_location), content)| {
-            let subject_location =
-                byte_range_to_location(&source_for_definition, &subject_location);
-
-            // Use common builder to create definition
-            ast_builder::build_definition_from_text(subject_text, subject_location, content)
+        .map(move |(subject_tokens, content)| {
+            // Use universal ast_builder pipeline
+            // normalize → extract → create
+            ast_builder::build_definition_from_tokens(subject_tokens, content, &source)
         })
 }
 
@@ -412,17 +255,13 @@ where
 // ============================================================================
 
 /// Parse a session title
+/// Returns tokens (not pre-extracted text) for universal pipeline
 pub(crate) fn session_title(
-    source: Arc<String>,
-) -> impl Parser<TokenLocation, (String, ByteRange<usize>), Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
     text_line()
         .then_ignore(token(Token::Newline))
         .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))))
-        .map(move |locations| {
-            let text = extract_text_from_locations(&source, &locations);
-            let location = compute_byte_range_bounds(&locations);
-            (text, location)
-        })
+    // No .map() - preserve tokens!
 }
 
 /// Build a session parser
@@ -433,18 +272,16 @@ pub(crate) fn build_session_parser<P>(
 where
     P: Parser<TokenLocation, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
 {
-    let source_for_session = source.clone();
-    session_title(source.clone())
+    session_title()
         .then(
             filter(|(t, _)| matches!(t, Token::Indent(_)))
                 .ignore_then(items)
                 .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_)))),
         )
-        .map(move |((title_text, title_location), content)| {
-            let title_location = byte_range_to_location(&source_for_session, &title_location);
-
-            // Use common builder to create session
-            ast_builder::build_session_from_text(title_text, title_location, content)
+        .map(move |(title_tokens, content)| {
+            // Use universal ast_builder pipeline
+            // normalize → extract → create
+            ast_builder::build_session_from_tokens(title_tokens, content, &source)
         })
 }
 
@@ -453,9 +290,9 @@ where
 // ============================================================================
 
 /// Parse a list item line - a line that starts with a list marker
+/// Returns tokens (not pre-extracted text) for universal pipeline
 pub(crate) fn list_item_line(
-    source: Arc<String>,
-) -> impl Parser<TokenLocation, (String, ByteRange<usize>), Error = ParserError> + Clone {
+) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
     let rest_of_line = filter(|(t, _location): &TokenLocation| is_text_token(t)).repeated();
 
     let dash_pattern = filter(|(t, _): &TokenLocation| matches!(t, Token::Dash))
@@ -486,10 +323,8 @@ pub(crate) fn list_item_line(
         }))
         .chain(rest_of_line);
 
-    dash_pattern
-        .or(ordered_pattern)
-        .or(paren_pattern)
-        .map(move |tokenss| extract_tokens_to_text_and_location(&source, tokenss))
+    dash_pattern.or(ordered_pattern).or(paren_pattern)
+    // No .map() - preserve tokens!
 }
 
 /// Build a list parser
@@ -500,8 +335,7 @@ pub(crate) fn build_list_parser<P>(
 where
     P: Parser<TokenLocation, Vec<ContentItem>, Error = ParserError> + Clone + 'static,
 {
-    let source_for_list = source.clone();
-    let single_list_item = list_item_line(source.clone())
+    let single_list_item = list_item_line()
         .then_ignore(token(Token::Newline))
         .then(
             filter(|(t, _)| matches!(t, Token::Indent(_)))
@@ -509,21 +343,16 @@ where
                 .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_))))
                 .or_not(),
         )
-        .map(move |((text, text_location), maybe_content)| {
+        .map(move |(marker_tokens, maybe_content)| {
             let content = maybe_content.unwrap_or_default();
-            let line_location = byte_range_to_location(&source_for_list, &text_location);
-            let text_content = TextContent::from_string(text, Some(line_location.clone()));
-
-            let location = aggregate_locations(line_location, &content);
-
-            ListItem::with_text_content(text_content, content).at(location)
+            // Use universal ast_builder pipeline for list items
+            // normalize → extract → create
+            ast_builder::build_list_item_from_tokens(marker_tokens, content, &source)
         });
 
-    single_list_item.repeated().at_least(2).map(|items| {
-        let content_items: Vec<ContentItem> =
-            items.into_iter().map(ContentItem::ListItem).collect();
+    single_list_item.repeated().at_least(2).map(|list_items| {
         // Use common builder to create list
-        ast_builder::build_list_from_items(content_items)
+        ast_builder::build_list(list_items)
     })
 }
 
@@ -572,50 +401,28 @@ pub(crate) fn foreign_block(
 
     let source_for_annotation = source.clone();
     let closing_annotation_parser = token(Token::LexMarker)
-        .ignore_then(annotation_header(source_for_annotation.clone()))
+        .ignore_then(annotation_header())
         .then_ignore(token(Token::LexMarker))
         .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
-        .map(move |(header_info, content_location)| {
-            let AnnotationHeader {
-                label,
-                label_range,
-                parameters,
-                header_range: _,
-            } = header_info;
-
-            let label_text = label.unwrap_or_default();
-            let label_location = label_range.map_or(Range::default(), |range| {
-                byte_range_to_location(&source_for_annotation, &range)
-            });
-            let label = Label::new(label_text).at(label_location);
-
-            let (content, _paragraph_location) = if let Some(locations) = content_location {
-                let text = extract_text_from_locations(&source_for_annotation, &locations);
-                let range = compute_byte_range_bounds(&locations);
-                let paragraph_location = byte_range_to_location(&source_for_annotation, &range);
-
-                // Use common builder
-                let paragraph = ast_builder::build_paragraph_from_text(
-                    vec![(text, paragraph_location.clone())],
-                    paragraph_location.clone(),
-                );
-                (vec![paragraph], paragraph_location)
+        .map(move |(header_tokens, content_tokens)| {
+            let content = if let Some(tokens) = content_tokens {
+                // Use universal ast_builder pipeline for paragraph
+                // normalize → extract → create
+                let paragraph =
+                    ast_builder::build_paragraph_from_tokens(vec![tokens], &source_for_annotation);
+                vec![paragraph]
             } else {
-                (vec![], Range::default())
+                vec![]
             };
 
-            // Use common builder - extract label value and location to reconstruct
-            let label_text = label.value.clone();
-            let label_location = label.location;
-
-            match ast_builder::build_annotation_from_text(
-                label_text,
-                label_location,
-                parameters,
+            // Use token-based API which will parse label AND parameters
+            match ast_builder::build_annotation_from_tokens(
+                header_tokens,
                 content,
+                &source_for_annotation,
             ) {
                 ContentItem::Annotation(annotation) => annotation,
-                _ => unreachable!("build_annotation_from_text always returns Annotation"),
+                _ => unreachable!("build_annotation_from_tokens always returns Annotation"),
             }
         });
 
@@ -649,280 +456,9 @@ pub(crate) fn foreign_block(
         )
 }
 
-// ============================================================================
-// LABEL PARSING
-// ============================================================================
-
-/// Parse label from a token slice
-///
-/// Extracts a label location from the beginning of the token slice if present.
-/// A label is identified as an identifier (Text, Dash, Number, Period tokens)
-/// that is NOT followed by an equals sign.
-pub(crate) fn parse_label_from_tokens(
-    tokens: &[TokenLocation],
-) -> (Option<ByteRange<usize>>, usize) {
-    if tokens.is_empty() {
-        return (None, 0);
-    }
-
-    type ParserError = Simple<TokenLocation>;
-
-    let whitespace = filter(|(token, _): &TokenLocation| matches!(token, Token::Whitespace));
-
-    let leading_whitespace = whitespace
-        .repeated()
-        .map(|items: Vec<TokenLocation>| items.len());
-
-    let identifier = filter(|(token, _): &TokenLocation| {
-        matches!(
-            token,
-            Token::Text(_) | Token::Dash | Token::Number(_) | Token::Period
-        )
-    })
-    .repeated()
-    .at_least(1)
-    .map(|items: Vec<TokenLocation>| {
-        let start = items.first().map(|(_, span)| span.start).unwrap_or(0);
-        let end = items.last().map(|(_, span)| span.end).unwrap_or(start);
-        let count = items.len();
-        (start..end, count)
-    });
-
-    let trailing_whitespace = whitespace
-        .repeated()
-        .map(|items: Vec<TokenLocation>| items.len());
-
-    let parser = leading_whitespace
-        .then(identifier)
-        .then(trailing_whitespace)
-        .map(
-            |((leading_count, (label_range, label_len)), trailing_count)| {
-                (leading_count, label_range, label_len, trailing_count)
-            },
-        )
-        .then(any::<TokenLocation, ParserError>().repeated());
-
-    let stream = chumsky::Stream::from_iter(
-        0..0,
-        tokens
-            .iter()
-            .cloned()
-            .map(|(token, span)| ((token, span.clone()), span)),
-    );
-
-    match parser.parse(stream) {
-        Ok(((leading_count, label_range, label_len, trailing_count), remainder)) => {
-            let consumed = leading_count + label_len + trailing_count;
-
-            if remainder
-                .first()
-                .map(|(token, _)| matches!(token, Token::Equals))
-                .unwrap_or(false)
-            {
-                return (None, 0);
-            }
-
-            (Some(label_range), consumed)
-        }
-        Err(_) => {
-            // Directly count leading whitespace tokens in the original slice
-            let leading_only = tokens
-                .iter()
-                .take_while(|(token, _)| matches!(token, Token::Whitespace))
-                .count();
-            (None, leading_only)
-        }
-    }
-}
-
-// ============================================================================
-// PARAMETER PARSING
-// ============================================================================
-
-/// Parameter with source text locations for later extraction
-#[derive(Debug, Clone)]
-pub(crate) struct ParameterWithLocations {
-    pub(crate) key_location: ByteRange<usize>,
-    pub(crate) value_location: Option<ByteRange<usize>>,
-    pub(crate) range: ByteRange<usize>,
-}
-
-/// Convert a parameter from locations to final AST
-///
-/// Extracts the key and value text from the source using the stored locations
-pub(crate) fn convert_parameter(source: &str, param: ParameterWithLocations) -> Parameter {
-    let key = extract_text_param(source, &param.key_location).to_string();
-
-    let value = param
-        .value_location
-        .map(|value_location| extract_text_param(source, &value_location).to_string());
-
-    let location = byte_range_to_location(source, &param.range);
-
-    Parameter {
-        key,
-        value: value.unwrap_or_default(),
-        location,
-    }
-}
-
-/// Extract text from source using a location range
-fn extract_text_param<'a>(source: &'a str, location: &ByteRange<usize>) -> &'a str {
-    &source[location.start..location.end]
-}
-
-/// Helper function to parse parameters from a token slice
-///
-/// Simplified parameter parsing:
-/// 1. Split by comma
-/// 2. For each segment, split by '=' to get key/value
-/// 3. Whitespace around parameters is ignored
-pub(crate) fn parse_parameters_from_tokens(
-    tokens: &[TokenLocation],
-) -> Vec<ParameterWithLocations> {
-    if tokens.is_empty() {
-        return Vec::new();
-    }
-
-    #[derive(Clone)]
-    struct ParsedValue {
-        location: Option<ByteRange<usize>>,
-        last_consumed: ByteRange<usize>,
-    }
-
-    type ParserError = Simple<TokenLocation>;
-
-    let whitespace_token = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
-        matches!(token, Token::Whitespace)
-    })
-    .ignored();
-    let whitespace0 = whitespace_token.repeated().ignored();
-
-    let key_segment = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
-        matches!(token, Token::Text(_) | Token::Dash | Token::Number(_))
-    })
-    .map(|(_, span)| span.clone())
-    .repeated()
-    .at_least(1)
-    .map(|segments: Vec<ByteRange<usize>>| {
-        let start = segments.first().map(|range| range.start).unwrap_or(0);
-        let end = segments.last().map(|range| range.end).unwrap_or(start);
-        start..end
-    });
-
-    let equals = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
-        matches!(token, Token::Equals)
-    })
-    .ignored();
-
-    let unquoted_value_segment =
-        filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
-            !matches!(token, Token::Comma | Token::Whitespace)
-        })
-        .map(|(_, span)| span.clone());
-
-    let unquoted_value =
-        unquoted_value_segment
-            .repeated()
-            .at_least(1)
-            .map(|segments: Vec<ByteRange<usize>>| {
-                let start = segments.first().map(|range| range.start).unwrap_or(0);
-                let end = segments.last().map(|range| range.end).unwrap_or(start);
-                let last_consumed = segments.last().cloned().unwrap_or(start..end);
-                ParsedValue {
-                    location: Some(start..end),
-                    last_consumed,
-                }
-            });
-
-    let quoted_inner = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
-        !matches!(token, Token::Quote)
-    })
-    .map(|(_, span)| span.clone())
-    .repeated();
-
-    let closing_quote = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
-        matches!(token, Token::Quote)
-    })
-    .map(|(_, span)| span.clone());
-
-    let quoted_value = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
-        matches!(token, Token::Quote)
-    })
-    .map(|(_, span)| span.clone())
-    .then(quoted_inner.then(closing_quote.or_not()))
-    .map(|(opening_span, (inner_segments, closing_span))| {
-        let location = if inner_segments.is_empty() {
-            Some(0..0)
-        } else {
-            let start = inner_segments.first().map(|range| range.start).unwrap_or(0);
-            let end = inner_segments
-                .last()
-                .map(|range| range.end)
-                .unwrap_or(start);
-            Some(start..end)
-        };
-
-        let last_consumed = closing_span
-            .clone()
-            .or_else(|| inner_segments.last().cloned())
-            .unwrap_or_else(|| opening_span.clone());
-
-        ParsedValue {
-            location,
-            last_consumed,
-        }
-    });
-
-    let value = quoted_value.or(unquoted_value);
-
-    let parameter = key_segment
-        .then_ignore(whitespace0)
-        .then_ignore(equals)
-        .then_ignore(whitespace0)
-        .then(value)
-        .map(|(key_location, parsed_value)| {
-            let ParsedValue {
-                location,
-                last_consumed,
-            } = parsed_value;
-
-            let range_start = key_location.start;
-            let range_end = location
-                .as_ref()
-                .filter(|loc| loc.end > range_start)
-                .map(|loc| loc.end)
-                .unwrap_or(last_consumed.end);
-
-            ParameterWithLocations {
-                key_location,
-                value_location: location,
-                range: range_start..range_end,
-            }
-        });
-
-    let comma = filter::<TokenLocation, _, ParserError>(|(token, _): &TokenLocation| {
-        matches!(token, Token::Comma)
-    })
-    .ignored();
-    let parameter_with_separator = parameter
-        .then_ignore(whitespace0)
-        .then_ignore(comma.then_ignore(whitespace0).or_not());
-
-    let parser = whitespace0
-        .ignore_then(parameter_with_separator.repeated())
-        .then_ignore(whitespace0);
-
-    let stream = chumsky::Stream::from_iter(
-        0..0,
-        tokens
-            .iter()
-            .cloned()
-            .map(|(token, span)| ((token, span.clone()), span)),
-    );
-
-    parser.parse(stream).unwrap_or_default()
-}
+// NOTE: Label and parameter parsing logic has been moved to
+// src/lex/parsers/common/data_extraction.rs as part of the universal AST construction pipeline.
+// This ensures both parsers use the same label/parameter parsing logic.
 
 #[cfg(test)]
 mod tests {
