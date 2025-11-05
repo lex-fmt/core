@@ -185,12 +185,13 @@ pub fn build_list_item(
 // ANNOTATION BUILDING
 // ============================================================================
 
-/// Build an Annotation AST node from a label token, parameters, and content.
+/// Build an Annotation AST node from a label token and content.
+///
+/// Goes through the full pipeline: normalize → extract (with label/param parsing) → create.
 ///
 /// # Arguments
 ///
-/// * `label_token` - LineToken for the annotation label
-/// * `parameters` - Annotation parameters (already parsed)
+/// * `label_token` - LineToken for the annotation label (includes label and parameters between :: markers)
 /// * `content` - Child content items (already constructed)
 /// * `source` - Original source string
 ///
@@ -199,18 +200,17 @@ pub fn build_list_item(
 /// An Annotation ContentItem
 pub fn build_annotation(
     label_token: &LineToken,
-    parameters: Vec<Parameter>,
     content: Vec<ContentItem>,
     source: &str,
 ) -> ContentItem {
     // 1. Normalize
     let tokens = token_normalization::normalize_line_token(label_token);
 
-    // 2. Extract
+    // 2. Extract (parses label AND parameters from tokens)
     let data = data_extraction::extract_annotation_data(tokens, source);
 
     // 3. Create
-    ast_creation::create_annotation(data, parameters, content, source)
+    ast_creation::create_annotation(data, content, source)
 }
 
 // ============================================================================
@@ -372,10 +372,11 @@ pub fn build_list_item_from_tokens(
 
 /// Build an Annotation from already-normalized label tokens (for reference parser).
 ///
+/// Skips normalization, goes through: extract (with label/param parsing) → create.
+///
 /// # Arguments
 ///
-/// * `label_tokens` - Normalized tokens for the annotation label
-/// * `parameters` - Annotation parameters (already parsed)
+/// * `label_tokens` - Normalized tokens for the annotation label (includes label and parameters)
 /// * `content` - Child content items (already constructed)
 /// * `source` - Original source string
 ///
@@ -384,16 +385,15 @@ pub fn build_list_item_from_tokens(
 /// An Annotation ContentItem
 pub fn build_annotation_from_tokens(
     label_tokens: Vec<(Token, ByteRange<usize>)>,
-    parameters: Vec<Parameter>,
     content: Vec<ContentItem>,
     source: &str,
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
-    // 1. Extract
+    // 1. Extract (parses label AND parameters from tokens)
     let data = data_extraction::extract_annotation_data(label_tokens, source);
 
     // 2. Create
-    ast_creation::create_annotation(data, parameters, content, source)
+    ast_creation::create_annotation(data, content, source)
 }
 
 /// Build a ForeignBlock from already-normalized tokens (for reference parser).

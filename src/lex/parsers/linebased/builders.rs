@@ -122,15 +122,22 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
 
     // Parse based on what we found
     if dcolon_count >= 2 {
-        // We have :: label :: [text]
-        // Extract label tokens between the two :: markers using byte-range extraction
+        // We have :: label [params] :: [text]
+        // Extract tokens between the two :: markers
         let first_dcolon = first_dcolon_idx.unwrap();
         let second_dcolon = second_dcolon_start.unwrap();
 
-        let label_text =
-            extract_text_from_token_slice(token, first_dcolon + 1, second_dcolon, source)?;
+        // Get all token pairs for the label (between :: markers)
+        let label_token_pairs: Vec<(Token, std::ops::Range<usize>)> = token
+            .source_tokens
+            .iter()
+            .zip(token.token_spans.iter())
+            .skip(first_dcolon + 1)
+            .take(second_dcolon - first_dcolon - 1)
+            .map(|(t, s)| (t.clone(), s.clone()))
+            .collect();
 
-        // Extract text after second :: using byte-range extraction
+        // Extract trailing text after second ::
         let trailing_text = extract_text_from_token_slice(
             token,
             second_dcolon + 1,
@@ -139,8 +146,6 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
         )?;
 
         // Build content with optional trailing text
-        // Note: We use text-based API directly here because we've already extracted the text
-        // and can't easily create a proper LineToken for the token-based API
         let content = if !trailing_text.is_empty() {
             vec![ast_builder::build_paragraph_from_text(
                 vec![(trailing_text, location.clone())],
@@ -150,16 +155,15 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
             vec![]
         };
 
-        // Use text-based API directly because we've already parsed the label structure
-        // The token-based API expects unparsed LineToken, but we've done custom parsing
+        // Use token-based API which will parse label AND parameters from tokens
         let annotation =
-            ast_builder::build_annotation_from_text(label_text, location, vec![], content);
+            ast_builder::build_annotation_from_tokens(label_token_pairs, content, source);
         return Ok(annotation);
     }
 
     // Fallback: single-line annotation without trailing text
-    // Use new API to create simple annotation
-    Ok(ast_builder::build_annotation(token, vec![], vec![], source))
+    // Use token-based API which will parse label AND parameters
+    Ok(ast_builder::build_annotation(token, vec![], source))
 }
 
 /// Create an annotation with block content from an opening annotation token and parsed content
@@ -168,10 +172,9 @@ pub fn unwrap_annotation_with_content(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Use new API to create annotation with content
+    // Use token-based API which will parse label AND parameters from tokens
     Ok(ast_builder::build_annotation(
         opening_token,
-        vec![],
         content,
         source,
     ))
@@ -274,9 +277,9 @@ pub fn unwrap_foreign_block(
     closing_annotation_token: &LineToken,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Build the closing annotation using new API
+    // Build the closing annotation using token-based API (parses label and parameters)
     let closing_annotation =
-        match ast_builder::build_annotation(closing_annotation_token, vec![], vec![], source) {
+        match ast_builder::build_annotation(closing_annotation_token, vec![], source) {
             ContentItem::Annotation(annotation) => annotation,
             _ => unreachable!("build_annotation always returns Annotation"),
         };

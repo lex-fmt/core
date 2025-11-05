@@ -7,6 +7,7 @@
 //! - Whitespace around parameters is ignored
 
 use lex::lex::parsers::parse_document;
+use lex::lex::testing::assert_ast;
 use proptest::prelude::*;
 
 /// Generate valid parameter keys
@@ -175,8 +176,14 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters.len(), 3);
+        assert_ast(&doc).item(0, |item| {
+            item.assert_annotation()
+                .label("note")
+                .parameter_count(3)
+                .has_parameter_with_value("key1", "val1")
+                .has_parameter_with_value("key2", "val2")
+                .has_parameter_with_value("key3", "val3");
+        });
     }
 
     #[test]
@@ -186,11 +193,14 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters.len(), 3);
-        assert_eq!(annotation.parameters[0].key, "key1");
-        assert_eq!(annotation.parameters[1].key, "key2");
-        assert_eq!(annotation.parameters[2].key, "key3");
+        assert_ast(&doc).item(0, |item| {
+            item.assert_annotation()
+                .label("note")
+                .parameter_count(3)
+                .parameter(0, "key1", "val1")
+                .parameter(1, "key2", "val2")
+                .parameter(2, "key3", "val3");
+        });
     }
 
     #[test]
@@ -200,10 +210,13 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters.len(), 2);
-        assert_eq!(annotation.parameters[0].value, "val1".to_string());
-        assert_eq!(annotation.parameters[1].value, "val2".to_string());
+        assert_ast(&doc).item(0, |item| {
+            item.assert_annotation()
+                .label("note")
+                .parameter_count(2)
+                .has_parameter_with_value("key1", "val1")
+                .has_parameter_with_value("key2", "val2");
+        });
     }
 
     #[test]
@@ -213,8 +226,12 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters[0].value, "Hello World".to_string());
+        assert_ast(&doc).item(0, |item| {
+            item.assert_annotation()
+                .label("note")
+                .parameter_count(1)
+                .has_parameter_with_value("message", "Hello World");
+        });
     }
 
     #[test]
@@ -224,11 +241,12 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(
-            annotation.parameters[0].value,
-            "value with, comma".to_string()
-        );
+        assert_ast(&doc).item(0, |item| {
+            item.assert_annotation()
+                .label("note")
+                .parameter_count(1)
+                .has_parameter_with_value("message", "value with, comma");
+        });
     }
 
     #[test]
@@ -238,8 +256,12 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters[0].value, "".to_string());
+        assert_ast(&doc).item(0, |item| {
+            item.assert_annotation()
+                .label("note")
+                .parameter_count(1)
+                .has_parameter_with_value("message", "");
+        });
     }
 
     #[test]
@@ -249,8 +271,12 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters[0].value, "3.11.2".to_string());
+        assert_ast(&doc).item(0, |item| {
+            item.assert_annotation()
+                .label("note")
+                .parameter_count(1)
+                .has_parameter_with_value("version", "3.11.2");
+        });
     }
 
     #[test]
@@ -260,9 +286,12 @@ mod specific_tests {
         assert!(result.is_ok());
 
         let doc = result.unwrap();
-        let annotation = doc.root.content[0].as_annotation().unwrap();
-        assert_eq!(annotation.parameters.len(), 2);
-        assert_eq!(annotation.parameters[0].key, "ref-id");
-        assert_eq!(annotation.parameters[1].key, "api_version");
+        assert_ast(&doc).item(0, |item| {
+            item.assert_annotation()
+                .label("note")
+                .parameter_count(2)
+                .parameter(0, "ref-id", "123")
+                .parameter(1, "api_version", "2");
+        });
     }
 }
