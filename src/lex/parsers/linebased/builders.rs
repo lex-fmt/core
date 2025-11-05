@@ -15,7 +15,7 @@ use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::Range;
 use crate::lex::lexers::LineToken;
 use crate::lex::parsers::common::ast_builder;
-use crate::lex::parsers::common::{build_annotation, build_paragraph, location::default_location};
+use crate::lex::parsers::common::location::default_location;
 use crate::lex::parsers::ContentItem;
 
 // ============================================================================
@@ -139,10 +139,10 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
         )?;
 
         // Build content with optional trailing text
-        // Note: We use build_paragraph directly here because we've already extracted the text
-        // and can't easily create a proper LineToken for the facade
+        // Note: We use text-based API directly here because we've already extracted the text
+        // and can't easily create a proper LineToken for the token-based API
         let content = if !trailing_text.is_empty() {
-            vec![build_paragraph(
+            vec![ast_builder::build_paragraph_from_text(
                 vec![(trailing_text, location.clone())],
                 location.clone(),
             )]
@@ -150,19 +150,16 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
             vec![]
         };
 
-        // Use build_annotation directly because we've already parsed the label structure
-        // The annotation facade expects unparsed LineToken, but we've done custom parsing
-        let annotation = build_annotation(label_text, location, vec![], content);
+        // Use text-based API directly because we've already parsed the label structure
+        // The token-based API expects unparsed LineToken, but we've done custom parsing
+        let annotation =
+            ast_builder::build_annotation_from_text(label_text, location, vec![], content);
         return Ok(annotation);
     }
 
     // Fallback: single-line annotation without trailing text
-    // Use old facade to create simple annotation
-    // TODO: Migrate to new API when annotation parsing is refactored
-    use crate::lex::parsers::common::ast_construction;
-    let annotation =
-        ast_construction::build_annotation_from_line_token(token, vec![], vec![], source);
-    Ok(annotation)
+    // Use new API to create simple annotation
+    Ok(ast_builder::build_annotation(token, vec![], vec![], source))
 }
 
 /// Create an annotation with block content from an opening annotation token and parsed content
@@ -171,12 +168,13 @@ pub fn unwrap_annotation_with_content(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Use old facade to create annotation with content
-    // TODO: Migrate to new API when annotation parsing is refactored
-    use crate::lex::parsers::common::ast_construction;
-    let annotation =
-        ast_construction::build_annotation_from_line_token(opening_token, vec![], content, source);
-    Ok(annotation)
+    // Use new API to create annotation with content
+    Ok(ast_builder::build_annotation(
+        opening_token,
+        vec![],
+        content,
+        source,
+    ))
 }
 
 /// Extract location information from a LineToken by computing bounding box from token_spans
@@ -276,17 +274,12 @@ pub fn unwrap_foreign_block(
     closing_annotation_token: &LineToken,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Build the closing annotation (annotations still use old API for now)
-    use crate::lex::parsers::common::ast_construction;
-    let closing_annotation = match ast_construction::build_annotation_from_line_token(
-        closing_annotation_token,
-        vec![],
-        vec![],
-        source,
-    ) {
-        ContentItem::Annotation(annotation) => annotation,
-        _ => unreachable!("build_annotation_from_line_token always returns Annotation"),
-    };
+    // Build the closing annotation using new API
+    let closing_annotation =
+        match ast_builder::build_annotation(closing_annotation_token, vec![], vec![], source) {
+            ContentItem::Annotation(annotation) => annotation,
+            _ => unreachable!("build_annotation always returns Annotation"),
+        };
 
     // Use new API to build foreign block with indentation wall stripping
     Ok(ast_builder::build_foreign_block(

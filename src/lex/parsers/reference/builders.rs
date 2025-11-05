@@ -20,9 +20,9 @@ use crate::lex::ast::{
 };
 use crate::lex::lexers::Token;
 // Location utilities and AST builders are now imported from crate::lex::parsers::common
-use crate::lex::parsers::common::{
-    build_annotation, build_definition, build_list, build_paragraph, build_session,
-    location::{aggregate_locations, byte_range_to_location, compute_byte_range_bounds},
+use crate::lex::parsers::common::ast_builder;
+use crate::lex::parsers::common::location::{
+    aggregate_locations, byte_range_to_location, compute_byte_range_bounds,
 };
 
 /// Type alias for token with location
@@ -187,10 +187,12 @@ pub(crate) fn paragraph(
             };
 
             // Use common builder to create paragraph
-            if let ContentItem::Paragraph(para) = build_paragraph(text_lines, location) {
+            if let ContentItem::Paragraph(para) =
+                ast_builder::build_paragraph_from_text(text_lines, location)
+            {
                 para
             } else {
-                unreachable!("build_paragraph always returns Paragraph")
+                unreachable!("build_paragraph_from_text always returns Paragraph")
             }
         })
 }
@@ -309,7 +311,12 @@ where
                 });
 
                 // Use common builder to create annotation
-                build_annotation(label_text, label_location, parameters, content)
+                ast_builder::build_annotation_from_text(
+                    label_text,
+                    label_location,
+                    parameters,
+                    content,
+                )
             })
     };
 
@@ -338,7 +345,7 @@ where
                     let range = compute_byte_range_bounds(&locations);
                     let paragraph_location =
                         byte_range_to_location(&source_for_single_line, &range);
-                    let text_line_item = build_paragraph(
+                    let text_line_item = ast_builder::build_paragraph_from_text(
                         vec![(text, paragraph_location.clone())],
                         paragraph_location,
                     );
@@ -348,7 +355,12 @@ where
                 };
 
                 // Use common builder to create annotation
-                build_annotation(label_text, label_location, parameters, content)
+                ast_builder::build_annotation_from_text(
+                    label_text,
+                    label_location,
+                    parameters,
+                    content,
+                )
             })
     };
 
@@ -391,7 +403,7 @@ where
                 byte_range_to_location(&source_for_definition, &subject_location);
 
             // Use common builder to create definition
-            build_definition(subject_text, subject_location, content)
+            ast_builder::build_definition_from_text(subject_text, subject_location, content)
         })
 }
 
@@ -432,7 +444,7 @@ where
             let title_location = byte_range_to_location(&source_for_session, &title_location);
 
             // Use common builder to create session
-            build_session(title_text, title_location, content)
+            ast_builder::build_session_from_text(title_text, title_location, content)
         })
 }
 
@@ -511,7 +523,7 @@ where
         let content_items: Vec<ContentItem> =
             items.into_iter().map(ContentItem::ListItem).collect();
         // Use common builder to create list
-        build_list(content_items)
+        ast_builder::build_list_from_items(content_items)
     })
 }
 
@@ -583,7 +595,7 @@ pub(crate) fn foreign_block(
                 let paragraph_location = byte_range_to_location(&source_for_annotation, &range);
 
                 // Use common builder
-                let paragraph = build_paragraph(
+                let paragraph = ast_builder::build_paragraph_from_text(
                     vec![(text, paragraph_location.clone())],
                     paragraph_location.clone(),
                 );
@@ -596,9 +608,14 @@ pub(crate) fn foreign_block(
             let label_text = label.value.clone();
             let label_location = label.location;
 
-            match build_annotation(label_text, label_location, parameters, content) {
+            match ast_builder::build_annotation_from_text(
+                label_text,
+                label_location,
+                parameters,
+                content,
+            ) {
                 ContentItem::Annotation(annotation) => annotation,
-                _ => unreachable!("build_annotation always returns Annotation"),
+                _ => unreachable!("build_annotation_from_text always returns Annotation"),
             }
         });
 

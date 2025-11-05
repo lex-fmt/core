@@ -30,6 +30,7 @@
 //! let session = ast_builder::build_session(&title_token, content, source);
 //! ```
 
+use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{Annotation, ListItem, Parameter};
 use crate::lex::lexers::linebased::tokens_linebased::LineToken;
 use crate::lex::parsers::ContentItem;
@@ -435,6 +436,235 @@ pub fn build_foreign_block_from_tokens(
 
     // 2. Create
     ast_creation::create_foreign_block(data, closing_annotation, source)
+}
+
+// ============================================================================
+// TEXT-BASED API (for reference parser and simple cases)
+// ============================================================================
+//
+// These functions accept pre-extracted text and ast::Range locations.
+// They are used by the reference parser which extracts text during parsing,
+// and for simple cases where text has already been extracted.
+
+/// Build a Paragraph from pre-extracted text lines with locations.
+///
+/// # Arguments
+///
+/// * `text_lines` - Vec of (text, location) tuples for each line
+/// * `overall_location` - The combined location for the entire paragraph
+///
+/// # Returns
+///
+/// A Paragraph ContentItem
+pub fn build_paragraph_from_text(
+    text_lines: Vec<(String, crate::lex::ast::Range)>,
+    overall_location: crate::lex::ast::Range,
+) -> ContentItem {
+    use crate::lex::ast::{Paragraph, TextContent, TextLine};
+
+    let lines: Vec<ContentItem> = text_lines
+        .into_iter()
+        .map(|(text, location)| {
+            let text_content = TextContent::from_string(text, Some(location.clone()));
+            let text_line = TextLine::new(text_content).at(location);
+            ContentItem::TextLine(text_line)
+        })
+        .collect();
+
+    ContentItem::Paragraph(Paragraph {
+        lines,
+        location: overall_location,
+    })
+}
+
+/// Build a Session from pre-extracted title text and location.
+///
+/// # Arguments
+///
+/// * `title_text` - The session title text
+/// * `title_location` - The location of the session title
+/// * `content` - The child content items
+///
+/// # Returns
+///
+/// A Session ContentItem
+pub fn build_session_from_text(
+    title_text: String,
+    title_location: crate::lex::ast::Range,
+    content: Vec<ContentItem>,
+) -> ContentItem {
+    use crate::lex::ast::{Session, TextContent};
+    use crate::lex::parsers::common::location::aggregate_locations;
+
+    let title = TextContent::from_string(title_text, Some(title_location.clone()));
+    let location = aggregate_locations(title_location, &content);
+
+    let session = Session::new(title, content).at(location);
+    ContentItem::Session(session)
+}
+
+/// Build a Definition from pre-extracted subject text and location.
+///
+/// # Arguments
+///
+/// * `subject_text` - The definition subject text
+/// * `subject_location` - The location of the subject
+/// * `content` - The child content items
+///
+/// # Returns
+///
+/// A Definition ContentItem
+pub fn build_definition_from_text(
+    subject_text: String,
+    subject_location: crate::lex::ast::Range,
+    content: Vec<ContentItem>,
+) -> ContentItem {
+    use crate::lex::ast::{Definition, TextContent};
+    use crate::lex::parsers::common::location::aggregate_locations;
+
+    let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
+    let location = aggregate_locations(subject_location, &content);
+
+    let definition = Definition::new(subject, content).at(location);
+    ContentItem::Definition(definition)
+}
+
+/// Build an Annotation from pre-extracted label text and location.
+///
+/// # Arguments
+///
+/// * `label_text` - The annotation label text
+/// * `label_location` - The location of the label
+/// * `parameters` - The annotation parameters
+/// * `content` - The child content items
+///
+/// # Returns
+///
+/// An Annotation ContentItem
+pub fn build_annotation_from_text(
+    label_text: String,
+    label_location: crate::lex::ast::Range,
+    parameters: Vec<Parameter>,
+    content: Vec<ContentItem>,
+) -> ContentItem {
+    use crate::lex::ast::Label;
+    use crate::lex::parsers::common::location::aggregate_locations;
+
+    let label = Label::new(label_text).at(label_location.clone());
+    let location = aggregate_locations(label_location, &content);
+
+    ContentItem::Annotation(Annotation {
+        label,
+        parameters,
+        content,
+        location,
+    })
+}
+
+/// Build a List from content items.
+///
+/// # Arguments
+///
+/// * `items` - The list items as ContentItems
+///
+/// # Returns
+///
+/// A List ContentItem
+pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
+    use crate::lex::ast::range::Position;
+    use crate::lex::ast::List;
+
+    if items.is_empty() {
+        return ContentItem::List(List {
+            content: vec![],
+            location: crate::lex::ast::Range::default(),
+        });
+    }
+
+    // Compute location from all items
+    let item_locations: Vec<crate::lex::ast::Range> =
+        items.iter().map(|item| item.range().clone()).collect();
+
+    let location = if item_locations.is_empty() {
+        crate::lex::ast::Range::default()
+    } else {
+        // Find bounding box for all items
+        let min_line = item_locations
+            .iter()
+            .map(|l| l.start.line)
+            .min()
+            .unwrap_or(0);
+        let min_col = item_locations
+            .iter()
+            .filter(|l| l.start.line == min_line)
+            .map(|l| l.start.column)
+            .min()
+            .unwrap_or(0);
+        let max_line = item_locations.iter().map(|l| l.end.line).max().unwrap_or(0);
+        let max_col = item_locations
+            .iter()
+            .filter(|l| l.end.line == max_line)
+            .map(|l| l.end.column)
+            .max()
+            .unwrap_or(0);
+
+        crate::lex::ast::Range::new(
+            0..0,
+            Position::new(min_line, min_col),
+            Position::new(max_line, max_col),
+        )
+    };
+
+    ContentItem::List(List {
+        content: items,
+        location,
+    })
+}
+
+/// Build a ForeignBlock from pre-extracted text and locations.
+///
+/// NOTE: This does NOT perform indentation wall stripping.
+/// Use build_foreign_block_from_tokens for proper indentation handling.
+///
+/// # Arguments
+///
+/// * `subject_text` - The foreign block subject text
+/// * `subject_location` - The location of the subject
+/// * `content_text` - The content text
+/// * `content_location` - The location of the content
+/// * `closing_annotation` - The closing annotation
+///
+/// # Returns
+///
+/// A ForeignBlock ContentItem
+pub fn build_foreign_block_from_text(
+    subject_text: String,
+    subject_location: crate::lex::ast::Range,
+    content_text: String,
+    content_location: crate::lex::ast::Range,
+    closing_annotation: Annotation,
+) -> ContentItem {
+    use crate::lex::ast::{ForeignBlock, TextContent};
+    use crate::lex::parsers::common::location::compute_location_from_locations;
+
+    let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
+    let content = TextContent::from_string(content_text, Some(content_location.clone()));
+
+    let location_sources = vec![
+        subject_location,
+        content_location,
+        closing_annotation.location.clone(),
+    ];
+    let location = compute_location_from_locations(&location_sources);
+
+    let foreign_block = ForeignBlock {
+        subject,
+        content,
+        closing_annotation,
+        location,
+    };
+
+    ContentItem::ForeignBlock(Box::new(foreign_block))
 }
 
 #[cfg(test)]
