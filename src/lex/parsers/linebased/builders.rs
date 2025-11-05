@@ -1,45 +1,30 @@
 //! Linebased Parser Unwrapper - Pattern to AST Conversion
 //!
 //! This module handles converting matched patterns and tokens into AST nodes.
-//! It uses the AST construction facade from common::ast_construction which properly
-//! handles token unrolling, location conversion, and AST construction.
+//! It uses the new AST builder API which coordinates:
+//! 1. Token normalization (various formats → standard vectors)
+//! 2. Data extraction (tokens → primitives with byte ranges)
+//! 3. AST creation (primitives → AST nodes with ast::Range)
 //!
 //! The unwrapper is responsible for:
-//! 1. Taking matched pattern data + tokens
-//! 2. Calling facade functions with tokens + source string
-//! 3. Facade handles: unrolling, location conversion, calling base builders
-//! 4. Handling recursive content from nested blocks
+//! 1. Taking matched pattern data + tokens from the parser
+//! 2. Calling ast_builder public API with tokens + source string
+//! 3. Handling recursive content from nested blocks
 
 use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::Range;
 use crate::lex::lexers::LineToken;
-use crate::lex::parsers::common::ast_construction;
-use crate::lex::parsers::common::{
-    build_annotation, build_paragraph, extract_text_from_span,
-    location::{compute_location_from_locations, default_location},
-};
+use crate::lex::parsers::common::ast_builder;
+use crate::lex::parsers::common::location::default_location;
 use crate::lex::parsers::ContentItem;
 
 // ============================================================================
-// TEXT AND LOCATION EXTRACTION
+// HELPER FUNCTIONS (for annotation parsing - temporary until annotations migrated)
 // ============================================================================
 
-/// Extract text from a LineToken by computing bounding box from token_spans.
-fn extract_text_from_line_token(token: &LineToken, source: &str) -> Result<String, String> {
-    if token.token_spans.is_empty() {
-        return Err("LineToken has no token_spans".to_string());
-    }
-
-    // Compute bounding box from token_spans
-    let min_start = token.token_spans.iter().map(|r| r.start).min().unwrap();
-    let max_end = token.token_spans.iter().map(|r| r.end).max().unwrap();
-    let span = min_start..max_end;
-
-    Ok(extract_text_from_span(source, &span))
-}
-
 /// Extract text from a subset of token slice using byte range extraction.
-/// This is the unified approach - use the same byte-range logic as reference parser.
+/// Used by annotation parsing which needs custom label extraction.
+/// TODO: Remove when annotations are migrated to new API
 fn extract_text_from_token_slice(
     token: &LineToken,
     start_idx: usize,
@@ -58,7 +43,6 @@ fn extract_text_from_token_slice(
         return Err("Invalid token slice: start > end".to_string());
     }
 
-    // Get the byte ranges for the slice
     let spans = &token.token_spans[start_idx..end_idx];
     if spans.is_empty() {
         return Ok(String::new());
@@ -74,24 +58,23 @@ fn extract_text_from_token_slice(
     Ok(source[start..end].trim().to_string())
 }
 
-// Location utilities are now provided by crate::lex::parsers::common::location
-// See that module for compute_location_from_locations, aggregate_locations, etc.
+// ============================================================================
+// PARAGRAPH UNWRAPPERS
+// ============================================================================
 
 /// Convert a line token to a Paragraph ContentItem.
 ///
-/// Uses the AST construction facade which handles token unrolling,
-/// location conversion, and calls the base builder.
+/// Uses the new AST builder API which coordinates normalization, extraction, and creation.
 pub fn unwrap_token_to_paragraph(token: &LineToken, source: &str) -> Result<ContentItem, String> {
-    // Use facade to build paragraph from single token
-    let paragraph =
-        ast_construction::build_paragraph_from_line_tokens(std::slice::from_ref(token), source);
-    Ok(paragraph)
+    Ok(ast_builder::build_paragraph(
+        std::slice::from_ref(token),
+        source,
+    ))
 }
 
 /// Convert multiple line tokens to a single Paragraph ContentItem with multiple lines.
 ///
-/// Uses the AST construction facade which handles token unrolling,
-/// location conversion, and calls the base builder.
+/// Uses the new AST builder API which coordinates normalization, extraction, and creation.
 pub fn unwrap_tokens_to_paragraph(
     tokens: Vec<LineToken>,
     source: &str,
@@ -100,9 +83,7 @@ pub fn unwrap_tokens_to_paragraph(
         return Err("Cannot create paragraph from empty token list".to_string());
     }
 
-    // Use facade to build paragraph from multiple tokens
-    let paragraph = ast_construction::build_paragraph_from_line_tokens(&tokens, source);
-    Ok(paragraph)
+    Ok(ast_builder::build_paragraph(&tokens, source))
 }
 
 /// Convert an annotation line token to an Annotation ContentItem.
@@ -158,10 +139,10 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
         )?;
 
         // Build content with optional trailing text
-        // Note: We use build_paragraph directly here because we've already extracted the text
-        // and can't easily create a proper LineToken for the facade
+        // Note: We use text-based API directly here because we've already extracted the text
+        // and can't easily create a proper LineToken for the token-based API
         let content = if !trailing_text.is_empty() {
-            vec![build_paragraph(
+            vec![ast_builder::build_paragraph_from_text(
                 vec![(trailing_text, location.clone())],
                 location.clone(),
             )]
@@ -169,17 +150,16 @@ pub fn unwrap_annotation(token: &LineToken, source: &str) -> Result<ContentItem,
             vec![]
         };
 
-        // Use build_annotation directly because we've already parsed the label structure
-        // The annotation facade expects unparsed LineToken, but we've done custom parsing
-        let annotation = build_annotation(label_text, location, vec![], content);
+        // Use text-based API directly because we've already parsed the label structure
+        // The token-based API expects unparsed LineToken, but we've done custom parsing
+        let annotation =
+            ast_builder::build_annotation_from_text(label_text, location, vec![], content);
         return Ok(annotation);
     }
 
     // Fallback: single-line annotation without trailing text
-    // Use facade to create simple annotation
-    let annotation =
-        ast_construction::build_annotation_from_line_token(token, vec![], vec![], source);
-    Ok(annotation)
+    // Use new API to create simple annotation
+    Ok(ast_builder::build_annotation(token, vec![], vec![], source))
 }
 
 /// Create an annotation with block content from an opening annotation token and parsed content
@@ -188,10 +168,13 @@ pub fn unwrap_annotation_with_content(
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Use facade to create annotation with content
-    let annotation =
-        ast_construction::build_annotation_from_line_token(opening_token, vec![], content, source);
-    Ok(annotation)
+    // Use new API to create annotation with content
+    Ok(ast_builder::build_annotation(
+        opening_token,
+        vec![],
+        content,
+        source,
+    ))
 }
 
 /// Extract location information from a LineToken by computing bounding box from token_spans
@@ -213,160 +196,96 @@ fn extract_location_from_token(token: &LineToken, source: &str) -> Range {
     source_location.byte_range_to_ast_range(&span)
 }
 
-/// Extract a combined location that spans multiple tokens
-///
-/// Uses Location-level aggregation (matching reference parser approach):
-/// 1. Convert each token's byte range to a Location
-/// 2. Collect all Locations
-/// 3. Aggregate using Location-level min/max (line/column coordinates)
-///
-/// This approach is semantically correct for hierarchical/non-contiguous children
-/// and avoids issues with assuming contiguous byte ranges.
-fn extract_location_from_tokens(tokens: &[LineToken], source: &str) -> Range {
-    if tokens.is_empty() {
-        return default_location();
-    }
-
-    // Convert each token's bounding box to a Location
-    let locations: Vec<Range> = tokens
-        .iter()
-        .filter_map(|token| {
-            if token.token_spans.is_empty() {
-                None
-            } else {
-                // Compute bounding box from token_spans
-                let min_start = token.token_spans.iter().map(|r| r.start).min().unwrap();
-                let max_end = token.token_spans.iter().map(|r| r.end).max().unwrap();
-                let span = min_start..max_end;
-
-                let source_location = SourceLocation::new(source);
-                Some(source_location.byte_range_to_ast_range(&span))
-            }
-        })
-        .collect();
-
-    // Aggregate all locations using Location-level bounds
-    if locations.is_empty() {
-        default_location()
-    } else {
-        compute_location_from_locations(&locations)
-    }
-}
-
 /// Create a Session AST node from a subject line token and content
 ///
 /// Used by the parser when it matches: SUBJECT_LINE + BLANK_LINE + INDENT
 ///
-/// Uses the AST construction facade which handles token unrolling,
-/// location conversion, and calls the base builder.
+/// Uses the new AST builder API which coordinates normalization, extraction, and creation.
 pub fn unwrap_session(
     subject_token: &LineToken,
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Use facade to build session
-    let session = ast_construction::build_session_from_line_token(subject_token, content, source);
-    Ok(session)
+    Ok(ast_builder::build_session(subject_token, content, source))
 }
 
 /// Create a Definition AST node from a subject token and content
 ///
 /// Used by the parser when it matches: SUBJECT_LINE + INDENT (no blank line)
 ///
-/// Uses the AST construction facade which handles token unrolling,
-/// location conversion, and calls the base builder.
+/// Uses the new AST builder API which coordinates normalization, extraction, and creation.
 pub fn unwrap_definition(
     subject_token: &LineToken,
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Use facade to build definition
-    let definition =
-        ast_construction::build_definition_from_line_token(subject_token, content, source);
-    Ok(definition)
+    Ok(ast_builder::build_definition(
+        subject_token,
+        content,
+        source,
+    ))
 }
 
 /// Create a List AST node from multiple list item tokens
 ///
 /// Used by the parser when it matches: BLANK_LINE + 2+ list items
 ///
-/// Uses the AST construction facade which handles location computation
-/// from all child items.
-pub fn unwrap_list(list_items: Vec<ContentItem>, source: &str) -> Result<ContentItem, String> {
+/// Uses the new AST builder API which handles location computation from all child items.
+pub fn unwrap_list(list_items: Vec<ContentItem>, _source: &str) -> Result<ContentItem, String> {
     if list_items.is_empty() {
         return Err("Cannot create list with no items".to_string());
     }
 
-    // Use facade to build list
-    let list = ast_construction::build_list_from_items(list_items, source);
-    Ok(list)
+    // Extract ListItems from ContentItems
+    let items: Vec<_> = list_items
+        .into_iter()
+        .filter_map(|item| match item {
+            ContentItem::ListItem(li) => Some(li),
+            _ => None,
+        })
+        .collect();
+
+    Ok(ast_builder::build_list(items))
 }
 
 /// Create a ListItem AST node from a list line token and optional nested content
 ///
 /// Called for each item in a list
 ///
-/// Uses the AST construction facade which handles token unrolling,
-/// location conversion, and calls the base builder.
+/// Uses the new AST builder API which coordinates normalization, extraction, and creation.
 pub fn unwrap_list_item(
     item_token: &LineToken,
     content: Vec<ContentItem>,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Use facade to build list item
-    let list_item = ast_construction::build_list_item_from_line_token(item_token, content, source);
-    Ok(list_item)
+    let list_item = ast_builder::build_list_item(item_token, content, source);
+    Ok(ContentItem::ListItem(list_item))
 }
 
 /// Create a ForeignBlock AST node from subject, content, and closing annotation
 ///
 /// Used by the parser when it matches: SUBJECT_LINE + INDENT...DEDENT + ANNOTATION_LINE
 ///
-/// Uses the AST construction facade for building the foreign block and annotation.
-/// The caller must combine content lines, as foreign blocks have special content handling.
+/// Uses the new AST builder API which implements indentation wall stripping.
+/// This ensures that foreign blocks at different nesting levels have identical content.
 pub fn unwrap_foreign_block(
     subject_token: &LineToken,
     content_lines: Vec<&LineToken>,
     closing_annotation_token: &LineToken,
     source: &str,
 ) -> Result<ContentItem, String> {
-    // Combine all content lines into a single text block
-    let mut content_text = String::new();
-    for (idx, token) in content_lines.iter().enumerate() {
-        if idx > 0 {
-            content_text.push('\n');
-        }
-        content_text.push_str(&extract_text_from_line_token(token, source)?);
-    }
+    // Build the closing annotation using new API
+    let closing_annotation =
+        match ast_builder::build_annotation(closing_annotation_token, vec![], vec![], source) {
+            ContentItem::Annotation(annotation) => annotation,
+            _ => unreachable!("build_annotation always returns Annotation"),
+        };
 
-    // Compute content location from all content lines
-    let content_location = if content_lines.is_empty() {
-        Range::default()
-    } else {
-        // Convert Vec<&LineToken> to Vec<LineToken> for the function
-        let tokens: Vec<LineToken> = content_lines.iter().map(|t| (*t).clone()).collect();
-        extract_location_from_tokens(&tokens, source)
-    };
-
-    // Use facade to build the closing annotation
-    let closing_annotation = match ast_construction::build_annotation_from_line_token(
-        closing_annotation_token,
-        vec![],
-        vec![],
-        source,
-    ) {
-        ContentItem::Annotation(annotation) => annotation,
-        _ => unreachable!("build_annotation_from_line_token always returns Annotation"),
-    };
-
-    // Use facade to create foreign block
-    let foreign_block = ast_construction::build_foreign_block_from_line_token(
+    // Use new API to build foreign block with indentation wall stripping
+    Ok(ast_builder::build_foreign_block(
         subject_token,
-        content_text,
-        content_location,
+        content_lines,
         closing_annotation,
         source,
-    );
-
-    Ok(foreign_block)
+    ))
 }

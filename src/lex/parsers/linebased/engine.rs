@@ -39,17 +39,18 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
     // Use declarative grammar engine to parse
     let content = declarative_grammar::parse_with_declarative_grammar(children, source)?;
 
-    // Create the root session containing all top-level content using common builder
-    use crate::lex::parsers::common::builders::build_session;
+    // Create the root session containing all top-level content using ast_builder
+    use crate::lex::parsers::common::ast_builder;
     let root_location = Range {
         span: 0..0,
         start: Position { line: 0, column: 0 },
         end: Position { line: 0, column: 0 },
     };
-    let root = match build_session("root".to_string(), root_location, content) {
-        ContentItem::Session(session) => session,
-        _ => unreachable!("build_session always returns Session"),
-    };
+    let root =
+        match ast_builder::build_session_from_text("root".to_string(), root_location, content) {
+            ContentItem::Session(session) => session,
+            _ => unreachable!("build_session always returns Session"),
+        };
 
     Ok(Document {
         metadata: vec![],
