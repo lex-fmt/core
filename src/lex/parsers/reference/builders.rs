@@ -15,8 +15,8 @@ use chumsky::primitive::filter;
 use std::ops::Range as ByteRange;
 use std::sync::Arc;
 
-use crate::lex::lexers::Token;
-use crate::lex::parsers::ir::{NodeType, ParseNode};
+use crate::lex::lexing::Token;
+use crate::lex::parsing::ir::{NodeType, ParseNode};
 
 /// Type alias for token with location
 pub(crate) type TokenLocation = (Token, ByteRange<usize>);

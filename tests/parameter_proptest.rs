@@ -6,7 +6,7 @@
 //! - Parameters are separated by commas only (not whitespace)
 //! - Whitespace around parameters is ignored
 
-use lex::lex::parsers::parse_document;
+use lex::lex::parsing::parse_document;
 use lex::lex::testing::assert_ast;
 use proptest::prelude::*;
 

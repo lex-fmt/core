@@ -28,7 +28,7 @@
 
 use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Visitor};
-use crate::lex::lexers::Token;
+use crate::lex::lexing::Token;
 use std::fmt;
 
 /// A group of one or more consecutive blank lines

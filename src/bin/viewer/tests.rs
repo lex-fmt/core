@@ -29,7 +29,7 @@ impl TestApp {
     /// Create a test app with specific content
     pub fn with_content(content: &str) -> Self {
         let document =
-            lex::lex::parsers::parse_document(content).expect("Failed to parse test document");
+            lex::lex::parsing::parse_document(content).expect("Failed to parse test document");
         let model = Model::new(document);
         let app = App::new(model, content.to_string());
 
