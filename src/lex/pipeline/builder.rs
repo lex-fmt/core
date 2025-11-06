@@ -19,7 +19,7 @@
 //!
 //! This is the **internal transformation infrastructure**. It handles the low-level
 //! token transformations that happen after base tokenization and before parsing.
-//! For selecting which lexer/parser to use, see `LexPipeline` in the orchestration module.
+//! For executing named configurations, see `PipelineExecutor` in the executor module.
 //!
 //! # Examples
 //!
