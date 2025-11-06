@@ -18,7 +18,7 @@
 //!   - Used by: Definition.children, Annotation.children, ListItem.children
 //! - **ListContainer**: Homogeneous container for ListItem variants only
 //!   - Used by: List.items
-//! - **VerbatimContainer**: Homogeneous container for ForeignLine nodes only
+//! - **VerbatimContainer**: Homogeneous container for VerbatimLine nodes only
 //!   - Used by: VerbatimBlock.children
 
 use super::super::range::Range;
@@ -54,7 +54,7 @@ pub struct ListContainer {
     pub location: Range,
 }
 
-/// VerbatimContainer is a homogeneous container for ForeignLine nodes only
+/// VerbatimContainer is a homogeneous container for VerbatimLine nodes only
 ///
 /// Used by VerbatimBlock.children to enforce that foreign blocks only contain
 /// foreign lines (content from other formats).

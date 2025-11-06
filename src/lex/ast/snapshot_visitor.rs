@@ -38,8 +38,8 @@ pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
         ContentItem::ListItem(li) => build_list_item_snapshot(li),
         ContentItem::Definition(def) => build_definition_snapshot(def),
         ContentItem::VerbatimBlock(fb) => build_foreign_block_snapshot(fb),
-        ContentItem::ForeignLine(fl) => {
-            AstSnapshot::new("ForeignLine".to_string(), fl.display_label())
+        ContentItem::VerbatimLine(fl) => {
+            AstSnapshot::new("VerbatimLine".to_string(), fl.display_label())
         }
         ContentItem::Annotation(ann) => build_annotation_snapshot(ann),
         ContentItem::TextLine(tl) => AstSnapshot::new("TextLine".to_string(), tl.display_label()),

@@ -82,18 +82,18 @@ fn validate_only_list_items(content: &[ContentItem]) {
     }
 }
 
-/// Validates that a container only contains ForeignLine nodes.
+/// Validates that a container only contains VerbatimLine nodes.
 ///
-/// Used for VerbatimContainer types where only ForeignLine nodes are allowed.
+/// Used for VerbatimContainer types where only VerbatimLine nodes are allowed.
 ///
 /// # Panics
 ///
-/// Panics if any non-ForeignLine is found in the content.
+/// Panics if any non-VerbatimLine is found in the content.
 fn validate_only_foreign_lines(content: &[ContentItem]) {
     for item in content {
         if !item.is_foreign_line() {
             panic!(
-                "Invalid VerbatimBlock content: ForeignBlocks can only contain ForeignLine elements, found {}",
+                "Invalid VerbatimBlock content: ForeignBlocks can only contain VerbatimLine elements, found {}",
                 item.node_type()
             );
         }
@@ -364,12 +364,12 @@ pub(super) fn create_foreign_block(
     closing_annotation: Annotation,
     source: &str,
 ) -> ContentItem {
-    use crate::lex::ast::elements::ForeignLine;
+    use crate::lex::ast::elements::VerbatimLine;
 
     let subject_location = byte_range_to_ast_range(data.subject_byte_range, source);
     let subject = TextContent::from_string(data.subject_text, Some(subject_location.clone()));
 
-    // Create ForeignLine children from content lines
+    // Create VerbatimLine children from content lines
     let mut children: Vec<ContentItem> = Vec::new();
     let mut line_locations: Vec<Range> = Vec::new();
 
@@ -378,8 +378,8 @@ pub(super) fn create_foreign_block(
         line_locations.push(line_location.clone());
 
         let line_content = TextContent::from_string(line_text, Some(line_location.clone()));
-        let foreign_line = ForeignLine::from_text_content(line_content).at(line_location);
-        children.push(ContentItem::ForeignLine(foreign_line));
+        let foreign_line = VerbatimLine::from_text_content(line_content).at(line_location);
+        children.push(ContentItem::VerbatimLine(foreign_line));
     }
 
     // Validate that all children are ForeignLines

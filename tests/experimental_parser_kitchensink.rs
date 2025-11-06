@@ -130,8 +130,8 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
                 .sum();
             format!("VerbatimBlock with {} content char(s)", total_chars)
         }
-        ContentItem::ForeignLine(fl) => {
-            format!("ForeignLine: {}", fl.content.as_string())
+        ContentItem::VerbatimLine(fl) => {
+            format!("VerbatimLine: {}", fl.content.as_string())
         }
         ContentItem::ListItem(li) => {
             format!("ListItem with {} content item(s)", li.children.len())

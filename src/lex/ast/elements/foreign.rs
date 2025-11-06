@@ -8,7 +8,7 @@
 //!
 //! Structure:
 //! - subject: The lead item identifying what the foreign block contains
-//! - children: ForeignLine nodes containing the actual content (can be empty)
+//! - children: VerbatimLine nodes containing the actual content (can be empty)
 //! - closing_annotation: The closing marker (format: `::label::`)
 //!
 //! The subject introduces what the content is, and the closing annotation terminates the block.

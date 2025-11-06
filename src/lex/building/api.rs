@@ -663,22 +663,22 @@ pub fn build_foreign_block_from_text(
     content_location: crate::lex::ast::Range,
     closing_annotation: Annotation,
 ) -> ContentItem {
-    use crate::lex::ast::elements::ForeignLine;
+    use crate::lex::ast::elements::VerbatimLine;
     use crate::lex::ast::{TextContent, Verbatim};
     use crate::lex::building::location::compute_location_from_locations;
 
     let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
 
-    // Convert content text into ForeignLine children
+    // Convert content text into VerbatimLine children
     let children: Vec<ContentItem> = if content_text.is_empty() {
         vec![]
     } else {
-        // Split content by lines and create ForeignLine for each
+        // Split content by lines and create VerbatimLine for each
         content_text
             .split('\n')
             .map(|line| {
                 let line_content = TextContent::from_string(line.to_string(), None);
-                ContentItem::ForeignLine(ForeignLine::from_text_content(line_content))
+                ContentItem::VerbatimLine(VerbatimLine::from_text_content(line_content))
             })
             .collect()
     };
