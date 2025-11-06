@@ -612,7 +612,7 @@ fn test_location_tracking_for_annotations() {
     assert!(!annotations.is_empty(), "Expected annotations in sample");
 
     for annotation in annotations {
-        for child in &annotation.content {
+        for child in &annotation.children {
             let child_range = child.range();
             assert!(
                 child_range.start <= child_range.end,
@@ -652,7 +652,7 @@ fn test_location_tracking_for_foreign_blocks() {
         }
 
         let closing = &block.closing_annotation;
-        for child in &closing.content {
+        for child in &closing.children {
             let child_range = child.range();
             assert!(
                 child_range.start <= child_range.end,

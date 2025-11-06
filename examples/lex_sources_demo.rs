@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Raw String Content ===");
     let content = LexSources::get_string("000-paragraphs.lex")?;
     println!("First 100 characters of 000-paragraphs.lex:");
-    println!("{}", &content[..children.len().min(100)]);
+    println!("{}", &content[..content.len().min(100)]);
     println!();
 
     // Get tokenized content

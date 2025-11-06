@@ -31,7 +31,7 @@ fn _parser_kitchensink_snapshot() {
 /// Format the AST into a readable structure for snapshot testing
 fn format_ast_snapshot(content: &[ContentItem]) -> String {
     let mut output = String::new();
-    output.push_str(&format!("Document with {} root items:\n\n", children.len()));
+    output.push_str(&format!("Document with {} root items:\n\n", content.len()));
 
     for (i, item) in content.iter().enumerate() {
         output.push_str(&format!("[{}] {}\n", i, format_item(item, 0)));
@@ -63,7 +63,7 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
             result.trim_end().to_string()
         }
         ContentItem::List(l) => {
-            let mut result = format!("List with {} item(s):\n", l.children.len());
+            let mut result = format!("List with {} item(s):\n", l.items.len());
             for (j, list_item) in l.items.iter().enumerate() {
                 if let ContentItem::ListItem(li) = list_item {
                     result.push_str(&format!(
@@ -109,8 +109,8 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
                 a.parameters.len(),
                 a.children.len()
             );
-            if !a.content.is_empty() {
-                for (j, sub_item) in a.content.iter().enumerate() {
+            if !a.children.is_empty() {
+                for (j, sub_item) in a.children.iter().enumerate() {
                     result.push_str(&format!(
                         "{}  [{}] {}\n",
                         prefix,
@@ -122,13 +122,16 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
             result.trim_end().to_string()
         }
         ContentItem::ForeignBlock(fb) => {
-            format!("ForeignBlock with {} content line(s)", fb.children.len())
+            format!(
+                "ForeignBlock with {} content char(s)",
+                fb.content.as_string().len()
+            )
         }
         ContentItem::ListItem(li) => {
             format!("ListItem with {} content item(s)", li.children.len())
         }
         ContentItem::TextLine(tl) => {
-            format!("TextLine: {}", tl.items.as_string())
+            format!("TextLine: {}", tl.content.as_string())
         }
         ContentItem::BlankLineGroup(blg) => {
             format!("BlankLineGroup with {} line(s)", blg.count)

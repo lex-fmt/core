@@ -178,7 +178,7 @@ fn test_blank_line_group_is_content_item_variant() {
     // by successfully pattern matching it in the content
     let _has_blank_variant = doc
         .root
-        .content
+        .children
         .iter()
         .any(|item| matches!(item, ContentItem::BlankLineGroup(_)));
     // Test passes if compilation succeeds
