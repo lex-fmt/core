@@ -60,11 +60,11 @@ The lex language
 
         Sessions can be arbitrarily nested, with the only requirement that they must have at least one item as content (aside from the title).
 
-    5. Foreign Blocks
+    5. Verbatim Blocks
 
-        Foreign blocks are used to embed non-lex content within a document, such as source code, or to reference binary data. They are analogous to Markdown's fenced code blocks but use indentation for delimitation.
+        Verbatim blocks are used to embed non-lex content within a document, such as source code, or to reference binary data. They are analogous to Markdown's fenced code blocks but use indentation for delimitation.
 
-        A foreign block consists of a subject line, an optional block of raw/unparsed content, and a mandatory closing annotation.
+        A verbatim block consists of a subject line, an optional block of raw/unparsed content, and a mandatory closing annotation.
 
         Two forms exist:
         - Block form (with text content): For embedding raw text like source code

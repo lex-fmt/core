@@ -1,8 +1,8 @@
-Foreign Blocks
+Verbatim Blocks
 
 Introduction
 
-	Foreign blocks embed non-lex content (source code, binary references) within lex documents. Similar to Markdown's fenced code blocks, but using indentation for delimitation.
+	Verbatim blocks embed non-lex content (source code, binary references) within lex documents. Similar to Markdown's fenced code blocks, but using indentation for delimitation.
 
 Syntax
 
@@ -58,7 +58,7 @@ Closing Annotation
 	The closing annotation:
 		- Must be at same indentation level as subject (at the wall)
 		- Is a full annotation (can have label, params, text content)
-		- Signals end of foreign block
+		- Signals end of verbatim block
 
 	Examples:
 		:: javascript caption="Hello World" ::

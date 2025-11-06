@@ -37,7 +37,7 @@ Document with 8 root items:
           [1] List item with 0 content item(s):
       [1] List item with 0 content item(s):
   [4] Paragraph with 1 line(s):     [0] TextLine: A paragraph back at the first level of nesting. {{paragraph}}
-  [5] ForeignBlock with 59 content line(s)
+  [5] VerbatimBlock with 59 content line(s)
 [6] Session with 3 item(s):
   [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker- style foreign blocks. {{paragraph}}
   [1] Annotation with 0 parameter(s) and 3 content item(s):
@@ -46,5 +46,5 @@ Document with 8 root items:
     [2] List with 2 item(s):
       [0] List item with 0 content item(s):
       [1] List item with 0 content item(s):
-  [2] ForeignBlock with 0 content line(s)
+  [2] VerbatimBlock with 0 content line(s)
 [7] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}

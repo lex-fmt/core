@@ -2,7 +2,7 @@
 source: src/lex/lexers/detokenizer.rs
 expression: detokenized
 ---
-Foreign Blocks Simple Test {{paragraph}}
+Verbatim Blocks Simple Test {{paragraph}}
 
 This document tests the basic foreign block functionality with text content. {{paragraph}}
 
