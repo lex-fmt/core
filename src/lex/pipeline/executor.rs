@@ -96,41 +96,15 @@ impl PipelineExecutor {
                 // No transformations, return as-is
                 Ok(stream)
             }
-            PipelineSpec::Indentation => {
+            PipelineSpec::Indentation | PipelineSpec::LinebasedFlat | PipelineSpec::Linebased => {
+                // All linebased specs now use the same flat pipeline
+                // Tree building is done internally by the parser
                 stream = walk_stream(stream, &mut NormalizeWhitespaceMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 stream = walk_stream(stream, &mut SemanticIndentationMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 stream = walk_stream(stream, &mut BlankLinesMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                Ok(stream)
-            }
-            PipelineSpec::LinebasedFlat => {
-                stream = walk_stream(stream, &mut NormalizeWhitespaceMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                stream = walk_stream(stream, &mut SemanticIndentationMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                stream = walk_stream(stream, &mut BlankLinesMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                stream = walk_stream(stream, &mut ToLineTokensMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                Ok(stream)
-            }
-            PipelineSpec::Linebased => {
-                stream = walk_stream(stream, &mut NormalizeWhitespaceMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                stream = walk_stream(stream, &mut SemanticIndentationMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                stream = walk_stream(stream, &mut BlankLinesMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                stream = walk_stream(stream, &mut ToLineTokensMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-
-                let mut indent_mapper = IndentationToTreeMapper::new();
-                stream = indent_mapper
-                    .transform(stream)
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-
                 Ok(stream)
             }
         }
@@ -155,14 +129,10 @@ impl PipelineExecutor {
                 Ok(builder.build(parse_node))
             }
             AnalysisSpec::Linebased => {
-                let container =
-                    crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(
-                        stream,
-                    )
-                    .map_err(|e| {
-                        ExecutionError::ParsingFailed(format!("Stream conversion failed: {:?}", e))
-                    })?;
-                crate::lex::parsing::linebased::parse_experimental_v2(container, source).map_err(
+                // New simplified path: pass flat tokens directly to parser
+                // The parser builds the tree internally
+                let tokens = stream.unroll();
+                crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source).map_err(
                     |e| ExecutionError::ParsingFailed(format!("Linebased analyzer failed: {}", e)),
                 )
             }

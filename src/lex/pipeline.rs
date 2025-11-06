@@ -7,7 +7,6 @@
 //! - Adapters for architectural boundaries
 
 pub mod adapters;
-pub mod adapters_linebased;
 pub mod builder;
 pub mod config;
 pub mod executor;
@@ -23,7 +22,4 @@ pub use config::{ConfigRegistry, PipelineSpec, ProcessingConfig, TargetSpec};
 pub use executor::{ExecutionError, ExecutionOutput, PipelineExecutor};
 
 // Re-export concrete mapper implementations
-pub use mappers::{
-    BlankLinesMapper, IndentationToTreeMapper, NormalizeWhitespaceMapper,
-    SemanticIndentationMapper, ToLineTokensMapper,
-};
+pub use mappers::{BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper};

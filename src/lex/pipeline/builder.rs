@@ -187,14 +187,9 @@ impl Pipeline {
                 Ok(PipelineOutput::Document(doc))
             }
             Some(AnalyzerConfig::Linebased) => {
-                let container =
-                    crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(
-                        stream,
-                    )
-                    .map_err(|e| {
-                        TransformationError::Error(format!("Stream conversion failed: {:?}", e))
-                    })?;
-                let doc = crate::lex::parsing::linebased::parse_experimental_v2(container, source)
+                // New simplified path: parser builds tree internally
+                let tokens = stream.unroll();
+                let doc = crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source)
                     .map_err(|e| {
                         TransformationError::Error(format!("Linebased analyzer failed: {}", e))
                     })?;
@@ -447,11 +442,11 @@ mod tests {
     fn test_pipeline_with_linebased_analyzer() {
         use crate::lex::pipeline::mappers::*;
 
+        // Linebased analyzer now builds the tree internally, so we only need flat transformations
         let mut pipeline = Pipeline::new()
             .add_transformation(NormalizeWhitespaceMapper::new())
             .add_transformation(SemanticIndentationMapper::new())
             .add_transformation(BlankLinesMapper::new())
-            .add_transformation(ToLineTokensMapper::new())
             .with_analyzer(AnalyzerConfig::Linebased);
 
         let result = pipeline.run("Hello:\n    World\n");
