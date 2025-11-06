@@ -80,17 +80,16 @@ pub(crate) fn paragraph(
 ) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
     let line_with_newline = text_line().then(filter(|(tok, _)| tok == &Token::Newline));
 
-    line_with_newline
-        .repeated()
-        .at_least(1)
-        .map(move |lines: Vec<(Vec<TokenLocation>, TokenLocation)>| {
+    line_with_newline.repeated().at_least(1).map(
+        move |lines: Vec<(Vec<TokenLocation>, TokenLocation)>| {
             let mut tokens = vec![];
             for (line_tokens, newline_token) in lines {
                 tokens.extend(line_tokens);
                 tokens.push(newline_token);
             }
             ParseNode::new(NodeType::Paragraph, tokens, vec![])
-        })
+        },
+    )
 }
 
 // ============================================================================
@@ -103,8 +102,7 @@ pub(crate) fn paragraph(
 /// by the universal pipeline in data_extraction.
 pub(crate) fn annotation_header(
 ) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
-    filter(|(t, _): &TokenLocation| !matches!(t, Token::LexMarker | Token::Newline))
-        .repeated()
+    filter(|(t, _): &TokenLocation| !matches!(t, Token::LexMarker | Token::Newline)).repeated()
 }
 
 /// Build an annotation parser
@@ -291,9 +289,10 @@ where
             ParseNode::new(NodeType::ListItem, marker_tokens, children)
         });
 
-    single_list_item.repeated().at_least(2).map(|list_items| {
-        ParseNode::new(NodeType::List, vec![], list_items)
-    })
+    single_list_item
+        .repeated()
+        .at_least(2)
+        .map(|list_items| ParseNode::new(NodeType::List, vec![], list_items))
 }
 
 // ============================================================================

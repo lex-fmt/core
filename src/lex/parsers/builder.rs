@@ -108,13 +108,12 @@ impl<'a> AstBuilder<'a> {
         let subject_tokens = subject_node.unwrap().tokens;
         let content_token_lines = group_tokens_by_line(content_node.unwrap().tokens);
         let closing_annotation_node = closing_node.unwrap();
-        let closing_annotation = if let ContentItem::Annotation(ann) =
-            self.build_annotation(closing_annotation_node)
-        {
-            ann
-        } else {
-            panic!("Expected Annotation for foreign block closing");
-        };
+        let closing_annotation =
+            if let ContentItem::Annotation(ann) = self.build_annotation(closing_annotation_node) {
+                ann
+            } else {
+                panic!("Expected Annotation for foreign block closing");
+            };
 
         ast_builder::build_foreign_block_from_tokens(
             subject_tokens,

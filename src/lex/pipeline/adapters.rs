@@ -198,8 +198,9 @@ pub fn adapt_reference_parser(
     stream: TokenStream,
     source: &str,
 ) -> Result<crate::lex::parsers::Document, AdapterError> {
-    // Adapt input: TokenStream -> Vec<(Token, Range)>
-    let _tokens = token_stream_to_flat(stream)?;
+    // Validate that stream is Flat (not Tree) - required by adapter contract
+    // Note: We don't use the tokens since parse_document handles tokenization internally
+    token_stream_to_flat(stream)?;
 
     // Call reference parser
     crate::lex::parsers::parse_document(source).map_err(|errors| {
