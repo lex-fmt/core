@@ -1,0 +1,61 @@
+Lex Format Fasttrack
+
+
+This is a high level overview of how the Lex parser is designed. 
+
+1. Processing Management
+
+	The lex/pipeline manages a pipeline which is composed of the lexing, parsing and building stages.
+
+	This system allows us to : 
+		- keep different lexers and parser designs
+		- offer a common interface for running these stages
+		- easily access them by name, including in the lex binary
+		- tests can easily load processed Lex inputs into a specific stage (in the lexing stage a specific transform step too) easily.
+
+
+2. Data Structures and General Design: 
+
+	1. Lexing
+		1. The core lexing is done through the logos crate. These are the core tokens in tokens_core.rs
+		2. Then a series of transformation steps are applied
+		3. The pipeline manager will convert the logos tokens to a TokenStream, which becomes the data structure in which all transformations take place, as that is their input and output. 
+		4. Transformations for a given lexer design are chained
+		5. The final lexer output is also a TokenStream
+
+
+	2. Parsing: Semantic Analysis
+		1. The parsing stage differentiates between the actual analysis and the AST building.
+		2. lex/parsing does semantic analysis and returns an intermediate representation, a tree data structure that for every node says the AST node to create and the tokens to do so.
+		3. Parsing takes a token stream and outputs the IR Nodes.
+
+
+	3. Building
+		1. Final stage in the process
+		2. Receives the IR nodes and walks the tree, at each node creating the actual AST nodes with the tokens given
+		3. During this process, the node span ranges are translated into actual AST Location objects.
+
+
+
+4. Parser Designs: 
+
+	We currently have two parser designs active. 
+
+	1. Reference
+
+		This is the initial parser. It uses the chumsky parser combinator library for the analysis but offloads the actual AST build to the building stage. 
+
+		It operates on mostly the core tokens, that is why its lexing design (the indentation) has the core nodes + indentation tokens transformed to indent and dedent tokens + blank lines handling
+
+	2. Linebased
+
+		This parser started as an experiment as a realization that Lex has a wonky design that seems to be very complex (recursive, stateful and indentation significant) but that these are under very specific constraints that make parsing really simple.
+
+		The indentation lexer output is then transformed: 
+			- groups tokens by lines
+			- groups levels (between the corresponding indent and dedent)
+		Sending the parser a recursive tree structure of LineContainers, where each LineContainer can be either a LineToken or a Container containing nested LineContainers.
+
+		Seen at the container level, the grammar is so simple that it can be expressed as regular expressions. That is what the engine does. 
+
+		If you can label lines, line parsing becomes very simple and that is what linebased transformations do to have higher level tokens, defined in tokens_linebased.rs

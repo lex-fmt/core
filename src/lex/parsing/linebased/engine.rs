@@ -11,11 +11,36 @@
 //! The tree walking is completely decoupled from grammar/pattern matching,
 //! making it testable and maintainable independently.
 
-use super::declarative_grammar;
+use super::{declarative_grammar, tree_builder};
 use crate::lex::lexing::linebased::tokens_linebased::LineContainer;
+use crate::lex::lexing::tokens_core::Token;
 use crate::lex::parsing::builder::AstBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
+use std::ops::Range as ByteRange;
+
+/// Parse from flat token stream (new simplified pipeline).
+///
+/// This is the new entry point that accepts flat tokens and builds
+/// the LineContainer tree internally. This simplifies the pipeline
+/// by moving tree-building logic into the parser.
+///
+/// # Arguments
+/// * `tokens` - Flat vector of (Token, Range) pairs from pipeline
+/// * `source` - The original source text (for location tracking)
+///
+/// # Returns
+/// A Document AST if successful
+pub fn parse_from_flat_tokens(
+    tokens: Vec<(Token, ByteRange<usize>)>,
+    source: &str,
+) -> Result<Document, String> {
+    // Build LineContainer tree from flat tokens
+    let tree = tree_builder::build_line_container(tokens);
+
+    // Parse using existing logic
+    parse_experimental_v2(tree, source)
+}
 
 /// Parse using the new declarative grammar engine (Delivery 2).
 ///
@@ -50,19 +75,25 @@ mod tests {
     use crate::lex::parsing::ContentItem;
     use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 
-    // Helper to prepare token stream and call pipeline
-    fn lex_helper(source: &str) -> Result<crate::lex::lexing::LineContainer, String> {
+    // Helper to prepare flat token stream from pipeline
+    fn lex_helper(
+        source: &str,
+    ) -> Result<
+        Vec<(
+            crate::lex::lexing::tokens_core::Token,
+            std::ops::Range<usize>,
+        )>,
+        String,
+    > {
         let executor = PipelineExecutor::new();
+        // Use the indentation pipeline (which produces flat tokens with semantic indentation)
         let output = executor
-            .execute("tokens-linebased-tree", source)
+            .execute("tokens-indentation", source)
             .map_err(|e| format!("Pipeline execution failed: {}", e))?;
 
         match output {
-            ExecutionOutput::Tokens(stream) => {
-                crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(stream)
-                    .map_err(|e| format!("Failed to convert to line container: {:?}", e))
-            }
-            _ => Err("Expected Tokens output from tokens-linebased-tree config".to_string()),
+            ExecutionOutput::Tokens(stream) => Ok(stream.unroll()),
+            _ => Err("Expected Tokens output from tokens-indentation config".to_string()),
         }
     }
 
@@ -70,9 +101,9 @@ mod tests {
     fn test_parse_simple_paragraphs() {
         // Use tokens from the linebased lexer pipeline
         let source = "Simple paragraph\n";
-        let container = lex_helper(source).expect("Failed to tokenize");
+        let tokens = lex_helper(source).expect("Failed to tokenize");
 
-        let result = parse_experimental_v2(container, source);
+        let result = parse_from_flat_tokens(tokens, source);
         assert!(result.is_ok(), "Parser should succeed");
 
         let doc = result.unwrap();
@@ -85,9 +116,9 @@ mod tests {
     fn test_parse_definition() {
         // Use tokens from the linebased lexer pipeline
         let source = "Definition:\n    This is the definition content\n";
-        let container = lex_helper(source).expect("Failed to tokenize");
+        let tokens = lex_helper(source).expect("Failed to tokenize");
 
-        let result = parse_experimental_v2(container, source);
+        let result = parse_from_flat_tokens(tokens, source);
         assert!(result.is_ok(), "Parser should succeed");
 
         let doc = result.unwrap();
@@ -104,9 +135,9 @@ mod tests {
     fn test_parse_session() {
         // Use tokens from the linebased lexer pipeline
         let source = "Session:\n\n    Session content here\n";
-        let container = lex_helper(source).expect("Failed to tokenize");
+        let tokens = lex_helper(source).expect("Failed to tokenize");
 
-        let result = parse_experimental_v2(container, source);
+        let result = parse_from_flat_tokens(tokens, source);
         assert!(result.is_ok(), "Parser should succeed");
 
         let doc = result.unwrap();
@@ -123,9 +154,9 @@ mod tests {
     fn test_parse_annotation() {
         // Use tokens from the linebased lexer pipeline
         let source = ":: note ::\n";
-        let container = lex_helper(source).expect("Failed to tokenize");
+        let tokens = lex_helper(source).expect("Failed to tokenize");
 
-        let result = parse_experimental_v2(container, source);
+        let result = parse_from_flat_tokens(tokens, source);
         assert!(result.is_ok(), "Parser should succeed");
 
         let doc = result.unwrap();
@@ -142,9 +173,9 @@ mod tests {
     fn test_annotations_120_simple() {
         let source = std::fs::read_to_string("docs/specs/v1/samples/120-annotations-simple.lex")
             .expect("Could not read 120 sample");
-        let container = lex_helper(&source).expect("Failed to tokenize");
+        let tokens = lex_helper(&source).expect("Failed to tokenize");
 
-        let doc = parse_experimental_v2(container, &source).expect("Parser failed");
+        let doc = parse_from_flat_tokens(tokens, &source).expect("Parser failed");
 
         eprintln!("\n=== 120 ANNOTATIONS SIMPLE ===");
         eprintln!("Root items count: {}", doc.root.children.len());
@@ -190,9 +221,9 @@ mod tests {
         let source =
             std::fs::read_to_string("docs/specs/v1/samples/130-annotations-block-content.lex")
                 .expect("Could not read 130 sample");
-        let container = lex_helper(&source).expect("Failed to tokenize");
+        let tokens = lex_helper(&source).expect("Failed to tokenize");
 
-        let doc = parse_experimental_v2(container, &source).expect("Parser failed");
+        let doc = parse_from_flat_tokens(tokens, &source).expect("Parser failed");
 
         eprintln!("\n=== 130 ANNOTATIONS BLOCK CONTENT ===");
         eprintln!("Root items count: {}", doc.root.children.len());
@@ -264,9 +295,9 @@ Paragraph before session.
 Final paragraph.
 "#;
 
-        let container = lex_helper(source).expect("Failed to tokenize");
+        let tokens = lex_helper(source).expect("Failed to tokenize");
 
-        let doc = parse_experimental_v2(container, source).expect("Parser failed");
+        let doc = parse_from_flat_tokens(tokens, source).expect("Parser failed");
 
         eprintln!("\n=== ANNOTATIONS + TRIFECTA COMBINED ===");
         eprintln!("Root items count: {}", doc.root.children.len());
