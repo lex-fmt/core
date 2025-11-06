@@ -8,7 +8,7 @@
 
 use lex::lex::ast::AstNode;
 use lex::lex::ast::Document;
-use lex::lex::parsers::{parse_document as parse_doc, ContentItem};
+use lex::lex::parsing::{parse_document as parse_doc, ContentItem};
 
 fn parse_document(source: &str) -> Document {
     parse_doc(source).expect("Failed to parse document")
@@ -102,7 +102,7 @@ fn test_blank_line_group_structure_source_tokens() {
             let has_blank_line_token = blg
                 .source_tokens
                 .iter()
-                .any(|t| matches!(t, lex::lex::lexers::Token::BlankLine(_)));
+                .any(|t| matches!(t, lex::lex::lexing::Token::BlankLine(_)));
             assert!(has_blank_line_token, "Should contain BlankLine token");
             return;
         }

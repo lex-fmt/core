@@ -3,13 +3,13 @@
 //! These tests ensure that the lexer can handle all valid lex documents
 //! from our sample collection without panicking or producing invalid tokens.
 
-use lex::lex::lexers::{lex, Token};
+use lex::lex::lexing::{lex, Token};
 use proptest::prelude::*;
 
 /// Helper to prepare token stream and call lex pipeline
 fn lex_helper(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
-    let source_with_newline = lex::lex::lexers::ensure_source_ends_with_newline(source);
-    let token_stream = lex::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+    let source_with_newline = lex::lex::lexing::ensure_source_ends_with_newline(source);
+    let token_stream = lex::lex::lexing::base_tokenization::tokenize(&source_with_newline);
     lex(token_stream)
 }
 

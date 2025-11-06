@@ -238,9 +238,9 @@ fn handle_execute_command(config: &str, path: &str, format: &str) {
     // Format and print output
     let formatted = match (output, format) {
         (ExecutionOutput::Document(doc), "auto") | (ExecutionOutput::Document(doc), "ast-tag") => {
-            lex::lex::parsers::serialize_ast_tag(&doc)
+            lex::lex::parsing::serialize_ast_tag(&doc)
         }
-        (ExecutionOutput::Document(doc), "ast-treeviz") => lex::lex::parsers::to_treeviz_str(&doc),
+        (ExecutionOutput::Document(doc), "ast-treeviz") => lex::lex::parsing::to_treeviz_str(&doc),
         (ExecutionOutput::Tokens(stream), "auto")
         | (ExecutionOutput::Tokens(stream), "token-json") => {
             let tokens = stream.unroll();

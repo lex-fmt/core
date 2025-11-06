@@ -11,7 +11,7 @@ use super::model::Model;
 use super::ui;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use lex::lex::parsers::parse_document;
+use lex::lex::parsing::parse_document;
 use ratatui::layout::Rect;
 use ratatui::prelude::{CrosstermBackend, Terminal};
 use ratatui::Frame;

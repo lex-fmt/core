@@ -4,7 +4,7 @@
 //! produces the correct AST structure for a complex, comprehensive test file.
 //! Any regression in parsing will be caught automatically.
 
-use lex::lex::parsers::ContentItem;
+use lex::lex::parsing::ContentItem;
 use lex::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 
 #[test]
