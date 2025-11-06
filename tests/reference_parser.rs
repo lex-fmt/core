@@ -644,11 +644,14 @@ fn test_location_tracking_for_foreign_blocks() {
             block.subject.location.is_some(),
             "Foreign block subject should have a location"
         );
-        if !block.content.as_string().is_empty() {
-            assert!(
-                block.content.location.is_some(),
-                "Foreign block content should have a location"
-            );
+        // Check that each ForeignLine child has a location
+        for child in &block.children {
+            if let Some(foreign_line) = child.as_foreign_line() {
+                assert!(
+                    foreign_line.content.location.is_some(),
+                    "Foreign line content should have a location"
+                );
+            }
         }
 
         let closing = &block.closing_annotation;
