@@ -42,14 +42,11 @@ pub mod linebased;
 pub mod tokens_core;
 
 pub use base_tokenization::tokenize;
-pub use common::{LexError, Lexer, LexerOutput, LexerRegistry};
+pub use common::{LexError, Lexer, LexerOutput};
 pub use detokenizer::detokenize;
 pub use tokens_core::Token;
 // Re-export line-based types for convenience
-pub use linebased::{
-    LineContainer, LineToken, LineType, PipelineError, PipelineOutput, PipelineStage, _lex,
-    _lex_stage,
-};
+pub use linebased::{LineContainer, LineToken, LineType};
 
 /// Preprocesses source text to ensure it ends with a newline.
 ///

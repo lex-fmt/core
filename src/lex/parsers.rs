@@ -17,13 +17,13 @@
 // Parser implementations
 pub mod ast;
 pub mod builder;
-pub mod ir;
 pub mod common;
+pub mod ir;
 pub mod linebased;
 pub mod reference;
 
 // Re-export common parser interfaces
-pub use common::{ParseError, Parser, ParserInput, ParserRegistry};
+pub use common::{ParseError, Parser, ParserInput};
 
 // Re-export AST types and utilities from the ast module
 pub use crate::lex::ast::{

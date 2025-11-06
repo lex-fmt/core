@@ -47,14 +47,23 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::linebased::{PipelineError, _lex};
     use crate::lex::parsers::ContentItem;
+    use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 
     // Helper to prepare token stream and call pipeline
-    fn lex_helper(source: &str) -> Result<crate::lex::lexers::LineContainer, PipelineError> {
-        let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(source);
-        let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-        _lex(token_stream)
+    fn lex_helper(source: &str) -> Result<crate::lex::lexers::LineContainer, String> {
+        let executor = PipelineExecutor::new();
+        let output = executor
+            .execute("tokens-linebased-tree", source)
+            .map_err(|e| format!("Pipeline execution failed: {}", e))?;
+
+        match output {
+            ExecutionOutput::Tokens(stream) => {
+                crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(stream)
+                    .map_err(|e| format!("Failed to convert to line container: {:?}", e))
+            }
+            _ => Err("Expected Tokens output from tokens-linebased-tree config".to_string()),
+        }
     }
 
     #[test]
