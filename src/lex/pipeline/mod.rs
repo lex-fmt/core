@@ -18,7 +18,7 @@ pub mod stream;
 pub use orchestration::{LexPipeline, PipelineError};
 
 // Re-export new TokenStream-based pipeline builder
-pub use builder::Pipeline;
+pub use builder::{ParserConfig, Pipeline, PipelineOutput};
 
 // Re-export concrete mapper implementations
 pub use mappers::{
