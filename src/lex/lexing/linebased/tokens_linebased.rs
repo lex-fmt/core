@@ -78,6 +78,9 @@ pub enum LineType {
     /// Any other line (paragraph text)
     ParagraphLine,
 
+    /// Line that is part of a dialog
+    DialogLine,
+
     /// Indentation marker (pass-through from prior transformation)
     Indent,
 
@@ -95,6 +98,7 @@ impl fmt::Display for LineType {
             LineType::ListLine => "LIST_LINE",
             LineType::SubjectOrListItemLine => "SUBJECT_OR_LIST_ITEM_LINE",
             LineType::ParagraphLine => "PARAGRAPH_LINE",
+            LineType::DialogLine => "DIALOG_LINE",
             LineType::Indent => "INDENT",
             LineType::Dedent => "DEDENT",
         };
@@ -120,6 +124,7 @@ impl LineType {
             LineType::ListLine => "list-line",
             LineType::SubjectOrListItemLine => "subject-or-list-item-line",
             LineType::ParagraphLine => "paragraph-line",
+            LineType::DialogLine => "dialog-line",
             LineType::Indent => "indent",
             LineType::Dedent => "dedent",
         };

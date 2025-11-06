@@ -52,6 +52,30 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
             | Token::Comma
             | Token::Quote
             | Token::Equals
+            | Token::ExclamationMark
+            | Token::QuestionMark
+            | Token::Semicolon
+            | Token::InvertedExclamationMark
+            | Token::InvertedQuestionMark
+            | Token::Ellipsis
+            | Token::IdeographicFullStop
+            | Token::FullwidthExclamationMark
+            | Token::FullwidthQuestionMark
+            | Token::ExclamationQuestionMark
+            | Token::QuestionExclamationMark
+            | Token::ArabicQuestionMark
+            | Token::ArabicFullStop
+            | Token::ArabicTripleDot
+            | Token::ArabicComma
+            | Token::Danda
+            | Token::DoubleDanda
+            | Token::BengaliCurrencyNumeratorFour
+            | Token::EthiopianFullStop
+            | Token::ArmenianFullStop
+            | Token::TibetanShad
+            | Token::ThaiFongman
+            | Token::MyanmarComma
+            | Token::MyanmarFullStop
     )
 }
 
@@ -268,6 +292,33 @@ pub(crate) fn list_item_line(
     // No .map() - preserve tokens!
 }
 
+/// a dialog line.
+pub(crate) fn non_dialog_list_item_line(
+) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
+    list_item_line().try_map(|tokens: Vec<TokenLocation>, span| {
+        let non_whitespace_tokens: Vec<_> = tokens
+            .iter()
+            .filter(|(t, _)| !t.is_whitespace())
+            .map(|(t, _)| t)
+            .collect();
+
+        if non_whitespace_tokens.len() >= 2 {
+            let last_token = non_whitespace_tokens.last().unwrap();
+            let second_to_last_token = non_whitespace_tokens[non_whitespace_tokens.len() - 2];
+
+            if last_token.is_end_punctuation() && second_to_last_token.is_end_punctuation() {
+                // This is a dialog line, so we don't want to parse it as a list item.
+                Err(Simple::custom(span, "Dialog line mistaken for list item"))
+            } else {
+                Ok(tokens)
+            }
+        } else {
+            // Not enough tokens to be a dialog line, so it's a valid list item.
+            Ok(tokens)
+        }
+    })
+}
+
 /// Build a list parser
 pub(crate) fn build_list_parser<P>(
     _source: Arc<String>,
@@ -276,7 +327,7 @@ pub(crate) fn build_list_parser<P>(
 where
     P: Parser<TokenLocation, Vec<ParseNode>, Error = ParserError> + Clone + 'static,
 {
-    let single_list_item = list_item_line()
+    let single_list_item = non_dialog_list_item_line()
         .then_ignore(token(Token::Newline))
         .then(
             filter(|(t, _)| matches!(t, Token::Indent(_)))
