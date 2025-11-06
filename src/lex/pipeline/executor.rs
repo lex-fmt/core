@@ -186,13 +186,13 @@ mod tests {
     #[test]
     fn test_executor_creation() {
         let executor = PipelineExecutor::new();
-        assert!(executor.list_configs().len() > 0);
+        assert!(!executor.list_configs().is_empty());
     }
 
     #[test]
     fn test_executor_default() {
         let executor = PipelineExecutor::default();
-        assert!(executor.list_configs().len() > 0);
+        assert!(!executor.list_configs().is_empty());
     }
 
     #[test]
