@@ -65,7 +65,7 @@ const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
     // Paragraph: <content-line>+
     (
         "paragraph",
-        r"^(?P<lines>(<paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)+)",
+        r"^(?P<lines>(<paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>|<dialog-line>)+)",
     ),
     // Blank lines: <blank-line-group>
     ("blank_line_group", r"^(?P<lines>(<blank-line>)+)"),

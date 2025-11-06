@@ -191,7 +191,16 @@ mod proptest_tests {
                 match token {
                     Token::LexMarker | Token::Indentation | Token::Indent(_) | Token::Dedent(_) |
                     Token::BlankLine(_) | Token::Whitespace | Token::Newline | Token::Dash | Token::Period |
-                    Token::OpenParen | Token::CloseParen | Token::Colon | Token::Comma |
+                    Token::OpenParen | Token::CloseParen | Token::Colon | Token::ExclamationMark |
+                    Token::QuestionMark | Token::Semicolon | Token::InvertedExclamationMark |
+                    Token::InvertedQuestionMark | Token::Ellipsis | Token::IdeographicFullStop |
+                    Token::FullwidthExclamationMark | Token::FullwidthQuestionMark |
+                    Token::ExclamationQuestionMark | Token::QuestionExclamationMark |
+                    Token::ArabicQuestionMark | Token::ArabicFullStop | Token::ArabicTripleDot |
+                    Token::ArabicComma | Token::Danda | Token::DoubleDanda |
+                    Token::BengaliCurrencyNumeratorFour | Token::EthiopianFullStop |
+                    Token::ArmenianFullStop | Token::TibetanShad | Token::ThaiFongman |
+                    Token::MyanmarComma | Token::MyanmarFullStop | Token::Comma |
                     Token::Quote | Token::Equals | Token::Number(_) | Token::Text(_) => {
                         // All valid tokens
                     }

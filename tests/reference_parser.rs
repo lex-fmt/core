@@ -37,6 +37,18 @@ fn test_real_content_extraction() {
         });
 }
 
+#[test]
+fn test_dialog_parsing() {
+    let source = LexSources::get_string("dialog.lex").unwrap();
+    let doc = parse_document(&source).unwrap();
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_paragraph()
+            .text("- Hi mom!!.\n- Hi kiddo.")
+            .line_count(2);
+    });
+}
+
 // Session tests have been moved to elements/sessions.rs
 // List tests have been moved to elements/lists.rs
 // Definition tests have been moved to elements/definitions.rs

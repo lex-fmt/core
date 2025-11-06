@@ -37,7 +37,25 @@ pub(crate) type ParserError = Simple<TokenLocation>;
 
 /// Check if a token is a text-like token (content that can appear in lines)
 ///
-/// This includes: Text, Whitespace, Numbers, Punctuation, and common symbols
+/// This includes: Text, Whitespace, Numbers, Punctuation, and common symbols.
+///
+/// # Design Decision: Treating Punctuation as "Text-like"
+///
+/// This function currently treats all punctuation tokens as "text-like" because
+/// the dialog parsing feature needs to include punctuation in text lines.
+/// For example, a dialog line like "- Hi mom!!." must have its punctuation tokens
+/// (`ExclamationMark`, `Period`) treated as part of the line content.
+///
+/// # Future Considerations
+///
+/// If future features need to distinguish between actual words (`Text`, `Number`)
+/// and punctuation marks, consider one of these approaches:
+///
+/// 1. Create a separate `is_word_token()` helper that excludes punctuation
+/// 2. Rename this function to `is_line_content_token()` to clarify its purpose
+/// 3. Introduce a more granular token classification system
+///
+/// For now, the current implementation is correct for all existing parsing needs.
 pub(crate) fn is_text_token(token: &Token) -> bool {
     matches!(
         token,
@@ -52,7 +70,49 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
             | Token::Comma
             | Token::Quote
             | Token::Equals
+            | Token::ExclamationMark
+            | Token::QuestionMark
+            | Token::Semicolon
+            | Token::InvertedExclamationMark
+            | Token::InvertedQuestionMark
+            | Token::Ellipsis
+            | Token::IdeographicFullStop
+            | Token::FullwidthExclamationMark
+            | Token::FullwidthQuestionMark
+            | Token::ExclamationQuestionMark
+            | Token::QuestionExclamationMark
+            | Token::ArabicQuestionMark
+            | Token::ArabicFullStop
+            | Token::ArabicTripleDot
+            | Token::ArabicComma
+            | Token::Danda
+            | Token::DoubleDanda
+            | Token::BengaliCurrencyNumeratorFour
+            | Token::EthiopianFullStop
+            | Token::ArmenianFullStop
+            | Token::TibetanShad
+            | Token::ThaiFongman
+            | Token::MyanmarComma
+            | Token::MyanmarFullStop
     )
+}
+
+/// Check if a token represents an actual word (excludes punctuation)
+///
+/// This helper function is provided for future features that may need to
+/// distinguish between word-like tokens (`Text`, `Number`) and punctuation marks.
+///
+/// Unlike `is_text_token()`, this function does NOT include punctuation,
+/// structural tokens, or parameter markers.
+///
+/// # Example Use Cases
+///
+/// - Word counting or text analysis that should exclude punctuation
+/// - Features that need to process "semantic content" separately from formatting
+/// - Validation rules that apply only to actual words, not symbols
+#[allow(dead_code)]
+pub(crate) fn is_word_token(token: &Token) -> bool {
+    matches!(token, Token::Text(_) | Token::Number(_))
 }
 
 // ============================================================================
@@ -268,6 +328,33 @@ pub(crate) fn list_item_line(
     // No .map() - preserve tokens!
 }
 
+/// a dialog line.
+pub(crate) fn non_dialog_list_item_line(
+) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
+    list_item_line().try_map(|tokens: Vec<TokenLocation>, span| {
+        let non_whitespace_tokens: Vec<_> = tokens
+            .iter()
+            .filter(|(t, _)| !t.is_whitespace())
+            .map(|(t, _)| t)
+            .collect();
+
+        if non_whitespace_tokens.len() >= 2 {
+            let last_token = non_whitespace_tokens.last().unwrap();
+            let second_to_last_token = non_whitespace_tokens[non_whitespace_tokens.len() - 2];
+
+            if last_token.is_end_punctuation() && second_to_last_token.is_end_punctuation() {
+                // This is a dialog line, so we don't want to parse it as a list item.
+                Err(Simple::custom(span, "Dialog line mistaken for list item"))
+            } else {
+                Ok(tokens)
+            }
+        } else {
+            // Not enough tokens to be a dialog line, so it's a valid list item.
+            Ok(tokens)
+        }
+    })
+}
+
 /// Build a list parser
 pub(crate) fn build_list_parser<P>(
     _source: Arc<String>,
@@ -276,7 +363,7 @@ pub(crate) fn build_list_parser<P>(
 where
     P: Parser<TokenLocation, Vec<ParseNode>, Error = ParserError> + Clone + 'static,
 {
-    let single_list_item = list_item_line()
+    let single_list_item = non_dialog_list_item_line()
         .then_ignore(token(Token::Newline))
         .then(
             filter(|(t, _)| matches!(t, Token::Indent(_)))

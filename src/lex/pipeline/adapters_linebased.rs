@@ -123,7 +123,7 @@ pub fn token_stream_to_line_tokens(
     match stream {
         TokenStream::Flat(_) => Err(AdapterError::ExpectedTree),
         TokenStream::Tree(nodes) => {
-            let line_tokens: Vec<LineToken> = nodes
+            let mut line_tokens: Vec<LineToken> = nodes
                 .into_iter()
                 .map(|node| {
                     let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
@@ -139,6 +139,37 @@ pub fn token_stream_to_line_tokens(
                     }
                 })
                 .collect();
+            // In the linebased parser, once a dialog line is detected, all subsequent lines
+            // are also treated as dialog lines until the end of the block.
+            let mut in_dialog = false;
+            for line_token in &mut line_tokens {
+                if line_token.line_type != LineType::ListLine {
+                    in_dialog = false;
+                }
+
+                if in_dialog {
+                    line_token.line_type = LineType::DialogLine;
+                } else if line_token.line_type == LineType::ListLine {
+                    let non_whitespace_tokens: Vec<_> = line_token
+                        .source_tokens
+                        .iter()
+                        .filter(|t| !t.is_whitespace())
+                        .collect();
+
+                    if non_whitespace_tokens.len() >= 2 {
+                        let last_token = non_whitespace_tokens.last().unwrap();
+                        let second_to_last_token =
+                            non_whitespace_tokens[non_whitespace_tokens.len() - 2];
+
+                        if last_token.is_end_punctuation()
+                            && second_to_last_token.is_end_punctuation()
+                        {
+                            line_token.line_type = LineType::DialogLine;
+                            in_dialog = true;
+                        }
+                    }
+                }
+            }
 
             Ok(line_tokens)
         }
