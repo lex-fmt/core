@@ -19,7 +19,7 @@
 //!
 //! This is the **internal transformation infrastructure**. It handles the low-level
 //! token transformations that happen after base tokenization and before parsing.
-//! For selecting which lexer/parser to use, see `LexPipeline` in the orchestration module.
+//! For executing named configurations, see `PipelineExecutor` in the executor module.
 //!
 //! # Examples
 //!
@@ -34,8 +34,27 @@
 //! ```
 
 use crate::lex::lexers::base_tokenization;
+use crate::lex::parsers::Document;
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::TokenStream;
+
+/// Which parser to use for AST generation
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParserConfig {
+    /// Reference combinator parser
+    Reference,
+    /// Linebased declarative grammar parser
+    Linebased,
+}
+
+/// Output from pipeline execution
+#[derive(Debug)]
+pub enum PipelineOutput {
+    /// Token stream output (lexing only)
+    Tokens(TokenStream),
+    /// Document AST output (full parsing)
+    Document(Document),
+}
 
 /// A pipeline that chains StreamMapper transformations together.
 ///
@@ -43,11 +62,14 @@ use crate::lex::pipeline::stream::TokenStream;
 /// 1. Base tokenization (lexing)
 /// 2. Conversion to TokenStream
 /// 3. Sequential application of transformations
+/// 4. Optional parsing to AST
 ///
 /// Transformations are applied in the order they were added via `add_transformation`.
 pub struct Pipeline {
     /// The sequence of transformations to apply
     transformations: Vec<Box<dyn StreamMapper>>,
+    /// Optional parser to run after transformations
+    parser: Option<ParserConfig>,
 }
 
 impl Pipeline {
@@ -64,6 +86,7 @@ impl Pipeline {
     pub fn new() -> Self {
         Pipeline {
             transformations: Vec::new(),
+            parser: None,
         }
     }
 
@@ -88,16 +111,32 @@ impl Pipeline {
         self
     }
 
+    /// Configure the pipeline to parse tokens into an AST.
+    ///
+    /// If a parser is configured, `run()` will return `PipelineOutput::Document`.
+    /// Otherwise, it returns `PipelineOutput::Tokens`.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let pipeline = Pipeline::new()
+    ///     .add_transformation(NormalizeWhitespaceMapper::new())
+    ///     .with_parser(ParserConfig::Reference);
+    ///
+    /// let result = pipeline.run(source)?; // Returns Document
+    /// ```
+    pub fn with_parser(mut self, parser: ParserConfig) -> Self {
+        self.parser = Some(parser);
+        self
+    }
+
     /// Run the pipeline on source text.
     ///
     /// This performs the complete transformation flow:
     /// 1. Tokenize source using base_tokenization
     /// 2. Convert tokens to TokenStream::Flat
     /// 3. Apply each transformation in sequence
-    /// 4. Return final TokenStream
-    ///
-    /// The returned TokenStream can be either Flat or Tree depending on which
-    /// transformations were applied.
+    /// 4. Optionally parse to AST (if parser configured)
     ///
     /// # Arguments
     ///
@@ -105,18 +144,24 @@ impl Pipeline {
     ///
     /// # Returns
     ///
-    /// The final TokenStream after all transformations, or a TransformationError
-    /// if any transformation fails.
+    /// `PipelineOutput::Tokens` if no parser configured, or
+    /// `PipelineOutput::Document` if parser configured.
     ///
     /// # Examples
     ///
     /// ```ignore
+    /// // Tokens only
     /// let mut pipeline = Pipeline::new()
     ///     .add_transformation(SomeMapper::new());
+    /// let result = pipeline.run("hello world")?; // Returns Tokens
     ///
-    /// let result = pipeline.run("hello world")?;
+    /// // Full parsing
+    /// let mut pipeline = Pipeline::new()
+    ///     .add_transformation(SomeMapper::new())
+    ///     .with_parser(ParserConfig::Reference);
+    /// let result = pipeline.run("hello world")?; // Returns Document
     /// ```
-    pub fn run(&mut self, source: &str) -> Result<TokenStream, TransformationError> {
+    pub fn run(&mut self, source: &str) -> Result<PipelineOutput, TransformationError> {
         // Step 1: Base tokenization
         let tokens = base_tokenization::tokenize(source);
 
@@ -128,8 +173,31 @@ impl Pipeline {
             stream = crate::lex::pipeline::mapper::walk_stream(stream, transformation.as_mut())?;
         }
 
-        // Step 4: Return final TokenStream
-        Ok(stream)
+        // Step 4: If parser configured, parse to AST
+        match self.parser {
+            None => Ok(PipelineOutput::Tokens(stream)),
+            Some(ParserConfig::Reference) => {
+                let tokens = stream.unroll();
+                let doc = crate::lex::parsers::reference::parse(tokens, source).map_err(|_| {
+                    TransformationError::Error("Reference parser failed".to_string())
+                })?;
+                Ok(PipelineOutput::Document(doc))
+            }
+            Some(ParserConfig::Linebased) => {
+                let container =
+                    crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(
+                        stream,
+                    )
+                    .map_err(|e| {
+                        TransformationError::Error(format!("Stream conversion failed: {:?}", e))
+                    })?;
+                let doc = crate::lex::parsers::linebased::parse_experimental_v2(container, source)
+                    .map_err(|e| {
+                        TransformationError::Error(format!("Linebased parser failed: {}", e))
+                    })?;
+                Ok(PipelineOutput::Document(doc))
+            }
+        }
     }
 }
 
@@ -231,12 +299,12 @@ mod tests {
 
         assert!(result.is_ok());
         match result.unwrap() {
-            TokenStream::Flat(tokens) => {
+            PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
                 assert!(!tokens.is_empty());
                 // Should have Text("hello"), Whitespace, Text("world") at minimum
                 assert!(tokens.len() >= 3);
             }
-            _ => panic!("Expected Flat stream from empty pipeline"),
+            _ => panic!("Expected Tokens output with Flat stream from empty pipeline"),
         }
     }
 
@@ -248,7 +316,7 @@ mod tests {
 
         assert!(result.is_ok());
         match result.unwrap() {
-            TokenStream::Flat(tokens) => {
+            PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
                 // Find the text token and verify it's uppercase
                 let text_tokens: Vec<_> = tokens
                     .iter()
@@ -261,7 +329,7 @@ mod tests {
                 assert!(!text_tokens.is_empty());
                 assert_eq!(text_tokens[0], "HELLO");
             }
-            _ => panic!("Expected Flat stream"),
+            _ => panic!("Expected Tokens output with Flat stream"),
         }
     }
 
@@ -276,7 +344,7 @@ mod tests {
 
         assert!(result.is_ok());
         match result.unwrap() {
-            TokenStream::Flat(tokens) => {
+            PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
                 // Verify uppercase worked
                 let has_uppercase = tokens.iter().any(|(token, _)| match token {
                     Token::Text(s) => s.chars().any(|c| c.is_uppercase()),
@@ -284,7 +352,7 @@ mod tests {
                 });
                 assert!(has_uppercase, "Should have uppercase text");
             }
-            _ => panic!("Expected Flat stream"),
+            _ => panic!("Expected Tokens output with Flat stream"),
         }
     }
 
@@ -309,11 +377,11 @@ mod tests {
 
         assert!(result.is_ok());
         match result.unwrap() {
-            TokenStream::Flat(tokens) => {
+            PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
                 // Empty source should produce minimal/no tokens
                 assert!(tokens.is_empty() || tokens.len() <= 1);
             }
-            _ => panic!("Expected Flat stream"),
+            _ => panic!("Expected Tokens output with Flat stream"),
         }
     }
 
@@ -335,14 +403,71 @@ mod tests {
 
         assert!(result.is_ok());
         match result.unwrap() {
-            TokenStream::Flat(tokens) => {
+            PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
                 // Verify ranges are valid
                 for (_, range) in tokens {
                     assert!(range.start <= range.end);
                     assert!(range.end <= "hello".len());
                 }
             }
-            _ => panic!("Expected Flat stream"),
+            _ => panic!("Expected Tokens output with Flat stream"),
+        }
+    }
+
+    // NEW TESTS: Parser support
+
+    #[test]
+    fn test_pipeline_with_reference_parser() {
+        use crate::lex::pipeline::mappers::*;
+
+        let mut pipeline = Pipeline::new()
+            .add_transformation(NormalizeWhitespaceMapper::new())
+            .add_transformation(SemanticIndentationMapper::new())
+            .add_transformation(BlankLinesMapper::new())
+            .with_parser(ParserConfig::Reference);
+
+        let result = pipeline.run("Hello world\n");
+
+        match result {
+            Ok(PipelineOutput::Document(doc)) => {
+                assert!(!doc.root.content.is_empty(), "Document should have content");
+            }
+            Ok(_) => panic!("Expected Document output"),
+            Err(e) => panic!("Pipeline failed: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_pipeline_with_linebased_parser() {
+        use crate::lex::pipeline::mappers::*;
+
+        let mut pipeline = Pipeline::new()
+            .add_transformation(NormalizeWhitespaceMapper::new())
+            .add_transformation(SemanticIndentationMapper::new())
+            .add_transformation(BlankLinesMapper::new())
+            .add_transformation(ToLineTokensMapper::new())
+            .with_parser(ParserConfig::Linebased);
+
+        let result = pipeline.run("Hello:\n    World\n");
+
+        assert!(result.is_ok());
+        match result.unwrap() {
+            PipelineOutput::Document(doc) => {
+                assert!(!doc.root.content.is_empty(), "Document should have content");
+            }
+            _ => panic!("Expected Document output"),
+        }
+    }
+
+    #[test]
+    fn test_pipeline_without_parser_returns_tokens() {
+        let mut pipeline = Pipeline::new();
+        let result = pipeline.run("Hello world");
+
+        assert!(result.is_ok());
+        match result.unwrap() {
+            PipelineOutput::Tokens(_) => {} // Success
+            PipelineOutput::Document(_) => panic!("Should return tokens, not document"),
         }
     }
 }

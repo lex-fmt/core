@@ -3,22 +3,21 @@
 //! This module provides an extensible API for processing lex files with different
 //! stages (token, ast) and formats (simple, json, xml, etc.).
 //!
-//! # Unified Pipeline API
+//! # Pipeline Executor API
 //!
-//! For new code, consider using the `LexPipeline` API in the `pipeline` module
-//! which provides a cleaner, more flexible interface for selecting lexer and parser
-//! implementations:
+//! For new code, consider using the `PipelineExecutor` API in the `pipeline` module
+//! which provides a cleaner, config-based interface:
 //!
 //! ```rust,ignore
-//! use lex::lex::pipeline::LexPipeline;
+//! use lex::lex::pipeline::PipelineExecutor;
+//!
+//! let executor = PipelineExecutor::new();
 //!
 //! // Use default stable pipeline (indentation lexer + reference parser)
-//! let pipeline = LexPipeline::default();
-//! let doc = pipeline.parse("hello world").expect("Failed to parse");
+//! let output = executor.execute("default", source).expect("Failed to parse");
 //!
-//! // Use specific lexer/parser combination
-//! let pipeline = LexPipeline::new("linebased", "linebased");
-//! let doc = pipeline.parse("hello world").expect("Failed to parse");
+//! // Use experimental linebased pipeline
+//! let output = executor.execute("linebased", source).expect("Failed to parse");
 //! ```
 //!
 //! # Sample Sources
@@ -43,7 +42,7 @@
 //! ```
 
 use crate::lex::lexers::{lex, Token};
-use crate::lex::pipeline::LexPipeline;
+use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -253,103 +252,147 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     let content =
         fs::read_to_string(file_path).map_err(|e| ProcessingError::IoError(e.to_string()))?;
 
-    // Process according to stage and format
-    // Handle linebased pipeline formats first
+    // Process according to stage and format using PipelineExecutor
     match &spec.format {
         OutputFormat::TokenLine => {
-            let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(&content);
-            let token_stream =
-                crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-            let line_tokens = crate::lex::lexers::_lex_stage(
-                token_stream,
-                crate::lex::lexers::PipelineStage::LineTokens,
-            );
-            if let crate::lex::lexers::PipelineOutput::LineTokens(tokens) = line_tokens {
-                let json = serde_json::to_string_pretty(&tokens)
-                    .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-                return Ok(json);
+            // Use PipelineExecutor with tokens-linebased-flat config
+            let executor = PipelineExecutor::new();
+            let output = executor
+                .execute("tokens-linebased-flat", &content)
+                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+
+            match output {
+                ExecutionOutput::Tokens(stream) => {
+                    // Convert TokenStream to Vec<LineToken>
+                    let line_tokens =
+                        crate::lex::pipeline::adapters_linebased::token_stream_to_line_tokens(
+                            stream,
+                        )
+                        .map_err(|e| {
+                            ProcessingError::IoError(format!(
+                                "Failed to convert to line tokens: {:?}",
+                                e
+                            ))
+                        })?;
+                    let json = serde_json::to_string_pretty(&line_tokens)
+                        .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+                    Ok(json)
+                }
+                _ => Err(ProcessingError::IoError(
+                    "Expected Tokens output from tokens-linebased-flat config".to_string(),
+                )),
             }
-            Err(ProcessingError::IoError(
-                "Unexpected output from linebased pipeline".to_string(),
-            ))
         }
         OutputFormat::TokenTree => {
-            let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(&content);
-            let token_stream =
-                crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-            let tree = crate::lex::lexers::_lex(token_stream)
+            // Use PipelineExecutor with tokens-linebased-tree config
+            let executor = PipelineExecutor::new();
+            let output = executor
+                .execute("tokens-linebased-tree", &content)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-            let json = serde_json::to_string_pretty(&tree)
-                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-            Ok(json)
+
+            match output {
+                ExecutionOutput::Tokens(stream) => {
+                    // Convert TokenStream to LineContainer
+                    let tree =
+                        crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(
+                            stream,
+                        )
+                        .map_err(|e| {
+                            ProcessingError::IoError(format!(
+                                "Failed to convert to line container: {:?}",
+                                e
+                            ))
+                        })?;
+                    let json = serde_json::to_string_pretty(&tree)
+                        .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+                    Ok(json)
+                }
+                _ => Err(ProcessingError::IoError(
+                    "Expected Tokens output from tokens-linebased-tree config".to_string(),
+                )),
+            }
         }
         _ => {
-            // Non linebased format, continue with standard processing
-            match spec.stage {
-                ProcessingStage::Token => {
-                    let source_with_newline =
-                        crate::lex::lexers::ensure_source_ends_with_newline(&content);
-                    let token_stream =
-                        crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-                    let tokens = lex(token_stream);
-                    format_tokenss(&tokens, &spec.format)
-                }
-                ProcessingStage::Ast => {
-                    // Parse the document using the default pipeline
-                    // The default pipeline uses indentation lexer + reference parser
-                    let doc = LexPipeline::default().parse(&content).map_err(|e| {
-                        ProcessingError::IoError(format!("Failed to parse document: {}", e))
-                    })?;
+            // Use new PipelineExecutor for standard processing
+            let executor = PipelineExecutor::new();
 
-                    // Format according to output format
-                    match spec.format {
-                        OutputFormat::AstTag => Ok(crate::lex::parsers::serialize_ast_tag(&doc)),
-                        OutputFormat::AstTreeviz => Ok(crate::lex::parsers::to_treeviz_str(&doc)),
-                        OutputFormat::AstLinebasedTag => {
-                            // Use linebased parser (linebased lexer + linebased parser)
-                            let doc_exp = LexPipeline::new("linebased", "linebased")
-                                .parse(&content)
-                                .map_err(|e| ProcessingError::IoError(format!(
-                                    "Linebased parser failed: {}",
-                                    e
-                                )))?;
-                            Ok(crate::lex::parsers::serialize_ast_tag(&doc_exp))
-                        }
-                        OutputFormat::AstLinebasedTreeviz => {
-                            // Use linebased parser (linebased lexer + linebased parser)
-                            let doc_exp = LexPipeline::new("linebased", "linebased")
-                                .parse(&content)
-                                .map_err(|e| ProcessingError::IoError(format!(
-                                    "Linebased parser failed: {}",
-                                    e
-                                )))?;
-                            Ok(crate::lex::parsers::to_treeviz_str(&doc_exp))
-                        }
-                        OutputFormat::AstPosition => {
-                            let line = extras
-                                .get("line")
-                                .and_then(|s| s.parse::<usize>().ok())
-                                .ok_or_else(|| {
-                                    ProcessingError::InvalidFormatType("Missing or invalid 'line' extra".to_string())
-                                })?;
-                            let column = extras
-                                .get("column")
-                                .and_then(|s| s.parse::<usize>().ok())
-                                .ok_or_else(|| {
-                                    ProcessingError::InvalidFormatType(
-                                        "Missing or invalid 'column' extra".to_string(),
-                                    )
-                                })?;
-                            Ok(crate::lex::parsers::format_at_position(
-                                &doc,
-                                crate::lex::parsers::Position::new(line, column),
-                            ))
-                        }
-                        _ => Err(ProcessingError::InvalidFormatType(
-                            "Only ast-tag, ast-treeviz, ast-position, ast linebased-tag, and ast linebased-treeviz formats are supported for AST stage".to_string(),
-                        )),
-                    }
+            // Map ProcessingSpec to config name
+            let config_name = match (&spec.stage, &spec.format) {
+                (ProcessingStage::Token, OutputFormat::Simple) => "tokens-indentation",
+                (ProcessingStage::Token, OutputFormat::Json) => "tokens-indentation",
+                (ProcessingStage::Token, OutputFormat::RawSimple) => "tokens-indentation",
+                (ProcessingStage::Token, OutputFormat::RawJson) => "tokens-indentation",
+                (ProcessingStage::Ast, OutputFormat::AstTag) => "default",
+                (ProcessingStage::Ast, OutputFormat::AstTreeviz) => "default",
+                (ProcessingStage::Ast, OutputFormat::AstLinebasedTag) => "linebased",
+                (ProcessingStage::Ast, OutputFormat::AstLinebasedTreeviz) => "linebased",
+                (ProcessingStage::Ast, OutputFormat::AstPosition) => "default",
+                _ => {
+                    return Err(ProcessingError::InvalidFormatType(format!(
+                        "Unsupported stage/format combination: {:?}/{:?}",
+                        spec.stage, spec.format
+                    )))
                 }
+            };
+
+            // Execute pipeline
+            let output = executor
+                .execute(config_name, &content)
+                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+
+            // Format output
+            match (output, &spec.stage, &spec.format) {
+                (ExecutionOutput::Tokens(stream), ProcessingStage::Token, format) => {
+                    let tokens = stream.unroll();
+                    format_tokenss(&tokens, format)
+                }
+                (ExecutionOutput::Document(doc), ProcessingStage::Ast, OutputFormat::AstTag) => {
+                    Ok(crate::lex::parsers::serialize_ast_tag(&doc))
+                }
+                (
+                    ExecutionOutput::Document(doc),
+                    ProcessingStage::Ast,
+                    OutputFormat::AstTreeviz,
+                ) => Ok(crate::lex::parsers::to_treeviz_str(&doc)),
+                (
+                    ExecutionOutput::Document(doc),
+                    ProcessingStage::Ast,
+                    OutputFormat::AstLinebasedTag,
+                ) => Ok(crate::lex::parsers::serialize_ast_tag(&doc)),
+                (
+                    ExecutionOutput::Document(doc),
+                    ProcessingStage::Ast,
+                    OutputFormat::AstLinebasedTreeviz,
+                ) => Ok(crate::lex::parsers::to_treeviz_str(&doc)),
+                (
+                    ExecutionOutput::Document(doc),
+                    ProcessingStage::Ast,
+                    OutputFormat::AstPosition,
+                ) => {
+                    let line = extras
+                        .get("line")
+                        .and_then(|s| s.parse::<usize>().ok())
+                        .ok_or_else(|| {
+                            ProcessingError::InvalidFormatType(
+                                "Missing or invalid 'line' extra".to_string(),
+                            )
+                        })?;
+                    let column = extras
+                        .get("column")
+                        .and_then(|s| s.parse::<usize>().ok())
+                        .ok_or_else(|| {
+                            ProcessingError::InvalidFormatType(
+                                "Missing or invalid 'column' extra".to_string(),
+                            )
+                        })?;
+                    Ok(crate::lex::parsers::format_at_position(
+                        &doc,
+                        crate::lex::parsers::Position::new(line, column),
+                    ))
+                }
+                _ => Err(ProcessingError::InvalidFormatType(
+                    "Mismatched output and format".to_string(),
+                )),
             }
         }
     }

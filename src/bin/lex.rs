@@ -71,6 +71,33 @@ fn main() {
                 ),
         )
         .subcommand(Command::new("formats").about("List all available output formats"))
+        .subcommand(
+            Command::new("execute")
+                .about("Execute a processing configuration")
+                .arg(
+                    Arg::new("config")
+                        .long("config")
+                        .short('c')
+                        .help("Configuration name (e.g., 'default', 'linebased', 'tokens-indentation')")
+                        .required(true),
+                )
+                .arg(
+                    Arg::new("path")
+                        .help("Path to the lex file")
+                        .required(true)
+                        .index(1),
+                )
+                .arg(
+                    Arg::new("format")
+                        .long("format")
+                        .short('f')
+                        .help("Output format (default: ast-tag for Document, token-json for Tokens)")
+                        .default_value("auto"),
+                ),
+        )
+        .subcommand(
+            Command::new("list-configs").about("List available processing configurations"),
+        )
         .try_get_matches_from(clap_args)
         .unwrap_or_else(|e| {
             eprintln!("{}", e);
@@ -90,6 +117,15 @@ fn main() {
         }
         Some(("formats", _)) => {
             handle_formats_command();
+        }
+        Some(("execute", execute_matches)) => {
+            let config = execute_matches.get_one::<String>("config").unwrap();
+            let path = execute_matches.get_one::<String>("path").unwrap();
+            let format = execute_matches.get_one::<String>("format").unwrap();
+            handle_execute_command(config, path, format);
+        }
+        Some(("list-configs", _)) => {
+            handle_list_configs_command();
         }
         None => {
             // Default command: treat as process
@@ -177,4 +213,75 @@ fn process_file_with_format(
 ) -> Result<String, ProcessingError> {
     let spec = lex::lex::processor::ProcessingSpec::from_string(format_str)?;
     lex::lex::processor::process_file_with_extras(path, &spec, extras)
+}
+
+/// Handle the execute command (new config-based interface)
+fn handle_execute_command(config: &str, path: &str, format: &str) {
+    use lex::lex::pipeline::{ExecutionOutput, PipelineExecutor};
+    use std::fs;
+
+    let source = fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Error reading file: {}", e);
+        std::process::exit(1);
+    });
+
+    let executor = PipelineExecutor::new();
+    let output = executor.execute(config, &source).unwrap_or_else(|e| {
+        eprintln!("Execution error: {}", e);
+        eprintln!("\nAvailable configurations:");
+        for config in executor.list_configs() {
+            eprintln!("  {} - {}", config.name, config.description);
+        }
+        std::process::exit(1);
+    });
+
+    // Format and print output
+    let formatted = match (output, format) {
+        (ExecutionOutput::Document(doc), "auto") | (ExecutionOutput::Document(doc), "ast-tag") => {
+            lex::lex::parsers::serialize_ast_tag(&doc)
+        }
+        (ExecutionOutput::Document(doc), "ast-treeviz") => lex::lex::parsers::to_treeviz_str(&doc),
+        (ExecutionOutput::Tokens(stream), "auto")
+        | (ExecutionOutput::Tokens(stream), "token-json") => {
+            let tokens = stream.unroll();
+            serde_json::to_string_pretty(&tokens).unwrap_or_else(|e| {
+                eprintln!("Error formatting tokens: {}", e);
+                std::process::exit(1);
+            })
+        }
+        (ExecutionOutput::Tokens(stream), "token-simple") => {
+            let tokens = stream.unroll();
+            tokens
+                .iter()
+                .map(|(token, _)| format!("{}", token))
+                .collect::<Vec<_>>()
+                .join("")
+        }
+        (ExecutionOutput::Document(_), fmt) => {
+            eprintln!("Format '{}' not supported for Document output", fmt);
+            eprintln!("Available formats for Document: ast-tag, ast-treeviz");
+            std::process::exit(1);
+        }
+        (ExecutionOutput::Tokens(_), fmt) => {
+            eprintln!("Format '{}' not supported for Tokens output", fmt);
+            eprintln!("Available formats for Tokens: token-json, token-simple");
+            std::process::exit(1);
+        }
+    };
+
+    print!("{}", formatted);
+}
+
+/// Handle the list-configs command
+fn handle_list_configs_command() {
+    use lex::lex::pipeline::PipelineExecutor;
+
+    let executor = PipelineExecutor::new();
+    println!("Available processing configurations:\n");
+
+    for config in executor.list_configs() {
+        println!("  {}", config.name);
+        println!("    {}", config.description);
+        println!();
+    }
 }
