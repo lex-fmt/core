@@ -26,7 +26,7 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
-use super::container::Container as ContainerNode;
+use super::container::SessionContainer;
 use super::content_item::ContentItem;
 use std::fmt;
 
@@ -34,7 +34,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Session {
     pub title: TextContent,
-    pub children: ContainerNode,
+    pub children: SessionContainer,
     pub location: Range,
 }
 
@@ -45,14 +45,14 @@ impl Session {
     pub fn new(title: TextContent, children: Vec<ContentItem>) -> Self {
         Self {
             title,
-            children: ContainerNode::new(children),
+            children: SessionContainer::new(children),
             location: Self::default_location(),
         }
     }
     pub fn with_title(title: String) -> Self {
         Self {
             title: TextContent::from_string(title, None),
-            children: ContainerNode::empty(),
+            children: SessionContainer::empty(),
             location: Self::default_location(),
         }
     }

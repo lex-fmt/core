@@ -41,7 +41,7 @@ use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
-use super::container::Container as ContainerNode;
+use super::container::ForeignContainer;
 use super::content_item::ContentItem;
 use std::fmt;
 
@@ -49,7 +49,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct ForeignBlock {
     pub subject: TextContent,
-    pub children: ContainerNode,
+    pub children: ForeignContainer,
     pub closing_annotation: Annotation,
     pub location: Range,
 }
@@ -66,7 +66,7 @@ impl ForeignBlock {
     ) -> Self {
         Self {
             subject,
-            children: ContainerNode::new(children),
+            children: ForeignContainer::new(children),
             closing_annotation,
             location: Self::default_location(),
         }
@@ -75,7 +75,7 @@ impl ForeignBlock {
     pub fn with_subject(subject: String, closing_annotation: Annotation) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
-            children: ContainerNode::empty(),
+            children: ForeignContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
         }
@@ -84,7 +84,7 @@ impl ForeignBlock {
     pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
-            children: ContainerNode::empty(),
+            children: ForeignContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
         }

@@ -1008,7 +1008,7 @@ mod tests {
         Annotation {
             label,
             parameters,
-            children: crate::lex::ast::elements::container::Container::empty(),
+            children: crate::lex::ast::elements::container::GeneralContainer::empty(),
             location,
         }
     }
