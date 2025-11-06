@@ -48,6 +48,56 @@ pub enum Token {
     #[token(":")]
     Colon,
 
+    // End Punctuation
+    #[token("!")]
+    ExclamationMark,
+    #[token("?")]
+    QuestionMark,
+    #[token(";")]
+    Semicolon,
+    #[token("¡")]
+    InvertedExclamationMark,
+    #[token("¿")]
+    InvertedQuestionMark,
+    #[token("…")]
+    Ellipsis,
+    #[token("。")]
+    IdeographicFullStop,
+    #[token("！")]
+    FullwidthExclamationMark,
+    #[token("？")]
+    FullwidthQuestionMark,
+    #[token("⁉")]
+    ExclamationQuestionMark,
+    #[token("⁈")]
+    QuestionExclamationMark,
+    #[token("؟")]
+    ArabicQuestionMark,
+    #[token("۔")]
+    ArabicFullStop,
+    #[token("؍")]
+    ArabicTripleDot,
+    #[token("،")]
+    ArabicComma,
+    #[token("।")]
+    Danda,
+    #[token("॥")]
+    DoubleDanda,
+    #[token("৷")]
+    BengaliCurrencyNumeratorFour,
+    #[token("።")]
+    EthiopianFullStop,
+    #[token("։")]
+    ArmenianFullStop,
+    #[token("།")]
+    TibetanShad,
+    #[token("๏")]
+    ThaiFongman,
+    #[token("၊")]
+    MyanmarComma,
+    #[token("။")]
+    MyanmarFullStop,
+
     // Parameter markers (for annotations)
     #[token(",")]
     Comma,
@@ -61,7 +111,7 @@ pub enum Token {
     Number(String),
 
     // Text content (catch-all for non-special characters, excluding numbers and special chars)
-    #[regex(r#"[^\s\n\t\-\.\(\):0-9,=""]+"#, |lex| lex.slice().to_owned())]
+    #[regex(r#"[^\s\n\t\-\.\(\):0-9,="!?;¡¿…。！？⁉⁈؟۔؍،।॥৷።։།๏၊။]+"#, |lex| lex.slice().to_owned())]
     Text(String),
 }
 
@@ -80,6 +130,30 @@ impl fmt::Display for Token {
             Token::OpenParen => "open-paren",
             Token::CloseParen => "close-paren",
             Token::Colon => "colon",
+            Token::ExclamationMark => "exclamation-mark",
+            Token::QuestionMark => "question-mark",
+            Token::Semicolon => "semicolon",
+            Token::InvertedExclamationMark => "inverted-exclamation-mark",
+            Token::InvertedQuestionMark => "inverted-question-mark",
+            Token::Ellipsis => "ellipsis",
+            Token::IdeographicFullStop => "ideographic-full-stop",
+            Token::FullwidthExclamationMark => "fullwidth-exclamation-mark",
+            Token::FullwidthQuestionMark => "fullwidth-question-mark",
+            Token::ExclamationQuestionMark => "exclamation-question-mark",
+            Token::QuestionExclamationMark => "question-exclamation-mark",
+            Token::ArabicQuestionMark => "arabic-question-mark",
+            Token::ArabicFullStop => "arabic-full-stop",
+            Token::ArabicTripleDot => "arabic-triple-dot",
+            Token::ArabicComma => "arabic-comma",
+            Token::Danda => "danda",
+            Token::DoubleDanda => "double-danda",
+            Token::BengaliCurrencyNumeratorFour => "bengali-currency-numerator-four",
+            Token::EthiopianFullStop => "ethiopian-full-stop",
+            Token::ArmenianFullStop => "armenian-full-stop",
+            Token::TibetanShad => "tibetan-shad",
+            Token::ThaiFongman => "thai-fongman",
+            Token::MyanmarComma => "myanmar-comma",
+            Token::MyanmarFullStop => "myanmar-full-stop",
             Token::Comma => "comma",
             Token::Quote => "quote",
             Token::Equals => "equals",
@@ -135,6 +209,38 @@ impl Token {
     /// Check if this token is text content
     pub fn is_text(&self) -> bool {
         matches!(self, Token::Text(_))
+    }
+
+    pub fn is_end_punctuation(&self) -> bool {
+        matches!(
+            self,
+            Token::Period
+                | Token::ExclamationMark
+                | Token::QuestionMark
+                | Token::Semicolon
+                | Token::Comma
+                | Token::InvertedExclamationMark
+                | Token::InvertedQuestionMark
+                | Token::Ellipsis
+                | Token::IdeographicFullStop
+                | Token::FullwidthExclamationMark
+                | Token::FullwidthQuestionMark
+                | Token::ExclamationQuestionMark
+                | Token::QuestionExclamationMark
+                | Token::ArabicQuestionMark
+                | Token::ArabicFullStop
+                | Token::ArabicTripleDot
+                | Token::ArabicComma
+                | Token::Danda
+                | Token::DoubleDanda
+                | Token::BengaliCurrencyNumeratorFour
+                | Token::EthiopianFullStop
+                | Token::ArmenianFullStop
+                | Token::TibetanShad
+                | Token::ThaiFongman
+                | Token::MyanmarComma
+                | Token::MyanmarFullStop
+        )
     }
 }
 

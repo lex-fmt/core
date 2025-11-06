@@ -509,6 +509,7 @@ pub mod lex_sources {
         "130-annotations-block-content.lex",
         "140-verbatim-blocks-simple.lex",
         "150-verbatim-blocks-no-content.lex",
+        "dialog.lex",
     ];
 
     /// Format options for sample content
@@ -707,7 +708,7 @@ Second paragraph"#;
             assert!(samples.contains(&"130-annotations-block-content.lex"));
             assert!(samples.contains(&"140-verbatim-blocks-simple.lex"));
             assert!(samples.contains(&"150-verbatim-blocks-no-content.lex"));
-            assert_eq!(samples.len(), 17); // Updated for verbatim block samples 140 and 150
+            assert_eq!(samples.len(), 18);
         }
 
         #[test]
@@ -726,6 +727,12 @@ Second paragraph"#;
                 let content = LexSources::get_string(sample).unwrap();
                 assert!(!content.is_empty(), "Sample {} should not be empty", sample);
             }
+        }
+
+        #[test]
+        fn test_dialog_sample_accessible() {
+            let content = LexSources::get_string("dialog.lex").unwrap();
+            assert!(content.contains("- Hi mom!!."), "Dialog sample content is incorrect");
         }
     }
 }
