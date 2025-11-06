@@ -286,10 +286,28 @@ use std::ops::Range as ByteRange;
 ///
 /// A Paragraph ContentItem
 pub fn build_paragraph_from_tokens(
-    token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
+    mut token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
     source: &str,
 ) -> ContentItem {
-    // Skip normalization, tokens already normalized
+    if token_lines.len() == 1 {
+        let mut new_token_lines = vec![];
+        let mut current_line = vec![];
+        for token_data in token_lines.remove(0) {
+            if let Token::Newline = token_data.0 {
+                if !current_line.is_empty() {
+                    new_token_lines.push(current_line);
+                    current_line = vec![];
+                }
+            } else {
+                current_line.push(token_data);
+            }
+        }
+        if !current_line.is_empty() {
+            new_token_lines.push(current_line);
+        }
+        token_lines = new_token_lines;
+    }
+
     // 1. Extract
     let data = extraction::extract_paragraph_data(token_lines, source);
 

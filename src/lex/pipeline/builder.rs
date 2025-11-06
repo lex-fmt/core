@@ -34,7 +34,7 @@
 //! ```
 
 use crate::lex::lexers::base_tokenization;
-use crate::lex::parsers::Document;
+use crate::lex::parsers::{builder, Document};
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::TokenStream;
 
@@ -178,9 +178,12 @@ impl Pipeline {
             None => Ok(PipelineOutput::Tokens(stream)),
             Some(ParserConfig::Reference) => {
                 let tokens = stream.unroll();
-                let doc = crate::lex::parsers::reference::parse(tokens, source).map_err(|_| {
-                    TransformationError::Error("Reference parser failed".to_string())
-                })?;
+                let parse_node =
+                    crate::lex::parsers::reference::parse(tokens, source).map_err(|_| {
+                        TransformationError::Error("Reference parser failed".to_string())
+                    })?;
+                let builder = builder::AstBuilder::new(source);
+                let doc = builder.build(parse_node);
                 Ok(PipelineOutput::Document(doc))
             }
             Some(ParserConfig::Linebased) => {
