@@ -33,8 +33,8 @@
 //! let result = pipeline.run("hello world")?;
 //! ```
 
-use crate::lex::lexers::base_tokenization;
-use crate::lex::parsers::{builder, Document};
+use crate::lex::lexing::base_tokenization;
+use crate::lex::parsing::{builder, Document};
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::TokenStream;
 
@@ -179,7 +179,7 @@ impl Pipeline {
             Some(ParserConfig::Reference) => {
                 let tokens = stream.unroll();
                 let parse_node =
-                    crate::lex::parsers::reference::parse(tokens, source).map_err(|_| {
+                    crate::lex::parsing::reference::parse(tokens, source).map_err(|_| {
                         TransformationError::Error("Reference parser failed".to_string())
                     })?;
                 let builder = builder::AstBuilder::new(source);
@@ -194,7 +194,7 @@ impl Pipeline {
                     .map_err(|e| {
                         TransformationError::Error(format!("Stream conversion failed: {:?}", e))
                     })?;
-                let doc = crate::lex::parsers::linebased::parse_experimental_v2(container, source)
+                let doc = crate::lex::parsing::linebased::parse_experimental_v2(container, source)
                     .map_err(|e| {
                         TransformationError::Error(format!("Linebased parser failed: {}", e))
                     })?;
@@ -213,7 +213,7 @@ impl Default for Pipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::tokens_core::Token;
+    use crate::lex::lexing::tokens_core::Token;
     use std::ops::Range as ByteRange;
 
     // Dummy mapper for testing - counts tokens

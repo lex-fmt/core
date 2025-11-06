@@ -15,7 +15,7 @@
 //! This is a pure adaptation of the existing normalize_whitespace transformation
 //! to the TokenStream architecture.
 
-use crate::lex::lexers::tokens_core::Token;
+use crate::lex::lexing::tokens_core::Token;
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::TokenStream;
 use std::ops::Range as ByteRange;
@@ -88,7 +88,7 @@ impl StreamMapper for NormalizeWhitespaceMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::tokens_core::Token;
+    use crate::lex::lexing::tokens_core::Token;
 
     #[test]
     fn test_normalize_whitespace_with_indentation() {

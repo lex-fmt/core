@@ -29,7 +29,7 @@
 //! 3. Gradually migrate parsers to use TokenStream directly
 //! 4. Eventually remove adapters once migration is complete
 
-use crate::lex::lexers::tokens_core::Token;
+use crate::lex::lexing::tokens_core::Token;
 use crate::lex::pipeline::stream::TokenStream;
 use std::ops::Range as ByteRange;
 
@@ -197,13 +197,13 @@ pub fn flatten_token_stream(stream: TokenStream) -> Vec<(Token, ByteRange<usize>
 pub fn adapt_reference_parser(
     stream: TokenStream,
     source: &str,
-) -> Result<crate::lex::parsers::Document, AdapterError> {
+) -> Result<crate::lex::parsing::Document, AdapterError> {
     // Validate that stream is Flat (not Tree) - required by adapter contract
     // Note: We don't use the tokens since parse_document handles tokenization internally
     token_stream_to_flat(stream)?;
 
     // Call reference parser
-    crate::lex::parsers::parse_document(source).map_err(|errors| {
+    crate::lex::parsing::parse_document(source).map_err(|errors| {
         // Convert parser errors to adapter error
         let error_msg = errors
             .iter()
@@ -504,7 +504,7 @@ mod tests {
         let source = "Hello world\n";
 
         // Tokenize using existing lexer
-        let tokens = crate::lex::lexers::tokenize(source);
+        let tokens = crate::lex::lexing::tokenize(source);
 
         // Convert to TokenStream
         let stream = flat_to_token_stream(tokens);
@@ -540,7 +540,7 @@ mod tests {
         // Test a more complex document with sessions and lists
         let source = "1. Session Title\n\n    Session content.\n\n";
 
-        let tokens = crate::lex::lexers::tokenize(source);
+        let tokens = crate::lex::lexing::tokenize(source);
         let stream = flat_to_token_stream(tokens);
 
         let result = adapt_reference_parser(stream, source);
@@ -557,7 +557,7 @@ mod tests {
         // Verify that locations are preserved through the adapter
         let source = "Hello world\n";
 
-        let tokens = crate::lex::lexers::tokenize(source);
+        let tokens = crate::lex::lexing::tokenize(source);
         let stream = flat_to_token_stream(tokens);
 
         let result = adapt_reference_parser(stream, source);
@@ -576,10 +576,10 @@ mod tests {
         let source = "Paragraph one\n\nParagraph two\n";
 
         // Original path
-        let doc1 = crate::lex::parsers::parse_document(source).unwrap();
+        let doc1 = crate::lex::parsing::parse_document(source).unwrap();
 
         // TokenStream path
-        let tokens2 = crate::lex::lexers::tokenize(source);
+        let tokens2 = crate::lex::lexing::tokenize(source);
         let stream = flat_to_token_stream(tokens2);
         let doc2 = adapt_reference_parser(stream, source).unwrap();
 
@@ -593,7 +593,7 @@ mod tests {
         // Create a token stream that will cause a parse error
         // An incomplete annotation marker (just "::") will trigger parser errors
         let source = "::\n";
-        let tokens = crate::lex::lexers::tokenize(source);
+        let tokens = crate::lex::lexing::tokenize(source);
         let stream = flat_to_token_stream(tokens);
 
         let result = adapt_reference_parser(stream, source);
