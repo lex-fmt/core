@@ -41,7 +41,7 @@ pub struct List {
 /// A list item has text and optional nested content
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
-    pub(crate) text: Vec<TextContent>,
+    pub text: Vec<TextContent>,
     pub content: Vec<ContentItem>,
     pub location: Range,
 }

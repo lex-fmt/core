@@ -26,5 +26,3 @@ pub mod sessions;
 
 // Re-export main API
 pub use api::parse;
-pub use document::document;
-pub use parser::parse as parse_internal;

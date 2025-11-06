@@ -523,8 +523,8 @@ pub mod lex_sources {
                         crate::lex::lexers::ensure_source_ends_with_newline(&content);
                     let token_stream =
                         crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-                    let tokens = lex(token_stream);
-                    let json = serde_json::to_string_pretty(&tokens).map_err(|e| {
+                    let _tokens = lex(token_stream);
+                    let json = serde_json::to_string_pretty(&_tokens).map_err(|e| {
                         ProcessingError::IoError(format!("Failed to serialize tokens: {}", e))
                     })?;
 
@@ -604,10 +604,7 @@ pub mod lex_sources {
         let content = r#"First paragraph
 Second paragraph"#;
 
-        let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(content);
-        let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-        let tokens = crate::lex::lexers::lex(token_stream);
-        let doc = crate::lex::parsers::parse(tokens, content).unwrap();
+        let doc = crate::lex::parsers::parse_document(content).unwrap();
 
         // Check if locations are populated
         if let Some(first_item) = doc.root.content.first() {
