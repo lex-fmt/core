@@ -111,6 +111,18 @@ pub enum Token {
     Number(String),
 
     // Text content (catch-all for non-special characters, excluding numbers and special chars)
+    // The regex explicitly excludes all special characters that have dedicated tokens.
+    // Character categories in the exclusion set:
+    //   \s\n\t          - whitespace
+    //   \-\.\(\):       - structural punctuation (sequence markers)
+    //   0-9             - numbers
+    //   ,="             - parameter markers (annotations)
+    //   !?;             - basic latin punctuation
+    //   ¡¿…⁉⁈           - extended latin punctuation
+    //   。！？           - CJK punctuation
+    //   ؟۔؍،            - arabic punctuation
+    //   ।॥৷             - indic punctuation
+    //   ።։།๏၊။          - other scripts (ethiopian, armenian, tibetan, thai, myanmar)
     #[regex(r#"[^\s\n\t\-\.\(\):0-9,="!?;¡¿…。！？⁉⁈؟۔؍،।॥৷።։།๏၊။]+"#, |lex| lex.slice().to_owned())]
     Text(String),
 }
