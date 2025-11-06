@@ -28,14 +28,14 @@ use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
 use super::super::traits::Visitor;
-use super::container::Container as ContainerNode;
+use super::container::{GeneralContainer, ListContainer};
 use super::content_item::ContentItem;
 use std::fmt;
 
 /// A list contains multiple list items
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
-    pub items: ContainerNode,
+    pub items: ListContainer,
     pub location: Range,
 }
 
@@ -43,7 +43,7 @@ pub struct List {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
     pub text: Vec<TextContent>,
-    pub children: ContainerNode,
+    pub children: GeneralContainer,
     pub location: Range,
 }
 
@@ -53,7 +53,7 @@ impl List {
     }
     pub fn new(items: Vec<ContentItem>) -> Self {
         Self {
-            items: ContainerNode::new(items),
+            items: ListContainer::new(items),
             location: Self::default_location(),
         }
     }
@@ -95,14 +95,14 @@ impl ListItem {
     pub fn new(text: String) -> Self {
         Self {
             text: vec![TextContent::from_string(text, None)],
-            children: ContainerNode::empty(),
+            children: GeneralContainer::empty(),
             location: Self::default_location(),
         }
     }
     pub fn with_content(text: String, children: Vec<ContentItem>) -> Self {
         Self {
             text: vec![TextContent::from_string(text, None)],
-            children: ContainerNode::new(children),
+            children: GeneralContainer::new(children),
             location: Self::default_location(),
         }
     }
@@ -110,7 +110,7 @@ impl ListItem {
     pub fn with_text_content(text_content: TextContent, children: Vec<ContentItem>) -> Self {
         Self {
             text: vec![text_content],
-            children: ContainerNode::new(children),
+            children: GeneralContainer::new(children),
             location: Self::default_location(),
         }
     }

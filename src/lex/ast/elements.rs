@@ -28,6 +28,7 @@ pub mod session;
 // Re-export all element types
 pub use annotation::Annotation;
 pub use blank_line_group::BlankLineGroup;
+#[allow(deprecated)]
 pub use container::Container as ContainerNode;
 pub use content_item::ContentItem;
 pub use definition::Definition;

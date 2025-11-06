@@ -16,6 +16,7 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, TextNode, Visitor};
+#[allow(deprecated)]
 use super::container::Container as ContainerNode;
 use std::fmt;
 
@@ -80,6 +81,7 @@ impl fmt::Display for TextLine {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
     /// Lines stored as ContentItems (each a TextLine wrapping TextContent)
+    #[allow(deprecated)]
     pub lines: ContainerNode,
     pub location: Range,
 }
@@ -90,12 +92,14 @@ impl Paragraph {
     }
     pub fn new(lines: Vec<super::content_item::ContentItem>) -> Self {
         Self {
+            #[allow(deprecated)]
             lines: ContainerNode::new(lines),
             location: Self::default_location(),
         }
     }
     pub fn from_line(line: String) -> Self {
         Self {
+            #[allow(deprecated)]
             lines: ContainerNode::new(vec![super::content_item::ContentItem::TextLine(
                 TextLine::new(TextContent::from_string(line, None)),
             )]),
@@ -105,6 +109,7 @@ impl Paragraph {
     /// Create a paragraph with a single line and attach a location
     pub fn from_line_at(line: String, location: Range) -> Self {
         let mut para = Self {
+            #[allow(deprecated)]
             lines: ContainerNode::new(vec![super::content_item::ContentItem::TextLine(
                 TextLine::new(TextContent::from_string(line, None)),
             )]),
