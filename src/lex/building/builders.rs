@@ -359,7 +359,7 @@ pub(super) fn create_annotation(
 /// # Returns
 ///
 /// A VerbatimBlock ContentItem
-pub(super) fn create_foreign_block(
+pub(super) fn create_verbatim_block(
     data: VerbatimBlockkData,
     closing_annotation: Annotation,
     source: &str,
@@ -391,9 +391,9 @@ pub(super) fn create_foreign_block(
     location_sources.push(closing_annotation.location.clone());
     let location = compute_location_from_locations(&location_sources);
 
-    let foreign_block = Verbatim::new(subject, children, closing_annotation).at(location);
+    let verbatim_block = Verbatim::new(subject, children, closing_annotation).at(location);
 
-    ContentItem::VerbatimBlock(Box::new(foreign_block))
+    ContentItem::VerbatimBlock(Box::new(verbatim_block))
 }
 
 #[cfg(test)]

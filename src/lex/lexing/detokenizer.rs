@@ -230,13 +230,13 @@ mod tests {
     }
 
     #[test]
-    fn test_sample_140_foreign_blocks_simple_raw() {
+    fn test_sample_140_verbatim_blocks_simple_raw() {
         let source = include_str!("../../../docs/specs/v1/samples/140-foreign-blocks-simple.lex");
         test_roundtrip_raw_tokens(source, "140-foreign-blocks-simple");
     }
 
     #[test]
-    fn test_sample_150_foreign_blocks_no_content_raw() {
+    fn test_sample_150_verbatim_blocks_no_content_raw() {
         let source =
             include_str!("../../../docs/specs/v1/samples/150-foreign-blocks-no-content.lex");
         test_roundtrip_raw_tokens(source, "150-foreign-blocks-no-content");

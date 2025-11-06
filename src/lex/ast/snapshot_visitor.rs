@@ -37,7 +37,7 @@ pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
         ContentItem::List(list) => build_list_snapshot(list),
         ContentItem::ListItem(li) => build_list_item_snapshot(li),
         ContentItem::Definition(def) => build_definition_snapshot(def),
-        ContentItem::VerbatimBlock(fb) => build_foreign_block_snapshot(fb),
+        ContentItem::VerbatimBlock(fb) => build_verbatim_block_snapshot(fb),
         ContentItem::VerbatimLine(fl) => {
             AstSnapshot::new("VerbatimLine".to_string(), fl.display_label())
         }
@@ -121,7 +121,7 @@ fn build_annotation_snapshot(ann: &Annotation) -> AstSnapshot {
     snapshot
 }
 
-fn build_foreign_block_snapshot(fb: &super::Verbatim) -> AstSnapshot {
+fn build_verbatim_block_snapshot(fb: &super::Verbatim) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("VerbatimBlock".to_string(), fb.display_label());
     for child in fb.children() {
         snapshot.children.push(snapshot_from_content(child));

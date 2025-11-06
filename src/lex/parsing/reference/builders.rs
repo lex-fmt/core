@@ -300,7 +300,7 @@ where
 // ============================================================================
 
 /// Parse a foreign block
-pub(crate) fn foreign_block(
+pub(crate) fn verbatim_block(
     _source: Arc<String>,
 ) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
     // Parse subject tokens (not just text)

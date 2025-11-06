@@ -32,7 +32,7 @@ static LIST_ITEM_REGEX: Lazy<Regex> =
 const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
     // Verbatim Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
     (
-        "foreign_block",
+        "verbatim_block",
         r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<blank><blank-line>)?(?P<content><container>)?(?P<closing><annotation-end-line>)",
     ),
     // Annotation (multi-line with markers): <annotation-start-line><container><annotation-end-line>
@@ -144,7 +144,7 @@ impl GrammarMatcher {
 
                     // Use captures to extract indices and build the pattern
                     let pattern = match *pattern_name {
-                        "foreign_block" => PatternMatch::VerbatimBlock {
+                        "verbatim_block" => PatternMatch::VerbatimBlock {
                             subject_idx: 0,
                             blank_idx: caps.name("blank").map(|_| 1),
                             content_idx: caps

@@ -114,7 +114,7 @@ impl AstNode for Verbatim {
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
-        visitor.visit_foreign_block(self);
+        visitor.visit_verbatim_block(self);
         super::super::traits::visit_children(visitor, &self.children);
     }
 }

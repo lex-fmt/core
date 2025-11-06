@@ -27,7 +27,7 @@ use super::builders::paragraph;
 // Import parser builders from element modules
 use super::annotations::build_annotation_parser;
 use super::definitions::build_definition_parser;
-use super::foreign::foreign_block;
+use super::foreign::verbatim_block;
 use super::lists::build_list_parser;
 use super::sessions::build_session_parser;
 use std::sync::Arc;
@@ -57,7 +57,7 @@ pub(crate) fn build_document_content_parser(
             let annotation_parser = build_annotation_parser(source.clone(), items.clone());
 
             choice((
-                foreign_block(source.clone()),
+                verbatim_block(source.clone()),
                 annotation_parser,
                 list_parser,
                 definition_parser,

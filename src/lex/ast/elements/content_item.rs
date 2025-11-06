@@ -197,7 +197,7 @@ impl ContentItem {
     pub fn is_annotation(&self) -> bool {
         matches!(self, ContentItem::Annotation(_))
     }
-    pub fn is_foreign_block(&self) -> bool {
+    pub fn is_verbatim_block(&self) -> bool {
         matches!(self, ContentItem::VerbatimBlock(_))
     }
 
@@ -251,7 +251,7 @@ impl ContentItem {
             None
         }
     }
-    pub fn as_foreign_block(&self) -> Option<&Verbatim> {
+    pub fn as_verbatim_block(&self) -> Option<&Verbatim> {
         if let ContentItem::VerbatimBlock(fb) = self {
             Some(fb)
         } else {
@@ -317,7 +317,7 @@ impl ContentItem {
             None
         }
     }
-    pub fn as_foreign_block_mut(&mut self) -> Option<&mut Verbatim> {
+    pub fn as_verbatim_block_mut(&mut self) -> Option<&mut Verbatim> {
         if let ContentItem::VerbatimBlock(fb) = self {
             Some(fb)
         } else {

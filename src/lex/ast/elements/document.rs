@@ -87,11 +87,11 @@ impl Document {
         self.root.children.iter().filter_map(|item| item.as_list())
     }
 
-    pub fn iter_foreign_blocks(&self) -> impl Iterator<Item = &Verbatim> {
+    pub fn iter_verbatim_blocks(&self) -> impl Iterator<Item = &Verbatim> {
         self.root
             .children
             .iter()
-            .filter_map(|item| item.as_foreign_block())
+            .filter_map(|item| item.as_verbatim_block())
     }
 
     /// Convenience accessor for the root session's location
@@ -103,7 +103,7 @@ impl Document {
         let paragraphs = self.iter_paragraphs().count();
         let sessions = self.iter_sessions().count();
         let lists = self.iter_lists().count();
-        let foreign_blocks = self.iter_foreign_blocks().count();
+        let foreign_blocks = self.iter_verbatim_blocks().count();
         (paragraphs, sessions, lists, foreign_blocks)
     }
 

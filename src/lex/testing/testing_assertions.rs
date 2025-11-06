@@ -213,10 +213,10 @@ impl<'a> ContentItemAssertion<'a> {
     }
 
     /// Assert this item is a VerbatimBlock and return foreign block-specific assertions
-    pub fn assert_foreign_block(self) -> VerbatimBlockkAssertion<'a> {
+    pub fn assert_verbatim_block(self) -> VerbatimBlockkAssertion<'a> {
         match self.item {
             ContentItem::VerbatimBlock(fb) => VerbatimBlockkAssertion {
-                foreign_block: fb,
+                verbatim_block: fb,
                 context: self.context,
             },
             _ => panic!(
@@ -705,13 +705,13 @@ impl<'a> AnnotationAssertion<'a> {
 // ============================================================================
 
 pub struct VerbatimBlockkAssertion<'a> {
-    foreign_block: &'a Verbatim,
+    verbatim_block: &'a Verbatim,
     context: String,
 }
 
 impl<'a> VerbatimBlockkAssertion<'a> {
     pub fn subject(self, expected: &str) -> Self {
-        let actual = self.foreign_block.subject.as_string();
+        let actual = self.verbatim_block.subject.as_string();
         assert_eq!(
             actual, expected,
             "{}: Expected foreign block subject to be '{}', but got '{}'",
@@ -722,7 +722,7 @@ impl<'a> VerbatimBlockkAssertion<'a> {
     pub fn content_contains(self, substring: &str) -> Self {
         // Collect all content lines into a single string
         let actual: String = self
-            .foreign_block
+            .verbatim_block
             .children
             .iter()
             .filter_map(|child| child.as_foreign_line())
@@ -741,15 +741,15 @@ impl<'a> VerbatimBlockkAssertion<'a> {
     }
     pub fn is_marker_form(self) -> Self {
         assert!(
-            self.foreign_block.children.is_empty(),
+            self.verbatim_block.children.is_empty(),
             "{}: Expected foreign block to be marker form (empty children), but got {} children",
             self.context,
-            self.foreign_block.children.len()
+            self.verbatim_block.children.len()
         );
         self
     }
     pub fn closing_label(self, expected: &str) -> Self {
-        let actual = &self.foreign_block.closing_annotation.label.value;
+        let actual = &self.verbatim_block.closing_annotation.label.value;
         assert_eq!(
             actual, expected,
             "{}: Expected closing annotation label to be '{}', but got '{}'",
@@ -759,7 +759,7 @@ impl<'a> VerbatimBlockkAssertion<'a> {
     }
     pub fn has_closing_parameter_with_value(self, key: &str, value: &str) -> Self {
         let found = self
-            .foreign_block
+            .verbatim_block
             .closing_annotation
             .parameters
             .iter()

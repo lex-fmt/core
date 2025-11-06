@@ -21,7 +21,7 @@ use regex::Regex;
 const GRAMMAR_RULES: &[(&str, &str)] = &[
     // Verbatim Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
     (
-        "foreign_block",
+        "verbatim_block",
         r"^(<subject-line>|<subject-or-list-item-line>)(<blank-line>)?(<container>)?(<annotation-end-line>)$",
     ),
     // Annotation (multi-line): <annotation-start-line><container><annotation-end-line>
@@ -106,29 +106,29 @@ const TEST_CASES: &[TestCase] = &[
     },
     // FOREIGN BLOCK TESTS
     TestCase {
-        name: "foreign_block: subject + annotation-end",
+        name: "verbatim_block: subject + annotation-end",
         tokens: "<subject-line><annotation-end-line>",
-        expected_match: Some("foreign_block"),
+        expected_match: Some("verbatim_block"),
     },
     TestCase {
-        name: "foreign_block: subject + blank + annotation-end",
+        name: "verbatim_block: subject + blank + annotation-end",
         tokens: "<subject-line><blank-line><annotation-end-line>",
-        expected_match: Some("foreign_block"),
+        expected_match: Some("verbatim_block"),
     },
     TestCase {
-        name: "foreign_block: subject + container + annotation-end",
+        name: "verbatim_block: subject + container + annotation-end",
         tokens: "<subject-line><container><annotation-end-line>",
-        expected_match: Some("foreign_block"),
+        expected_match: Some("verbatim_block"),
     },
     TestCase {
-        name: "foreign_block: subject + blank + container + annotation-end",
+        name: "verbatim_block: subject + blank + container + annotation-end",
         tokens: "<subject-line><blank-line><container><annotation-end-line>",
-        expected_match: Some("foreign_block"),
+        expected_match: Some("verbatim_block"),
     },
     TestCase {
-        name: "foreign_block: subject-or-list-item + annotation-end",
+        name: "verbatim_block: subject-or-list-item + annotation-end",
         tokens: "<subject-or-list-item-line><annotation-end-line>",
-        expected_match: Some("foreign_block"),
+        expected_match: Some("verbatim_block"),
     },
     // LIST TESTS
     TestCase {

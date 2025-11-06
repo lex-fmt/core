@@ -623,7 +623,7 @@ fn test_location_tracking_for_annotations() {
 }
 
 #[test]
-fn test_location_tracking_for_foreign_blocks() {
+fn test_location_tracking_for_verbatim_blocks() {
     let source = LexSources::get_string("140-foreign-blocks-simple.lex")
         .expect("Failed to load foreign blocks sample");
     let doc = parse_document(&source).expect("Failed to parse foreign blocks sample");
@@ -632,7 +632,7 @@ fn test_location_tracking_for_foreign_blocks() {
         .root
         .children
         .iter()
-        .filter_map(|item| item.as_foreign_block())
+        .filter_map(|item| item.as_verbatim_block())
         .collect();
     assert!(
         !foreign_blocks.is_empty(),

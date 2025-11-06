@@ -630,7 +630,7 @@ fn strip_indentation_wall(
 ///
 /// // After extraction, both have identical content: "line1\nline2"
 /// ```
-pub(super) fn extract_foreign_block_data(
+pub(super) fn extract_verbatim_block_data(
     subject_tokens: Vec<(Token, ByteRange<usize>)>,
     mut content_token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
     source: &str,
@@ -706,7 +706,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_foreign_block_data_strips_wall() {
+    fn test_extract_verbatim_block_data_strips_wall() {
         let source = "Code:\n    line1\n        line2";
 
         let subject_tokens = vec![(Token::Text("Code".to_string()), 0..4)];
@@ -723,7 +723,7 @@ mod tests {
             ],
         ];
 
-        let data = extract_foreign_block_data(subject_tokens, content_lines, source);
+        let data = extract_verbatim_block_data(subject_tokens, content_lines, source);
 
         assert_eq!(data.subject_text, "Code");
         // Wall of 1 indent should be stripped from both lines
