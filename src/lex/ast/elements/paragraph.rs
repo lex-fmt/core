@@ -16,6 +16,7 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, TextNode, Visitor};
+use super::container::Container as ContainerNode;
 use std::fmt;
 
 /// A text line within a paragraph
@@ -79,7 +80,7 @@ impl fmt::Display for TextLine {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
     /// Lines stored as ContentItems (each a TextLine wrapping TextContent)
-    pub lines: Vec<super::content_item::ContentItem>,
+    pub lines: ContainerNode,
     pub location: Range,
 }
 
@@ -89,24 +90,24 @@ impl Paragraph {
     }
     pub fn new(lines: Vec<super::content_item::ContentItem>) -> Self {
         Self {
-            lines,
+            lines: ContainerNode::new(lines),
             location: Self::default_location(),
         }
     }
     pub fn from_line(line: String) -> Self {
         Self {
-            lines: vec![super::content_item::ContentItem::TextLine(TextLine::new(
-                TextContent::from_string(line, None),
-            ))],
+            lines: ContainerNode::new(vec![super::content_item::ContentItem::TextLine(
+                TextLine::new(TextContent::from_string(line, None)),
+            )]),
             location: Self::default_location(),
         }
     }
     /// Create a paragraph with a single line and attach a location
     pub fn from_line_at(line: String, location: Range) -> Self {
         let mut para = Self {
-            lines: vec![super::content_item::ContentItem::TextLine(TextLine::new(
-                TextContent::from_string(line, None),
-            ))],
+            lines: ContainerNode::new(vec![super::content_item::ContentItem::TextLine(
+                TextLine::new(TextContent::from_string(line, None)),
+            )]),
             location: Self::default_location(),
         };
         para = para.at(location);

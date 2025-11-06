@@ -143,7 +143,7 @@ mod tests {
     fn test_empty() {
         let content = TextContent::empty();
         assert!(content.is_empty());
-        assert_eq!(content.len(), 0);
+        assert_eq!(content.as_string().len(), 0);
     }
 
     #[test]

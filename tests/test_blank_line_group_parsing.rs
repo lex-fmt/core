@@ -33,7 +33,7 @@ fn test_blank_line_group_location_visitor() {
     let doc = parse_document(source);
 
     // Find blank line groups and verify location field works
-    for item in &doc.root.content {
+    for item in &doc.root.children {
         if let ContentItem::BlankLineGroup(blg) = item {
             // Test that location field is accessible and works without panic
             let _loc = &blg.location;
@@ -47,7 +47,7 @@ fn test_blank_line_group_node_type_visitor() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    for item in &doc.root.content {
+    for item in &doc.root.children {
         if let ContentItem::BlankLineGroup(blg) = item {
             // Test that node_type method works
             let node_type = blg.node_type();
@@ -62,7 +62,7 @@ fn test_blank_line_group_display_label_visitor() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    for item in &doc.root.content {
+    for item in &doc.root.children {
         if let ContentItem::BlankLineGroup(blg) = item {
             // Test that display_label method works
             let label = blg.display_label();
@@ -77,7 +77,7 @@ fn test_blank_line_group_structure_count() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    for item in &doc.root.content {
+    for item in &doc.root.children {
         if let ContentItem::BlankLineGroup(blg) = item {
             // Verify count field exists and is accessible
             assert!(blg.count > 0, "BlankLineGroup should have count > 0");
@@ -91,7 +91,7 @@ fn test_blank_line_group_structure_source_tokens() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    for item in &doc.root.content {
+    for item in &doc.root.children {
         if let ContentItem::BlankLineGroup(blg) = item {
             // Verify source_tokens field exists and is accessible
             assert!(
@@ -115,12 +115,12 @@ fn test_blank_line_group_in_list_items() {
     let doc = parse_document(source);
 
     // Search for lists and their item content
-    for item in &doc.root.content {
+    for item in &doc.root.children {
         if let ContentItem::List(list) = item {
-            for list_item in &list.content {
+            for list_item in &list.items {
                 if let ContentItem::ListItem(li) = list_item {
                     // Check if this list item has blank lines
-                    let blank_groups = find_blank_line_groups(&li.content);
+                    let blank_groups = find_blank_line_groups(&li.children);
                     if !blank_groups.is_empty() {
                         assert!(blank_groups[0].count > 0);
                         return;
@@ -137,9 +137,9 @@ fn test_blank_line_group_in_definitions() {
     let doc = parse_document(source);
 
     // Search for definitions and check their content
-    for item in &doc.root.content {
+    for item in &doc.root.children {
         if let ContentItem::Definition(def) = item {
-            let blank_groups = find_blank_line_groups(&def.content);
+            let blank_groups = find_blank_line_groups(&def.children);
             if !blank_groups.is_empty() {
                 assert!(
                     blank_groups[0].count > 0,
@@ -157,9 +157,9 @@ fn test_blank_line_group_in_sessions() {
     let doc = parse_document(source);
 
     // Search for sessions and check their content
-    for item in &doc.root.content {
+    for item in &doc.root.children {
         if let ContentItem::Session(session) = item {
-            let blank_groups = find_blank_line_groups(&session.content);
+            let blank_groups = find_blank_line_groups(&session.children);
             if !blank_groups.is_empty() {
                 assert!(blank_groups[0].count > 0, "Session should have blank lines");
                 return;
@@ -178,7 +178,7 @@ fn test_blank_line_group_is_content_item_variant() {
     // by successfully pattern matching it in the content
     let _has_blank_variant = doc
         .root
-        .content
+        .children
         .iter()
         .any(|item| matches!(item, ContentItem::BlankLineGroup(_)));
     // Test passes if compilation succeeds

@@ -24,6 +24,7 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
+use super::container::Container as ContainerNode;
 use super::content_item::ContentItem;
 use std::fmt;
 
@@ -31,7 +32,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Definition {
     pub subject: TextContent,
-    pub content: Vec<ContentItem>,
+    pub children: ContainerNode,
     pub location: Range,
 }
 
@@ -39,17 +40,17 @@ impl Definition {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(subject: TextContent, content: Vec<ContentItem>) -> Self {
+    pub fn new(subject: TextContent, children: Vec<ContentItem>) -> Self {
         Self {
             subject,
-            content,
+            children: ContainerNode::new(children),
             location: Self::default_location(),
         }
     }
     pub fn with_subject(subject: String) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
-            content: Vec::new(),
+            children: ContainerNode::empty(),
             location: Self::default_location(),
         }
     }
@@ -78,7 +79,7 @@ impl AstNode for Definition {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_definition(self);
-        super::super::traits::visit_children(visitor, &self.content);
+        super::super::traits::visit_children(visitor, &self.children);
     }
 }
 
@@ -87,10 +88,10 @@ impl Container for Definition {
         self.subject.as_string()
     }
     fn children(&self) -> &[ContentItem] {
-        &self.content
+        &self.children
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.content
+        &mut self.children
     }
 }
 
@@ -100,7 +101,7 @@ impl fmt::Display for Definition {
             f,
             "Definition('{}', {} items)",
             self.subject.as_string(),
-            self.content.len()
+            self.children.len()
         )
     }
 }

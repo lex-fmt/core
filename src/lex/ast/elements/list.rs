@@ -28,13 +28,14 @@ use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
 use super::super::traits::Visitor;
+use super::container::Container as ContainerNode;
 use super::content_item::ContentItem;
 use std::fmt;
 
 /// A list contains multiple list items
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
-    pub content: Vec<ContentItem>,
+    pub items: ContainerNode,
     pub location: Range,
 }
 
@@ -42,7 +43,7 @@ pub struct List {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
     pub text: Vec<TextContent>,
-    pub content: Vec<ContentItem>,
+    pub children: ContainerNode,
     pub location: Range,
 }
 
@@ -52,7 +53,7 @@ impl List {
     }
     pub fn new(items: Vec<ContentItem>) -> Self {
         Self {
-            content: items,
+            items: ContainerNode::new(items),
             location: Self::default_location(),
         }
     }
@@ -69,7 +70,7 @@ impl AstNode for List {
         "List"
     }
     fn display_label(&self) -> String {
-        format!("{} items", self.content.len())
+        format!("{} items", self.items.len())
     }
     fn range(&self) -> &Range {
         &self.location
@@ -77,13 +78,13 @@ impl AstNode for List {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_list(self);
-        super::super::traits::visit_children(visitor, &self.content);
+        super::super::traits::visit_children(visitor, &self.items);
     }
 }
 
 impl fmt::Display for List {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "List({} items)", self.content.len())
+        write!(f, "List({} items)", self.items.len())
     }
 }
 
@@ -94,22 +95,22 @@ impl ListItem {
     pub fn new(text: String) -> Self {
         Self {
             text: vec![TextContent::from_string(text, None)],
-            content: Vec::new(),
+            children: ContainerNode::empty(),
             location: Self::default_location(),
         }
     }
-    pub fn with_content(text: String, content: Vec<ContentItem>) -> Self {
+    pub fn with_content(text: String, children: Vec<ContentItem>) -> Self {
         Self {
             text: vec![TextContent::from_string(text, None)],
-            content,
+            children: ContainerNode::new(children),
             location: Self::default_location(),
         }
     }
     /// Create a ListItem with TextContent that may have location information
-    pub fn with_text_content(text_content: TextContent, content: Vec<ContentItem>) -> Self {
+    pub fn with_text_content(text_content: TextContent, children: Vec<ContentItem>) -> Self {
         Self {
             text: vec![text_content],
-            content,
+            children: ContainerNode::new(children),
             location: Self::default_location(),
         }
     }
@@ -142,7 +143,7 @@ impl AstNode for ListItem {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_list_item(self);
-        super::super::traits::visit_children(visitor, &self.content);
+        super::super::traits::visit_children(visitor, &self.children);
     }
 }
 
@@ -151,10 +152,10 @@ impl Container for ListItem {
         self.text[0].as_string()
     }
     fn children(&self) -> &[ContentItem] {
-        &self.content
+        &self.children
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.content
+        &mut self.children
     }
 }
 
