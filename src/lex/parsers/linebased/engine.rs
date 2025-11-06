@@ -40,7 +40,7 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
     let content = declarative_grammar::parse_with_declarative_grammar(children, source)?;
 
     // Create the root session containing all top-level content using ast_builder
-    use crate::lex::parsers::common::ast_builder;
+    use crate::lex::parsers::ast::api as ast_builder;
     let root_location = Range {
         span: 0..0,
         start: Position { line: 0, column: 0 },
