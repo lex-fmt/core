@@ -22,17 +22,12 @@ jobs:
         toolchain: stable
         components: rustfmt, clippy
         override: true
-    
-    - name: Cache cargo registry
-      uses: actions/cache@v3
+
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
       with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-
+        shared-key: "stable"
+        cache-on-failure: true
     
     - name: Run pre-commit script (critical checks)
       run: |
@@ -56,17 +51,12 @@ jobs:
       with:
         toolchain: stable
         override: true
-    
-    - name: Cache cargo registry
-      uses: actions/cache@v3
+
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
       with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-
+        shared-key: "stable"
+        cache-on-failure: true
     
     - name: Build documentation
       run: cargo doc --no-deps --all-features
