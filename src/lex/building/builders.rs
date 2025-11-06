@@ -41,6 +41,66 @@ use crate::lex::ast::{
 use crate::lex::parsing::ContentItem;
 
 // ============================================================================
+// VALIDATION FUNCTIONS
+// ============================================================================
+
+/// Validates that a container does not contain any Session nodes.
+///
+/// Used for GeneralContainer types (Definition, Annotation, ListItem) where
+/// Session nesting is prohibited by the Lex specification.
+///
+/// # Panics
+///
+/// Panics if any Session is found in the content with a descriptive error message.
+fn validate_no_sessions(content: &[ContentItem], container_name: &str) {
+    for item in content {
+        if item.is_session() {
+            panic!(
+                "Invalid nesting: {} cannot contain Session elements. \
+                 Sessions can only be nested within Document or other Sessions.",
+                container_name
+            );
+        }
+    }
+}
+
+/// Validates that a container only contains ListItem nodes.
+///
+/// Used for ListContainer types where only ListItem variants are allowed.
+///
+/// # Panics
+///
+/// Panics if any non-ListItem is found in the content.
+fn validate_only_list_items(content: &[ContentItem]) {
+    for item in content {
+        if !item.is_list_item() {
+            panic!(
+                "Invalid List content: Lists can only contain ListItem elements, found {}",
+                item.node_type()
+            );
+        }
+    }
+}
+
+/// Validates that a container only contains ForeignLine nodes.
+///
+/// Used for ForeignContainer types where only ForeignLine nodes are allowed.
+///
+/// # Panics
+///
+/// Panics if any non-ForeignLine is found in the content.
+fn validate_only_foreign_lines(content: &[ContentItem]) {
+    for item in content {
+        if !item.is_foreign_line() {
+            panic!(
+                "Invalid ForeignBlock content: ForeignBlocks can only contain ForeignLine elements, found {}",
+                item.node_type()
+            );
+        }
+    }
+}
+
+// ============================================================================
 // PARAGRAPH CREATION
 // ============================================================================
 
@@ -73,10 +133,13 @@ pub(super) fn create_paragraph(data: ParagraphData, source: &str) -> ContentItem
     // Convert overall byte range to AST range
     let overall_location = byte_range_to_ast_range(data.overall_byte_range, source);
 
-    ContentItem::Paragraph(Paragraph {
-        lines: crate::lex::ast::elements::container::Container::new(lines),
-        location: overall_location,
-    })
+    #[allow(deprecated)]
+    {
+        ContentItem::Paragraph(Paragraph {
+            lines: crate::lex::ast::elements::container::Container::new(lines),
+            location: overall_location,
+        })
+    }
 }
 
 // ============================================================================
@@ -133,6 +196,9 @@ pub(super) fn create_definition(
     content: Vec<ContentItem>,
     source: &str,
 ) -> ContentItem {
+    // Validate that content doesn't contain Sessions
+    validate_no_sessions(&content, "Definition");
+
     let subject_location = byte_range_to_ast_range(data.subject_byte_range, source);
     let subject = TextContent::from_string(data.subject_text, Some(subject_location.clone()));
     let location = aggregate_locations(subject_location, &content);
@@ -160,6 +226,9 @@ pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
     // Convert ListItems to ContentItems
     let content: Vec<ContentItem> = items.into_iter().map(ContentItem::ListItem).collect();
 
+    // Validate that all items are ListItems (should always be true, but verify)
+    validate_only_list_items(&content);
+
     // Get locations from all items for aggregation
     let item_locations: Vec<Range> = content
         .iter()
@@ -176,7 +245,7 @@ pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
     };
 
     ContentItem::List(List {
-        items: crate::lex::ast::elements::container::Container::new(content),
+        items: crate::lex::ast::elements::container::ListContainer::new(content),
         location,
     })
 }
@@ -204,6 +273,9 @@ pub(super) fn create_list_item(
     content: Vec<ContentItem>,
     source: &str,
 ) -> ListItem {
+    // Validate that content doesn't contain Sessions
+    validate_no_sessions(&content, "ListItem");
+
     let marker_location = byte_range_to_ast_range(data.marker_byte_range, source);
     let marker = TextContent::from_string(data.marker_text, Some(marker_location.clone()));
     let location = aggregate_locations(marker_location, &content);
@@ -236,6 +308,9 @@ pub(super) fn create_annotation(
 ) -> ContentItem {
     use crate::lex::ast::Parameter;
 
+    // Validate that content doesn't contain Sessions
+    validate_no_sessions(&content, "Annotation");
+
     let label_location = byte_range_to_ast_range(data.label_byte_range, source);
     let label = Label::new(data.label_text).at(label_location.clone());
 
@@ -259,7 +334,7 @@ pub(super) fn create_annotation(
     let annotation = Annotation {
         label,
         parameters,
-        children: crate::lex::ast::elements::container::Container::new(content),
+        children: crate::lex::ast::elements::container::GeneralContainer::new(content),
         location,
     };
 
@@ -306,6 +381,9 @@ pub(super) fn create_foreign_block(
         let foreign_line = ForeignLine::from_text_content(line_content).at(line_location);
         children.push(ContentItem::ForeignLine(foreign_line));
     }
+
+    // Validate that all children are ForeignLines
+    validate_only_foreign_lines(&children);
 
     // Aggregate location from subject, all lines, and closing annotation
     let mut location_sources = vec![subject_location];
@@ -361,5 +439,159 @@ mod tests {
             }
             _ => panic!("Expected Session"),
         }
+    }
+
+    // ============================================================================
+    // VALIDATION TESTS
+    // ============================================================================
+
+    #[test]
+    #[should_panic(expected = "Definition cannot contain Session elements")]
+    fn test_definition_rejects_session_child() {
+        use crate::lex::ast::elements::Session;
+
+        let source = "Test Subject:\n    Nested Session\n";
+        let session = Session::with_title("Nested Session".to_string());
+        let content = vec![ContentItem::Session(session)];
+
+        let data = DefinitionData {
+            subject_text: "Test Subject".to_string(),
+            subject_byte_range: 0..12,
+        };
+
+        // This should panic during validation
+        let _definition = create_definition(data, content, source);
+    }
+
+    #[test]
+    #[should_panic(expected = "Annotation cannot contain Session elements")]
+    fn test_annotation_rejects_session_child() {
+        use crate::lex::ast::elements::Session;
+
+        let source = ":: test ::\n    Nested Session\n";
+        let session = Session::with_title("Nested Session".to_string());
+        let content = vec![ContentItem::Session(session)];
+
+        let data = AnnotationData {
+            label_text: "test".to_string(),
+            label_byte_range: 0..4,
+            parameters: vec![],
+        };
+
+        // This should panic during validation
+        let _annotation = create_annotation(data, content, source);
+    }
+
+    #[test]
+    #[should_panic(expected = "ListItem cannot contain Session elements")]
+    fn test_list_item_rejects_session_child() {
+        use crate::lex::ast::elements::Session;
+
+        let source = "- Item\n    Nested Session\n";
+        let session = Session::with_title("Nested Session".to_string());
+        let content = vec![ContentItem::Session(session)];
+
+        let data = ListItemData {
+            marker_text: "- ".to_string(),
+            marker_byte_range: 0..2,
+        };
+
+        // This should panic during validation
+        let _list_item = create_list_item(data, content, source);
+    }
+
+    #[test]
+    fn test_session_allows_session_child() {
+        use crate::lex::ast::elements::Session;
+
+        let source = "Parent Session\n    Nested Session\n";
+        let nested_session = Session::with_title("Nested Session".to_string());
+        let content = vec![ContentItem::Session(nested_session)];
+
+        let data = SessionData {
+            title_text: "Parent Session".to_string(),
+            title_byte_range: 0..14,
+        };
+
+        // This should succeed - Sessions can contain Sessions
+        let result = create_session(data, content, source);
+
+        match result {
+            ContentItem::Session(session) => {
+                assert_eq!(session.children.len(), 1);
+                assert_eq!(session.title.as_string(), "Parent Session");
+            }
+            _ => panic!("Expected Session"),
+        }
+    }
+
+    #[test]
+    fn test_definition_allows_non_session_children() {
+        use crate::lex::ast::elements::Paragraph;
+
+        let source = "Test Subject:\n    Some content\n";
+        let para = Paragraph::from_line("Some content".to_string());
+        let content = vec![ContentItem::Paragraph(para)];
+
+        let data = DefinitionData {
+            subject_text: "Test Subject".to_string(),
+            subject_byte_range: 0..12,
+        };
+
+        // This should succeed - Definitions can contain Paragraphs
+        let result = create_definition(data, content, source);
+
+        match result {
+            ContentItem::Definition(def) => {
+                assert_eq!(def.children.len(), 1);
+                assert_eq!(def.subject.as_string(), "Test Subject");
+            }
+            _ => panic!("Expected Definition"),
+        }
+    }
+
+    #[test]
+    fn test_annotation_allows_non_session_children() {
+        use crate::lex::ast::elements::Paragraph;
+
+        let source = ":: note ::\n    Some content\n";
+        let para = Paragraph::from_line("Some content".to_string());
+        let content = vec![ContentItem::Paragraph(para)];
+
+        let data = AnnotationData {
+            label_text: "note".to_string(),
+            label_byte_range: 0..4,
+            parameters: vec![],
+        };
+
+        // This should succeed - Annotations can contain Paragraphs
+        let result = create_annotation(data, content, source);
+
+        match result {
+            ContentItem::Annotation(ann) => {
+                assert_eq!(ann.children.len(), 1);
+                assert_eq!(ann.label.value, "note");
+            }
+            _ => panic!("Expected Annotation"),
+        }
+    }
+
+    #[test]
+    fn test_list_item_allows_non_session_children() {
+        use crate::lex::ast::elements::Paragraph;
+
+        let source = "- Item\n    Some content\n";
+        let para = Paragraph::from_line("Item content".to_string());
+        let content = vec![ContentItem::Paragraph(para)];
+
+        let data = ListItemData {
+            marker_text: "- ".to_string(),
+            marker_byte_range: 0..2,
+        };
+
+        // This should succeed - ListItems can contain Paragraphs
+        let result = create_list_item(data, content, source);
+        assert_eq!(result.children.len(), 1);
+        assert_eq!(result.text(), "- ");
     }
 }

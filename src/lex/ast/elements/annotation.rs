@@ -43,7 +43,7 @@
 
 use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
-use super::container::Container as ContainerNode;
+use super::container::GeneralContainer;
 use super::content_item::ContentItem;
 use super::label::Label;
 use super::parameter::Parameter;
@@ -54,7 +54,7 @@ use std::fmt;
 pub struct Annotation {
     pub label: Label,
     pub parameters: Vec<Parameter>,
-    pub children: ContainerNode,
+    pub children: GeneralContainer,
     pub location: Range,
 }
 
@@ -66,7 +66,7 @@ impl Annotation {
         Self {
             label,
             parameters,
-            children: ContainerNode::new(children),
+            children: GeneralContainer::new(children),
             location: Self::default_location(),
         }
     }
@@ -74,7 +74,7 @@ impl Annotation {
         Self {
             label,
             parameters: Vec::new(),
-            children: ContainerNode::empty(),
+            children: GeneralContainer::empty(),
             location: Self::default_location(),
         }
     }
@@ -82,7 +82,7 @@ impl Annotation {
         Self {
             label,
             parameters,
-            children: ContainerNode::empty(),
+            children: GeneralContainer::empty(),
             location: Self::default_location(),
         }
     }

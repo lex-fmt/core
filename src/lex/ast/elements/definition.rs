@@ -24,7 +24,7 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
-use super::container::Container as ContainerNode;
+use super::container::GeneralContainer;
 use super::content_item::ContentItem;
 use std::fmt;
 
@@ -32,7 +32,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Definition {
     pub subject: TextContent,
-    pub children: ContainerNode,
+    pub children: GeneralContainer,
     pub location: Range,
 }
 
@@ -43,14 +43,14 @@ impl Definition {
     pub fn new(subject: TextContent, children: Vec<ContentItem>) -> Self {
         Self {
             subject,
-            children: ContainerNode::new(children),
+            children: GeneralContainer::new(children),
             location: Self::default_location(),
         }
     }
     pub fn with_subject(subject: String) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
-            children: ContainerNode::empty(),
+            children: GeneralContainer::empty(),
             location: Self::default_location(),
         }
     }
