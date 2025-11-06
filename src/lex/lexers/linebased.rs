@@ -1,4 +1,4 @@
-//! Line-based lexer pipeline module
+//! Line-based lexer types module
 //!
 //! In this design we do two important things:
 //! 1. We group tokens into lines.
@@ -7,9 +7,9 @@
 //! This allows us, in the matching linebased parser to match patters much easier, since we can match
 //! full lines and clearly see the structure, since the regext approach cannot count and keep tabs
 //! of indent and dedent levels.
+//!
+//! For orchestration, use the `PipelineExecutor` API in the `pipeline` module.
 
-pub mod pipeline;
 pub mod tokens_linebased;
 
-pub use pipeline::{PipelineError, PipelineOutput, PipelineStage, _lex, _lex_stage};
 pub use tokens_linebased::{LineContainer, LineToken, LineType};

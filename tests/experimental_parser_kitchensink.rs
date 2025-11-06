@@ -4,19 +4,24 @@
 //! produces the correct AST structure for a complex, comprehensive test file.
 //! Any regression in parsing will be caught automatically.
 
-use lex::lex::lexers::linebased::_lex;
-use lex::lex::parsers::linebased::parse_experimental_v2;
 use lex::lex::parsers::ContentItem;
+use lex::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 
 #[test]
 fn _parser_kitchensink_snapshot() {
     let source = std::fs::read_to_string("docs/specs/v1/regression-bugs/kitchensink.lex")
         .expect("Could not read kitchensink.lex");
 
-    let source_with_newline = lex::lex::lexers::ensure_source_ends_with_newline(&source);
-    let token_stream = lex::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-    let container = _lex(token_stream).expect("Failed to tokenize");
-    let doc = parse_experimental_v2(container, &source).expect("Parser failed");
+    // Use PipelineExecutor with linebased config
+    let executor = PipelineExecutor::new();
+    let output = executor
+        .execute("linebased", &source)
+        .expect("Failed to execute pipeline");
+
+    let doc = match output {
+        ExecutionOutput::Document(doc) => doc,
+        _ => panic!("Expected Document output from linebased config"),
+    };
 
     // Create a readable representation of the AST for snapshot testing
     let snapshot = format_ast_snapshot(&doc.root.content);
