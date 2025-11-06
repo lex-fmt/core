@@ -115,18 +115,16 @@ pub(super) struct AnnotationData {
 
 /// Extracted data for building a ForeignBlock AST node.
 ///
-/// Contains subject, content, and their byte ranges.
-/// The content text has the indentation wall already stripped.
+/// Contains subject, content lines, and their byte ranges.
+/// The content lines have the indentation wall already stripped.
 #[derive(Debug, Clone)]
 pub(super) struct ForeignBlockData {
     /// The foreign block subject text
     pub subject_text: String,
     /// Byte range of the subject
     pub subject_byte_range: ByteRange<usize>,
-    /// The content text (with indentation wall stripped)
-    pub content_text: String,
-    /// Byte range of the content
-    pub content_byte_range: ByteRange<usize>,
+    /// The content lines (with indentation wall stripped) - each is (text, byte_range)
+    pub content_lines: Vec<(String, ByteRange<usize>)>,
 }
 
 // ============================================================================
@@ -652,40 +650,25 @@ pub(super) fn extract_foreign_block_data(
         .map(|tokens| strip_indentation_wall(tokens, wall_depth))
         .collect();
 
-    // Extract content text line by line
-    let mut content_text = String::new();
-    let mut first_line = true;
-
-    for tokens in &content_token_lines {
-        // Add newline between lines (including before empty lines to preserve blank lines)
-        if !first_line {
-            content_text.push('\n');
-        }
-
-        // Extract text from tokens (empty lines will contribute empty string)
-        if !tokens.is_empty() {
-            let byte_range = compute_bounding_box(tokens);
-            let line_text = extract_text(byte_range, source);
-            content_text.push_str(&line_text);
-        }
-
-        first_line = false;
-    }
-
-    // Compute overall content byte range (before wall stripping)
-    let all_content_tokens: Vec<(Token, ByteRange<usize>)> =
-        content_token_lines.into_iter().flatten().collect();
-    let content_byte_range = if all_content_tokens.is_empty() {
-        0..0
-    } else {
-        compute_bounding_box(&all_content_tokens)
-    };
+    // Extract content lines with their byte ranges
+    let content_lines: Vec<(String, ByteRange<usize>)> = content_token_lines
+        .into_iter()
+        .map(|tokens| {
+            if tokens.is_empty() {
+                // Empty line
+                (String::new(), 0..0)
+            } else {
+                let byte_range = compute_bounding_box(&tokens);
+                let line_text = extract_text(byte_range.clone(), source);
+                (line_text, byte_range)
+            }
+        })
+        .collect();
 
     ForeignBlockData {
         subject_text,
         subject_byte_range,
-        content_text,
-        content_byte_range,
+        content_lines,
     }
 }
 
@@ -745,6 +728,8 @@ mod tests {
         assert_eq!(data.subject_text, "Code");
         // Wall of 1 indent should be stripped from both lines
         // So line1 has no indent, line2 has 1 indent left
-        assert_eq!(data.content_text, "line1\n    line2");
+        assert_eq!(data.content_lines.len(), 2);
+        assert_eq!(data.content_lines[0].0, "line1");
+        assert_eq!(data.content_lines[1].0, "    line2");
     }
 }
