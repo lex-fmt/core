@@ -720,7 +720,16 @@ impl<'a> ForeignBlockAssertion<'a> {
         self
     }
     pub fn content_contains(self, substring: &str) -> Self {
-        let actual = self.foreign_block.content.as_string();
+        // Collect all content lines into a single string
+        let actual: String = self
+            .foreign_block
+            .children
+            .iter()
+            .filter_map(|child| child.as_foreign_line())
+            .map(|line| line.content.as_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
         assert!(
             actual.contains(substring),
             "{}: Expected foreign block content to contain '{}', but got '{}'",
@@ -731,12 +740,11 @@ impl<'a> ForeignBlockAssertion<'a> {
         self
     }
     pub fn is_marker_form(self) -> Self {
-        let actual = self.foreign_block.content.as_string();
         assert!(
-            actual.is_empty(),
-            "{}: Expected foreign block to be marker form (empty content), but got '{}'",
+            self.foreign_block.children.is_empty(),
+            "{}: Expected foreign block to be marker form (empty children), but got {} children",
             self.context,
-            actual
+            self.foreign_block.children.len()
         );
         self
     }

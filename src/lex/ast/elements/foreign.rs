@@ -1,14 +1,19 @@
 //! Foreign block element
 //!
-//! A foreign block embeds content that is not lex formated.
-//! Typically this can either be binary data, such as images, or text in some formal langauge
+//! A foreign block embeds content that is not lex formatted.
+//! Typically this can either be binary data, such as images, or text in some formal language
 //! like a programming language excerpt in Python.
 //!
-//! Note that a foreign block can forgo content all together (i.e. binaries won't encode conetent).
+//! Note that a foreign block can forgo content all together (i.e. binaries won't encode content).
+//!
+//! Structure:
+//! - subject: The lead item identifying what the foreign block contains
+//! - children: ForeignLine nodes containing the actual content (can be empty)
+//! - closing_annotation: The closing marker (format: `::label::`)
 //!
 //! The subject introduces what the content is, and the closing annotation terminates the block.
 //! The annotation can take any valid annotation form, and the label is user defined. As a convention
-//! tough,  if the content is to be interpreted by a tool, the label should be the name of the tool/language.
+//! though, if the content is to be interpreted by a tool, the label should be the name of the tool/language.
 //! While the lex software will not parse the content, it will preserve it exactly as it is, and can be used
 //! to format the content in editors and other tools.
 //!
@@ -34,16 +39,17 @@
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
-use super::super::traits::AstNode;
-use super::super::traits::Visitor;
+use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
+use super::container::Container as ContainerNode;
+use super::content_item::ContentItem;
 use std::fmt;
 
 /// A foreign block represents content from another format/system
 #[derive(Debug, Clone, PartialEq)]
 pub struct ForeignBlock {
     pub subject: TextContent,
-    pub content: TextContent,
+    pub children: ContainerNode,
     pub closing_annotation: Annotation,
     pub location: Range,
 }
@@ -52,18 +58,33 @@ impl ForeignBlock {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(subject: String, content: String, closing_annotation: Annotation) -> Self {
+
+    pub fn new(
+        subject: TextContent,
+        children: Vec<ContentItem>,
+        closing_annotation: Annotation,
+    ) -> Self {
         Self {
-            subject: TextContent::from_string(subject, None),
-            content: TextContent::from_string(content, None),
+            subject,
+            children: ContainerNode::new(children),
             closing_annotation,
             location: Self::default_location(),
         }
     }
+
+    pub fn with_subject(subject: String, closing_annotation: Annotation) -> Self {
+        Self {
+            subject: TextContent::from_string(subject, None),
+            children: ContainerNode::empty(),
+            closing_annotation,
+            location: Self::default_location(),
+        }
+    }
+
     pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
-            content: TextContent::from_string(String::new(), None),
+            children: ContainerNode::empty(),
             closing_annotation,
             location: Self::default_location(),
         }
@@ -94,7 +115,21 @@ impl AstNode for ForeignBlock {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_foreign_block(self);
-        // ForeignBlock has no children to visit - content is opaque
+        super::super::traits::visit_children(visitor, &self.children);
+    }
+}
+
+impl Container for ForeignBlock {
+    fn label(&self) -> &str {
+        self.subject.as_string()
+    }
+
+    fn children(&self) -> &[ContentItem] {
+        &self.children
+    }
+
+    fn children_mut(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.children
     }
 }
 
@@ -102,9 +137,9 @@ impl fmt::Display for ForeignBlock {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "ForeignBlock('{}', {} chars, closing: {})",
+            "ForeignBlock('{}', {} lines, closing: {})",
             self.subject.as_string(),
-            self.content.as_string().len(),
+            self.children.len(),
             self.closing_annotation.label.value
         )
     }
