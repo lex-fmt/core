@@ -47,7 +47,7 @@ impl Document {
 
     pub fn with_content(content: Vec<ContentItem>) -> Self {
         let mut root = Session::with_title(String::new());
-        root.children = super::container::Container::new(content);
+        root.children = super::container::SessionContainer::new(content);
         Self {
             metadata: Vec::new(),
             root,
@@ -56,7 +56,7 @@ impl Document {
 
     pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
         let mut root = Session::with_title(String::new());
-        root.children = super::container::Container::new(content);
+        root.children = super::container::SessionContainer::new(content);
         Self { metadata, root }
     }
 

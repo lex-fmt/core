@@ -487,10 +487,13 @@ pub fn build_paragraph_from_text(
         })
         .collect();
 
-    ContentItem::Paragraph(Paragraph {
-        lines: crate::lex::ast::elements::container::Container::new(lines),
-        location: overall_location,
-    })
+    #[allow(deprecated)]
+    {
+        ContentItem::Paragraph(Paragraph {
+            lines: crate::lex::ast::elements::container::Container::new(lines),
+            location: overall_location,
+        })
+    }
 }
 
 /// Build a Session from pre-extracted title text and location.
@@ -572,7 +575,7 @@ pub fn build_annotation_from_text(
     ContentItem::Annotation(Annotation {
         label,
         parameters,
-        children: crate::lex::ast::elements::container::Container::new(content),
+        children: crate::lex::ast::elements::container::GeneralContainer::new(content),
         location,
     })
 }
@@ -592,7 +595,7 @@ pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
 
     if items.is_empty() {
         return ContentItem::List(List {
-            items: crate::lex::ast::elements::container::Container::empty(),
+            items: crate::lex::ast::elements::container::ListContainer::empty(),
             location: crate::lex::ast::Range::default(),
         });
     }
@@ -632,7 +635,7 @@ pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
     };
 
     ContentItem::List(List {
-        items: crate::lex::ast::elements::container::Container::new(items),
+        items: crate::lex::ast::elements::container::ListContainer::new(items),
         location,
     })
 }
