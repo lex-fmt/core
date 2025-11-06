@@ -20,7 +20,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use crate::lex::parsers::common::token_normalization;
+//! use crate::lex::parsers::ast::token::normalization;
 //!
 //! // Normalize a single line token
 //! let tokens = token_normalization::normalize_line_token(&line_token);
@@ -36,7 +36,7 @@ use crate::lex::lexers::linebased::tokens_linebased::LineToken;
 use crate::lex::lexers::tokens_core::Token;
 use std::ops::Range as ByteRange;
 
-use super::token_processing::flatten_token_vecs;
+use super::processing::flatten_token_vecs;
 
 // ============================================================================
 // SINGLE LINE TOKEN NORMALIZATION
@@ -63,7 +63,7 @@ use super::token_processing::flatten_token_vecs;
 /// let tokens = normalize_line_token(&line_token);
 /// // tokens is now Vec<(Token, Range<usize>)>
 /// ```
-pub fn normalize_line_token(token: &LineToken) -> Vec<(Token, ByteRange<usize>)> {
+pub(crate) fn normalize_line_token(token: &LineToken) -> Vec<(Token, ByteRange<usize>)> {
     token.source_token_pairs()
 }
 
@@ -93,7 +93,7 @@ pub fn normalize_line_token(token: &LineToken) -> Vec<(Token, ByteRange<usize>)>
 /// // token_lines[0] is the tokens from the first line
 /// // token_lines[1] is the tokens from the second line, etc.
 /// ```
-pub fn normalize_line_tokens(tokens: &[LineToken]) -> Vec<Vec<(Token, ByteRange<usize>)>> {
+pub(crate) fn normalize_line_tokens(tokens: &[LineToken]) -> Vec<Vec<(Token, ByteRange<usize>)>> {
     tokens.iter().map(normalize_line_token).collect()
 }
 
@@ -121,7 +121,10 @@ pub fn normalize_line_tokens(tokens: &[LineToken]) -> Vec<Vec<(Token, ByteRange<
 /// let all_tokens = flatten(&token_lines);
 /// // all_tokens contains every token from every line
 /// ```
-pub fn flatten(token_lines: &[Vec<(Token, ByteRange<usize>)>]) -> Vec<(Token, ByteRange<usize>)> {
+#[allow(dead_code)]
+pub(crate) fn flatten(
+    token_lines: &[Vec<(Token, ByteRange<usize>)>],
+) -> Vec<(Token, ByteRange<usize>)> {
     flatten_token_vecs(token_lines)
 }
 
@@ -149,7 +152,8 @@ pub fn flatten(token_lines: &[Vec<(Token, ByteRange<usize>)>]) -> Vec<(Token, By
 /// let normalized = normalize_token_pairs(&tokens);
 /// // Same as input, but owned
 /// ```
-pub fn normalize_token_pairs(
+#[allow(dead_code)]
+pub(crate) fn normalize_token_pairs(
     tokens: &[(Token, ByteRange<usize>)],
 ) -> Vec<(Token, ByteRange<usize>)> {
     tokens.to_vec()

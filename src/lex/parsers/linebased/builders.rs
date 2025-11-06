@@ -14,8 +14,8 @@
 use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::Range;
 use crate::lex::lexers::LineToken;
-use crate::lex::parsers::common::ast_builder;
-use crate::lex::parsers::common::location::default_location;
+use crate::lex::parsers::ast::api as ast_builder;
+use crate::lex::parsers::ast::location::default_location;
 use crate::lex::parsers::ContentItem;
 
 // ============================================================================

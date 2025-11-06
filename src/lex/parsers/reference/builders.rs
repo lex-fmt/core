@@ -17,8 +17,8 @@ use std::sync::Arc;
 
 use crate::lex::ast::{ContentItem, ForeignBlock, Paragraph};
 use crate::lex::lexers::Token;
-// Location utilities and AST builders are now imported from crate::lex::parsers::common
-use crate::lex::parsers::common::ast_builder;
+// Location utilities and AST builders are now imported from crate::lex::parsers::ast
+use crate::lex::parsers::ast::api as ast_builder;
 
 /// Type alias for token with location
 pub(crate) type TokenLocation = (Token, ByteRange<usize>);
@@ -73,7 +73,7 @@ fn group_tokens_by_line(tokens: Vec<TokenLocation>) -> Vec<Vec<TokenLocation>> {
 // LOCATION UTILITIES
 // ============================================================================
 //
-// Location utilities are now provided by crate::lex::parsers::common::location
+// Location utilities are now provided by crate::lex::parsers::ast::location
 // See that module for byte_range_to_location, compute_location_from_locations, etc.
 
 /// Check if a token is a text-like token (content that can appear in lines)
@@ -441,7 +441,7 @@ pub(crate) fn foreign_block(
                 };
 
                 // Use new ast_builder API with tokens (enables indentation wall stripping)
-                use crate::lex::parsers::common::ast_builder;
+                use crate::lex::parsers::ast::api as ast_builder;
                 if let ContentItem::ForeignBlock(fb) = ast_builder::build_foreign_block_from_tokens(
                     subject_tokens,
                     content_token_lines,

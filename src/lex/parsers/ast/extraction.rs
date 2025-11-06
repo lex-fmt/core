@@ -28,8 +28,8 @@
 //! This layer works with **primitives only**. Byte ranges stay as `Range<usize>`.
 //! The conversion to `ast::Range` happens later in the ast_creation layer.
 
+use super::token::processing::{compute_bounding_box, extract_text};
 use crate::lex::lexers::tokens_core::Token;
-use crate::lex::parsers::common::token_processing::{compute_bounding_box, extract_text};
 use std::ops::Range as ByteRange;
 
 // ============================================================================
@@ -41,7 +41,7 @@ use std::ops::Range as ByteRange;
 /// Contains the text and byte ranges for each line, plus the overall byte range.
 /// All ranges are byte offsets (Range<usize>), not ast::Range.
 #[derive(Debug, Clone)]
-pub struct ParagraphData {
+pub(super) struct ParagraphData {
     /// Text and byte range for each line in the paragraph
     pub text_lines: Vec<(String, ByteRange<usize>)>,
     /// Overall byte range spanning all lines
@@ -52,7 +52,7 @@ pub struct ParagraphData {
 ///
 /// Contains the title text and its byte range.
 #[derive(Debug, Clone)]
-pub struct SessionData {
+pub(super) struct SessionData {
     /// The session title text
     pub title_text: String,
     /// Byte range of the title
@@ -63,7 +63,7 @@ pub struct SessionData {
 ///
 /// Contains the subject text and its byte range.
 #[derive(Debug, Clone)]
-pub struct DefinitionData {
+pub(super) struct DefinitionData {
     /// The definition subject text
     pub subject_text: String,
     /// Byte range of the subject
@@ -74,7 +74,7 @@ pub struct DefinitionData {
 ///
 /// Contains the marker text and its byte range.
 #[derive(Debug, Clone)]
-pub struct ListItemData {
+pub(super) struct ListItemData {
     /// The list item marker text (e.g., "-", "1.", "a)")
     pub marker_text: String,
     /// Byte range of the marker
@@ -85,14 +85,16 @@ pub struct ListItemData {
 ///
 /// Contains primitive data (text and byte ranges) for constructing a Parameter AST node.
 #[derive(Debug, Clone)]
-pub struct ParameterData {
+pub(super) struct ParameterData {
     /// The parameter key text
     pub key_text: String,
     /// The parameter value text (optional)
     pub value_text: Option<String>,
     /// Byte range of the key
+    #[allow(dead_code)]
     pub key_byte_range: ByteRange<usize>,
     /// Byte range of the value (if present)
+    #[allow(dead_code)]
     pub value_byte_range: Option<ByteRange<usize>>,
     /// Overall byte range spanning the entire parameter
     pub overall_byte_range: ByteRange<usize>,
@@ -102,7 +104,7 @@ pub struct ParameterData {
 ///
 /// Contains the label text, parameters, and their byte ranges.
 #[derive(Debug, Clone)]
-pub struct AnnotationData {
+pub(super) struct AnnotationData {
     /// The annotation label text
     pub label_text: String,
     /// Byte range of the label
@@ -116,7 +118,7 @@ pub struct AnnotationData {
 /// Contains subject, content, and their byte ranges.
 /// The content text has the indentation wall already stripped.
 #[derive(Debug, Clone)]
-pub struct ForeignBlockData {
+pub(super) struct ForeignBlockData {
     /// The foreign block subject text
     pub subject_text: String,
     /// Byte range of the subject
@@ -155,7 +157,7 @@ pub struct ForeignBlockData {
 /// let data = extract_paragraph_data(token_lines, source);
 /// assert_eq!(data.text_lines.len(), 2);
 /// ```
-pub fn extract_paragraph_data(
+pub(super) fn extract_paragraph_data(
     token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
     source: &str,
 ) -> ParagraphData {
@@ -196,7 +198,10 @@ pub fn extract_paragraph_data(
 /// # Returns
 ///
 /// SessionData containing the title text and byte range
-pub fn extract_session_data(tokens: Vec<(Token, ByteRange<usize>)>, source: &str) -> SessionData {
+pub(super) fn extract_session_data(
+    tokens: Vec<(Token, ByteRange<usize>)>,
+    source: &str,
+) -> SessionData {
     let title_byte_range = compute_bounding_box(&tokens);
     let title_text = extract_text(title_byte_range.clone(), source);
 
@@ -220,7 +225,7 @@ pub fn extract_session_data(tokens: Vec<(Token, ByteRange<usize>)>, source: &str
 /// # Returns
 ///
 /// DefinitionData containing the subject text and byte range
-pub fn extract_definition_data(
+pub(super) fn extract_definition_data(
     tokens: Vec<(Token, ByteRange<usize>)>,
     source: &str,
 ) -> DefinitionData {
@@ -247,7 +252,7 @@ pub fn extract_definition_data(
 /// # Returns
 ///
 /// ListItemData containing the marker text and byte range
-pub fn extract_list_item_data(
+pub(super) fn extract_list_item_data(
     tokens: Vec<(Token, ByteRange<usize>)>,
     source: &str,
 ) -> ListItemData {
@@ -492,7 +497,7 @@ fn parse_parameter(
 ///   ]
 /// }
 /// ```
-pub fn extract_annotation_data(
+pub(super) fn extract_annotation_data(
     tokens: Vec<(Token, ByteRange<usize>)>,
     source: &str,
 ) -> AnnotationData {
@@ -627,7 +632,7 @@ fn strip_indentation_wall(
 ///
 /// // After extraction, both have identical content: "line1\nline2"
 /// ```
-pub fn extract_foreign_block_data(
+pub(super) fn extract_foreign_block_data(
     subject_tokens: Vec<(Token, ByteRange<usize>)>,
     mut content_token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
     source: &str,
