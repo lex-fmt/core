@@ -23,7 +23,7 @@
 //! - Call ast_creation functions directly
 //!
 //! ```rust,ignore
-//! use crate::lex::parsing::building::api;
+//! use crate::lex::building::api;
 //!
 //! // In parser:
 //! let paragraph = ast_builder::build_paragraph(&line_tokens, source);
@@ -510,7 +510,7 @@ pub fn build_session_from_text(
     content: Vec<ContentItem>,
 ) -> ContentItem {
     use crate::lex::ast::{Session, TextContent};
-    use crate::lex::parsing::building::location::aggregate_locations;
+    use crate::lex::building::location::aggregate_locations;
 
     let title = TextContent::from_string(title_text, Some(title_location.clone()));
     let location = aggregate_locations(title_location, &content);
@@ -536,7 +536,7 @@ pub fn build_definition_from_text(
     content: Vec<ContentItem>,
 ) -> ContentItem {
     use crate::lex::ast::{Definition, TextContent};
-    use crate::lex::parsing::building::location::aggregate_locations;
+    use crate::lex::building::location::aggregate_locations;
 
     let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
     let location = aggregate_locations(subject_location, &content);
@@ -564,7 +564,7 @@ pub fn build_annotation_from_text(
     content: Vec<ContentItem>,
 ) -> ContentItem {
     use crate::lex::ast::Label;
-    use crate::lex::parsing::building::location::aggregate_locations;
+    use crate::lex::building::location::aggregate_locations;
 
     let label = Label::new(label_text).at(label_location.clone());
     let location = aggregate_locations(label_location, &content);
@@ -661,7 +661,7 @@ pub fn build_foreign_block_from_text(
     closing_annotation: Annotation,
 ) -> ContentItem {
     use crate::lex::ast::{ForeignBlock, TextContent};
-    use crate::lex::parsing::building::location::compute_location_from_locations;
+    use crate::lex::building::location::compute_location_from_locations;
 
     let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
     let content = TextContent::from_string(content_text, Some(content_location.clone()));

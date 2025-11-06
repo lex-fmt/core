@@ -20,7 +20,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use crate::lex::parsing::building::token::normalization;
+//! use crate::lex::building::token::normalization;
 //!
 //! // Normalize a single line token
 //! let tokens = token_normalization::normalize_line_token(&line_token);

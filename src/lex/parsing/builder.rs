@@ -4,8 +4,8 @@
 //! produced by the parser and constructs the final AST.
 
 use crate::lex::ast::{AstNode, ContentItem, Document, ListItem, Range};
-use crate::lex::parsing::building::api as ast_builder;
-use crate::lex::parsing::building::location::compute_location_from_locations;
+use crate::lex::building::api as ast_builder;
+use crate::lex::building::location::compute_location_from_locations;
 use crate::lex::parsing::ir::{NodeType, ParseNode, TokenLocation};
 
 /// A builder that constructs an AST from a `ParseNode` tree.

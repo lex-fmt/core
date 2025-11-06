@@ -32,7 +32,7 @@ pub(crate) type ParserError = Simple<TokenLocation>;
 // LOCATION UTILITIES
 // ============================================================================
 //
-// Location utilities are now provided by crate::lex::parsing::building::location
+// Location utilities are now provided by crate::lex::building::location
 // See that module for byte_range_to_location, compute_location_from_locations, etc.
 
 /// Check if a token is a text-like token (content that can appear in lines)
