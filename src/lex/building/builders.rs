@@ -289,26 +289,31 @@ pub(super) fn create_foreign_block(
     closing_annotation: Annotation,
     source: &str,
 ) -> ContentItem {
+    use crate::lex::ast::elements::ForeignLine;
+
     let subject_location = byte_range_to_ast_range(data.subject_byte_range, source);
     let subject = TextContent::from_string(data.subject_text, Some(subject_location.clone()));
 
-    let content_location = byte_range_to_ast_range(data.content_byte_range, source);
-    let content = TextContent::from_string(data.content_text, Some(content_location.clone()));
+    // Create ForeignLine children from content lines
+    let mut children: Vec<ContentItem> = Vec::new();
+    let mut line_locations: Vec<Range> = Vec::new();
 
-    // Aggregate location from subject, content, and closing annotation
-    let location_sources = vec![
-        subject_location,
-        content_location,
-        closing_annotation.location.clone(),
-    ];
+    for (line_text, line_byte_range) in data.content_lines {
+        let line_location = byte_range_to_ast_range(line_byte_range, source);
+        line_locations.push(line_location.clone());
+
+        let line_content = TextContent::from_string(line_text, Some(line_location.clone()));
+        let foreign_line = ForeignLine::from_text_content(line_content).at(line_location);
+        children.push(ContentItem::ForeignLine(foreign_line));
+    }
+
+    // Aggregate location from subject, all lines, and closing annotation
+    let mut location_sources = vec![subject_location];
+    location_sources.extend(line_locations);
+    location_sources.push(closing_annotation.location.clone());
     let location = compute_location_from_locations(&location_sources);
 
-    let foreign_block = ForeignBlock {
-        subject,
-        content,
-        closing_annotation,
-        location,
-    };
+    let foreign_block = ForeignBlock::new(subject, children, closing_annotation).at(location);
 
     ContentItem::ForeignBlock(Box::new(foreign_block))
 }
