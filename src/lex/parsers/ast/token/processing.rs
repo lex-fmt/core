@@ -140,7 +140,6 @@ pub fn tokens_to_text(tokens: &[(Token, ByteRange<usize>)], source: &str) -> Str
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     // Mock token provider for testing
     struct MockToken {
