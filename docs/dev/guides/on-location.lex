@@ -57,14 +57,15 @@ Source String Location / Range Tracking in lex
 		2.1.3. Preservation, Not Transformation: Crucially, these container tokens should simply store the original `source_tokens` that comprise them. They should not calculate or store their own aggregate spans. The LineToken for "Title:" would contain the (Token::Text("Title"), 0..5) and (Token::Colon, 5..6) tokens, and that's it.
 		2.1.4. Parser's Role: The line-based parser uses the simplified tree structure (LineToken, LineContainerToken) to easily match grammar rules (e.g., "a SubjectLine followed by a Container is a Definition").
 	
-	5. AST Building: When a rule is matched, the parser gathers all the LineTokens involved in that match. It then "unrolls" them, creating a flat 
+	5. AST Building: When a rule is matched, the parser gathers all the LineTokens involved in that match. It then "unrolls" them, creating a flat
 		list of all the original source_tokens from the immutable log. This list is then used to:
 
 		- Compute a single, final bounding-box Range<usize>.
 		- Convert that Range<usize> to a Location struct.
 		- Pass the final Location and extracted text to the common AST builder
 
-			This code is trivial, and that is all the location tracking we need to do: 
+			This code is trivial, and that is all the location tracking we need to do:
+			:: file src/lex/parsers/ast/token/processing.rs ::
 
 				fn compute_bounding_box(
 					flat_list: &[(Token, Range<usize>)]) -> Option<Range<usize>> {

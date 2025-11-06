@@ -9,22 +9,56 @@ use std::ops::Range as ByteRange;
 use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{ContentItem, Range};
+use crate::lex::lexers::tokens_core::Token;
 
-/// Convert a byte range to a Location (line:column positions)
+// ============================================================================
+// BYTE RANGE TO AST RANGE CONVERSION
+// ============================================================================
+
+/// Convert a byte range to an AST Range (line:column positions)
 ///
-/// This is the canonical implementation used throughout both parsers.
+/// This is the canonical implementation used throughout the AST building pipeline.
 /// Converts byte offsets from token ranges to line/column coordinates
 /// using the SourceLocation utility (O(log n) binary search).
-pub fn byte_range_to_location(source: &str, range: &ByteRange<usize>) -> Range {
-    debug_assert!(
-        range.start <= range.end,
-        "Invalid byte range: {}..{} (start > end)",
-        range.start,
-        range.end
-    );
-    let source_loc = SourceLocation::new(source);
-    source_loc.byte_range_to_ast_range(range)
+///
+/// # Arguments
+///
+/// * `range` - Byte offset range from the source string
+/// * `source` - Original source string (needed to count newlines)
+///
+/// # Returns
+///
+/// An AST Range with line/column positions
+pub(super) fn byte_range_to_ast_range(range: ByteRange<usize>, source: &str) -> Range {
+    let source_location = SourceLocation::new(source);
+    source_location.byte_range_to_ast_range(&range)
 }
+
+/// Convert a byte range to a Location (line:column positions) - Legacy API
+///
+/// This is a wrapper around byte_range_to_ast_range with different parameter order
+/// for backwards compatibility. Prefer using byte_range_to_ast_range directly.
+#[deprecated(note = "Use byte_range_to_ast_range instead")]
+pub fn byte_range_to_location(source: &str, range: &ByteRange<usize>) -> Range {
+    byte_range_to_ast_range(range.clone(), source)
+}
+
+/// High-level convenience: convert tokens directly to an AST Range
+///
+/// This combines computing the bounding box and converting to AST Range.
+///
+/// # Panics
+///
+/// Panics if tokens is empty.
+#[allow(dead_code)]
+pub(super) fn tokens_to_ast_range(tokens: &[(Token, ByteRange<usize>)], source: &str) -> Range {
+    let range = super::token::processing::compute_bounding_box(tokens);
+    byte_range_to_ast_range(range, source)
+}
+
+// ============================================================================
+// AST RANGE AGGREGATION
+// ============================================================================
 
 /// Compute location bounds from multiple locations
 ///
@@ -33,6 +67,8 @@ pub fn byte_range_to_location(source: &str, range: &ByteRange<usize>) -> Range {
 /// - The maximum end line/column across all locations
 ///
 /// This matches both parsers' approach for location aggregation.
+///
+/// Note: This function is public for use by parser implementations.
 pub fn compute_location_from_locations(locations: &[Range]) -> Range {
     use crate::lex::ast::range::Position;
     let start_line = locations.iter().map(|sp| sp.start.line).min().unwrap_or(0);
@@ -60,7 +96,7 @@ pub fn compute_location_from_locations(locations: &[Range]) -> Range {
 /// ```ignore
 /// let location = aggregate_locations(title_location, &session_content);
 /// ```
-pub fn aggregate_locations(primary: Range, children: &[ContentItem]) -> Range {
+pub(super) fn aggregate_locations(primary: Range, children: &[ContentItem]) -> Range {
     let mut sources = vec![primary];
     sources.extend(children.iter().map(|item| item.range().clone()));
     compute_location_from_locations(&sources)
@@ -70,7 +106,8 @@ pub fn aggregate_locations(primary: Range, children: &[ContentItem]) -> Range {
 ///
 /// Finds the minimum start and maximum end across all byte ranges.
 /// Used when combining multiple token ranges into a single location.
-pub fn compute_byte_range_bounds(ranges: &[ByteRange<usize>]) -> ByteRange<usize> {
+#[allow(dead_code)]
+pub(super) fn compute_byte_range_bounds(ranges: &[ByteRange<usize>]) -> ByteRange<usize> {
     if ranges.is_empty() {
         0..0
     } else {
