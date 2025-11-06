@@ -9,6 +9,8 @@
 pub mod adapters;
 pub mod adapters_linebased;
 pub mod builder;
+pub mod config;
+pub mod executor;
 pub mod mapper;
 pub mod mappers;
 pub mod orchestration;
@@ -19,6 +21,10 @@ pub use orchestration::{LexPipeline, PipelineError};
 
 // Re-export new TokenStream-based pipeline builder
 pub use builder::{ParserConfig, Pipeline, PipelineOutput};
+
+// Re-export config-based processing API
+pub use config::{ConfigRegistry, PipelineSpec, ProcessingConfig, TargetSpec};
+pub use executor::{ExecutionError, ExecutionOutput, PipelineExecutor};
 
 // Re-export concrete mapper implementations
 pub use mappers::{
