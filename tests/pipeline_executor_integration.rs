@@ -17,7 +17,10 @@ fn test_executor_on_sample_paragraphs() {
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
-            assert!(!doc.root.children.is_empty(), "Document should have content");
+            assert!(
+                !doc.root.children.is_empty(),
+                "Document should have content"
+            );
         }
         _ => panic!("Expected document output"),
     }
@@ -83,7 +86,10 @@ fn test_executor_simple_source() {
     };
 
     // Should produce document with content
-    assert!(!doc.root.children.is_empty(), "Document should have content");
+    assert!(
+        !doc.root.children.is_empty(),
+        "Document should have content"
+    );
 }
 
 #[test]

@@ -210,7 +210,10 @@ mod tests {
         assert!(result.is_ok());
         match result.unwrap() {
             ExecutionOutput::Document(doc) => {
-                assert!(!doc.root.children.is_empty(), "Document should have content");
+                assert!(
+                    !doc.root.children.is_empty(),
+                    "Document should have content"
+                );
             }
             _ => panic!("Expected Document output"),
         }
@@ -239,7 +242,10 @@ mod tests {
         assert!(result.is_ok());
         match result.unwrap() {
             ExecutionOutput::Document(doc) => {
-                assert!(!doc.root.children.is_empty(), "Document should have content");
+                assert!(
+                    !doc.root.children.is_empty(),
+                    "Document should have content"
+                );
             }
             _ => panic!("Expected Document output"),
         }
