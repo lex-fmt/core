@@ -264,16 +264,9 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
             match output {
                 ExecutionOutput::Tokens(stream) => {
                     // Convert TokenStream to Vec<LineToken>
+                    let tokens = stream.unroll();
                     let line_tokens =
-                        crate::lex::pipeline::adapters_linebased::token_stream_to_line_tokens(
-                            stream,
-                        )
-                        .map_err(|e| {
-                            ProcessingError::IoError(format!(
-                                "Failed to convert to line tokens: {:?}",
-                                e
-                            ))
-                        })?;
+                        crate::lex::parsing::linebased::tree_builder::build_line_tokens(tokens);
                     let json = serde_json::to_string_pretty(&line_tokens)
                         .map_err(|e| ProcessingError::IoError(e.to_string()))?;
                     Ok(json)
@@ -293,16 +286,9 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
             match output {
                 ExecutionOutput::Tokens(stream) => {
                     // Convert TokenStream to LineContainer
+                    let tokens = stream.unroll();
                     let tree =
-                        crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(
-                            stream,
-                        )
-                        .map_err(|e| {
-                            ProcessingError::IoError(format!(
-                                "Failed to convert to line container: {:?}",
-                                e
-                            ))
-                        })?;
+                        crate::lex::parsing::linebased::tree_builder::build_line_container(tokens);
                     let json = serde_json::to_string_pretty(&tree)
                         .map_err(|e| ProcessingError::IoError(e.to_string()))?;
                     Ok(json)
@@ -735,7 +721,10 @@ Second paragraph"#;
         #[test]
         fn test_dialog_sample_accessible() {
             let content = LexSources::get_string("dialog.lex").unwrap();
-            assert!(content.contains("- Hi mom!!."), "Dialog sample content is incorrect");
+            assert!(
+                content.contains("- Hi mom!!."),
+                "Dialog sample content is incorrect"
+            );
         }
 
         #[test]
