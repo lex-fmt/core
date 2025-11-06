@@ -2,7 +2,9 @@
 
 use crate::lex::lexing::base_tokenization;
 use crate::lex::parsing::{builder, Document};
-use crate::lex::pipeline::config::{ConfigRegistry, ParserSpec, PipelineSpec, TargetSpec};
+use crate::lex::pipeline::config::{
+    AnalysisSpec, BuilderSpec, ConfigRegistry, PipelineSpec, TargetSpec,
+};
 use crate::lex::pipeline::mapper::walk_stream;
 use crate::lex::pipeline::mappers::*;
 use crate::lex::pipeline::stream::TokenStream;
@@ -77,8 +79,8 @@ impl PipelineExecutor {
         // Step 3: Process target
         match &config.target {
             TargetSpec::Tokens => Ok(ExecutionOutput::Tokens(stream)),
-            TargetSpec::Ast { parser } => {
-                let doc = self.parse(stream, source, parser)?;
+            TargetSpec::Ast { analyzer, builder } => {
+                let doc = self.analyze_and_build(stream, source, analyzer, builder)?;
                 Ok(ExecutionOutput::Document(doc))
             }
         }
@@ -134,23 +136,25 @@ impl PipelineExecutor {
         }
     }
 
-    fn parse(
+    fn analyze_and_build(
         &self,
         stream: TokenStream,
         source: &str,
-        parser: &ParserSpec,
+        analyzer: &AnalysisSpec,
+        _builder: &BuilderSpec,
     ) -> Result<Document, ExecutionError> {
-        match parser {
-            ParserSpec::Reference => {
+        // Note: Currently only one builder (LSP) is supported, so we don't need to match on it
+        match analyzer {
+            AnalysisSpec::Reference => {
                 let tokens = stream.unroll();
                 let parse_node =
                     crate::lex::parsing::reference::parse(tokens, source).map_err(|_| {
-                        ExecutionError::ParsingFailed("Reference parser failed".to_string())
+                        ExecutionError::ParsingFailed("Reference analyzer failed".to_string())
                     })?;
                 let builder = builder::AstBuilder::new(source);
                 Ok(builder.build(parse_node))
             }
-            ParserSpec::Linebased => {
+            AnalysisSpec::Linebased => {
                 let container =
                     crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(
                         stream,
@@ -159,7 +163,7 @@ impl PipelineExecutor {
                         ExecutionError::ParsingFailed(format!("Stream conversion failed: {:?}", e))
                     })?;
                 crate::lex::parsing::linebased::parse_experimental_v2(container, source).map_err(
-                    |e| ExecutionError::ParsingFailed(format!("Linebased parser failed: {}", e)),
+                    |e| ExecutionError::ParsingFailed(format!("Linebased analyzer failed: {}", e)),
                 )
             }
         }

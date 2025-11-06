@@ -38,12 +38,12 @@ use crate::lex::parsing::{builder, Document};
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::TokenStream;
 
-/// Which parser to use for AST generation
+/// Which analyzer to use for syntactic analysis
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ParserConfig {
-    /// Reference combinator parser
+pub enum AnalyzerConfig {
+    /// Reference combinator analyzer
     Reference,
-    /// Linebased declarative grammar parser
+    /// Linebased declarative grammar analyzer
     Linebased,
 }
 
@@ -62,14 +62,14 @@ pub enum PipelineOutput {
 /// 1. Base tokenization (lexing)
 /// 2. Conversion to TokenStream
 /// 3. Sequential application of transformations
-/// 4. Optional parsing to AST
+/// 4. Optional analysis and building to AST
 ///
 /// Transformations are applied in the order they were added via `add_transformation`.
 pub struct Pipeline {
     /// The sequence of transformations to apply
     transformations: Vec<Box<dyn StreamMapper>>,
-    /// Optional parser to run after transformations
-    parser: Option<ParserConfig>,
+    /// Optional analyzer to run after transformations
+    analyzer: Option<AnalyzerConfig>,
 }
 
 impl Pipeline {
@@ -86,7 +86,7 @@ impl Pipeline {
     pub fn new() -> Self {
         Pipeline {
             transformations: Vec::new(),
-            parser: None,
+            analyzer: None,
         }
     }
 
@@ -111,9 +111,9 @@ impl Pipeline {
         self
     }
 
-    /// Configure the pipeline to parse tokens into an AST.
+    /// Configure the pipeline to analyze tokens and build an AST.
     ///
-    /// If a parser is configured, `run()` will return `PipelineOutput::Document`.
+    /// If an analyzer is configured, `run()` will return `PipelineOutput::Document`.
     /// Otherwise, it returns `PipelineOutput::Tokens`.
     ///
     /// # Examples
@@ -121,12 +121,12 @@ impl Pipeline {
     /// ```ignore
     /// let pipeline = Pipeline::new()
     ///     .add_transformation(NormalizeWhitespaceMapper::new())
-    ///     .with_parser(ParserConfig::Reference);
+    ///     .with_analyzer(AnalyzerConfig::Reference);
     ///
     /// let result = pipeline.run(source)?; // Returns Document
     /// ```
-    pub fn with_parser(mut self, parser: ParserConfig) -> Self {
-        self.parser = Some(parser);
+    pub fn with_analyzer(mut self, analyzer: AnalyzerConfig) -> Self {
+        self.analyzer = Some(analyzer);
         self
     }
 
@@ -136,7 +136,7 @@ impl Pipeline {
     /// 1. Tokenize source using base_tokenization
     /// 2. Convert tokens to TokenStream::Flat
     /// 3. Apply each transformation in sequence
-    /// 4. Optionally parse to AST (if parser configured)
+    /// 4. Optionally analyze and build AST (if analyzer configured)
     ///
     /// # Arguments
     ///
@@ -144,8 +144,8 @@ impl Pipeline {
     ///
     /// # Returns
     ///
-    /// `PipelineOutput::Tokens` if no parser configured, or
-    /// `PipelineOutput::Document` if parser configured.
+    /// `PipelineOutput::Tokens` if no analyzer configured, or
+    /// `PipelineOutput::Document` if analyzer configured.
     ///
     /// # Examples
     ///
@@ -155,10 +155,10 @@ impl Pipeline {
     ///     .add_transformation(SomeMapper::new());
     /// let result = pipeline.run("hello world")?; // Returns Tokens
     ///
-    /// // Full parsing
+    /// // Full analysis and building
     /// let mut pipeline = Pipeline::new()
     ///     .add_transformation(SomeMapper::new())
-    ///     .with_parser(ParserConfig::Reference);
+    ///     .with_analyzer(AnalyzerConfig::Reference);
     /// let result = pipeline.run("hello world")?; // Returns Document
     /// ```
     pub fn run(&mut self, source: &str) -> Result<PipelineOutput, TransformationError> {
@@ -173,20 +173,20 @@ impl Pipeline {
             stream = crate::lex::pipeline::mapper::walk_stream(stream, transformation.as_mut())?;
         }
 
-        // Step 4: If parser configured, parse to AST
-        match self.parser {
+        // Step 4: If analyzer configured, analyze and build AST
+        match self.analyzer {
             None => Ok(PipelineOutput::Tokens(stream)),
-            Some(ParserConfig::Reference) => {
+            Some(AnalyzerConfig::Reference) => {
                 let tokens = stream.unroll();
                 let parse_node =
                     crate::lex::parsing::reference::parse(tokens, source).map_err(|_| {
-                        TransformationError::Error("Reference parser failed".to_string())
+                        TransformationError::Error("Reference analyzer failed".to_string())
                     })?;
                 let builder = builder::AstBuilder::new(source);
                 let doc = builder.build(parse_node);
                 Ok(PipelineOutput::Document(doc))
             }
-            Some(ParserConfig::Linebased) => {
+            Some(AnalyzerConfig::Linebased) => {
                 let container =
                     crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(
                         stream,
@@ -196,7 +196,7 @@ impl Pipeline {
                     })?;
                 let doc = crate::lex::parsing::linebased::parse_experimental_v2(container, source)
                     .map_err(|e| {
-                        TransformationError::Error(format!("Linebased parser failed: {}", e))
+                        TransformationError::Error(format!("Linebased analyzer failed: {}", e))
                     })?;
                 Ok(PipelineOutput::Document(doc))
             }
@@ -417,17 +417,17 @@ mod tests {
         }
     }
 
-    // NEW TESTS: Parser support
+    // NEW TESTS: Analyzer support
 
     #[test]
-    fn test_pipeline_with_reference_parser() {
+    fn test_pipeline_with_reference_analyzer() {
         use crate::lex::pipeline::mappers::*;
 
         let mut pipeline = Pipeline::new()
             .add_transformation(NormalizeWhitespaceMapper::new())
             .add_transformation(SemanticIndentationMapper::new())
             .add_transformation(BlankLinesMapper::new())
-            .with_parser(ParserConfig::Reference);
+            .with_analyzer(AnalyzerConfig::Reference);
 
         let result = pipeline.run("Hello world\n");
 
@@ -441,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pipeline_with_linebased_parser() {
+    fn test_pipeline_with_linebased_analyzer() {
         use crate::lex::pipeline::mappers::*;
 
         let mut pipeline = Pipeline::new()
@@ -449,7 +449,7 @@ mod tests {
             .add_transformation(SemanticIndentationMapper::new())
             .add_transformation(BlankLinesMapper::new())
             .add_transformation(ToLineTokensMapper::new())
-            .with_parser(ParserConfig::Linebased);
+            .with_analyzer(AnalyzerConfig::Linebased);
 
         let result = pipeline.run("Hello:\n    World\n");
 
@@ -463,7 +463,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pipeline_without_parser_returns_tokens() {
+    fn test_pipeline_without_analyzer_returns_tokens() {
         let mut pipeline = Pipeline::new();
         let result = pipeline.run("Hello world");
 
