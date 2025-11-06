@@ -28,15 +28,16 @@
 //! This layer receives **primitives** and produces **AST types**. The byte→line/column
 //! conversion happens here using `byte_range_to_ast_range()`.
 
+use super::extraction::{
+    AnnotationData, DefinitionData, ForeignBlockData, ListItemData, ParagraphData, SessionData,
+};
+use super::location::{
+    aggregate_locations, byte_range_to_ast_range, compute_location_from_locations,
+};
 use crate::lex::ast::{
     Annotation, Definition, ForeignBlock, Label, List, ListItem, Paragraph, Range, Session,
     TextContent, TextLine,
 };
-use crate::lex::parsers::common::data_extraction::{
-    AnnotationData, DefinitionData, ForeignBlockData, ListItemData, ParagraphData, SessionData,
-};
-use crate::lex::parsers::common::location::{aggregate_locations, compute_location_from_locations};
-use crate::lex::parsers::common::token_processing::byte_range_to_ast_range;
 use crate::lex::parsers::ContentItem;
 
 // ============================================================================
@@ -56,7 +57,7 @@ use crate::lex::parsers::ContentItem;
 /// # Returns
 ///
 /// A Paragraph ContentItem with proper ast::Range locations
-pub fn create_paragraph(data: ParagraphData, source: &str) -> ContentItem {
+pub(super) fn create_paragraph(data: ParagraphData, source: &str) -> ContentItem {
     // Convert byte ranges to AST ranges and build TextLines
     let lines: Vec<ContentItem> = data
         .text_lines
@@ -96,7 +97,11 @@ pub fn create_paragraph(data: ParagraphData, source: &str) -> ContentItem {
 /// # Returns
 ///
 /// A Session ContentItem
-pub fn create_session(data: SessionData, content: Vec<ContentItem>, source: &str) -> ContentItem {
+pub(super) fn create_session(
+    data: SessionData,
+    content: Vec<ContentItem>,
+    source: &str,
+) -> ContentItem {
     let title_location = byte_range_to_ast_range(data.title_byte_range, source);
     let title = TextContent::from_string(data.title_text, Some(title_location.clone()));
     let location = aggregate_locations(title_location, &content);
@@ -123,7 +128,7 @@ pub fn create_session(data: SessionData, content: Vec<ContentItem>, source: &str
 /// # Returns
 ///
 /// A Definition ContentItem
-pub fn create_definition(
+pub(super) fn create_definition(
     data: DefinitionData,
     content: Vec<ContentItem>,
     source: &str,
@@ -151,7 +156,7 @@ pub fn create_definition(
 /// # Returns
 ///
 /// A List ContentItem
-pub fn create_list(items: Vec<ListItem>) -> ContentItem {
+pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
     // Convert ListItems to ContentItems
     let content: Vec<ContentItem> = items.into_iter().map(ContentItem::ListItem).collect();
 
@@ -191,7 +196,11 @@ pub fn create_list(items: Vec<ListItem>) -> ContentItem {
 /// # Returns
 ///
 /// A ListItem node (not wrapped in ContentItem)
-pub fn create_list_item(data: ListItemData, content: Vec<ContentItem>, source: &str) -> ListItem {
+pub(super) fn create_list_item(
+    data: ListItemData,
+    content: Vec<ContentItem>,
+    source: &str,
+) -> ListItem {
     let marker_location = byte_range_to_ast_range(data.marker_byte_range, source);
     let marker = TextContent::from_string(data.marker_text, Some(marker_location.clone()));
     let location = aggregate_locations(marker_location, &content);
@@ -217,7 +226,7 @@ pub fn create_list_item(data: ListItemData, content: Vec<ContentItem>, source: &
 /// # Returns
 ///
 /// An Annotation ContentItem
-pub fn create_annotation(
+pub(super) fn create_annotation(
     data: AnnotationData,
     content: Vec<ContentItem>,
     source: &str,
@@ -272,7 +281,7 @@ pub fn create_annotation(
 /// # Returns
 ///
 /// A ForeignBlock ContentItem
-pub fn create_foreign_block(
+pub(super) fn create_foreign_block(
     data: ForeignBlockData,
     closing_annotation: Annotation,
     source: &str,

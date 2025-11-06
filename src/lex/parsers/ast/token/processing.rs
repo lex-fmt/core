@@ -1,6 +1,6 @@
-//! Token processing utilities for location tracking
+//! Token processing utilities for the Immutable Log Architecture
 //!
-//! This module provides the core utilities for the Immutable Log Architecture.
+//! This module provides the core utilities for token manipulation.
 //! All functions here are pure and thoroughly unit tested.
 //!
 //! # Architecture
@@ -9,17 +9,19 @@
 //! Transformations create aggregate tokens that store these original pairs in `source_tokens`.
 //! This module provides utilities to:
 //! 1. Unroll aggregate tokens back to flat lists
-//! 2. Compute bounding boxes from token ranges
-//! 3. Convert byte ranges to human-readable locations
+//! 2. Flatten token vectors
+//! 3. Compute bounding boxes from token ranges
 //! 4. Extract text from ranges
+//!
+//! Note: Conversion from byte ranges to AST Range is handled in the `location` module.
 
-use crate::lex::ast::range::{Range, SourceLocation};
 use crate::lex::lexers::tokens_core::Token;
 use std::ops::Range as ByteRange;
 
 /// Trait that any token structure can implement to provide access to source tokens.
 ///
 /// This enables the unrolling system to work with any parser's token representation.
+#[allow(dead_code)]
 pub trait SourceTokenProvider {
     /// Get the original Logos tokens that comprise this token.
     ///
@@ -41,6 +43,7 @@ pub trait SourceTokenProvider {
 /// let flat_tokens = unroll(&line_tokens);
 /// // flat_tokens now contains all original Logos tokens
 /// ```
+#[allow(dead_code)]
 pub fn unroll<T: SourceTokenProvider>(tokens: &[T]) -> Vec<(Token, ByteRange<usize>)> {
     tokens
         .iter()
@@ -62,6 +65,7 @@ pub fn unroll<T: SourceTokenProvider>(tokens: &[T]) -> Vec<(Token, ByteRange<usi
 ///     .collect();
 /// let flat_tokens = flatten_token_vecs(&token_vecs);
 /// ```
+#[allow(dead_code)]
 pub fn flatten_token_vecs(
     token_vecs: &[Vec<(Token, ByteRange<usize>)>],
 ) -> Vec<(Token, ByteRange<usize>)> {
@@ -103,30 +107,6 @@ pub fn compute_bounding_box(tokens: &[(Token, ByteRange<usize>)]) -> ByteRange<u
     min_start..max_end
 }
 
-/// Convert a byte range to a human-readable Location (line:column).
-///
-/// This performs the one-time conversion from machine representation (`Range<usize>`)
-/// to human representation (`Location` with line and column numbers).
-///
-/// # Arguments
-///
-/// * `range` - The byte offset range from the source string
-/// * `source` - The original source string (needed to count newlines)
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let location = range_to_location(0..5, "hello world");
-/// assert_eq!(location.start.line, 0);
-/// assert_eq!(location.start.column, 0);
-/// assert_eq!(location.end.line, 0);
-/// assert_eq!(location.end.column, 5);
-/// ```
-pub fn byte_range_to_ast_range(range: ByteRange<usize>, source: &str) -> Range {
-    let source_location = SourceLocation::new(source);
-    source_location.byte_range_to_ast_range(&range)
-}
-
 /// Extract text from the source string at the given range.
 ///
 /// # Arguments
@@ -144,18 +124,6 @@ pub fn extract_text(range: ByteRange<usize>, source: &str) -> String {
     source[range].to_string()
 }
 
-/// High-level convenience: convert tokens directly to a Location.
-///
-/// This combines `compute_bounding_box` and `range_to_location` for convenience.
-///
-/// # Panics
-///
-/// Panics if tokens is empty.
-pub fn tokens_to_ast_range(tokens: &[(Token, ByteRange<usize>)], source: &str) -> Range {
-    let range = compute_bounding_box(tokens);
-    byte_range_to_ast_range(range, source)
-}
-
 /// High-level convenience: extract text directly from tokens.
 ///
 /// This combines `compute_bounding_box` and `extract_text` for convenience.
@@ -163,6 +131,7 @@ pub fn tokens_to_ast_range(tokens: &[(Token, ByteRange<usize>)], source: &str) -
 /// # Panics
 ///
 /// Panics if tokens is empty.
+#[allow(dead_code)]
 pub fn tokens_to_text(tokens: &[(Token, ByteRange<usize>)], source: &str) -> String {
     let range = compute_bounding_box(tokens);
     extract_text(range, source)
@@ -171,7 +140,7 @@ pub fn tokens_to_text(tokens: &[(Token, ByteRange<usize>)], source: &str) -> Str
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::ast::range::Position;
+    
 
     // Mock token provider for testing
     struct MockToken {
@@ -270,23 +239,6 @@ mod tests {
     }
 
     #[test]
-    fn test_range_to_location_single_line() {
-        let source = "hello world";
-        let location = byte_range_to_ast_range(ByteRange { start: 0, end: 5 }, source);
-        assert_eq!(location.start, Position::new(0, 0));
-        assert_eq!(location.end, Position::new(0, 5));
-    }
-
-    #[test]
-    fn test_range_to_location_multiline() {
-        let source = "line one\nline two\nline three";
-        let location = byte_range_to_ast_range(ByteRange { start: 0, end: 17 }, source);
-        // Should span from (0,0) to end of "line two"
-        assert_eq!(location.start, Position::new(0, 0));
-        assert_eq!(location.end, Position::new(1, 8));
-    }
-
-    #[test]
     fn test_unroll_single_token() {
         let mock = MockToken {
             tokens: vec![(
@@ -321,25 +273,6 @@ mod tests {
         assert_eq!(unrolled[0].1, 0..5);
         assert_eq!(unrolled[1].1, 5..6);
         assert_eq!(unrolled[2].1, 6..11);
-    }
-
-    #[test]
-    fn test_tokens_to_location_convenience() {
-        let source = "hello world";
-        let tokens = vec![
-            (
-                Token::Text("hello".to_string()),
-                ByteRange { start: 0, end: 5 },
-            ),
-            (Token::Whitespace, ByteRange { start: 5, end: 6 }),
-            (
-                Token::Text("world".to_string()),
-                ByteRange { start: 6, end: 11 },
-            ),
-        ];
-        let location = tokens_to_ast_range(&tokens, source);
-        assert_eq!(location.start, Position::new(0, 0));
-        assert_eq!(location.end, Position::new(0, 11));
     }
 
     #[test]

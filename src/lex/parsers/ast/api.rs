@@ -23,7 +23,7 @@
 //! - Call ast_creation functions directly
 //!
 //! ```rust,ignore
-//! use crate::lex::parsers::common::ast_builder;
+//! use crate::lex::parsers::ast::api;
 //!
 //! // In parser:
 //! let paragraph = ast_builder::build_paragraph(&line_tokens, source);
@@ -35,9 +35,9 @@ use crate::lex::ast::{Annotation, ListItem, Parameter};
 use crate::lex::lexers::linebased::tokens_linebased::LineToken;
 use crate::lex::parsers::ContentItem;
 
-use super::ast_creation;
-use super::data_extraction;
-use super::token_normalization;
+use super::builders;
+use super::extraction;
+use super::token::normalization;
 
 // ============================================================================
 // PARAGRAPH BUILDING
@@ -64,13 +64,13 @@ use super::token_normalization;
 /// ```
 pub fn build_paragraph(line_tokens: &[LineToken], source: &str) -> ContentItem {
     // 1. Normalize: LineTokens → Vec<Vec<(Token, Range<usize>)>>
-    let token_lines = token_normalization::normalize_line_tokens(line_tokens);
+    let token_lines = normalization::normalize_line_tokens(line_tokens);
 
     // 2. Extract: normalized tokens → ParagraphData
-    let data = data_extraction::extract_paragraph_data(token_lines, source);
+    let data = extraction::extract_paragraph_data(token_lines, source);
 
     // 3. Create: ParagraphData → Paragraph AST node
-    ast_creation::create_paragraph(data, source)
+    builders::create_paragraph(data, source)
 }
 
 // ============================================================================
@@ -94,13 +94,13 @@ pub fn build_session(
     source: &str,
 ) -> ContentItem {
     // 1. Normalize
-    let tokens = token_normalization::normalize_line_token(title_token);
+    let tokens = normalization::normalize_line_token(title_token);
 
     // 2. Extract
-    let data = data_extraction::extract_session_data(tokens, source);
+    let data = extraction::extract_session_data(tokens, source);
 
     // 3. Create
-    ast_creation::create_session(data, content, source)
+    builders::create_session(data, content, source)
 }
 
 // ============================================================================
@@ -124,13 +124,13 @@ pub fn build_definition(
     source: &str,
 ) -> ContentItem {
     // 1. Normalize
-    let tokens = token_normalization::normalize_line_token(subject_token);
+    let tokens = normalization::normalize_line_token(subject_token);
 
     // 2. Extract
-    let data = data_extraction::extract_definition_data(tokens, source);
+    let data = extraction::extract_definition_data(tokens, source);
 
     // 3. Create
-    ast_creation::create_definition(data, content, source)
+    builders::create_definition(data, content, source)
 }
 
 // ============================================================================
@@ -148,7 +148,7 @@ pub fn build_definition(
 /// A List ContentItem
 pub fn build_list(items: Vec<ListItem>) -> ContentItem {
     // No normalization/extraction needed - items already constructed
-    ast_creation::create_list(items)
+    builders::create_list(items)
 }
 
 // ============================================================================
@@ -172,13 +172,13 @@ pub fn build_list_item(
     source: &str,
 ) -> ListItem {
     // 1. Normalize
-    let tokens = token_normalization::normalize_line_token(marker_token);
+    let tokens = normalization::normalize_line_token(marker_token);
 
     // 2. Extract
-    let data = data_extraction::extract_list_item_data(tokens, source);
+    let data = extraction::extract_list_item_data(tokens, source);
 
     // 3. Create
-    ast_creation::create_list_item(data, content, source)
+    builders::create_list_item(data, content, source)
 }
 
 // ============================================================================
@@ -204,13 +204,13 @@ pub fn build_annotation(
     source: &str,
 ) -> ContentItem {
     // 1. Normalize
-    let tokens = token_normalization::normalize_line_token(label_token);
+    let tokens = normalization::normalize_line_token(label_token);
 
     // 2. Extract (parses label AND parameters from tokens)
-    let data = data_extraction::extract_annotation_data(tokens, source);
+    let data = extraction::extract_annotation_data(tokens, source);
 
     // 3. Create
-    ast_creation::create_annotation(data, content, source)
+    builders::create_annotation(data, content, source)
 }
 
 // ============================================================================
@@ -249,20 +249,19 @@ pub fn build_foreign_block(
     source: &str,
 ) -> ContentItem {
     // 1. Normalize subject
-    let subject_tokens = token_normalization::normalize_line_token(subject_token);
+    let subject_tokens = normalization::normalize_line_token(subject_token);
 
     // 2. Normalize content (preserving line boundaries for wall calculation)
     let content_token_lines: Vec<Vec<_>> = content_tokens
         .iter()
-        .map(|lt| token_normalization::normalize_line_token(lt))
+        .map(|lt| normalization::normalize_line_token(lt))
         .collect();
 
     // 3. Extract (includes indentation wall stripping)
-    let data =
-        data_extraction::extract_foreign_block_data(subject_tokens, content_token_lines, source);
+    let data = extraction::extract_foreign_block_data(subject_tokens, content_token_lines, source);
 
     // 4. Create
-    ast_creation::create_foreign_block(data, closing_annotation, source)
+    builders::create_foreign_block(data, closing_annotation, source)
 }
 
 // ============================================================================
@@ -292,10 +291,10 @@ pub fn build_paragraph_from_tokens(
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
     // 1. Extract
-    let data = data_extraction::extract_paragraph_data(token_lines, source);
+    let data = extraction::extract_paragraph_data(token_lines, source);
 
     // 2. Create
-    ast_creation::create_paragraph(data, source)
+    builders::create_paragraph(data, source)
 }
 
 /// Build a Session from already-normalized title tokens (for reference parser).
@@ -316,10 +315,10 @@ pub fn build_session_from_tokens(
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
     // 1. Extract
-    let data = data_extraction::extract_session_data(title_tokens, source);
+    let data = extraction::extract_session_data(title_tokens, source);
 
     // 2. Create
-    ast_creation::create_session(data, content, source)
+    builders::create_session(data, content, source)
 }
 
 /// Build a Definition from already-normalized subject tokens (for reference parser).
@@ -340,10 +339,10 @@ pub fn build_definition_from_tokens(
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
     // 1. Extract
-    let data = data_extraction::extract_definition_data(subject_tokens, source);
+    let data = extraction::extract_definition_data(subject_tokens, source);
 
     // 2. Create
-    ast_creation::create_definition(data, content, source)
+    builders::create_definition(data, content, source)
 }
 
 /// Build a ListItem from already-normalized marker tokens (for reference parser).
@@ -364,10 +363,10 @@ pub fn build_list_item_from_tokens(
 ) -> ListItem {
     // Skip normalization, tokens already normalized
     // 1. Extract
-    let data = data_extraction::extract_list_item_data(marker_tokens, source);
+    let data = extraction::extract_list_item_data(marker_tokens, source);
 
     // 2. Create
-    ast_creation::create_list_item(data, content, source)
+    builders::create_list_item(data, content, source)
 }
 
 /// Build an Annotation from already-normalized label tokens (for reference parser).
@@ -390,10 +389,10 @@ pub fn build_annotation_from_tokens(
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
     // 1. Extract (parses label AND parameters from tokens)
-    let data = data_extraction::extract_annotation_data(label_tokens, source);
+    let data = extraction::extract_annotation_data(label_tokens, source);
 
     // 2. Create
-    ast_creation::create_annotation(data, content, source)
+    builders::create_annotation(data, content, source)
 }
 
 /// Build a ForeignBlock from already-normalized tokens (for reference parser).
@@ -431,11 +430,10 @@ pub fn build_foreign_block_from_tokens(
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
     // 1. Extract (includes indentation wall stripping)
-    let data =
-        data_extraction::extract_foreign_block_data(subject_tokens, content_token_lines, source);
+    let data = extraction::extract_foreign_block_data(subject_tokens, content_token_lines, source);
 
     // 2. Create
-    ast_creation::create_foreign_block(data, closing_annotation, source)
+    builders::create_foreign_block(data, closing_annotation, source)
 }
 
 // ============================================================================
@@ -494,7 +492,7 @@ pub fn build_session_from_text(
     content: Vec<ContentItem>,
 ) -> ContentItem {
     use crate::lex::ast::{Session, TextContent};
-    use crate::lex::parsers::common::location::aggregate_locations;
+    use crate::lex::parsers::ast::location::aggregate_locations;
 
     let title = TextContent::from_string(title_text, Some(title_location.clone()));
     let location = aggregate_locations(title_location, &content);
@@ -520,7 +518,7 @@ pub fn build_definition_from_text(
     content: Vec<ContentItem>,
 ) -> ContentItem {
     use crate::lex::ast::{Definition, TextContent};
-    use crate::lex::parsers::common::location::aggregate_locations;
+    use crate::lex::parsers::ast::location::aggregate_locations;
 
     let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
     let location = aggregate_locations(subject_location, &content);
@@ -548,7 +546,7 @@ pub fn build_annotation_from_text(
     content: Vec<ContentItem>,
 ) -> ContentItem {
     use crate::lex::ast::Label;
-    use crate::lex::parsers::common::location::aggregate_locations;
+    use crate::lex::parsers::ast::location::aggregate_locations;
 
     let label = Label::new(label_text).at(label_location.clone());
     let location = aggregate_locations(label_location, &content);
@@ -645,7 +643,7 @@ pub fn build_foreign_block_from_text(
     closing_annotation: Annotation,
 ) -> ContentItem {
     use crate::lex::ast::{ForeignBlock, TextContent};
-    use crate::lex::parsers::common::location::compute_location_from_locations;
+    use crate::lex::parsers::ast::location::compute_location_from_locations;
 
     let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
     let content = TextContent::from_string(content_text, Some(content_location.clone()));
