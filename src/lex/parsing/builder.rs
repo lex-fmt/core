@@ -48,7 +48,7 @@ impl<'a> AstBuilder<'a> {
             NodeType::List => self.build_list(node),
             NodeType::Definition => self.build_definition(node),
             NodeType::Annotation => self.build_annotation(node),
-            NodeType::ForeignBlock => self.build_foreign_block(node),
+            NodeType::VerbatimBlock => self.build_foreign_block(node),
             _ => panic!("Unexpected node type"),
         }
     }

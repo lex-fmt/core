@@ -14,7 +14,7 @@
 //! - Sessions: docs/specs/v1/elements/sessions.lex
 //! - Annotations: docs/specs/v1/elements/annotations.lex
 //! - Definitions: docs/specs/v1/elements/definitions.lex
-//! - Foreign blocks: docs/specs/v1/elements/foreign.lex
+//! - Verbatim blocks: docs/specs/v1/elements/foreign.lex
 //!
 //! Examples:
 //! - Document-level metadata via annotations
@@ -24,7 +24,7 @@ use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
-use super::foreign::ForeignBlock;
+use super::foreign::Verbatim;
 use super::list::List;
 use super::paragraph::Paragraph;
 use super::session::Session;
@@ -87,7 +87,7 @@ impl Document {
         self.root.children.iter().filter_map(|item| item.as_list())
     }
 
-    pub fn iter_foreign_blocks(&self) -> impl Iterator<Item = &ForeignBlock> {
+    pub fn iter_foreign_blocks(&self) -> impl Iterator<Item = &Verbatim> {
         self.root
             .children
             .iter()

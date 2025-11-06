@@ -37,9 +37,9 @@ pub use common::{ParseError, Parser, ParserInput};
 
 // Re-export AST types and utilities from the ast module
 pub use crate::lex::ast::{
-    format_at_position, Annotation, AstNode, Container, ContentItem, Definition, Document,
-    ForeignBlock, Label, List, ListItem, Paragraph, Parameter, Position, Range, Session,
-    SourceLocation, TextNode,
+    format_at_position, Annotation, AstNode, Container, ContentItem, Definition, Document, Label,
+    List, ListItem, Paragraph, Parameter, Position, Range, Session, SourceLocation, TextNode,
+    Verbatim,
 };
 
 pub use crate::lex::formats::{serialize_ast_tag, to_treeviz_str};

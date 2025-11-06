@@ -217,7 +217,7 @@ pub fn build_annotation(
 // FOREIGN BLOCK BUILDING
 // ============================================================================
 
-/// Build a ForeignBlock AST node from subject, content, and closing annotation.
+/// Build a VerbatimBlock AST node from subject, content, and closing annotation.
 ///
 /// This function implements the indentation wall stripping logic - content at
 /// different nesting levels will have identical text after wall removal.
@@ -231,7 +231,7 @@ pub fn build_annotation(
 ///
 /// # Returns
 ///
-/// A ForeignBlock ContentItem
+/// A VerbatimBlock ContentItem
 ///
 /// # Example
 ///
@@ -239,7 +239,7 @@ pub fn build_annotation(
 /// // Top-level: "Code:\n    line1\n    line2\n:: js ::"
 /// // Nested:    "Session:\n    Code:\n        line1\n        line2\n    :: js ::"
 /// //
-/// // Both produce ForeignBlock with content: "line1\nline2"
+/// // Both produce VerbatimBlock with content: "line1\nline2"
 /// // The indentation wall (minimum indentation) is stripped.
 /// ```
 pub fn build_foreign_block(
@@ -413,7 +413,7 @@ pub fn build_annotation_from_tokens(
     builders::create_annotation(data, content, source)
 }
 
-/// Build a ForeignBlock from already-normalized tokens (for reference parser).
+/// Build a VerbatimBlock from already-normalized tokens (for reference parser).
 ///
 /// This implements indentation wall stripping - content at different nesting
 /// levels will have identical text after wall removal.
@@ -427,7 +427,7 @@ pub fn build_annotation_from_tokens(
 ///
 /// # Returns
 ///
-/// A ForeignBlock ContentItem
+/// A VerbatimBlock ContentItem
 ///
 /// # Example
 ///
@@ -640,7 +640,7 @@ pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
     })
 }
 
-/// Build a ForeignBlock from pre-extracted text and locations.
+/// Build a VerbatimBlock from pre-extracted text and locations.
 ///
 /// NOTE: This does NOT perform indentation wall stripping.
 /// Use build_foreign_block_from_tokens for proper indentation handling.
@@ -655,7 +655,7 @@ pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
 ///
 /// # Returns
 ///
-/// A ForeignBlock ContentItem
+/// A VerbatimBlock ContentItem
 pub fn build_foreign_block_from_text(
     subject_text: String,
     subject_location: crate::lex::ast::Range,
@@ -664,7 +664,7 @@ pub fn build_foreign_block_from_text(
     closing_annotation: Annotation,
 ) -> ContentItem {
     use crate::lex::ast::elements::ForeignLine;
-    use crate::lex::ast::{ForeignBlock, TextContent};
+    use crate::lex::ast::{TextContent, Verbatim};
     use crate::lex::building::location::compute_location_from_locations;
 
     let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
@@ -690,9 +690,9 @@ pub fn build_foreign_block_from_text(
     ];
     let location = compute_location_from_locations(&location_sources);
 
-    let foreign_block = ForeignBlock::new(subject, children, closing_annotation).at(location);
+    let foreign_block = Verbatim::new(subject, children, closing_annotation).at(location);
 
-    ContentItem::ForeignBlock(Box::new(foreign_block))
+    ContentItem::VerbatimBlock(Box::new(foreign_block))
 }
 
 #[cfg(test)]

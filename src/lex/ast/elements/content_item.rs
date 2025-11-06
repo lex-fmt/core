@@ -13,7 +13,7 @@ use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::blank_line_group::BlankLineGroup;
 use super::definition::Definition;
-use super::foreign::ForeignBlock;
+use super::foreign::Verbatim;
 use super::foreign_line::ForeignLine;
 use super::list::{List, ListItem};
 use super::paragraph::{Paragraph, TextLine};
@@ -30,7 +30,7 @@ pub enum ContentItem {
     TextLine(TextLine),
     Definition(Definition),
     Annotation(Annotation),
-    ForeignBlock(Box<ForeignBlock>),
+    VerbatimBlock(Box<Verbatim>),
     ForeignLine(ForeignLine),
     BlankLineGroup(BlankLineGroup),
 }
@@ -45,7 +45,7 @@ impl AstNode for ContentItem {
             ContentItem::TextLine(tl) => tl.node_type(),
             ContentItem::Definition(d) => d.node_type(),
             ContentItem::Annotation(a) => a.node_type(),
-            ContentItem::ForeignBlock(fb) => fb.node_type(),
+            ContentItem::VerbatimBlock(fb) => fb.node_type(),
             ContentItem::ForeignLine(fl) => fl.node_type(),
             ContentItem::BlankLineGroup(blg) => blg.node_type(),
         }
@@ -60,7 +60,7 @@ impl AstNode for ContentItem {
             ContentItem::TextLine(tl) => tl.display_label(),
             ContentItem::Definition(d) => d.display_label(),
             ContentItem::Annotation(a) => a.display_label(),
-            ContentItem::ForeignBlock(fb) => fb.display_label(),
+            ContentItem::VerbatimBlock(fb) => fb.display_label(),
             ContentItem::ForeignLine(fl) => fl.display_label(),
             ContentItem::BlankLineGroup(blg) => blg.display_label(),
         }
@@ -75,7 +75,7 @@ impl AstNode for ContentItem {
             ContentItem::TextLine(tl) => tl.range(),
             ContentItem::Definition(d) => d.range(),
             ContentItem::Annotation(a) => a.range(),
-            ContentItem::ForeignBlock(fb) => fb.range(),
+            ContentItem::VerbatimBlock(fb) => fb.range(),
             ContentItem::ForeignLine(fl) => fl.range(),
             ContentItem::BlankLineGroup(blg) => blg.range(),
         }
@@ -90,7 +90,7 @@ impl AstNode for ContentItem {
             ContentItem::TextLine(tl) => tl.accept(visitor),
             ContentItem::Definition(d) => d.accept(visitor),
             ContentItem::Annotation(a) => a.accept(visitor),
-            ContentItem::ForeignBlock(fb) => fb.accept(visitor),
+            ContentItem::VerbatimBlock(fb) => fb.accept(visitor),
             ContentItem::ForeignLine(fl) => fl.accept(visitor),
             ContentItem::BlankLineGroup(blg) => blg.accept(visitor),
         }
@@ -107,7 +107,7 @@ impl ContentItem {
             ContentItem::TextLine(tl) => tl.node_type(),
             ContentItem::Definition(d) => d.node_type(),
             ContentItem::Annotation(a) => a.node_type(),
-            ContentItem::ForeignBlock(fb) => fb.node_type(),
+            ContentItem::VerbatimBlock(fb) => fb.node_type(),
             ContentItem::ForeignLine(fl) => fl.node_type(),
             ContentItem::BlankLineGroup(blg) => blg.node_type(),
         }
@@ -122,7 +122,7 @@ impl ContentItem {
             ContentItem::TextLine(tl) => tl.display_label(),
             ContentItem::Definition(d) => d.display_label(),
             ContentItem::Annotation(a) => a.display_label(),
-            ContentItem::ForeignBlock(fb) => fb.display_label(),
+            ContentItem::VerbatimBlock(fb) => fb.display_label(),
             ContentItem::ForeignLine(fl) => fl.display_label(),
             ContentItem::BlankLineGroup(blg) => blg.display_label(),
         }
@@ -134,7 +134,7 @@ impl ContentItem {
             ContentItem::Definition(d) => Some(d.label()),
             ContentItem::Annotation(a) => Some(a.label()),
             ContentItem::ListItem(li) => Some(li.label()),
-            ContentItem::ForeignBlock(fb) => Some(fb.subject.as_string()),
+            ContentItem::VerbatimBlock(fb) => Some(fb.subject.as_string()),
             _ => None,
         }
     }
@@ -147,7 +147,7 @@ impl ContentItem {
             ContentItem::List(l) => Some(&l.items),
             ContentItem::ListItem(li) => Some(&li.children),
             ContentItem::Paragraph(p) => Some(&p.lines),
-            ContentItem::ForeignBlock(fb) => Some(&fb.children),
+            ContentItem::VerbatimBlock(fb) => Some(&fb.children),
             ContentItem::TextLine(_) => None,
             ContentItem::ForeignLine(_) => None,
             _ => None,
@@ -162,7 +162,7 @@ impl ContentItem {
             ContentItem::List(l) => Some(&mut l.items),
             ContentItem::ListItem(li) => Some(&mut li.children),
             ContentItem::Paragraph(p) => Some(&mut p.lines),
-            ContentItem::ForeignBlock(fb) => Some(&mut fb.children),
+            ContentItem::VerbatimBlock(fb) => Some(&mut fb.children),
             ContentItem::TextLine(_) => None,
             ContentItem::ForeignLine(_) => None,
             _ => None,
@@ -198,7 +198,7 @@ impl ContentItem {
         matches!(self, ContentItem::Annotation(_))
     }
     pub fn is_foreign_block(&self) -> bool {
-        matches!(self, ContentItem::ForeignBlock(_))
+        matches!(self, ContentItem::VerbatimBlock(_))
     }
 
     pub fn is_foreign_line(&self) -> bool {
@@ -251,8 +251,8 @@ impl ContentItem {
             None
         }
     }
-    pub fn as_foreign_block(&self) -> Option<&ForeignBlock> {
-        if let ContentItem::ForeignBlock(fb) = self {
+    pub fn as_foreign_block(&self) -> Option<&Verbatim> {
+        if let ContentItem::VerbatimBlock(fb) = self {
             Some(fb)
         } else {
             None
@@ -317,8 +317,8 @@ impl ContentItem {
             None
         }
     }
-    pub fn as_foreign_block_mut(&mut self) -> Option<&mut ForeignBlock> {
-        if let ContentItem::ForeignBlock(fb) = self {
+    pub fn as_foreign_block_mut(&mut self) -> Option<&mut Verbatim> {
+        if let ContentItem::VerbatimBlock(fb) = self {
             Some(fb)
         } else {
             None
@@ -401,8 +401,8 @@ impl fmt::Display for ContentItem {
                 a.parameters.len(),
                 a.children.len()
             ),
-            ContentItem::ForeignBlock(fb) => {
-                write!(f, "ForeignBlock('{}')", fb.subject.as_string())
+            ContentItem::VerbatimBlock(fb) => {
+                write!(f, "VerbatimBlock('{}')", fb.subject.as_string())
             }
             ContentItem::ForeignLine(fl) => {
                 write!(f, "ForeignLine('{}')", fl.content.as_string())

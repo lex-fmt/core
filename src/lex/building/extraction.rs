@@ -113,7 +113,7 @@ pub(super) struct AnnotationData {
     pub parameters: Vec<ParameterData>,
 }
 
-/// Extracted data for building a ForeignBlock AST node.
+/// Extracted data for building a VerbatimBlock AST node.
 ///
 /// Contains subject, content lines, and their byte ranges.
 /// The content lines have the indentation wall already stripped.

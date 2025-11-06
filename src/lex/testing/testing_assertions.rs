@@ -2,8 +2,8 @@
 
 use super::testing_matchers::TextMatch;
 use crate::lex::ast::{
-    Annotation, Container, ContentItem, Definition, Document, ForeignBlock, List, ListItem,
-    Paragraph, Session,
+    Annotation, Container, ContentItem, Definition, Document, List, ListItem, Paragraph, Session,
+    Verbatim,
 };
 
 // ============================================================================
@@ -212,15 +212,15 @@ impl<'a> ContentItemAssertion<'a> {
         }
     }
 
-    /// Assert this item is a ForeignBlock and return foreign block-specific assertions
+    /// Assert this item is a VerbatimBlock and return foreign block-specific assertions
     pub fn assert_foreign_block(self) -> ForeignBlockAssertion<'a> {
         match self.item {
-            ContentItem::ForeignBlock(fb) => ForeignBlockAssertion {
+            ContentItem::VerbatimBlock(fb) => ForeignBlockAssertion {
                 foreign_block: fb,
                 context: self.context,
             },
             _ => panic!(
-                "{}: Expected ForeignBlock, found {}",
+                "{}: Expected VerbatimBlock, found {}",
                 self.context,
                 self.item.node_type()
             ),
@@ -701,11 +701,11 @@ impl<'a> AnnotationAssertion<'a> {
 }
 
 // ============================================================================
-// Foreign Block Assertions
+// Verbatim Block Assertions
 // ============================================================================
 
 pub struct ForeignBlockAssertion<'a> {
-    foreign_block: &'a ForeignBlock,
+    foreign_block: &'a Verbatim,
     context: String,
 }
 

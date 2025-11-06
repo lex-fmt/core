@@ -20,7 +20,7 @@ pub enum NodeType {
     List,
     Definition,
     Annotation,
-    ForeignBlock,
+    VerbatimBlock,
     ForeignBlockSubject,
     ForeignBlockContent,
     ForeignBlockClosing,

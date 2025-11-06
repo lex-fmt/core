@@ -22,7 +22,7 @@ fn get_node_icon(node_type: &str) -> &'static str {
         "Paragraph" => "¶",
         "List" => "☰",
         "ListItem" => "•",
-        "Foreign" => "𝒱",
+        "Verbatim" => "𝒱",
         "ForeignLine" => "℣",
         "Definition" => "≔",
         "SessionContainer" => "Ψ",

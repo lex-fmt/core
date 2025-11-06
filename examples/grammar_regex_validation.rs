@@ -19,7 +19,7 @@ use regex::Regex;
 // - This means: content-line = paragraph-line | subject-line | list-item-line | subject-or-list-item-line
 
 const GRAMMAR_RULES: &[(&str, &str)] = &[
-    // Foreign Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
+    // Verbatim Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
     (
         "foreign_block",
         r"^(<subject-line>|<subject-or-list-item-line>)(<blank-line>)?(<container>)?(<annotation-end-line>)$",

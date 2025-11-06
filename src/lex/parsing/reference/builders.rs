@@ -372,7 +372,7 @@ pub(crate) fn foreign_block(
                     closing_annotation.children,
                 );
                 ParseNode::new(
-                    NodeType::ForeignBlock,
+                    NodeType::VerbatimBlock,
                     vec![],
                     vec![subject_node, content_node, closing_node],
                 )

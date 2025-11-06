@@ -1,4 +1,4 @@
-//! Foreign line element
+//! Verbatim line element
 //!
 //! A foreign line represents a single line of foreign content within a foreign block.
 //! This is the "lead item" for foreign blocks, similar to how sessions have titles
@@ -11,7 +11,7 @@
 //! - content: The raw text content of the foreign line
 //! - location: The byte range and position information
 //!
-//! Note: Foreign lines are typically collected as children of a ForeignBlock, but
+//! Note: Verbatim lines are typically collected as children of a VerbatimBlock, but
 //! a foreign block can forgo content entirely (e.g., for binary markers).
 
 use super::super::range::{Position, Range};

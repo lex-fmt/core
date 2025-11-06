@@ -642,14 +642,14 @@ fn test_location_tracking_for_foreign_blocks() {
     for block in foreign_blocks {
         assert!(
             block.subject.location.is_some(),
-            "Foreign block subject should have a location"
+            "Verbatim block subject should have a location"
         );
         // Check that each ForeignLine child has a location
         for child in &block.children {
             if let Some(foreign_line) = child.as_foreign_line() {
                 assert!(
                     foreign_line.content.location.is_some(),
-                    "Foreign line content should have a location"
+                    "Verbatim line content should have a location"
                 );
             }
         }

@@ -1,4 +1,4 @@
-//! Foreign block element
+//! Verbatim block element
 //!
 //! A foreign block embeds content that is not lex formatted.
 //! Typically this can either be binary data, such as images, or text in some formal language
@@ -34,27 +34,27 @@
 //!      :: javascript ::
 //!
 //! Learn More:
-//! - Foreign blocks spec: docs/specs/v1/elements/foreign.lex
+//! - Verbatim blocks spec: docs/specs/v1/elements/foreign.lex
 //!
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
-use super::container::ForeignContainer;
+use super::container::VerbatimContainer;
 use super::content_item::ContentItem;
 use std::fmt;
 
 /// A foreign block represents content from another format/system
 #[derive(Debug, Clone, PartialEq)]
-pub struct ForeignBlock {
+pub struct Verbatim {
     pub subject: TextContent,
-    pub children: ForeignContainer,
+    pub children: VerbatimContainer,
     pub closing_annotation: Annotation,
     pub location: Range,
 }
 
-impl ForeignBlock {
+impl Verbatim {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
@@ -66,7 +66,7 @@ impl ForeignBlock {
     ) -> Self {
         Self {
             subject,
-            children: ForeignContainer::new(children),
+            children: VerbatimContainer::new(children),
             closing_annotation,
             location: Self::default_location(),
         }
@@ -75,7 +75,7 @@ impl ForeignBlock {
     pub fn with_subject(subject: String, closing_annotation: Annotation) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
-            children: ForeignContainer::empty(),
+            children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
         }
@@ -84,7 +84,7 @@ impl ForeignBlock {
     pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
-            children: ForeignContainer::empty(),
+            children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
         }
@@ -97,9 +97,9 @@ impl ForeignBlock {
     }
 }
 
-impl AstNode for ForeignBlock {
+impl AstNode for Verbatim {
     fn node_type(&self) -> &'static str {
-        "ForeignBlock"
+        "VerbatimBlock"
     }
     fn display_label(&self) -> String {
         let subject_text = self.subject.as_string();
@@ -119,7 +119,7 @@ impl AstNode for ForeignBlock {
     }
 }
 
-impl Container for ForeignBlock {
+impl Container for Verbatim {
     fn label(&self) -> &str {
         self.subject.as_string()
     }
@@ -133,11 +133,11 @@ impl Container for ForeignBlock {
     }
 }
 
-impl fmt::Display for ForeignBlock {
+impl fmt::Display for Verbatim {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "ForeignBlock('{}', {} lines, closing: {})",
+            "VerbatimBlock('{}', {} lines, closing: {})",
             self.subject.as_string(),
             self.children.len(),
             self.closing_annotation.label.value

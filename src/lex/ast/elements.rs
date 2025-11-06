@@ -33,7 +33,7 @@ pub use container::Container as ContainerNode;
 pub use content_item::ContentItem;
 pub use definition::Definition;
 pub use document::Document;
-pub use foreign::ForeignBlock;
+pub use foreign::Verbatim;
 pub use foreign_line::ForeignLine;
 pub use label::Label;
 pub use list::{List, ListItem};

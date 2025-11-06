@@ -1,4 +1,4 @@
-//! Foreign block element parsing
+//! Verbatim block element parsing
 //!
 //! This module re-exports foreign block builders from the consolidated builders module.
 //! All AST node building and tests have been moved to builders.rs.
