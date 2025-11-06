@@ -83,7 +83,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.root.content[0].as_annotation().unwrap();
+                let annotation = doc.root.children[0].as_annotation().unwrap();
                 prop_assert_eq!(annotation.parameters.len(), 1);
 
                 // Extract key and value from the parameter string
@@ -102,7 +102,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.root.content[0].as_annotation().unwrap();
+                let annotation = doc.root.children[0].as_annotation().unwrap();
                 let expected_count = params.split(',').count();
                 prop_assert_eq!(annotation.parameters.len(), expected_count);
             }
@@ -117,7 +117,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.root.content[0].as_annotation().unwrap();
+                let annotation = doc.root.children[0].as_annotation().unwrap();
                 prop_assert_eq!(&annotation.parameters[0].key, &key);
                 prop_assert_eq!(&annotation.parameters[0].value, &value);
             }
@@ -132,7 +132,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.root.content[0].as_annotation().unwrap();
+                let annotation = doc.root.children[0].as_annotation().unwrap();
                 prop_assert_eq!(&annotation.parameters[0].key, &key);
                 prop_assert_eq!(&annotation.parameters[0].value, &value);
             }
@@ -146,7 +146,7 @@ mod proptest_tests {
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
             if let Ok(doc) = result {
-                let annotation = doc.root.content[0].as_annotation().unwrap();
+                let annotation = doc.root.children[0].as_annotation().unwrap();
 
                 // Extract keys from the parameter string
                 let expected_keys: Vec<&str> = params

@@ -17,7 +17,7 @@ fn test_executor_on_sample_paragraphs() {
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
-            assert!(!doc.root.content.is_empty(), "Document should have content");
+            assert!(!doc.root.children.is_empty(), "Document should have content");
         }
         _ => panic!("Expected document output"),
     }
@@ -33,7 +33,7 @@ fn test_executor_on_sample_lists() {
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
-            assert!(!doc.root.content.is_empty());
+            assert!(!doc.root.children.is_empty());
         }
         _ => panic!("Expected document output"),
     }
@@ -49,7 +49,7 @@ fn test_executor_on_sample_definitions() {
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
-            assert!(!doc.root.content.is_empty());
+            assert!(!doc.root.children.is_empty());
         }
         _ => panic!("Expected document output"),
     }
@@ -65,7 +65,7 @@ fn test_executor_on_sample_sessions() {
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
-            assert!(!doc.root.content.is_empty());
+            assert!(!doc.root.children.is_empty());
         }
         _ => panic!("Expected document output"),
     }
@@ -83,7 +83,7 @@ fn test_executor_simple_source() {
     };
 
     // Should produce document with content
-    assert!(!doc.root.content.is_empty(), "Document should have content");
+    assert!(!doc.root.children.is_empty(), "Document should have content");
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn test_executor_with_session() {
 
     // Should produce document with session
     assert!(
-        !doc.root.content.is_empty(),
+        !doc.root.children.is_empty(),
         "Document should have session content"
     );
 }
@@ -148,7 +148,7 @@ fn test_all_configs_on_multiple_samples() {
             match result.unwrap() {
                 ExecutionOutput::Document(doc) => {
                     assert!(
-                        !doc.root.content.is_empty(),
+                        !doc.root.children.is_empty(),
                         "Document from '{}' on {} should have content",
                         config_name,
                         sample
@@ -200,7 +200,7 @@ fn test_linebased_config_on_sample() {
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
-            assert!(!doc.root.content.is_empty());
+            assert!(!doc.root.children.is_empty());
         }
         _ => panic!("Expected document output"),
     }
@@ -216,7 +216,7 @@ fn test_executor_minimal_source() {
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
-            assert!(!doc.root.content.is_empty());
+            assert!(!doc.root.children.is_empty());
         }
         _ => panic!("Expected document output"),
     }
@@ -280,7 +280,7 @@ fn test_executor_with_nested_content() {
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
-            assert!(!doc.root.content.is_empty());
+            assert!(!doc.root.children.is_empty());
         }
         _ => panic!("Expected document output"),
     }

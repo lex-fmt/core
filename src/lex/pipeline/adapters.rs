@@ -514,7 +514,7 @@ mod tests {
 
         assert!(result.is_ok(), "Failed to parse: {:?}", result);
         let doc = result.unwrap();
-        assert_eq!(doc.root.content.len(), 1);
+        assert_eq!(doc.root.children.len(), 1);
     }
 
     #[test]
@@ -549,7 +549,7 @@ mod tests {
         let doc = result.unwrap();
 
         // Should have one session
-        assert_eq!(doc.root.content.len(), 1);
+        assert_eq!(doc.root.children.len(), 1);
     }
 
     #[test]
@@ -584,7 +584,7 @@ mod tests {
         let doc2 = adapt_reference_parser(stream, source).unwrap();
 
         // Both should produce the same number of items
-        assert_eq!(doc1.root.content.len(), doc2.root.content.len());
+        assert_eq!(doc1.root.children.len(), doc2.root.children.len());
     }
 
     #[test]
