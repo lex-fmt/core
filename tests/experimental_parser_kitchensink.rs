@@ -24,7 +24,7 @@ fn _parser_kitchensink_snapshot() {
     };
 
     // Create a readable representation of the AST for snapshot testing
-    let snapshot = format_ast_snapshot(&doc.root.content);
+    let snapshot = format_ast_snapshot(&doc.root.children);
     insta::assert_snapshot!(snapshot);
 }
 
@@ -51,8 +51,8 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
             )
         }
         ContentItem::Session(s) => {
-            let mut result = format!("Session with {} item(s):\n", s.content.len());
-            for (j, sub_item) in s.content.iter().enumerate() {
+            let mut result = format!("Session with {} item(s):\n", s.children.len());
+            for (j, sub_item) in s.children.iter().enumerate() {
                 result.push_str(&format!(
                     "{}  [{}] {}\n",
                     prefix,
@@ -63,16 +63,16 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
             result.trim_end().to_string()
         }
         ContentItem::List(l) => {
-            let mut result = format!("List with {} item(s):\n", l.content.len());
-            for (j, list_item) in l.content.iter().enumerate() {
+            let mut result = format!("List with {} item(s):\n", l.items.len());
+            for (j, list_item) in l.items.iter().enumerate() {
                 if let ContentItem::ListItem(li) = list_item {
                     result.push_str(&format!(
                         "{}  [{}] List item with {} content item(s):\n",
                         prefix,
                         j,
-                        li.content.len()
+                        li.children.len()
                     ));
-                    for (k, sub_item) in li.content.iter().enumerate() {
+                    for (k, sub_item) in li.children.iter().enumerate() {
                         result.push_str(&format!(
                             "{}    [{}] {}\n",
                             prefix,
@@ -92,8 +92,8 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
             result.trim_end().to_string()
         }
         ContentItem::Definition(d) => {
-            let mut result = format!("Definition with {} item(s):\n", d.content.len());
-            for (j, sub_item) in d.content.iter().enumerate() {
+            let mut result = format!("Definition with {} item(s):\n", d.children.len());
+            for (j, sub_item) in d.children.iter().enumerate() {
                 result.push_str(&format!(
                     "{}  [{}] {}\n",
                     prefix,
@@ -107,10 +107,10 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
             let mut result = format!(
                 "Annotation with {} parameter(s) and {} content item(s):\n",
                 a.parameters.len(),
-                a.content.len()
+                a.children.len()
             );
-            if !a.content.is_empty() {
-                for (j, sub_item) in a.content.iter().enumerate() {
+            if !a.children.is_empty() {
+                for (j, sub_item) in a.children.iter().enumerate() {
                     result.push_str(&format!(
                         "{}  [{}] {}\n",
                         prefix,
@@ -122,10 +122,13 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
             result.trim_end().to_string()
         }
         ContentItem::ForeignBlock(fb) => {
-            format!("ForeignBlock with {} content line(s)", fb.content.len())
+            format!(
+                "ForeignBlock with {} content char(s)",
+                fb.content.as_string().len()
+            )
         }
         ContentItem::ListItem(li) => {
-            format!("ListItem with {} content item(s)", li.content.len())
+            format!("ListItem with {} content item(s)", li.children.len())
         }
         ContentItem::TextLine(tl) => {
             format!("TextLine: {}", tl.content.as_string())

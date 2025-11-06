@@ -26,6 +26,7 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
+use super::container::Container as ContainerNode;
 use super::content_item::ContentItem;
 use std::fmt;
 
@@ -33,7 +34,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Session {
     pub title: TextContent,
-    pub content: Vec<ContentItem>,
+    pub children: ContainerNode,
     pub location: Range,
 }
 
@@ -41,17 +42,17 @@ impl Session {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(title: TextContent, content: Vec<ContentItem>) -> Self {
+    pub fn new(title: TextContent, children: Vec<ContentItem>) -> Self {
         Self {
             title,
-            content,
+            children: ContainerNode::new(children),
             location: Self::default_location(),
         }
     }
     pub fn with_title(title: String) -> Self {
         Self {
             title: TextContent::from_string(title, None),
-            content: Vec::new(),
+            children: ContainerNode::empty(),
             location: Self::default_location(),
         }
     }
@@ -76,7 +77,7 @@ impl AstNode for Session {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_session(self);
-        super::super::traits::visit_children(visitor, &self.content);
+        super::super::traits::visit_children(visitor, &self.children);
     }
 }
 
@@ -85,10 +86,10 @@ impl Container for Session {
         self.title.as_string()
     }
     fn children(&self) -> &[ContentItem] {
-        &self.content
+        &self.children
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.content
+        &mut self.children
     }
 }
 
@@ -98,7 +99,7 @@ impl fmt::Display for Session {
             f,
             "Session('{}', {} items)",
             self.title.as_string(),
-            self.content.len()
+            self.children.len()
         )
     }
 }
@@ -117,7 +118,7 @@ mod tests {
                 "Content".to_string(),
             )));
         assert_eq!(session.label(), "Introduction");
-        assert_eq!(session.content.len(), 1);
+        assert_eq!(session.children.len(), 1);
     }
 
     #[test]

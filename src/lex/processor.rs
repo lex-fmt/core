@@ -650,7 +650,7 @@ Second paragraph"#;
         let doc = crate::lex::parsing::parse_document(content).unwrap();
 
         // Check if locations are populated
-        if let Some(first_item) = doc.root.content.first() {
+        if let Some(first_item) = doc.root.children.first() {
             // The first paragraph should have a location
             match first_item {
                 crate::lex::parsing::ContentItem::Paragraph(_p) => {

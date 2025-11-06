@@ -26,14 +26,14 @@ pub struct DocumentAssertion<'a> {
 impl<'a> DocumentAssertion<'a> {
     /// Assert the number of items in the document
     pub fn item_count(self, expected: usize) -> Self {
-        let actual = self.doc.root.content.len();
+        let actual = self.doc.root.children.len();
         assert_eq!(
             actual,
             expected,
             "Expected {} items, found {} items: [{}]",
             expected,
             actual,
-            summarize_items(&self.doc.root.content)
+            summarize_items(&self.doc.root.children)
         );
         self
     }
@@ -44,13 +44,13 @@ impl<'a> DocumentAssertion<'a> {
         F: FnOnce(ContentItemAssertion<'a>),
     {
         assert!(
-            index < self.doc.root.content.len(),
+            index < self.doc.root.children.len(),
             "Item index {} out of bounds (document has {} items)",
             index,
-            self.doc.root.content.len()
+            self.doc.root.children.len()
         );
 
-        let item = &self.doc.root.content[index];
+        let item = &self.doc.root.children[index];
         assertion(ContentItemAssertion {
             item,
             context: format!("items[{}]", index),
@@ -357,7 +357,7 @@ pub struct ListAssertion<'a> {
 
 impl<'a> ListAssertion<'a> {
     pub fn item_count(self, expected: usize) -> Self {
-        let actual = self.list.content.len();
+        let actual = self.list.items.len();
         assert_eq!(
             actual, expected,
             "{}: Expected {} list items, found {} list items",
@@ -370,13 +370,13 @@ impl<'a> ListAssertion<'a> {
         F: FnOnce(ListItemAssertion<'a>),
     {
         assert!(
-            index < self.list.content.len(),
+            index < self.list.items.len(),
             "{}: Item index {} out of bounds (list has {} items)",
             self.context,
             index,
-            self.list.content.len()
+            self.list.items.len()
         );
-        let content_item = &self.list.content[index];
+        let content_item = &self.list.items[index];
         let item = if let ContentItem::ListItem(li) = content_item {
             li
         } else {
@@ -1000,7 +1000,7 @@ mod tests {
         Annotation {
             label,
             parameters,
-            content: vec![],
+            children: crate::lex::ast::elements::container::Container::empty(),
             location,
         }
     }

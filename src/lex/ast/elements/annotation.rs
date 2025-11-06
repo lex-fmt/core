@@ -43,6 +43,7 @@
 
 use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
+use super::container::Container as ContainerNode;
 use super::content_item::ContentItem;
 use super::label::Label;
 use super::parameter::Parameter;
@@ -53,7 +54,7 @@ use std::fmt;
 pub struct Annotation {
     pub label: Label,
     pub parameters: Vec<Parameter>,
-    pub content: Vec<ContentItem>,
+    pub children: ContainerNode,
     pub location: Range,
 }
 
@@ -61,11 +62,11 @@ impl Annotation {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(label: Label, parameters: Vec<Parameter>, content: Vec<ContentItem>) -> Self {
+    pub fn new(label: Label, parameters: Vec<Parameter>, children: Vec<ContentItem>) -> Self {
         Self {
             label,
             parameters,
-            content,
+            children: ContainerNode::new(children),
             location: Self::default_location(),
         }
     }
@@ -73,7 +74,7 @@ impl Annotation {
         Self {
             label,
             parameters: Vec::new(),
-            content: Vec::new(),
+            children: ContainerNode::empty(),
             location: Self::default_location(),
         }
     }
@@ -81,7 +82,7 @@ impl Annotation {
         Self {
             label,
             parameters,
-            content: Vec::new(),
+            children: ContainerNode::empty(),
             location: Self::default_location(),
         }
     }
@@ -110,7 +111,7 @@ impl AstNode for Annotation {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_annotation(self);
-        super::super::traits::visit_children(visitor, &self.content);
+        super::super::traits::visit_children(visitor, &self.children);
     }
 }
 
@@ -119,10 +120,10 @@ impl Container for Annotation {
         &self.label.value
     }
     fn children(&self) -> &[ContentItem] {
-        &self.content
+        &self.children
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.content
+        &mut self.children
     }
 }
 
@@ -133,7 +134,7 @@ impl fmt::Display for Annotation {
             "Annotation('{}', {} params, {} items)",
             self.label.value,
             self.parameters.len(),
-            self.content.len()
+            self.children.len()
         )
     }
 }

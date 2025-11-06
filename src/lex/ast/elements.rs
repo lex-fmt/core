@@ -13,6 +13,7 @@
 
 pub mod annotation;
 pub mod blank_line_group;
+pub mod container;
 pub mod content_item;
 pub mod definition;
 pub mod document;
@@ -26,6 +27,7 @@ pub mod session;
 // Re-export all element types
 pub use annotation::Annotation;
 pub use blank_line_group::BlankLineGroup;
+pub use container::Container as ContainerNode;
 pub use content_item::ContentItem;
 pub use definition::Definition;
 pub use document::Document;

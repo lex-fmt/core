@@ -433,7 +433,10 @@ mod tests {
 
         match result {
             Ok(PipelineOutput::Document(doc)) => {
-                assert!(!doc.root.content.is_empty(), "Document should have content");
+                assert!(
+                    !doc.root.children.is_empty(),
+                    "Document should have content"
+                );
             }
             Ok(_) => panic!("Expected Document output"),
             Err(e) => panic!("Pipeline failed: {:?}", e),
@@ -456,7 +459,10 @@ mod tests {
         assert!(result.is_ok());
         match result.unwrap() {
             PipelineOutput::Document(doc) => {
-                assert!(!doc.root.content.is_empty(), "Document should have content");
+                assert!(
+                    !doc.root.children.is_empty(),
+                    "Document should have content"
+                );
             }
             _ => panic!("Expected Document output"),
         }

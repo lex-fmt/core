@@ -18,7 +18,7 @@
 //!
 //! Examples:
 //! - Document-level metadata via annotations
-//! - All body content accessible via document.root.content
+//! - All body content accessible via document.root.children
 
 use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
@@ -47,7 +47,7 @@ impl Document {
 
     pub fn with_content(content: Vec<ContentItem>) -> Self {
         let mut root = Session::with_title(String::new());
-        root.content = content;
+        root.children = super::container::Container::new(content);
         Self {
             metadata: Vec::new(),
             root,
@@ -56,7 +56,7 @@ impl Document {
 
     pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
         let mut root = Session::with_title(String::new());
-        root.content = content;
+        root.children = super::container::Container::new(content);
         Self { metadata, root }
     }
 
@@ -66,30 +66,30 @@ impl Document {
     }
 
     pub fn iter_items(&self) -> impl Iterator<Item = &ContentItem> {
-        self.root.content.iter()
+        self.root.children.iter()
     }
 
     pub fn iter_paragraphs(&self) -> impl Iterator<Item = &Paragraph> {
         self.root
-            .content
+            .children
             .iter()
             .filter_map(|item| item.as_paragraph())
     }
 
     pub fn iter_sessions(&self) -> impl Iterator<Item = &Session> {
         self.root
-            .content
+            .children
             .iter()
             .filter_map(|item| item.as_session())
     }
 
     pub fn iter_lists(&self) -> impl Iterator<Item = &List> {
-        self.root.content.iter().filter_map(|item| item.as_list())
+        self.root.children.iter().filter_map(|item| item.as_list())
     }
 
     pub fn iter_foreign_blocks(&self) -> impl Iterator<Item = &ForeignBlock> {
         self.root
-            .content
+            .children
             .iter()
             .filter_map(|item| item.as_foreign_block())
     }
@@ -110,7 +110,7 @@ impl Document {
     /// Has to be the deepest element, as ancestors are supersets the deepest node location.
     /// Returns the deepest (most nested) element that contains the position
     pub fn element_at(&self, pos: Position) -> Option<&ContentItem> {
-        for item in &self.root.content {
+        for item in &self.root.children {
             if let Some(result) = item.element_at(pos) {
                 return Some(result);
             }
@@ -128,7 +128,7 @@ impl AstNode for Document {
         format!(
             "Document ({} metadata, {} items)",
             self.metadata.len(),
-            self.root.content.len()
+            self.root.children.len()
         )
     }
 
@@ -150,11 +150,11 @@ impl Container for Document {
     }
 
     fn children(&self) -> &[ContentItem] {
-        &self.root.content
+        &self.root.children
     }
 
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.root.content
+        &mut self.root.children
     }
 }
 
@@ -170,7 +170,7 @@ impl fmt::Display for Document {
             f,
             "Document({} metadata, {} items)",
             self.metadata.len(),
-            self.root.content.len()
+            self.root.children.len()
         )
     }
 }
@@ -188,7 +188,7 @@ mod tests {
             ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
             ContentItem::Session(Session::with_title("Section 1".to_string())),
         ]);
-        assert_eq!(doc.root.content.len(), 2);
+        assert_eq!(doc.root.children.len(), 2);
         assert_eq!(doc.metadata.len(), 0);
     }
 

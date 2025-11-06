@@ -488,7 +488,7 @@ pub fn build_paragraph_from_text(
         .collect();
 
     ContentItem::Paragraph(Paragraph {
-        lines,
+        lines: crate::lex::ast::elements::container::Container::new(lines),
         location: overall_location,
     })
 }
@@ -572,7 +572,7 @@ pub fn build_annotation_from_text(
     ContentItem::Annotation(Annotation {
         label,
         parameters,
-        content,
+        children: crate::lex::ast::elements::container::Container::new(content),
         location,
     })
 }
@@ -592,7 +592,7 @@ pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
 
     if items.is_empty() {
         return ContentItem::List(List {
-            content: vec![],
+            items: crate::lex::ast::elements::container::Container::empty(),
             location: crate::lex::ast::Range::default(),
         });
     }
@@ -632,7 +632,7 @@ pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
     };
 
     ContentItem::List(List {
-        content: items,
+        items: crate::lex::ast::elements::container::Container::new(items),
         location,
     })
 }
