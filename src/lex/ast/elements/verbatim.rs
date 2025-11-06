@@ -1,14 +1,14 @@
-//! Foreign block element
+//! Verbatim block element
 //!
-//! A foreign block embeds content that is not lex formatted.
+//! A verbatim block embeds content that is not lex formatted.
 //! Typically this can either be binary data, such as images, or text in some formal language
 //! like a programming language excerpt in Python.
 //!
-//! Note that a foreign block can forgo content all together (i.e. binaries won't encode content).
+//! Note that a verbatim block can forgo content all together (i.e. binaries won't encode content).
 //!
 //! Structure:
-//! - subject: The lead item identifying what the foreign block contains
-//! - children: ForeignLine nodes containing the actual content (can be empty)
+//! - subject: The lead item identifying what the verbatim block contains
+//! - children: VerbatimLine nodes containing the actual content (can be empty)
 //! - closing_annotation: The closing marker (format: `::label::`)
 //!
 //! The subject introduces what the content is, and the closing annotation terminates the block.
@@ -34,27 +34,27 @@
 //!      :: javascript ::
 //!
 //! Learn More:
-//! - Foreign blocks spec: docs/specs/v1/elements/foreign.lex
+//! - Verbatim blocks spec: docs/specs/v1/elements/verbatim.lex
 //!
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
-use super::container::ForeignContainer;
+use super::container::VerbatimContainer;
 use super::content_item::ContentItem;
 use std::fmt;
 
-/// A foreign block represents content from another format/system
+/// A verbatim block represents content from another format/system
 #[derive(Debug, Clone, PartialEq)]
-pub struct ForeignBlock {
+pub struct Verbatim {
     pub subject: TextContent,
-    pub children: ForeignContainer,
+    pub children: VerbatimContainer,
     pub closing_annotation: Annotation,
     pub location: Range,
 }
 
-impl ForeignBlock {
+impl Verbatim {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
@@ -66,7 +66,7 @@ impl ForeignBlock {
     ) -> Self {
         Self {
             subject,
-            children: ForeignContainer::new(children),
+            children: VerbatimContainer::new(children),
             closing_annotation,
             location: Self::default_location(),
         }
@@ -75,7 +75,7 @@ impl ForeignBlock {
     pub fn with_subject(subject: String, closing_annotation: Annotation) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
-            children: ForeignContainer::empty(),
+            children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
         }
@@ -84,7 +84,7 @@ impl ForeignBlock {
     pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
-            children: ForeignContainer::empty(),
+            children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
         }
@@ -97,9 +97,9 @@ impl ForeignBlock {
     }
 }
 
-impl AstNode for ForeignBlock {
+impl AstNode for Verbatim {
     fn node_type(&self) -> &'static str {
-        "ForeignBlock"
+        "VerbatimBlock"
     }
     fn display_label(&self) -> String {
         let subject_text = self.subject.as_string();
@@ -114,12 +114,12 @@ impl AstNode for ForeignBlock {
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
-        visitor.visit_foreign_block(self);
+        visitor.visit_verbatim_block(self);
         super::super::traits::visit_children(visitor, &self.children);
     }
 }
 
-impl Container for ForeignBlock {
+impl Container for Verbatim {
     fn label(&self) -> &str {
         self.subject.as_string()
     }
@@ -133,11 +133,11 @@ impl Container for ForeignBlock {
     }
 }
 
-impl fmt::Display for ForeignBlock {
+impl fmt::Display for Verbatim {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "ForeignBlock('{}', {} lines, closing: {})",
+            "VerbatimBlock('{}', {} lines, closing: {})",
             self.subject.as_string(),
             self.children.len(),
             self.closing_annotation.label.value

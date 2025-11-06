@@ -121,17 +121,17 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
             }
             result.trim_end().to_string()
         }
-        ContentItem::ForeignBlock(fb) => {
+        ContentItem::VerbatimBlock(fb) => {
             let total_chars: usize = fb
                 .children
                 .iter()
-                .filter_map(|child| child.as_foreign_line())
+                .filter_map(|child| child.as_verbatim_line())
                 .map(|line| line.content.as_string().len())
                 .sum();
-            format!("ForeignBlock with {} content char(s)", total_chars)
+            format!("VerbatimBlock with {} content char(s)", total_chars)
         }
-        ContentItem::ForeignLine(fl) => {
-            format!("ForeignLine: {}", fl.content.as_string())
+        ContentItem::VerbatimLine(fl) => {
+            format!("VerbatimLine: {}", fl.content.as_string())
         }
         ContentItem::ListItem(li) => {
             format!("ListItem with {} content item(s)", li.children.len())

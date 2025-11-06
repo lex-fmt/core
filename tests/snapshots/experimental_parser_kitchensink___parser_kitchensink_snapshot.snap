@@ -34,20 +34,20 @@ Document with 8 root items:
   [4] Paragraph with 1 line(s):     [0] TextLine: A paragraph back at the first level of nesting. {{paragraph}}
   [5] Definition with 2 item(s):
     [0] Paragraph with 2 line(s): 
-      [0] TextLine: // This is a foreign block with code.
+      [0] TextLine: // This is a verbatim block with code.
       [1] TextLine: function example() {
     [1] Paragraph with 1 line(s):       [0] TextLine: }
   [6] Annotation with 0 parameter(s) and 1 content item(s):
     [0] Paragraph with 0 line(s):
 [6] Session with 4 item(s):
-  [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker-style foreign blocks. {{paragraph}}
+  [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}
   [1] Annotation with 0 parameter(s) and 3 content item(s):
     [0] Paragraph with 1 line(s):       [0] TextLine: This is a block annotation. {{paragraph}}
     [1] Paragraph with 1 line(s):       [0] TextLine: It contains a paragraph and a list. {{paragraph}}
     [2] List with 2 item(s):
       [0] List item with 0 content item(s):
       [1] List item with 0 content item(s):
-  [2] Paragraph with 1 line(s):     [0] TextLine: Image Reference (Marker Foreign Block):
+  [2] Paragraph with 1 line(s):     [0] TextLine: Image Reference (Marker Verbatim Block):
   [3] Annotation with 0 parameter(s) and 1 content item(s):
     [0] Paragraph with 0 line(s):
 [7] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}

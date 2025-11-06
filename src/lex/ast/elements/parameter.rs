@@ -1,7 +1,7 @@
 //! Parameter element
 //!
 //! A parameter is  a pair of key and value.
-//! annotations and foreign blocks to convey structured metadata.
+//! annotations and verbatim blocks to convey structured metadata.
 //!
 //! They can be used in annotations and, together with labels allow for structured metadata.
 //!

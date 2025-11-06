@@ -8,7 +8,7 @@
 //! - All tests related to AST building
 //!
 //! This centralizes the duplication previously spread across multiple modules
-//! (annotations.rs, definitions.rs, sessions.rs, lists.rs, foreign.rs, combinators.rs, labels.rs, parameters.rs)
+//! (annotations.rs, definitions.rs, sessions.rs, lists.rs, verbatim.rs, combinators.rs, labels.rs, parameters.rs)
 
 use chumsky::prelude::*;
 use chumsky::primitive::filter;
@@ -296,11 +296,11 @@ where
 }
 
 // ============================================================================
-// FOREIGN BLOCK BUILDING
+// VERBATIM BLOCK BUILDING
 // ============================================================================
 
-/// Parse a foreign block
-pub(crate) fn foreign_block(
+/// Parse a verbatim block
+pub(crate) fn verbatim_block(
     _source: Arc<String>,
 ) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
     // Parse subject tokens (not just text)
@@ -360,19 +360,19 @@ pub(crate) fn foreign_block(
         .map(
             move |((subject_tokens, content_tokens), closing_annotation)| {
                 let subject_node =
-                    ParseNode::new(NodeType::ForeignBlockSubject, subject_tokens, vec![]);
+                    ParseNode::new(NodeType::VerbatimBlockkSubject, subject_tokens, vec![]);
                 let content_node = ParseNode::new(
-                    NodeType::ForeignBlockContent,
+                    NodeType::VerbatimBlockkContent,
                     content_tokens.unwrap_or_default(),
                     vec![],
                 );
                 let closing_node = ParseNode::new(
-                    NodeType::ForeignBlockClosing,
+                    NodeType::VerbatimBlockkClosing,
                     closing_annotation.tokens,
                     closing_annotation.children,
                 );
                 ParseNode::new(
-                    NodeType::ForeignBlock,
+                    NodeType::VerbatimBlock,
                     vec![],
                     vec![subject_node, content_node, closing_node],
                 )

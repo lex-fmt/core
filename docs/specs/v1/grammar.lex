@@ -175,7 +175,7 @@ Grammar for lex
             2. annotation-end-line:
                 <annotation-end-line> = <indent>? <lex-marker> <whitespace>* <line-break>
                 A line containing ONLY the lex-marker (::) and optional whitespace.
-                Used to close annotation blocks and foreign blocks.
+                Used to close annotation blocks and verbatim blocks.
 
             3. annotation-start-line:
                 <annotation-start-line> = <indent>? <lex-marker> <whitespace> (<label> <whitespace>)? <parameters>? <whitespace> <lex-marker> <whitespace>* <line-break>
@@ -224,7 +224,7 @@ Grammar for lex
 
 3. Element Grammar
 
-    These are the core elements of lex: annotations, lists, definitions, sessions, foreign blocks, and paragraphs:
+    These are the core elements of lex: annotations, lists, definitions, sessions, verbatim blocks, and paragraphs:
 
     <annotation> = <annotation-marker> <annotation-header> <annotation-marker> <annotation-tail>?
     <annotation-marker> = "::"
@@ -265,13 +265,13 @@ Grammar for lex
     <session> = <session-title-line> <blank-line> <indent> <session-content>
     <session-content> = (<paragraph> | <list> | <session>)+
 
-    <foreign-block> = <subject-line> <blank-line>? <foreign-content>? <closing-annotation>
+    <verbatim-block> = <subject-line> <blank-line>? <verbatim-content>? <closing-annotation>
     <subject-line> = <text-span>+ <colon> <line-break>
-    <foreign-content> = <indent> <raw-text-line>+ <dedent>
+    <verbatim-content> = <indent> <raw-text-line>+ <dedent>
     <raw-text-line> = <indent>? <any-character>+ <line-break>
     <closing-annotation> = <annotation-marker> <annotation-header> <annotation-marker> <single-line-content>?
 
-    Note: Foreign blocks have two forms:
+    Note: Verbatim blocks have two forms:
     - Block form: subject + blank line (optional) + indented content + closing annotation
     - Marker form: subject + blank line (optional) + closing annotation with optional text (no indented content)
     The "Indentation Wall" rule applies: content must be indented deeper than subject,
@@ -282,9 +282,9 @@ Grammar for lex
 
     <document> = <metadata>? <content>
     <metadata> = (document metadata, non-content information)
-    <content> = (<foreign-block> | <annotation> | <paragraph> | <list> | <definition> | <session>)*
+    <content> = (<verbatim-block> | <annotation> | <paragraph> | <list> | <definition> | <session>)*
 
-    Parse order: <foreign-block> | <annotation> | <list> | <definition> | <session> | <paragraph>
+    Parse order: <verbatim-block> | <annotation> | <list> | <definition> | <session> | <paragraph>
 
 4. Implementation Notes: Differences from Formal Specification
 
@@ -352,7 +352,7 @@ Grammar for lex
         Title flexibility: Any text can be a session title (it's just <text-line> or <subject-line>).
         The presence of a blank line after determines if it's a session vs a definition.
 
-    4.5. Foreign Block Elements
+    4.5. Verbatim Block Elements
 
         Specification compliance: MOSTLY - with one clarification
 
@@ -387,7 +387,7 @@ Grammar for lex
     4.7. Parsing Precedence Order
 
         The parser attempts matches in this order:
-        1. foreign-block (requires closing annotation - must try first for disambiguation)
+        1. verbatim-block (requires closing annotation - must try first for disambiguation)
         2. annotation (single-line annotations with ::)
         3. list (requires preceding blank line)
         4. definition (requires subject + immediate indent)
@@ -395,7 +395,7 @@ Grammar for lex
         6. paragraph (fallback - catches everything else)
 
         This order is CRITICAL for correct parsing because:
-        - Foreign blocks are unique (only elements with closing annotation)
+        - Verbatim blocks are unique (only elements with closing annotation)
         - Lists are distinguished by blank line + multiple items
         - Definitions vs sessions are distinguished by blank line presence
         - Paragraphs catch any remaining lines

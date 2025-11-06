@@ -113,13 +113,13 @@ pub(super) struct AnnotationData {
     pub parameters: Vec<ParameterData>,
 }
 
-/// Extracted data for building a ForeignBlock AST node.
+/// Extracted data for building a VerbatimBlock AST node.
 ///
 /// Contains subject, content lines, and their byte ranges.
 /// The content lines have the indentation wall already stripped.
 #[derive(Debug, Clone)]
-pub(super) struct ForeignBlockData {
-    /// The foreign block subject text
+pub(super) struct VerbatimBlockkData {
+    /// The verbatim block subject text
     pub subject_text: String,
     /// Byte range of the subject
     pub subject_byte_range: ByteRange<usize>,
@@ -537,7 +537,7 @@ pub(super) fn extract_annotation_data(
 }
 
 // ============================================================================
-// FOREIGN BLOCK EXTRACTION
+// VERBATIM BLOCK EXTRACTION
 // ============================================================================
 
 /// Calculate the indentation wall from content token lines.
@@ -600,14 +600,14 @@ fn strip_indentation_wall(
         .collect()
 }
 
-/// Extract foreign block data from subject, content, and closing tokens.
+/// Extract verbatim block data from subject, content, and closing tokens.
 ///
 /// This function implements indentation wall stripping:
 /// 1. Calculate the wall (minimum indentation across all content lines)
 /// 2. Strip that many Indent tokens from the start of each line
 /// 3. Extract text from the remaining tokens
 ///
-/// This ensures that foreign blocks at different nesting levels have identical content.
+/// This ensures that verbatim blocks at different nesting levels have identical content.
 ///
 /// # Arguments
 ///
@@ -617,24 +617,24 @@ fn strip_indentation_wall(
 ///
 /// # Returns
 ///
-/// ForeignBlockData with the indentation wall stripped from content
+/// VerbatimBlockkData with the indentation wall stripped from content
 ///
 /// # Example
 ///
 /// ```rust,ignore
-/// // Top-level foreign block: "Code:\n    line1\n    line2"
+/// // Top-level verbatim block: "Code:\n    line1\n    line2"
 /// // Content tokens have 1 Indent each
 ///
-/// // Nested foreign block: "Session:\n    Code:\n        line1\n        line2"
+/// // Nested verbatim block: "Session:\n    Code:\n        line1\n        line2"
 /// // Content tokens have 2 Indents each
 ///
 /// // After extraction, both have identical content: "line1\nline2"
 /// ```
-pub(super) fn extract_foreign_block_data(
+pub(super) fn extract_verbatim_block_data(
     subject_tokens: Vec<(Token, ByteRange<usize>)>,
     mut content_token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
     source: &str,
-) -> ForeignBlockData {
+) -> VerbatimBlockkData {
     // Extract subject
     let subject_byte_range = compute_bounding_box(&subject_tokens);
     let subject_text = extract_text(subject_byte_range.clone(), source)
@@ -665,7 +665,7 @@ pub(super) fn extract_foreign_block_data(
         })
         .collect();
 
-    ForeignBlockData {
+    VerbatimBlockkData {
         subject_text,
         subject_byte_range,
         content_lines,
@@ -706,7 +706,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_foreign_block_data_strips_wall() {
+    fn test_extract_verbatim_block_data_strips_wall() {
         let source = "Code:\n    line1\n        line2";
 
         let subject_tokens = vec![(Token::Text("Code".to_string()), 0..4)];
@@ -723,7 +723,7 @@ mod tests {
             ],
         ];
 
-        let data = extract_foreign_block_data(subject_tokens, content_lines, source);
+        let data = extract_verbatim_block_data(subject_tokens, content_lines, source);
 
         assert_eq!(data.subject_text, "Code");
         // Wall of 1 indent should be stripped from both lines

@@ -312,7 +312,7 @@ impl Model {
             "List" => "List",
             "ListItem" => "ListItem",
             "Definition" => "Definition",
-            "ForeignBlock" => "ForeignBlock",
+            "VerbatimBlock" => "VerbatimBlock",
             "Annotation" => "Annotation",
             "TextLine" => "TextLine",
             _ => "Unknown",

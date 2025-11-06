@@ -17,13 +17,13 @@ pub mod container;
 pub mod content_item;
 pub mod definition;
 pub mod document;
-pub mod foreign;
-pub mod foreign_line;
 pub mod label;
 pub mod list;
 pub mod paragraph;
 pub mod parameter;
 pub mod session;
+pub mod verbatim;
+pub mod verbatim_line;
 
 // Re-export all element types
 pub use annotation::Annotation;
@@ -33,10 +33,10 @@ pub use container::Container as ContainerNode;
 pub use content_item::ContentItem;
 pub use definition::Definition;
 pub use document::Document;
-pub use foreign::ForeignBlock;
-pub use foreign_line::ForeignLine;
 pub use label::Label;
 pub use list::{List, ListItem};
 pub use paragraph::{Paragraph, TextLine};
 pub use parameter::Parameter;
 pub use session::Session;
+pub use verbatim::Verbatim;
+pub use verbatim_line::VerbatimLine;

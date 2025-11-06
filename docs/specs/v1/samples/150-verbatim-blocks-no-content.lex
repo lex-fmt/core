@@ -1,6 +1,6 @@
-Foreign Blocks No-Content Test {{paragraph}}
+Verbatim Blocks No-Content Test {{paragraph}}
 
-This document tests the marker form of foreign blocks (no embedded content). {{paragraph}}
+This document tests the marker form of verbatim blocks (no embedded content). {{paragraph}}
 
 Image Reference:
 
@@ -42,4 +42,4 @@ Secret Reference:
 
 :: secret name=api_key :: API authentication key.
 
-End of no-content foreign blocks test. {{paragraph}}
+End of no-content verbatim blocks test. {{paragraph}}

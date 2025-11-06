@@ -8,7 +8,7 @@
 //! 5. No imperative pattern matching - grammar is data, not code
 //!
 //! The grammar parse order (from grammar.lex §4.7):
-//! 1. foreign-block (requires closing annotation - try first for disambiguation)
+//! 1. verbatim-block (requires closing annotation - try first for disambiguation)
 //! 2. annotation_block (block with container between start and end markers)
 //! 3. annotation_single (single-line annotation only)
 //! 4. list (requires preceding blank line + 2+ list items)
@@ -30,9 +30,9 @@ static LIST_ITEM_REGEX: Lazy<Regex> =
 /// Grammar patterns as regex rules with names and patterns
 /// Order matters: patterns are tried in declaration order for correct disambiguation
 const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
-    // Foreign Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
+    // Verbatim Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
     (
-        "foreign_block",
+        "verbatim_block",
         r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<blank><blank-line>)?(?P<content><container>)?(?P<closing><annotation-end-line>)",
     ),
     // Annotation (multi-line with markers): <annotation-start-line><container><annotation-end-line>
@@ -75,8 +75,8 @@ const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 enum PatternMatch {
-    /// Foreign block: subject + optional blank + optional content + closing annotation
-    ForeignBlock {
+    /// Verbatim block: subject + optional blank + optional content + closing annotation
+    VerbatimBlock {
         subject_idx: usize,
         blank_idx: Option<usize>,
         content_idx: Option<usize>,
@@ -144,7 +144,7 @@ impl GrammarMatcher {
 
                     // Use captures to extract indices and build the pattern
                     let pattern = match *pattern_name {
-                        "foreign_block" => PatternMatch::ForeignBlock {
+                        "verbatim_block" => PatternMatch::VerbatimBlock {
                             subject_idx: 0,
                             blank_idx: caps.name("blank").map(|_| 1),
                             content_idx: caps
@@ -275,7 +275,7 @@ fn convert_pattern_to_item(
     source: &str,
 ) -> Result<ParseNode, String> {
     match pattern {
-        PatternMatch::ForeignBlock {
+        PatternMatch::VerbatimBlock {
             subject_idx,
             blank_idx: _,
             content_idx,
@@ -324,7 +324,7 @@ fn convert_pattern_to_item(
                 vec![],
             );
             Ok(ParseNode::new(
-                NodeType::ForeignBlock,
+                NodeType::VerbatimBlock,
                 all_tokens,
                 vec![closing_node],
             ))

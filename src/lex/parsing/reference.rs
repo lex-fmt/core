@@ -16,13 +16,13 @@ pub mod api;
 pub mod builders;
 pub mod definitions;
 pub mod document;
-pub mod foreign;
 pub mod labels;
 pub mod lists;
 pub mod parameters;
 #[allow(clippy::module_inception)]
 pub mod parser;
 pub mod sessions;
+pub mod verbatim;
 
 // Re-export main API
 pub use api::parse;

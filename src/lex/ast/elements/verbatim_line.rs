@@ -1,18 +1,18 @@
-//! Foreign line element
+//! Verbatim line element
 //!
-//! A foreign line represents a single line of foreign content within a foreign block.
-//! This is the "lead item" for foreign blocks, similar to how sessions have titles
+//! A verbatim line represents a single line of verbatim content within a verbatim block.
+//! This is the "lead item" for verbatim blocks, similar to how sessions have titles
 //! and definitions have subjects.
 //!
-//! The foreign line handles the indentation wall - stripping the common indentation
+//! The verbatim line handles the indentation wall - stripping the common indentation
 //! from all content lines to preserve content integrity regardless of nesting level.
 //!
 //! Structure:
-//! - content: The raw text content of the foreign line
+//! - content: The raw text content of the verbatim line
 //! - location: The byte range and position information
 //!
-//! Note: Foreign lines are typically collected as children of a ForeignBlock, but
-//! a foreign block can forgo content entirely (e.g., for binary markers).
+//! Note: Verbatim lines are typically collected as children of a VerbatimBlock, but
+//! a verbatim block can forgo content entirely (e.g., for binary markers).
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
@@ -20,14 +20,14 @@ use super::super::traits::AstNode;
 use super::super::traits::Visitor;
 use std::fmt;
 
-/// A foreign line represents a single line of foreign content
+/// A verbatim line represents a single line of verbatim content
 #[derive(Debug, Clone, PartialEq)]
-pub struct ForeignLine {
+pub struct VerbatimLine {
     pub content: TextContent,
     pub location: Range,
 }
 
-impl ForeignLine {
+impl VerbatimLine {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
@@ -53,9 +53,9 @@ impl ForeignLine {
     }
 }
 
-impl AstNode for ForeignLine {
+impl AstNode for VerbatimLine {
     fn node_type(&self) -> &'static str {
-        "ForeignLine"
+        "VerbatimLine"
     }
 
     fn display_label(&self) -> String {
@@ -72,14 +72,14 @@ impl AstNode for ForeignLine {
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
-        visitor.visit_foreign_line(self);
-        // ForeignLine has no children - it's a leaf node
+        visitor.visit_verbatim_line(self);
+        // VerbatimLine has no children - it's a leaf node
     }
 }
 
-impl fmt::Display for ForeignLine {
+impl fmt::Display for VerbatimLine {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ForeignLine({} chars)", self.content.as_string().len())
+        write!(f, "VerbatimLine({} chars)", self.content.as_string().len())
     }
 }
 
@@ -88,15 +88,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_foreign_line_creation() {
-        let line = ForeignLine::new("    code line".to_string());
+    fn test_verbatim_line_creation() {
+        let line = VerbatimLine::new("    code line".to_string());
         assert_eq!(line.content.as_string(), "    code line");
     }
 
     #[test]
-    fn test_foreign_line_with_location() {
+    fn test_verbatim_line_with_location() {
         let location = Range::new(0..12, Position::new(1, 0), Position::new(1, 12));
-        let line = ForeignLine::new("    code line".to_string()).at(location.clone());
+        let line = VerbatimLine::new("    code line".to_string()).at(location.clone());
         assert_eq!(line.location, location);
     }
 }

@@ -29,14 +29,14 @@
 //! conversion happens here using `byte_range_to_ast_range()`.
 
 use super::extraction::{
-    AnnotationData, DefinitionData, ForeignBlockData, ListItemData, ParagraphData, SessionData,
+    AnnotationData, DefinitionData, ListItemData, ParagraphData, SessionData, VerbatimBlockkData,
 };
 use super::location::{
     aggregate_locations, byte_range_to_ast_range, compute_location_from_locations,
 };
 use crate::lex::ast::{
-    Annotation, Definition, ForeignBlock, Label, List, ListItem, Paragraph, Range, Session,
-    TextContent, TextLine,
+    Annotation, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
+    TextLine, Verbatim,
 };
 use crate::lex::parsing::ContentItem;
 
@@ -82,18 +82,18 @@ fn validate_only_list_items(content: &[ContentItem]) {
     }
 }
 
-/// Validates that a container only contains ForeignLine nodes.
+/// Validates that a container only contains VerbatimLine nodes.
 ///
-/// Used for ForeignContainer types where only ForeignLine nodes are allowed.
+/// Used for VerbatimContainer types where only VerbatimLine nodes are allowed.
 ///
 /// # Panics
 ///
-/// Panics if any non-ForeignLine is found in the content.
-fn validate_only_foreign_lines(content: &[ContentItem]) {
+/// Panics if any non-VerbatimLine is found in the content.
+fn validate_only_verbatim_lines(content: &[ContentItem]) {
     for item in content {
-        if !item.is_foreign_line() {
+        if !item.is_verbatim_line() {
             panic!(
-                "Invalid ForeignBlock content: ForeignBlocks can only contain ForeignLine elements, found {}",
+                "Invalid VerbatimBlock content: VerbatimBlockks can only contain VerbatimLine elements, found {}",
                 item.node_type()
             );
         }
@@ -342,34 +342,34 @@ pub(super) fn create_annotation(
 }
 
 // ============================================================================
-// FOREIGN BLOCK CREATION
+// VERBATIM BLOCK CREATION
 // ============================================================================
 
-/// Create a ForeignBlock AST node from extracted foreign block data.
+/// Create a VerbatimBlock AST node from extracted verbatim block data.
 ///
 /// Converts byte ranges to AST Ranges, creates TextContent for subject and content,
 /// and aggregates location from all components.
 ///
 /// # Arguments
 ///
-/// * `data` - Extracted foreign block data (with indentation wall already stripped)
+/// * `data` - Extracted verbatim block data (with indentation wall already stripped)
 /// * `closing_annotation` - The closing annotation node
 /// * `source` - Original source string
 ///
 /// # Returns
 ///
-/// A ForeignBlock ContentItem
-pub(super) fn create_foreign_block(
-    data: ForeignBlockData,
+/// A VerbatimBlock ContentItem
+pub(super) fn create_verbatim_block(
+    data: VerbatimBlockkData,
     closing_annotation: Annotation,
     source: &str,
 ) -> ContentItem {
-    use crate::lex::ast::elements::ForeignLine;
+    use crate::lex::ast::elements::VerbatimLine;
 
     let subject_location = byte_range_to_ast_range(data.subject_byte_range, source);
     let subject = TextContent::from_string(data.subject_text, Some(subject_location.clone()));
 
-    // Create ForeignLine children from content lines
+    // Create VerbatimLine children from content lines
     let mut children: Vec<ContentItem> = Vec::new();
     let mut line_locations: Vec<Range> = Vec::new();
 
@@ -378,12 +378,12 @@ pub(super) fn create_foreign_block(
         line_locations.push(line_location.clone());
 
         let line_content = TextContent::from_string(line_text, Some(line_location.clone()));
-        let foreign_line = ForeignLine::from_text_content(line_content).at(line_location);
-        children.push(ContentItem::ForeignLine(foreign_line));
+        let verbatim_line = VerbatimLine::from_text_content(line_content).at(line_location);
+        children.push(ContentItem::VerbatimLine(verbatim_line));
     }
 
-    // Validate that all children are ForeignLines
-    validate_only_foreign_lines(&children);
+    // Validate that all children are VerbatimLines
+    validate_only_verbatim_lines(&children);
 
     // Aggregate location from subject, all lines, and closing annotation
     let mut location_sources = vec![subject_location];
@@ -391,9 +391,9 @@ pub(super) fn create_foreign_block(
     location_sources.push(closing_annotation.location.clone());
     let location = compute_location_from_locations(&location_sources);
 
-    let foreign_block = ForeignBlock::new(subject, children, closing_annotation).at(location);
+    let verbatim_block = Verbatim::new(subject, children, closing_annotation).at(location);
 
-    ContentItem::ForeignBlock(Box::new(foreign_block))
+    ContentItem::VerbatimBlock(Box::new(verbatim_block))
 }
 
 #[cfg(test)]

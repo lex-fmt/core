@@ -1,10 +1,6 @@
----
-source: src/lex/lexers/detokenizer.rs
-expression: detokenized
----
-Foreign Blocks Simple Test {{paragraph}}
+Verbatim Blocks Simple Test {{paragraph}}
 
-This document tests the basic foreign block functionality with text content. {{paragraph}}
+This document tests the basic verbatim block functionality with text content. {{paragraph}}
 
 Code Example:
 
@@ -61,4 +57,4 @@ Configuration Example:
 
 :: nginx caption="Nginx configuration" ::
 
-End of foreign blocks test. {{paragraph}}
+End of verbatim blocks test. {{paragraph}}

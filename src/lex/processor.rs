@@ -507,8 +507,8 @@ pub mod lex_sources {
         "110-ensemble-with-definitions.lex",
         "120-annotations-simple.lex",
         "130-annotations-block-content.lex",
-        "140-foreign-blocks-simple.lex",
-        "150-foreign-blocks-no-content.lex",
+        "140-verbatim-blocks-simple.lex",
+        "150-verbatim-blocks-no-content.lex",
     ];
 
     /// Format options for sample content
@@ -705,9 +705,9 @@ Second paragraph"#;
             assert!(samples.contains(&"100-definitions-mixed-content.lex"));
             assert!(samples.contains(&"120-annotations-simple.lex"));
             assert!(samples.contains(&"130-annotations-block-content.lex"));
-            assert!(samples.contains(&"140-foreign-blocks-simple.lex"));
-            assert!(samples.contains(&"150-foreign-blocks-no-content.lex"));
-            assert_eq!(samples.len(), 17); // Updated for foreign block samples 140 and 150
+            assert!(samples.contains(&"140-verbatim-blocks-simple.lex"));
+            assert!(samples.contains(&"150-verbatim-blocks-no-content.lex"));
+            assert_eq!(samples.len(), 17); // Updated for verbatim block samples 140 and 150
         }
 
         #[test]

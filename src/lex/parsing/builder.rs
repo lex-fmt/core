@@ -48,7 +48,7 @@ impl<'a> AstBuilder<'a> {
             NodeType::List => self.build_list(node),
             NodeType::Definition => self.build_definition(node),
             NodeType::Annotation => self.build_annotation(node),
-            NodeType::ForeignBlock => self.build_foreign_block(node),
+            NodeType::VerbatimBlock => self.build_verbatim_block(node),
             _ => panic!("Unexpected node type"),
         }
     }
@@ -91,16 +91,16 @@ impl<'a> AstBuilder<'a> {
         ast_builder::build_annotation_from_tokens(header_tokens, content, self.source)
     }
 
-    fn build_foreign_block(&self, node: ParseNode) -> ContentItem {
+    fn build_verbatim_block(&self, node: ParseNode) -> ContentItem {
         let mut subject_node = None;
         let mut content_node = None;
         let mut closing_node = None;
 
         for child in node.children {
             match child.node_type {
-                NodeType::ForeignBlockSubject => subject_node = Some(child),
-                NodeType::ForeignBlockContent => content_node = Some(child),
-                NodeType::ForeignBlockClosing => closing_node = Some(child),
+                NodeType::VerbatimBlockkSubject => subject_node = Some(child),
+                NodeType::VerbatimBlockkContent => content_node = Some(child),
+                NodeType::VerbatimBlockkClosing => closing_node = Some(child),
                 _ => {}
             }
         }
@@ -112,10 +112,10 @@ impl<'a> AstBuilder<'a> {
             if let ContentItem::Annotation(ann) = self.build_annotation(closing_annotation_node) {
                 ann
             } else {
-                panic!("Expected Annotation for foreign block closing");
+                panic!("Expected Annotation for verbatim block closing");
             };
 
-        ast_builder::build_foreign_block_from_tokens(
+        ast_builder::build_verbatim_block_from_tokens(
             subject_tokens,
             content_token_lines,
             closing_annotation,
