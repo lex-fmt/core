@@ -42,8 +42,8 @@ This is a marker annotation at the root level, attached to the definition above.
 
     A paragraph back at the first level of nesting. {{paragraph}}
 
-    Code Example (Foreign Block):
-        // This is a foreign block with code.
+    Code Example (Verbatim Block):
+        // This is a verbatim block with code.
         function example() {
             return "lex";
         }
@@ -51,7 +51,7 @@ This is a marker annotation at the root level, attached to the definition above.
 
 2. Second Root Session {{session}}
 
-    This session tests annotations with block content and marker-style foreign blocks. {{paragraph}}
+    This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}
 
     :: todo status="open" assignee="team" ::
         This is a block annotation. {{paragraph}}
@@ -62,7 +62,7 @@ This is a marker annotation at the root level, attached to the definition above.
         - Task 2 to complete. {{list-item}}
     ::
 
-    Image Reference (Marker Foreign Block):
+    Image Reference (Marker Verbatim Block):
     :: image src="logo.png" alt="Lex Logo" ::
 
 Final paragraph at the end of the document. {{paragraph}}

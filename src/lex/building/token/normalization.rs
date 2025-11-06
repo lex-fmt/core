@@ -75,7 +75,7 @@ pub(crate) fn normalize_line_token(token: &LineToken) -> Vec<(Token, ByteRange<u
 ///
 /// This preserves line boundaries - each LineToken becomes a separate vector.
 /// Useful when you need to process tokens per-line (e.g., for indentation wall
-/// calculation in foreign blocks).
+/// calculation in verbatim blocks).
 ///
 /// # Arguments
 ///

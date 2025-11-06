@@ -16,13 +16,13 @@ The Parse Order
 
 	Parse order is critical. The elements must be parsed in this exact sequence:
 
-		Foreign Block → Annotation → List → Definition → Session → Paragraph
+		Verbatim Block → Annotation → List → Definition → Session → Paragraph
 
 	The order exists because of syntactic overlap: session titles, definitions, and list items all share similar patterns, and all are valid paragraphs if their specific rules aren't met.
 
-Foreign Blocks
+Verbatim Blocks
 
-	Parse foreign blocks FIRST, before all other elements.
+	Parse verbatim blocks FIRST, before all other elements.
 
 	Why first:
 
@@ -80,7 +80,7 @@ Foreign Blocks
 
 Annotations
 
-	Parse annotations SECOND, after foreign blocks.
+	Parse annotations SECOND, after verbatim blocks.
 
 	Why second:
 
@@ -288,7 +288,7 @@ Sessions
 
 		- Must have blank line after title
 		- Must be indented
-		- Can contain any elements: paragraphs, lists, definitions, nested sessions, annotations, foreign blocks
+		- Can contain any elements: paragraphs, lists, definitions, nested sessions, annotations, verbatim blocks
 
 	Arbitrary nesting:
 
@@ -323,7 +323,7 @@ Paragraphs
 
 	The catch-all rule:
 
-		If text doesn't match foreign blocks, annotations, lists, definitions, or sessions, it's a paragraph.
+		If text doesn't match verbatim blocks, annotations, lists, definitions, or sessions, it's a paragraph.
 
 	Pattern to match:
 
@@ -367,7 +367,7 @@ Recursion and Nesting
 
 	Sessions can be arbitrarily nested, creating recursive parsing scenarios.
 
-	When parsing session content, the parser recursively applies the same element detection rules (foreign blocks → annotations → lists → definitions → sessions → paragraphs) to the indented content.
+	When parsing session content, the parser recursively applies the same element detection rules (verbatim blocks → annotations → lists → definitions → sessions → paragraphs) to the indented content.
 
 	Other elements (definitions, lists, annotations with block content) also contain nested content that must be parsed recursively, but with constraints:
 
@@ -381,7 +381,7 @@ Summary
 
 	The key to parsing lex is respecting the parse order and understanding the disambiguation rules:
 
-		1. Foreign blocks: indentation wall + closing annotation
+		1. Verbatim blocks: indentation wall + closing annotation
 		2. Annotations: explicit :: markers
 		3. Lists: blank line before + 2+ items
 		4. Definitions: colon-ending subject + NO blank line + indented content

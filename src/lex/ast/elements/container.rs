@@ -18,8 +18,8 @@
 //!   - Used by: Definition.children, Annotation.children, ListItem.children
 //! - **ListContainer**: Homogeneous container for ListItem variants only
 //!   - Used by: List.items
-//! - **ForeignContainer**: Homogeneous container for ForeignLine nodes only
-//!   - Used by: ForeignBlock.children
+//! - **VerbatimContainer**: Homogeneous container for VerbatimLine nodes only
+//!   - Used by: VerbatimBlock.children
 
 use super::super::range::Range;
 use super::super::traits::{AstNode, Visitor};
@@ -54,12 +54,12 @@ pub struct ListContainer {
     pub location: Range,
 }
 
-/// ForeignContainer is a homogeneous container for ForeignLine nodes only
+/// VerbatimContainer is a homogeneous container for VerbatimLine nodes only
 ///
-/// Used by ForeignBlock.children to enforce that foreign blocks only contain
-/// foreign lines (content from other formats).
+/// Used by VerbatimBlock.children to enforce that verbatim blocks only contain
+/// verbatim lines (content from other formats).
 #[derive(Debug, Clone, PartialEq)]
-pub struct ForeignContainer {
+pub struct VerbatimContainer {
     pub children: Vec<ContentItem>,
     pub location: Range,
 }
@@ -183,7 +183,7 @@ macro_rules! impl_container {
 impl_container!(SessionContainer, "SessionContainer");
 impl_container!(GeneralContainer, "GeneralContainer");
 impl_container!(ListContainer, "ListContainer");
-impl_container!(ForeignContainer, "ForeignContainer");
+impl_container!(VerbatimContainer, "VerbatimContainer");
 
 #[cfg(test)]
 mod tests {
@@ -212,8 +212,8 @@ mod tests {
     }
 
     #[test]
-    fn test_foreign_container_creation() {
-        let container = ForeignContainer::empty();
+    fn test_verbatim_container_creation() {
+        let container = VerbatimContainer::empty();
         assert_eq!(container.len(), 0);
         assert!(container.is_empty());
     }

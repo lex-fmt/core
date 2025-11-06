@@ -35,7 +35,7 @@
 //!         Paragraph: ¶
 //!         List: ☰
 //!         ListItem: •
-//!         Foreign: 𝒱
+//!         Verbatim: 𝒱
 //!         ForeingLine: ℣
 //!         Definition: ≔
 //!     Container elements:
@@ -84,7 +84,7 @@ fn get_icon(node_type: &str) -> &'static str {
         "List" => "☰",
         "ListItem" => "•",
         "Definition" => "≔",
-        "ForeignBlock" => "𝒱",
+        "VerbatimBlock" => "𝒱",
         "Annotation" => "\"",
         _ => "○",
     }

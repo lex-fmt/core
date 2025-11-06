@@ -23,8 +23,8 @@ pub mod traits;
 
 // Re-export commonly used types at module root
 pub use elements::{
-    Annotation, ContentItem, Definition, Document, ForeignBlock, Label, List, ListItem, Paragraph,
-    Parameter, Session, TextLine,
+    Annotation, ContentItem, Definition, Document, Label, List, ListItem, Paragraph, Parameter,
+    Session, TextLine, Verbatim,
 };
 pub use error::PositionLookupError;
 pub use lookup::{find_nodes_at_position, format_at_position};

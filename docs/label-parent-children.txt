@@ -84,11 +84,11 @@ This document aims to give context and the rationale so that we can plan how bes
 
         Parsing is the lead, then its content, inside the container are its children.
 
-    4. Foreign
+    4. Verbatim
 
         Structure:
         <foreign>
-            <subject>Foreign</subject> -> the lead
+            <subject>Verbatim</subject> -> the lead
             <container>
                 whatever (optional)
             </container>
@@ -142,7 +142,7 @@ This document aims to give context and the rationale so that we can plan how bes
         List Item        The item's name       no                   Dedent          Forbidden       Seq Marker
         Session          Title                 yes                  Dedent          Required        Blank Lines
         Definition       Term                  yes                  Dedent          Forbidden       Text + colon (subject)
-        Foreign          Subject               no                  Notation        Optional        Text + colon (subject)
+        Verbatim          Subject               no                  Notation        Optional        Text + colon (subject)
         Annotation       Label (optional)      no                   Dedent          Optional        lex-marker
 
 

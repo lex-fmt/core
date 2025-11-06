@@ -1,4 +1,8 @@
-Foreign Blocks Simple Test {{paragraph}}
+---
+source: src/lex/lexer/detokenizer.rs
+expression: detokenized
+---
+Verbatim Blocks Simple Test {{paragraph}}
 
 This document tests the basic foreign block functionality with text content. {{paragraph}}
 

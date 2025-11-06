@@ -20,10 +20,10 @@ pub enum NodeType {
     List,
     Definition,
     Annotation,
-    ForeignBlock,
-    ForeignBlockSubject,
-    ForeignBlockContent,
-    ForeignBlockClosing,
+    VerbatimBlock,
+    VerbatimBlockkSubject,
+    VerbatimBlockkContent,
+    VerbatimBlockkClosing,
 }
 
 /// A node in the parse tree.

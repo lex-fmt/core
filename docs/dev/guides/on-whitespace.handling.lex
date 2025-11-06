@@ -39,13 +39,13 @@ Whitespace Handling in Lex
 		second pass (if indentation level just increased): "<indent>..hello"
 
 
-5. Foreign Blocks:
+5. Verbatim Blocks:
 
-	The above mentioned rules apply all elements but Foreign blocks. Lets see why. 
+	The above mentioned rules apply all elements but Verbatim blocks. Lets see why. 
 
 	5.1 The Indentation Wall
 
-		This is a foreign block: 
+		This is a verbatim block: 
 
 			def hello():
 				print ("hello")
@@ -75,8 +75,8 @@ Whitespace Handling in Lex
 
 		This is a Session 
 
-			And here is the sessions's content. The very same Foreign block is shown bellow.
-			This is a foreign block: 
+			And here is the sessions's content. The very same Verbatim block is shown bellow.
+			This is a verbatim block: 
 
 				def hello():
 					print ("hello")
@@ -91,8 +91,8 @@ Whitespace Handling in Lex
 
 		As we've shown , any number of spaces after the indentation wall is valid for a foreing block. That conetnt can be prefixed, by say 20 spaces as a grammar rule, and we can't manipulate it. 
 
-		But there is a catch here: by the time we actually get to foreign block parsing, we are looking at tokens. Hence all spaces are converted to indent/dedent/indentation tokes, because the tokenizer does not parse elements and it can't know this is a line holding foreign block content: it transforms whitespaces to indentation tokens for any line. 
+		But there is a catch here: by the time we actually get to verbatim block parsing, we are looking at tokens. Hence all spaces are converted to indent/dedent/indentation tokes, because the tokenizer does not parse elements and it can't know this is a line holding verbatim block content: it transforms whitespaces to indentation tokens for any line. 
 
-		To cater for this, when parsing a foreign block, one must subtract the indentation wall of the block, and if present, subsitute indentation or indent tokens for spaces. After that, after the first non whitestpace char, the content is to be taken as is, no further processing.
+		To cater for this, when parsing a verbatim block, one must subtract the indentation wall of the block, and if present, subsitute indentation or indent tokens for spaces. After that, after the first non whitestpace char, the content is to be taken as is, no further processing.
 
-		That is to say, while we cannot process a foreign block line's content, we must split it from the lex indentation wall, but otherwise keep them untouched.
+		That is to say, while we cannot process a verbatim block line's content, we must split it from the lex indentation wall, but otherwise keep them untouched.

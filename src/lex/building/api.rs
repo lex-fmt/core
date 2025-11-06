@@ -214,24 +214,24 @@ pub fn build_annotation(
 }
 
 // ============================================================================
-// FOREIGN BLOCK BUILDING
+// VERBATIM BLOCK BUILDING
 // ============================================================================
 
-/// Build a ForeignBlock AST node from subject, content, and closing annotation.
+/// Build a VerbatimBlock AST node from subject, content, and closing annotation.
 ///
 /// This function implements the indentation wall stripping logic - content at
 /// different nesting levels will have identical text after wall removal.
 ///
 /// # Arguments
 ///
-/// * `subject_token` - LineToken for the foreign block subject
+/// * `subject_token` - LineToken for the verbatim block subject
 /// * `content_tokens` - LineTokens for each content line
 /// * `closing_annotation` - The closing annotation node
 /// * `source` - Original source string
 ///
 /// # Returns
 ///
-/// A ForeignBlock ContentItem
+/// A VerbatimBlock ContentItem
 ///
 /// # Example
 ///
@@ -239,10 +239,10 @@ pub fn build_annotation(
 /// // Top-level: "Code:\n    line1\n    line2\n:: js ::"
 /// // Nested:    "Session:\n    Code:\n        line1\n        line2\n    :: js ::"
 /// //
-/// // Both produce ForeignBlock with content: "line1\nline2"
+/// // Both produce VerbatimBlock with content: "line1\nline2"
 /// // The indentation wall (minimum indentation) is stripped.
 /// ```
-pub fn build_foreign_block(
+pub fn build_verbatim_block(
     subject_token: &LineToken,
     content_tokens: Vec<&LineToken>,
     closing_annotation: Annotation,
@@ -258,10 +258,10 @@ pub fn build_foreign_block(
         .collect();
 
     // 3. Extract (includes indentation wall stripping)
-    let data = extraction::extract_foreign_block_data(subject_tokens, content_token_lines, source);
+    let data = extraction::extract_verbatim_block_data(subject_tokens, content_token_lines, source);
 
     // 4. Create
-    builders::create_foreign_block(data, closing_annotation, source)
+    builders::create_verbatim_block(data, closing_annotation, source)
 }
 
 // ============================================================================
@@ -413,21 +413,21 @@ pub fn build_annotation_from_tokens(
     builders::create_annotation(data, content, source)
 }
 
-/// Build a ForeignBlock from already-normalized tokens (for reference parser).
+/// Build a VerbatimBlock from already-normalized tokens (for reference parser).
 ///
 /// This implements indentation wall stripping - content at different nesting
 /// levels will have identical text after wall removal.
 ///
 /// # Arguments
 ///
-/// * `subject_tokens` - Normalized tokens for the foreign block subject
+/// * `subject_tokens` - Normalized tokens for the verbatim block subject
 /// * `content_token_lines` - Normalized token vectors for each content line
 /// * `closing_annotation` - The closing annotation node
 /// * `source` - Original source string
 ///
 /// # Returns
 ///
-/// A ForeignBlock ContentItem
+/// A VerbatimBlock ContentItem
 ///
 /// # Example
 ///
@@ -440,7 +440,7 @@ pub fn build_annotation_from_tokens(
 /// ];
 /// // After extraction, wall of 1 indent is stripped: "line1\n    line2"
 /// ```
-pub fn build_foreign_block_from_tokens(
+pub fn build_verbatim_block_from_tokens(
     subject_tokens: Vec<(Token, ByteRange<usize>)>,
     content_token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
     closing_annotation: Annotation,
@@ -448,10 +448,10 @@ pub fn build_foreign_block_from_tokens(
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
     // 1. Extract (includes indentation wall stripping)
-    let data = extraction::extract_foreign_block_data(subject_tokens, content_token_lines, source);
+    let data = extraction::extract_verbatim_block_data(subject_tokens, content_token_lines, source);
 
     // 2. Create
-    builders::create_foreign_block(data, closing_annotation, source)
+    builders::create_verbatim_block(data, closing_annotation, source)
 }
 
 // ============================================================================
@@ -640,14 +640,14 @@ pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
     })
 }
 
-/// Build a ForeignBlock from pre-extracted text and locations.
+/// Build a VerbatimBlock from pre-extracted text and locations.
 ///
 /// NOTE: This does NOT perform indentation wall stripping.
-/// Use build_foreign_block_from_tokens for proper indentation handling.
+/// Use build_verbatim_block_from_tokens for proper indentation handling.
 ///
 /// # Arguments
 ///
-/// * `subject_text` - The foreign block subject text
+/// * `subject_text` - The verbatim block subject text
 /// * `subject_location` - The location of the subject
 /// * `content_text` - The content text
 /// * `content_location` - The location of the content
@@ -655,30 +655,30 @@ pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
 ///
 /// # Returns
 ///
-/// A ForeignBlock ContentItem
-pub fn build_foreign_block_from_text(
+/// A VerbatimBlock ContentItem
+pub fn build_verbatim_block_from_text(
     subject_text: String,
     subject_location: crate::lex::ast::Range,
     content_text: String,
     content_location: crate::lex::ast::Range,
     closing_annotation: Annotation,
 ) -> ContentItem {
-    use crate::lex::ast::elements::ForeignLine;
-    use crate::lex::ast::{ForeignBlock, TextContent};
+    use crate::lex::ast::elements::VerbatimLine;
+    use crate::lex::ast::{TextContent, Verbatim};
     use crate::lex::building::location::compute_location_from_locations;
 
     let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
 
-    // Convert content text into ForeignLine children
+    // Convert content text into VerbatimLine children
     let children: Vec<ContentItem> = if content_text.is_empty() {
         vec![]
     } else {
-        // Split content by lines and create ForeignLine for each
+        // Split content by lines and create VerbatimLine for each
         content_text
             .split('\n')
             .map(|line| {
                 let line_content = TextContent::from_string(line.to_string(), None);
-                ContentItem::ForeignLine(ForeignLine::from_text_content(line_content))
+                ContentItem::VerbatimLine(VerbatimLine::from_text_content(line_content))
             })
             .collect()
     };
@@ -690,9 +690,9 @@ pub fn build_foreign_block_from_text(
     ];
     let location = compute_location_from_locations(&location_sources);
 
-    let foreign_block = ForeignBlock::new(subject, children, closing_annotation).at(location);
+    let verbatim_block = Verbatim::new(subject, children, closing_annotation).at(location);
 
-    ContentItem::ForeignBlock(Box::new(foreign_block))
+    ContentItem::VerbatimBlock(Box::new(verbatim_block))
 }
 
 #[cfg(test)]
