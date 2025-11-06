@@ -15,10 +15,10 @@ AST Construction
 
 	1. Input
 		The ast building can handle input in the common structures (flat list, lines , tree).
-		It then converts them to Vec<Vec<(Token, Range<usize>)>> in token_normalization.rs[4]
+		It then converts them to Vec<Vec<(Token, Range<usize>)>> in ast/token/normalization.rs[4]
 	2. Data Extraction
 		Extract the token data into a pure structu / object format, ready to be injected in the ast node.
-		This includes de span / byte range calculation and wall stripping for foreing lines at data_extraction.rs
+		This includes de span / byte range calculation and wall stripping for foreing lines at ast/extraction.rs
 	3. AST Instantiation	
 		Now , with the pure and transformed data to create the ast nodes, we finally create them.
 5. Parser Integration
@@ -39,10 +39,10 @@ AST Construction
 		:: file src/lex/parsers/linebased/declarative_grammar.rs ::
 
 	Flow for line-based parser:
-		Pattern Match → unwrap_* → ast_builder::build_* → AST Node
+		Pattern Match → unwrap_* → ast::build_* → AST Node
 
 	Flow for reference parser:
-		Combinator → Extract Text → ast_builder::build_*_from_text → AST Node
+		Combinator → Extract Text → ast::build_*_from_text → AST Node
 
 
 
@@ -51,5 +51,5 @@ Notes:
  2. The token stream guide:  docs/dev/guides/on-tokenstreams.lex
  1. The core tokens: src/lex/lexers/tokens_core.rs and it's grammar docs/specs/v1/grammar.lex
  3. Adapters: src/lex/pipeline/adapters_linebased.rs and src/lex/pipeline/adapters.rs
- 4. Normalization File: src/lex/parsers/common/token_normalization.rs ::
- 5. Data Extraction File: src/lex/parsers/common/data_extraction.rs
+ 4. Normalization File: src/lex/parsers/ast/token/normalization.rs ::
+ 5. Data Extraction File: src/lex/parsers/ast/extraction.rs
