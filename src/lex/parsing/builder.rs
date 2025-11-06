@@ -98,9 +98,9 @@ impl<'a> AstBuilder<'a> {
 
         for child in node.children {
             match child.node_type {
-                NodeType::ForeignBlockSubject => subject_node = Some(child),
-                NodeType::ForeignBlockContent => content_node = Some(child),
-                NodeType::ForeignBlockClosing => closing_node = Some(child),
+                NodeType::VerbatimBlockkSubject => subject_node = Some(child),
+                NodeType::VerbatimBlockkContent => content_node = Some(child),
+                NodeType::VerbatimBlockkClosing => closing_node = Some(child),
                 _ => {}
             }
         }

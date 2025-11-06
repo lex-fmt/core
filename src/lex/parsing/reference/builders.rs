@@ -360,14 +360,14 @@ pub(crate) fn foreign_block(
         .map(
             move |((subject_tokens, content_tokens), closing_annotation)| {
                 let subject_node =
-                    ParseNode::new(NodeType::ForeignBlockSubject, subject_tokens, vec![]);
+                    ParseNode::new(NodeType::VerbatimBlockkSubject, subject_tokens, vec![]);
                 let content_node = ParseNode::new(
-                    NodeType::ForeignBlockContent,
+                    NodeType::VerbatimBlockkContent,
                     content_tokens.unwrap_or_default(),
                     vec![],
                 );
                 let closing_node = ParseNode::new(
-                    NodeType::ForeignBlockClosing,
+                    NodeType::VerbatimBlockkClosing,
                     closing_annotation.tokens,
                     closing_annotation.children,
                 );

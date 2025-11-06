@@ -21,9 +21,9 @@ pub enum NodeType {
     Definition,
     Annotation,
     VerbatimBlock,
-    ForeignBlockSubject,
-    ForeignBlockContent,
-    ForeignBlockClosing,
+    VerbatimBlockkSubject,
+    VerbatimBlockkContent,
+    VerbatimBlockkClosing,
 }
 
 /// A node in the parse tree.

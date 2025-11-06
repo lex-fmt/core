@@ -118,7 +118,7 @@ pub(super) struct AnnotationData {
 /// Contains subject, content lines, and their byte ranges.
 /// The content lines have the indentation wall already stripped.
 #[derive(Debug, Clone)]
-pub(super) struct ForeignBlockData {
+pub(super) struct VerbatimBlockkData {
     /// The foreign block subject text
     pub subject_text: String,
     /// Byte range of the subject
@@ -617,7 +617,7 @@ fn strip_indentation_wall(
 ///
 /// # Returns
 ///
-/// ForeignBlockData with the indentation wall stripped from content
+/// VerbatimBlockkData with the indentation wall stripped from content
 ///
 /// # Example
 ///
@@ -634,7 +634,7 @@ pub(super) fn extract_foreign_block_data(
     subject_tokens: Vec<(Token, ByteRange<usize>)>,
     mut content_token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
     source: &str,
-) -> ForeignBlockData {
+) -> VerbatimBlockkData {
     // Extract subject
     let subject_byte_range = compute_bounding_box(&subject_tokens);
     let subject_text = extract_text(subject_byte_range.clone(), source)
@@ -665,7 +665,7 @@ pub(super) fn extract_foreign_block_data(
         })
         .collect();
 
-    ForeignBlockData {
+    VerbatimBlockkData {
         subject_text,
         subject_byte_range,
         content_lines,

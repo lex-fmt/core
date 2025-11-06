@@ -213,9 +213,9 @@ impl<'a> ContentItemAssertion<'a> {
     }
 
     /// Assert this item is a VerbatimBlock and return foreign block-specific assertions
-    pub fn assert_foreign_block(self) -> ForeignBlockAssertion<'a> {
+    pub fn assert_foreign_block(self) -> VerbatimBlockkAssertion<'a> {
         match self.item {
-            ContentItem::VerbatimBlock(fb) => ForeignBlockAssertion {
+            ContentItem::VerbatimBlock(fb) => VerbatimBlockkAssertion {
                 foreign_block: fb,
                 context: self.context,
             },
@@ -704,12 +704,12 @@ impl<'a> AnnotationAssertion<'a> {
 // Verbatim Block Assertions
 // ============================================================================
 
-pub struct ForeignBlockAssertion<'a> {
+pub struct VerbatimBlockkAssertion<'a> {
     foreign_block: &'a Verbatim,
     context: String,
 }
 
-impl<'a> ForeignBlockAssertion<'a> {
+impl<'a> VerbatimBlockkAssertion<'a> {
     pub fn subject(self, expected: &str) -> Self {
         let actual = self.foreign_block.subject.as_string();
         assert_eq!(

@@ -113,7 +113,7 @@
 //! - `ListAssertion` / `ListItemAssertion` - List structures
 //! - `DefinitionAssertion` - Subject-definition pairs
 //! - `AnnotationAssertion` - Metadata with parameters
-//! - `ForeignBlockAssertion` - Raw content blocks
+//! - `VerbatimBlockkAssertion` - Raw content blocks
 
 //!   Each assertion type provides type-specific methods (e.g., `label()` for
 //!   sessions, `subject()` for definitions, `parameter_count()` for annotations).
@@ -158,8 +158,8 @@ mod testing_matchers;
 
 pub use testing_assertions::{
     assert_ast, AnnotationAssertion, ChildrenAssertion, ContentItemAssertion, DefinitionAssertion,
-    DocumentAssertion, ForeignBlockAssertion, ListAssertion, ListItemAssertion, ParagraphAssertion,
-    SessionAssertion,
+    DocumentAssertion, ListAssertion, ListItemAssertion, ParagraphAssertion, SessionAssertion,
+    VerbatimBlockkAssertion,
 };
 pub use testing_matchers::TextMatch;
 

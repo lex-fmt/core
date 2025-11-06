@@ -29,7 +29,7 @@
 //! conversion happens here using `byte_range_to_ast_range()`.
 
 use super::extraction::{
-    AnnotationData, DefinitionData, ForeignBlockData, ListItemData, ParagraphData, SessionData,
+    AnnotationData, DefinitionData, ListItemData, ParagraphData, SessionData, VerbatimBlockkData,
 };
 use super::location::{
     aggregate_locations, byte_range_to_ast_range, compute_location_from_locations,
@@ -93,7 +93,7 @@ fn validate_only_foreign_lines(content: &[ContentItem]) {
     for item in content {
         if !item.is_foreign_line() {
             panic!(
-                "Invalid VerbatimBlock content: ForeignBlocks can only contain VerbatimLine elements, found {}",
+                "Invalid VerbatimBlock content: VerbatimBlockks can only contain VerbatimLine elements, found {}",
                 item.node_type()
             );
         }
@@ -360,7 +360,7 @@ pub(super) fn create_annotation(
 ///
 /// A VerbatimBlock ContentItem
 pub(super) fn create_foreign_block(
-    data: ForeignBlockData,
+    data: VerbatimBlockkData,
     closing_annotation: Annotation,
     source: &str,
 ) -> ContentItem {
