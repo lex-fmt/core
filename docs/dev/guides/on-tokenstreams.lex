@@ -1,168 +1,164 @@
-Token Streams: Unified Transformation Architecture
+Token Streams: Simplified Flat Transformation Architecture
 
-	Token Streams are the unified data structure that enables composable, robust transformations in the Lex lexer pipeline. This architecture solves the problem of irregular transformation interfaces and provides guaranteed location tracking through the "Immutable Log" principle.
+	After refactoring, Token Streams are now dramatically simplified. TokenStream is just a type alias for Vec<(Token, Range<usize>)> - a flat vector of tokens with their source locations. The pipeline performs simple, composable transformations on flat streams.
 
-1. The Problem: Why Token Streams?
+1. The Evolution: From Complex to Simple
 
-	Before Token Streams, the lexer pipeline had transformations with inconsistent interfaces. Some operated on flat token vectors, others on line-grouped structures, and others on hierarchical trees. This irregularity created brittleness when chaining transformations and made the pipeline difficult to maintain or extend.
+	Originally, Token Streams were a complex enum supporting both flat sequences and hierarchical trees. This added significant complexity to enable tree-building in the pipeline.
 
-	Token Streams unify these representations into a single data structure that can express both flat sequences and hierarchical nesting, enabling any transformation to work with any other.
+	The key insight: Only one consumer (the line-based parser) needed hierarchical structure. Making the entire pipeline handle trees to serve one consumer violated the principle of locality of complexity.
 
-2. The TokenStream Architecture
+	The solution: Move tree-building into the line-based parser itself, keep the pipeline purely flat.
 
-	At the core is the `TokenStream` enum, which can represent tokens in two forms:
-	:: file src=src/lex/pipeline/stream.rs ::
+2. The Current TokenStream Architecture
 
-	TokenStream::Flat:
-		A linear sequence of (Token, Range) pairs
-		The initial output from base tokenization
-		Used by transformations that don't require structural nesting
+	TokenStream is now trivially simple:
+	:: file src/lex/pipeline/stream.rs ::
 
-	TokenStream::Tree:
-		A hierarchical representation using TokenStreamNode
-		Each node contains tokens and optionally nested children
-		Enables indentation-based structures and line grouping
+		pub type TokenStream = Vec<(Token, Range<usize>)>;
 
-	TokenStreamNode Structure:
-		tokens: The flat list of tokens at this level
-		children: Optional nested TokenStream for indented content
-		line_type: Optional LineType classification (SubjectLine, ListLine, etc.)
+	That's it. A token stream is just a flat vector of (Token, Range) pairs.
 
-	This dual representation allows transformations to express their output naturally - flat when appropriate, nested when needed - while maintaining a common interface.
+	Pipeline transformations:
+		Receive: Vec<(Token, Range<usize>)>
+		Return: Vec<(Token, Range<usize>)>
+		Simple, composable, easy to understand
+
+	No enums, no variants, no tree-walking infrastructure needed.
 
 3. The Immutable Log Principle
 
-	The foundation of Token Streams is the Immutable Log principle: original token locations are never modified, only preserved and aggregated. This guarantees accurate location tracking throughout all transformations.
+	The foundation remains unchanged: original token locations are never modified, only preserved and aggregated.
 
-	The Universal Unroll Method:
-		Every TokenStream, regardless of complexity, can be unrolled
-		Returns the flat list of original (Token, Range) pairs
-		Provides the "ground truth" for AST building
-		Recursively extracts tokens from any nesting depth
-
-	This architecture means:
-		Transformations can restructure tokens freely
+	Core principle:
+		Transformations can create aggregate tokens (Indent, Dedent, BlankLine)
+		These aggregates store their source tokens internally
 		Location information is never lost
-		AST builders receive accurate source positions
-		Complex nested structures decompose reliably to their origins
+		AST builders extract source tokens when needed
 
-4. The StreamMapper Pattern
+	Example: An Indent token contains Vec<(Token, Range<usize>)> of the original Indentation tokens it represents. The Indent itself uses a placeholder range (0..0), but the real locations are preserved in source_tokens.
 
-	To prevent each transformation from implementing its own tree traversal logic, Token Streams use the StreamMapper pattern (a Visitor design pattern). The pipeline provides a generic walker that handles traversal, while transformations focus purely on their logic.
-	:: file src=src/lex/pipeline/mapper.rs ::
+4. The StreamMapper Pattern (Simplified)
+
+	With TokenStream now just a flat vector, the mapper pattern is dramatically simpler:
+	:: file src/lex/pipeline/mapper.rs ::
 
 	The StreamMapper Trait:
-		map_flat(): Transform a flat token sequence
-		enter_node(): Pre-order hook (before visiting children)
-		exit_node(): Post-order hook (after visiting children)
+		map_flat(): Transform a flat token sequence â†’ flat token sequence
+		That's the entire interface. No tree hooks needed.
 
 	The Walker Function:
-		Handles all recursive traversal automatically
-		Calls mapper methods at appropriate points
-		Manages the complexity of tree navigation
-		Written once, tested thoroughly, used by all transformations
+		Simply calls mapper.map_flat(stream)
+		No recursive traversal logic
+		No tree navigation complexity
 
-	This separation means transformations are simple, focused functions that declare their logic without implementing traversal mechanics.
+	This simplification removed over 400 lines of tree-walking code while maintaining the same transformation interface.
 
 5. Example Transformations
 
-	The current lexer pipeline uses several TokenStream-based transformations:
+	The current lexer pipeline uses three core transformations (all operate on flat streams):
 
 	NormalizeWhitespace:
 		Processes whitespace remainder tokens
-		Operates on flat streams
 		Simple token replacement logic
+		Input: flat stream, Output: flat stream
 
 	SemanticIndentation:
 		Converts Indentation tokens to Indent/Dedent pairs
 		Tracks indentation stack state
-		Outputs synthetic tokens with source_tokens embedded
+		Creates synthetic tokens with source_tokens embedded
+		Input: flat stream, Output: flat stream
 
 	BlankLines:
 		Groups consecutive Newline tokens into BlankLine tokens
 		Stateful transformation with lookahead
 		Preserves original tokens in aggregates
+		Input: flat stream, Output: flat stream
 
-	ToLineTokens:
-		Groups tokens into lines by Newline delimiters
-		Classifies each line (SubjectLine, ListLine, ParagraphLine)
-		First transformation to produce Tree variant
-
-	IndentationToTree:
-		Restructures shallow tree into nested hierarchy
-		Processes Indent/Dedent markers to build nesting
-		Creates proper parent-child relationships
-
-	All these transformations share the same interface: TokenStream ’ TokenStream. They can be chained, reordered, or replaced independently.
+	All transformations share the same interface: TokenStream â†’ TokenStream. They can be chained, reordered, or replaced independently.
 
 6. Pipeline Orchestration
 
-	The Pipeline builder chains transformations together:
-	:: file src=src/lex/pipeline/builder.rs ::
+	The Pipeline chains transformations together:
+	:: file src/lex/pipeline/builder.rs ::
+	:: file src/lex/pipeline/executor.rs ::
 
 	Each transformation receives the output of the previous one
-	The walker handles traversal for Tree variants automatically
+	All operate on flat Vec<(Token, Range)>
 	Errors propagate cleanly through the Result type
-	The final TokenStream goes to adapters for parser consumption
+	The final TokenStream goes to parsers (with optional adapters)
 
-	Example pipeline (linebased lexer):
-		Base tokenization ’ Flat stream
-		NormalizeWhitespace ’ Flat stream
-		SemanticIndentation ’ Flat stream
-		BlankLines ’ Flat stream
-		ToLineTokens ’ Tree stream (shallow)
-		IndentationToTree ’ Tree stream (nested)
+	Example pipeline (both parsers use the same pipeline):
+		Base tokenization â†’ Flat stream
+		NormalizeWhitespace â†’ Flat stream
+		SemanticIndentation â†’ Flat stream (with Indent/Dedent)
+		BlankLines â†’ Flat stream
+		â†’ Parser (reference or linebased)
 
-7. Architectural Boundaries
+7. Parser Integration
 
-	Token Streams are the internal transformation currency. At architectural boundaries, adapters convert to domain-specific formats:
-	:: file src=src/lex/pipeline/adapters_linebased.rs ::
+	Reference Parser:
+		Consumes flat TokenStream directly
+		No adapter needed (just passes the Vec through)
 
-	Lexer ’ Parser Boundary:
-		TokenStream ’ LineContainer (for linebased parser)
-		Preserves LineType classifications
-		Maintains all original token information
+	LineBased Parser:
+		Builds tree structure internally in tree_builder module
+		:: file src/lex/parsing/linebased/tree_builder.rs ::
+		Groups tokens into lines, classifies them, builds hierarchy
+		Tree complexity localized to the only consumer that needs it
 
-	These adapters are the only places where TokenStream converts to external formats. The transformation pipeline itself is adapter-free and operates purely on TokenStream.
+	The transformation pipeline itself operates purely on flat TokenStream throughout. Tree building is a parser-internal concern, not a pipeline concern.
 
-8. Benefits of Token Streams
+8. Benefits of Simplified Token Streams
+
+	Dramatic Simplification:
+		TokenStream: 432 lines â†’ 17 lines
+		Mapper infrastructure: 638 lines â†’ 235 lines
+		Adapters: 629 lines â†’ 142 lines
+		Total reduction: ~1,100 lines from pipeline code
 
 	Composability:
 		All transformations share identical interface
-		Easy to chain, reorder, or disable in pipelines
+		Easy to chain, reorder, or disable
 		New transformations integrate seamlessly
 
 	Guaranteed Location Accuracy:
-		The unroll() method ensures original tokens are accessible
+		Source tokens preserved in aggregates
 		Perfect location tracking for AST building
 		Immutable Log principle enforced architecturally
 
-	Simplicity:
-		Transformation logic focuses on "what" not "how"
-		Complex traversal written once in the walker
-		Reduces duplication and cognitive load
+	Clarity:
+		Transformation logic is just: flat â†’ flat
+		No complex traversal patterns to understand
+		Reduces cognitive load dramatically
 
-	Robustness:
-		Centralized, tested traversal logic
-		Reduced chance of bugs in individual transformations
-		Type-safe transformation interfaces
-
-	Flexibility:
-		Pre-order and post-order hooks provide full control
-		Supports simple token replacement to complex restructuring
-		Enables both flat and hierarchical transformations
+	Locality of Complexity:
+		Tree building only in line-based parser
+		Pipeline stays simple and focused
+		Each component has clear, single responsibility
 
 9. Implementation Notes
 
-	The Token Stream architecture was implemented progressively, migrating transformations one at a time while maintaining a working pipeline throughout. The final result is a clean, unified system where:
+	The simplification was implemented in two phases:
 
-		All transformations use StreamMapper trait
-		Walker function handles all traversal
-		Original token locations are never lost
-		Adapters exist only at architectural boundaries
+	Phase 1: Move tree-building into parser
+		Created tree_builder module in linebased parser
+		Extracted logic from ToLineTokensMapper and IndentationToTreeMapper
+		Parser builds trees internally from flat tokens
 
-	For the original design proposal, see:
-	:: file src=docs/dev/proposals/token-streams.lex ::
+	Phase 2: Simplify TokenStream to type alias
+		Removed enum variants (Flat/Tree)
+		Removed unroll() method (no longer needed)
+		Removed tree-walking infrastructure
+		Updated all code to work with plain Vec
+
+	The result is a clean, minimal system where:
+		Pipeline: flat transformations only
+		Parsers: consume flat streams (build trees if needed internally)
+		Original token locations: never lost (Immutable Log)
+
+	For historical context on the original design:
+	:: file docs/dev/proposals/token-streams.lex ::
 
 	For details on how the lexer pipeline uses Token Streams:
-	:: file src=docs/dev/guides/on-lexing.lex ::
+	:: file docs/dev/guides/on-lexing.lex ::
