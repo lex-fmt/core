@@ -17,8 +17,9 @@ type ParserError = Simple<TokenLocation>;
 /// Parses the entire token stream as document content.
 /// This function is focused on document-level parsing and delegates to parser.rs
 /// for the actual document content parsing logic.
-pub fn document(source: &str) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
-    super::parser::build_document_content_parser(source).map(|children| {
-        ParseNode::new(NodeType::Document, vec![], children)
-    })
+pub fn document(
+    source: &str,
+) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
+    super::parser::build_document_content_parser(source)
+        .map(|children| ParseNode::new(NodeType::Document, vec![], children))
 }

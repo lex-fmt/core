@@ -566,8 +566,8 @@ pub mod lex_sources {
                         crate::lex::lexers::ensure_source_ends_with_newline(&content);
                     let token_stream =
                         crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-                    let _tokens = lex(token_stream);
-                    let json = serde_json::to_string_pretty(&_tokens).map_err(|e| {
+                    let tokens = lex(token_stream);
+                    let json = serde_json::to_string_pretty(&tokens).map_err(|e| {
                         ProcessingError::IoError(format!("Failed to serialize tokens: {}", e))
                     })?;
 

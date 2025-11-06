@@ -396,11 +396,7 @@ fn convert_pattern_to_item(
 
             // If there's content after the header, create a paragraph for it
             if !content_tokens.is_empty() {
-                children.push(ParseNode::new(
-                    NodeType::Paragraph,
-                    content_tokens,
-                    vec![],
-                ));
+                children.push(ParseNode::new(NodeType::Paragraph, content_tokens, vec![]));
             }
 
             Ok(ParseNode::new(
