@@ -68,7 +68,7 @@
 //! match &doc.content[0] {
 //!     ContentItem::Session(s) => {
 //!         assert_eq!(s.title, "Introduction");
-//!         assert_eq!(s.content.len(), 2);
+//!         assert_eq!(s.children.len(), 2);
 //!         match &s.content[0] {
 //!             ContentItem::Paragraph(p) => {
 //!                 assert_eq!(p.lines.len(), 1);

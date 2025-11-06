@@ -133,11 +133,11 @@ impl ContentItem {
 
     pub fn children(&self) -> Option<&[ContentItem]> {
         match self {
-            ContentItem::Session(s) => Some(s.children()),
-            ContentItem::Definition(d) => Some(d.children()),
-            ContentItem::Annotation(a) => Some(a.children()),
-            ContentItem::List(l) => Some(&l.content),
-            ContentItem::ListItem(li) => Some(li.children()),
+            ContentItem::Session(s) => Some(&s.children),
+            ContentItem::Definition(d) => Some(&d.children),
+            ContentItem::Annotation(a) => Some(&a.children),
+            ContentItem::List(l) => Some(&l.items),
+            ContentItem::ListItem(li) => Some(&li.children),
             ContentItem::Paragraph(p) => Some(&p.lines),
             ContentItem::TextLine(_) => None,
             _ => None,
@@ -146,11 +146,11 @@ impl ContentItem {
 
     pub fn children_mut(&mut self) -> Option<&mut Vec<ContentItem>> {
         match self {
-            ContentItem::Session(s) => Some(s.children_mut()),
-            ContentItem::Definition(d) => Some(d.children_mut()),
-            ContentItem::Annotation(a) => Some(a.children_mut()),
-            ContentItem::List(l) => Some(&mut l.content),
-            ContentItem::ListItem(li) => Some(li.children_mut()),
+            ContentItem::Session(s) => Some(&mut s.children),
+            ContentItem::Definition(d) => Some(&mut d.children),
+            ContentItem::Annotation(a) => Some(&mut a.children),
+            ContentItem::List(l) => Some(&mut l.items),
+            ContentItem::ListItem(li) => Some(&mut li.children),
             ContentItem::Paragraph(p) => Some(&mut p.lines),
             ContentItem::TextLine(_) => None,
             _ => None,
@@ -344,12 +344,12 @@ impl fmt::Display for ContentItem {
                     f,
                     "Session('{}', {} items)",
                     s.title.as_string(),
-                    s.content.len()
+                    s.children.len()
                 )
             }
-            ContentItem::List(l) => write!(f, "List({} items)", l.content.len()),
+            ContentItem::List(l) => write!(f, "List({} items)", l.items.len()),
             ContentItem::ListItem(li) => {
-                write!(f, "ListItem('{}', {} items)", li.text(), li.content.len())
+                write!(f, "ListItem('{}', {} items)", li.text(), li.children.len())
             }
             ContentItem::TextLine(tl) => {
                 write!(f, "TextLine('{}')", tl.text())
@@ -359,7 +359,7 @@ impl fmt::Display for ContentItem {
                     f,
                     "Definition('{}', {} items)",
                     d.subject.as_string(),
-                    d.content.len()
+                    d.children.len()
                 )
             }
             ContentItem::Annotation(a) => write!(
@@ -367,7 +367,7 @@ impl fmt::Display for ContentItem {
                 "Annotation('{}', {} params, {} items)",
                 a.label.value,
                 a.parameters.len(),
-                a.content.len()
+                a.children.len()
             ),
             ContentItem::ForeignBlock(fb) => {
                 write!(f, "ForeignBlock('{}')", fb.subject.as_string())

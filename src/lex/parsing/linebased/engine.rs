@@ -77,8 +77,8 @@ mod tests {
 
         let doc = result.unwrap();
         // Should have 1 paragraph with 1 line
-        assert!(!doc.root.content.is_empty(), "Should have content");
-        assert!(matches!(doc.root.content[0], ContentItem::Paragraph(_)));
+        assert!(!doc.root.children.is_empty(), "Should have content");
+        assert!(matches!(doc.root.children[0], ContentItem::Paragraph(_)));
     }
 
     #[test]
@@ -94,7 +94,7 @@ mod tests {
         // Should have Definition at root level
         let has_definition = doc
             .root
-            .content
+            .children
             .iter()
             .any(|item| matches!(item, ContentItem::Definition(_)));
         assert!(has_definition, "Should contain Definition node");
@@ -113,7 +113,7 @@ mod tests {
         // Should have Session at root level (with blank line before content)
         let has_session = doc
             .root
-            .content
+            .children
             .iter()
             .any(|item| matches!(item, ContentItem::Session(_)));
         assert!(has_session, "Should contain a Session node");
@@ -132,7 +132,7 @@ mod tests {
         // Should have Annotation at root level
         let has_annotation = doc
             .root
-            .content
+            .children
             .iter()
             .any(|item| matches!(item, ContentItem::Annotation(_)));
         assert!(has_annotation, "Should contain an Annotation node");
@@ -147,8 +147,8 @@ mod tests {
         let doc = parse_experimental_v2(container, &source).expect("Parser failed");
 
         eprintln!("\n=== 120 ANNOTATIONS SIMPLE ===");
-        eprintln!("Root items count: {}", doc.root.content.len());
-        for (i, item) in doc.root.content.iter().enumerate() {
+        eprintln!("Root items count: {}", doc.root.children.len());
+        for (i, item) in doc.root.children.iter().enumerate() {
             match item {
                 ContentItem::Paragraph(p) => {
                     eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
@@ -162,9 +162,9 @@ mod tests {
                     )
                 }
                 ContentItem::Session(s) => {
-                    eprintln!("  [{}] Session: {} items", i, s.content.len())
+                    eprintln!("  [{}] Session: {} items", i, s.children.len())
                 }
-                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.items.len()),
                 _ => eprintln!("  [{}] Other", i),
             }
         }
@@ -172,12 +172,12 @@ mod tests {
         // Verify we have paragraphs and annotations
         let has_annotations = doc
             .root
-            .content
+            .children
             .iter()
             .any(|item| matches!(item, ContentItem::Annotation(_)));
         let has_paragraphs = doc
             .root
-            .content
+            .children
             .iter()
             .any(|item| matches!(item, ContentItem::Paragraph(_)));
 
@@ -195,8 +195,8 @@ mod tests {
         let doc = parse_experimental_v2(container, &source).expect("Parser failed");
 
         eprintln!("\n=== 130 ANNOTATIONS BLOCK CONTENT ===");
-        eprintln!("Root items count: {}", doc.root.content.len());
-        for (i, item) in doc.root.content.iter().enumerate() {
+        eprintln!("Root items count: {}", doc.root.children.len());
+        for (i, item) in doc.root.children.iter().enumerate() {
             match item {
                 ContentItem::Paragraph(p) => {
                     eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
@@ -207,13 +207,13 @@ mod tests {
                         i,
                         a.label.value,
                         a.parameters.len(),
-                        a.content.len()
+                        a.children.len()
                     )
                 }
                 ContentItem::Session(s) => {
-                    eprintln!("  [{}] Session: {} items", i, s.content.len())
+                    eprintln!("  [{}] Session: {} items", i, s.children.len())
                 }
-                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.items.len()),
                 _ => eprintln!("  [{}] Other", i),
             }
         }
@@ -221,13 +221,13 @@ mod tests {
         // Verify we have annotations with block content
         let annotations_with_content = doc
             .root
-            .content
+            .children
             .iter()
             .filter_map(|item| match item {
                 ContentItem::Annotation(a) => Some(a),
                 _ => None,
             })
-            .filter(|a| !a.content.is_empty())
+            .filter(|a| !a.children.is_empty())
             .count();
 
         assert!(
@@ -269,8 +269,8 @@ Final paragraph.
         let doc = parse_experimental_v2(container, source).expect("Parser failed");
 
         eprintln!("\n=== ANNOTATIONS + TRIFECTA COMBINED ===");
-        eprintln!("Root items count: {}", doc.root.content.len());
-        for (i, item) in doc.root.content.iter().enumerate() {
+        eprintln!("Root items count: {}", doc.root.children.len());
+        for (i, item) in doc.root.children.iter().enumerate() {
             match item {
                 ContentItem::Paragraph(p) => {
                     eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
@@ -280,13 +280,13 @@ Final paragraph.
                         "  [{}] Annotation: label='{}' content={} items",
                         i,
                         a.label.value,
-                        a.content.len()
+                        a.children.len()
                     )
                 }
                 ContentItem::Session(s) => {
-                    eprintln!("  [{}] Session: {} items", i, s.content.len())
+                    eprintln!("  [{}] Session: {} items", i, s.children.len())
                 }
-                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.content.len()),
+                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.items.len()),
                 _ => eprintln!("  [{}] Other", i),
             }
         }
@@ -294,17 +294,17 @@ Final paragraph.
         // Verify mixed content
         let has_annotations = doc
             .root
-            .content
+            .children
             .iter()
             .any(|item| matches!(item, ContentItem::Annotation(_)));
         let has_paragraphs = doc
             .root
-            .content
+            .children
             .iter()
             .any(|item| matches!(item, ContentItem::Paragraph(_)));
         let has_sessions = doc
             .root
-            .content
+            .children
             .iter()
             .any(|item| matches!(item, ContentItem::Session(_)));
 

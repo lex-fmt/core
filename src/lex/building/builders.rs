@@ -74,7 +74,7 @@ pub(super) fn create_paragraph(data: ParagraphData, source: &str) -> ContentItem
     let overall_location = byte_range_to_ast_range(data.overall_byte_range, source);
 
     ContentItem::Paragraph(Paragraph {
-        lines,
+        lines: crate::lex::ast::elements::container::Container::new(lines),
         location: overall_location,
     })
 }
@@ -175,7 +175,10 @@ pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
         compute_location_from_locations(&item_locations)
     };
 
-    ContentItem::List(List { content, location })
+    ContentItem::List(List {
+        items: crate::lex::ast::elements::container::Container::new(content),
+        location,
+    })
 }
 
 // ============================================================================
@@ -256,7 +259,7 @@ pub(super) fn create_annotation(
     let annotation = Annotation {
         label,
         parameters,
-        content,
+        children: crate::lex::ast::elements::container::Container::new(content),
         location,
     };
 

@@ -151,7 +151,7 @@ impl Model {
 
     /// Expand all nodes in the document (for initial state)
     fn expand_all_nodes(&mut self) {
-        let content = self.document.root.content.clone();
+        let content = self.document.root.children.clone();
         self.expand_all_recursive(&content, &NodeId::new(&[]));
     }
 
@@ -347,7 +347,7 @@ impl Model {
             return None;
         }
 
-        let mut current: &[ContentItem] = &self.document.root.content;
+        let mut current: &[ContentItem] = &self.document.root.children;
         let mut depth = 0;
 
         for (path_idx, &index) in path.iter().enumerate() {
@@ -380,7 +380,7 @@ impl Model {
     /// This is a linear search through the tree to find the element.
     /// In practice, this is fast enough since lex documents are typically small.
     fn find_node_id_for_element(&self, target: &ContentItem) -> Option<NodeId> {
-        self.find_node_id_recursive(target, &self.document.root.content, &mut Vec::new())
+        self.find_node_id_recursive(target, &self.document.root.children, &mut Vec::new())
     }
 
     #[allow(clippy::only_used_in_recursion)]

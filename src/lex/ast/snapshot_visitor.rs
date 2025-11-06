@@ -60,12 +60,12 @@ pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
         format!(
             "Document ({} metadata, {} items)",
             doc.metadata.len(),
-            doc.root.content.len()
+            doc.root.children.len()
         ),
     );
 
     // Flatten the root session - its children become direct children of the Document
-    for child in &doc.root.content {
+    for child in &doc.root.children {
         snapshot.children.push(snapshot_from_content(child));
     }
 
@@ -90,7 +90,7 @@ fn build_paragraph_snapshot(para: &Paragraph) -> AstSnapshot {
 
 fn build_list_snapshot(list: &List) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("List".to_string(), list.display_label());
-    for item in &list.content {
+    for item in &list.items {
         snapshot.children.push(snapshot_from_content(item));
     }
     snapshot
@@ -141,12 +141,12 @@ mod tests {
     fn test_snapshot_from_document_with_content() {
         let mut doc = Document::new();
         doc.root
-            .content
+            .children
             .push(ContentItem::Paragraph(Paragraph::from_line(
                 "Test".to_string(),
             )));
         doc.root
-            .content
+            .children
             .push(ContentItem::Session(Session::with_title(
                 "Section".to_string(),
             )));
@@ -189,13 +189,13 @@ mod tests {
     fn test_snapshot_from_document_preserves_structure() {
         let mut session = Session::with_title("Main".to_string());
         session
-            .content
+            .children
             .push(ContentItem::Paragraph(Paragraph::from_line(
                 "Para 1".to_string(),
             )));
 
         let mut doc = Document::new();
-        doc.root.content.push(ContentItem::Session(session));
+        doc.root.children.push(ContentItem::Session(session));
 
         let snapshot = snapshot_from_document(&doc);
 

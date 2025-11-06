@@ -313,13 +313,13 @@ fn test_regression_definition_with_list_followed_by_definition() {
         .expect("Parser should handle definition with list followed by definition");
 
     // Should have 2 definitions
-    assert_eq!(doc.root.content.len(), 2);
+    assert_eq!(doc.root.children.len(), 2);
 
     // First should be a definition
-    assert!(doc.root.content[0].as_definition().is_some());
+    assert!(doc.root.children[0].as_definition().is_some());
 
     // Second should also be a definition
-    assert!(doc.root.content[1].as_definition().is_some());
+    assert!(doc.root.children[1].as_definition().is_some());
 }
 
 // ========================================================================
@@ -331,8 +331,8 @@ fn test_parse_simple() {
     let input = "Hello world\n\n";
     let doc = parse_document(input).expect("Failed to parse with positions");
 
-    assert_eq!(doc.root.content.len(), 1);
-    let para = doc.root.content[0].as_paragraph().unwrap();
+    assert_eq!(doc.root.children.len(), 1);
+    let para = doc.root.children[0].as_paragraph().unwrap();
     let range = para.range();
     assert_eq!(range.start.line, 0);
     assert_eq!(range.start.column, 0);
@@ -343,8 +343,8 @@ fn test_parse_multiline() {
     let input = "First line\nSecond line\n\n";
     let doc = parse_document(input).expect("Failed to parse with positions");
 
-    assert_eq!(doc.root.content.len(), 1);
-    let para = doc.root.content[0].as_paragraph().unwrap();
+    assert_eq!(doc.root.children.len(), 1);
+    let para = doc.root.children[0].as_paragraph().unwrap();
 
     // Should have 2 lines
     assert_eq!(para.lines.len(), 2);
@@ -376,7 +376,7 @@ fn test_element_at_nested_position() {
     let doc = parse_document(input).expect("Failed to parse with positions");
 
     // The document should have at least a paragraph and possibly a list
-    assert!(!doc.root.content.is_empty());
+    assert!(!doc.root.children.is_empty());
 
     // Query for position in the nested content
     let result = doc.element_at(Position::new(4, 4));
@@ -392,7 +392,7 @@ fn test_position_comparison_in_query() {
     let doc = parse_document(input).expect("Failed to parse with positions");
 
     // Get all items
-    let items = doc.root.content.clone();
+    let items = doc.root.children.clone();
 
     // First paragraph should be at line 0
     if let Some(para) = items.first().and_then(|item| item.as_paragraph()) {
@@ -420,10 +420,10 @@ fn test_backward_compatibility_without_positions() {
     let doc_new = parse_document(input).expect("Failed to parse with positions");
 
     // Content should be identical
-    assert_eq!(doc_old.root.content.len(), doc_new.root.content.len());
+    assert_eq!(doc_old.root.children.len(), doc_new.root.children.len());
 
-    let para_old = doc_old.root.content[0].as_paragraph().unwrap();
-    let para_new = doc_new.root.content[0].as_paragraph().unwrap();
+    let para_old = doc_old.root.children[0].as_paragraph().unwrap();
+    let para_new = doc_new.root.children[0].as_paragraph().unwrap();
 
     // Text content should be the same (ignoring location information)
     assert_eq!(para_old.lines.len(), para_new.lines.len());
@@ -451,7 +451,7 @@ fn test_location_boundary_containment() {
     let input = "0123456789\n\n";
     let doc = parse_document(input).expect("Failed to parse with positions");
 
-    let para = doc.root.content[0].as_paragraph().unwrap();
+    let para = doc.root.children[0].as_paragraph().unwrap();
     let range = para.range();
 
     // Should contain position in the middle
@@ -473,12 +473,12 @@ fn test_nested_paragraph_has_location() {
     let input = "Title\n\n1. Session Title\n\n    Nested paragraph\n\n";
     let doc = parse_document(input).expect("Failed to parse with positions");
 
-    assert!(doc.root.content.len() >= 2);
+    assert!(doc.root.children.len() >= 2);
 
     // Find the session
     let session = doc
         .root
-        .content
+        .children
         .iter()
         .find(|item| item.is_session())
         .expect("Should have a session");
@@ -527,7 +527,7 @@ fn test_location_tracking_for_core_elements() {
         "Root session should have a location"
     );
 
-    for item in &doc.root.content {
+    for item in &doc.root.children {
         let item_range = item.range();
         assert!(
             item_range.start <= item_range.end,
@@ -552,7 +552,7 @@ fn test_location_tracking_for_core_elements() {
                     session.title.location.is_some(),
                     "Session title is missing location"
                 );
-                for child in &session.content {
+                for child in &session.children {
                     let child_range = child.range();
                     assert!(
                         child_range.start <= child_range.end,
@@ -565,7 +565,7 @@ fn test_location_tracking_for_core_elements() {
                     definition.subject.location.is_some(),
                     "Definition subject should have location"
                 );
-                for child in &definition.content {
+                for child in &definition.children {
                     let child_range = child.range();
                     assert!(
                         child_range.start <= child_range.end,
@@ -574,7 +574,7 @@ fn test_location_tracking_for_core_elements() {
                 }
             }
             ContentItem::List(list) => {
-                for item in &list.content {
+                for item in &list.items {
                     if let ContentItem::ListItem(list_item) = item {
                         for text in &list_item.text {
                             assert!(
@@ -582,7 +582,7 @@ fn test_location_tracking_for_core_elements() {
                                 "List item text should have location"
                             );
                         }
-                        for child in &list_item.content {
+                        for child in &list_item.children {
                             let child_range = child.range();
                             assert!(
                                 child_range.start <= child_range.end,
@@ -605,7 +605,7 @@ fn test_location_tracking_for_annotations() {
 
     let annotations: Vec<_> = doc
         .root
-        .content
+        .children
         .iter()
         .filter_map(|item| item.as_annotation())
         .collect();
@@ -630,7 +630,7 @@ fn test_location_tracking_for_foreign_blocks() {
 
     let foreign_blocks: Vec<_> = doc
         .root
-        .content
+        .children
         .iter()
         .filter_map(|item| item.as_foreign_block())
         .collect();
