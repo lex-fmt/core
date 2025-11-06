@@ -41,18 +41,28 @@ pub enum TargetSpec {
     /// Stop at tokens
     Tokens,
 
-    /// Continue to AST with specified parser
-    Ast { parser: ParserSpec },
+    /// Continue to AST with specified analyzer and builder
+    Ast {
+        analyzer: AnalysisSpec,
+        builder: BuilderSpec,
+    },
 }
 
-/// Which parser to use
+/// Which syntactic analyzer (parser) to use
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ParserSpec {
+pub enum AnalysisSpec {
     /// Reference combinator parser
     Reference,
 
     /// Linebased declarative grammar parser
     Linebased,
+}
+
+/// Which AST builder to use
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BuilderSpec {
+    /// Standard LSP AST builder
+    Lsp,
 }
 
 /// Registry of processing configurations
@@ -97,20 +107,22 @@ impl ConfigRegistry {
         // Standard stable configuration
         registry.register(ProcessingConfig {
             name: "default".into(),
-            description: "Stable: Indentation lexer + Reference parser".into(),
+            description: "Stable: Indentation lexer + Reference analyzer + LSP builder".into(),
             pipeline_spec: PipelineSpec::Indentation,
             target: TargetSpec::Ast {
-                parser: ParserSpec::Reference,
+                analyzer: AnalysisSpec::Reference,
+                builder: BuilderSpec::Lsp,
             },
         });
 
         // Linebased experimental configuration
         registry.register(ProcessingConfig {
             name: "linebased".into(),
-            description: "Experimental: Linebased lexer + Linebased parser".into(),
+            description: "Experimental: Linebased lexer + Linebased analyzer + LSP builder".into(),
             pipeline_spec: PipelineSpec::Linebased,
             target: TargetSpec::Ast {
-                parser: ParserSpec::Linebased,
+                analyzer: AnalysisSpec::Linebased,
+                builder: BuilderSpec::Lsp,
             },
         });
 
@@ -244,7 +256,8 @@ mod tests {
         assert_eq!(
             config.target,
             TargetSpec::Ast {
-                parser: ParserSpec::Reference
+                analyzer: AnalysisSpec::Reference,
+                builder: BuilderSpec::Lsp,
             }
         );
     }
@@ -260,7 +273,8 @@ mod tests {
         assert_eq!(
             config.target,
             TargetSpec::Ast {
-                parser: ParserSpec::Linebased
+                analyzer: AnalysisSpec::Linebased,
+                builder: BuilderSpec::Lsp,
             }
         );
     }
@@ -286,14 +300,20 @@ mod tests {
         assert_ne!(
             TargetSpec::Tokens,
             TargetSpec::Ast {
-                parser: ParserSpec::Reference
+                analyzer: AnalysisSpec::Reference,
+                builder: BuilderSpec::Lsp,
             }
         );
     }
 
     #[test]
-    fn test_parser_spec_equality() {
-        assert_eq!(ParserSpec::Reference, ParserSpec::Reference);
-        assert_ne!(ParserSpec::Reference, ParserSpec::Linebased);
+    fn test_analyzer_spec_equality() {
+        assert_eq!(AnalysisSpec::Reference, AnalysisSpec::Reference);
+        assert_ne!(AnalysisSpec::Reference, AnalysisSpec::Linebased);
+    }
+
+    #[test]
+    fn test_builder_spec_equality() {
+        assert_eq!(BuilderSpec::Lsp, BuilderSpec::Lsp);
     }
 }
