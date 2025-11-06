@@ -252,35 +252,65 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     let content =
         fs::read_to_string(file_path).map_err(|e| ProcessingError::IoError(e.to_string()))?;
 
-    // Process according to stage and format
-    // Handle linebased pipeline formats first
+    // Process according to stage and format using PipelineExecutor
     match &spec.format {
         OutputFormat::TokenLine => {
-            let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(&content);
-            let token_stream =
-                crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-            let line_tokens = crate::lex::lexers::_lex_stage(
-                token_stream,
-                crate::lex::lexers::PipelineStage::LineTokens,
-            );
-            if let crate::lex::lexers::PipelineOutput::LineTokens(tokens) = line_tokens {
-                let json = serde_json::to_string_pretty(&tokens)
-                    .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-                return Ok(json);
+            // Use PipelineExecutor with tokens-linebased-flat config
+            let executor = PipelineExecutor::new();
+            let output = executor
+                .execute("tokens-linebased-flat", &content)
+                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+
+            match output {
+                ExecutionOutput::Tokens(stream) => {
+                    // Convert TokenStream to Vec<LineToken>
+                    let line_tokens =
+                        crate::lex::pipeline::adapters_linebased::token_stream_to_line_tokens(
+                            stream,
+                        )
+                        .map_err(|e| {
+                            ProcessingError::IoError(format!(
+                                "Failed to convert to line tokens: {:?}",
+                                e
+                            ))
+                        })?;
+                    let json = serde_json::to_string_pretty(&line_tokens)
+                        .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+                    Ok(json)
+                }
+                _ => Err(ProcessingError::IoError(
+                    "Expected Tokens output from tokens-linebased-flat config".to_string(),
+                )),
             }
-            Err(ProcessingError::IoError(
-                "Unexpected output from linebased pipeline".to_string(),
-            ))
         }
         OutputFormat::TokenTree => {
-            let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(&content);
-            let token_stream =
-                crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
-            let tree = crate::lex::lexers::_lex(token_stream)
+            // Use PipelineExecutor with tokens-linebased-tree config
+            let executor = PipelineExecutor::new();
+            let output = executor
+                .execute("tokens-linebased-tree", &content)
                 .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-            let json = serde_json::to_string_pretty(&tree)
-                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-            Ok(json)
+
+            match output {
+                ExecutionOutput::Tokens(stream) => {
+                    // Convert TokenStream to LineContainer
+                    let tree =
+                        crate::lex::pipeline::adapters_linebased::token_stream_to_line_container(
+                            stream,
+                        )
+                        .map_err(|e| {
+                            ProcessingError::IoError(format!(
+                                "Failed to convert to line container: {:?}",
+                                e
+                            ))
+                        })?;
+                    let json = serde_json::to_string_pretty(&tree)
+                        .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+                    Ok(json)
+                }
+                _ => Err(ProcessingError::IoError(
+                    "Expected Tokens output from tokens-linebased-tree config".to_string(),
+                )),
+            }
         }
         _ => {
             // Use new PipelineExecutor for standard processing
