@@ -534,7 +534,7 @@ mod tests {
         match container {
             LineContainer::Container { children } => {
                 // Should have title token and then a container with the indented content
-                assert!(children.len() >= 1);
+                assert!(!children.is_empty());
 
                 // First child should be the title
                 match &children[0] {
