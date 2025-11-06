@@ -1,7 +1,7 @@
-//! Unified pipeline architecture for lexer transformations
+//! Unified pipeline architecture for Lex processing
 //!
-//! This module provides both:
-//! - High-level pipeline orchestration (`LexPipeline`) - for selecting lexer/parser combinations
+//! This module provides:
+//! - Config-based processing (`PipelineExecutor`) - for executing named configurations
 //! - Low-level transformation pipeline (`Pipeline`) - for chaining TokenStream transformations
 //! - Transformation infrastructure (`TokenStream`, `StreamMapper`)
 //! - Adapters for architectural boundaries
@@ -13,16 +13,12 @@ pub mod config;
 pub mod executor;
 pub mod mapper;
 pub mod mappers;
-pub mod orchestration;
 pub mod stream;
 
-// Re-export high-level orchestration API
-pub use orchestration::{LexPipeline, PipelineError};
-
-// Re-export new TokenStream-based pipeline builder
+// Re-export low-level pipeline builder
 pub use builder::{ParserConfig, Pipeline, PipelineOutput};
 
-// Re-export config-based processing API
+// Re-export config-based processing API (primary interface)
 pub use config::{ConfigRegistry, PipelineSpec, ProcessingConfig, TargetSpec};
 pub use executor::{ExecutionError, ExecutionOutput, PipelineExecutor};
 

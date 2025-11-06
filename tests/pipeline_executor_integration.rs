@@ -1,9 +1,8 @@
 //! Integration tests for PipelineExecutor
 //!
-//! These tests validate that the new config-based executor:
+//! These tests validate that the config-based executor:
 //! 1. Produces correct results on real sample files
-//! 2. Matches behavior of existing LexPipeline
-//! 3. All default configs work without errors
+//! 2. All default configs work without errors
 
 use lex::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 use lex::lex::processor::lex_sources::LexSources;
@@ -73,52 +72,35 @@ fn test_executor_on_sample_sessions() {
 }
 
 #[test]
-fn test_executor_vs_existing_pipeline_simple() {
+fn test_executor_simple_source() {
     let executor = PipelineExecutor::new();
-    let old_pipeline = lex::lex::pipeline::LexPipeline::default();
-
     let source = "Hello world\n";
 
-    // Execute with new system
-    let new_result = executor.execute("default", source).unwrap();
-    let new_doc = match new_result {
+    let result = executor.execute("default", source).unwrap();
+    let doc = match result {
         ExecutionOutput::Document(doc) => doc,
         _ => panic!("Expected document"),
     };
 
-    // Execute with old system
-    let old_doc = old_pipeline.parse(source).unwrap();
-
-    // Compare basic structure
-    assert_eq!(
-        new_doc.root.content.len(),
-        old_doc.root.content.len(),
-        "ASTs should have same number of root content items"
-    );
+    // Should produce document with content
+    assert!(!doc.root.content.is_empty(), "Document should have content");
 }
 
 #[test]
-fn test_executor_vs_existing_pipeline_with_session() {
+fn test_executor_with_session() {
     let executor = PipelineExecutor::new();
-    let old_pipeline = lex::lex::pipeline::LexPipeline::default();
-
     let source = "Session:\n    Content here\n";
 
-    // Execute with new system
-    let new_result = executor.execute("default", source).unwrap();
-    let new_doc = match new_result {
+    let result = executor.execute("default", source).unwrap();
+    let doc = match result {
         ExecutionOutput::Document(doc) => doc,
         _ => panic!("Expected document"),
     };
 
-    // Execute with old system
-    let old_doc = old_pipeline.parse(source).unwrap();
-
-    // Compare basic structure
-    assert_eq!(
-        new_doc.root.content.len(),
-        old_doc.root.content.len(),
-        "ASTs should have same structure"
+    // Should produce document with session
+    assert!(
+        !doc.root.content.is_empty(),
+        "Document should have session content"
     );
 }
 
