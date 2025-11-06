@@ -1,7 +1,7 @@
 //! Pipeline executor that runs processing configurations
 
 use crate::lex::lexers::base_tokenization;
-use crate::lex::parsers::Document;
+use crate::lex::parsers::{builder, Document};
 use crate::lex::pipeline::config::{ConfigRegistry, ParserSpec, PipelineSpec, TargetSpec};
 use crate::lex::pipeline::mapper::walk_stream;
 use crate::lex::pipeline::mappers::*;
@@ -143,9 +143,12 @@ impl PipelineExecutor {
         match parser {
             ParserSpec::Reference => {
                 let tokens = stream.unroll();
-                crate::lex::parsers::reference::parse(tokens, source).map_err(|_| {
-                    ExecutionError::ParsingFailed("Reference parser failed".to_string())
-                })
+                let parse_node =
+                    crate::lex::parsers::reference::parse(tokens, source).map_err(|_| {
+                        ExecutionError::ParsingFailed("Reference parser failed".to_string())
+                    })?;
+                let builder = builder::AstBuilder::new(source);
+                Ok(builder.build(parse_node))
             }
             ParserSpec::Linebased => {
                 let container =

@@ -17,9 +17,8 @@
 //! 7. paragraph (any content-line or sequence thereof)
 //! 8. blank_line_group (one or more consecutive blank lines)
 
-use super::builders;
 use crate::lex::lexers::linebased::tokens_linebased::{LineContainer, LineToken};
-use crate::lex::parsers::ContentItem;
+use crate::lex::parsers::ir::{NodeType, ParseNode};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::ops::Range;
@@ -244,7 +243,7 @@ impl GrammarMatcher {
 pub fn parse_with_declarative_grammar(
     tokens: Vec<LineContainer>,
     source: &str,
-) -> Result<Vec<ContentItem>, String> {
+) -> Result<Vec<ParseNode>, String> {
     let mut items = Vec::new();
     let mut idx = 0;
 
@@ -274,7 +273,7 @@ fn convert_pattern_to_item(
     pattern: &PatternMatch,
     pattern_offset: usize,
     source: &str,
-) -> Result<ContentItem, String> {
+) -> Result<ParseNode, String> {
     match pattern {
         PatternMatch::ForeignBlock {
             subject_idx,
@@ -300,8 +299,35 @@ fn convert_pattern_to_item(
             } else {
                 Vec::new()
             };
-
-            builders::unwrap_foreign_block(subject_token, content_lines, closing_token, source)
+            let mut all_tokens = subject_token
+                .source_tokens
+                .clone()
+                .into_iter()
+                .zip(subject_token.token_spans.clone())
+                .collect::<Vec<_>>();
+            for line in content_lines {
+                all_tokens.extend(
+                    line.source_tokens
+                        .clone()
+                        .into_iter()
+                        .zip(line.token_spans.clone()),
+                );
+            }
+            let closing_node = ParseNode::new(
+                NodeType::Annotation,
+                closing_token
+                    .source_tokens
+                    .clone()
+                    .into_iter()
+                    .zip(closing_token.token_spans.clone())
+                    .collect(),
+                vec![],
+            );
+            Ok(ParseNode::new(
+                NodeType::ForeignBlock,
+                all_tokens,
+                vec![closing_node],
+            ))
         }
         PatternMatch::AnnotationBlock {
             start_idx,
@@ -313,16 +339,71 @@ fn convert_pattern_to_item(
             // Extract content from container
             if let LineContainer::Container { children, .. } = &tokens[pattern_offset + content_idx]
             {
-                let content = parse_with_declarative_grammar(children.clone(), source)?;
-                builders::unwrap_annotation_with_content(start_token, content, source)
+                let children = parse_with_declarative_grammar(children.clone(), source)?;
+                Ok(ParseNode::new(
+                    NodeType::Annotation,
+                    start_token
+                        .source_tokens
+                        .clone()
+                        .into_iter()
+                        .zip(start_token.token_spans.clone())
+                        .collect(),
+                    children,
+                ))
             } else {
-                // Fallback to single-line annotation if no container
-                builders::unwrap_annotation(start_token, source)
+                Ok(ParseNode::new(
+                    NodeType::Annotation,
+                    start_token
+                        .source_tokens
+                        .clone()
+                        .into_iter()
+                        .zip(start_token.token_spans.clone())
+                        .collect(),
+                    vec![],
+                ))
             }
         }
         PatternMatch::AnnotationSingle { start_idx } => {
             let start_token = extract_line_token(&tokens[pattern_offset + start_idx])?;
-            builders::unwrap_annotation(start_token, source)
+            let mut children = vec![];
+            let mut header_tokens = vec![];
+
+            // Manually split tokens into header (up to second ::) and content (after)
+            let all_tokens = start_token
+                .source_tokens
+                .clone()
+                .into_iter()
+                .zip(start_token.token_spans.clone())
+                .collect::<Vec<_>>();
+
+            let mut lex_marker_count = 0;
+            let mut content_started = false;
+            let mut content_tokens = vec![];
+
+            for (token, span) in all_tokens {
+                if !content_started {
+                    header_tokens.push((token.clone(), span.clone()));
+                    if token == crate::lex::lexers::Token::LexMarker {
+                        lex_marker_count += 1;
+                        if lex_marker_count == 2 {
+                            content_started = true;
+                        }
+                    }
+                } else {
+                    content_tokens.push((token, span));
+                }
+            }
+
+            // If there's content after the header, create a paragraph for it
+            if !content_tokens.is_empty() {
+                children.push(ParseNode::new(NodeType::Paragraph, content_tokens, vec![]));
+            }
+
+            Ok(ParseNode::new(
+                NodeType::Annotation,
+                header_tokens,
+                children,
+            ))
         }
         PatternMatch::List {
             blank_idx: _,
@@ -333,7 +414,7 @@ fn convert_pattern_to_item(
             for (item_idx, content_idx) in items {
                 let item_token = extract_line_token(&tokens[pattern_offset + item_idx])?;
 
-                let content = if let Some(content_idx_val) = content_idx {
+                let children = if let Some(content_idx_val) = content_idx {
                     if let LineContainer::Container { children, .. } =
                         &tokens[pattern_offset + content_idx_val]
                     {
@@ -344,12 +425,20 @@ fn convert_pattern_to_item(
                 } else {
                     Vec::new()
                 };
-
-                let list_item = builders::unwrap_list_item(item_token, content, source)?;
+                let list_item = ParseNode::new(
+                    NodeType::ListItem,
+                    item_token
+                        .source_tokens
+                        .clone()
+                        .into_iter()
+                        .zip(item_token.token_spans.clone())
+                        .collect(),
+                    children,
+                );
                 list_items.push(list_item);
             }
 
-            builders::unwrap_list(list_items, source)
+            Ok(ParseNode::new(NodeType::List, vec![], list_items))
         }
         PatternMatch::Definition {
             subject_idx,
@@ -357,7 +446,7 @@ fn convert_pattern_to_item(
         } => {
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
 
-            let content = if let LineContainer::Container { children, .. } =
+            let children = if let LineContainer::Container { children, .. } =
                 &tokens[pattern_offset + content_idx]
             {
                 parse_with_declarative_grammar(children.clone(), source)?
@@ -365,7 +454,16 @@ fn convert_pattern_to_item(
                 Vec::new()
             };
 
-            builders::unwrap_definition(subject_token, content, source)
+            Ok(ParseNode::new(
+                NodeType::Definition,
+                subject_token
+                    .source_tokens
+                    .clone()
+                    .into_iter()
+                    .zip(subject_token.token_spans.clone())
+                    .collect(),
+                children,
+            ))
         }
         PatternMatch::Session {
             subject_idx,
@@ -374,7 +472,7 @@ fn convert_pattern_to_item(
         } => {
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
 
-            let content = if let LineContainer::Container { children, .. } =
+            let children = if let LineContainer::Container { children, .. } =
                 &tokens[pattern_offset + content_idx]
             {
                 parse_with_declarative_grammar(children.clone(), source)?
@@ -382,15 +480,31 @@ fn convert_pattern_to_item(
                 Vec::new()
             };
 
-            builders::unwrap_session(subject_token, content, source)
+            Ok(ParseNode::new(
+                NodeType::Session,
+                subject_token
+                    .source_tokens
+                    .clone()
+                    .into_iter()
+                    .zip(subject_token.token_spans.clone())
+                    .collect(),
+                children,
+            ))
         }
         PatternMatch::Paragraph { start_idx, end_idx } => {
             let paragraph_tokens: Vec<LineToken> = ((pattern_offset + start_idx)
                 ..=(pattern_offset + end_idx))
                 .filter_map(|idx| extract_line_token(&tokens[idx]).ok().cloned())
                 .collect();
-
-            builders::unwrap_tokens_to_paragraph(paragraph_tokens, source)
+            let mut all_tokens = Vec::new();
+            for line in paragraph_tokens {
+                all_tokens.extend(
+                    line.source_tokens
+                        .into_iter()
+                        .zip(line.token_spans.into_iter()),
+                );
+            }
+            Ok(ParseNode::new(NodeType::Paragraph, all_tokens, vec![]))
         }
         PatternMatch::BlankLineGroup { .. } => {
             // BlankLineGroups should have been filtered out in parse_with_declarative_grammar

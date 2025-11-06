@@ -12,7 +12,6 @@
 //! - Maintainable and debuggable
 //! - Less error-prone than hand-written matching logic
 
-pub mod builders;
 pub mod declarative_grammar;
 pub mod engine;
 

@@ -12,9 +12,10 @@
 //! making it testable and maintainable independently.
 
 use super::declarative_grammar;
-use crate::lex::ast::Range;
 use crate::lex::lexers::linebased::tokens_linebased::LineContainer;
-use crate::lex::parsers::{ContentItem, Document, Position};
+use crate::lex::parsers::builder::AstBuilder;
+use crate::lex::parsers::ir::{NodeType, ParseNode};
+use crate::lex::parsers::Document;
 
 /// Parse using the new declarative grammar engine (Delivery 2).
 ///
@@ -38,24 +39,9 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
 
     // Use declarative grammar engine to parse
     let content = declarative_grammar::parse_with_declarative_grammar(children, source)?;
-
-    // Create the root session containing all top-level content using ast_builder
-    use crate::lex::parsers::ast::api as ast_builder;
-    let root_location = Range {
-        span: 0..0,
-        start: Position { line: 0, column: 0 },
-        end: Position { line: 0, column: 0 },
-    };
-    let root =
-        match ast_builder::build_session_from_text("root".to_string(), root_location, content) {
-            ContentItem::Session(session) => session,
-            _ => unreachable!("build_session always returns Session"),
-        };
-
-    Ok(Document {
-        metadata: vec![],
-        root,
-    })
+    let root_node = ParseNode::new(NodeType::Document, vec![], content);
+    let builder = AstBuilder::new(source);
+    Ok(builder.build(root_node))
 }
 
 #[cfg(test)]
