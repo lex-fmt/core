@@ -119,7 +119,7 @@ pub(super) struct AnnotationData {
 /// The content lines have the indentation wall already stripped.
 #[derive(Debug, Clone)]
 pub(super) struct VerbatimBlockkData {
-    /// The foreign block subject text
+    /// The verbatim block subject text
     pub subject_text: String,
     /// Byte range of the subject
     pub subject_byte_range: ByteRange<usize>,
@@ -537,7 +537,7 @@ pub(super) fn extract_annotation_data(
 }
 
 // ============================================================================
-// FOREIGN BLOCK EXTRACTION
+// VERBATIM BLOCK EXTRACTION
 // ============================================================================
 
 /// Calculate the indentation wall from content token lines.
@@ -600,14 +600,14 @@ fn strip_indentation_wall(
         .collect()
 }
 
-/// Extract foreign block data from subject, content, and closing tokens.
+/// Extract verbatim block data from subject, content, and closing tokens.
 ///
 /// This function implements indentation wall stripping:
 /// 1. Calculate the wall (minimum indentation across all content lines)
 /// 2. Strip that many Indent tokens from the start of each line
 /// 3. Extract text from the remaining tokens
 ///
-/// This ensures that foreign blocks at different nesting levels have identical content.
+/// This ensures that verbatim blocks at different nesting levels have identical content.
 ///
 /// # Arguments
 ///
@@ -622,10 +622,10 @@ fn strip_indentation_wall(
 /// # Example
 ///
 /// ```rust,ignore
-/// // Top-level foreign block: "Code:\n    line1\n    line2"
+/// // Top-level verbatim block: "Code:\n    line1\n    line2"
 /// // Content tokens have 1 Indent each
 ///
-/// // Nested foreign block: "Session:\n    Code:\n        line1\n        line2"
+/// // Nested verbatim block: "Session:\n    Code:\n        line1\n        line2"
 /// // Content tokens have 2 Indents each
 ///
 /// // After extraction, both have identical content: "line1\nline2"

@@ -1,18 +1,18 @@
 //! Verbatim line element
 //!
-//! A foreign line represents a single line of foreign content within a foreign block.
-//! This is the "lead item" for foreign blocks, similar to how sessions have titles
+//! A verbatim line represents a single line of verbatim content within a verbatim block.
+//! This is the "lead item" for verbatim blocks, similar to how sessions have titles
 //! and definitions have subjects.
 //!
-//! The foreign line handles the indentation wall - stripping the common indentation
+//! The verbatim line handles the indentation wall - stripping the common indentation
 //! from all content lines to preserve content integrity regardless of nesting level.
 //!
 //! Structure:
-//! - content: The raw text content of the foreign line
+//! - content: The raw text content of the verbatim line
 //! - location: The byte range and position information
 //!
 //! Note: Verbatim lines are typically collected as children of a VerbatimBlock, but
-//! a foreign block can forgo content entirely (e.g., for binary markers).
+//! a verbatim block can forgo content entirely (e.g., for binary markers).
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
@@ -20,7 +20,7 @@ use super::super::traits::AstNode;
 use super::super::traits::Visitor;
 use std::fmt;
 
-/// A foreign line represents a single line of foreign content
+/// A verbatim line represents a single line of verbatim content
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerbatimLine {
     pub content: TextContent,
@@ -72,7 +72,7 @@ impl AstNode for VerbatimLine {
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
-        visitor.visit_foreign_line(self);
+        visitor.visit_verbatim_line(self);
         // VerbatimLine has no children - it's a leaf node
     }
 }
@@ -88,13 +88,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_foreign_line_creation() {
+    fn test_verbatim_line_creation() {
         let line = VerbatimLine::new("    code line".to_string());
         assert_eq!(line.content.as_string(), "    code line");
     }
 
     #[test]
-    fn test_foreign_line_with_location() {
+    fn test_verbatim_line_with_location() {
         let location = Range::new(0..12, Position::new(1, 0), Position::new(1, 12));
         let line = VerbatimLine::new("    code line".to_string()).at(location.clone());
         assert_eq!(line.location, location);

@@ -89,9 +89,9 @@ fn validate_only_list_items(content: &[ContentItem]) {
 /// # Panics
 ///
 /// Panics if any non-VerbatimLine is found in the content.
-fn validate_only_foreign_lines(content: &[ContentItem]) {
+fn validate_only_verbatim_lines(content: &[ContentItem]) {
     for item in content {
-        if !item.is_foreign_line() {
+        if !item.is_verbatim_line() {
             panic!(
                 "Invalid VerbatimBlock content: VerbatimBlockks can only contain VerbatimLine elements, found {}",
                 item.node_type()
@@ -342,17 +342,17 @@ pub(super) fn create_annotation(
 }
 
 // ============================================================================
-// FOREIGN BLOCK CREATION
+// VERBATIM BLOCK CREATION
 // ============================================================================
 
-/// Create a VerbatimBlock AST node from extracted foreign block data.
+/// Create a VerbatimBlock AST node from extracted verbatim block data.
 ///
 /// Converts byte ranges to AST Ranges, creates TextContent for subject and content,
 /// and aggregates location from all components.
 ///
 /// # Arguments
 ///
-/// * `data` - Extracted foreign block data (with indentation wall already stripped)
+/// * `data` - Extracted verbatim block data (with indentation wall already stripped)
 /// * `closing_annotation` - The closing annotation node
 /// * `source` - Original source string
 ///
@@ -378,12 +378,12 @@ pub(super) fn create_verbatim_block(
         line_locations.push(line_location.clone());
 
         let line_content = TextContent::from_string(line_text, Some(line_location.clone()));
-        let foreign_line = VerbatimLine::from_text_content(line_content).at(line_location);
-        children.push(ContentItem::VerbatimLine(foreign_line));
+        let verbatim_line = VerbatimLine::from_text_content(line_content).at(line_location);
+        children.push(ContentItem::VerbatimLine(verbatim_line));
     }
 
-    // Validate that all children are ForeignLines
-    validate_only_foreign_lines(&children);
+    // Validate that all children are VerbatimLines
+    validate_only_verbatim_lines(&children);
 
     // Aggregate location from subject, all lines, and closing annotation
     let mut location_sources = vec![subject_location];

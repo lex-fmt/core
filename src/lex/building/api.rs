@@ -214,7 +214,7 @@ pub fn build_annotation(
 }
 
 // ============================================================================
-// FOREIGN BLOCK BUILDING
+// VERBATIM BLOCK BUILDING
 // ============================================================================
 
 /// Build a VerbatimBlock AST node from subject, content, and closing annotation.
@@ -224,7 +224,7 @@ pub fn build_annotation(
 ///
 /// # Arguments
 ///
-/// * `subject_token` - LineToken for the foreign block subject
+/// * `subject_token` - LineToken for the verbatim block subject
 /// * `content_tokens` - LineTokens for each content line
 /// * `closing_annotation` - The closing annotation node
 /// * `source` - Original source string
@@ -420,7 +420,7 @@ pub fn build_annotation_from_tokens(
 ///
 /// # Arguments
 ///
-/// * `subject_tokens` - Normalized tokens for the foreign block subject
+/// * `subject_tokens` - Normalized tokens for the verbatim block subject
 /// * `content_token_lines` - Normalized token vectors for each content line
 /// * `closing_annotation` - The closing annotation node
 /// * `source` - Original source string
@@ -647,7 +647,7 @@ pub fn build_list_from_items(items: Vec<ContentItem>) -> ContentItem {
 ///
 /// # Arguments
 ///
-/// * `subject_text` - The foreign block subject text
+/// * `subject_text` - The verbatim block subject text
 /// * `subject_location` - The location of the subject
 /// * `content_text` - The content text
 /// * `content_location` - The location of the content

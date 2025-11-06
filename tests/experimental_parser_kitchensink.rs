@@ -125,7 +125,7 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
             let total_chars: usize = fb
                 .children
                 .iter()
-                .filter_map(|child| child.as_foreign_line())
+                .filter_map(|child| child.as_verbatim_line())
                 .map(|line| line.content.as_string().len())
                 .sum();
             format!("VerbatimBlock with {} content char(s)", total_chars)

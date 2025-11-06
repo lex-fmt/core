@@ -8,7 +8,7 @@
 //! 5. No imperative pattern matching - grammar is data, not code
 //!
 //! The grammar parse order (from grammar.lex §4.7):
-//! 1. foreign-block (requires closing annotation - try first for disambiguation)
+//! 1. verbatim-block (requires closing annotation - try first for disambiguation)
 //! 2. annotation_block (block with container between start and end markers)
 //! 3. annotation_single (single-line annotation only)
 //! 4. list (requires preceding blank line + 2+ list items)

@@ -293,9 +293,9 @@ fn test_verified_ensemble_with_definitions() {
     });
 }
 
-// Annotation and foreign block tests have been moved to their respective element modules:
+// Annotation and verbatim block tests have been moved to their respective element modules:
 // - elements/annotations.rs for annotation tests
-// - elements/foreign.rs for foreign block tests
+// - elements/verbatim.rs for verbatim block tests
 
 #[test]
 fn test_regression_definition_with_list_followed_by_definition() {
@@ -624,31 +624,31 @@ fn test_location_tracking_for_annotations() {
 
 #[test]
 fn test_location_tracking_for_verbatim_blocks() {
-    let source = LexSources::get_string("140-foreign-blocks-simple.lex")
-        .expect("Failed to load foreign blocks sample");
-    let doc = parse_document(&source).expect("Failed to parse foreign blocks sample");
+    let source = LexSources::get_string("140-verbatim-blocks-simple.lex")
+        .expect("Failed to load verbatim blocks sample");
+    let doc = parse_document(&source).expect("Failed to parse verbatim blocks sample");
 
-    let foreign_blocks: Vec<_> = doc
+    let verbatim_blocks: Vec<_> = doc
         .root
         .children
         .iter()
         .filter_map(|item| item.as_verbatim_block())
         .collect();
     assert!(
-        !foreign_blocks.is_empty(),
-        "Expected foreign blocks in sample"
+        !verbatim_blocks.is_empty(),
+        "Expected verbatim blocks in sample"
     );
 
-    for block in foreign_blocks {
+    for block in verbatim_blocks {
         assert!(
             block.subject.location.is_some(),
             "Verbatim block subject should have a location"
         );
         // Check that each VerbatimLine child has a location
         for child in &block.children {
-            if let Some(foreign_line) = child.as_foreign_line() {
+            if let Some(verbatim_line) = child.as_verbatim_line() {
                 assert!(
-                    foreign_line.content.location.is_some(),
+                    verbatim_line.content.location.is_some(),
                     "Verbatim line content should have a location"
                 );
             }

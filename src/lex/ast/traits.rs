@@ -38,7 +38,7 @@ pub trait Visitor {
     fn visit_paragraph(&mut self, _paragraph: &super::Paragraph) {}
     fn visit_text_line(&mut self, _text_line: &super::elements::paragraph::TextLine) {}
     fn visit_verbatim_block(&mut self, _verbatim_block: &super::Verbatim) {}
-    fn visit_foreign_line(&mut self, _foreign_line: &VerbatimLine) {}
+    fn visit_verbatim_line(&mut self, _verbatim_line: &VerbatimLine) {}
     fn visit_annotation(&mut self, _annotation: &super::Annotation) {}
     fn visit_blank_line_group(
         &mut self,

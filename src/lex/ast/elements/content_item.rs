@@ -13,11 +13,11 @@ use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::blank_line_group::BlankLineGroup;
 use super::definition::Definition;
-use super::foreign::Verbatim;
-use super::foreign_line::VerbatimLine;
 use super::list::{List, ListItem};
 use super::paragraph::{Paragraph, TextLine};
 use super::session::Session;
+use super::verbatim::Verbatim;
+use super::verbatim_line::VerbatimLine;
 use std::fmt;
 
 /// ContentItem represents any element that can appear in document content
@@ -201,7 +201,7 @@ impl ContentItem {
         matches!(self, ContentItem::VerbatimBlock(_))
     }
 
-    pub fn is_foreign_line(&self) -> bool {
+    pub fn is_verbatim_line(&self) -> bool {
         matches!(self, ContentItem::VerbatimLine(_))
     }
 
@@ -259,7 +259,7 @@ impl ContentItem {
         }
     }
 
-    pub fn as_foreign_line(&self) -> Option<&VerbatimLine> {
+    pub fn as_verbatim_line(&self) -> Option<&VerbatimLine> {
         if let ContentItem::VerbatimLine(fl) = self {
             Some(fl)
         } else {
@@ -325,7 +325,7 @@ impl ContentItem {
         }
     }
 
-    pub fn as_foreign_line_mut(&mut self) -> Option<&mut VerbatimLine> {
+    pub fn as_verbatim_line_mut(&mut self) -> Option<&mut VerbatimLine> {
         if let ContentItem::VerbatimLine(fl) = self {
             Some(fl)
         } else {

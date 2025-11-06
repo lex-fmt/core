@@ -112,7 +112,7 @@ impl<'a> AstBuilder<'a> {
             if let ContentItem::Annotation(ann) = self.build_annotation(closing_annotation_node) {
                 ann
             } else {
-                panic!("Expected Annotation for foreign block closing");
+                panic!("Expected Annotation for verbatim block closing");
             };
 
         ast_builder::build_verbatim_block_from_tokens(

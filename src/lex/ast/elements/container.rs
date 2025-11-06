@@ -56,8 +56,8 @@ pub struct ListContainer {
 
 /// VerbatimContainer is a homogeneous container for VerbatimLine nodes only
 ///
-/// Used by VerbatimBlock.children to enforce that foreign blocks only contain
-/// foreign lines (content from other formats).
+/// Used by VerbatimBlock.children to enforce that verbatim blocks only contain
+/// verbatim lines (content from other formats).
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerbatimContainer {
     pub children: Vec<ContentItem>,
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn test_foreign_container_creation() {
+    fn test_verbatim_container_creation() {
         let container = VerbatimContainer::empty();
         assert_eq!(container.len(), 0);
         assert!(container.is_empty());

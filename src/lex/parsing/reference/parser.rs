@@ -27,9 +27,9 @@ use super::builders::paragraph;
 // Import parser builders from element modules
 use super::annotations::build_annotation_parser;
 use super::definitions::build_definition_parser;
-use super::foreign::verbatim_block;
 use super::lists::build_list_parser;
 use super::sessions::build_session_parser;
+use super::verbatim::verbatim_block;
 use std::sync::Arc;
 
 /// Build the Multi-Parser Bundle for document-level content parsing.

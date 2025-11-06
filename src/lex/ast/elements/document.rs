@@ -14,7 +14,7 @@
 //! - Sessions: docs/specs/v1/elements/sessions.lex
 //! - Annotations: docs/specs/v1/elements/annotations.lex
 //! - Definitions: docs/specs/v1/elements/definitions.lex
-//! - Verbatim blocks: docs/specs/v1/elements/foreign.lex
+//! - Verbatim blocks: docs/specs/v1/elements/verbatim.lex
 //!
 //! Examples:
 //! - Document-level metadata via annotations
@@ -24,10 +24,10 @@ use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
-use super::foreign::Verbatim;
 use super::list::List;
 use super::paragraph::Paragraph;
 use super::session::Session;
+use super::verbatim::Verbatim;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -103,8 +103,8 @@ impl Document {
         let paragraphs = self.iter_paragraphs().count();
         let sessions = self.iter_sessions().count();
         let lists = self.iter_lists().count();
-        let foreign_blocks = self.iter_verbatim_blocks().count();
-        (paragraphs, sessions, lists, foreign_blocks)
+        let verbatim_blocks = self.iter_verbatim_blocks().count();
+        (paragraphs, sessions, lists, verbatim_blocks)
     }
 
     /// Has to be the deepest element, as ancestors are supersets the deepest node location.

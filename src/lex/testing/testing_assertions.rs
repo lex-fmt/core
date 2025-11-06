@@ -212,7 +212,7 @@ impl<'a> ContentItemAssertion<'a> {
         }
     }
 
-    /// Assert this item is a VerbatimBlock and return foreign block-specific assertions
+    /// Assert this item is a VerbatimBlock and return verbatim block-specific assertions
     pub fn assert_verbatim_block(self) -> VerbatimBlockkAssertion<'a> {
         match self.item {
             ContentItem::VerbatimBlock(fb) => VerbatimBlockkAssertion {
@@ -714,7 +714,7 @@ impl<'a> VerbatimBlockkAssertion<'a> {
         let actual = self.verbatim_block.subject.as_string();
         assert_eq!(
             actual, expected,
-            "{}: Expected foreign block subject to be '{}', but got '{}'",
+            "{}: Expected verbatim block subject to be '{}', but got '{}'",
             self.context, expected, actual
         );
         self
@@ -725,14 +725,14 @@ impl<'a> VerbatimBlockkAssertion<'a> {
             .verbatim_block
             .children
             .iter()
-            .filter_map(|child| child.as_foreign_line())
+            .filter_map(|child| child.as_verbatim_line())
             .map(|line| line.content.as_string())
             .collect::<Vec<_>>()
             .join("\n");
 
         assert!(
             actual.contains(substring),
-            "{}: Expected foreign block content to contain '{}', but got '{}'",
+            "{}: Expected verbatim block content to contain '{}', but got '{}'",
             self.context,
             substring,
             actual
@@ -742,7 +742,7 @@ impl<'a> VerbatimBlockkAssertion<'a> {
     pub fn is_marker_form(self) -> Self {
         assert!(
             self.verbatim_block.children.is_empty(),
-            "{}: Expected foreign block to be marker form (empty children), but got {} children",
+            "{}: Expected verbatim block to be marker form (empty children), but got {} children",
             self.context,
             self.verbatim_block.children.len()
         );

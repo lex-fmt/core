@@ -1,13 +1,13 @@
 //! Verbatim block element
 //!
-//! A foreign block embeds content that is not lex formatted.
+//! A verbatim block embeds content that is not lex formatted.
 //! Typically this can either be binary data, such as images, or text in some formal language
 //! like a programming language excerpt in Python.
 //!
-//! Note that a foreign block can forgo content all together (i.e. binaries won't encode content).
+//! Note that a verbatim block can forgo content all together (i.e. binaries won't encode content).
 //!
 //! Structure:
-//! - subject: The lead item identifying what the foreign block contains
+//! - subject: The lead item identifying what the verbatim block contains
 //! - children: VerbatimLine nodes containing the actual content (can be empty)
 //! - closing_annotation: The closing marker (format: `::label::`)
 //!
@@ -34,7 +34,7 @@
 //!      :: javascript ::
 //!
 //! Learn More:
-//! - Verbatim blocks spec: docs/specs/v1/elements/foreign.lex
+//! - Verbatim blocks spec: docs/specs/v1/elements/verbatim.lex
 //!
 
 use super::super::range::{Position, Range};
@@ -45,7 +45,7 @@ use super::container::VerbatimContainer;
 use super::content_item::ContentItem;
 use std::fmt;
 
-/// A foreign block represents content from another format/system
+/// A verbatim block represents content from another format/system
 #[derive(Debug, Clone, PartialEq)]
 pub struct Verbatim {
     pub subject: TextContent,

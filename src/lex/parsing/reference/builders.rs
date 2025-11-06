@@ -8,7 +8,7 @@
 //! - All tests related to AST building
 //!
 //! This centralizes the duplication previously spread across multiple modules
-//! (annotations.rs, definitions.rs, sessions.rs, lists.rs, foreign.rs, combinators.rs, labels.rs, parameters.rs)
+//! (annotations.rs, definitions.rs, sessions.rs, lists.rs, verbatim.rs, combinators.rs, labels.rs, parameters.rs)
 
 use chumsky::prelude::*;
 use chumsky::primitive::filter;
@@ -296,10 +296,10 @@ where
 }
 
 // ============================================================================
-// FOREIGN BLOCK BUILDING
+// VERBATIM BLOCK BUILDING
 // ============================================================================
 
-/// Parse a foreign block
+/// Parse a verbatim block
 pub(crate) fn verbatim_block(
     _source: Arc<String>,
 ) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
