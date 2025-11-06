@@ -161,8 +161,10 @@ impl Parser for ReferenceParserImpl {
         match input {
             ParserInput::Tokens(tokens) => {
                 // Call the actual reference parser
-                crate::lex::parsers::parse(tokens, source)
-                    .map_err(|_| ParseError::ParsingFailed("Reference parser failed".to_string()))
+                let parse_tree = crate::lex::parsers::parse(tokens, source)
+                    .map_err(|_| ParseError::ParsingFailed("Reference parser failed".to_string()))?;
+                let builder = crate::lex::parsers::builder::AstBuilder::new(source);
+                Ok(builder.build(parse_tree))
             }
             ParserInput::LineContainer(_) => Err(ParseError::IncompatibleInput(
                 "Reference parser requires token stream, not line container".to_string(),

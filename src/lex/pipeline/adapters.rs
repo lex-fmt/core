@@ -199,10 +199,10 @@ pub fn adapt_reference_parser(
     source: &str,
 ) -> Result<crate::lex::parsers::Document, AdapterError> {
     // Adapt input: TokenStream -> Vec<(Token, Range)>
-    let tokens = token_stream_to_flat(stream)?;
+    let _tokens = token_stream_to_flat(stream)?;
 
     // Call reference parser
-    crate::lex::parsers::reference::parse(tokens, source).map_err(|errors| {
+    crate::lex::parsers::parse_document(source).map_err(|errors| {
         // Convert parser errors to adapter error
         let error_msg = errors
             .iter()
@@ -575,8 +575,7 @@ mod tests {
         let source = "Paragraph one\n\nParagraph two\n";
 
         // Original path
-        let tokens1 = crate::lex::lexers::tokenize(source);
-        let doc1 = crate::lex::parsers::reference::parse(tokens1, source).unwrap();
+        let doc1 = crate::lex::parsers::parse_document(source).unwrap();
 
         // TokenStream path
         let tokens2 = crate::lex::lexers::tokenize(source);

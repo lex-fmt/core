@@ -3,9 +3,8 @@
 use chumsky::prelude::*;
 use std::ops::Range;
 
-use crate::lex::ast::{AstNode, Document};
 use crate::lex::lexers::Token;
-use crate::lex::parsers::ast::location::compute_location_from_locations;
+use crate::lex::parsers::ir::{NodeType, ParseNode};
 
 /// Type alias for token with location
 type TokenLocation = (Token, Range<usize>);
@@ -18,14 +17,8 @@ type ParserError = Simple<TokenLocation>;
 /// Parses the entire token stream as document content.
 /// This function is focused on document-level parsing and delegates to parser.rs
 /// for the actual document content parsing logic.
-pub fn document(source: &str) -> impl Parser<TokenLocation, Document, Error = ParserError> + Clone {
-    super::parser::build_document_content_parser(source).map(|content| {
-        let content_locations: Vec<crate::lex::ast::range::Range> = content
-            .iter()
-            .map(|item| item.range().clone())
-            .collect::<Vec<_>>();
-        let location = compute_location_from_locations(&content_locations);
-
-        Document::with_content(content).with_root_location(location)
+pub fn document(source: &str) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
+    super::parser::build_document_content_parser(source).map(|children| {
+        ParseNode::new(NodeType::Document, vec![], children)
     })
 }

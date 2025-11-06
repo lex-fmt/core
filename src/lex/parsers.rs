@@ -16,6 +16,8 @@
 
 // Parser implementations
 pub mod ast;
+pub mod builder;
+pub mod ir;
 pub mod common;
 pub mod linebased;
 pub mod reference;
@@ -31,7 +33,6 @@ pub use crate::lex::ast::{
 };
 
 pub use crate::lex::formats::{serialize_ast_tag, to_treeviz_str};
-pub use reference::document;
 pub use reference::parse;
 
 /// Type alias for parse result with spanned tokens
@@ -46,5 +47,7 @@ pub fn parse_document(source: &str) -> ParseResult {
     let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(source);
     let token_stream = crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
     let tokens = crate::lex::lexers::lex(token_stream);
-    parse(tokens, source)
+    let parse_tree = parse(tokens, source)?;
+    let builder = builder::AstBuilder::new(source);
+    Ok(builder.build(parse_tree))
 }
