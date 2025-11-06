@@ -37,7 +37,25 @@ pub(crate) type ParserError = Simple<TokenLocation>;
 
 /// Check if a token is a text-like token (content that can appear in lines)
 ///
-/// This includes: Text, Whitespace, Numbers, Punctuation, and common symbols
+/// This includes: Text, Whitespace, Numbers, Punctuation, and common symbols.
+///
+/// # Design Decision: Treating Punctuation as "Text-like"
+///
+/// This function currently treats all punctuation tokens as "text-like" because
+/// the dialog parsing feature needs to include punctuation in text lines.
+/// For example, a dialog line like "- Hi mom!!." must have its punctuation tokens
+/// (`ExclamationMark`, `Period`) treated as part of the line content.
+///
+/// # Future Considerations
+///
+/// If future features need to distinguish between actual words (`Text`, `Number`)
+/// and punctuation marks, consider one of these approaches:
+///
+/// 1. Create a separate `is_word_token()` helper that excludes punctuation
+/// 2. Rename this function to `is_line_content_token()` to clarify its purpose
+/// 3. Introduce a more granular token classification system
+///
+/// For now, the current implementation is correct for all existing parsing needs.
 pub(crate) fn is_text_token(token: &Token) -> bool {
     matches!(
         token,
@@ -77,6 +95,24 @@ pub(crate) fn is_text_token(token: &Token) -> bool {
             | Token::MyanmarComma
             | Token::MyanmarFullStop
     )
+}
+
+/// Check if a token represents an actual word (excludes punctuation)
+///
+/// This helper function is provided for future features that may need to
+/// distinguish between word-like tokens (`Text`, `Number`) and punctuation marks.
+///
+/// Unlike `is_text_token()`, this function does NOT include punctuation,
+/// structural tokens, or parameter markers.
+///
+/// # Example Use Cases
+///
+/// - Word counting or text analysis that should exclude punctuation
+/// - Features that need to process "semantic content" separately from formatting
+/// - Validation rules that apply only to actual words, not symbols
+#[allow(dead_code)]
+pub(crate) fn is_word_token(token: &Token) -> bool {
+    matches!(token, Token::Text(_) | Token::Number(_))
 }
 
 // ============================================================================
