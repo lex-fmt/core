@@ -24,7 +24,7 @@
 //!
 //! ```rust-example
 //! use crate::lex::processor::lex_sources::LexSources;
-//! use crate::lex::parsers::parse_document;
+//! use crate::lex::parsing::parse_document;
 //!
 //! // CORRECT: Use verified sample files
 //! let source = LexSources::get_string("000-paragraphs.lex")?;

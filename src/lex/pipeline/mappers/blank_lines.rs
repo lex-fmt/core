@@ -14,7 +14,7 @@
 //! This is a pure adaptation of the existing transform_blank_lines transformation
 //! to the TokenStream architecture.
 
-use crate::lex::lexers::tokens_core::Token;
+use crate::lex::lexing::tokens_core::Token;
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::TokenStream;
 use std::ops::Range as ByteRange;
@@ -84,7 +84,7 @@ impl StreamMapper for BlankLinesMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexers::tokens_core::Token;
+    use crate::lex::lexing::tokens_core::Token;
     use crate::lex::testing::factories::{mk_token, Tokens};
 
     fn with_loc(tokens: Vec<Token>) -> Tokens {
@@ -583,7 +583,7 @@ mod tests {
     #[test]
     fn test_locations_with_real_lex_content() {
         let source = "First paragraph\n\nSecond paragraph";
-        let tokens = crate::lex::lexers::tokenize(source);
+        let tokens = crate::lex::lexing::tokenize(source);
 
         let mut mapper = BlankLinesMapper::new();
         let result = mapper.map_flat(tokens).unwrap();

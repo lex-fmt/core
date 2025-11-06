@@ -1,6 +1,6 @@
 //! Unit tests for the lex processor API
 
-use lex::lex::lexers::Token;
+use lex::lex::lexing::Token;
 use lex::lex::processor::{
     format_tokenss, process_file, OutputFormat, ProcessingError, ProcessingSpec, ProcessingStage,
 };

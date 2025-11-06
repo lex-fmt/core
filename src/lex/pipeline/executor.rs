@@ -1,7 +1,7 @@
 //! Pipeline executor that runs processing configurations
 
-use crate::lex::lexers::base_tokenization;
-use crate::lex::parsers::{builder, Document};
+use crate::lex::lexing::base_tokenization;
+use crate::lex::parsing::{builder, Document};
 use crate::lex::pipeline::config::{ConfigRegistry, ParserSpec, PipelineSpec, TargetSpec};
 use crate::lex::pipeline::mapper::walk_stream;
 use crate::lex::pipeline::mappers::*;
@@ -67,7 +67,7 @@ impl PipelineExecutor {
             .ok_or_else(|| ExecutionError::ConfigNotFound(config_name.to_string()))?;
 
         // Step 1: Base tokenization
-        let source_with_newline = crate::lex::lexers::ensure_source_ends_with_newline(source);
+        let source_with_newline = crate::lex::lexing::ensure_source_ends_with_newline(source);
         let tokens = base_tokenization::tokenize(&source_with_newline);
         let mut stream = TokenStream::Flat(tokens);
 
@@ -144,7 +144,7 @@ impl PipelineExecutor {
             ParserSpec::Reference => {
                 let tokens = stream.unroll();
                 let parse_node =
-                    crate::lex::parsers::reference::parse(tokens, source).map_err(|_| {
+                    crate::lex::parsing::reference::parse(tokens, source).map_err(|_| {
                         ExecutionError::ParsingFailed("Reference parser failed".to_string())
                     })?;
                 let builder = builder::AstBuilder::new(source);
@@ -158,7 +158,7 @@ impl PipelineExecutor {
                     .map_err(|e| {
                         ExecutionError::ParsingFailed(format!("Stream conversion failed: {:?}", e))
                     })?;
-                crate::lex::parsers::linebased::parse_experimental_v2(container, source).map_err(
+                crate::lex::parsing::linebased::parse_experimental_v2(container, source).map_err(
                     |e| ExecutionError::ParsingFailed(format!("Linebased parser failed: {}", e)),
                 )
             }

@@ -1,0 +1,64 @@
+---
+source: src/lex/lexing/detokenizer.rs
+expression: detokenized
+---
+Foreign Blocks Simple Test {{paragraph}}
+
+This document tests the basic foreign block functionality with text content. {{paragraph}}
+
+Code Example:
+
+    // This is JavaScript code
+    function hello() {
+        return "world";
+    }
+
+    // Comments and special characters are preserved
+    const regex = /[a-z]+/g;
+    console.log("Hello, World!");
+
+:: javascript caption="Hello World in JavaScript" ::
+
+Another Code Block:
+
+    # This is Python code
+    def fibonacci(n):
+        if n <= 1:
+            return n
+        return fibonacci(n-1) + fibonacci(n-2)
+    
+    # Test the function
+    for i in range(10):
+        print(f"fib({i}) = {fibonacci(i)}")
+
+:: python caption="Fibonacci sequence implementation" ::
+
+SQL Example:
+
+    SELECT 
+        u.name,
+        COUNT(o.id) as order_count
+    FROM users u
+    LEFT JOIN orders o ON u.id = o.user_id
+    WHERE u.created_at > '2023-01-01'
+    GROUP BY u.id, u.name
+    ORDER BY order_count DESC;
+
+:: sql caption="User order statistics query" ::
+
+Configuration Example:
+
+    server {
+        listen 80;
+        server_name example.com;
+        
+        location / {
+            proxy_pass http://localhost:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+
+:: nginx caption="Nginx configuration" ::
+
+End of foreign blocks test. {{paragraph}}

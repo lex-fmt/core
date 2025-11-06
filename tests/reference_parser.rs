@@ -1,7 +1,7 @@
 //! Integration tests for the reference parser.
 
 use lex::lex::ast::{AstNode, ContentItem, Position};
-use lex::lex::parsers::parse_document;
+use lex::lex::parsing::parse_document;
 use lex::lex::processor::lex_sources::LexSources;
 use lex::lex::testing::assert_ast;
 

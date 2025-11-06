@@ -41,7 +41,7 @@
 //! let processed = LexSources::get_processed("050-paragraph-lists.lex", "token-simple").unwrap();
 //! ```
 
-use crate::lex::lexers::{lex, Token};
+use crate::lex::lexing::{lex, Token};
 use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 use std::collections::HashMap;
 use std::fmt;
@@ -347,23 +347,23 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                     format_tokenss(&tokens, format)
                 }
                 (ExecutionOutput::Document(doc), ProcessingStage::Ast, OutputFormat::AstTag) => {
-                    Ok(crate::lex::parsers::serialize_ast_tag(&doc))
+                    Ok(crate::lex::parsing::serialize_ast_tag(&doc))
                 }
                 (
                     ExecutionOutput::Document(doc),
                     ProcessingStage::Ast,
                     OutputFormat::AstTreeviz,
-                ) => Ok(crate::lex::parsers::to_treeviz_str(&doc)),
+                ) => Ok(crate::lex::parsing::to_treeviz_str(&doc)),
                 (
                     ExecutionOutput::Document(doc),
                     ProcessingStage::Ast,
                     OutputFormat::AstLinebasedTag,
-                ) => Ok(crate::lex::parsers::serialize_ast_tag(&doc)),
+                ) => Ok(crate::lex::parsing::serialize_ast_tag(&doc)),
                 (
                     ExecutionOutput::Document(doc),
                     ProcessingStage::Ast,
                     OutputFormat::AstLinebasedTreeviz,
-                ) => Ok(crate::lex::parsers::to_treeviz_str(&doc)),
+                ) => Ok(crate::lex::parsing::to_treeviz_str(&doc)),
                 (
                     ExecutionOutput::Document(doc),
                     ProcessingStage::Ast,
@@ -385,9 +385,9 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                                 "Missing or invalid 'column' extra".to_string(),
                             )
                         })?;
-                    Ok(crate::lex::parsers::format_at_position(
+                    Ok(crate::lex::parsing::format_at_position(
                         &doc,
-                        crate::lex::parsers::Position::new(line, column),
+                        crate::lex::parsing::Position::new(line, column),
                     ))
                 }
                 _ => Err(ProcessingError::InvalidFormatType(
@@ -563,9 +563,9 @@ pub mod lex_sources {
                     })?;
 
                     let source_with_newline =
-                        crate::lex::lexers::ensure_source_ends_with_newline(&content);
+                        crate::lex::lexing::ensure_source_ends_with_newline(&content);
                     let token_stream =
-                        crate::lex::lexers::base_tokenization::tokenize(&source_with_newline);
+                        crate::lex::lexing::base_tokenization::tokenize(&source_with_newline);
                     let tokens = lex(token_stream);
                     let json = serde_json::to_string_pretty(&tokens).map_err(|e| {
                         ProcessingError::IoError(format!("Failed to serialize tokens: {}", e))
@@ -647,13 +647,13 @@ pub mod lex_sources {
         let content = r#"First paragraph
 Second paragraph"#;
 
-        let doc = crate::lex::parsers::parse_document(content).unwrap();
+        let doc = crate::lex::parsing::parse_document(content).unwrap();
 
         // Check if locations are populated
         if let Some(first_item) = doc.root.content.first() {
             // The first paragraph should have a location
             match first_item {
-                crate::lex::parsers::ContentItem::Paragraph(_p) => {
+                crate::lex::parsing::ContentItem::Paragraph(_p) => {
                     // Paragraph has location
                 }
                 _ => panic!("Expected first item to be a paragraph"),
