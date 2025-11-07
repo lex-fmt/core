@@ -1,0 +1,102 @@
+:: title :: Comprehensive txxt Document Example
+:: author :: txxt Specification Team
+:: date :: 2025-01-15
+:: version :: 2.0
+
+1. Introduction
+
+    This document showcases all major txxt features working together in a realistic document. It serves as a comprehensive example of proper txxt formatting and structure.
+    
+    The following sections demonstrate different element types and how they combine to create rich, structured content.
+
+2. Basic Elements
+
+    2.1. Paragraphs and Text Flow
+    
+        Paragraphs are the foundation of txxt documents. They contain flowing text that can include *bold text*, _italic text_, and `inline code` for technical terms.
+        
+        Multiple paragraphs within a section are separated by blank lines. This creates clear visual separation while maintaining the hierarchical structure.
+        
+    2.2. Lists and Enumeration
+    
+        Lists help organize related items:
+        
+        - Unordered lists use dashes
+        - They work well for non-sequential items
+        - Each item can contain rich content
+        
+        Ordered lists use numbers:
+        
+        1. First step in a process
+        2. Second step following logically
+        3. Third step completing the sequence
+
+3. Advanced Features
+
+    3.1. Definitions
+    
+        Technical documents often need to define terms precisely:
+        
+        Container :
+            An element that holds other elements, managing their hierarchical relationship through indentation.
+            
+        Session :
+            A hierarchical section that organizes content into logical units. Sessions can be nested to arbitrary depth.
+            
+        Verbatim Block :
+            A block that preserves content exactly as written, without applying txxt parsing rules.
+            
+    3.2. Code Examples
+    
+        Here is an example function:
+            def greet(name):
+                """Greet someone by name."""
+                return f"Hello, {name}!"
+        :: python ::
+        
+        The verbatim block preserves formatting and syntax, making it ideal for code snippets.
+        
+    3.3. Nested Structure
+    
+        Deep nesting allows for detailed organization:
+        
+        - Category A
+            - Subcategory A1
+                1. Item 1
+                2. Item 2
+            - Subcategory A2
+                1. Item 3
+                2. Item 4
+        - Category B
+            - Subcategory B1
+
+4. Inline Elements
+
+    4.1. Formatting Options
+    
+        Inline formatting enhances readability: *important concepts* stand out in bold, while _emphasized terms_ use italics. Technical terms like `variable_name` or `function()` appear in monospace.
+        
+    4.2. Mathematical Expressions
+    
+        Math can be included inline: #E = mc^2# or #a^2 + b^2 = c^2# for formulas.
+
+5. Best Practices
+
+    When creating txxt documents, follow these guidelines:
+    
+    1. Use consistent indentation (always 4 spaces)
+    2. Separate sections with blank lines
+    3. Choose appropriate numbering styles
+    4. Use annotations for metadata
+    5. Keep paragraphs focused and concise
+    
+    :: tip :: These practices ensure documents remain readable and maintainable over time.
+
+6. Conclusion
+
+    This document has demonstrated the full range of txxt capabilities. From simple paragraphs to complex nested structures, from lists to definitions, txxt provides the tools needed for clear, structured documentation.
+    
+    The format's simplicity makes it easy to write, while its structure makes it easy to process programmatically. This combination makes txxt ideal for both human authors and automated tools.
+
+:: note :: This comprehensive example serves as both documentation and a test case for parser implementation.
+
