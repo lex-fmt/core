@@ -70,7 +70,6 @@ The lex language
         - Block form (with text content): For embedding raw text like source code
         - Marker form (no content): For referencing external or binary data
 
-        The "Indentation Wall" rule is critical: the subject line establishes the base indentation level, content (if present) must be indented at least one level deeper, and the closing annotation must be at the same indentation level as the subject.
 
     6. Paragraphs
 
