@@ -5,6 +5,7 @@ This guide explains the new test harness infrastructure for testing individual e
 ## Overview
 
 The test harness provides utilities for:
+
 - Loading per-element test files by type and number
 - Parsing with different parser implementations (Reference or Linebased)
 - Comparing results from multiple parsers
@@ -42,8 +43,9 @@ assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
 ### Fluent API (Recommended)
 
 #### Element-Specific Shortcuts
+
 ```rust
-// Type-specific shortcuts (cleaner than ElementType enum)
+// Type-specific shotcuts (cleaner than ElementType enum)
 ElementSources::paragraph(1)    // Returns ElementLoader
 ElementSources::list(2)
 ElementSources::session(3)
@@ -56,6 +58,7 @@ ElementSources::load(ElementType::Paragraph, 1)
 ```
 
 #### ElementLoader Methods
+
 ```rust
 // Get raw source string
 .source() -> String
@@ -70,6 +73,7 @@ ElementSources::load(ElementType::Paragraph, 1)
 #### ParsedElement Methods
 
 **Panicking extraction (use in tests):**
+
 ```rust
 .expect_paragraph() -> &Paragraph    // Panics if not found
 .expect_session() -> &Session
@@ -80,6 +84,7 @@ ElementSources::load(ElementType::Paragraph, 1)
 ```
 
 **Safe extraction (returns Option):**
+
 ```rust
 .first_paragraph() -> Option<&Paragraph>
 .first_session() -> Option<&Session>
@@ -90,6 +95,7 @@ ElementSources::load(ElementType::Paragraph, 1)
 ```
 
 **Access underlying document:**
+
 ```rust
 .document() -> &Document
 ```
@@ -174,11 +180,13 @@ For more detailed assertions, use the existing `assert_ast` fluent API from `lex
 ## File Naming Convention
 
 Element test files follow this pattern:
+
 ```
 docs/specs/v1/elements/{element}/{element}-{NN}-{flat|nested}-{hint}.lex
 ```
 
 Examples:
+
 - `paragraph-01-flat-oneline.lex`
 - `list-07-nested-simple.lex`
 - `annotation-10-nested-complex.lex`
