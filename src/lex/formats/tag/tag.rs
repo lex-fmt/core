@@ -205,3 +205,23 @@ mod tests {
         assert!(result.contains("</list>"));
     }
 }
+
+/// Formatter implementation for XML-like tag format
+pub struct TagFormatter;
+
+impl crate::lex::formats::registry::Formatter for TagFormatter {
+    fn name(&self) -> &str {
+        "tag"
+    }
+
+    fn serialize(
+        &self,
+        doc: &Document,
+    ) -> Result<String, crate::lex::formats::registry::FormatError> {
+        Ok(serialize_document(doc))
+    }
+
+    fn description(&self) -> &str {
+        "XML-like tag format with hierarchical structure"
+    }
+}

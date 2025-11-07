@@ -1,5 +1,6 @@
 //! Pipeline executor that runs processing configurations
 
+use crate::lex::formats::{FormatError, FormatRegistry};
 use crate::lex::lexing::base_tokenization;
 use crate::lex::parsing::{builder, Document};
 use crate::lex::pipeline::config::{
@@ -16,6 +17,7 @@ pub enum ExecutionError {
     ConfigNotFound(String),
     TransformationFailed(String),
     ParsingFailed(String),
+    FormatError(FormatError),
 }
 
 impl fmt::Display for ExecutionError {
@@ -26,6 +28,7 @@ impl fmt::Display for ExecutionError {
                 write!(f, "Transformation failed: {}", msg)
             }
             ExecutionError::ParsingFailed(msg) => write!(f, "Parsing failed: {}", msg),
+            ExecutionError::FormatError(err) => write!(f, "Format error: {}", err),
         }
     }
 }
@@ -42,6 +45,7 @@ pub enum ExecutionOutput {
 /// Executes processing configurations
 pub struct PipelineExecutor {
     registry: ConfigRegistry,
+    format_registry: FormatRegistry,
 }
 
 impl PipelineExecutor {
@@ -49,12 +53,24 @@ impl PipelineExecutor {
     pub fn new() -> Self {
         Self {
             registry: ConfigRegistry::with_defaults(),
+            format_registry: FormatRegistry::with_defaults(),
         }
     }
 
     /// Create executor with custom registry
     pub fn with_registry(registry: ConfigRegistry) -> Self {
-        Self { registry }
+        Self {
+            registry,
+            format_registry: FormatRegistry::with_defaults(),
+        }
+    }
+
+    /// Create executor with custom registries
+    pub fn with_registries(registry: ConfigRegistry, format_registry: FormatRegistry) -> Self {
+        Self {
+            registry,
+            format_registry,
+        }
     }
 
     /// Execute a named configuration
@@ -144,9 +160,58 @@ impl PipelineExecutor {
         self.registry.list_all()
     }
 
-    /// Get the registry
+    /// Get the config registry
     pub fn registry(&self) -> &ConfigRegistry {
         &self.registry
+    }
+
+    /// Get the format registry
+    pub fn format_registry(&self) -> &FormatRegistry {
+        &self.format_registry
+    }
+
+    /// Execute a configuration and serialize the result to a format
+    ///
+    /// This is a convenience method that combines `execute()` with format serialization.
+    /// If the pipeline produces a Document, it will be serialized using the specified format.
+    /// If the pipeline produces Tokens, an error will be returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `config_name` - Name of the configuration to execute
+    /// * `source` - Source text to process
+    /// * `format` - Name of the format to serialize to (e.g., "treeviz", "tag")
+    ///
+    /// # Returns
+    ///
+    /// The serialized string output
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The configuration is not found
+    /// - The pipeline fails
+    /// - The format is not found
+    /// - The pipeline produces Tokens instead of a Document
+    pub fn execute_and_serialize(
+        &self,
+        config_name: &str,
+        source: &str,
+        format: &str,
+    ) -> Result<String, ExecutionError> {
+        let output = self.execute(config_name, source)?;
+
+        match output {
+            ExecutionOutput::Document(doc) => self
+                .format_registry
+                .serialize(&doc, format)
+                .map_err(ExecutionError::FormatError),
+            ExecutionOutput::Tokens(_) => Err(ExecutionError::FormatError(
+                FormatError::SerializationError(
+                    "Cannot serialize tokens to format (pipeline must produce AST)".to_string(),
+                ),
+            )),
+        }
     }
 }
 
@@ -309,5 +374,95 @@ mod tests {
 
         let err3 = ExecutionError::ParsingFailed("error".into());
         assert_eq!(format!("{}", err3), "Parsing failed: error");
+
+        let err4 = ExecutionError::FormatError(crate::lex::formats::FormatError::FormatNotFound(
+            "test".into(),
+        ));
+        assert_eq!(format!("{}", err4), "Format error: Format 'test' not found");
+    }
+
+    #[test]
+    fn test_format_registry_accessor() {
+        let executor = PipelineExecutor::new();
+        let registry = executor.format_registry();
+
+        assert!(registry.has("treeviz"));
+        assert!(registry.has("tag"));
+    }
+
+    #[test]
+    fn test_execute_and_serialize_treeviz() {
+        let executor = PipelineExecutor::new();
+        let result = executor.execute_and_serialize("default", "Hello world\n", "treeviz");
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("⧉")); // Document icon
+        assert!(output.contains("¶")); // Paragraph icon
+    }
+
+    #[test]
+    fn test_execute_and_serialize_tag() {
+        let executor = PipelineExecutor::new();
+        let result = executor.execute_and_serialize("default", "Hello world\n", "tag");
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("<document>"));
+        assert!(output.contains("<paragraph>"));
+        assert!(output.contains("</document>"));
+    }
+
+    #[test]
+    fn test_execute_and_serialize_format_not_found() {
+        let executor = PipelineExecutor::new();
+        let result = executor.execute_and_serialize("default", "Hello world\n", "nonexistent");
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutionError::FormatError(crate::lex::formats::FormatError::FormatNotFound(name)) => {
+                assert_eq!(name, "nonexistent");
+            }
+            _ => panic!("Expected FormatNotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_execute_and_serialize_tokens_error() {
+        let executor = PipelineExecutor::new();
+        let result =
+            executor.execute_and_serialize("tokens-indentation", "Hello world\n", "treeviz");
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ExecutionError::FormatError(crate::lex::formats::FormatError::SerializationError(
+                msg,
+            )) => {
+                assert!(msg.contains("Cannot serialize tokens"));
+            }
+            _ => panic!("Expected SerializationError"),
+        }
+    }
+
+    #[test]
+    fn test_with_registries() {
+        use crate::lex::formats::FormatRegistry;
+        use crate::lex::pipeline::config::{
+            ConfigRegistry, PipelineSpec, ProcessingConfig, TargetSpec,
+        };
+
+        let mut config_registry = ConfigRegistry::new();
+        config_registry.register(ProcessingConfig {
+            name: "custom".into(),
+            description: "Custom config".into(),
+            pipeline_spec: PipelineSpec::Indentation,
+            target: TargetSpec::Tokens,
+        });
+
+        let format_registry = FormatRegistry::with_defaults();
+
+        let executor = PipelineExecutor::with_registries(config_registry, format_registry);
+        assert!(executor.registry().has("custom"));
+        assert!(executor.format_registry().has("treeviz"));
     }
 }
