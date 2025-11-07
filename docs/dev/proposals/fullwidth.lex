@@ -37,18 +37,66 @@ Fullwidth Verbatim Blocks
 	The opposite is not true. If the first content line is indentation +1 , no other content lines can be to the left of the wall, regardless of it being at FULLWIDTH_INDENT or not.
    
  
-5. Implementation
+5. Implementation Plan
 
-	1. The AST / Builder
+	This implementation avoids changes to the low-level tokenizer in favor of centralizing the detection logic within the more context-aware mappers of the lexing pipeline. This approach keeps the initial tokenization simple and robust.
 
-    The implementation should have a value for the block wall position, which is set according to the block mode. That is, the internal code, say for example when on strips the indentation from the content to form the VerbatimLines that code should strip from the indentation wall, and should behave the same for both modes.
+	5.1. Phase 1: No Lexer/Token Changes
 
+		- Keep `tokens_core.rs` unchanged. Do not introduce a special `<fullwidth>` token. The initial `logos`-based tokenizer will continue to see all leading whitespace as standard `Whitespace` tokens. This maintains the simplicity and context-free nature of the foundational lexing layer.
 
-	2. Scanning
+	5.2. Phase 2: Enhance Pipeline Mappers (Core Logic)
 
-	The tokenization however has to be aware of fullwidth blocks. In lexing, at later stages we will convert indentation tokens into events like indent and dedent. If not specially marked, these lines will trigger dedent events, which will break the document flow, preventing the detection of the verbatim block itself.
+		The primary challenge is to prevent fullwidth content lines from triggering premature `Dedent` events in the `semantic_indentation` mapper. We will achieve this by identifying potential verbatim blocks and re-classifying their content lines *before* they reach the indentation mapper.
 
-    Hence the tokenizer should, define $\s\s the <fullwidth> token, which will be used to mark lines that are part of a fullwidth block. Latert in parsing, say that line does not belong to a verbatim block, it should be converted back to regular spaces.
+		5.2.1. Enhance `line_type_classification.rs`:
+			- Modify this mapper to become stateful. When it encounters a `SubjectLine`, it will begin buffering subsequent lines.
+			- It will continue to buffer lines until it finds a matching `AnnotationLine` at the same indentation level as the initial `SubjectLine`.
+			- Once this complete `Subject -> ... -> Closing Annotation` pattern is confirmed, it will re-classify all the buffered lines:
+				- The first line remains a `SubjectLine`.
+				- The last line remains an `AnnotationLine`.
+				- All lines in between are re-tagged with a new `LineType`: `VerbatimContentLine`.
+			- The mapper will then flush this sequence of re-tagged lines to the next stage of the pipeline.
+
+		5.2.2. Enhance `semantic_indentation.rs`:
+			- Modify this mapper to recognize the new `VerbatimContentLine` `LineType`.
+			- When it encounters a line of this type, it will completely bypass its standard indentation logic. It will not check the line's indentation level against the stack and will not emit any `Indent` or `Dedent` events. It will simply pass the `VerbatimContentLine` through untouched.
+			- This step effectively "protects" the fullwidth content from breaking the block structure, solving the core problem.
+
+	5.3. Phase 3: Update AST and Extraction Layer
+
+		This layer is responsible for interpreting the stream of `VerbatimContentLine`s and determining the block's mode and indentation wall.
+
+		5.3.1. Update the AST (`verbatim.rs`):
+			- Introduce a public enum to represent the block's mode:
+					pub enum VerbatimBlockMode {
+						Inflow,
+						Fullwidth,
+					}
+				:: rust ::
+			- Add a `mode` field to the `VerbatimBlock` struct: `pub mode: VerbatimBlockMode`.
+
+		5.3.2. Update the Extraction Layer (`extraction.rs`):
+			- The `extract_verbatim_block_data` function will be the primary site for mode detection.
+			- It will receive the list of `VerbatimContentLine`s from the parser.
+			- Mode Detection Logic: It will inspect the column of the first non-whitespace character of the *first content line*.
+				- If `first_content_line.start_column == FULLWIDTH_INDENT` (e.g., column 2, which is index 1), the mode is set to `Fullwidth`.
+				- Otherwise, the mode is set to `Inflow`.
+			- Wall Calculation: Based on the detected mode, it will calculate the `indentation_wall`:
+				- If `mode` is `Fullwidth`, `indentation_wall = FULLWIDTH_INDENT`.
+				- If `mode` is `Inflow`, `indentation_wall = subject_line.indent_level + 1` (using the existing logic).
+			- The rest of the function's logic, which strips the wall and creates `VerbatimLine`s, will remain unchanged, as it will operate on the correctly calculated `indentation_wall`. This fulfills the goal of having the internal logic behave identically for both modes.
+
+	5.4. Phase 4: Update the Builder
+
+		- Modify `builders.rs`: The `create_verbatim_block` function will be updated to accept the `VerbatimBlockMode` from the extraction layer. It will then use this to populate the new `mode` field when constructing the final `VerbatimBlock` AST node.
+
+	5.5. Phase 5: Testing
+
+		- Add new `.lex` sample files to `docs/specs/v1/elements/verbatim/` to specifically test the fullwidth feature.
+		- Include test cases for content positioned exactly at the fullwidth wall, content indented beyond the wall, and mixed-indentation content.
+		- Add a test case to verify that a block starting with a `+1` indent line but containing subsequent lines at the `FULLWIDTH_INDENT` is correctly parsed as an `Inflow` block and that the out-of-place lines are handled correctly (likely resulting in a parsing error or being truncated, as per the spec).
+		- Add unit tests for the mode detection and wall calculation logic within the extraction layer.
 
 6. NOTES
 
