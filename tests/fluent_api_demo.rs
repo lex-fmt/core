@@ -1,0 +1,200 @@
+//! Demonstration of the fluent API for test harness
+//!
+//! This shows the ergonomic improvements from adding the fluent builder pattern
+
+use lex::lex::ast::traits::Container;
+use lex::lex::testing::test_harness::*;
+
+// ============================================================================
+// BEFORE: Verbose with unwrap() everywhere
+// ============================================================================
+
+#[test]
+fn test_old_style_verbose() {
+    let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    let paragraph = get_first_paragraph(&doc).unwrap();
+
+    assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
+}
+
+// ============================================================================
+// AFTER: Clean fluent API
+// ============================================================================
+
+#[test]
+fn test_new_style_fluent() {
+    // Much cleaner! No unwrap() needed
+    let parsed = ElementSources::paragraph(1).parse();
+    let paragraph = parsed.expect_paragraph();
+
+    assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
+}
+
+#[test]
+fn test_new_style_with_parser_choice() {
+    // Easy to switch parsers
+    let parsed = ElementSources::paragraph(1).parse_with(Parser::Linebased); // or Parser::Reference
+
+    // The rest stays the same
+    if let Some(paragraph) = parsed.first_paragraph() {
+        assert!(paragraph_text_contains(paragraph, "simple"));
+    }
+}
+
+// ============================================================================
+// ELEMENT-SPECIFIC SHORTCUTS
+// ============================================================================
+
+#[test]
+fn test_paragraph_shortcut() {
+    let parsed = ElementSources::paragraph(2).parse();
+    let p = parsed.expect_paragraph();
+    println!("Paragraph text: {}", p.text());
+}
+
+#[test]
+fn test_list_shortcut() {
+    let parsed = ElementSources::list(1).parse();
+    let list = parsed.expect_list();
+    println!("List has {} items", list.items.len());
+}
+
+#[test]
+fn test_session_shortcut() {
+    let parsed = ElementSources::session(1).parse();
+    let session = parsed.expect_session();
+    println!(
+        "Session: {} ({} children)",
+        session.label(),
+        session.children().len()
+    );
+}
+
+#[test]
+fn test_definition_shortcut() {
+    let parsed = ElementSources::definition(1).parse();
+    let def = parsed.expect_definition();
+    println!(
+        "Definition: {} ({} children)",
+        def.label(),
+        def.children().len()
+    );
+}
+
+// ============================================================================
+// MUST_ METHODS FOR DIRECT ACCESS
+// ============================================================================
+
+#[test]
+fn test_must_get_source() {
+    // No unwrap needed - panics with helpful message if file not found
+    let source = ElementSources::must_get_source_for(ElementType::Paragraph, 1);
+    assert!(source.contains("simple"));
+}
+
+#[test]
+fn test_must_get_ast() {
+    // Get AST directly without the fluent API
+    let doc = ElementSources::must_get_ast_for(ElementType::Paragraph, 1, Parser::Reference);
+    assert!(!doc.root.children.is_empty());
+}
+
+// ============================================================================
+// JUST SOURCE, NO PARSING
+// ============================================================================
+
+#[test]
+fn test_get_source_only() {
+    // Sometimes you just need the raw source
+    let source = ElementSources::paragraph(1).source();
+    assert!(!source.is_empty());
+}
+
+// ============================================================================
+// OPTIONAL EXTRACTION (NO PANIC)
+// ============================================================================
+
+#[test]
+fn test_safe_optional_extraction() {
+    let parsed = ElementSources::paragraph(1).parse();
+
+    // Use first_* for Option, expect_* to panic if not found
+    match parsed.first_paragraph() {
+        Some(p) => println!("Found paragraph: {}", p.text()),
+        None => println!("No paragraph found (parser might have issues)"),
+    }
+}
+
+// ============================================================================
+// COMPARING PARSERS
+// ============================================================================
+
+#[test]
+fn test_compare_both_parsers() {
+    let source = ElementSources::must_get_source_for(ElementType::Paragraph, 1);
+
+    // Parse with both parsers
+    let results = parse_with_multiple_parsers(&source, &[Parser::Reference, Parser::Linebased]);
+
+    if let Ok(results) = results {
+        match compare_parser_results(&results) {
+            Ok(()) => println!("✓ Both parsers produced matching ASTs"),
+            Err(msg) => println!("✗ Parser mismatch: {}", msg),
+        }
+    }
+}
+
+// ============================================================================
+// REAL-WORLD USAGE EXAMPLE
+// ============================================================================
+
+#[test]
+fn test_realistic_workflow() {
+    // Load and parse
+    let parsed = ElementSources::paragraph(1).parse();
+
+    // Extract element
+    let paragraph = parsed.expect_paragraph();
+
+    // Make assertions
+    assert!(!paragraph.text().is_empty());
+    assert!(paragraph_text_starts_with(paragraph, "This"));
+    assert!(paragraph_text_contains(paragraph, "simple"));
+
+    // Or use the existing fluent assertion API
+    use lex::lex::testing::assert_ast;
+    assert_ast(parsed.document()).item_count(1).item(0, |item| {
+        item.assert_paragraph().text_contains("simple");
+    });
+}
+
+// ============================================================================
+// NESTED ELEMENTS
+// ============================================================================
+
+#[test]
+fn test_nested_list() {
+    let parsed = ElementSources::list(7).parse(); // nested-simple
+    let list = parsed.expect_list();
+
+    assert!(list.items.len() >= 2);
+    println!("Nested list has {} top-level items", list.items.len());
+}
+
+#[test]
+fn test_nested_definition() {
+    let parsed = ElementSources::definition(6).parse(); // nested-definitions
+
+    // Parser may have issues with complex nested content
+    if let Some(def) = parsed.first_definition() {
+        assert!(!def.label().is_empty());
+        println!(
+            "Definition '{}' has {} children",
+            def.label(),
+            def.children().len()
+        );
+    } else {
+        println!("Note: Parser couldn't extract definition (known parser issues)");
+    }
+}

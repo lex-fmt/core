@@ -152,6 +152,7 @@
 //!    pub fn assert_new_node(self) -> NewNodeAssertion<'a> { /* ... */ }
 //!    ```
 
+pub mod test_harness;
 mod testing_assertions;
 mod testing_factories;
 mod testing_matchers;
