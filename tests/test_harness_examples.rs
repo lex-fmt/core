@@ -2,7 +2,7 @@
 //!
 //! These tests show how to use the new per-element testing infrastructure
 
-use lex::lex::ast::traits::{Container, TextNode};
+use lex::lex::ast::traits::Container;
 use lex::lex::testing::test_harness::*;
 
 #[test]
@@ -61,7 +61,7 @@ fn test_compare_parsers() {
 fn test_list_available_numbers() {
     // List all available variations for paragraphs
     let numbers = ElementSources::list_numbers_for(ElementType::Paragraph).unwrap();
-    assert!(numbers.len() > 0);
+    assert!(!numbers.is_empty());
     assert!(numbers.contains(&1));
     assert!(numbers.contains(&2));
 
@@ -80,7 +80,7 @@ fn test_session_with_children() {
         assert!(!session.label().is_empty());
 
         // Check it has children
-        assert!(session.children().len() > 0);
+        assert!(!session.children().is_empty());
 
         println!("Session label: {}", session.label());
         println!("Session has {} children", session.children().len());
@@ -112,7 +112,7 @@ fn test_list_structure() {
     // Get the first list
     if let Some(list) = get_first_list(&doc) {
         // Check it has items
-        assert!(list.items.len() > 0);
+        assert!(!list.items.is_empty());
 
         println!("List has {} items", list.items.len());
     }
