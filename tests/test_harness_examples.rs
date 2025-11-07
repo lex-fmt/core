@@ -3,19 +3,19 @@
 //! These tests show how to use the new per-element testing infrastructure
 
 use lex::lex::ast::traits::Container;
-use lex::lex::testing::test_harness::*;
+use lex::lex::testing::lexplore::*;
 
 #[test]
 fn test_load_paragraph_by_number() {
     // Load paragraph variation #1
-    let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
     assert!(source.contains("simple paragraph"));
 }
 
 #[test]
 fn test_parse_with_reference_parser() {
     // Load and parse with the reference (stable) parser
-    let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
     // Get the first paragraph
@@ -26,7 +26,7 @@ fn test_parse_with_reference_parser() {
 #[test]
 fn test_parse_with_linebased_parser() {
     // Load and parse with the linebased (experimental) parser
-    let source = ElementSources::get_source_for(ElementType::Paragraph, 2).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Paragraph, 2).unwrap();
 
     // Note: linebased parser may have issues, this just demonstrates the API
     let result = parse_with_parser(&source, Parser::Linebased);
@@ -39,7 +39,7 @@ fn test_parse_with_linebased_parser() {
 #[test]
 fn test_compare_parsers() {
     // Parse the same source with both parsers
-    let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
 
     let parsers = vec![Parser::Reference, Parser::Linebased];
     let results = parse_with_multiple_parsers(&source, &parsers);
@@ -60,7 +60,7 @@ fn test_compare_parsers() {
 #[test]
 fn test_list_available_numbers() {
     // List all available variations for paragraphs
-    let numbers = ElementSources::list_numbers_for(ElementType::Paragraph).unwrap();
+    let numbers = Lexplore::list_numbers_for(ElementType::Paragraph).unwrap();
     assert!(!numbers.is_empty());
     assert!(numbers.contains(&1));
     assert!(numbers.contains(&2));
@@ -71,7 +71,7 @@ fn test_list_available_numbers() {
 #[test]
 fn test_session_with_children() {
     // Load a session element
-    let source = ElementSources::get_source_for(ElementType::Session, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Session, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
     // Get the first session
@@ -90,7 +90,7 @@ fn test_session_with_children() {
 #[test]
 fn test_definition_structure() {
     // Load a definition
-    let source = ElementSources::get_source_for(ElementType::Definition, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Definition, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
     // Get the first definition
@@ -106,7 +106,7 @@ fn test_definition_structure() {
 #[test]
 fn test_list_structure() {
     // Load a list
-    let source = ElementSources::get_source_for(ElementType::List, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::List, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
     // Get the first list
@@ -121,7 +121,7 @@ fn test_list_structure() {
 #[test]
 fn test_nested_list() {
     // Load a nested list variation
-    let source = ElementSources::get_source_for(ElementType::List, 7).unwrap(); // list-07-nested-simple
+    let source = Lexplore::get_source_for(ElementType::List, 7).unwrap(); // list-07-nested-simple
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
     println!(
@@ -133,7 +133,7 @@ fn test_nested_list() {
 #[test]
 fn test_annotation_structure() {
     // Load an annotation
-    let source = ElementSources::get_source_for(ElementType::Annotation, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Annotation, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
     // Get the first annotation
@@ -145,7 +145,7 @@ fn test_annotation_structure() {
 #[test]
 fn test_verbatim_structure() {
     // Load a verbatim block
-    let source = ElementSources::get_source_for(ElementType::Verbatim, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Verbatim, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
     // Get the first verbatim block
@@ -160,7 +160,7 @@ fn test_element_source_for_api_examples() {
     // ast = LexSource.getSourceFor(Paragraph, 1)
 
     // Get source
-    let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
 
     // Parse with chosen parser
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();

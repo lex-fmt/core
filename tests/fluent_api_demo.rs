@@ -3,7 +3,7 @@
 //! This shows the ergonomic improvements from adding the fluent builder pattern
 
 use lex::lex::ast::traits::Container;
-use lex::lex::testing::test_harness::*;
+use lex::lex::testing::lexplore::*;
 
 // ============================================================================
 // BEFORE: Verbose with unwrap() everywhere
@@ -11,7 +11,7 @@ use lex::lex::testing::test_harness::*;
 
 #[test]
 fn test_old_style_verbose() {
-    let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
     let paragraph = get_first_paragraph(&doc).unwrap();
 
@@ -25,7 +25,7 @@ fn test_old_style_verbose() {
 #[test]
 fn test_new_style_fluent() {
     // Much cleaner! No unwrap() needed
-    let parsed = ElementSources::paragraph(1).parse();
+    let parsed = Lexplore::paragraph(1).parse();
     let paragraph = parsed.expect_paragraph();
 
     assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
@@ -34,7 +34,7 @@ fn test_new_style_fluent() {
 #[test]
 fn test_new_style_with_parser_choice() {
     // Easy to switch parsers
-    let parsed = ElementSources::paragraph(1).parse_with(Parser::Linebased); // or Parser::Reference
+    let parsed = Lexplore::paragraph(1).parse_with(Parser::Linebased); // or Parser::Reference
 
     // The rest stays the same
     if let Some(paragraph) = parsed.first_paragraph() {
@@ -48,21 +48,21 @@ fn test_new_style_with_parser_choice() {
 
 #[test]
 fn test_paragraph_shortcut() {
-    let parsed = ElementSources::paragraph(2).parse();
+    let parsed = Lexplore::paragraph(2).parse();
     let p = parsed.expect_paragraph();
     println!("Paragraph text: {}", p.text());
 }
 
 #[test]
 fn test_list_shortcut() {
-    let parsed = ElementSources::list(1).parse();
+    let parsed = Lexplore::list(1).parse();
     let list = parsed.expect_list();
     println!("List has {} items", list.items.len());
 }
 
 #[test]
 fn test_session_shortcut() {
-    let parsed = ElementSources::session(1).parse();
+    let parsed = Lexplore::session(1).parse();
     let session = parsed.expect_session();
     println!(
         "Session: {} ({} children)",
@@ -73,7 +73,7 @@ fn test_session_shortcut() {
 
 #[test]
 fn test_definition_shortcut() {
-    let parsed = ElementSources::definition(1).parse();
+    let parsed = Lexplore::definition(1).parse();
     let def = parsed.expect_definition();
     println!(
         "Definition: {} ({} children)",
@@ -89,14 +89,14 @@ fn test_definition_shortcut() {
 #[test]
 fn test_must_get_source() {
     // No unwrap needed - panics with helpful message if file not found
-    let source = ElementSources::must_get_source_for(ElementType::Paragraph, 1);
+    let source = Lexplore::must_get_source_for(ElementType::Paragraph, 1);
     assert!(source.contains("simple"));
 }
 
 #[test]
 fn test_must_get_ast() {
     // Get AST directly without the fluent API
-    let doc = ElementSources::must_get_ast_for(ElementType::Paragraph, 1, Parser::Reference);
+    let doc = Lexplore::must_get_ast_for(ElementType::Paragraph, 1, Parser::Reference);
     assert!(!doc.root.children.is_empty());
 }
 
@@ -107,7 +107,7 @@ fn test_must_get_ast() {
 #[test]
 fn test_get_source_only() {
     // Sometimes you just need the raw source
-    let source = ElementSources::paragraph(1).source();
+    let source = Lexplore::paragraph(1).source();
     assert!(!source.is_empty());
 }
 
@@ -117,7 +117,7 @@ fn test_get_source_only() {
 
 #[test]
 fn test_safe_optional_extraction() {
-    let parsed = ElementSources::paragraph(1).parse();
+    let parsed = Lexplore::paragraph(1).parse();
 
     // Use first_* for Option, expect_* to panic if not found
     match parsed.first_paragraph() {
@@ -132,7 +132,7 @@ fn test_safe_optional_extraction() {
 
 #[test]
 fn test_compare_both_parsers() {
-    let source = ElementSources::must_get_source_for(ElementType::Paragraph, 1);
+    let source = Lexplore::must_get_source_for(ElementType::Paragraph, 1);
 
     // Parse with both parsers
     let results = parse_with_multiple_parsers(&source, &[Parser::Reference, Parser::Linebased]);
@@ -152,7 +152,7 @@ fn test_compare_both_parsers() {
 #[test]
 fn test_realistic_workflow() {
     // Load and parse
-    let parsed = ElementSources::paragraph(1).parse();
+    let parsed = Lexplore::paragraph(1).parse();
 
     // Extract element
     let paragraph = parsed.expect_paragraph();
@@ -175,7 +175,7 @@ fn test_realistic_workflow() {
 
 #[test]
 fn test_nested_list() {
-    let parsed = ElementSources::list(7).parse(); // nested-simple
+    let parsed = Lexplore::list(7).parse(); // nested-simple
     let list = parsed.expect_list();
 
     assert!(list.items.len() >= 2);
@@ -184,7 +184,7 @@ fn test_nested_list() {
 
 #[test]
 fn test_nested_definition() {
-    let parsed = ElementSources::definition(6).parse(); // nested-definitions
+    let parsed = Lexplore::definition(6).parse(); // nested-definitions
 
     // Parser may have issues with complex nested content
     if let Some(def) = parsed.first_definition() {
