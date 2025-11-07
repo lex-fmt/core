@@ -41,6 +41,7 @@
 //! let processed = LexSources::get_processed("050-paragraph-lists.lex", "token-simple").unwrap();
 //! ```
 
+use crate::lex::formats::FormatRegistry;
 use crate::lex::lexing::{lex, Token};
 use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 use std::collections::HashMap;
@@ -332,24 +333,34 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
                     let tokens = stream.unroll();
                     format_tokenss(&tokens, format)
                 }
-                (ExecutionOutput::Document(doc), ProcessingStage::Ast, OutputFormat::AstTag) => {
-                    Ok(crate::lex::parsing::serialize_ast_tag(&doc))
+                // Use format registry for standard AST formats
+                (ExecutionOutput::Document(doc), ProcessingStage::Ast, OutputFormat::AstTag)
+                | (
+                    ExecutionOutput::Document(doc),
+                    ProcessingStage::Ast,
+                    OutputFormat::AstLinebasedTag,
+                ) => {
+                    let registry = FormatRegistry::with_defaults();
+                    registry
+                        .serialize(&doc, "tag")
+                        .map_err(|e| ProcessingError::IoError(e.to_string()))
                 }
                 (
                     ExecutionOutput::Document(doc),
                     ProcessingStage::Ast,
                     OutputFormat::AstTreeviz,
-                ) => Ok(crate::lex::parsing::to_treeviz_str(&doc)),
-                (
-                    ExecutionOutput::Document(doc),
-                    ProcessingStage::Ast,
-                    OutputFormat::AstLinebasedTag,
-                ) => Ok(crate::lex::parsing::serialize_ast_tag(&doc)),
-                (
+                )
+                | (
                     ExecutionOutput::Document(doc),
                     ProcessingStage::Ast,
                     OutputFormat::AstLinebasedTreeviz,
-                ) => Ok(crate::lex::parsing::to_treeviz_str(&doc)),
+                ) => {
+                    let registry = FormatRegistry::with_defaults();
+                    registry
+                        .serialize(&doc, "treeviz")
+                        .map_err(|e| ProcessingError::IoError(e.to_string()))
+                }
+                // Special format that requires position extras
                 (
                     ExecutionOutput::Document(doc),
                     ProcessingStage::Ast,
