@@ -38,6 +38,23 @@ pub enum ElementType {
     Verbatim,
 }
 
+/// Document collection types for comprehensive testing
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DocumentType {
+    Benchmark,
+    Trifecta,
+}
+
+impl DocumentType {
+    /// Get the directory name for this document type
+    fn dir_name(&self) -> &'static str {
+        match self {
+            DocumentType::Benchmark => "benchmark",
+            DocumentType::Trifecta => "trifecta",
+        }
+    }
+}
+
 impl ElementType {
     /// Get the directory name for this element type
     fn dir_name(&self) -> &'static str {
@@ -117,23 +134,44 @@ impl From<ParseError> for ElementSourceError {
     }
 }
 
-/// Fluent API builder for loading elements
+/// Fluent API builder for loading elements or documents
 pub struct ElementLoader {
-    element_type: ElementType,
+    source_type: SourceType,
     number: usize,
+}
+
+/// Enum to represent either an element type or document type
+#[derive(Debug)]
+enum SourceType {
+    Element(ElementType),
+    Document(DocumentType),
 }
 
 impl ElementLoader {
     /// Get the raw source string
     pub fn source(&self) -> String {
-        Lexplore::must_get_source_for(self.element_type, self.number)
+        match self.source_type {
+            SourceType::Element(element_type) => {
+                Lexplore::must_get_source_for(element_type, self.number)
+            }
+            SourceType::Document(doc_type) => {
+                Lexplore::must_get_document_source_for(doc_type, self.number)
+            }
+        }
     }
 
     /// Parse with the specified parser and return a ParsedElement for further chaining
     pub fn parse_with(self, parser: Parser) -> ParsedElement {
-        let doc = Lexplore::must_get_ast_for(self.element_type, self.number, parser);
+        let doc = match self.source_type {
+            SourceType::Element(element_type) => {
+                Lexplore::must_get_ast_for(element_type, self.number, parser)
+            }
+            SourceType::Document(doc_type) => {
+                Lexplore::must_get_document_ast_for(doc_type, self.number, parser)
+            }
+        };
         ParsedElement {
-            element_type: self.element_type,
+            source_type: self.source_type,
             doc,
         }
     }
@@ -146,7 +184,7 @@ impl ElementLoader {
 
 /// A parsed element document, ready for element extraction
 pub struct ParsedElement {
-    element_type: ElementType,
+    source_type: SourceType,
     doc: Document,
 }
 
@@ -159,37 +197,37 @@ impl ParsedElement {
     /// Get the first paragraph, panicking if not found
     pub fn expect_paragraph(&self) -> &Paragraph {
         get_first_paragraph(&self.doc)
-            .unwrap_or_else(|| panic!("No paragraph found in {:?} document", self.element_type))
+            .unwrap_or_else(|| panic!("No paragraph found in {:?} document", self.source_type))
     }
 
     /// Get the first session, panicking if not found
     pub fn expect_session(&self) -> &Session {
         get_first_session(&self.doc)
-            .unwrap_or_else(|| panic!("No session found in {:?} document", self.element_type))
+            .unwrap_or_else(|| panic!("No session found in {:?} document", self.source_type))
     }
 
     /// Get the first list, panicking if not found
     pub fn expect_list(&self) -> &List {
         get_first_list(&self.doc)
-            .unwrap_or_else(|| panic!("No list found in {:?} document", self.element_type))
+            .unwrap_or_else(|| panic!("No list found in {:?} document", self.source_type))
     }
 
     /// Get the first definition, panicking if not found
     pub fn expect_definition(&self) -> &Definition {
         get_first_definition(&self.doc)
-            .unwrap_or_else(|| panic!("No definition found in {:?} document", self.element_type))
+            .unwrap_or_else(|| panic!("No definition found in {:?} document", self.source_type))
     }
 
     /// Get the first annotation, panicking if not found
     pub fn expect_annotation(&self) -> &Annotation {
         get_first_annotation(&self.doc)
-            .unwrap_or_else(|| panic!("No annotation found in {:?} document", self.element_type))
+            .unwrap_or_else(|| panic!("No annotation found in {:?} document", self.source_type))
     }
 
     /// Get the first verbatim block, panicking if not found
     pub fn expect_verbatim(&self) -> &crate::lex::ast::Verbatim {
         get_first_verbatim(&self.doc)
-            .unwrap_or_else(|| panic!("No verbatim found in {:?} document", self.element_type))
+            .unwrap_or_else(|| panic!("No verbatim found in {:?} document", self.source_type))
     }
 
     /// Get the first paragraph (returns Option)
@@ -260,7 +298,21 @@ impl Lexplore {
     /// ```
     pub fn load(element_type: ElementType, number: usize) -> ElementLoader {
         ElementLoader {
-            element_type,
+            source_type: SourceType::Element(element_type),
+            number,
+        }
+    }
+
+    /// Start a fluent chain for loading and parsing a document collection
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let doc = Lexplore::load_document(DocumentType::Benchmark, 10)
+    ///     .parse_with(Parser::Reference);
+    /// ```
+    pub fn load_document(doc_type: DocumentType, number: usize) -> ElementLoader {
+        ElementLoader {
+            source_type: SourceType::Document(doc_type),
             number,
         }
     }
@@ -297,9 +349,29 @@ impl Lexplore {
         Self::load(ElementType::Verbatim, number)
     }
 
+    // ===== Convenience shortcuts for document collections =====
+
+    /// Load a benchmark document (fluent API)
+    pub fn benchmark(number: usize) -> ElementLoader {
+        Self::load_document(DocumentType::Benchmark, number)
+    }
+
+    /// Load a trifecta document (fluent API)
+    pub fn trifecta(number: usize) -> ElementLoader {
+        Self::load_document(DocumentType::Trifecta, number)
+    }
+
     /// Get the path to a specific element type directory
     fn element_type_dir(element_type: ElementType) -> PathBuf {
         Self::elements_dir().join(element_type.dir_name())
+    }
+
+    /// Get the path to a specific document type directory
+    fn document_type_dir(doc_type: DocumentType) -> PathBuf {
+        Self::elements_dir()
+            .parent()
+            .unwrap()
+            .join(doc_type.dir_name())
     }
 
     /// Find the file matching the element type and number
@@ -321,6 +393,33 @@ impl Lexplore {
         Err(ElementSourceError::FileNotFound(format!(
             "No file found for {:?} number {} in {}",
             element_type,
+            number,
+            dir.display()
+        )))
+    }
+
+    /// Find the file matching the document type and number
+    fn find_document_file(
+        doc_type: DocumentType,
+        number: usize,
+    ) -> Result<PathBuf, ElementSourceError> {
+        let dir = Self::document_type_dir(doc_type);
+        let pattern = format!("{:03}-", number);
+
+        let entries = fs::read_dir(&dir)?;
+        for entry in entries {
+            let entry = entry?;
+            let filename = entry.file_name();
+            if let Some(name) = filename.to_str() {
+                if name.starts_with(&pattern) && name.ends_with(".lex") {
+                    return Ok(entry.path());
+                }
+            }
+        }
+
+        Err(ElementSourceError::FileNotFound(format!(
+            "No file found for {:?} number {} in {}",
+            doc_type,
             number,
             dir.display()
         )))
@@ -354,6 +453,52 @@ impl Lexplore {
     ) -> Result<Document, ElementSourceError> {
         let source = Self::get_source_for(element_type, number)?;
         parse_with_parser(&source, parser)
+    }
+
+    /// Get the source string for a specific document collection
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let source = Lexplore::get_document_source_for(DocumentType::Benchmark, 10).unwrap();
+    /// ```
+    pub fn get_document_source_for(
+        doc_type: DocumentType,
+        number: usize,
+    ) -> Result<String, ElementSourceError> {
+        let path = Self::find_document_file(doc_type, number)?;
+        let content = fs::read_to_string(&path)?;
+        Ok(content)
+    }
+
+    /// Get source string for a document, panicking with helpful message if not found
+    pub fn must_get_document_source_for(doc_type: DocumentType, number: usize) -> String {
+        Self::get_document_source_for(doc_type, number)
+            .unwrap_or_else(|e| panic!("Failed to load {:?} #{}: {}", doc_type, number, e))
+    }
+
+    /// Get the AST document for a specific document collection using the specified parser
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let doc = Lexplore::get_document_ast_for(DocumentType::Benchmark, 10, Parser::Reference).unwrap();
+    /// ```
+    pub fn get_document_ast_for(
+        doc_type: DocumentType,
+        number: usize,
+        parser: Parser,
+    ) -> Result<Document, ElementSourceError> {
+        let source = Self::get_document_source_for(doc_type, number)?;
+        parse_with_parser(&source, parser)
+    }
+
+    /// Get AST document for a document collection, panicking if not found or parse fails
+    pub fn must_get_document_ast_for(
+        doc_type: DocumentType,
+        number: usize,
+        parser: Parser,
+    ) -> Document {
+        Self::get_document_ast_for(doc_type, number, parser)
+            .unwrap_or_else(|e| panic!("Failed to load/parse {:?} #{}: {}", doc_type, number, e))
     }
 
     /// List all available numbers for a given element type
@@ -650,6 +795,69 @@ mod tests {
 
         // Test must_get_ast_for
         let doc = Lexplore::must_get_ast_for(ElementType::Paragraph, 1, Parser::Reference);
+        assert!(!doc.root.children.is_empty());
+    }
+
+    // ===== Document Collection Tests =====
+
+    #[test]
+    fn test_benchmark_fluent_api() {
+        // Test: Lexplore::benchmark(10).parse()
+        let parsed = Lexplore::benchmark(10).parse();
+        let doc = parsed.document();
+
+        // Benchmark documents should have multiple elements
+        assert!(!doc.root.children.is_empty());
+    }
+
+    #[test]
+    fn test_trifecta_fluent_api() {
+        // Test: Lexplore::trifecta(0).parse()
+        let parsed = Lexplore::trifecta(0).parse();
+        let doc = parsed.document();
+
+        // Trifecta documents should have content
+        assert!(!doc.root.children.is_empty());
+    }
+
+    #[test]
+    fn test_benchmark_source_only() {
+        // Get just the source without parsing
+        let source = Lexplore::benchmark(10).source();
+        assert!(!source.is_empty());
+    }
+
+    #[test]
+    fn test_trifecta_source_only() {
+        // Get just the source without parsing
+        let source = Lexplore::trifecta(0).source();
+        assert!(!source.is_empty());
+    }
+
+    #[test]
+    fn test_get_document_source_for() {
+        let source = Lexplore::get_document_source_for(DocumentType::Benchmark, 10);
+        assert!(source.is_ok(), "Should find benchmark-010 file");
+        let content = source.unwrap();
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn test_must_get_document_source_for() {
+        let source = Lexplore::must_get_document_source_for(DocumentType::Trifecta, 0);
+        assert!(!source.is_empty());
+    }
+
+    #[test]
+    fn test_get_document_ast_for() {
+        let doc = Lexplore::get_document_ast_for(DocumentType::Benchmark, 10, Parser::Reference);
+        assert!(doc.is_ok(), "Should parse benchmark document");
+        assert!(!doc.unwrap().root.children.is_empty());
+    }
+
+    #[test]
+    fn test_must_get_document_ast_for() {
+        let doc = Lexplore::must_get_document_ast_for(DocumentType::Trifecta, 0, Parser::Reference);
         assert!(!doc.root.children.is_empty());
     }
 }
