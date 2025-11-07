@@ -22,6 +22,7 @@
 
 use crate::lex::ast::traits::{Container, TextNode};
 use crate::lex::ast::{Annotation, ContentItem, Definition, Document, List, Paragraph, Session};
+use crate::lex::lexing::Token;
 use crate::lex::parsing::ParseError;
 use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 use std::fs;
@@ -91,11 +92,19 @@ pub enum Parser {
 }
 
 impl Parser {
-    /// Get the pipeline config name for this parser
+    /// Get the pipeline config name for this parser (AST output)
     fn config_name(&self) -> &'static str {
         match self {
             Parser::Reference => "default",
             Parser::Linebased => "linebased",
+        }
+    }
+
+    /// Get the pipeline config name for tokenization (Token output)
+    fn token_config_name(&self) -> &'static str {
+        match self {
+            Parser::Reference => "tokens-indentation",
+            Parser::Linebased => "tokens-linebased-flat",
         }
     }
 }
@@ -179,6 +188,78 @@ impl ElementLoader {
     /// Parse with the Reference parser (shorthand)
     pub fn parse(self) -> ParsedElement {
         self.parse_with(Parser::Reference)
+    }
+
+    /// Tokenize with the specified parser and return a ParsedTokens for further inspection
+    pub fn tokenize_with(self, parser: Parser) -> ParsedTokens {
+        let tokens = match self.source_type {
+            SourceType::Element(element_type) => {
+                Lexplore::must_get_tokens_for(element_type, self.number, parser)
+            }
+            SourceType::Document(doc_type) => {
+                Lexplore::must_get_document_tokens_for(doc_type, self.number, parser)
+            }
+        };
+        ParsedTokens {
+            source_type: self.source_type,
+            tokens,
+        }
+    }
+
+    /// Tokenize with the Reference parser (shorthand)
+    pub fn tokenize(self) -> ParsedTokens {
+        self.tokenize_with(Parser::Reference)
+    }
+}
+
+/// Tokenized source, ready for token inspection
+pub struct ParsedTokens {
+    #[allow(dead_code)] // Kept for symmetry with ParsedElement, may be used for debugging
+    source_type: SourceType,
+    tokens: Vec<(Token, std::ops::Range<usize>)>,
+}
+
+impl ParsedTokens {
+    /// Get the underlying token stream
+    pub fn tokens(&self) -> &[(Token, std::ops::Range<usize>)] {
+        &self.tokens
+    }
+
+    /// Get the count of tokens
+    pub fn len(&self) -> usize {
+        self.tokens.len()
+    }
+
+    /// Check if there are no tokens
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
+
+    /// Find first token matching a predicate
+    pub fn find_token<F>(&self, predicate: F) -> Option<&Token>
+    where
+        F: Fn(&Token) -> bool,
+    {
+        self.tokens
+            .iter()
+            .find(|(t, _)| predicate(t))
+            .map(|(t, _)| t)
+    }
+
+    /// Count tokens matching a predicate
+    pub fn count_tokens<F>(&self, predicate: F) -> usize
+    where
+        F: Fn(&Token) -> bool,
+    {
+        self.tokens.iter().filter(|(t, _)| predicate(t)).count()
+    }
+
+    /// Check if any token matches a predicate
+    pub fn has_token<F>(&self, predicate: F) -> bool
+    where
+        F: Fn(&Token) -> bool,
+    {
+        self.tokens.iter().any(|(t, _)| predicate(t))
     }
 }
 
@@ -284,6 +365,20 @@ impl Lexplore {
     pub fn must_get_ast_for(element_type: ElementType, number: usize, parser: Parser) -> Document {
         Self::get_ast_for(element_type, number, parser).unwrap_or_else(|e| {
             panic!("Failed to load/parse {:?} #{}: {}", element_type, number, e)
+        })
+    }
+
+    /// Get tokens, panicking if not found or tokenization fails
+    pub fn must_get_tokens_for(
+        element_type: ElementType,
+        number: usize,
+        parser: Parser,
+    ) -> Vec<(Token, std::ops::Range<usize>)> {
+        Self::get_tokens_for(element_type, number, parser).unwrap_or_else(|e| {
+            panic!(
+                "Failed to load/tokenize {:?} #{}: {}",
+                element_type, number, e
+            )
         })
     }
 
@@ -455,6 +550,21 @@ impl Lexplore {
         parse_with_parser(&source, parser)
     }
 
+    /// Get the tokens for a specific element variation using the specified parser
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let tokens = Lexplore::get_tokens_for(ElementType::Paragraph, 1, Parser::Reference).unwrap();
+    /// ```
+    pub fn get_tokens_for(
+        element_type: ElementType,
+        number: usize,
+        parser: Parser,
+    ) -> Result<Vec<(Token, std::ops::Range<usize>)>, ElementSourceError> {
+        let source = Self::get_source_for(element_type, number)?;
+        tokenize_with_parser(&source, parser)
+    }
+
     /// Get the source string for a specific document collection
     ///
     /// # Example
@@ -501,6 +611,31 @@ impl Lexplore {
             .unwrap_or_else(|e| panic!("Failed to load/parse {:?} #{}: {}", doc_type, number, e))
     }
 
+    /// Get the tokens for a specific document collection using the specified parser
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let tokens = Lexplore::get_document_tokens_for(DocumentType::Benchmark, 10, Parser::Reference).unwrap();
+    /// ```
+    pub fn get_document_tokens_for(
+        doc_type: DocumentType,
+        number: usize,
+        parser: Parser,
+    ) -> Result<Vec<(Token, std::ops::Range<usize>)>, ElementSourceError> {
+        let source = Self::get_document_source_for(doc_type, number)?;
+        tokenize_with_parser(&source, parser)
+    }
+
+    /// Get tokens for a document collection, panicking if not found or tokenization fails
+    pub fn must_get_document_tokens_for(
+        doc_type: DocumentType,
+        number: usize,
+        parser: Parser,
+    ) -> Vec<(Token, std::ops::Range<usize>)> {
+        Self::get_document_tokens_for(doc_type, number, parser)
+            .unwrap_or_else(|e| panic!("Failed to load/tokenize {:?} #{}: {}", doc_type, number, e))
+    }
+
     /// List all available numbers for a given element type
     pub fn list_numbers_for(element_type: ElementType) -> Result<Vec<usize>, ElementSourceError> {
         let dir = Self::element_type_dir(element_type);
@@ -542,6 +677,24 @@ pub fn parse_with_parser(source: &str, parser: Parser) -> Result<Document, Eleme
         ExecutionOutput::Document(doc) => Ok(doc),
         _ => Err(ElementSourceError::ParseError(
             "Expected document output from parser".to_string(),
+        )),
+    }
+}
+
+/// Tokenize a source string with a specific parser
+pub fn tokenize_with_parser(
+    source: &str,
+    parser: Parser,
+) -> Result<Vec<(Token, std::ops::Range<usize>)>, ElementSourceError> {
+    let executor = PipelineExecutor::new();
+    let output = executor
+        .execute(parser.token_config_name(), source)
+        .map_err(|e| ElementSourceError::ParseError(e.to_string()))?;
+
+    match output {
+        ExecutionOutput::Tokens(stream) => Ok(stream.unroll()),
+        _ => Err(ElementSourceError::ParseError(
+            "Expected tokens output from tokenizer".to_string(),
         )),
     }
 }
@@ -859,5 +1012,126 @@ mod tests {
     fn test_must_get_document_ast_for() {
         let doc = Lexplore::must_get_document_ast_for(DocumentType::Trifecta, 0, Parser::Reference);
         assert!(!doc.root.children.is_empty());
+    }
+
+    // ===== Tokenization Tests =====
+
+    #[test]
+    fn test_tokenize_paragraph() {
+        // Test: Lexplore::paragraph(1).tokenize()
+        let parsed_tokens = Lexplore::paragraph(1).tokenize();
+
+        assert!(!parsed_tokens.is_empty());
+        assert!(!parsed_tokens.is_empty());
+    }
+
+    #[test]
+    fn test_tokenize_with_parser() {
+        // Test with explicit parser selection
+        let parsed_tokens = Lexplore::paragraph(1).tokenize_with(Parser::Reference);
+
+        assert!(!parsed_tokens.is_empty());
+        // Should have text tokens
+        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Text(_))));
+    }
+
+    #[test]
+    fn test_tokenize_list() {
+        let parsed_tokens = Lexplore::list(1).tokenize();
+
+        // Lists should have dash or number tokens
+        assert!(
+            parsed_tokens.has_token(|t| matches!(t, Token::Dash))
+                || parsed_tokens.has_token(|t| matches!(t, Token::Number(_)))
+        );
+    }
+
+    #[test]
+    fn test_tokenize_benchmark() {
+        let parsed_tokens = Lexplore::benchmark(10).tokenize();
+
+        assert!(!parsed_tokens.is_empty());
+        // Benchmark should have multiple types of tokens
+        assert!(parsed_tokens.len() > 10);
+    }
+
+    #[test]
+    fn test_tokenize_trifecta() {
+        let parsed_tokens = Lexplore::trifecta(0).tokenize();
+
+        assert!(!parsed_tokens.is_empty());
+        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Text(_))));
+    }
+
+    #[test]
+    fn test_get_tokens_for() {
+        let tokens = Lexplore::get_tokens_for(ElementType::Paragraph, 1, Parser::Reference);
+        assert!(tokens.is_ok());
+        assert!(!tokens.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_must_get_tokens_for() {
+        let tokens = Lexplore::must_get_tokens_for(ElementType::Paragraph, 1, Parser::Reference);
+        assert!(!tokens.is_empty());
+    }
+
+    #[test]
+    fn test_get_document_tokens_for() {
+        let tokens =
+            Lexplore::get_document_tokens_for(DocumentType::Benchmark, 10, Parser::Reference);
+        assert!(tokens.is_ok());
+        assert!(!tokens.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_must_get_document_tokens_for() {
+        let tokens =
+            Lexplore::must_get_document_tokens_for(DocumentType::Trifecta, 0, Parser::Reference);
+        assert!(!tokens.is_empty());
+    }
+
+    #[test]
+    fn test_parsed_tokens_methods() {
+        let parsed_tokens = Lexplore::paragraph(1).tokenize();
+
+        // Test len/is_empty
+        assert!(!parsed_tokens.is_empty());
+        assert!(!parsed_tokens.is_empty());
+
+        // Test tokens()
+        let tokens = parsed_tokens.tokens();
+        assert!(!tokens.is_empty());
+
+        // Test find_token
+        let text_token = parsed_tokens.find_token(|t| matches!(t, Token::Text(_)));
+        assert!(text_token.is_some());
+
+        // Test count_tokens
+        let text_count = parsed_tokens.count_tokens(|t| matches!(t, Token::Text(_)));
+        assert!(text_count > 0);
+
+        // Test has_token
+        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Text(_))));
+        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Newline)));
+    }
+
+    #[test]
+    fn test_tokenize_with_parser_function() {
+        let source = Lexplore::must_get_source_for(ElementType::Paragraph, 1);
+        let tokens = tokenize_with_parser(&source, Parser::Reference);
+
+        assert!(tokens.is_ok());
+        let tokens = tokens.unwrap();
+        assert!(!tokens.is_empty());
+    }
+
+    #[test]
+    fn test_tokenize_linebased_parser() {
+        let parsed_tokens = Lexplore::paragraph(1).tokenize_with(Parser::Linebased);
+
+        assert!(!parsed_tokens.is_empty());
+        // Linebased should also produce tokens
+        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Text(_))));
     }
 }
