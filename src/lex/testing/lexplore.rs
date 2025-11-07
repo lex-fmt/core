@@ -149,35 +149,38 @@ pub struct ElementLoader {
     number: usize,
 }
 
-/// Enum to represent either an element type or document type
+/// Enum to represent either an element type, document type, or arbitrary file path
 #[derive(Debug)]
 enum SourceType {
     Element(ElementType),
     Document(DocumentType),
+    Path(PathBuf),
 }
 
 impl ElementLoader {
     /// Get the raw source string
     pub fn source(&self) -> String {
-        match self.source_type {
+        match &self.source_type {
             SourceType::Element(element_type) => {
-                Lexplore::must_get_source_for(element_type, self.number)
+                Lexplore::must_get_source_for(*element_type, self.number)
             }
             SourceType::Document(doc_type) => {
-                Lexplore::must_get_document_source_for(doc_type, self.number)
+                Lexplore::must_get_document_source_for(*doc_type, self.number)
             }
+            SourceType::Path(path) => Lexplore::must_get_source_from_path(path),
         }
     }
 
     /// Parse with the specified parser and return a ParsedElement for further chaining
     pub fn parse_with(self, parser: Parser) -> ParsedElement {
-        let doc = match self.source_type {
+        let doc = match &self.source_type {
             SourceType::Element(element_type) => {
-                Lexplore::must_get_ast_for(element_type, self.number, parser)
+                Lexplore::must_get_ast_for(*element_type, self.number, parser)
             }
             SourceType::Document(doc_type) => {
-                Lexplore::must_get_document_ast_for(doc_type, self.number, parser)
+                Lexplore::must_get_document_ast_for(*doc_type, self.number, parser)
             }
+            SourceType::Path(path) => Lexplore::must_get_ast_from_path(path, parser),
         };
         ParsedElement {
             source_type: self.source_type,
@@ -192,13 +195,14 @@ impl ElementLoader {
 
     /// Tokenize with the specified parser and return a ParsedTokens for further inspection
     pub fn tokenize_with(self, parser: Parser) -> ParsedTokens {
-        let tokens = match self.source_type {
+        let tokens = match &self.source_type {
             SourceType::Element(element_type) => {
-                Lexplore::must_get_tokens_for(element_type, self.number, parser)
+                Lexplore::must_get_tokens_for(*element_type, self.number, parser)
             }
             SourceType::Document(doc_type) => {
-                Lexplore::must_get_document_tokens_for(doc_type, self.number, parser)
+                Lexplore::must_get_document_tokens_for(*doc_type, self.number, parser)
             }
+            SourceType::Path(path) => Lexplore::must_get_tokens_from_path(path, parser),
         };
         ParsedTokens {
             source_type: self.source_type,
@@ -409,6 +413,20 @@ impl Lexplore {
         ElementLoader {
             source_type: SourceType::Document(doc_type),
             number,
+        }
+    }
+
+    /// Start a fluent chain for loading and parsing from an arbitrary file path
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let doc = Lexplore::from_path("path/to/file.lex")
+    ///     .parse_with(Parser::Reference);
+    /// ```
+    pub fn from_path<P: Into<PathBuf>>(path: P) -> ElementLoader {
+        ElementLoader {
+            source_type: SourceType::Path(path.into()),
+            number: 0, // Dummy value, not used for Path variant
         }
     }
 
@@ -634,6 +652,75 @@ impl Lexplore {
     ) -> Vec<(Token, std::ops::Range<usize>)> {
         Self::get_document_tokens_for(doc_type, number, parser)
             .unwrap_or_else(|e| panic!("Failed to load/tokenize {:?} #{}: {}", doc_type, number, e))
+    }
+
+    // ===== Path-based loading methods =====
+
+    /// Get the source string from an arbitrary file path
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let source = Lexplore::get_source_from_path("path/to/file.lex").unwrap();
+    /// ```
+    pub fn get_source_from_path<P: AsRef<std::path::Path>>(
+        path: P,
+    ) -> Result<String, ElementSourceError> {
+        let content = fs::read_to_string(path.as_ref())?;
+        Ok(content)
+    }
+
+    /// Get source string from path, panicking with helpful message if not found
+    pub fn must_get_source_from_path<P: AsRef<std::path::Path>>(path: P) -> String {
+        Self::get_source_from_path(&path)
+            .unwrap_or_else(|e| panic!("Failed to load {:?}: {}", path.as_ref().display(), e))
+    }
+
+    /// Get the AST document from a file path using the specified parser
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let doc = Lexplore::get_ast_from_path("path/to/file.lex", Parser::Reference).unwrap();
+    /// ```
+    pub fn get_ast_from_path<P: AsRef<std::path::Path>>(
+        path: P,
+        parser: Parser,
+    ) -> Result<Document, ElementSourceError> {
+        let source = Self::get_source_from_path(&path)?;
+        parse_with_parser(&source, parser)
+    }
+
+    /// Get AST document from path, panicking if not found or parse fails
+    pub fn must_get_ast_from_path<P: AsRef<std::path::Path>>(path: P, parser: Parser) -> Document {
+        Self::get_ast_from_path(&path, parser)
+            .unwrap_or_else(|e| panic!("Failed to load/parse {:?}: {}", path.as_ref().display(), e))
+    }
+
+    /// Get the tokens from a file path using the specified parser
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let tokens = Lexplore::get_tokens_from_path("path/to/file.lex", Parser::Reference).unwrap();
+    /// ```
+    pub fn get_tokens_from_path<P: AsRef<std::path::Path>>(
+        path: P,
+        parser: Parser,
+    ) -> Result<Vec<(Token, std::ops::Range<usize>)>, ElementSourceError> {
+        let source = Self::get_source_from_path(&path)?;
+        tokenize_with_parser(&source, parser)
+    }
+
+    /// Get tokens from path, panicking if not found or tokenization fails
+    pub fn must_get_tokens_from_path<P: AsRef<std::path::Path>>(
+        path: P,
+        parser: Parser,
+    ) -> Vec<(Token, std::ops::Range<usize>)> {
+        Self::get_tokens_from_path(&path, parser).unwrap_or_else(|e| {
+            panic!(
+                "Failed to load/tokenize {:?}: {}",
+                path.as_ref().display(),
+                e
+            )
+        })
     }
 
     /// List all available numbers for a given element type
@@ -1133,5 +1220,127 @@ mod tests {
         assert!(!parsed_tokens.is_empty());
         // Linebased should also produce tokens
         assert!(parsed_tokens.has_token(|t| matches!(t, Token::Text(_))));
+    }
+
+    // ===== Path-based Loading Tests =====
+
+    #[test]
+    fn test_from_path_parse() {
+        // Load a paragraph file by path
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let parsed = Lexplore::from_path(path).parse();
+
+        let paragraph = parsed.expect_paragraph();
+        assert!(!paragraph.text().is_empty());
+    }
+
+    #[test]
+    fn test_from_path_tokenize() {
+        // Load and tokenize a file by path
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let tokens = Lexplore::from_path(path).tokenize();
+
+        assert!(!tokens.is_empty());
+        assert!(tokens.has_token(|t| matches!(t, Token::Text(_))));
+    }
+
+    #[test]
+    fn test_from_path_source() {
+        // Get just the source string
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let source = Lexplore::from_path(path).source();
+
+        assert!(!source.is_empty());
+    }
+
+    #[test]
+    fn test_from_path_with_parser() {
+        // Test with explicit parser selection
+        let path = "docs/specs/v1/elements/list/list-01-flat-simple-dash.lex";
+        let parsed = Lexplore::from_path(path).parse_with(Parser::Reference);
+
+        let list = parsed.expect_list();
+        assert!(!list.items.is_empty());
+    }
+
+    #[test]
+    fn test_from_path_tokenize_with_parser() {
+        // Test tokenization with explicit parser
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let tokens = Lexplore::from_path(path).tokenize_with(Parser::Linebased);
+
+        assert!(!tokens.is_empty());
+        assert!(tokens.has_token(|t| matches!(t, Token::Text(_))));
+    }
+
+    #[test]
+    fn test_get_source_from_path() {
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let source = Lexplore::get_source_from_path(path);
+
+        assert!(source.is_ok());
+        assert!(!source.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_must_get_source_from_path() {
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let source = Lexplore::must_get_source_from_path(path);
+
+        assert!(!source.is_empty());
+    }
+
+    #[test]
+    fn test_get_ast_from_path() {
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let doc = Lexplore::get_ast_from_path(path, Parser::Reference);
+
+        assert!(doc.is_ok());
+        assert!(!doc.unwrap().root.children.is_empty());
+    }
+
+    #[test]
+    fn test_must_get_ast_from_path() {
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let doc = Lexplore::must_get_ast_from_path(path, Parser::Reference);
+
+        assert!(!doc.root.children.is_empty());
+    }
+
+    #[test]
+    fn test_get_tokens_from_path() {
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let tokens = Lexplore::get_tokens_from_path(path, Parser::Reference);
+
+        assert!(tokens.is_ok());
+        assert!(!tokens.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_must_get_tokens_from_path() {
+        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let tokens = Lexplore::must_get_tokens_from_path(path, Parser::Reference);
+
+        assert!(!tokens.is_empty());
+    }
+
+    #[test]
+    fn test_from_path_with_benchmark() {
+        // Load a benchmark document by path
+        let path = "docs/specs/v1/benchmark/010-kitchensink.lex";
+        let parsed = Lexplore::from_path(path).parse();
+
+        let doc = parsed.document();
+        assert!(!doc.root.children.is_empty());
+    }
+
+    #[test]
+    fn test_from_path_with_trifecta() {
+        // Load a trifecta document by path
+        let path = "docs/specs/v1/trifecta/000-paragraphs.lex";
+        let parsed = Lexplore::from_path(path).parse();
+
+        let doc = parsed.document();
+        assert!(!doc.root.children.is_empty());
     }
 }
