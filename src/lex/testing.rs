@@ -152,19 +152,19 @@
 //!    pub fn assert_new_node(self) -> NewNodeAssertion<'a> { /* ... */ }
 //!    ```
 
+mod ast_assertions;
+mod matchers;
 pub mod test_harness;
-mod testing_assertions;
-mod testing_factories;
-mod testing_matchers;
+mod token_factories;
 
-pub use testing_assertions::{
+pub use ast_assertions::{
     assert_ast, AnnotationAssertion, ChildrenAssertion, ContentItemAssertion, DefinitionAssertion,
     DocumentAssertion, ListAssertion, ListItemAssertion, ParagraphAssertion, SessionAssertion,
     VerbatimBlockkAssertion,
 };
-pub use testing_matchers::TextMatch;
+pub use matchers::TextMatch;
 
 // Public submodule path: crate::lex::testing::factories
 pub mod factories {
-    pub use super::testing_factories::*;
+    pub use super::token_factories::*;
 }

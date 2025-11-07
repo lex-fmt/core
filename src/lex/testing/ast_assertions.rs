@@ -1,6 +1,6 @@
 //! Fluent assertion API for AST nodes
 
-use super::testing_matchers::TextMatch;
+use super::matchers::TextMatch;
 use crate::lex::ast::{
     Annotation, Container, ContentItem, Definition, Document, List, ListItem, Paragraph, Session,
     Verbatim,
