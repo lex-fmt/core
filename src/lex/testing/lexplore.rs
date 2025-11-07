@@ -9,7 +9,7 @@
 //! use lex::lex::testing::test_harness::*;
 //!
 //! // Load a specific element variation
-//! let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+//! let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
 //! let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 //!
 //! // Get first element of a type
@@ -126,12 +126,12 @@ pub struct ElementLoader {
 impl ElementLoader {
     /// Get the raw source string
     pub fn source(&self) -> String {
-        ElementSources::must_get_source_for(self.element_type, self.number)
+        Lexplore::must_get_source_for(self.element_type, self.number)
     }
 
     /// Parse with the specified parser and return a ParsedElement for further chaining
     pub fn parse_with(self, parser: Parser) -> ParsedElement {
-        let doc = ElementSources::must_get_ast_for(self.element_type, self.number, parser);
+        let doc = Lexplore::must_get_ast_for(self.element_type, self.number, parser);
         ParsedElement {
             element_type: self.element_type,
             doc,
@@ -224,9 +224,9 @@ impl ParsedElement {
 }
 
 /// Interface for loading per-element test sources
-pub struct ElementSources;
+pub struct Lexplore;
 
-impl ElementSources {
+impl Lexplore {
     const SPEC_VERSION: &'static str = "v1";
 
     /// Get the path to the elements directory
@@ -255,7 +255,7 @@ impl ElementSources {
     ///
     /// # Example
     /// ```rust,ignore
-    /// let doc = ElementSources::load(ElementType::Paragraph, 1)
+    /// let doc = Lexplore::load(ElementType::Paragraph, 1)
     ///     .parse_with(Parser::Reference);
     /// ```
     pub fn load(element_type: ElementType, number: usize) -> ElementLoader {
@@ -330,7 +330,7 @@ impl ElementSources {
     ///
     /// # Example
     /// ```rust,ignore
-    /// let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+    /// let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
     /// ```
     pub fn get_source_for(
         element_type: ElementType,
@@ -345,7 +345,7 @@ impl ElementSources {
     ///
     /// # Example
     /// ```rust,ignore
-    /// let doc = ElementSources::get_ast_for(ElementType::Paragraph, 1, Parser::Reference).unwrap();
+    /// let doc = Lexplore::get_ast_for(ElementType::Paragraph, 1, Parser::Reference).unwrap();
     /// ```
     pub fn get_ast_for(
         element_type: ElementType,
@@ -552,7 +552,7 @@ mod tests {
 
     #[test]
     fn test_get_source_for_paragraph() {
-        let source = ElementSources::get_source_for(ElementType::Paragraph, 1);
+        let source = Lexplore::get_source_for(ElementType::Paragraph, 1);
         assert!(source.is_ok(), "Should find paragraph-01 file");
         let content = source.unwrap();
         assert!(!content.is_empty());
@@ -560,21 +560,21 @@ mod tests {
 
     #[test]
     fn test_list_numbers_for_paragraphs() {
-        let numbers = ElementSources::list_numbers_for(ElementType::Paragraph).unwrap();
+        let numbers = Lexplore::list_numbers_for(ElementType::Paragraph).unwrap();
         assert!(!numbers.is_empty());
         assert!(numbers.contains(&1));
     }
 
     #[test]
     fn test_parse_with_reference_parser() {
-        let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+        let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
         let doc = parse_with_parser(&source, Parser::Reference);
         assert!(doc.is_ok(), "Reference parser should parse successfully");
     }
 
     #[test]
     fn test_get_first_paragraph() {
-        let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+        let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
         let doc = parse_with_parser(&source, Parser::Reference).unwrap();
         let paragraph = get_first_paragraph(&doc);
         assert!(paragraph.is_some());
@@ -582,7 +582,7 @@ mod tests {
 
     #[test]
     fn test_paragraph_assertions() {
-        let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+        let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
         let doc = parse_with_parser(&source, Parser::Reference).unwrap();
         let paragraph = get_first_paragraph(&doc).unwrap();
 
@@ -595,8 +595,8 @@ mod tests {
 
     #[test]
     fn test_fluent_api_basic() {
-        // Test: ElementSources::paragraph(1).parse().expect_paragraph()
-        let parsed = ElementSources::paragraph(1).parse();
+        // Test: Lexplore::paragraph(1).parse().expect_paragraph()
+        let parsed = Lexplore::paragraph(1).parse();
         let paragraph = parsed.expect_paragraph();
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
@@ -605,7 +605,7 @@ mod tests {
     #[test]
     fn test_fluent_api_with_parser_selection() {
         // Test with explicit parser selection
-        let parsed = ElementSources::paragraph(1).parse_with(Parser::Reference);
+        let parsed = Lexplore::paragraph(1).parse_with(Parser::Reference);
         let paragraph = parsed.expect_paragraph();
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
@@ -614,13 +614,13 @@ mod tests {
     #[test]
     fn test_fluent_api_source_only() {
         // Get just the source without parsing
-        let source = ElementSources::paragraph(1).source();
+        let source = Lexplore::paragraph(1).source();
         assert!(source.contains("simple"));
     }
 
     #[test]
     fn test_fluent_api_list() {
-        let parsed = ElementSources::list(1).parse();
+        let parsed = Lexplore::list(1).parse();
         let list = parsed.expect_list();
 
         assert!(!list.items.is_empty());
@@ -628,7 +628,7 @@ mod tests {
 
     #[test]
     fn test_fluent_api_session() {
-        let parsed = ElementSources::session(1).parse();
+        let parsed = Lexplore::session(1).parse();
         let session = parsed.expect_session();
 
         assert!(!session.label().is_empty());
@@ -636,7 +636,7 @@ mod tests {
 
     #[test]
     fn test_fluent_api_definition() {
-        let parsed = ElementSources::definition(1).parse();
+        let parsed = Lexplore::definition(1).parse();
         let definition = parsed.expect_definition();
 
         assert!(!definition.label().is_empty());
@@ -645,11 +645,11 @@ mod tests {
     #[test]
     fn test_must_methods() {
         // Test must_get_source_for
-        let source = ElementSources::must_get_source_for(ElementType::Paragraph, 1);
+        let source = Lexplore::must_get_source_for(ElementType::Paragraph, 1);
         assert!(!source.is_empty());
 
         // Test must_get_ast_for
-        let doc = ElementSources::must_get_ast_for(ElementType::Paragraph, 1, Parser::Reference);
+        let doc = Lexplore::must_get_ast_for(ElementType::Paragraph, 1, Parser::Reference);
         assert!(!doc.root.children.is_empty());
     }
 }

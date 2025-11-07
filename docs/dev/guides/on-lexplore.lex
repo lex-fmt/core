@@ -1,9 +1,9 @@
-The Parsing Test Harness
+Lexpore: Testing Parsing
 
 	The code base has a multi-layer test harness that solves a few key challenges when testing the parser. Lex is a novel format, with no established references nor a reference parser It's also a changing format, with changes occuring frequently.
 
 	TLDR: 
-	- Use ElementSources to get the source string, parsed, and the element ready.
+	- Use Lexplore to get the source string, parsed, and the element ready.
 	- Use assert_ast to verify the AST data, not counts.
 
     - 
@@ -93,7 +93,7 @@ The harness has utilities tailored for different document types. They allow you 
 	
 	The harness includes facilities for individual elements: 
         // Gets the source string 
-	 	paragraph = ElementSources.paragraph(1).parse().expect_paragraph()
+	 	paragraph = Lexplore.paragraph(1).parse().expect_paragraph()
     :: rust ::
 
 	This one liner will: 
@@ -103,7 +103,7 @@ The harness has utilities tailored for different document types. They allow you 
 
     Note that this requires the document to follow the one relevant element rule to be most useful. (of course the parse will return the full AST, but this is a shortcut to get the first node of that element type.)
 	This , combined with the deep AST assertion library, allows for consice, robust and deep tests:
-		verbatim = ElementSources.verbatim(1).parse().expect_verbatim();
+		verbatim = Lexplore.verbatim(1).parse().expect_verbatim();
          verbatim.assert_verbatim_block()
              .subject("This is the hello world example")
              .label("python");
@@ -116,7 +116,7 @@ The harness has utilities tailored for different document types. They allow you 
 		But in this case the document's position in the ast matters, hence there is no simple shortcut to get the element.
 
 		Iterate over the elements you're interested in: 
-			document = ElementSources.verbatim(8).parse(
+			document = Lexplore.verbatim(8).parse(
 			for verbatim in document.iter_verbatim_blocks() {
 				verbatim.assert_verbatim_block();
 			}
@@ -126,5 +126,5 @@ The harness has utilities tailored for different document types. They allow you 
 	3. Benchmark Documents:
 
 	    Likewise, the api is to be used to load and parse full documents:
-		document = ElementSources.benchmark(10).parse();
+		document = Lexplore.benchmark(10).parse();
 

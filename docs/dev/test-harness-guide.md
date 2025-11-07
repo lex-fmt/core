@@ -18,7 +18,7 @@ The test harness provides utilities for:
 use lex::lex::testing::test_harness::*;
 
 // Clean, chainable API - no unwrap() needed!
-let parsed = ElementSources::paragraph(1).parse();
+let parsed = Lexplore::paragraph(1).parse();
 let paragraph = parsed.expect_paragraph();
 
 // Make assertions
@@ -31,7 +31,7 @@ assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
 use lex::lex::testing::test_harness::*;
 
 // Older verbose style (still works)
-let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
 let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 let paragraph = get_first_paragraph(&doc).unwrap();
 
@@ -46,15 +46,15 @@ assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
 
 ```rust
 // Type-specific shotcuts (cleaner than ElementType enum)
-ElementSources::paragraph(1)    // Returns ElementLoader
-ElementSources::list(2)
-ElementSources::session(3)
-ElementSources::definition(4)
-ElementSources::annotation(5)
-ElementSources::verbatim(6)
+Lexplore::paragraph(1)    // Returns ElementLoader
+Lexplore::list(2)
+Lexplore::session(3)
+Lexplore::definition(4)
+Lexplore::annotation(5)
+Lexplore::verbatim(6)
 
 // Generic form
-ElementSources::load(ElementType::Paragraph, 1)
+Lexplore::load(ElementType::Paragraph, 1)
 ```
 
 #### ElementLoader Methods
@@ -104,23 +104,23 @@ ElementSources::load(ElementType::Paragraph, 1)
 
 ```rust
 // Get source, panicking with helpful message if not found
-ElementSources::must_get_source_for(ElementType::Paragraph, 1) -> String
+Lexplore::must_get_source_for(ElementType::Paragraph, 1) -> String
 
 // Get AST, panicking if not found or parse fails
-ElementSources::must_get_ast_for(ElementType::Paragraph, 1, Parser::Reference) -> Document
+Lexplore::must_get_ast_for(ElementType::Paragraph, 1, Parser::Reference) -> Document
 ```
 
 ### Result-Based API (Original)
 
 ```rust
 // Get source string for element type and number
-ElementSources::get_source_for(ElementType::Paragraph, 1) -> Result<String>
+Lexplore::get_source_for(ElementType::Paragraph, 1) -> Result<String>
 
 // Get AST directly (parses with specified parser)
-ElementSources::get_ast_for(ElementType::Paragraph, 1, Parser::Reference) -> Result<Document>
+Lexplore::get_ast_for(ElementType::Paragraph, 1, Parser::Reference) -> Result<Document>
 
 // List available numbers for an element type
-ElementSources::list_numbers_for(ElementType::Paragraph) -> Result<Vec<usize>>
+Lexplore::list_numbers_for(ElementType::Paragraph) -> Result<Vec<usize>>
 ```
 
 ### Element Types
@@ -196,7 +196,7 @@ Examples:
 Test that both parsers produce equivalent ASTs:
 
 ```rust
-let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
 let parsers = vec![Parser::Reference, Parser::Linebased];
 let results = parse_with_multiple_parsers(&source, &parsers).unwrap();
 
@@ -215,7 +215,7 @@ match compare_parser_results(&results) {
 #[test]
 fn test_paragraph_variation_1() {
     // Load and parse with fluent API
-    let parsed = ElementSources::paragraph(1).parse();
+    let parsed = Lexplore::paragraph(1).parse();
     let paragraph = parsed.expect_paragraph();
 
     // Make assertions
@@ -228,7 +228,7 @@ fn test_paragraph_variation_1() {
 ```rust
 #[test]
 fn test_with_linebased_parser() {
-    let parsed = ElementSources::paragraph(1)
+    let parsed = Lexplore::paragraph(1)
         .parse_with(Parser::Linebased);
 
     // Use safe extraction since parser may have issues
@@ -243,7 +243,7 @@ fn test_with_linebased_parser() {
 ```rust
 #[test]
 fn test_with_assert_ast() {
-    let parsed = ElementSources::paragraph(1).parse();
+    let parsed = Lexplore::paragraph(1).parse();
 
     // Use existing assert_ast API
     use lex::lex::testing::assert_ast;
@@ -262,7 +262,7 @@ fn test_with_assert_ast() {
 #[test]
 fn test_raw_source() {
     // Get source without parsing
-    let source = ElementSources::paragraph(1).source();
+    let source = Lexplore::paragraph(1).source();
     assert!(source.contains("simple"));
 }
 ```
@@ -273,7 +273,7 @@ fn test_raw_source() {
 #[test]
 fn test_verbose_style() {
     // Original verbose API still works
-    let source = ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap();
+    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
     let paragraph = get_first_paragraph(&doc).unwrap();
 
@@ -285,7 +285,7 @@ fn test_verbose_style() {
 
 | What you want | Fluent API | Verbose API |
 |--------------|------------|-------------|
-| Load & parse paragraph | `ElementSources::paragraph(1).parse()` | `ElementSources::get_source_for(ElementType::Paragraph, 1).unwrap()` |
+| Load & parse paragraph | `Lexplore::paragraph(1).parse()` | `Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap()` |
 | Get element | `.expect_paragraph()` | `get_first_paragraph(&doc).unwrap()` |
 | Choose parser | `.parse_with(Parser::Linebased)` | `parse_with_parser(&source, Parser::Linebased).unwrap()` |
 | Just source | `.source()` | Same |

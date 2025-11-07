@@ -153,8 +153,8 @@
 //!    ```
 
 mod ast_assertions;
+pub mod lexplore;
 mod matchers;
-pub mod test_harness;
 mod token_factories;
 
 pub use ast_assertions::{
