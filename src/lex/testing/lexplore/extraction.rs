@@ -105,3 +105,26 @@ pub fn content_items_match(item1: &ContentItem, item2: &ContentItem) -> bool {
         _ => false, // Different types don't match
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lex::testing::lexplore::loader::*;
+
+    #[test]
+    fn test_get_first_paragraph() {
+        let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
+        let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+        let paragraph = get_first_paragraph(&doc);
+        assert!(paragraph.is_some());
+    }
+
+    #[test]
+    fn test_paragraph_assertions() {
+        let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
+        let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+        let paragraph = get_first_paragraph(&doc).unwrap();
+
+        assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
+    }
+}
