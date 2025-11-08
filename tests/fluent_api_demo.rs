@@ -13,7 +13,8 @@ use lex::lex::testing::lexplore::*;
 fn test_old_style_verbose() {
     let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
-    let paragraph = get_first_paragraph(&doc).unwrap();
+    // Using query API directly
+    let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
 
     assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
 }

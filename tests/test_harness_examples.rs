@@ -18,8 +18,8 @@ fn test_parse_with_reference_parser() {
     let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
-    // Get the first paragraph
-    let paragraph = get_first_paragraph(&doc).unwrap();
+    // Get the first paragraph using query API
+    let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
     assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
 }
 
@@ -74,8 +74,9 @@ fn test_session_with_children() {
     let source = Lexplore::get_source_for(ElementType::Session, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
-    // Get the first session
-    if let Some(session) = get_first_session(&doc) {
+    // Get the first session using query API
+    let sessions: Vec<_> = doc.iter_sessions_recursive().collect();
+    if let Some(session) = sessions.first() {
         // Check it has a label
         assert!(!session.label().is_empty());
 
@@ -93,8 +94,9 @@ fn test_definition_structure() {
     let source = Lexplore::get_source_for(ElementType::Definition, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
-    // Get the first definition
-    if let Some(definition) = get_first_definition(&doc) {
+    // Get the first definition using query API
+    let definitions: Vec<_> = doc.iter_definitions_recursive().collect();
+    if let Some(definition) = definitions.first() {
         // Check it has a label (the defined term)
         assert!(!definition.label().is_empty());
 
@@ -109,8 +111,9 @@ fn test_list_structure() {
     let source = Lexplore::get_source_for(ElementType::List, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
-    // Get the first list
-    if let Some(list) = get_first_list(&doc) {
+    // Get the first list using query API
+    let lists: Vec<_> = doc.iter_lists_recursive().collect();
+    if let Some(list) = lists.first() {
         // Check it has items
         assert!(!list.items.is_empty());
 
@@ -136,8 +139,9 @@ fn test_annotation_structure() {
     let source = Lexplore::get_source_for(ElementType::Annotation, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
-    // Get the first annotation
-    if let Some(annotation) = get_first_annotation(&doc) {
+    // Get the first annotation using query API
+    let annotations: Vec<_> = doc.iter_annotations_recursive().collect();
+    if let Some(annotation) = annotations.first() {
         println!("Annotation has {} children", annotation.children().len());
     }
 }
@@ -148,16 +152,16 @@ fn test_verbatim_structure() {
     let source = Lexplore::get_source_for(ElementType::Verbatim, 1).unwrap();
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
-    // Get the first verbatim block
-    if let Some(verbatim) = get_first_verbatim(&doc) {
+    // Get the first verbatim block using query API
+    let verbatims: Vec<_> = doc.iter_verbatim_blocks_recursive().collect();
+    if let Some(verbatim) = verbatims.first() {
         println!("Verbatim block has {} lines", verbatim.children.len());
     }
 }
 
 #[test]
 fn test_element_source_for_api_examples() {
-    // This demonstrates the desired API from the task:
-    // ast = LexSource.getSourceFor(Paragraph, 1)
+    // This demonstrates the query API usage
 
     // Get source
     let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
@@ -165,13 +169,10 @@ fn test_element_source_for_api_examples() {
     // Parse with chosen parser
     let doc = parse_with_parser(&source, Parser::Reference).unwrap();
 
-    // Get first element
-    let paragraph = get_first_paragraph(&doc).unwrap();
+    // Get first element using query API
+    let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
 
     // Assertions
     assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
     assert!(paragraph_text_contains(paragraph, "paragraph"));
-
-    // This API matches what was requested:
-    // paragraph.text_starts_with("Hello there")
 }

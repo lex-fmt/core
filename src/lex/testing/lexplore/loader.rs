@@ -261,68 +261,80 @@ impl ParsedElement {
 
     /// Get the first paragraph, panicking if not found
     pub fn expect_paragraph(&self) -> &Paragraph {
-        get_first_paragraph(&self.doc)
+        self.doc
+            .iter_paragraphs_recursive()
+            .next()
             .unwrap_or_else(|| panic!("No paragraph found in {:?} document", self.source_type))
     }
 
     /// Get the first session, panicking if not found
     pub fn expect_session(&self) -> &Session {
-        get_first_session(&self.doc)
+        self.doc
+            .iter_sessions_recursive()
+            .next()
             .unwrap_or_else(|| panic!("No session found in {:?} document", self.source_type))
     }
 
     /// Get the first list, panicking if not found
     pub fn expect_list(&self) -> &List {
-        get_first_list(&self.doc)
+        self.doc
+            .iter_lists_recursive()
+            .next()
             .unwrap_or_else(|| panic!("No list found in {:?} document", self.source_type))
     }
 
     /// Get the first definition, panicking if not found
     pub fn expect_definition(&self) -> &Definition {
-        get_first_definition(&self.doc)
+        self.doc
+            .iter_definitions_recursive()
+            .next()
             .unwrap_or_else(|| panic!("No definition found in {:?} document", self.source_type))
     }
 
     /// Get the first annotation, panicking if not found
     pub fn expect_annotation(&self) -> &Annotation {
-        get_first_annotation(&self.doc)
+        self.doc
+            .iter_annotations_recursive()
+            .next()
             .unwrap_or_else(|| panic!("No annotation found in {:?} document", self.source_type))
     }
 
     /// Get the first verbatim block, panicking if not found
     pub fn expect_verbatim(&self) -> &crate::lex::ast::Verbatim {
-        get_first_verbatim(&self.doc)
+        self.doc
+            .iter_verbatim_blocks_recursive()
+            .next()
             .unwrap_or_else(|| panic!("No verbatim found in {:?} document", self.source_type))
     }
 
     /// Get the first paragraph (returns Option)
     pub fn first_paragraph(&self) -> Option<&Paragraph> {
-        get_first_paragraph(&self.doc)
+        self.doc.iter_paragraphs_recursive().next()
     }
 
     /// Get the first session (returns Option)
     pub fn first_session(&self) -> Option<&Session> {
-        get_first_session(&self.doc)
+        self.doc.iter_sessions_recursive().next()
     }
 
     /// Get the first list (returns Option)
     pub fn first_list(&self) -> Option<&List> {
-        get_first_list(&self.doc)
+        self.doc.iter_lists_recursive().next()
     }
 
     /// Get the first definition (returns Option)
     pub fn first_definition(&self) -> Option<&Definition> {
-        get_first_definition(&self.doc)
+        self.doc.iter_definitions_recursive().next()
     }
 
     /// Get the first annotation (returns Option)
     pub fn first_annotation(&self) -> Option<&Annotation> {
-        get_first_annotation(&self.doc)
+        self.doc.iter_annotations_recursive().next()
     }
 
     /// Get the first verbatim block (returns Option)
     pub fn first_verbatim(&self) -> Option<&crate::lex::ast::Verbatim> {
-        get_first_verbatim(&self.doc)
+        self.doc.iter_verbatim_blocks_recursive().next()
     }
 }
 
