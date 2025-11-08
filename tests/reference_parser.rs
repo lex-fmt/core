@@ -4,6 +4,7 @@ use lex::lex::ast::{AstNode, ContentItem, Position};
 use lex::lex::parsing::parse_document;
 use lex::lex::processor::lex_sources::LexSources;
 use lex::lex::testing::assert_ast;
+use lex::lex::testing::lexplore::Lexplore;
 
 #[test]
 fn test_real_content_extraction() {
@@ -59,7 +60,9 @@ fn test_dialog_parsing() {
 #[test]
 fn test_trifecta_flat_simple() {
     // Test flat structure with all three elements
-    let source = LexSources::get_string("050-trifecta-flat-simple.lex").unwrap();
+    // Note: Using from_path() because there are two 050-*.lex files in trifecta/
+    let source =
+        Lexplore::from_path("docs/specs/v1/trifecta/050-trifecta-flat-simple.lex").source();
     let doc = parse_document(&source).unwrap();
 
     // Item 0-1: Opening paragraphs
@@ -150,7 +153,7 @@ fn test_trifecta_flat_simple() {
 #[test]
 fn test_trifecta_nesting() {
     // Test nested structure with all three elements
-    let source = LexSources::get_string("060-trifecta-nesting.lex").unwrap();
+    let source = Lexplore::trifecta(60).source();
     let doc = parse_document(&source).unwrap();
 
     // Item 0-1: Opening paragraphs
