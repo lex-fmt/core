@@ -365,6 +365,36 @@ impl ContentItem {
             None
         }
     }
+
+    /// Recursively iterate all descendants of this node (depth-first pre-order)
+    /// Does not include the node itself, only its descendants
+    pub fn descendants(&self) -> Box<dyn Iterator<Item = &ContentItem> + '_> {
+        if let Some(children) = self.children() {
+            Box::new(
+                children
+                    .iter()
+                    .flat_map(|child| std::iter::once(child).chain(child.descendants())),
+            )
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
+
+    /// Recursively iterate all descendants with their relative depth
+    /// Depth is relative to this node (direct children have depth 0, their children have depth 1, etc.)
+    pub fn descendants_with_depth(
+        &self,
+        start_depth: usize,
+    ) -> Box<dyn Iterator<Item = (&ContentItem, usize)> + '_> {
+        if let Some(children) = self.children() {
+            Box::new(children.iter().flat_map(move |child| {
+                std::iter::once((child, start_depth))
+                    .chain(child.descendants_with_depth(start_depth + 1))
+            }))
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
 }
 
 impl fmt::Display for ContentItem {
