@@ -56,12 +56,15 @@ Lexing
 
 4. Token Streams
 
-	TokenStream is now dramatically simplified - just a type alias:
+	TokenStream is an enum that can represent both flat and tree structures:
 	:: file src/lex/pipeline/stream.rs ::
 
-		pub type TokenStream = Vec<(Token, Range<usize>)>;
+		pub enum TokenStream {
+			Flat(Vec<(Token, Range<usize>)>),
+			Tree(Vec<TokenStreamNode>),
+		}
 
-	The pipeline performs flat transformations only. Tree building (if needed) happens inside parsers, not in the pipeline.
+	Most pipeline transformations output Flat. Tree building happens inside the linebased parser when needed. All TokenStreams can be unrolled back to flat Vec<(Token, Range<usize>)> for AST building.
 
 	See the full documentation for details:
 	:: file docs/dev/guides/on-tokenstreams.lex ::

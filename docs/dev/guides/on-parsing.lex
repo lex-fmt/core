@@ -12,11 +12,11 @@ AST Construction
 
 	1. Input
 		The AST building can handle input in various structures (flat list, lines, tree).
-		It converts them to Vec<Vec<(Token, Range<usize>)>> in ast/token/normalization.rs
+		It converts them to Vec<Vec<(Token, Range<usize>)>> in building/token/normalization.rs
 
 	2. Data Extraction
 		Extract the token data into pure structure/object format, ready to be injected into AST nodes.
-		This includes span/byte range calculation and wall stripping for indented lines at ast/extraction.rs
+		This includes span/byte range calculation and wall stripping for indented lines at building/extraction.rs
 
 	3. AST Instantiation
 		Now, with the pure and transformed data to create AST nodes, we finally create them.
@@ -53,5 +53,5 @@ Notes:
  1. The core tokens: src/lex/lexing/tokens_core.rs and its grammar docs/specs/v1/grammar.lex
  2. The token stream guide: docs/dev/guides/on-tokenstreams.lex
  3. Tree builder (linebased parser only): src/lex/parsing/linebased/tree_builder.rs
- 4. Normalization File: src/lex/parsing/ast/token/normalization.rs
- 5. Data Extraction File: src/lex/parsing/ast/extraction.rs
+ 4. Normalization File: src/lex/building/token/normalization.rs
+ 5. Data Extraction File: src/lex/building/extraction.rs
