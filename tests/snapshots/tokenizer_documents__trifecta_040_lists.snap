@@ -1,6 +1,6 @@
 ---
-source: tests/lexer_samples.rs
-expression: tokens
+source: tests/tokenizer_documents.rs
+expression: tokens.tokens()
 ---
 [
     (
