@@ -614,8 +614,8 @@ fn test_location_tracking_for_core_elements() {
 
 #[test]
 fn test_location_tracking_for_annotations() {
-    let source = LexSources::get_string("120-annotations-simple.lex")
-        .expect("Failed to load annotations sample");
+    // Using annotation-06 which has block-style annotations with children
+    let source = Lexplore::annotation(6).source();
     let doc = parse_document(&source).expect("Failed to parse annotations sample");
 
     let annotations: Vec<_> = doc
@@ -639,8 +639,8 @@ fn test_location_tracking_for_annotations() {
 
 #[test]
 fn test_location_tracking_for_verbatim_blocks() {
-    let source = LexSources::get_string("140-verbatim-blocks-simple.lex")
-        .expect("Failed to load verbatim blocks sample");
+    // Using verbatim-01 which has verbatim blocks with subject and closing annotation
+    let source = Lexplore::verbatim(1).source();
     let doc = parse_document(&source).expect("Failed to parse verbatim blocks sample");
 
     let verbatim_blocks: Vec<_> = doc
