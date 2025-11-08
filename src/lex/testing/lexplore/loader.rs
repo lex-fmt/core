@@ -14,47 +14,8 @@ use std::path::PathBuf;
 // Re-export Parser from pipeline for backward compatibility
 pub use crate::lex::pipeline::Parser;
 
-/// Element types that can be loaded from the per-element library
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ElementType {
-    Paragraph,
-    List,
-    Session,
-    Definition,
-    Annotation,
-    Verbatim,
-}
-
-/// Document collection types for comprehensive testing
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DocumentType {
-    Benchmark,
-    Trifecta,
-}
-
-impl DocumentType {
-    /// Get the directory name for this document type
-    fn dir_name(&self) -> &'static str {
-        match self {
-            DocumentType::Benchmark => "benchmark",
-            DocumentType::Trifecta => "trifecta",
-        }
-    }
-}
-
-impl ElementType {
-    /// Get the directory name for this element type
-    fn dir_name(&self) -> &'static str {
-        match self {
-            ElementType::Paragraph => "paragraph",
-            ElementType::List => "list",
-            ElementType::Session => "session",
-            ElementType::Definition => "definition",
-            ElementType::Annotation => "annotation",
-            ElementType::Verbatim => "verbatim",
-        }
-    }
-}
+// Re-export types from specfile_finder for public API
+pub use specfile_finder::{DocumentType, ElementType};
 
 // Parser enum is now defined in crate::lex::pipeline::loader and re-exported from pipeline module
 
@@ -325,11 +286,7 @@ impl Lexplore {
 
     /// Find the file for an element type and number
     fn find_file(element_type: ElementType, number: usize) -> Result<PathBuf, ElementSourceError> {
-        Ok(specfile_finder::find_specfile_by_number(
-            "elements",
-            Some(element_type.dir_name()),
-            number,
-        )?)
+        Ok(specfile_finder::find_element_file(element_type, number)?)
     }
 
     /// Find the file for a document type and number
@@ -337,19 +294,12 @@ impl Lexplore {
         doc_type: DocumentType,
         number: usize,
     ) -> Result<PathBuf, ElementSourceError> {
-        Ok(specfile_finder::find_specfile_by_number(
-            doc_type.dir_name(),
-            None,
-            number,
-        )?)
+        Ok(specfile_finder::find_document_file(doc_type, number)?)
     }
 
     /// List all available numbers for a given element type
     pub fn list_numbers_for(element_type: ElementType) -> Result<Vec<usize>, ElementSourceError> {
-        Ok(specfile_finder::list_available_numbers(
-            "elements",
-            Some(element_type.dir_name()),
-        )?)
+        Ok(specfile_finder::list_element_numbers(element_type)?)
     }
 }
 

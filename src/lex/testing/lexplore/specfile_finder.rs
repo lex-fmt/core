@@ -32,6 +32,48 @@ use std::path::PathBuf;
 const SPEC_VERSION: &str = "v1";
 const DOCS_ROOT: &str = "docs/specs";
 
+/// Element types that can be loaded from the per-element library
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ElementType {
+    Paragraph,
+    List,
+    Session,
+    Definition,
+    Annotation,
+    Verbatim,
+}
+
+/// Document collection types for comprehensive testing
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DocumentType {
+    Benchmark,
+    Trifecta,
+}
+
+impl ElementType {
+    /// Get the directory name for this element type
+    pub fn dir_name(&self) -> &'static str {
+        match self {
+            ElementType::Paragraph => "paragraph",
+            ElementType::List => "list",
+            ElementType::Session => "session",
+            ElementType::Definition => "definition",
+            ElementType::Annotation => "annotation",
+            ElementType::Verbatim => "verbatim",
+        }
+    }
+}
+
+impl DocumentType {
+    /// Get the directory name for this document type
+    pub fn dir_name(&self) -> &'static str {
+        match self {
+            DocumentType::Benchmark => "benchmark",
+            DocumentType::Trifecta => "trifecta",
+        }
+    }
+}
+
 /// Errors that can occur when finding spec files
 #[derive(Debug, Clone)]
 pub enum SpecFileError {
@@ -172,4 +214,41 @@ pub fn list_available_numbers(
     let mut numbers: Vec<usize> = number_map.keys().copied().collect();
     numbers.sort_unstable();
     Ok(numbers)
+}
+
+// ============================================================================
+// Convenience helpers for common use cases
+// ============================================================================
+
+/// Find a spec file for an element type and number
+///
+/// # Example
+/// ```ignore
+/// find_element_file(ElementType::Paragraph, 1)
+/// ```
+pub fn find_element_file(
+    element_type: ElementType,
+    number: usize,
+) -> Result<PathBuf, SpecFileError> {
+    find_specfile_by_number("elements", Some(element_type.dir_name()), number)
+}
+
+/// Find a spec file for a document type and number
+///
+/// # Example
+/// ```ignore
+/// find_document_file(DocumentType::Benchmark, 10)
+/// ```
+pub fn find_document_file(doc_type: DocumentType, number: usize) -> Result<PathBuf, SpecFileError> {
+    find_specfile_by_number(doc_type.dir_name(), None, number)
+}
+
+/// List all available numbers for a given element type
+///
+/// # Example
+/// ```ignore
+/// list_element_numbers(ElementType::Paragraph)
+/// ```
+pub fn list_element_numbers(element_type: ElementType) -> Result<Vec<usize>, SpecFileError> {
+    list_available_numbers("elements", Some(element_type.dir_name()))
 }
