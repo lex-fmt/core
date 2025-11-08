@@ -1,49 +1,14 @@
 //! AST element extraction and assertion helpers
 //!
-//! This module provides utilities for extracting specific elements from parsed
-//! documents and making assertions about their content.
+//! This module provides utilities for making assertions about AST content.
+//! For extracting elements, use the query APIs directly on Document:
+//!   - doc.iter_paragraphs_recursive().next()
+//!   - doc.iter_sessions_recursive().next()
+//!   - doc.find_paragraphs(|p| ...)
+//!     etc.
 
 use crate::lex::ast::traits::{Container, TextNode};
-use crate::lex::ast::{Annotation, ContentItem, Definition, Document, List, Paragraph, Session};
-
-// ===== Helper functions for extracting elements from AST =====
-
-/// Get the first element of a specific type from the document
-/// Now uses the new recursive iterator API
-pub fn get_first_paragraph(doc: &Document) -> Option<&Paragraph> {
-    doc.iter_paragraphs_recursive().next()
-}
-
-/// Get the first session from the document
-/// Now uses the new recursive iterator API
-pub fn get_first_session(doc: &Document) -> Option<&Session> {
-    doc.iter_sessions_recursive().next()
-}
-
-/// Get the first list from the document
-/// Now uses the new recursive iterator API
-pub fn get_first_list(doc: &Document) -> Option<&List> {
-    doc.iter_lists_recursive().next()
-}
-
-/// Get the first definition from the document
-/// Now uses the new recursive iterator API
-pub fn get_first_definition(doc: &Document) -> Option<&Definition> {
-    doc.iter_definitions_recursive().next()
-}
-
-/// Get the first annotation from the document
-/// Now uses the new recursive iterator API
-pub fn get_first_annotation(doc: &Document) -> Option<&Annotation> {
-    doc.iter_annotations_recursive().next()
-}
-
-/// Get the first verbatim block from the document
-/// Note: Returns the boxed Verbatim from VerbatimBlock
-/// Now uses the new recursive iterator API
-pub fn get_first_verbatim(doc: &Document) -> Option<&crate::lex::ast::Verbatim> {
-    doc.iter_verbatim_blocks_recursive().next()
-}
+use crate::lex::ast::{ContentItem, Document, Paragraph};
 
 // ===== Assertion helpers =====
 
@@ -101,10 +66,12 @@ mod tests {
     use crate::lex::testing::lexplore::loader::*;
 
     #[test]
-    fn test_get_first_paragraph() {
+    fn test_query_api_usage() {
         let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
         let doc = parse_with_parser(&source, Parser::Reference).unwrap();
-        let paragraph = get_first_paragraph(&doc);
+
+        // Use query API directly
+        let paragraph = doc.iter_paragraphs_recursive().next();
         assert!(paragraph.is_some());
     }
 
@@ -112,7 +79,9 @@ mod tests {
     fn test_paragraph_assertions() {
         let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
         let doc = parse_with_parser(&source, Parser::Reference).unwrap();
-        let paragraph = get_first_paragraph(&doc).unwrap();
+
+        // Use query API directly
+        let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
     }
