@@ -14,31 +14,20 @@ fn parse_document(source: &str) -> Document {
     parse_doc(source).expect("Failed to parse document")
 }
 
-fn find_blank_line_groups(items: &[ContentItem]) -> Vec<&lex::lex::ast::elements::BlankLineGroup> {
-    items
-        .iter()
-        .filter_map(|item| {
-            if let ContentItem::BlankLineGroup(blg) = item {
-                Some(blg)
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
 #[test]
 fn test_blank_line_group_location_visitor() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    // Find blank line groups and verify location field works
-    for item in &doc.root.children {
-        if let ContentItem::BlankLineGroup(blg) = item {
-            // Test that location field is accessible and works without panic
-            let _loc = &blg.location;
-            return;
-        }
+    // Use new query API to iterate all nodes and find blank line groups
+    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+    if let Some(blg) = all_nodes
+        .iter()
+        .filter_map(|item| item.as_blank_line_group())
+        .next()
+    {
+        // Test that location field is accessible and works without panic
+        let _loc = &blg.location;
     }
 }
 
@@ -47,13 +36,15 @@ fn test_blank_line_group_node_type_visitor() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    for item in &doc.root.children {
-        if let ContentItem::BlankLineGroup(blg) = item {
-            // Test that node_type method works
-            let node_type = blg.node_type();
-            assert_eq!(node_type, "BlankLineGroup");
-            return;
-        }
+    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+    if let Some(blg) = all_nodes
+        .iter()
+        .filter_map(|item| item.as_blank_line_group())
+        .next()
+    {
+        // Test that node_type method works
+        let node_type = blg.node_type();
+        assert_eq!(node_type, "BlankLineGroup");
     }
 }
 
@@ -62,13 +53,15 @@ fn test_blank_line_group_display_label_visitor() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    for item in &doc.root.children {
-        if let ContentItem::BlankLineGroup(blg) = item {
-            // Test that display_label method works
-            let label = blg.display_label();
-            assert!(label.contains("1"), "Label should mention blank line count");
-            return;
-        }
+    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+    if let Some(blg) = all_nodes
+        .iter()
+        .filter_map(|item| item.as_blank_line_group())
+        .next()
+    {
+        // Test that display_label method works
+        let label = blg.display_label();
+        assert!(label.contains("1"), "Label should mention blank line count");
     }
 }
 
@@ -77,12 +70,14 @@ fn test_blank_line_group_structure_count() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    for item in &doc.root.children {
-        if let ContentItem::BlankLineGroup(blg) = item {
-            // Verify count field exists and is accessible
-            assert!(blg.count > 0, "BlankLineGroup should have count > 0");
-            return;
-        }
+    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+    if let Some(blg) = all_nodes
+        .iter()
+        .filter_map(|item| item.as_blank_line_group())
+        .next()
+    {
+        // Verify count field exists and is accessible
+        assert!(blg.count > 0, "BlankLineGroup should have count > 0");
     }
 }
 
@@ -91,21 +86,23 @@ fn test_blank_line_group_structure_source_tokens() {
     let source = "A\n\nB";
     let doc = parse_document(source);
 
-    for item in &doc.root.children {
-        if let ContentItem::BlankLineGroup(blg) = item {
-            // Verify source_tokens field exists and is accessible
-            assert!(
-                !blg.source_tokens.is_empty(),
-                "BlankLineGroup should have source tokens"
-            );
-            // Verify tokens contain BlankLine variant
-            let has_blank_line_token = blg
-                .source_tokens
-                .iter()
-                .any(|t| matches!(t, lex::lex::lexing::Token::BlankLine(_)));
-            assert!(has_blank_line_token, "Should contain BlankLine token");
-            return;
-        }
+    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+    if let Some(blg) = all_nodes
+        .iter()
+        .filter_map(|item| item.as_blank_line_group())
+        .next()
+    {
+        // Verify source_tokens field exists and is accessible
+        assert!(
+            !blg.source_tokens.is_empty(),
+            "BlankLineGroup should have source tokens"
+        );
+        // Verify tokens contain BlankLine variant
+        let has_blank_line_token = blg
+            .source_tokens
+            .iter()
+            .any(|t| matches!(t, lex::lex::lexing::Token::BlankLine(_)));
+        assert!(has_blank_line_token, "Should contain BlankLine token");
     }
 }
 
@@ -114,19 +111,20 @@ fn test_blank_line_group_in_list_items() {
     let source = "- Item\n\n    Content";
     let doc = parse_document(source);
 
-    // Search for lists and their item content
-    for item in &doc.root.children {
-        if let ContentItem::List(list) = item {
-            for list_item in &list.items {
-                if let ContentItem::ListItem(li) = list_item {
-                    // Check if this list item has blank lines
-                    let blank_groups = find_blank_line_groups(&li.children);
-                    if !blank_groups.is_empty() {
-                        assert!(blank_groups[0].count > 0);
-                        return;
-                    }
-                }
-            }
+    // Use new query API to find list items with blank line groups
+    let list_items: Vec<_> = doc.iter_list_items_recursive().collect();
+    if let Some(list_item) = list_items.iter().find(|li| {
+        li.children
+            .iter()
+            .any(|child| matches!(child, ContentItem::BlankLineGroup(_)))
+    }) {
+        if let Some(blg) = list_item
+            .children
+            .iter()
+            .filter_map(|item| item.as_blank_line_group())
+            .next()
+        {
+            assert!(blg.count > 0);
         }
     }
 }
@@ -136,17 +134,21 @@ fn test_blank_line_group_in_definitions() {
     let source = "Definition:\n    First\n\n    Second";
     let doc = parse_document(source);
 
-    // Search for definitions and check their content
-    for item in &doc.root.children {
-        if let ContentItem::Definition(def) = item {
-            let blank_groups = find_blank_line_groups(&def.children);
-            if !blank_groups.is_empty() {
-                assert!(
-                    blank_groups[0].count > 0,
-                    "Definition should have blank lines"
-                );
-                return;
-            }
+    // Use new query API to find definitions with blank line groups
+    let definitions = doc.find_definitions(|def| {
+        def.children
+            .iter()
+            .any(|child| matches!(child, ContentItem::BlankLineGroup(_)))
+    });
+
+    if let Some(definition) = definitions.into_iter().next() {
+        if let Some(blg) = definition
+            .children
+            .iter()
+            .filter_map(|item| item.as_blank_line_group())
+            .next()
+        {
+            assert!(blg.count > 0, "Definition should have blank lines");
         }
     }
 }
@@ -156,14 +158,21 @@ fn test_blank_line_group_in_sessions() {
     let source = "Title\n\n    First\n\n    Second";
     let doc = parse_document(source);
 
-    // Search for sessions and check their content
-    for item in &doc.root.children {
-        if let ContentItem::Session(session) = item {
-            let blank_groups = find_blank_line_groups(&session.children);
-            if !blank_groups.is_empty() {
-                assert!(blank_groups[0].count > 0, "Session should have blank lines");
-                return;
-            }
+    // Use new query API to find sessions with blank line groups
+    let sessions = doc.find_sessions(|s| {
+        s.children
+            .iter()
+            .any(|child| matches!(child, ContentItem::BlankLineGroup(_)))
+    });
+
+    if let Some(session) = sessions.into_iter().next() {
+        if let Some(blg) = session
+            .children
+            .iter()
+            .filter_map(|item| item.as_blank_line_group())
+            .next()
+        {
+            assert!(blg.count > 0, "Session should have blank lines");
         }
     }
 }

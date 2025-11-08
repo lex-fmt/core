@@ -543,7 +543,8 @@ fn test_location_tracking_for_core_elements() {
         "Root session should have a location"
     );
 
-    for item in &doc.root.children {
+    // Use new query API to iterate all nodes recursively
+    for item in doc.iter_all_nodes() {
         let item_range = item.range();
         assert!(
             item_range.start <= item_range.end,
@@ -552,29 +553,11 @@ fn test_location_tracking_for_core_elements() {
         );
 
         match item {
-            ContentItem::Paragraph(paragraph) => {
-                for line in &paragraph.lines {
-                    if let ContentItem::TextLine(tl) = line {
-                        let line_range = tl.range();
-                        assert!(
-                            line_range.start <= line_range.end,
-                            "Paragraph line should have location"
-                        );
-                    }
-                }
-            }
             ContentItem::Session(session) => {
                 assert!(
                     session.title.location.is_some(),
                     "Session title is missing location"
                 );
-                for child in &session.children {
-                    let child_range = child.range();
-                    assert!(
-                        child_range.start <= child_range.end,
-                        "Session child should have location"
-                    );
-                }
             }
             ContentItem::Definition(definition) => {
                 assert!(
