@@ -231,6 +231,8 @@ fn handle_execute_command(config: &str, path: &str, format: &str) {
 
     // Format and print output
     let formatted = match (output, format) {
+        // Serialized output is already formatted, use directly
+        (ExecutionOutput::Serialized(s), _) => s,
         (ExecutionOutput::Document(doc), "auto") | (ExecutionOutput::Document(doc), "ast-tag") => {
             lex::lex::parsing::serialize_ast_tag(&doc)
         }

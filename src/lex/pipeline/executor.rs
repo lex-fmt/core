@@ -40,6 +40,7 @@ impl std::error::Error for ExecutionError {}
 pub enum ExecutionOutput {
     Tokens(TokenStream),
     Document(Document),
+    Serialized(String),
 }
 
 /// Executes processing configurations
@@ -98,6 +99,20 @@ impl PipelineExecutor {
             TargetSpec::Ast { analyzer, builder } => {
                 let doc = self.analyze_and_build(stream, source, analyzer, builder)?;
                 Ok(ExecutionOutput::Document(doc))
+            }
+            TargetSpec::Serialized {
+                analyzer,
+                builder,
+                format,
+            } => {
+                // First parse to AST
+                let doc = self.analyze_and_build(stream, source, analyzer, builder)?;
+                // Then serialize using FormatRegistry
+                let output = self
+                    .format_registry
+                    .serialize(&doc, format)
+                    .map_err(ExecutionError::FormatError)?;
+                Ok(ExecutionOutput::Serialized(output))
             }
         }
     }
@@ -206,6 +221,7 @@ impl PipelineExecutor {
                 .format_registry
                 .serialize(&doc, format)
                 .map_err(ExecutionError::FormatError),
+            ExecutionOutput::Serialized(s) => Ok(s), // Already serialized
             ExecutionOutput::Tokens(_) => Err(ExecutionError::FormatError(
                 FormatError::SerializationError(
                     "Cannot serialize tokens to format (pipeline must produce AST)".to_string(),
