@@ -1,5 +1,5 @@
 ---
-source: tests/lexer_proptest.rs
+source: tests/lexer_samples.rs
 expression: tokens
 ---
 [
