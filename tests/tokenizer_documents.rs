@@ -21,7 +21,7 @@ use lex::lex::testing::lexplore::Lexplore;
 // - 030-paragraphs-sessions-nested-multiple.lex
 // - 040-lists.lex
 // - 050-paragraph-lists.lex
-// - 050-trifecta-flat-simple.lex (note: duplicate 050)
+// - 070-trifecta-flat-simple.lex (renamed from 050 to avoid duplicate)
 // - 060-trifecta-nesting.lex
 
 #[test]
@@ -61,12 +61,9 @@ fn test_trifecta_050_paragraph_lists() {
 }
 
 #[test]
-fn test_trifecta_050_flat_simple() {
-    // Note: There are two files with "050-" prefix. This explicitly tests
-    // the 050-trifecta-flat-simple.lex file using from_path to avoid
-    // non-deterministic behavior of trifecta(50).
-    let tokens =
-        Lexplore::from_path("docs/specs/v1/trifecta/050-trifecta-flat-simple.lex").tokenize();
+fn test_trifecta_070_flat_simple() {
+    // Renamed from 050 to 070 to avoid duplicate numbers
+    let tokens = Lexplore::trifecta(70).tokenize();
     insta::assert_debug_snapshot!(tokens.tokens());
 }
 

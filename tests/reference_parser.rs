@@ -60,9 +60,9 @@ fn test_dialog_parsing() {
 #[test]
 fn test_trifecta_flat_simple() {
     // Test flat structure with all three elements
-    // Note: Using from_path() because there are two 050-*.lex files in trifecta/
+    // Renamed from 050 to 070 to avoid duplicate numbers
     let source =
-        Lexplore::from_path("docs/specs/v1/trifecta/050-trifecta-flat-simple.lex").source();
+        Lexplore::from_path("docs/specs/v1/trifecta/070-trifecta-flat-simple.lex").source();
     let doc = parse_document(&source).unwrap();
 
     // Item 0-1: Opening paragraphs
