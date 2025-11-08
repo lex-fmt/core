@@ -1,0 +1,52 @@
+---
+source: tests/tokenizer_elements.rs
+expression: tokens.tokens()
+---
+[
+    (
+        LexMarker,
+        0..2,
+    ),
+    (
+        Whitespace,
+        2..3,
+    ),
+    (
+        Text(
+            "note",
+        ),
+        3..7,
+    ),
+    (
+        Whitespace,
+        7..8,
+    ),
+    (
+        LexMarker,
+        8..10,
+    ),
+    (
+        Whitespace,
+        10..11,
+    ),
+    (
+        Text(
+            "Important",
+        ),
+        11..20,
+    ),
+    (
+        Whitespace,
+        20..21,
+    ),
+    (
+        Text(
+            "information",
+        ),
+        21..32,
+    ),
+    (
+        Newline,
+        32..33,
+    ),
+]

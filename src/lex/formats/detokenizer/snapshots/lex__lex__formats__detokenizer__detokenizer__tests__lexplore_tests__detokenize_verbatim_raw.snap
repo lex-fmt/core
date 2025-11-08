@@ -3,4 +3,9 @@ source: src/lex/formats/detokenizer/detokenizer.rs
 expression: detokenized
 ---
 Code Example:
+
+    function hello() {
+        return "world";
+    }
+
 :: javascript ::
