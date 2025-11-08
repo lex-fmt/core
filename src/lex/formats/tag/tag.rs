@@ -107,6 +107,26 @@ fn escape_xml(text: &str) -> String {
         .replace('\'', "&apos;")
 }
 
+/// Formatter implementation for XML-like tag format
+pub struct TagFormatter;
+
+impl crate::lex::formats::registry::Formatter for TagFormatter {
+    fn name(&self) -> &str {
+        "tag"
+    }
+
+    fn serialize(
+        &self,
+        doc: &Document,
+    ) -> Result<String, crate::lex::formats::registry::FormatError> {
+        Ok(serialize_document(doc))
+    }
+
+    fn description(&self) -> &str {
+        "XML-like tag format with hierarchical structure"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -203,25 +223,5 @@ mod tests {
         assert!(result.contains("<list-item>- First item</list-item>"));
         assert!(result.contains("<list-item>- Second item</list-item>"));
         assert!(result.contains("</list>"));
-    }
-}
-
-/// Formatter implementation for XML-like tag format
-pub struct TagFormatter;
-
-impl crate::lex::formats::registry::Formatter for TagFormatter {
-    fn name(&self) -> &str {
-        "tag"
-    }
-
-    fn serialize(
-        &self,
-        doc: &Document,
-    ) -> Result<String, crate::lex::formats::registry::FormatError> {
-        Ok(serialize_document(doc))
-    }
-
-    fn description(&self) -> &str {
-        "XML-like tag format with hierarchical structure"
     }
 }
