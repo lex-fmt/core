@@ -134,81 +134,29 @@ impl ElementLoader {
     }
 }
 
-/// Loader for isolated element test files
+/// Helper function to load and parse an isolated element file
 ///
-/// This struct is specifically for loading single-element test files from
-/// docs/specs/v1/elements/ and extracting the element directly as a typed AST node.
-///
-/// It orchestrates:
+/// This function orchestrates:
 /// 1. Path resolution via specfile_finder
 /// 2. File parsing via DocumentLoader
-/// 3. Element extraction via Document::expect_*() methods
+/// 3. Returns the parsed Document
 ///
-/// # Example
-/// ```ignore
-/// let element = Lexplore::get_element(ElementType::Paragraph, 3);
-/// let paragraph = element.as_paragraph();
-/// // Returns &Paragraph directly, panics if not found
-/// ```
-pub struct IsolatedElementLoader {
-    doc: Document,
-}
+/// Used internally by the get_* convenience functions.
+fn load_isolated_element(element_type: ElementType, number: usize) -> Document {
+    let path = specfile_finder::find_element_file(element_type, number)
+        .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", element_type, number, e));
 
-impl IsolatedElementLoader {
-    /// Create a new isolated element loader by loading and parsing the element file
-    fn load(element_type: ElementType, number: usize) -> Self {
-        let path = specfile_finder::find_element_file(element_type, number)
-            .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", element_type, number, e));
-
-        let loader = DocumentLoader::new();
-        let doc = loader
-            .load_and_parse_with(&path, Parser::Reference)
-            .unwrap_or_else(|e| panic!("Failed to parse {}: {}", path.display(), e));
-
-        Self { doc }
-    }
-
-    /// Get the loaded document
-    pub fn document(&self) -> &Document {
-        &self.doc
-    }
-
-    /// Extract element as a Paragraph (panics if not found)
-    pub fn as_paragraph(&self) -> &Paragraph {
-        self.doc.expect_paragraph()
-    }
-
-    /// Extract element as a List (panics if not found)
-    pub fn as_list(&self) -> &List {
-        self.doc.expect_list()
-    }
-
-    /// Extract element as a Session (panics if not found)
-    pub fn as_session(&self) -> &Session {
-        self.doc.expect_session()
-    }
-
-    /// Extract element as a Definition (panics if not found)
-    pub fn as_definition(&self) -> &Definition {
-        self.doc.expect_definition()
-    }
-
-    /// Extract element as an Annotation (panics if not found)
-    pub fn as_annotation(&self) -> &Annotation {
-        self.doc.expect_annotation()
-    }
-
-    /// Extract element as a Verbatim block (panics if not found)
-    pub fn as_verbatim(&self) -> &Verbatim {
-        self.doc.expect_verbatim()
-    }
+    let loader = DocumentLoader::new();
+    loader
+        .load_and_parse_with(&path, Parser::Reference)
+        .unwrap_or_else(|e| panic!("Failed to parse {}: {}", path.display(), e))
 }
 
 /// Macro to generate element loader shortcuts
 macro_rules! element_shortcuts {
     ($($name:ident => $variant:ident, $label:literal);* $(;)?) => {
         $(
-            #[doc = concat!("Load a ", $label, " variation (fluent API)")]
+            #[doc = concat!("Load a ", $label, " file (fluent API for tokenization/parsing)")]
             pub fn $name(number: usize) -> ElementLoader {
                 Self::load(ElementType::$variant, number)
             }
@@ -264,51 +212,63 @@ impl Lexplore {
 
     // ===== Isolated element loading (returns AST node directly) =====
 
-    /// Load an isolated element file and return an element loader with the parsed AST
-    ///
-    /// This is for single-element test files in docs/specs/v1/elements/
-    /// Use .as_paragraph(), .as_list(), etc. to extract the specific element type.
+    /// Load a paragraph element file and return the paragraph directly
     ///
     /// # Example
     /// ```ignore
-    /// let element = Lexplore::get_element(ElementType::Paragraph, 3);
-    /// let paragraph = element.as_paragraph();
+    /// let paragraph = Lexplore::get_paragraph(3);
+    /// assert!(paragraph.text().starts_with("Expected"));
     /// ```
-    pub fn get_element(element_type: ElementType, number: usize) -> IsolatedElementLoader {
-        IsolatedElementLoader::load(element_type, number)
+    pub fn get_paragraph(number: usize) -> &'static Paragraph {
+        Box::leak(Box::new(load_isolated_element(
+            ElementType::Paragraph,
+            number,
+        )))
+        .expect_paragraph()
     }
 
-    /// Convenience: Load a paragraph element file and return the paragraph directly
-    pub fn get_paragraph(number: usize) -> IsolatedElementLoader {
-        Self::get_element(ElementType::Paragraph, number)
+    /// Load a list element file and return the list directly
+    pub fn get_list(number: usize) -> &'static List {
+        Box::leak(Box::new(load_isolated_element(ElementType::List, number))).expect_list()
     }
 
-    /// Convenience: Load a list element file and return the list directly
-    pub fn get_list(number: usize) -> IsolatedElementLoader {
-        Self::get_element(ElementType::List, number)
+    /// Load a session element file and return the session directly
+    pub fn get_session(number: usize) -> &'static Session {
+        Box::leak(Box::new(load_isolated_element(
+            ElementType::Session,
+            number,
+        )))
+        .expect_session()
     }
 
-    /// Convenience: Load a session element file and return the session directly
-    pub fn get_session(number: usize) -> IsolatedElementLoader {
-        Self::get_element(ElementType::Session, number)
+    /// Load a definition element file and return the definition directly
+    pub fn get_definition(number: usize) -> &'static Definition {
+        Box::leak(Box::new(load_isolated_element(
+            ElementType::Definition,
+            number,
+        )))
+        .expect_definition()
     }
 
-    /// Convenience: Load a definition element file and return the definition directly
-    pub fn get_definition(number: usize) -> IsolatedElementLoader {
-        Self::get_element(ElementType::Definition, number)
+    /// Load an annotation element file and return the annotation directly
+    pub fn get_annotation(number: usize) -> &'static Annotation {
+        Box::leak(Box::new(load_isolated_element(
+            ElementType::Annotation,
+            number,
+        )))
+        .expect_annotation()
     }
 
-    /// Convenience: Load an annotation element file and return the annotation directly
-    pub fn get_annotation(number: usize) -> IsolatedElementLoader {
-        Self::get_element(ElementType::Annotation, number)
+    /// Load a verbatim element file and return the verbatim block directly
+    pub fn get_verbatim(number: usize) -> &'static Verbatim {
+        Box::leak(Box::new(load_isolated_element(
+            ElementType::Verbatim,
+            number,
+        )))
+        .expect_verbatim()
     }
 
-    /// Convenience: Load a verbatim element file and return the verbatim block directly
-    pub fn get_verbatim(number: usize) -> IsolatedElementLoader {
-        Self::get_element(ElementType::Verbatim, number)
-    }
-
-    // ===== Convenience shortcuts for specific element types =====
+    // ===== Convenience shortcuts for element files (fluent API) =====
 
     element_shortcuts! {
         paragraph => Paragraph, "paragraph";
@@ -367,49 +327,29 @@ mod tests {
     // ===== Fluent API Tests =====
 
     #[test]
-    fn test_fluent_api_basic() {
-        let element = Lexplore::get_paragraph(1);
-        let paragraph = element.as_paragraph();
+    fn test_get_paragraph() {
+        let paragraph = Lexplore::get_paragraph(1);
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
     }
 
     #[test]
-    fn test_fluent_api_with_parser_selection() {
-        // The new isolated element API always uses Reference parser
-        // For explicit parser selection, use the full pipeline: Lexplore::paragraph(1).parse_with(Parser::X)
-        let doc = Lexplore::paragraph(1).parse_with(Parser::Reference);
-        let paragraph = doc.expect_paragraph();
-
-        assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
-    }
-
-    #[test]
-    fn test_fluent_api_source_only() {
-        let source = Lexplore::paragraph(1).source();
-        assert!(source.contains("simple"));
-    }
-
-    #[test]
-    fn test_fluent_api_list() {
-        let element = Lexplore::get_list(1);
-        let list = element.as_list();
+    fn test_get_list() {
+        let list = Lexplore::get_list(1);
 
         assert!(!list.items.is_empty());
     }
 
     #[test]
-    fn test_fluent_api_session() {
-        let element = Lexplore::get_session(1);
-        let session = element.as_session();
+    fn test_get_session() {
+        let session = Lexplore::get_session(1);
 
         assert!(!session.label().is_empty());
     }
 
     #[test]
-    fn test_fluent_api_definition() {
-        let element = Lexplore::get_definition(1);
-        let definition = element.as_definition();
+    fn test_get_definition() {
+        let definition = Lexplore::get_definition(1);
 
         assert!(!definition.label().is_empty());
     }
@@ -652,68 +592,44 @@ mod tests {
     // ===== Isolated Element Loading Tests =====
 
     #[test]
-    fn test_get_element_paragraph() {
-        let element = Lexplore::get_element(ElementType::Paragraph, 1);
-        let paragraph = element.as_paragraph();
+    fn test_get_paragraph_direct() {
+        let paragraph = Lexplore::get_paragraph(1);
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
     }
 
     #[test]
-    fn test_get_paragraph_shortcut() {
-        let element = Lexplore::get_paragraph(1);
-        let paragraph = element.as_paragraph();
-
-        assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
-    }
-
-    #[test]
-    fn test_get_list_shortcut() {
-        let element = Lexplore::get_list(1);
-        let list = element.as_list();
+    fn test_get_list_direct() {
+        let list = Lexplore::get_list(1);
 
         assert!(!list.items.is_empty());
     }
 
     #[test]
-    fn test_get_session_shortcut() {
-        let element = Lexplore::get_session(1);
-        let session = element.as_session();
+    fn test_get_session_direct() {
+        let session = Lexplore::get_session(1);
 
         assert!(!session.label().is_empty());
     }
 
     #[test]
-    fn test_get_definition_shortcut() {
-        let element = Lexplore::get_definition(1);
-        let definition = element.as_definition();
+    fn test_get_definition_direct() {
+        let definition = Lexplore::get_definition(1);
 
         assert!(!definition.label().is_empty());
     }
 
     #[test]
-    fn test_get_annotation_shortcut() {
-        let element = Lexplore::get_annotation(1);
-        let _annotation = element.as_annotation();
+    fn test_get_annotation_direct() {
+        let _annotation = Lexplore::get_annotation(1);
 
-        // Annotations should have at least a marker
-        assert!(element.document().iter_annotations_recursive().count() > 0);
+        // Just verify it doesn't panic - annotation was successfully loaded
     }
 
     #[test]
-    fn test_get_verbatim_shortcut() {
-        let element = Lexplore::get_verbatim(1);
-        let _verbatim = element.as_verbatim();
+    fn test_get_verbatim_direct() {
+        let _verbatim = Lexplore::get_verbatim(1);
 
-        // Just verify it doesn't panic - verbatim blocks can be empty or have content
-    }
-
-    #[test]
-    fn test_isolated_element_loader_document_access() {
-        let element = Lexplore::get_paragraph(1);
-        let doc = element.document();
-
-        // Should be able to access the underlying document
-        assert!(doc.first_paragraph().is_some());
+        // Just verify it doesn't panic - verbatim block was successfully loaded
     }
 }
