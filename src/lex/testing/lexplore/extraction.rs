@@ -69,7 +69,7 @@ mod tests {
         let doc = Lexplore::paragraph(1).parse();
 
         // Use query API directly
-        let paragraph = doc.document().iter_paragraphs_recursive().next();
+        let paragraph = doc.iter_paragraphs_recursive().next();
         assert!(paragraph.is_some());
     }
 
@@ -78,7 +78,7 @@ mod tests {
         let doc = Lexplore::paragraph(1).parse();
 
         // Use query API directly
-        let paragraph = doc.document().iter_paragraphs_recursive().next().unwrap();
+        let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
     }

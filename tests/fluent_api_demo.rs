@@ -11,8 +11,7 @@ use lex::lex::testing::lexplore::*;
 
 #[test]
 fn test_old_style_verbose() {
-    let parsed = Lexplore::paragraph(1).parse();
-    let doc = parsed.document();
+    let doc = Lexplore::paragraph(1).parse();
     // Using query API directly
     let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
 
@@ -97,8 +96,7 @@ fn test_get_source() {
 #[test]
 fn test_get_ast_fluent_api() {
     // Get AST using fluent API
-    let parsed = Lexplore::paragraph(1).parse();
-    let doc = parsed.document();
+    let doc = Lexplore::paragraph(1).parse();
     assert!(!doc.root.children.is_empty());
 }
 
@@ -168,7 +166,7 @@ fn test_realistic_workflow() {
 
     // Or use the existing fluent assertion API
     use lex::lex::testing::assert_ast;
-    assert_ast(parsed.document()).item_count(1).item(0, |item| {
+    assert_ast(&parsed).item_count(1).item(0, |item| {
         item.assert_paragraph().text_contains("simple");
     });
 }

@@ -50,8 +50,7 @@ fn test_list_available_numbers() {
 #[test]
 fn test_session_with_children() {
     // Load a session element
-    let parsed = Lexplore::session(1).parse();
-    let doc = parsed.document();
+    let doc = Lexplore::session(1).parse();
 
     // Get the first session using query API
     let sessions: Vec<_> = doc.iter_sessions_recursive().collect();
@@ -70,8 +69,7 @@ fn test_session_with_children() {
 #[test]
 fn test_definition_structure() {
     // Load a definition
-    let parsed = Lexplore::definition(1).parse();
-    let doc = parsed.document();
+    let doc = Lexplore::definition(1).parse();
 
     // Get the first definition using query API
     let definitions: Vec<_> = doc.iter_definitions_recursive().collect();
@@ -87,8 +85,7 @@ fn test_definition_structure() {
 #[test]
 fn test_list_structure() {
     // Load a list
-    let parsed = Lexplore::list(1).parse();
-    let doc = parsed.document();
+    let doc = Lexplore::list(1).parse();
 
     // Get the first list using query API
     let lists: Vec<_> = doc.iter_lists_recursive().collect();
@@ -103,8 +100,7 @@ fn test_list_structure() {
 #[test]
 fn test_nested_list() {
     // Load a nested list variation (list-07-nested-simple)
-    let parsed = Lexplore::list(7).parse();
-    let doc = parsed.document();
+    let doc = Lexplore::list(7).parse();
 
     println!(
         "Parsed nested list document with {} top-level items",
@@ -115,8 +111,7 @@ fn test_nested_list() {
 #[test]
 fn test_annotation_structure() {
     // Load an annotation
-    let parsed = Lexplore::annotation(1).parse();
-    let doc = parsed.document();
+    let doc = Lexplore::annotation(1).parse();
 
     // Get the first annotation using query API
     let annotations: Vec<_> = doc.iter_annotations_recursive().collect();
@@ -128,8 +123,7 @@ fn test_annotation_structure() {
 #[test]
 fn test_verbatim_structure() {
     // Load a verbatim block
-    let parsed = Lexplore::verbatim(1).parse();
-    let doc = parsed.document();
+    let doc = Lexplore::verbatim(1).parse();
 
     // Get the first verbatim block using query API
     let verbatims: Vec<_> = doc.iter_verbatim_blocks_recursive().collect();
@@ -143,8 +137,7 @@ fn test_element_source_for_api_examples() {
     // This demonstrates the query API usage
 
     // Parse using fluent API
-    let parsed = Lexplore::paragraph(1).parse();
-    let doc = parsed.document();
+    let doc = Lexplore::paragraph(1).parse();
 
     // Get first element using query API
     let paragraph = doc.iter_paragraphs_recursive().next().unwrap();

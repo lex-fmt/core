@@ -3,7 +3,7 @@
 //! This module provides the core loading infrastructure for the Lexplore test harness,
 //! handling file discovery, reading, parsing, and tokenization.
 
-use crate::lex::ast::{Annotation, Definition, Document, List, Paragraph, Session};
+use crate::lex::ast::Document;
 use crate::lex::lexing::Token;
 use crate::lex::parsing::ParseError;
 use crate::lex::pipeline::DocumentLoader;
@@ -140,21 +140,17 @@ impl ElementLoader {
             .unwrap_or_else(|e| panic!("Failed to read {}: {}", path.display(), e))
     }
 
-    /// Parse with the specified parser and return a ParsedElement for further chaining
-    pub fn parse_with(self, parser: Parser) -> ParsedElement {
+    /// Parse with the specified parser and return a Document
+    pub fn parse_with(self, parser: Parser) -> Document {
         let path = self.get_path();
         let loader = DocumentLoader::new();
-        let doc = loader
+        loader
             .load_and_parse_with(&path, parser)
-            .unwrap_or_else(|e| panic!("Failed to parse {}: {}", path.display(), e));
-        ParsedElement {
-            source_type: self.source_type,
-            doc,
-        }
+            .unwrap_or_else(|e| panic!("Failed to parse {}: {}", path.display(), e))
     }
 
     /// Parse with the Reference parser (shorthand)
-    pub fn parse(self) -> ParsedElement {
+    pub fn parse(self) -> Document {
         self.parse_with(crate::lex::pipeline::Parser::Reference)
     }
 
@@ -246,64 +242,6 @@ impl ParsedTokens {
     }
 }
 
-/// A parsed element document, ready for element extraction
-pub struct ParsedElement {
-    source_type: SourceType,
-    doc: Document,
-}
-
-/// Macro to generate element extraction methods (expect_* and first_*)
-macro_rules! impl_element_extractors {
-    ($($name:ident => $iter_method:ident, $type:ty, $label:literal);* $(;)?) => {
-        $(
-            #[doc = concat!("Get the first ", $label, ", panicking if not found")]
-            pub fn $name(&self) -> &$type {
-                self.doc
-                    .$iter_method()
-                    .next()
-                    .unwrap_or_else(|| panic!(concat!("No ", $label, " found in {:?} document"), self.source_type))
-            }
-        )*
-    };
-}
-
-/// Macro to generate optional element extraction methods (first_*)
-macro_rules! impl_optional_extractors {
-    ($($name:ident => $iter_method:ident, $type:ty);* $(;)?) => {
-        $(
-            #[doc = concat!("Get the first ", stringify!($name), " (returns Option)")]
-            pub fn $name(&self) -> Option<&$type> {
-                self.doc.$iter_method().next()
-            }
-        )*
-    };
-}
-
-impl ParsedElement {
-    /// Get the underlying document
-    pub fn document(&self) -> &Document {
-        &self.doc
-    }
-
-    impl_element_extractors! {
-        expect_paragraph => iter_paragraphs_recursive, Paragraph, "paragraph";
-        expect_session => iter_sessions_recursive, Session, "session";
-        expect_list => iter_lists_recursive, List, "list";
-        expect_definition => iter_definitions_recursive, Definition, "definition";
-        expect_annotation => iter_annotations_recursive, Annotation, "annotation";
-        expect_verbatim => iter_verbatim_blocks_recursive, crate::lex::ast::Verbatim, "verbatim";
-    }
-
-    impl_optional_extractors! {
-        first_paragraph => iter_paragraphs_recursive, Paragraph;
-        first_session => iter_sessions_recursive, Session;
-        first_list => iter_lists_recursive, List;
-        first_definition => iter_definitions_recursive, Definition;
-        first_annotation => iter_annotations_recursive, Annotation;
-        first_verbatim => iter_verbatim_blocks_recursive, crate::lex::ast::Verbatim;
-    }
-}
-
 /// Macro to generate element loader shortcuts
 macro_rules! element_shortcuts {
     ($($name:ident => $variant:ident, $label:literal);* $(;)?) => {
@@ -328,26 +266,105 @@ macro_rules! document_shortcuts {
     };
 }
 
+// ============================================================================
+// CORE FILE RESOLUTION - The simple ~50 line algorithm
+// ============================================================================
+
+/// Core file resolution logic - this is where the actual work happens
+struct FileResolver;
+
+impl FileResolver {
+    const SPEC_VERSION: &'static str = "v1";
+    const DOCS_ROOT: &'static str = "docs/specs";
+
+    /// Resolve directory path: PROJECT_ROOT/docs/specs/v1/{category}/{subcategory}
+    ///
+    /// Examples:
+    /// - resolve_dir("elements", Some("paragraph")) -> "docs/specs/v1/elements/paragraph"
+    /// - resolve_dir("benchmark", None) -> "docs/specs/v1/benchmark"
+    fn resolve_dir(category: &str, subcategory: Option<&str>) -> PathBuf {
+        let mut path = PathBuf::from(Self::DOCS_ROOT);
+        path.push(Self::SPEC_VERSION);
+        path.push(category);
+        if let Some(subcat) = subcategory {
+            path.push(subcat);
+        }
+        path
+    }
+
+    /// Find a file in a directory by number, optionally matching a prefix pattern
+    ///
+    /// Scans the directory for files matching:
+    /// - With prefix: "{prefix}-{number:02}-*.lex" (e.g., "paragraph-01-simple.lex")
+    /// - Without prefix: "{number:03}-*.lex" (e.g., "010-kitchensink.lex")
+    ///
+    /// # Panics
+    /// Panics if multiple files exist with the same number (duplicate detection)
+    fn find_file_by_number(
+        dir: PathBuf,
+        number: usize,
+        prefix: Option<&str>,
+    ) -> Result<PathBuf, ElementSourceError> {
+        let pattern = match prefix {
+            Some(p) => format!("{}-{:02}-", p, number),
+            None => format!("{:03}-", number),
+        };
+
+        // Scan directory and collect all files matching the pattern
+        let mut matches = Vec::new();
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let filename = entry.file_name();
+            if let Some(name) = filename.to_str() {
+                if name.starts_with(&pattern) && name.ends_with(".lex") {
+                    matches.push(entry.path());
+                }
+            }
+        }
+
+        // Return result or error
+        match matches.len() {
+            0 => Err(ElementSourceError::FileNotFound(format!(
+                "No file matching '{}*.lex' in {}",
+                pattern,
+                dir.display()
+            ))),
+            1 => Ok(matches[0].clone()),
+            _ => {
+                // Critical error: duplicate numbers violate the test corpus design
+                let file_list = matches
+                    .iter()
+                    .map(|p| format!("  - {}", p.file_name().unwrap().to_string_lossy()))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                panic!(
+                    "DUPLICATE TEST NUMBERS DETECTED!\n\
+                    Found {} files matching '{}*.lex':\n\
+                    {}\n\n\
+                    ERROR: Test numbers must be unique within each directory.\n\
+                    FIX: Rename the duplicate files to use unique numbers.\n\
+                    Directory: {}",
+                    matches.len(),
+                    pattern,
+                    file_list,
+                    dir.display()
+                );
+            }
+        }
+    }
+}
+
+// ============================================================================
+// FLUENT API - Thin wrappers over core resolution logic
+// ============================================================================
+
 /// Interface for loading per-element test sources
 pub struct Lexplore;
 
 impl Lexplore {
-    const SPEC_VERSION: &'static str = "v1";
-
-    /// Get the path to the elements directory
-    fn elements_dir() -> PathBuf {
-        PathBuf::from(format!("docs/specs/{}/elements", Self::SPEC_VERSION))
-    }
-
     // ===== Fluent API - start a chain =====
 
     /// Start a fluent chain for loading and parsing an element
-    ///
-    /// # Example
-    /// ```rust,ignore
-    /// let doc = Lexplore::load(ElementType::Paragraph, 1)
-    ///     .parse_with(Parser::Reference);
-    /// ```
     pub fn load(element_type: ElementType, number: usize) -> ElementLoader {
         ElementLoader {
             source_type: SourceType::Element(element_type),
@@ -356,12 +373,6 @@ impl Lexplore {
     }
 
     /// Start a fluent chain for loading and parsing a document collection
-    ///
-    /// # Example
-    /// ```rust,ignore
-    /// let doc = Lexplore::load_document(DocumentType::Benchmark, 10)
-    ///     .parse_with(Parser::Reference);
-    /// ```
     pub fn load_document(doc_type: DocumentType, number: usize) -> ElementLoader {
         ElementLoader {
             source_type: SourceType::Document(doc_type),
@@ -370,12 +381,6 @@ impl Lexplore {
     }
 
     /// Start a fluent chain for loading and parsing from an arbitrary file path
-    ///
-    /// # Example
-    /// ```rust,ignore
-    /// let doc = Lexplore::from_path("path/to/file.lex")
-    ///     .parse_with(Parser::Reference);
-    /// ```
     pub fn from_path<P: Into<PathBuf>>(path: P) -> ElementLoader {
         ElementLoader {
             source_type: SourceType::Path(path.into()),
@@ -401,123 +406,32 @@ impl Lexplore {
         trifecta => Trifecta, "trifecta";
     }
 
-    /// Get the path to a specific element type directory
-    fn element_type_dir(element_type: ElementType) -> PathBuf {
-        Self::elements_dir().join(element_type.dir_name())
-    }
+    // ===== Core resolution wrappers =====
 
-    /// Get the path to a specific document type directory
-    fn document_type_dir(doc_type: DocumentType) -> PathBuf {
-        Self::elements_dir()
-            .parent()
-            .unwrap()
-            .join(doc_type.dir_name())
-    }
-
-    /// Generic file finder that searches for files matching a pattern in a directory
-    ///
-    /// # Panics
-    ///
-    /// Panics if multiple files exist with the same number. This is a critical error
-    /// that indicates the test corpus has duplicate numbers.
-    fn find_file_by_pattern(
-        dir: PathBuf,
-        pattern: &str,
-        type_name: &str,
-        number: usize,
-        number_format: &str,
-    ) -> Result<PathBuf, ElementSourceError> {
-        // Collect all matching files to detect duplicates
-        let mut matching_files: Vec<PathBuf> = Vec::new();
-        let entries = fs::read_dir(&dir)?;
-        for entry in entries {
-            let entry = entry?;
-            let filename = entry.file_name();
-            if let Some(name) = filename.to_str() {
-                if name.starts_with(pattern) && name.ends_with(".lex") {
-                    matching_files.push(entry.path());
-                }
-            }
-        }
-
-        match matching_files.len() {
-            0 => Err(ElementSourceError::FileNotFound(format!(
-                "No file found for {} number {} in {}",
-                type_name,
-                number,
-                dir.display()
-            ))),
-            1 => Ok(matching_files[0].clone()),
-            _ => {
-                // Multiple files with the same number - this is a critical error
-                let file_list = matching_files
-                    .iter()
-                    .map(|p| format!("  - {}", p.file_name().unwrap().to_string_lossy()))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                panic!(
-                    "DUPLICATE TEST NUMBERS DETECTED!\n\
-                    Found {} files with number {} for {}:\n\
-                    {}\n\n\
-                    ERROR: Test numbers must be unique within each directory.\n\
-                    FIX: Rename the duplicate files to use unique numbers.\n\
-                    Directory: {}",
-                    matching_files.len(),
-                    number_format.to_string().replace("{}", &number.to_string()),
-                    type_name,
-                    file_list,
-                    dir.display()
-                );
-            }
-        }
-    }
-
-    /// Find the file matching the element type and number
-    ///
-    /// # Panics
-    ///
-    /// Panics if multiple files exist with the same number. This is a critical error
-    /// that indicates the test corpus has duplicate numbers, which violates the design
-    /// where each number uniquely identifies a test case.
+    /// Find the file for an element type and number (thin wrapper over core logic)
     fn find_file(element_type: ElementType, number: usize) -> Result<PathBuf, ElementSourceError> {
-        let dir = Self::element_type_dir(element_type);
-        let pattern = format!("{}-{:02}-", element_type.prefix(), number);
-        Self::find_file_by_pattern(
-            dir,
-            &pattern,
-            &format!("{:?}", element_type),
-            number,
-            "{:02}",
-        )
+        let dir = FileResolver::resolve_dir("elements", Some(element_type.dir_name()));
+        FileResolver::find_file_by_number(dir, number, Some(element_type.prefix()))
     }
 
-    /// Find the file matching the document type and number
-    ///
-    /// # Panics
-    ///
-    /// Panics if multiple files exist with the same number. This is a critical error
-    /// that indicates the test corpus has duplicate numbers, which violates the design
-    /// where each number uniquely identifies a test case.
+    /// Find the file for a document type and number (thin wrapper over core logic)
     fn find_document_file(
         doc_type: DocumentType,
         number: usize,
     ) -> Result<PathBuf, ElementSourceError> {
-        let dir = Self::document_type_dir(doc_type);
-        let pattern = format!("{:03}-", number);
-        Self::find_file_by_pattern(dir, &pattern, &format!("{:?}", doc_type), number, "{:03}")
+        let dir = FileResolver::resolve_dir(doc_type.dir_name(), None);
+        FileResolver::find_file_by_number(dir, number, None)
     }
 
     /// List all available numbers for a given element type
     pub fn list_numbers_for(element_type: ElementType) -> Result<Vec<usize>, ElementSourceError> {
-        let dir = Self::element_type_dir(element_type);
+        let dir = FileResolver::resolve_dir("elements", Some(element_type.dir_name()));
         let prefix = element_type.prefix();
         let mut numbers = Vec::new();
 
-        let entries = fs::read_dir(&dir)?;
-        for entry in entries {
+        for entry in fs::read_dir(&dir)? {
             let entry = entry?;
-            let filename = entry.file_name();
-            if let Some(name) = filename.to_str() {
+            if let Some(name) = entry.file_name().to_str() {
                 if name.starts_with(prefix) && name.ends_with(".lex") {
                     // Extract number from pattern: "element-NN-hint.lex"
                     if let Some(num_str) = name.strip_prefix(&format!("{}-", prefix)) {
@@ -558,16 +472,16 @@ mod tests {
 
     #[test]
     fn test_fluent_api_basic() {
-        let parsed = Lexplore::paragraph(1).parse();
-        let paragraph = parsed.expect_paragraph();
+        let doc = Lexplore::paragraph(1).parse();
+        let paragraph = doc.expect_paragraph();
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
     }
 
     #[test]
     fn test_fluent_api_with_parser_selection() {
-        let parsed = Lexplore::paragraph(1).parse_with(Parser::Reference);
-        let paragraph = parsed.expect_paragraph();
+        let doc = Lexplore::paragraph(1).parse_with(Parser::Reference);
+        let paragraph = doc.expect_paragraph();
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
     }
@@ -580,24 +494,24 @@ mod tests {
 
     #[test]
     fn test_fluent_api_list() {
-        let parsed = Lexplore::list(1).parse();
-        let list = parsed.expect_list();
+        let doc = Lexplore::list(1).parse();
+        let list = doc.expect_list();
 
         assert!(!list.items.is_empty());
     }
 
     #[test]
     fn test_fluent_api_session() {
-        let parsed = Lexplore::session(1).parse();
-        let session = parsed.expect_session();
+        let doc = Lexplore::session(1).parse();
+        let session = doc.expect_session();
 
         assert!(!session.label().is_empty());
     }
 
     #[test]
     fn test_fluent_api_definition() {
-        let parsed = Lexplore::definition(1).parse();
-        let definition = parsed.expect_definition();
+        let doc = Lexplore::definition(1).parse();
+        let definition = doc.expect_definition();
 
         assert!(!definition.label().is_empty());
     }
@@ -608,16 +522,14 @@ mod tests {
 
     #[test]
     fn test_benchmark_fluent_api() {
-        let parsed = Lexplore::benchmark(10).parse();
-        let doc = parsed.document();
+        let doc = Lexplore::benchmark(10).parse();
 
         assert!(!doc.root.children.is_empty());
     }
 
     #[test]
     fn test_trifecta_fluent_api() {
-        let parsed = Lexplore::trifecta(0).parse();
-        let doc = parsed.document();
+        let doc = Lexplore::trifecta(0).parse();
 
         assert!(!doc.root.children.is_empty());
     }
@@ -727,9 +639,9 @@ mod tests {
     #[test]
     fn test_from_path_parse() {
         let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
-        let parsed = Lexplore::from_path(path).parse();
+        let doc = Lexplore::from_path(path).parse();
 
-        let paragraph = parsed.expect_paragraph();
+        let paragraph = doc.expect_paragraph();
         assert!(!paragraph.text().is_empty());
     }
 
@@ -753,9 +665,9 @@ mod tests {
     #[test]
     fn test_from_path_with_parser() {
         let path = "docs/specs/v1/elements/list/list-01-flat-simple-dash.lex";
-        let parsed = Lexplore::from_path(path).parse_with(Parser::Reference);
+        let doc = Lexplore::from_path(path).parse_with(Parser::Reference);
 
-        let list = parsed.expect_list();
+        let list = doc.expect_list();
         assert!(!list.items.is_empty());
     }
 
@@ -783,18 +695,16 @@ mod tests {
     #[test]
     fn test_from_path_with_benchmark() {
         let path = "docs/specs/v1/benchmark/010-kitchensink.lex";
-        let parsed = Lexplore::from_path(path).parse();
+        let doc = Lexplore::from_path(path).parse();
 
-        let doc = parsed.document();
         assert!(!doc.root.children.is_empty());
     }
 
     #[test]
     fn test_from_path_with_trifecta() {
         let path = "docs/specs/v1/trifecta/000-paragraphs.lex";
-        let parsed = Lexplore::from_path(path).parse();
+        let doc = Lexplore::from_path(path).parse();
 
-        let doc = parsed.document();
         assert!(!doc.root.children.is_empty());
     }
 
