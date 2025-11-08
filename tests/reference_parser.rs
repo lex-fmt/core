@@ -2,7 +2,6 @@
 
 use lex::lex::ast::{AstNode, ContentItem, Position};
 use lex::lex::parsing::parse_document;
-use lex::lex::processor::lex_sources::LexSources;
 use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
 
@@ -40,7 +39,8 @@ fn test_real_content_extraction() {
 
 #[test]
 fn test_dialog_parsing() {
-    let source = LexSources::get_string("dialog.lex").unwrap();
+    // Tests that dash-prefixed lines without proper list formatting are parsed as a paragraph
+    let source = Lexplore::paragraph(9).source();
     let doc = parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
