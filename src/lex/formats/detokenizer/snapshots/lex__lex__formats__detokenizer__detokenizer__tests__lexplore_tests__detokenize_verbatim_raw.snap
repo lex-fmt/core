@@ -1,0 +1,6 @@
+---
+source: src/lex/formats/detokenizer/detokenizer.rs
+expression: detokenized
+---
+Code Example:
+:: javascript ::
