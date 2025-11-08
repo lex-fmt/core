@@ -490,30 +490,68 @@ impl Lexplore {
     }
 
     /// Find the file matching the element type and number
+    ///
+    /// # Panics
+    ///
+    /// Panics if multiple files exist with the same number. This is a critical error
+    /// that indicates the test corpus has duplicate numbers, which violates the design
+    /// where each number uniquely identifies a test case.
     fn find_file(element_type: ElementType, number: usize) -> Result<PathBuf, ElementSourceError> {
         let dir = Self::element_type_dir(element_type);
         let pattern = format!("{}-{:02}-", element_type.prefix(), number);
 
+        // Collect all matching files to detect duplicates
+        let mut matching_files: Vec<PathBuf> = Vec::new();
         let entries = fs::read_dir(&dir)?;
         for entry in entries {
             let entry = entry?;
             let filename = entry.file_name();
             if let Some(name) = filename.to_str() {
                 if name.starts_with(&pattern) && name.ends_with(".lex") {
-                    return Ok(entry.path());
+                    matching_files.push(entry.path());
                 }
             }
         }
 
-        Err(ElementSourceError::FileNotFound(format!(
-            "No file found for {:?} number {} in {}",
-            element_type,
-            number,
-            dir.display()
-        )))
+        match matching_files.len() {
+            0 => Err(ElementSourceError::FileNotFound(format!(
+                "No file found for {:?} number {} in {}",
+                element_type,
+                number,
+                dir.display()
+            ))),
+            1 => Ok(matching_files[0].clone()),
+            _ => {
+                // Multiple files with the same number - this is a critical error
+                let file_list = matching_files
+                    .iter()
+                    .map(|p| format!("  - {}", p.file_name().unwrap().to_string_lossy()))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                panic!(
+                    "DUPLICATE TEST NUMBERS DETECTED!\n\
+                    Found {} files with number {:02} for {:?}:\n\
+                    {}\n\n\
+                    ERROR: Test numbers must be unique within each element directory.\n\
+                    FIX: Rename the duplicate files to use unique numbers.\n\
+                    Directory: {}",
+                    matching_files.len(),
+                    number,
+                    element_type,
+                    file_list,
+                    dir.display()
+                );
+            }
+        }
     }
 
     /// Find the file matching the document type and number
+    ///
+    /// # Panics
+    ///
+    /// Panics if multiple files exist with the same number. This is a critical error
+    /// that indicates the test corpus has duplicate numbers, which violates the design
+    /// where each number uniquely identifies a test case.
     fn find_document_file(
         doc_type: DocumentType,
         number: usize,
@@ -521,23 +559,49 @@ impl Lexplore {
         let dir = Self::document_type_dir(doc_type);
         let pattern = format!("{:03}-", number);
 
+        // Collect all matching files to detect duplicates
+        let mut matching_files: Vec<PathBuf> = Vec::new();
         let entries = fs::read_dir(&dir)?;
         for entry in entries {
             let entry = entry?;
             let filename = entry.file_name();
             if let Some(name) = filename.to_str() {
                 if name.starts_with(&pattern) && name.ends_with(".lex") {
-                    return Ok(entry.path());
+                    matching_files.push(entry.path());
                 }
             }
         }
 
-        Err(ElementSourceError::FileNotFound(format!(
-            "No file found for {:?} number {} in {}",
-            doc_type,
-            number,
-            dir.display()
-        )))
+        match matching_files.len() {
+            0 => Err(ElementSourceError::FileNotFound(format!(
+                "No file found for {:?} number {} in {}",
+                doc_type,
+                number,
+                dir.display()
+            ))),
+            1 => Ok(matching_files[0].clone()),
+            _ => {
+                // Multiple files with the same number - this is a critical error
+                let file_list = matching_files
+                    .iter()
+                    .map(|p| format!("  - {}", p.file_name().unwrap().to_string_lossy()))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                panic!(
+                    "DUPLICATE TEST NUMBERS DETECTED!\n\
+                    Found {} files with number {:03} for {:?}:\n\
+                    {}\n\n\
+                    ERROR: Test numbers must be unique within each document directory.\n\
+                    FIX: Rename the duplicate files to use unique numbers.\n\
+                    Directory: {}",
+                    matching_files.len(),
+                    number,
+                    doc_type,
+                    file_list,
+                    dir.display()
+                );
+            }
+        }
     }
 
     /// Get the source string for a specific element variation
