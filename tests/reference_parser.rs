@@ -266,7 +266,8 @@ fn test_trifecta_nesting() {
 #[test]
 fn test_verified_ensemble_with_definitions() {
     // Comprehensive ensemble test with all core elements including definitions
-    let source = LexSources::get_string("110-ensemble-with-definitions.lex").unwrap();
+    // Using definition-90-document-simple.lex which tests definitions in context
+    let source = Lexplore::definition(90).source();
     let doc = parse_document(&source).unwrap();
 
     // Item 0-1: Opening paragraphs
@@ -531,8 +532,8 @@ fn test_nested_paragraph_has_location() {
 
 #[test]
 fn test_location_tracking_for_core_elements() {
-    let source = LexSources::get_string("110-ensemble-with-definitions.lex")
-        .expect("Failed to load ensemble sample");
+    // Using definition-90-document-simple.lex for comprehensive location tracking test
+    let source = Lexplore::definition(90).source();
     let doc = parse_document(&source).expect("Failed to parse ensemble sample");
 
     // Document doesn't have its own location; location comes from root
