@@ -249,6 +249,24 @@ impl ParsedTokens {
     {
         self.tokens.iter().any(|(t, _)| predicate(t))
     }
+
+    /// Detokenize the token stream back to source text
+    ///
+    /// This is a convenience method that extracts the tokens and uses the
+    /// detokenizer to convert them back to source text.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use lex::lex::testing::lexplore::Lexplore;
+    ///
+    /// let source = Lexplore::from_path("docs/specs/v1/benchmark/010-kitchensink.lex")
+    ///     .tokenize()
+    ///     .detokenize();
+    /// ```
+    pub fn detokenize(&self) -> String {
+        let tokens: Vec<_> = self.tokens.iter().map(|(t, _)| t.clone()).collect();
+        crate::lex::formats::detokenize(&tokens)
+    }
 }
 
 /// A parsed element document, ready for element extraction
@@ -1167,5 +1185,67 @@ mod tests {
 
         let doc = parsed.document();
         assert!(!doc.root.children.is_empty());
+    }
+
+    // ===== Detokenization Tests =====
+
+    #[test]
+    fn test_detokenize_paragraph() {
+        let source = Lexplore::paragraph(1).source();
+        let detokenized = Lexplore::paragraph(1).tokenize().detokenize();
+
+        // Detokenized should match original source
+        assert_eq!(detokenized, source);
+    }
+
+    #[test]
+    fn test_detokenize_benchmark() {
+        let detokenized = Lexplore::benchmark(10).tokenize().detokenize();
+
+        // Verify detokenization produces non-empty output with expected content
+        assert!(!detokenized.is_empty());
+        assert!(detokenized.contains("Kitchensink Test Document"));
+        assert!(detokenized.contains("1. Primary Session"));
+        assert!(detokenized.contains("2. Second Root Session"));
+    }
+
+    #[test]
+    fn test_detokenize_from_path() {
+        let path = "docs/specs/v1/benchmark/010-kitchensink.lex";
+        let detokenized = Lexplore::from_path(path).tokenize().detokenize();
+
+        // Verify detokenization produces expected content
+        assert!(!detokenized.is_empty());
+        assert!(detokenized.contains("Kitchensink Test Document"));
+        assert!(detokenized.contains("Root Definition:"));
+        assert!(detokenized.contains("Nested Session"));
+    }
+
+    #[test]
+    fn test_detokenize_with_semantic_tokens() {
+        let source = Lexplore::session(1).source();
+        let detokenized = Lexplore::session(1).tokenize().detokenize();
+
+        // Detokenized should match original source (handles Indent/Dedent tokens)
+        assert_eq!(detokenized, source);
+    }
+
+    #[test]
+    fn test_detokenize_trifecta() {
+        let source = Lexplore::trifecta(0).source();
+        let detokenized = Lexplore::trifecta(0).tokenize().detokenize();
+
+        // Detokenized should match original source
+        assert_eq!(detokenized, source);
+    }
+
+    #[test]
+    fn test_detokenize_fluent_api() {
+        // Demonstrate fluent API usage
+        let detokenized = Lexplore::from_path("docs/specs/v1/benchmark/010-kitchensink.lex")
+            .tokenize()
+            .detokenize();
+
+        assert!(detokenized.contains("Kitchensink"));
     }
 }
