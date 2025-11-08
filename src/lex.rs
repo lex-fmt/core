@@ -6,5 +6,4 @@ pub mod formats;
 pub mod lexing;
 pub mod parsing;
 pub mod pipeline;
-pub mod processor;
 pub mod testing;

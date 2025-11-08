@@ -46,6 +46,13 @@ pub enum TargetSpec {
         analyzer: AnalysisSpec,
         builder: BuilderSpec,
     },
+
+    /// Continue to AST and serialize to specified format
+    Serialized {
+        analyzer: AnalysisSpec,
+        builder: BuilderSpec,
+        format: String,
+    },
 }
 
 /// Which syntactic analyzer (parser) to use
@@ -153,6 +160,51 @@ impl ConfigRegistry {
             description: "Raw tokens from base tokenization".into(),
             pipeline_spec: PipelineSpec::Raw,
             target: TargetSpec::Tokens,
+        });
+
+        // Serialization configurations
+        registry.register(ProcessingConfig {
+            name: "lex-to-tag".into(),
+            description: "Parse and serialize to tag format (AST XML-like)".into(),
+            pipeline_spec: PipelineSpec::Indentation,
+            target: TargetSpec::Serialized {
+                analyzer: AnalysisSpec::Reference,
+                builder: BuilderSpec::Lsp,
+                format: "tag".into(),
+            },
+        });
+
+        registry.register(ProcessingConfig {
+            name: "lex-to-treeviz".into(),
+            description: "Parse and serialize to treeviz format (tree visualization)".into(),
+            pipeline_spec: PipelineSpec::Indentation,
+            target: TargetSpec::Serialized {
+                analyzer: AnalysisSpec::Reference,
+                builder: BuilderSpec::Lsp,
+                format: "treeviz".into(),
+            },
+        });
+
+        registry.register(ProcessingConfig {
+            name: "lex-to-tag-linebased".into(),
+            description: "Parse with linebased and serialize to tag format".into(),
+            pipeline_spec: PipelineSpec::Linebased,
+            target: TargetSpec::Serialized {
+                analyzer: AnalysisSpec::Linebased,
+                builder: BuilderSpec::Lsp,
+                format: "tag".into(),
+            },
+        });
+
+        registry.register(ProcessingConfig {
+            name: "lex-to-treeviz-linebased".into(),
+            description: "Parse with linebased and serialize to treeviz format".into(),
+            pipeline_spec: PipelineSpec::Linebased,
+            target: TargetSpec::Serialized {
+                analyzer: AnalysisSpec::Linebased,
+                builder: BuilderSpec::Lsp,
+                format: "treeviz".into(),
+            },
         });
 
         registry

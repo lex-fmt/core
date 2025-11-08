@@ -19,9 +19,9 @@ This is a high level overview of how the Lex parser is designed.
 	1. Lexing
 		1. The core lexing is done through the logos crate. These are the core tokens in tokens_core.rs
 		2. Then a series of transformation steps are applied
-		3. The pipeline converts logos tokens to a TokenStream (now just a type alias for Vec<(Token, Range<usize>)>)
-		4. Transformations are chained: each receives a flat vector and returns a flat vector
-		5. The final lexer output is a flat Vec<(Token, Range<usize>)>
+		3. The pipeline converts logos tokens to a TokenStream (an enum that can be Flat or Tree)
+		4. Most transformations output TokenStream::Flat, which can be unrolled to Vec<(Token, Range<usize>)>
+		5. The final lexer output is typically TokenStream::Flat
 
 	2. Parsing: Semantic Analysis
 		1. The parsing stage differentiates between actual analysis and AST building

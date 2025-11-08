@@ -2,64 +2,20 @@
 //! This binary is used to view / convert / process lex files into (and, in the future, from) different formats.
 //!
 //! Usage:
-//!   lex process `<path>` `<format>`     - Process a file and output to stdout (explicit)
-//!   lex `<path>` `<format>`             - Same as process (default command)
-//!   lex view `<path>`                 - Open an interactive TUI viewer
-//!   lex formats                     - List all available formats
+//!   lex execute --config `<config>` `<path>` [--format `<format>`]  - Execute a pipeline configuration
+//!   lex view `<path>`                                            - Open an interactive TUI viewer
+//!   lex list-configs                                           - List all available configurations
 mod viewer;
 
 use clap::{Arg, Command};
-use lex::lex::processor::{available_formats, ProcessingError};
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 fn main() {
-    // Parse arguments manually to handle --extras-* arguments that clap doesn't know about
-    let args: Vec<String> = std::env::args().collect();
-
-    // Filter out --extras-* arguments before passing to clap
-    let clap_args: Vec<&str> = args
-        .iter()
-        .filter(|arg| {
-            // Keep all args except those that start with --extras-
-            !arg.starts_with("--extras-")
-        })
-        .map(|arg| arg.as_str())
-        .collect();
-
     let matches = Command::new("lex")
         .version(env!("CARGO_PKG_VERSION"))
         .about("A tool for inspecting and processing lex files")
-        .subcommand_required(false)
+        .subcommand_required(true)
         .arg_required_else_help(true)
-        // Default command args (for backwards compatibility)
-        .arg(
-            Arg::new("path")
-                .help("Path to the lex file to process")
-                .index(1),
-        )
-        .arg(
-            Arg::new("format")
-                .help("Output format (e.g., token-simple, token-json)")
-                .index(2),
-        )
-        // Subcommands
-        .subcommand(
-            Command::new("process")
-                .about("Process a file and output to stdout (default command)")
-                .arg(
-                    Arg::new("path")
-                        .help("Path to the lex file to process")
-                        .required(true)
-                        .index(1),
-                )
-                .arg(
-                    Arg::new("format")
-                        .help("Output format (e.g., token-simple, token-json)")
-                        .required(true)
-                        .index(2),
-                ),
-        )
         .subcommand(
             Command::new("view")
                 .about("Open an interactive TUI viewer")
@@ -70,7 +26,6 @@ fn main() {
                         .index(1),
                 ),
         )
-        .subcommand(Command::new("formats").about("List all available output formats"))
         .subcommand(
             Command::new("execute")
                 .about("Execute a processing configuration")
@@ -98,25 +53,13 @@ fn main() {
         .subcommand(
             Command::new("list-configs").about("List available processing configurations"),
         )
-        .try_get_matches_from(clap_args)
-        .unwrap_or_else(|e| {
-            eprintln!("{}", e);
-            std::process::exit(1);
-        });
+        .get_matches();
 
-    // Handle subcommands or default command
+    // Handle subcommands
     match matches.subcommand() {
-        Some(("process", process_matches)) => {
-            let path = process_matches.get_one::<String>("path").unwrap();
-            let format_str = process_matches.get_one::<String>("format").unwrap();
-            handle_process_command(path, format_str);
-        }
         Some(("view", view_matches)) => {
             let path = view_matches.get_one::<String>("path").unwrap();
             handle_view_command(path);
-        }
-        Some(("formats", _)) => {
-            handle_formats_command();
         }
         Some(("execute", execute_matches)) => {
             let config = execute_matches.get_one::<String>("config").unwrap();
@@ -127,39 +70,7 @@ fn main() {
         Some(("list-configs", _)) => {
             handle_list_configs_command();
         }
-        None => {
-            // Default command: treat as process
-            let path = matches.get_one::<String>("path");
-            let format = matches.get_one::<String>("format");
-
-            match (path, format) {
-                (Some(p), Some(f)) => handle_process_command(p, f),
-                _ => {
-                    // This shouldn't happen because arg_required_else_help(true) will show help
-                    // if required args are missing. But just in case:
-                    std::process::exit(1);
-                }
-            }
-        }
         _ => unreachable!(),
-    }
-}
-
-/// Handle the process command
-fn handle_process_command(path: &str, format_str: &str) {
-    // Parse extras from raw arguments (everything after format that starts with --extras-)
-    let extras = parse_extras_from_args();
-
-    match process_file_with_format(path, format_str, extras) {
-        Ok(output) => print!("{}", output),
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            eprintln!("\nAvailable formats:");
-            for format in available_formats() {
-                eprintln!("  {}", format);
-            }
-            std::process::exit(1);
-        }
     }
 }
 
@@ -175,61 +86,15 @@ fn handle_view_command(path: &str) {
     }
 }
 
-/// Handle the formats command
-fn handle_formats_command() {
-    println!("Available formats:");
-    for format in available_formats() {
-        println!("  {}", format);
-    }
-}
-
-/// Parse extras from raw command line arguments
-/// Expects arguments in the format `--extras-<key>` `<value>`
-fn parse_extras_from_args() -> HashMap<String, String> {
-    let mut result = HashMap::new();
-
-    let args: Vec<String> = std::env::args().collect();
-
-    // Look for arguments that start with --extras-
-    for arg in args.iter().skip(3) {
-        // Skip path and format arguments (first 3 args: executable, path, format)
-        if arg.starts_with("--extras-") {
-            if let Some(rest) = arg.strip_prefix("--extras-") {
-                if let Some((key, val)) = rest.split_once('=') {
-                    result.insert(key.to_string(), val.to_string());
-                }
-            }
-        }
-    }
-
-    result
-}
-
-/// Process a file with the given format string and extras
-fn process_file_with_format(
-    path: &str,
-    format_str: &str,
-    extras: HashMap<String, String>,
-) -> Result<String, ProcessingError> {
-    let spec = lex::lex::processor::ProcessingSpec::from_string(format_str)?;
-    lex::lex::processor::process_file_with_extras(path, &spec, extras)
-}
-
-/// Handle the execute command (new config-based interface)
+/// Handle the execute command
 fn handle_execute_command(config: &str, path: &str, format: &str) {
-    use lex::lex::pipeline::{ExecutionOutput, PipelineExecutor};
-    use std::fs;
+    use lex::lex::pipeline::{DocumentLoader, ExecutionOutput};
 
-    let source = fs::read_to_string(path).unwrap_or_else(|e| {
-        eprintln!("Error reading file: {}", e);
-        std::process::exit(1);
-    });
-
-    let executor = PipelineExecutor::new();
-    let output = executor.execute(config, &source).unwrap_or_else(|e| {
+    let loader = DocumentLoader::new();
+    let output = loader.load_and_execute(path, config).unwrap_or_else(|e| {
         eprintln!("Execution error: {}", e);
         eprintln!("\nAvailable configurations:");
-        for config in executor.list_configs() {
+        for config in loader.executor().list_configs() {
             eprintln!("  {} - {}", config.name, config.description);
         }
         std::process::exit(1);
@@ -237,6 +102,8 @@ fn handle_execute_command(config: &str, path: &str, format: &str) {
 
     // Format and print output
     let formatted = match (output, format) {
+        // Serialized output is already formatted, use directly
+        (ExecutionOutput::Serialized(s), _) => s,
         (ExecutionOutput::Document(doc), "auto") | (ExecutionOutput::Document(doc), "ast-tag") => {
             lex::lex::parsing::serialize_ast_tag(&doc)
         }
@@ -274,12 +141,12 @@ fn handle_execute_command(config: &str, path: &str, format: &str) {
 
 /// Handle the list-configs command
 fn handle_list_configs_command() {
-    use lex::lex::pipeline::PipelineExecutor;
+    use lex::lex::pipeline::DocumentLoader;
 
-    let executor = PipelineExecutor::new();
+    let loader = DocumentLoader::new();
     println!("Available processing configurations:\n");
 
-    for config in executor.list_configs() {
+    for config in loader.executor().list_configs() {
         println!("  {}", config.name);
         println!("    {}", config.description);
         println!();
