@@ -122,7 +122,7 @@ pub fn detokenize(tokens: &[Token]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexing::{tokenize};
+    use crate::lex::lexing::tokenize;
     use crate::lex::testing::lexplore::Lexplore;
 
     mod lexplore_tests {
