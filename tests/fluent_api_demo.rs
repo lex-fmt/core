@@ -11,8 +11,8 @@ use lex::lex::testing::lexplore::*;
 
 #[test]
 fn test_old_style_verbose() {
-    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
-    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    let parsed = Lexplore::paragraph(1).parse();
+    let doc = parsed.document();
     // Using query API directly
     let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
 
@@ -88,16 +88,17 @@ fn test_definition_shortcut() {
 // ============================================================================
 
 #[test]
-fn test_must_get_source() {
-    // No unwrap needed - panics with helpful message if file not found
-    let source = Lexplore::must_get_source_for(ElementType::Paragraph, 1);
+fn test_get_source() {
+    // Get source using fluent API
+    let source = Lexplore::paragraph(1).source();
     assert!(source.contains("simple"));
 }
 
 #[test]
-fn test_must_get_ast() {
-    // Get AST directly without the fluent API
-    let doc = Lexplore::must_get_ast_for(ElementType::Paragraph, 1, Parser::Reference);
+fn test_get_ast_fluent_api() {
+    // Get AST using fluent API
+    let parsed = Lexplore::paragraph(1).parse();
+    let doc = parsed.document();
     assert!(!doc.root.children.is_empty());
 }
 
@@ -133,16 +134,18 @@ fn test_safe_optional_extraction() {
 
 #[test]
 fn test_compare_both_parsers() {
-    let source = Lexplore::must_get_source_for(ElementType::Paragraph, 1);
+    // Parse with both parsers using fluent API
+    let parsed_ref = Lexplore::paragraph(1).parse_with(Parser::Reference);
+    let parsed_linebased = Lexplore::paragraph(1).parse_with(Parser::Linebased);
 
-    // Parse with both parsers
-    let results = parse_with_multiple_parsers(&source, &[Parser::Reference, Parser::Linebased]);
+    // Both parsers should at least parse successfully for this simple case
+    let ref_para = parsed_ref.first_paragraph();
+    let linebased_para = parsed_linebased.first_paragraph();
 
-    if let Ok(results) = results {
-        match compare_parser_results(&results) {
-            Ok(()) => println!("✓ Both parsers produced matching ASTs"),
-            Err(msg) => println!("✗ Parser mismatch: {}", msg),
-        }
+    if ref_para.is_some() && linebased_para.is_some() {
+        println!("✓ Both parsers successfully parsed");
+    } else {
+        println!("✗ One or both parsers had issues");
     }
 }
 
