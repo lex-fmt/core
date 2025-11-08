@@ -3,6 +3,7 @@
 //! This module provides the core loading infrastructure for the Lexplore test harness,
 //! handling file discovery, reading, parsing, and tokenization.
 
+use crate::lex::ast::elements::{Annotation, Definition, List, Paragraph, Session, Verbatim};
 use crate::lex::ast::Document;
 use crate::lex::lexing::Token;
 use crate::lex::parsing::ParseError;
@@ -133,6 +134,76 @@ impl ElementLoader {
     }
 }
 
+/// Loader for isolated element test files
+///
+/// This struct is specifically for loading single-element test files from
+/// docs/specs/v1/elements/ and extracting the element directly as a typed AST node.
+///
+/// It orchestrates:
+/// 1. Path resolution via specfile_finder
+/// 2. File parsing via DocumentLoader
+/// 3. Element extraction via Document::expect_*() methods
+///
+/// # Example
+/// ```ignore
+/// let element = Lexplore::get_element(ElementType::Paragraph, 3);
+/// let paragraph = element.as_paragraph();
+/// // Returns &Paragraph directly, panics if not found
+/// ```
+pub struct IsolatedElementLoader {
+    doc: Document,
+}
+
+impl IsolatedElementLoader {
+    /// Create a new isolated element loader by loading and parsing the element file
+    fn load(element_type: ElementType, number: usize) -> Self {
+        let path = specfile_finder::find_element_file(element_type, number)
+            .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", element_type, number, e));
+
+        let loader = DocumentLoader::new();
+        let doc = loader
+            .load_and_parse_with(&path, Parser::Reference)
+            .unwrap_or_else(|e| panic!("Failed to parse {}: {}", path.display(), e));
+
+        Self { doc }
+    }
+
+    /// Get the loaded document
+    pub fn document(&self) -> &Document {
+        &self.doc
+    }
+
+    /// Extract element as a Paragraph (panics if not found)
+    pub fn as_paragraph(&self) -> &Paragraph {
+        self.doc.expect_paragraph()
+    }
+
+    /// Extract element as a List (panics if not found)
+    pub fn as_list(&self) -> &List {
+        self.doc.expect_list()
+    }
+
+    /// Extract element as a Session (panics if not found)
+    pub fn as_session(&self) -> &Session {
+        self.doc.expect_session()
+    }
+
+    /// Extract element as a Definition (panics if not found)
+    pub fn as_definition(&self) -> &Definition {
+        self.doc.expect_definition()
+    }
+
+    /// Extract element as an Annotation (panics if not found)
+    pub fn as_annotation(&self) -> &Annotation {
+        self.doc.expect_annotation()
+    }
+
+    /// Extract element as a Verbatim block (panics if not found)
+    pub fn as_verbatim(&self) -> &Verbatim {
+        self.doc.expect_verbatim()
+    }
+}
+
 /// Macro to generate element loader shortcuts
 macro_rules! element_shortcuts {
     ($($name:ident => $variant:ident, $label:literal);* $(;)?) => {
@@ -189,6 +260,52 @@ impl Lexplore {
             source_type: SourceType::Path(path.into()),
             number: 0, // Dummy value, not used for Path variant
         }
+    }
+
+    // ===== Isolated element loading (returns AST node directly) =====
+
+    /// Load an isolated element file and return an element loader with the parsed AST
+    ///
+    /// This is for single-element test files in docs/specs/v1/elements/
+    /// Use .as_paragraph(), .as_list(), etc. to extract the specific element type.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let element = Lexplore::get_element(ElementType::Paragraph, 3);
+    /// let paragraph = element.as_paragraph();
+    /// ```
+    pub fn get_element(element_type: ElementType, number: usize) -> IsolatedElementLoader {
+        IsolatedElementLoader::load(element_type, number)
+    }
+
+    /// Convenience: Load a paragraph element file and return the paragraph directly
+    pub fn get_paragraph(number: usize) -> IsolatedElementLoader {
+        Self::get_element(ElementType::Paragraph, number)
+    }
+
+    /// Convenience: Load a list element file and return the list directly
+    pub fn get_list(number: usize) -> IsolatedElementLoader {
+        Self::get_element(ElementType::List, number)
+    }
+
+    /// Convenience: Load a session element file and return the session directly
+    pub fn get_session(number: usize) -> IsolatedElementLoader {
+        Self::get_element(ElementType::Session, number)
+    }
+
+    /// Convenience: Load a definition element file and return the definition directly
+    pub fn get_definition(number: usize) -> IsolatedElementLoader {
+        Self::get_element(ElementType::Definition, number)
+    }
+
+    /// Convenience: Load an annotation element file and return the annotation directly
+    pub fn get_annotation(number: usize) -> IsolatedElementLoader {
+        Self::get_element(ElementType::Annotation, number)
+    }
+
+    /// Convenience: Load a verbatim element file and return the verbatim block directly
+    pub fn get_verbatim(number: usize) -> IsolatedElementLoader {
+        Self::get_element(ElementType::Verbatim, number)
     }
 
     // ===== Convenience shortcuts for specific element types =====
@@ -528,5 +645,73 @@ mod tests {
         let detokenized = crate::lex::formats::detokenize(&token_only);
 
         assert!(detokenized.contains("Kitchensink"));
+    }
+
+    // ===== Isolated Element Loading Tests =====
+
+    #[test]
+    fn test_get_element_paragraph() {
+        let element = Lexplore::get_element(ElementType::Paragraph, 1);
+        let paragraph = element.as_paragraph();
+
+        assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
+    }
+
+    #[test]
+    fn test_get_paragraph_shortcut() {
+        let element = Lexplore::get_paragraph(1);
+        let paragraph = element.as_paragraph();
+
+        assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
+    }
+
+    #[test]
+    fn test_get_list_shortcut() {
+        let element = Lexplore::get_list(1);
+        let list = element.as_list();
+
+        assert!(!list.items.is_empty());
+    }
+
+    #[test]
+    fn test_get_session_shortcut() {
+        let element = Lexplore::get_session(1);
+        let session = element.as_session();
+
+        assert!(!session.label().is_empty());
+    }
+
+    #[test]
+    fn test_get_definition_shortcut() {
+        let element = Lexplore::get_definition(1);
+        let definition = element.as_definition();
+
+        assert!(!definition.label().is_empty());
+    }
+
+    #[test]
+    fn test_get_annotation_shortcut() {
+        let element = Lexplore::get_annotation(1);
+        let _annotation = element.as_annotation();
+
+        // Annotations should have at least a marker
+        assert!(element.document().iter_annotations_recursive().count() > 0);
+    }
+
+    #[test]
+    fn test_get_verbatim_shortcut() {
+        let element = Lexplore::get_verbatim(1);
+        let _verbatim = element.as_verbatim();
+
+        // Just verify it doesn't panic - verbatim blocks can be empty or have content
+    }
+
+    #[test]
+    fn test_isolated_element_loader_document_access() {
+        let element = Lexplore::get_paragraph(1);
+        let doc = element.document();
+
+        // Should be able to access the underlying document
+        assert!(doc.first_paragraph().is_some());
     }
 }
