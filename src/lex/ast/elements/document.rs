@@ -760,11 +760,11 @@ mod tests {
 
         // Find all depth 1 nodes (should have session2 at least)
         let depth_1 = doc.find_nodes_at_depth(1);
-        assert!(depth_1.len() >= 1); // at minimum session2
+        assert!(!depth_1.is_empty()); // at minimum session2
 
         // Find all depth 2 nodes (should have deep paragraph at least)
         let depth_2 = doc.find_nodes_at_depth(2);
-        assert!(depth_2.len() >= 1); // at minimum deep paragraph
+        assert!(!depth_2.is_empty()); // at minimum deep paragraph
     }
 
     #[test]
@@ -829,7 +829,7 @@ mod tests {
 
         // Find nodes in range 0-10 (should get everything)
         let all = doc.find_nodes_in_depth_range(0, 10);
-        assert!(all.len() > 0);
+        assert!(!all.is_empty());
     }
 
     #[test]
@@ -952,6 +952,6 @@ mod tests {
 
         // Example 7: Find nodes in mid-level depth range (1-2)
         let mid_level = doc.find_nodes_in_depth_range(1, 2);
-        assert!(mid_level.len() > 0);
+        assert!(!mid_level.is_empty());
     }
 }
