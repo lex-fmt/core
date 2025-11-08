@@ -7,6 +7,7 @@ use crate::lex::ast::Document;
 use crate::lex::lexing::Token;
 use crate::lex::parsing::ParseError;
 use crate::lex::pipeline::DocumentLoader;
+use crate::lex::testing::lexplore::specfile_finder;
 use std::fs;
 use std::path::PathBuf;
 
@@ -53,18 +54,6 @@ impl ElementType {
             ElementType::Verbatim => "verbatim",
         }
     }
-
-    /// Get the element name prefix for filenames
-    fn prefix(&self) -> &'static str {
-        match self {
-            ElementType::Paragraph => "paragraph",
-            ElementType::List => "list",
-            ElementType::Session => "session",
-            ElementType::Definition => "definition",
-            ElementType::Annotation => "annotation",
-            ElementType::Verbatim => "verbatim",
-        }
-    }
 }
 
 // Parser enum is now defined in crate::lex::pipeline::loader and re-exported from pipeline module
@@ -100,6 +89,20 @@ impl From<std::io::Error> for ElementSourceError {
 impl From<ParseError> for ElementSourceError {
     fn from(err: ParseError) -> Self {
         ElementSourceError::ParseError(err.to_string())
+    }
+}
+
+impl From<specfile_finder::SpecFileError> for ElementSourceError {
+    fn from(err: specfile_finder::SpecFileError) -> Self {
+        match err {
+            specfile_finder::SpecFileError::FileNotFound(msg) => {
+                ElementSourceError::FileNotFound(msg)
+            }
+            specfile_finder::SpecFileError::IoError(msg) => ElementSourceError::IoError(msg),
+            specfile_finder::SpecFileError::DuplicateNumber(msg) => {
+                ElementSourceError::IoError(msg)
+            }
+        }
     }
 }
 
@@ -267,95 +270,7 @@ macro_rules! document_shortcuts {
 }
 
 // ============================================================================
-// CORE FILE RESOLUTION - The simple ~50 line algorithm
-// ============================================================================
-
-/// Core file resolution logic - this is where the actual work happens
-struct FileResolver;
-
-impl FileResolver {
-    const SPEC_VERSION: &'static str = "v1";
-    const DOCS_ROOT: &'static str = "docs/specs";
-
-    /// Resolve directory path: PROJECT_ROOT/docs/specs/v1/{category}/{subcategory}
-    ///
-    /// Examples:
-    /// - resolve_dir("elements", Some("paragraph")) -> "docs/specs/v1/elements/paragraph"
-    /// - resolve_dir("benchmark", None) -> "docs/specs/v1/benchmark"
-    fn resolve_dir(category: &str, subcategory: Option<&str>) -> PathBuf {
-        let mut path = PathBuf::from(Self::DOCS_ROOT);
-        path.push(Self::SPEC_VERSION);
-        path.push(category);
-        if let Some(subcat) = subcategory {
-            path.push(subcat);
-        }
-        path
-    }
-
-    /// Find a file in a directory by number, optionally matching a prefix pattern
-    ///
-    /// Scans the directory for files matching:
-    /// - With prefix: "{prefix}-{number:02}-*.lex" (e.g., "paragraph-01-simple.lex")
-    /// - Without prefix: "{number:03}-*.lex" (e.g., "010-kitchensink.lex")
-    ///
-    /// # Panics
-    /// Panics if multiple files exist with the same number (duplicate detection)
-    fn find_file_by_number(
-        dir: PathBuf,
-        number: usize,
-        prefix: Option<&str>,
-    ) -> Result<PathBuf, ElementSourceError> {
-        let pattern = match prefix {
-            Some(p) => format!("{}-{:02}-", p, number),
-            None => format!("{:03}-", number),
-        };
-
-        // Scan directory and collect all files matching the pattern
-        let mut matches = Vec::new();
-        for entry in fs::read_dir(&dir)? {
-            let entry = entry?;
-            let filename = entry.file_name();
-            if let Some(name) = filename.to_str() {
-                if name.starts_with(&pattern) && name.ends_with(".lex") {
-                    matches.push(entry.path());
-                }
-            }
-        }
-
-        // Return result or error
-        match matches.len() {
-            0 => Err(ElementSourceError::FileNotFound(format!(
-                "No file matching '{}*.lex' in {}",
-                pattern,
-                dir.display()
-            ))),
-            1 => Ok(matches[0].clone()),
-            _ => {
-                // Critical error: duplicate numbers violate the test corpus design
-                let file_list = matches
-                    .iter()
-                    .map(|p| format!("  - {}", p.file_name().unwrap().to_string_lossy()))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                panic!(
-                    "DUPLICATE TEST NUMBERS DETECTED!\n\
-                    Found {} files matching '{}*.lex':\n\
-                    {}\n\n\
-                    ERROR: Test numbers must be unique within each directory.\n\
-                    FIX: Rename the duplicate files to use unique numbers.\n\
-                    Directory: {}",
-                    matches.len(),
-                    pattern,
-                    file_list,
-                    dir.display()
-                );
-            }
-        }
-    }
-}
-
-// ============================================================================
-// FLUENT API - Thin wrappers over core resolution logic
+// FLUENT API - Delegates to specfile_finder for file resolution
 // ============================================================================
 
 /// Interface for loading per-element test sources
@@ -406,48 +321,35 @@ impl Lexplore {
         trifecta => Trifecta, "trifecta";
     }
 
-    // ===== Core resolution wrappers =====
+    // ===== Core resolution wrappers - delegate to specfile_finder =====
 
-    /// Find the file for an element type and number (thin wrapper over core logic)
+    /// Find the file for an element type and number
     fn find_file(element_type: ElementType, number: usize) -> Result<PathBuf, ElementSourceError> {
-        let dir = FileResolver::resolve_dir("elements", Some(element_type.dir_name()));
-        FileResolver::find_file_by_number(dir, number, Some(element_type.prefix()))
+        Ok(specfile_finder::find_specfile_by_number(
+            "elements",
+            Some(element_type.dir_name()),
+            number,
+        )?)
     }
 
-    /// Find the file for a document type and number (thin wrapper over core logic)
+    /// Find the file for a document type and number
     fn find_document_file(
         doc_type: DocumentType,
         number: usize,
     ) -> Result<PathBuf, ElementSourceError> {
-        let dir = FileResolver::resolve_dir(doc_type.dir_name(), None);
-        FileResolver::find_file_by_number(dir, number, None)
+        Ok(specfile_finder::find_specfile_by_number(
+            doc_type.dir_name(),
+            None,
+            number,
+        )?)
     }
 
     /// List all available numbers for a given element type
     pub fn list_numbers_for(element_type: ElementType) -> Result<Vec<usize>, ElementSourceError> {
-        let dir = FileResolver::resolve_dir("elements", Some(element_type.dir_name()));
-        let prefix = element_type.prefix();
-        let mut numbers = Vec::new();
-
-        for entry in fs::read_dir(&dir)? {
-            let entry = entry?;
-            if let Some(name) = entry.file_name().to_str() {
-                if name.starts_with(prefix) && name.ends_with(".lex") {
-                    // Extract number from pattern: "element-NN-hint.lex"
-                    if let Some(num_str) = name.strip_prefix(&format!("{}-", prefix)) {
-                        if let Some(num_part) = num_str.split('-').next() {
-                            if let Ok(num) = num_part.parse::<usize>() {
-                                numbers.push(num);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        numbers.sort_unstable();
-        numbers.dedup();
-        Ok(numbers)
+        Ok(specfile_finder::list_available_numbers(
+            "elements",
+            Some(element_type.dir_name()),
+        )?)
     }
 }
 
