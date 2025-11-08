@@ -3,7 +3,7 @@ import argparse
 import json
 import re
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 
 def parse_loc_report(tmpfile_path: str) -> Dict[str, object]:
@@ -95,15 +95,13 @@ def _aggregate_directories(
             dir_totals[dir_path]["code"] += int(f["code"])
             dir_totals[dir_path]["tests"] += int(f["tests"])
 
-    def dir_sort_key(item: Tuple[str, Dict[str, int]]) -> Tuple[int, str]:
-        parts = item[0].split("/")
-        return (len(parts), item[0])
-
-    sorted_dirs = sorted(dir_totals.items(), key=dir_sort_key)
+    sorted_dirs = sorted(dir_totals.items(), key=lambda item: item[0])
 
     return [
         {
             "directory": directory,
+            "display_name": directory.split("/")[-1] + "/",
+            "depth": max(len(directory.split("/")) - 1, 0),
             "code": totals["code"],
             "tests": totals["tests"],
             "total": totals["code"] + totals["tests"],
@@ -142,8 +140,15 @@ def render_terminal(data: Dict[str, object]) -> None:
     print("| Directory | Code | Tests | Total |")
     print("| --- | ---: | ---: | ---: |")
     for d in directories:
+        depth = int(d.get("depth", 0))
+        base_name = str(d.get("display_name", f"{d['directory']}/"))
+        if depth > 0:
+            indent = " " * (4 * depth)
+            name = f"`{indent}{base_name}`"
+        else:
+            name = base_name
         print(
-            f"| {d['directory']}/ | {int(d['code']):>4} | "
+            f"| {name:<30} | {int(d['code']):>4} | "
             f"{int(d['tests']):>4} | {int(d['total']):>4} |"
         )
 
