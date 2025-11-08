@@ -1,5 +1,6 @@
 Lexpore: Testing Parsing
 
+
 	The code base has a multi-layer test harness that solves a few key challenges when testing the parser. Lex is a novel format, with no established references nor a reference parser It's also a changing format, with changes occuring frequently.
 
 	TLDR: 
@@ -65,10 +66,14 @@ The harness has utilities tailored for different document types. They allow you 
 		1.1.1 In Document 
 
 			While isolated elements will allow for ast extractions and parsing, they do not test the actual semantic analysis / disambiguation. To keep a somewhat still manageable suite, we have two document types:
-			- Simple: the trifecta base document with the element being tested in one or two variaations, as flat and nested.
-			- Tricky: in which, when relevant , test for edge cases when document structure will make parsing harder.
+			- Simple: docs/specs/v1/elements/XXX-document-simple.lex
+			- Tricky: docs/specs/v1/elements/XXX-document-tricky.lex
+
+			These are template files with <insert element here> tags with suggestions of good spots where the elements could be inserted, but you're free to insert them wherever you think is best.
 
 			Keep in mind that this is about one element, that is to say full documents with all elements is critical but it's done on other documents and tests.
+
+		    If the element docume
 
 	1.2 Trifecta Documents
 
