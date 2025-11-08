@@ -199,8 +199,9 @@ mod tests {
 
     #[test]
     fn test_roundtrip_010_sessions_flat_single() {
-        let source =
-            include_str!("../../../../docs/specs/v1/samples/010-paragraphs-sessions-flat-single.lex");
+        let source = include_str!(
+            "../../../../docs/specs/v1/samples/010-paragraphs-sessions-flat-single.lex"
+        );
         test_roundtrip_raw_tokens(source, "010-paragraphs-sessions-flat-single");
     }
 
@@ -289,7 +290,8 @@ mod tests {
 
     #[test]
     fn test_sample_140_verbatim_blocks_simple_raw() {
-        let source = include_str!("../../../../docs/specs/v1/samples/140-verbatim-blocks-simple.lex");
+        let source =
+            include_str!("../../../../docs/specs/v1/samples/140-verbatim-blocks-simple.lex");
         test_roundtrip_raw_tokens(source, "140-verbatim-blocks-simple");
     }
 
