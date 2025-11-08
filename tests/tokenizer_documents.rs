@@ -27,50 +27,50 @@ use lex::lex::testing::lexplore::Lexplore;
 #[test]
 fn test_trifecta_000_paragraphs() {
     let tokens = Lexplore::trifecta(0).tokenize();
-    insta::assert_debug_snapshot!(tokens.tokens());
+    insta::assert_debug_snapshot!(tokens);
 }
 
 #[test]
 fn test_trifecta_010_paragraphs_sessions_flat_single() {
     let tokens = Lexplore::trifecta(10).tokenize();
-    insta::assert_debug_snapshot!(tokens.tokens());
+    insta::assert_debug_snapshot!(tokens);
 }
 
 #[test]
 fn test_trifecta_020_paragraphs_sessions_flat_multiple() {
     let tokens = Lexplore::trifecta(20).tokenize();
-    insta::assert_debug_snapshot!(tokens.tokens());
+    insta::assert_debug_snapshot!(tokens);
 }
 
 #[test]
 fn test_trifecta_030_sessions_nested_multiple() {
     let tokens = Lexplore::trifecta(30).tokenize();
-    insta::assert_debug_snapshot!(tokens.tokens());
+    insta::assert_debug_snapshot!(tokens);
 }
 
 #[test]
 fn test_trifecta_040_lists() {
     let tokens = Lexplore::trifecta(40).tokenize();
-    insta::assert_debug_snapshot!(tokens.tokens());
+    insta::assert_debug_snapshot!(tokens);
 }
 
 #[test]
 fn test_trifecta_050_paragraph_lists() {
     let tokens = Lexplore::trifecta(50).tokenize();
-    insta::assert_debug_snapshot!(tokens.tokens());
+    insta::assert_debug_snapshot!(tokens);
 }
 
 #[test]
 fn test_trifecta_070_flat_simple() {
     // Renamed from 050 to 070 to avoid duplicate numbers
     let tokens = Lexplore::trifecta(70).tokenize();
-    insta::assert_debug_snapshot!(tokens.tokens());
+    insta::assert_debug_snapshot!(tokens);
 }
 
 #[test]
 fn test_trifecta_060_nesting() {
     let tokens = Lexplore::trifecta(60).tokenize();
-    insta::assert_debug_snapshot!(tokens.tokens());
+    insta::assert_debug_snapshot!(tokens);
 }
 
 // ===== Benchmark Document Tokenization Tests =====
@@ -80,5 +80,5 @@ fn test_trifecta_060_nesting() {
 #[test]
 fn test_benchmark_010_kitchensink() {
     let tokens = Lexplore::benchmark(10).tokenize();
-    insta::assert_debug_snapshot!(tokens.tokens());
+    insta::assert_debug_snapshot!(tokens);
 }
