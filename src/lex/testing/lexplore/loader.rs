@@ -368,14 +368,16 @@ mod tests {
 
     #[test]
     fn test_fluent_api_basic() {
-        let doc = Lexplore::paragraph(1).parse();
-        let paragraph = doc.expect_paragraph();
+        let element = Lexplore::get_paragraph(1);
+        let paragraph = element.as_paragraph();
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
     }
 
     #[test]
     fn test_fluent_api_with_parser_selection() {
+        // The new isolated element API always uses Reference parser
+        // For explicit parser selection, use the full pipeline: Lexplore::paragraph(1).parse_with(Parser::X)
         let doc = Lexplore::paragraph(1).parse_with(Parser::Reference);
         let paragraph = doc.expect_paragraph();
 
@@ -390,24 +392,24 @@ mod tests {
 
     #[test]
     fn test_fluent_api_list() {
-        let doc = Lexplore::list(1).parse();
-        let list = doc.expect_list();
+        let element = Lexplore::get_list(1);
+        let list = element.as_list();
 
         assert!(!list.items.is_empty());
     }
 
     #[test]
     fn test_fluent_api_session() {
-        let doc = Lexplore::session(1).parse();
-        let session = doc.expect_session();
+        let element = Lexplore::get_session(1);
+        let session = element.as_session();
 
         assert!(!session.label().is_empty());
     }
 
     #[test]
     fn test_fluent_api_definition() {
-        let doc = Lexplore::definition(1).parse();
-        let definition = doc.expect_definition();
+        let element = Lexplore::get_definition(1);
+        let definition = element.as_definition();
 
         assert!(!definition.label().is_empty());
     }
