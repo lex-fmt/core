@@ -22,27 +22,27 @@
 //!
 //! # Sample Sources
 //!
-//! The `lex_sources` module provides access to verified lex sample files for testing.
+//! The `Lexplore` module (in `lex::testing::lexplore`) provides access to verified lex sample files for testing.
 //! These samples are the only canonical sources for lex content and should be used
 //! instead of copying content to ensure tests use the latest specification.
 //!
 //! ## Example Usage
 //!
-//! ```rust
-//! use lex::lex::processor::lex_sources::LexSources;
+//! ```rust,ignore
+//! use lex::lex::testing::lexplore::{Lexplore, ElementType, DocumentType};
 //!
-//! // Get raw string content
-//! let content = LexSources::get_string("000-paragraphs.lex").unwrap();
+//! // Get source for a specific element
+//! let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
 //!
-//! // Get tokenized content
-//! let tokens = LexSources::get_tokens("040-lists.lex").unwrap();
+//! // Get source for a document collection
+//! let source = Lexplore::get_document_source_for(DocumentType::Trifecta, 0).unwrap();
 //!
-//! // Get processed content in simple format
-//! let processed = LexSources::get_processed("050-paragraph-lists.lex", "token-simple").unwrap();
+//! // Using the fluent API to parse
+//! let paragraph = Lexplore::paragraph(1).parse().expect_paragraph();
 //! ```
 
 use crate::lex::formats::FormatRegistry;
-use crate::lex::lexing::{lex, Token};
+use crate::lex::lexing::Token;
 use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
 use std::collections::HashMap;
 use std::fmt;
@@ -478,275 +478,6 @@ pub fn available_formats() -> Vec<String> {
             )
         })
         .collect()
-}
-
-/// Sample sources module for accessing verified lex test files
-pub mod lex_sources {
-    use super::*;
-
-    /// The current specification version - change this when spec updates
-    pub const SPEC_VERSION: &str = "v1";
-
-    /// Available sample files (canonical sources)
-    pub const AVAILABLE_SAMPLES: &[&str] = &[
-        "000-paragraphs.lex",
-        "010-paragraphs-sessions-flat-single.lex",
-        "020-paragraphs-sessions-flat-multiple.lex",
-        "030-paragraphs-sessions-nested-multiple.lex",
-        "040-lists.lex",
-        "050-paragraph-lists.lex",
-        "050-trifecta-flat-simple.lex",
-        "060-trifecta-nesting.lex",
-        "070-nested-lists-simple.lex",
-        "080-nested-lists-mixed-content.lex",
-        "090-definitions-simple.lex",
-        "100-definitions-mixed-content.lex",
-        "110-ensemble-with-definitions.lex",
-        "120-annotations-simple.lex",
-        "130-annotations-block-content.lex",
-        "140-verbatim-blocks-simple.lex",
-        "150-verbatim-blocks-no-content.lex",
-        "160-dialog.lex",
-        "dialog.lex",
-    ];
-
-    /// Format options for sample content
-    #[derive(Debug, Clone, PartialEq)]
-    pub enum SampleFormat {
-        /// Raw string content
-        String,
-        /// Tokenized content (`Vec<Token>`)
-        Tokens,
-        /// Processed content using the specified format string
-        Processed(String),
-    }
-
-    /// Main interface for accessing lex sample files
-    pub struct LexSources;
-
-    impl LexSources {
-        /// Get the path to the samples directory
-        fn samples_dir() -> String {
-            format!("docs/specs/{}/samples", SPEC_VERSION)
-        }
-
-        /// Get the full path to a sample file
-        fn sample_path(filename: &str) -> String {
-            format!("{}/{}", Self::samples_dir(), filename)
-        }
-
-        /// Validate that a sample file exists and is available
-        fn validate_sample(filename: &str) -> Result<(), ProcessingError> {
-            if !AVAILABLE_SAMPLES.contains(&filename) {
-                return Err(ProcessingError::FileNotFound(format!(
-                    "Sample '{}' is not available. Available samples: {:?}",
-                    filename, AVAILABLE_SAMPLES
-                )));
-            }
-            Ok(())
-        }
-
-        /// Get sample content in the specified format
-        pub fn get_sample(filename: &str, format: SampleFormat) -> Result<String, ProcessingError> {
-            Self::validate_sample(filename)?;
-
-            let path = Self::sample_path(filename);
-
-            match format {
-                SampleFormat::String => fs::read_to_string(&path).map_err(|e| {
-                    ProcessingError::IoError(format!("Failed to read {}: {}", path, e))
-                }),
-                SampleFormat::Tokens => {
-                    let content = fs::read_to_string(&path).map_err(|e| {
-                        ProcessingError::IoError(format!("Failed to read {}: {}", path, e))
-                    })?;
-
-                    let source_with_newline =
-                        crate::lex::lexing::ensure_source_ends_with_newline(&content);
-                    let token_stream =
-                        crate::lex::lexing::base_tokenization::tokenize(&source_with_newline);
-                    let tokens = lex(token_stream);
-                    let json = serde_json::to_string_pretty(&tokens).map_err(|e| {
-                        ProcessingError::IoError(format!("Failed to serialize tokens: {}", e))
-                    })?;
-
-                    Ok(json)
-                }
-                SampleFormat::Processed(format_str) => {
-                    let spec = ProcessingSpec::from_string(&format_str)?;
-                    process_file(&path, &spec)
-                }
-            }
-        }
-
-        /// Get sample content as raw string
-        pub fn get_string(filename: &str) -> Result<String, ProcessingError> {
-            Self::get_sample(filename, SampleFormat::String)
-        }
-
-        /// Get sample content as tokens (JSON format)
-        pub fn get_tokens(filename: &str) -> Result<String, ProcessingError> {
-            Self::get_sample(filename, SampleFormat::Tokens)
-        }
-
-        /// Get sample content processed with the specified format
-        pub fn get_processed(filename: &str, format: &str) -> Result<String, ProcessingError> {
-            Self::get_sample(filename, SampleFormat::Processed(format.to_string()))
-        }
-
-        /// List all available sample files
-        pub fn list_samples() -> Vec<&'static str> {
-            AVAILABLE_SAMPLES.to_vec()
-        }
-
-        /// Get sample metadata
-        pub fn get_sample_info(filename: &str) -> Result<SampleInfo, ProcessingError> {
-            Self::validate_sample(filename)?;
-
-            let path = Self::sample_path(filename);
-            let content = fs::read_to_string(&path)
-                .map_err(|e| ProcessingError::IoError(format!("Failed to read {}: {}", path, e)))?;
-
-            let lines: Vec<&str> = content.lines().collect();
-            let line_count = lines.len();
-            let char_count = content.len();
-
-            Ok(SampleInfo {
-                filename: filename.to_string(),
-                spec_version: SPEC_VERSION.to_string(),
-                line_count,
-                char_count,
-                description: Self::extract_description(&content),
-            })
-        }
-
-        /// Extract description from sample content (first line or comment)
-        fn extract_description(content: &str) -> Option<String> {
-            let first_line = content.lines().next()?;
-            if first_line.contains("{{paragraph}}") {
-                Some(first_line.replace("{{paragraph}}", "").trim().to_string())
-            } else {
-                Some(first_line.to_string())
-            }
-        }
-    }
-
-    /// Information about a sample file
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct SampleInfo {
-        pub filename: String,
-        pub spec_version: String,
-        pub line_count: usize,
-        pub char_count: usize,
-        pub description: Option<String>,
-    }
-
-    #[test]
-    fn test_position_tracking_enabled() {
-        let content = r#"First paragraph
-Second paragraph"#;
-
-        let doc = crate::lex::parsing::parse_document(content).unwrap();
-
-        // Check if locations are populated
-        if let Some(first_item) = doc.root.children.first() {
-            // The first paragraph should have a location
-            match first_item {
-                crate::lex::parsing::ContentItem::Paragraph(_p) => {
-                    // Paragraph has location
-                }
-                _ => panic!("Expected first item to be a paragraph"),
-            }
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        #[test]
-        fn test_get_string_sample() {
-            let content = LexSources::get_string("000-paragraphs.lex").unwrap();
-            assert!(content.contains("Simple Paragraphs Test"));
-            assert!(content.contains("{{paragraph}}"));
-        }
-
-        #[test]
-        fn test_get_tokens_sample() {
-            let tokens_json = LexSources::get_tokens("040-lists.lex").unwrap();
-            assert!(tokens_json.contains("\"Text\""));
-            assert!(tokens_json.contains("\"Dash\""));
-            assert!(tokens_json.contains("\"Number\""));
-        }
-
-        #[test]
-        fn test_get_processed_sample() {
-            let processed =
-                LexSources::get_processed("050-paragraph-lists.lex", "token-simple").unwrap();
-            assert!(processed.contains("<text:"));
-            assert!(processed.contains("<newline>"));
-        }
-
-        #[test]
-        fn test_validate_sample() {
-            assert!(LexSources::validate_sample("000-paragraphs.lex").is_ok());
-            assert!(LexSources::validate_sample("invalid-sample.lex").is_err());
-        }
-
-        #[test]
-        fn test_list_samples() {
-            let samples = LexSources::list_samples();
-            assert!(samples.contains(&"000-paragraphs.lex"));
-            assert!(samples.contains(&"040-lists.lex"));
-            assert!(samples.contains(&"070-nested-lists-simple.lex"));
-            assert!(samples.contains(&"080-nested-lists-mixed-content.lex"));
-            assert!(samples.contains(&"090-definitions-simple.lex"));
-            assert!(samples.contains(&"100-definitions-mixed-content.lex"));
-            assert!(samples.contains(&"120-annotations-simple.lex"));
-            assert!(samples.contains(&"130-annotations-block-content.lex"));
-            assert!(samples.contains(&"140-verbatim-blocks-simple.lex"));
-            assert!(samples.contains(&"150-verbatim-blocks-no-content.lex"));
-            assert!(samples.contains(&"160-dialog.lex"));
-            assert!(samples.contains(&"dialog.lex"));
-            assert_eq!(samples.len(), 19); // Updated for dialog samples
-        }
-
-        #[test]
-        fn test_get_sample_info() {
-            let info = LexSources::get_sample_info("000-paragraphs.lex").unwrap();
-            assert_eq!(info.filename, "000-paragraphs.lex");
-            assert_eq!(info.spec_version, "v1");
-            assert!(info.line_count > 0);
-            assert!(info.char_count > 0);
-            assert!(info.description.is_some());
-        }
-
-        #[test]
-        fn test_all_samples_accessible() {
-            for sample in LexSources::list_samples() {
-                let content = LexSources::get_string(sample).unwrap();
-                assert!(!content.is_empty(), "Sample {} should not be empty", sample);
-            }
-        }
-
-        #[test]
-        fn test_dialog_sample_accessible() {
-            let content = LexSources::get_string("dialog.lex").unwrap();
-            assert!(
-                content.contains("- Hi mom!!."),
-                "Dialog sample content is incorrect"
-            );
-        }
-
-        #[test]
-        fn test_160_dialog_sample_accessible() {
-            let content = LexSources::get_string("160-dialog.lex").unwrap();
-            assert!(
-                content.contains("- Hi mom!!."),
-                "160-dialog sample content is incorrect"
-            );
-        }
-    }
 }
 
 #[cfg(test)]

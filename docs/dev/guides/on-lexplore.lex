@@ -73,7 +73,6 @@ The harness has utilities tailored for different document types. They allow you 
 
 			Keep in mind that this is about one element, that is to say full documents with all elements is critical but it's done on other documents and tests.
 
-		    If the element docume
 
 	1.2 Trifecta Documents
 
