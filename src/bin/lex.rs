@@ -217,19 +217,13 @@ fn process_file_with_format(
 
 /// Handle the execute command (new config-based interface)
 fn handle_execute_command(config: &str, path: &str, format: &str) {
-    use lex::lex::pipeline::{ExecutionOutput, PipelineExecutor};
-    use std::fs;
+    use lex::lex::pipeline::{DocumentLoader, ExecutionOutput};
 
-    let source = fs::read_to_string(path).unwrap_or_else(|e| {
-        eprintln!("Error reading file: {}", e);
-        std::process::exit(1);
-    });
-
-    let executor = PipelineExecutor::new();
-    let output = executor.execute(config, &source).unwrap_or_else(|e| {
+    let loader = DocumentLoader::new();
+    let output = loader.load_and_execute(path, config).unwrap_or_else(|e| {
         eprintln!("Execution error: {}", e);
         eprintln!("\nAvailable configurations:");
-        for config in executor.list_configs() {
+        for config in loader.executor().list_configs() {
             eprintln!("  {} - {}", config.name, config.description);
         }
         std::process::exit(1);
@@ -274,12 +268,12 @@ fn handle_execute_command(config: &str, path: &str, format: &str) {
 
 /// Handle the list-configs command
 fn handle_list_configs_command() {
-    use lex::lex::pipeline::PipelineExecutor;
+    use lex::lex::pipeline::DocumentLoader;
 
-    let executor = PipelineExecutor::new();
+    let loader = DocumentLoader::new();
     println!("Available processing configurations:\n");
 
-    for config in executor.list_configs() {
+    for config in loader.executor().list_configs() {
         println!("  {}", config.name);
         println!("    {}", config.description);
         println!();

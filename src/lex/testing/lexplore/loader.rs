@@ -6,11 +6,14 @@
 use crate::lex::ast::{Annotation, Definition, Document, List, Paragraph, Session};
 use crate::lex::lexing::Token;
 use crate::lex::parsing::ParseError;
-use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
+use crate::lex::pipeline::DocumentLoader;
 use std::fs;
 use std::path::PathBuf;
 
 use super::extraction::*;
+
+// Re-export Parser from pipeline for backward compatibility
+pub use crate::lex::pipeline::Parser;
 
 /// Element types that can be loaded from the per-element library
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,32 +69,7 @@ impl ElementType {
     }
 }
 
-/// Parser implementation to use for parsing
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Parser {
-    /// Reference parser (combinator-based, stable)
-    Reference,
-    /// Linebased parser (grammar-based, experimental)
-    Linebased,
-}
-
-impl Parser {
-    /// Get the pipeline config name for this parser (AST output)
-    fn config_name(&self) -> &'static str {
-        match self {
-            Parser::Reference => "default",
-            Parser::Linebased => "linebased",
-        }
-    }
-
-    /// Get the pipeline config name for tokenization (Token output)
-    fn token_config_name(&self) -> &'static str {
-        match self {
-            Parser::Reference => "tokens-indentation",
-            Parser::Linebased => "tokens-linebased-flat",
-        }
-    }
-}
+// Parser enum is now defined in crate::lex::pipeline::loader and re-exported from pipeline module
 
 /// Errors that can occur when loading element sources
 #[derive(Debug, Clone)]
@@ -174,7 +152,7 @@ impl ElementLoader {
 
     /// Parse with the Reference parser (shorthand)
     pub fn parse(self) -> ParsedElement {
-        self.parse_with(Parser::Reference)
+        self.parse_with(crate::lex::pipeline::Parser::Reference)
     }
 
     /// Tokenize with the specified parser and return a ParsedTokens for further inspection
@@ -196,7 +174,7 @@ impl ElementLoader {
 
     /// Tokenize with the Reference parser (shorthand)
     pub fn tokenize(self) -> ParsedTokens {
-        self.tokenize_with(Parser::Reference)
+        self.tokenize_with(crate::lex::pipeline::Parser::Reference)
     }
 }
 
@@ -821,17 +799,10 @@ impl Lexplore {
 
 /// Parse a source string with a specific parser
 pub fn parse_with_parser(source: &str, parser: Parser) -> Result<Document, ElementSourceError> {
-    let executor = PipelineExecutor::new();
-    let output = executor
-        .execute(parser.config_name(), source)
-        .map_err(|e| ElementSourceError::ParseError(e.to_string()))?;
-
-    match output {
-        ExecutionOutput::Document(doc) => Ok(doc),
-        _ => Err(ElementSourceError::ParseError(
-            "Expected document output from parser".to_string(),
-        )),
-    }
+    let loader = DocumentLoader::new();
+    loader
+        .parse_with(source, parser)
+        .map_err(|e| ElementSourceError::ParseError(e.to_string()))
 }
 
 /// Tokenize a source string with a specific parser
@@ -839,17 +810,10 @@ pub fn tokenize_with_parser(
     source: &str,
     parser: Parser,
 ) -> Result<Vec<(Token, std::ops::Range<usize>)>, ElementSourceError> {
-    let executor = PipelineExecutor::new();
-    let output = executor
-        .execute(parser.token_config_name(), source)
-        .map_err(|e| ElementSourceError::ParseError(e.to_string()))?;
-
-    match output {
-        ExecutionOutput::Tokens(stream) => Ok(stream.unroll()),
-        _ => Err(ElementSourceError::ParseError(
-            "Expected tokens output from tokenizer".to_string(),
-        )),
-    }
+    let loader = DocumentLoader::new();
+    loader
+        .tokenize_with(source, parser)
+        .map_err(|e| ElementSourceError::ParseError(e.to_string()))
 }
 
 /// Parse a source string with multiple parsers and compare results

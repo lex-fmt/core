@@ -109,6 +109,7 @@ pub fn content_items_match(item1: &ContentItem, item2: &ContentItem) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lex::pipeline::Parser;
     use crate::lex::testing::lexplore::loader::*;
 
     #[test]
