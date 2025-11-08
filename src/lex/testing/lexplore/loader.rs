@@ -118,91 +118,18 @@ impl ElementLoader {
         self.parse_with(crate::lex::pipeline::Parser::Reference)
     }
 
-    /// Tokenize with the specified parser and return a ParsedTokens for further inspection
-    pub fn tokenize_with(self, parser: Parser) -> ParsedTokens {
+    /// Tokenize with the specified parser and return tokens with their byte ranges
+    pub fn tokenize_with(self, parser: Parser) -> Vec<(Token, std::ops::Range<usize>)> {
         let path = self.get_path();
         let loader = DocumentLoader::new();
-        let tokens = loader
+        loader
             .load_and_tokenize_with(&path, parser)
-            .unwrap_or_else(|e| panic!("Failed to tokenize {}: {}", path.display(), e));
-        ParsedTokens {
-            source_type: self.source_type,
-            tokens,
-        }
+            .unwrap_or_else(|e| panic!("Failed to tokenize {}: {}", path.display(), e))
     }
 
     /// Tokenize with the Reference parser (shorthand)
-    pub fn tokenize(self) -> ParsedTokens {
+    pub fn tokenize(self) -> Vec<(Token, std::ops::Range<usize>)> {
         self.tokenize_with(crate::lex::pipeline::Parser::Reference)
-    }
-}
-
-/// Tokenized source, ready for token inspection
-pub struct ParsedTokens {
-    #[allow(dead_code)] // Kept for symmetry with ParsedElement, may be used for debugging
-    source_type: SourceType,
-    tokens: Vec<(Token, std::ops::Range<usize>)>,
-}
-
-impl ParsedTokens {
-    /// Get the underlying token stream
-    pub fn tokens(&self) -> &[(Token, std::ops::Range<usize>)] {
-        &self.tokens
-    }
-
-    /// Get the count of tokens
-    pub fn len(&self) -> usize {
-        self.tokens.len()
-    }
-
-    /// Check if there are no tokens
-    pub fn is_empty(&self) -> bool {
-        self.tokens.is_empty()
-    }
-
-    /// Find first token matching a predicate
-    pub fn find_token<F>(&self, predicate: F) -> Option<&Token>
-    where
-        F: Fn(&Token) -> bool,
-    {
-        self.tokens
-            .iter()
-            .find(|(t, _)| predicate(t))
-            .map(|(t, _)| t)
-    }
-
-    /// Count tokens matching a predicate
-    pub fn count_tokens<F>(&self, predicate: F) -> usize
-    where
-        F: Fn(&Token) -> bool,
-    {
-        self.tokens.iter().filter(|(t, _)| predicate(t)).count()
-    }
-
-    /// Check if any token matches a predicate
-    pub fn has_token<F>(&self, predicate: F) -> bool
-    where
-        F: Fn(&Token) -> bool,
-    {
-        self.tokens.iter().any(|(t, _)| predicate(t))
-    }
-
-    /// Detokenize the token stream back to source text
-    ///
-    /// This is a convenience method that extracts the tokens and uses the
-    /// detokenizer to convert them back to source text.
-    ///
-    /// # Example
-    /// ```rust,ignore
-    /// use lex::lex::testing::lexplore::Lexplore;
-    ///
-    /// let source = Lexplore::from_path("docs/specs/v1/benchmark/010-kitchensink.lex")
-    ///     .tokenize()
-    ///     .detokenize();
-    /// ```
-    pub fn detokenize(&self) -> String {
-        let tokens: Vec<_> = self.tokens.iter().map(|(t, _)| t.clone()).collect();
-        crate::lex::formats::detokenize(&tokens)
     }
 }
 
@@ -410,80 +337,51 @@ mod tests {
 
     #[test]
     fn test_tokenize_paragraph() {
-        let parsed_tokens = Lexplore::paragraph(1).tokenize();
+        let tokens = Lexplore::paragraph(1).tokenize();
 
-        assert!(!parsed_tokens.is_empty());
+        assert!(!tokens.is_empty());
     }
 
     #[test]
     fn test_tokenize_with_parser() {
-        let parsed_tokens = Lexplore::paragraph(1).tokenize_with(Parser::Reference);
+        let tokens = Lexplore::paragraph(1).tokenize_with(Parser::Reference);
 
-        assert!(!parsed_tokens.is_empty());
-        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Text(_))));
+        assert!(!tokens.is_empty());
+        assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
     }
 
     #[test]
     fn test_tokenize_list() {
-        let parsed_tokens = Lexplore::list(1).tokenize();
+        let tokens = Lexplore::list(1).tokenize();
 
         assert!(
-            parsed_tokens.has_token(|t| matches!(t, Token::Dash))
-                || parsed_tokens.has_token(|t| matches!(t, Token::Number(_)))
+            tokens.iter().any(|(t, _)| matches!(t, Token::Dash))
+                || tokens.iter().any(|(t, _)| matches!(t, Token::Number(_)))
         );
     }
 
     #[test]
     fn test_tokenize_benchmark() {
-        let parsed_tokens = Lexplore::benchmark(10).tokenize();
+        let tokens = Lexplore::benchmark(10).tokenize();
 
-        assert!(!parsed_tokens.is_empty());
-        assert!(parsed_tokens.len() > 10);
+        assert!(!tokens.is_empty());
+        assert!(tokens.len() > 10);
     }
 
     #[test]
     fn test_tokenize_trifecta() {
-        let parsed_tokens = Lexplore::trifecta(0).tokenize();
+        let tokens = Lexplore::trifecta(0).tokenize();
 
-        assert!(!parsed_tokens.is_empty());
-        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Text(_))));
-    }
-
-    // Removed test for deleted API: test_get_tokens_for
-
-    // Removed test for deleted API: test_must_get_tokens_for
-
-    // Removed test for deleted API: test_get_document_tokens_for
-
-    // Removed test for deleted API: test_must_get_document_tokens_for
-
-    #[test]
-    fn test_parsed_tokens_methods() {
-        let parsed_tokens = Lexplore::paragraph(1).tokenize();
-
-        assert!(!parsed_tokens.is_empty());
-
-        let tokens = parsed_tokens.tokens();
         assert!(!tokens.is_empty());
-
-        let text_token = parsed_tokens.find_token(|t| matches!(t, Token::Text(_)));
-        assert!(text_token.is_some());
-
-        let text_count = parsed_tokens.count_tokens(|t| matches!(t, Token::Text(_)));
-        assert!(text_count > 0);
-
-        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Text(_))));
-        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Newline)));
+        assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
     }
-
-    // Removed test for deleted API: test_tokenize_with_parser_function
 
     #[test]
     fn test_tokenize_linebased_parser() {
-        let parsed_tokens = Lexplore::paragraph(1).tokenize_with(Parser::Linebased);
+        let tokens = Lexplore::paragraph(1).tokenize_with(Parser::Linebased);
 
-        assert!(!parsed_tokens.is_empty());
-        assert!(parsed_tokens.has_token(|t| matches!(t, Token::Text(_))));
+        assert!(!tokens.is_empty());
+        assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
     }
 
     // ===== Path-based Loading Tests =====
@@ -503,7 +401,7 @@ mod tests {
         let tokens = Lexplore::from_path(path).tokenize();
 
         assert!(!tokens.is_empty());
-        assert!(tokens.has_token(|t| matches!(t, Token::Text(_))));
+        assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
     }
 
     #[test]
@@ -529,7 +427,7 @@ mod tests {
         let tokens = Lexplore::from_path(path).tokenize_with(Parser::Linebased);
 
         assert!(!tokens.is_empty());
-        assert!(tokens.has_token(|t| matches!(t, Token::Text(_))));
+        assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
     }
 
     // Removed test for deleted API: test_get_source_from_path
@@ -565,7 +463,9 @@ mod tests {
     #[test]
     fn test_detokenize_paragraph() {
         let source = Lexplore::paragraph(1).source();
-        let detokenized = Lexplore::paragraph(1).tokenize().detokenize();
+        let tokens = Lexplore::paragraph(1).tokenize();
+        let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
+        let detokenized = crate::lex::formats::detokenize(&token_only);
 
         // Detokenized should match original source
         assert_eq!(detokenized, source);
@@ -573,7 +473,9 @@ mod tests {
 
     #[test]
     fn test_detokenize_benchmark() {
-        let detokenized = Lexplore::benchmark(10).tokenize().detokenize();
+        let tokens = Lexplore::benchmark(10).tokenize();
+        let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
+        let detokenized = crate::lex::formats::detokenize(&token_only);
 
         // Verify detokenization produces non-empty output with expected content
         assert!(!detokenized.is_empty());
@@ -585,7 +487,9 @@ mod tests {
     #[test]
     fn test_detokenize_from_path() {
         let path = "docs/specs/v1/benchmark/010-kitchensink.lex";
-        let detokenized = Lexplore::from_path(path).tokenize().detokenize();
+        let tokens = Lexplore::from_path(path).tokenize();
+        let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
+        let detokenized = crate::lex::formats::detokenize(&token_only);
 
         // Verify detokenization produces expected content
         assert!(!detokenized.is_empty());
@@ -597,7 +501,9 @@ mod tests {
     #[test]
     fn test_detokenize_with_semantic_tokens() {
         let source = Lexplore::session(1).source();
-        let detokenized = Lexplore::session(1).tokenize().detokenize();
+        let tokens = Lexplore::session(1).tokenize();
+        let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
+        let detokenized = crate::lex::formats::detokenize(&token_only);
 
         // Detokenized should match original source (handles Indent/Dedent tokens)
         assert_eq!(detokenized, source);
@@ -606,7 +512,9 @@ mod tests {
     #[test]
     fn test_detokenize_trifecta() {
         let source = Lexplore::trifecta(0).source();
-        let detokenized = Lexplore::trifecta(0).tokenize().detokenize();
+        let tokens = Lexplore::trifecta(0).tokenize();
+        let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
+        let detokenized = crate::lex::formats::detokenize(&token_only);
 
         // Detokenized should match original source
         assert_eq!(detokenized, source);
@@ -615,9 +523,9 @@ mod tests {
     #[test]
     fn test_detokenize_fluent_api() {
         // Demonstrate fluent API usage
-        let detokenized = Lexplore::from_path("docs/specs/v1/benchmark/010-kitchensink.lex")
-            .tokenize()
-            .detokenize();
+        let tokens = Lexplore::from_path("docs/specs/v1/benchmark/010-kitchensink.lex").tokenize();
+        let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
+        let detokenized = crate::lex::formats::detokenize(&token_only);
 
         assert!(detokenized.contains("Kitchensink"));
     }
