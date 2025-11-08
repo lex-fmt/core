@@ -2,8 +2,8 @@
 
 use lex::lex::ast::{AstNode, ContentItem, Position};
 use lex::lex::parsing::parse_document;
-use lex::lex::processor::lex_sources::LexSources;
 use lex::lex::testing::assert_ast;
+use lex::lex::testing::lexplore::Lexplore;
 
 #[test]
 fn test_real_content_extraction() {
@@ -39,7 +39,8 @@ fn test_real_content_extraction() {
 
 #[test]
 fn test_dialog_parsing() {
-    let source = LexSources::get_string("dialog.lex").unwrap();
+    // Tests that dash-prefixed lines without proper list formatting are parsed as a paragraph
+    let source = Lexplore::paragraph(9).source();
     let doc = parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
@@ -59,7 +60,9 @@ fn test_dialog_parsing() {
 #[test]
 fn test_trifecta_flat_simple() {
     // Test flat structure with all three elements
-    let source = LexSources::get_string("050-trifecta-flat-simple.lex").unwrap();
+    // Renamed from 050 to 070 to avoid duplicate numbers
+    let source =
+        Lexplore::from_path("docs/specs/v1/trifecta/070-trifecta-flat-simple.lex").source();
     let doc = parse_document(&source).unwrap();
 
     // Item 0-1: Opening paragraphs
@@ -150,7 +153,7 @@ fn test_trifecta_flat_simple() {
 #[test]
 fn test_trifecta_nesting() {
     // Test nested structure with all three elements
-    let source = LexSources::get_string("060-trifecta-nesting.lex").unwrap();
+    let source = Lexplore::trifecta(60).source();
     let doc = parse_document(&source).unwrap();
 
     // Item 0-1: Opening paragraphs
@@ -263,7 +266,8 @@ fn test_trifecta_nesting() {
 #[test]
 fn test_verified_ensemble_with_definitions() {
     // Comprehensive ensemble test with all core elements including definitions
-    let source = LexSources::get_string("110-ensemble-with-definitions.lex").unwrap();
+    // Using definition-90-document-simple.lex which tests definitions in context
+    let source = Lexplore::definition(90).source();
     let doc = parse_document(&source).unwrap();
 
     // Item 0-1: Opening paragraphs
@@ -528,8 +532,8 @@ fn test_nested_paragraph_has_location() {
 
 #[test]
 fn test_location_tracking_for_core_elements() {
-    let source = LexSources::get_string("110-ensemble-with-definitions.lex")
-        .expect("Failed to load ensemble sample");
+    // Using definition-90-document-simple.lex for comprehensive location tracking test
+    let source = Lexplore::definition(90).source();
     let doc = parse_document(&source).expect("Failed to parse ensemble sample");
 
     // Document doesn't have its own location; location comes from root
@@ -611,8 +615,8 @@ fn test_location_tracking_for_core_elements() {
 
 #[test]
 fn test_location_tracking_for_annotations() {
-    let source = LexSources::get_string("120-annotations-simple.lex")
-        .expect("Failed to load annotations sample");
+    // Using annotation-06 which has block-style annotations with children
+    let source = Lexplore::annotation(6).source();
     let doc = parse_document(&source).expect("Failed to parse annotations sample");
 
     let annotations: Vec<_> = doc
@@ -636,8 +640,8 @@ fn test_location_tracking_for_annotations() {
 
 #[test]
 fn test_location_tracking_for_verbatim_blocks() {
-    let source = LexSources::get_string("140-verbatim-blocks-simple.lex")
-        .expect("Failed to load verbatim blocks sample");
+    // Using verbatim-01 which has verbatim blocks with subject and closing annotation
+    let source = Lexplore::verbatim(1).source();
     let doc = parse_document(&source).expect("Failed to parse verbatim blocks sample");
 
     let verbatim_blocks: Vec<_> = doc

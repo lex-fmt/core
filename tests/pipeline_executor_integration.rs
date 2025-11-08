@@ -5,15 +5,50 @@
 //! 2. All default configs work without errors
 
 use lex::lex::pipeline::{ExecutionOutput, PipelineExecutor};
-use lex::lex::processor::lex_sources::LexSources;
+use lex::lex::testing::lexplore::{DocumentType, ElementType, Lexplore};
+
+#[derive(Copy, Clone)]
+enum SampleSpec {
+    Trifecta {
+        number: usize,
+        label: &'static str,
+    },
+    Element {
+        element: ElementType,
+        number: usize,
+        label: &'static str,
+    },
+}
+
+impl SampleSpec {
+    fn load(&self) -> String {
+        match *self {
+            SampleSpec::Trifecta { number, .. } => {
+                Lexplore::must_get_document_source_for(DocumentType::Trifecta, number)
+            }
+            SampleSpec::Element {
+                element, number, ..
+            } => Lexplore::must_get_source_for(element, number),
+        }
+    }
+
+    fn label(&self) -> &'static str {
+        match *self {
+            SampleSpec::Trifecta { label, .. } | SampleSpec::Element { label, .. } => label,
+        }
+    }
+}
 
 #[test]
 fn test_executor_on_sample_paragraphs() {
     let executor = PipelineExecutor::new();
-    let source = LexSources::get_string("000-paragraphs.lex").unwrap();
+    let source = Lexplore::must_get_document_source_for(DocumentType::Trifecta, 0);
 
     let result = executor.execute("default", &source);
-    assert!(result.is_ok(), "Failed to parse 000-paragraphs.lex");
+    assert!(
+        result.is_ok(),
+        "Failed to parse trifecta-000-paragraphs document"
+    );
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
@@ -29,10 +64,13 @@ fn test_executor_on_sample_paragraphs() {
 #[test]
 fn test_executor_on_sample_lists() {
     let executor = PipelineExecutor::new();
-    let source = LexSources::get_string("040-lists.lex").unwrap();
+    let source = Lexplore::must_get_document_source_for(DocumentType::Trifecta, 40);
 
     let result = executor.execute("default", &source);
-    assert!(result.is_ok(), "Failed to parse 040-lists.lex");
+    assert!(
+        result.is_ok(),
+        "Failed to parse trifecta-040-lists document"
+    );
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
@@ -45,10 +83,13 @@ fn test_executor_on_sample_lists() {
 #[test]
 fn test_executor_on_sample_definitions() {
     let executor = PipelineExecutor::new();
-    let source = LexSources::get_string("090-definitions-simple.lex").unwrap();
+    let source = Lexplore::must_get_source_for(ElementType::Definition, 1);
 
     let result = executor.execute("default", &source);
-    assert!(result.is_ok(), "Failed to parse 090-definitions-simple.lex");
+    assert!(
+        result.is_ok(),
+        "Failed to parse definition-01-flat-simple element document"
+    );
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {
@@ -61,7 +102,7 @@ fn test_executor_on_sample_definitions() {
 #[test]
 fn test_executor_on_sample_sessions() {
     let executor = PipelineExecutor::new();
-    let source = LexSources::get_string("010-paragraphs-sessions-flat-single.lex").unwrap();
+    let source = Lexplore::must_get_document_source_for(DocumentType::Trifecta, 10);
 
     let result = executor.execute("default", &source);
     assert!(result.is_ok());
@@ -131,33 +172,45 @@ fn test_all_default_configs_work() {
 fn test_all_configs_on_multiple_samples() {
     let executor = PipelineExecutor::new();
 
-    let samples = vec![
-        "000-paragraphs.lex",
-        "040-lists.lex",
-        "090-definitions-simple.lex",
+    const SAMPLE_SPECS: &[SampleSpec] = &[
+        SampleSpec::Trifecta {
+            number: 0,
+            label: "trifecta-000-paragraphs",
+        },
+        SampleSpec::Trifecta {
+            number: 40,
+            label: "trifecta-040-lists",
+        },
+        SampleSpec::Element {
+            element: ElementType::Definition,
+            number: 1,
+            label: "definition-01-flat-simple",
+        },
     ];
 
-    for sample in samples {
-        let source = LexSources::get_string(sample).unwrap();
+    for sample in SAMPLE_SPECS {
+        let source = sample.load();
 
         // Test configs that produce AST
         for config_name in &["default", "linebased"] {
-            let result = executor.execute(config_name, &source);
-            assert!(
-                result.is_ok(),
-                "Config '{}' failed on {}: {:?}",
-                config_name,
-                sample,
-                result.err()
-            );
+            let output = executor
+                .execute(config_name, &source)
+                .unwrap_or_else(|err| {
+                    panic!(
+                        "Config '{}' failed on {}: {:?}",
+                        config_name,
+                        sample.label(),
+                        err
+                    )
+                });
 
-            match result.unwrap() {
+            match output {
                 ExecutionOutput::Document(doc) => {
                     assert!(
                         !doc.root.children.is_empty(),
                         "Document from '{}' on {} should have content",
                         config_name,
-                        sample
+                        sample.label()
                     );
                 }
                 _ => panic!("Expected Document from config '{}'", config_name),
@@ -199,10 +252,13 @@ fn test_token_output_configs() {
 #[test]
 fn test_linebased_config_on_sample() {
     let executor = PipelineExecutor::new();
-    let source = LexSources::get_string("000-paragraphs.lex").unwrap();
+    let source = Lexplore::must_get_document_source_for(DocumentType::Trifecta, 0);
 
     let result = executor.execute("linebased", &source);
-    assert!(result.is_ok(), "Linebased config should work on sample");
+    assert!(
+        result.is_ok(),
+        "Linebased config should work on trifecta-000-paragraphs"
+    );
 
     match result.unwrap() {
         ExecutionOutput::Document(doc) => {

@@ -1,0 +1,7 @@
+---
+source: src/lex/formats/detokenizer/detokenizer.rs
+expression: detokenized
+---
+Introduction
+
+    This is a simple session with a title and one paragraph of content.
