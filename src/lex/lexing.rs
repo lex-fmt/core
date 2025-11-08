@@ -37,13 +37,11 @@
 
 pub mod base_tokenization;
 pub mod common;
-pub mod detokenizer;
 pub mod linebased;
 pub mod tokens_core;
 
 pub use base_tokenization::tokenize;
 pub use common::{LexError, Lexer, LexerOutput};
-pub use detokenizer::detokenize;
 pub use tokens_core::Token;
 // Re-export line-based types for convenience
 pub use linebased::{LineContainer, LineToken, LineType};
@@ -98,4 +96,163 @@ pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops
 
     // Unroll the final stream to get flat tokens for backward compatibility
     current_stream.unroll()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lex::testing::factories::mk_tokens;
+
+    /// Helper to prepare token stream and call lex pipeline
+    fn lex_helper(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
+        let source_with_newline = ensure_source_ends_with_newline(source);
+        let token_stream = base_tokenization::tokenize(&source_with_newline);
+        lex(token_stream)
+    }
+
+    #[test]
+    fn test_paragraph_pattern() {
+        let input = "This is a paragraph.\nIt has multiple lines.";
+        let tokens = lex_helper(input);
+
+        // Exact token sequence validation
+        // lex() adds a trailing newline and applies full transformations
+        assert_eq!(
+            tokens,
+            mk_tokens(&[
+                (Token::Text("This".to_string()), 0, 4),
+                (Token::Whitespace, 4, 5),
+                (Token::Text("is".to_string()), 5, 7),
+                (Token::Whitespace, 7, 8),
+                (Token::Text("a".to_string()), 8, 9),
+                (Token::Whitespace, 9, 10),
+                (Token::Text("paragraph".to_string()), 10, 19),
+                (Token::Period, 19, 20),
+                (Token::Newline, 20, 21),
+                (Token::Text("It".to_string()), 21, 23),
+                (Token::Whitespace, 23, 24),
+                (Token::Text("has".to_string()), 24, 27),
+                (Token::Whitespace, 27, 28),
+                (Token::Text("multiple".to_string()), 28, 36),
+                (Token::Whitespace, 36, 37),
+                (Token::Text("lines".to_string()), 37, 42),
+                (Token::Period, 42, 43),
+                (Token::Newline, 43, 44),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_list_pattern() {
+        let input = "- First item\n- Second item";
+        let tokens = lex_helper(input);
+
+        // Exact token sequence validation
+        // lex() adds a trailing newline and applies full transformations
+        assert_eq!(
+            tokens,
+            mk_tokens(&[
+                (Token::Dash, 0, 1),
+                (Token::Whitespace, 1, 2),
+                (Token::Text("First".to_string()), 2, 7),
+                (Token::Whitespace, 7, 8),
+                (Token::Text("item".to_string()), 8, 12),
+                (Token::Newline, 12, 13),
+                (Token::Dash, 13, 14),
+                (Token::Whitespace, 14, 15),
+                (Token::Text("Second".to_string()), 15, 21),
+                (Token::Whitespace, 21, 22),
+                (Token::Text("item".to_string()), 22, 26),
+                (Token::Newline, 26, 27),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_session_pattern() {
+        let input = "1. Session Title\n    Content here";
+        let tokens = lex_helper(input);
+
+        // Exact token sequence validation
+        // lex() transforms Indent -> Indent and adds trailing newline
+        assert_eq!(
+            tokens,
+            mk_tokens(&[
+                (Token::Number("1".to_string()), 0, 1),
+                (Token::Period, 1, 2),
+                (Token::Whitespace, 2, 3),
+                (Token::Text("Session".to_string()), 3, 10),
+                (Token::Whitespace, 10, 11),
+                (Token::Text("Title".to_string()), 11, 16),
+                (Token::Newline, 16, 17),
+                (Token::Indent(vec![(Token::Indentation, 17..21)]), 0, 0),
+                (Token::Text("Content".to_string()), 21, 28),
+                (Token::Whitespace, 28, 29),
+                (Token::Text("here".to_string()), 29, 33),
+                (Token::Newline, 33, 34),
+                (Token::Dedent(vec![]), 0, 0),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_lex_marker_pattern() {
+        let input = "Some text :: marker";
+        let tokens = lex_helper(input);
+
+        // Exact token sequence validation
+        // lex() adds a trailing newline
+        assert_eq!(
+            tokens,
+            mk_tokens(&[
+                (Token::Text("Some".to_string()), 0, 4),
+                (Token::Whitespace, 4, 5),
+                (Token::Text("text".to_string()), 5, 9),
+                (Token::Whitespace, 9, 10),
+                (Token::LexMarker, 10, 12),
+                (Token::Whitespace, 12, 13),
+                (Token::Text("marker".to_string()), 13, 19),
+                (Token::Newline, 19, 20),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_mixed_content_pattern() {
+        let input = "1. Session\n    - Item 1\n    - Item 2\n\nParagraph after.";
+        let tokens = lex_helper(input);
+
+        // Exact token sequence validation
+        // lex() transforms Indent -> Indent and consecutive Newlines -> BlankLine
+        assert_eq!(
+            tokens,
+            mk_tokens(&[
+                (Token::Number("1".to_string()), 0, 1),
+                (Token::Period, 1, 2),
+                (Token::Whitespace, 2, 3),
+                (Token::Text("Session".to_string()), 3, 10),
+                (Token::Newline, 10, 11),
+                (Token::Indent(vec![(Token::Indentation, 11..15)]), 0, 0),
+                (Token::Dash, 15, 16),
+                (Token::Whitespace, 16, 17),
+                (Token::Text("Item".to_string()), 17, 21),
+                (Token::Whitespace, 21, 22),
+                (Token::Number("1".to_string()), 22, 23),
+                (Token::Newline, 23, 24),
+                (Token::Dash, 28, 29),
+                (Token::Whitespace, 29, 30),
+                (Token::Text("Item".to_string()), 30, 34),
+                (Token::Whitespace, 34, 35),
+                (Token::Number("2".to_string()), 35, 36),
+                (Token::Newline, 36, 37),
+                (Token::BlankLine(vec![(Token::Newline, 37..38)]), 0, 0),
+                (Token::Dedent(vec![]), 0, 0),
+                (Token::Text("Paragraph".to_string()), 38, 47),
+                (Token::Whitespace, 47, 48),
+                (Token::Text("after".to_string()), 48, 53),
+                (Token::Period, 53, 54),
+                (Token::Newline, 54, 55),
+            ])
+        );
+    }
 }

@@ -141,3 +141,23 @@ pub fn to_treeviz_str(doc: &Document) -> String {
     let snapshot = snapshot_from_document(doc);
     format_document_snapshot(&snapshot)
 }
+
+/// Formatter implementation for treeviz format
+pub struct TreevizFormatter;
+
+impl crate::lex::formats::registry::Formatter for TreevizFormatter {
+    fn name(&self) -> &str {
+        "treeviz"
+    }
+
+    fn serialize(
+        &self,
+        doc: &Document,
+    ) -> Result<String, crate::lex::formats::registry::FormatError> {
+        Ok(to_treeviz_str(doc))
+    }
+
+    fn description(&self) -> &str {
+        "Visual tree representation with indentation and Unicode icons"
+    }
+}

@@ -5,10 +5,10 @@
 //! Testing the parser must follow strict rules to ensure reliability and maintainability.
 //! This module provides two essential tools that **must** be used together:
 //!
-//! 1. **[LexSources](crate::lex::processor::lex_sources::LexSources)** - For verified lex content
+//! 1. **[Lexplore](crate::lex::testing::lexplore::Lexplore)** - For verified lex content
 //! 2. **[assert_ast](fn@assert_ast)** - For comprehensive AST verification
 //!
-//! ## Rule 1: Always Use LexSources for Test Content
+//! ## Rule 1: Always Use Lexplore for Test Content
 //!
 //! **Why this matters:**
 //!
@@ -19,27 +19,29 @@
 //!
 //! **The solution:**
 //!
-//! Use the `LexSources` library to access verified, curated lex sample files.
+//! Use the `Lexplore` library to access verified, curated lex sample files.
 //! This ensures only vetted sources are used and makes writing tests much easier.
 //!
 //! ```rust-example
-//! use crate::lex::processor::lex_sources::LexSources;
-//! use crate::lex::parsing::parse_document;
+//! use crate::lex::testing::lexplore::{Lexplore, ElementType, DocumentType};
 //!
 //! // CORRECT: Use verified sample files
-//! let source = LexSources::get_string("000-paragraphs.lex")?;
+//! let source = Lexplore::get_source_for(ElementType::Paragraph, 1)?;
 //! let doc = parse_document(&source)?;
+//!
+//! // OR use the fluent API
+//! let paragraph = Lexplore::paragraph(1).parse().expect_paragraph();
 //!
 //! // WRONG: Don't write lex content directly in tests
 //! let doc = parse_document("Some paragraph\n\nAnother paragraph\n\n")?;
 //! ```
 //!
-//! **Available samples:**
-//! - `000-paragraphs.lex` - Basic paragraph parsing
-//! - `010-paragraphs-sessions-flat-single.lex` - Single session
-//! - `050-paragraph-lists.lex` - Mixed content
+//! **Available sources:**
+//! - Elements: `Lexplore::get_source_for(ElementType::Paragraph, 1)` - Individual elements
+//! - Documents: `Lexplore::get_document_source_for(DocumentType::Trifecta, 0)` - Full documents
+//! - Fluent API: `Lexplore::paragraph(1)`, `Lexplore::list(1)`, etc.
 //!
-//! and many more.
+//! See the [Lexplore documentation](crate::lex::testing::lexplore) for more details.
 //!
 //! ## Rule 2: Always Use assert_ast for AST Verification
 //!
@@ -152,18 +154,19 @@
 //!    pub fn assert_new_node(self) -> NewNodeAssertion<'a> { /* ... */ }
 //!    ```
 
-mod testing_assertions;
-mod testing_factories;
-mod testing_matchers;
+mod ast_assertions;
+pub mod lexplore;
+mod matchers;
+mod token_factories;
 
-pub use testing_assertions::{
+pub use ast_assertions::{
     assert_ast, AnnotationAssertion, ChildrenAssertion, ContentItemAssertion, DefinitionAssertion,
     DocumentAssertion, ListAssertion, ListItemAssertion, ParagraphAssertion, SessionAssertion,
     VerbatimBlockkAssertion,
 };
-pub use testing_matchers::TextMatch;
+pub use matchers::TextMatch;
 
 // Public submodule path: crate::lex::testing::factories
 pub mod factories {
-    pub use super::testing_factories::*;
+    pub use super::token_factories::*;
 }
