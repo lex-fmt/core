@@ -29,6 +29,7 @@
 
 mod extraction;
 mod loader;
+pub mod specfile_finder;
 
 // Re-export everything public from submodules
 pub use extraction::*;
