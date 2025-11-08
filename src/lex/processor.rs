@@ -3,21 +3,23 @@
 //! This module provides an extensible API for processing lex files with different
 //! stages (token, ast) and formats (simple, json, xml, etc.).
 //!
-//! # Pipeline Executor API
+//! # DocumentLoader API
 //!
-//! For new code, consider using the `PipelineExecutor` API in the `pipeline` module
-//! which provides a cleaner, config-based interface:
+//! For new code, consider using the `DocumentLoader` API in the `pipeline` module
+//! which provides the primary interface for document processing:
 //!
 //! ```rust,ignore
-//! use lex::lex::pipeline::PipelineExecutor;
+//! use lex::lex::pipeline::DocumentLoader;
 //!
-//! let executor = PipelineExecutor::new();
+//! let loader = DocumentLoader::new();
 //!
-//! // Use default stable pipeline (indentation lexer + reference parser)
-//! let output = executor.execute("default", source).expect("Failed to parse");
+//! // Parse files or strings
+//! let doc = loader.load_and_parse("path/to/file.lex")?;
+//! let doc = loader.parse(source)?;
 //!
-//! // Use experimental linebased pipeline
-//! let output = executor.execute("linebased", source).expect("Failed to parse");
+//! // Tokenize files or strings
+//! let tokens = loader.load_and_tokenize("path/to/file.lex")?;
+//! let tokens = loader.tokenize(source)?;
 //! ```
 //!
 //! # Sample Sources
@@ -43,10 +45,9 @@
 
 use crate::lex::formats::FormatRegistry;
 use crate::lex::lexing::Token;
-use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
+use crate::lex::pipeline::DocumentLoader;
 use std::collections::HashMap;
 use std::fmt;
-use std::fs;
 use std::path::Path;
 
 /// Represents the processing stage (what data to extract)
@@ -247,149 +248,123 @@ pub fn process_file_with_extras<P: AsRef<Path>>(
     spec: &ProcessingSpec,
     extras: HashMap<String, String>,
 ) -> Result<String, ProcessingError> {
-    let file_path = file_path.as_ref();
+    let loader = DocumentLoader::new();
 
-    // Read the file
-    let content =
-        fs::read_to_string(file_path).map_err(|e| ProcessingError::IoError(e.to_string()))?;
+    // Load source using DocumentLoader
+    let content = loader
+        .load_source(file_path)
+        .map_err(|e| ProcessingError::IoError(e.to_string()))?;
 
-    // Process according to stage and format using PipelineExecutor
+    // Process according to stage and format
     match &spec.format {
         OutputFormat::TokenLine => {
-            // Use PipelineExecutor with tokens-linebased-flat config
-            let executor = PipelineExecutor::new();
-            let output = executor
+            // Use DocumentLoader to execute tokens-linebased-flat config
+            let tokens = loader
                 .execute("tokens-linebased-flat", &content)
-                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+                .map_err(|e| ProcessingError::IoError(e.to_string()))
+                .and_then(|output| match output {
+                    crate::lex::pipeline::ExecutionOutput::Tokens(stream) => Ok(stream.unroll()),
+                    _ => Err(ProcessingError::IoError(
+                        "Expected Tokens output from tokens-linebased-flat config".to_string(),
+                    )),
+                })?;
 
-            match output {
-                ExecutionOutput::Tokens(stream) => {
-                    // Convert TokenStream to Vec<LineToken>
-                    let tokens = stream.unroll();
-                    let line_tokens =
-                        crate::lex::parsing::linebased::tree_builder::build_line_tokens(tokens);
-                    let json = serde_json::to_string_pretty(&line_tokens)
-                        .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-                    Ok(json)
-                }
-                _ => Err(ProcessingError::IoError(
-                    "Expected Tokens output from tokens-linebased-flat config".to_string(),
-                )),
-            }
+            // Convert TokenStream to Vec<LineToken>
+            let line_tokens =
+                crate::lex::parsing::linebased::tree_builder::build_line_tokens(tokens);
+            let json = serde_json::to_string_pretty(&line_tokens)
+                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+            Ok(json)
         }
         OutputFormat::TokenTree => {
-            // Use PipelineExecutor with tokens-linebased-tree config
-            let executor = PipelineExecutor::new();
-            let output = executor
+            // Use DocumentLoader to execute tokens-linebased-tree config
+            let tokens = loader
                 .execute("tokens-linebased-tree", &content)
-                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+                .map_err(|e| ProcessingError::IoError(e.to_string()))
+                .and_then(|output| match output {
+                    crate::lex::pipeline::ExecutionOutput::Tokens(stream) => Ok(stream.unroll()),
+                    _ => Err(ProcessingError::IoError(
+                        "Expected Tokens output from tokens-linebased-tree config".to_string(),
+                    )),
+                })?;
 
-            match output {
-                ExecutionOutput::Tokens(stream) => {
-                    // Convert TokenStream to LineContainer
-                    let tokens = stream.unroll();
-                    let tree =
-                        crate::lex::parsing::linebased::tree_builder::build_line_container(tokens);
-                    let json = serde_json::to_string_pretty(&tree)
-                        .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-                    Ok(json)
-                }
-                _ => Err(ProcessingError::IoError(
-                    "Expected Tokens output from tokens-linebased-tree config".to_string(),
-                )),
-            }
+            // Convert TokenStream to LineContainer
+            let tree = crate::lex::parsing::linebased::tree_builder::build_line_container(tokens);
+            let json = serde_json::to_string_pretty(&tree)
+                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
+            Ok(json)
         }
         _ => {
-            // Use new PipelineExecutor for standard processing
-            let executor = PipelineExecutor::new();
+            // Use DocumentLoader for standard processing
+            match &spec.stage {
+                ProcessingStage::Token => {
+                    // Get tokens directly from DocumentLoader
+                    let tokens = loader
+                        .tokenize(&content)
+                        .map_err(|e| ProcessingError::IoError(e.to_string()))?;
 
-            // Map ProcessingSpec to config name
-            let config_name = match (&spec.stage, &spec.format) {
-                (ProcessingStage::Token, OutputFormat::Simple) => "tokens-indentation",
-                (ProcessingStage::Token, OutputFormat::Json) => "tokens-indentation",
-                (ProcessingStage::Token, OutputFormat::RawSimple) => "tokens-indentation",
-                (ProcessingStage::Token, OutputFormat::RawJson) => "tokens-indentation",
-                (ProcessingStage::Ast, OutputFormat::AstTag) => "default",
-                (ProcessingStage::Ast, OutputFormat::AstTreeviz) => "default",
-                (ProcessingStage::Ast, OutputFormat::AstLinebasedTag) => "linebased",
-                (ProcessingStage::Ast, OutputFormat::AstLinebasedTreeviz) => "linebased",
-                (ProcessingStage::Ast, OutputFormat::AstPosition) => "default",
-                _ => {
-                    return Err(ProcessingError::InvalidFormatType(format!(
-                        "Unsupported stage/format combination: {:?}/{:?}",
-                        spec.stage, spec.format
-                    )))
+                    // Apply formatting
+                    format_tokenss(&tokens, &spec.format)
                 }
-            };
+                ProcessingStage::Ast => {
+                    // Parse with appropriate parser based on format
+                    let doc = match &spec.format {
+                        OutputFormat::AstLinebasedTag | OutputFormat::AstLinebasedTreeviz => {
+                            // Use linebased parser
+                            loader
+                                .parse_with(&content, crate::lex::pipeline::Parser::Linebased)
+                                .map_err(|e| ProcessingError::IoError(e.to_string()))?
+                        }
+                        _ => {
+                            // Use default reference parser
+                            loader
+                                .parse(&content)
+                                .map_err(|e| ProcessingError::IoError(e.to_string()))?
+                        }
+                    };
 
-            // Execute pipeline
-            let output = executor
-                .execute(config_name, &content)
-                .map_err(|e| ProcessingError::IoError(e.to_string()))?;
-
-            // Format output
-            match (output, &spec.stage, &spec.format) {
-                (ExecutionOutput::Tokens(stream), ProcessingStage::Token, format) => {
-                    let tokens = stream.unroll();
-                    format_tokenss(&tokens, format)
+                    // Apply formatting based on output format
+                    match &spec.format {
+                        OutputFormat::AstTag | OutputFormat::AstLinebasedTag => {
+                            let registry = FormatRegistry::with_defaults();
+                            registry
+                                .serialize(&doc, "tag")
+                                .map_err(|e| ProcessingError::IoError(e.to_string()))
+                        }
+                        OutputFormat::AstTreeviz | OutputFormat::AstLinebasedTreeviz => {
+                            let registry = FormatRegistry::with_defaults();
+                            registry
+                                .serialize(&doc, "treeviz")
+                                .map_err(|e| ProcessingError::IoError(e.to_string()))
+                        }
+                        OutputFormat::AstPosition => {
+                            let line = extras
+                                .get("line")
+                                .and_then(|s| s.parse::<usize>().ok())
+                                .ok_or_else(|| {
+                                    ProcessingError::InvalidFormatType(
+                                        "Missing or invalid 'line' extra".to_string(),
+                                    )
+                                })?;
+                            let column = extras
+                                .get("column")
+                                .and_then(|s| s.parse::<usize>().ok())
+                                .ok_or_else(|| {
+                                    ProcessingError::InvalidFormatType(
+                                        "Missing or invalid 'column' extra".to_string(),
+                                    )
+                                })?;
+                            Ok(crate::lex::parsing::format_at_position(
+                                &doc,
+                                crate::lex::parsing::Position::new(line, column),
+                            ))
+                        }
+                        _ => Err(ProcessingError::InvalidFormatType(format!(
+                            "Unsupported AST format: {:?}",
+                            spec.format
+                        ))),
+                    }
                 }
-                // Use format registry for standard AST formats
-                (ExecutionOutput::Document(doc), ProcessingStage::Ast, OutputFormat::AstTag)
-                | (
-                    ExecutionOutput::Document(doc),
-                    ProcessingStage::Ast,
-                    OutputFormat::AstLinebasedTag,
-                ) => {
-                    let registry = FormatRegistry::with_defaults();
-                    registry
-                        .serialize(&doc, "tag")
-                        .map_err(|e| ProcessingError::IoError(e.to_string()))
-                }
-                (
-                    ExecutionOutput::Document(doc),
-                    ProcessingStage::Ast,
-                    OutputFormat::AstTreeviz,
-                )
-                | (
-                    ExecutionOutput::Document(doc),
-                    ProcessingStage::Ast,
-                    OutputFormat::AstLinebasedTreeviz,
-                ) => {
-                    let registry = FormatRegistry::with_defaults();
-                    registry
-                        .serialize(&doc, "treeviz")
-                        .map_err(|e| ProcessingError::IoError(e.to_string()))
-                }
-                // Special format that requires position extras
-                (
-                    ExecutionOutput::Document(doc),
-                    ProcessingStage::Ast,
-                    OutputFormat::AstPosition,
-                ) => {
-                    let line = extras
-                        .get("line")
-                        .and_then(|s| s.parse::<usize>().ok())
-                        .ok_or_else(|| {
-                            ProcessingError::InvalidFormatType(
-                                "Missing or invalid 'line' extra".to_string(),
-                            )
-                        })?;
-                    let column = extras
-                        .get("column")
-                        .and_then(|s| s.parse::<usize>().ok())
-                        .ok_or_else(|| {
-                            ProcessingError::InvalidFormatType(
-                                "Missing or invalid 'column' extra".to_string(),
-                            )
-                        })?;
-                    Ok(crate::lex::parsing::format_at_position(
-                        &doc,
-                        crate::lex::parsing::Position::new(line, column),
-                    ))
-                }
-                _ => Err(ProcessingError::InvalidFormatType(
-                    "Mismatched output and format".to_string(),
-                )),
             }
         }
     }
