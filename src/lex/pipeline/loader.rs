@@ -176,6 +176,9 @@ impl DocumentLoader {
             ExecutionOutput::Tokens(_) => Err(ExecutionError::ParsingFailed(
                 "Expected Document output but got Tokens".to_string(),
             )),
+            ExecutionOutput::Serialized(_) => Err(ExecutionError::ParsingFailed(
+                "Expected Document output but got Serialized".to_string(),
+            )),
         }
     }
 
@@ -221,6 +224,9 @@ impl DocumentLoader {
             ExecutionOutput::Tokens(stream) => Ok(stream.unroll()),
             ExecutionOutput::Document(_) => Err(ExecutionError::TransformationFailed(
                 "Expected Tokens output but got Document".to_string(),
+            )),
+            ExecutionOutput::Serialized(_) => Err(ExecutionError::TransformationFailed(
+                "Expected Tokens output but got Serialized".to_string(),
             )),
         }
     }
@@ -338,6 +344,121 @@ impl DocumentLoader {
     ) -> Result<Vec<(Token, std::ops::Range<usize>)>, ExecutionError> {
         let source = self.load_source(path)?;
         self.tokenize_with(&source, parser)
+    }
+
+    // ===== SERIALIZATION (convert to output formats) =====
+
+    /// Convert source text to a specific format
+    ///
+    /// This is a convenience method for serialization. It runs the full pipeline
+    /// (tokenize → parse → serialize) and returns the formatted string.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - Source text to convert
+    /// * `format` - Output format name (e.g., "tag", "treeviz", "markdown")
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let loader = DocumentLoader::new();
+    /// let tag_output = loader.convert("Hello\n", "tag")?;
+    /// let treeviz = loader.convert("Hello\n", "treeviz")?;
+    /// ```
+    pub fn convert(&self, source: &str, format: &str) -> Result<String, ExecutionError> {
+        let config_name = format!("lex-to-{}", format);
+        let output = self.execute(&config_name, source)?;
+        match output {
+            ExecutionOutput::Serialized(s) => Ok(s),
+            _ => Err(ExecutionError::TransformationFailed(format!(
+                "Config '{}' did not produce serialized output",
+                config_name
+            ))),
+        }
+    }
+
+    /// Load a file and convert to a specific format
+    ///
+    /// Combines file loading with format conversion.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the file to load
+    /// * `format` - Output format name (e.g., "tag", "treeviz", "markdown")
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let loader = DocumentLoader::new();
+    /// let tag_output = loader.load_and_convert("file.lex", "tag")?;
+    /// ```
+    pub fn load_and_convert<P: AsRef<Path>>(
+        &self,
+        path: P,
+        format: &str,
+    ) -> Result<String, ExecutionError> {
+        let source = self.load_source(path)?;
+        self.convert(&source, format)
+    }
+
+    /// Convert source text with a specific parser and format
+    ///
+    /// Allows choosing which parser to use before serialization.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - Source text to convert
+    /// * `parser` - Which parser to use
+    /// * `format` - Output format name (e.g., "tag", "treeviz")
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let loader = DocumentLoader::new();
+    /// let output = loader.convert_with("Hello\n", Parser::Linebased, "tag")?;
+    /// ```
+    pub fn convert_with(
+        &self,
+        source: &str,
+        parser: Parser,
+        format: &str,
+    ) -> Result<String, ExecutionError> {
+        let config_name = match parser {
+            Parser::Reference => format!("lex-to-{}", format),
+            Parser::Linebased => format!("lex-to-{}-linebased", format),
+        };
+        let output = self.execute(&config_name, source)?;
+        match output {
+            ExecutionOutput::Serialized(s) => Ok(s),
+            _ => Err(ExecutionError::TransformationFailed(format!(
+                "Config '{}' did not produce serialized output",
+                config_name
+            ))),
+        }
+    }
+
+    /// Load a file and convert with a specific parser and format
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the file to load
+    /// * `parser` - Which parser to use
+    /// * `format` - Output format name (e.g., "tag", "treeviz")
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let loader = DocumentLoader::new();
+    /// let output = loader.load_and_convert_with("file.lex", Parser::Linebased, "treeviz")?;
+    /// ```
+    pub fn load_and_convert_with<P: AsRef<Path>>(
+        &self,
+        path: P,
+        parser: Parser,
+        format: &str,
+    ) -> Result<String, ExecutionError> {
+        let source = self.load_source(path)?;
+        self.convert_with(&source, parser, format)
     }
 
     /// Get access to the underlying PipelineExecutor
@@ -592,5 +713,83 @@ mod tests {
             Parser::Linebased.token_config_name(),
             "tokens-linebased-flat"
         );
+    }
+
+    // ===== Serialization tests =====
+
+    #[test]
+    fn test_convert_to_tag() {
+        let loader = DocumentLoader::new();
+        let result = loader.convert("Hello world\n", "tag");
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("<paragraph>"));
+        assert!(output.contains("Hello world"));
+    }
+
+    #[test]
+    fn test_convert_to_treeviz() {
+        let loader = DocumentLoader::new();
+        let result = loader.convert("Hello world\n", "treeviz");
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        // Treeviz format contains node type information
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_convert_with_parser() {
+        let loader = DocumentLoader::new();
+        let result = loader.convert_with("Hello world\n", Parser::Linebased, "tag");
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        // Linebased parser should also produce output
+        assert!(!output.is_empty());
+        assert!(output.contains("<document>"));
+    }
+
+    #[test]
+    fn test_load_and_convert() {
+        let loader = DocumentLoader::new();
+        let result = loader.load_and_convert(
+            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+            "tag",
+        );
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("<paragraph>"));
+    }
+
+    #[test]
+    fn test_load_and_convert_with_parser() {
+        let loader = DocumentLoader::new();
+        let result = loader.load_and_convert_with(
+            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+            Parser::Reference,
+            "treeviz",
+        );
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        // Treeviz format should produce output
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_execute_serialized_config() {
+        let loader = DocumentLoader::new();
+        let result = loader.execute("lex-to-tag", "Hello world\n");
+
+        assert!(result.is_ok());
+        match result.unwrap() {
+            crate::lex::pipeline::ExecutionOutput::Serialized(output) => {
+                assert!(output.contains("<paragraph>"));
+            }
+            _ => panic!("Expected Serialized output"),
+        }
     }
 }
