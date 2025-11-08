@@ -1,0 +1,5 @@
+---
+source: src/lex/formats/detokenizer/detokenizer.rs
+expression: detokenized
+---
+:: note ::

@@ -1,0 +1,9 @@
+---
+source: src/lex/formats/detokenizer/detokenizer.rs
+expression: detokenized
+---
+Test:
+
+- First item
+- Second item
+- Third item
