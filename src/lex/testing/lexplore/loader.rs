@@ -253,89 +253,80 @@ pub struct ParsedElement {
     doc: Document,
 }
 
+/// Macro to generate element extraction methods (expect_* and first_*)
+macro_rules! impl_element_extractors {
+    ($($name:ident => $iter_method:ident, $type:ty, $label:literal);* $(;)?) => {
+        $(
+            #[doc = concat!("Get the first ", $label, ", panicking if not found")]
+            pub fn $name(&self) -> &$type {
+                self.doc
+                    .$iter_method()
+                    .next()
+                    .unwrap_or_else(|| panic!(concat!("No ", $label, " found in {:?} document"), self.source_type))
+            }
+        )*
+    };
+}
+
+/// Macro to generate optional element extraction methods (first_*)
+macro_rules! impl_optional_extractors {
+    ($($name:ident => $iter_method:ident, $type:ty);* $(;)?) => {
+        $(
+            #[doc = concat!("Get the first ", stringify!($name), " (returns Option)")]
+            pub fn $name(&self) -> Option<&$type> {
+                self.doc.$iter_method().next()
+            }
+        )*
+    };
+}
+
 impl ParsedElement {
     /// Get the underlying document
     pub fn document(&self) -> &Document {
         &self.doc
     }
 
-    /// Get the first paragraph, panicking if not found
-    pub fn expect_paragraph(&self) -> &Paragraph {
-        self.doc
-            .iter_paragraphs_recursive()
-            .next()
-            .unwrap_or_else(|| panic!("No paragraph found in {:?} document", self.source_type))
+    impl_element_extractors! {
+        expect_paragraph => iter_paragraphs_recursive, Paragraph, "paragraph";
+        expect_session => iter_sessions_recursive, Session, "session";
+        expect_list => iter_lists_recursive, List, "list";
+        expect_definition => iter_definitions_recursive, Definition, "definition";
+        expect_annotation => iter_annotations_recursive, Annotation, "annotation";
+        expect_verbatim => iter_verbatim_blocks_recursive, crate::lex::ast::Verbatim, "verbatim";
     }
 
-    /// Get the first session, panicking if not found
-    pub fn expect_session(&self) -> &Session {
-        self.doc
-            .iter_sessions_recursive()
-            .next()
-            .unwrap_or_else(|| panic!("No session found in {:?} document", self.source_type))
+    impl_optional_extractors! {
+        first_paragraph => iter_paragraphs_recursive, Paragraph;
+        first_session => iter_sessions_recursive, Session;
+        first_list => iter_lists_recursive, List;
+        first_definition => iter_definitions_recursive, Definition;
+        first_annotation => iter_annotations_recursive, Annotation;
+        first_verbatim => iter_verbatim_blocks_recursive, crate::lex::ast::Verbatim;
     }
+}
 
-    /// Get the first list, panicking if not found
-    pub fn expect_list(&self) -> &List {
-        self.doc
-            .iter_lists_recursive()
-            .next()
-            .unwrap_or_else(|| panic!("No list found in {:?} document", self.source_type))
-    }
+/// Macro to generate element loader shortcuts
+macro_rules! element_shortcuts {
+    ($($name:ident => $variant:ident, $label:literal);* $(;)?) => {
+        $(
+            #[doc = concat!("Load a ", $label, " variation (fluent API)")]
+            pub fn $name(number: usize) -> ElementLoader {
+                Self::load(ElementType::$variant, number)
+            }
+        )*
+    };
+}
 
-    /// Get the first definition, panicking if not found
-    pub fn expect_definition(&self) -> &Definition {
-        self.doc
-            .iter_definitions_recursive()
-            .next()
-            .unwrap_or_else(|| panic!("No definition found in {:?} document", self.source_type))
-    }
-
-    /// Get the first annotation, panicking if not found
-    pub fn expect_annotation(&self) -> &Annotation {
-        self.doc
-            .iter_annotations_recursive()
-            .next()
-            .unwrap_or_else(|| panic!("No annotation found in {:?} document", self.source_type))
-    }
-
-    /// Get the first verbatim block, panicking if not found
-    pub fn expect_verbatim(&self) -> &crate::lex::ast::Verbatim {
-        self.doc
-            .iter_verbatim_blocks_recursive()
-            .next()
-            .unwrap_or_else(|| panic!("No verbatim found in {:?} document", self.source_type))
-    }
-
-    /// Get the first paragraph (returns Option)
-    pub fn first_paragraph(&self) -> Option<&Paragraph> {
-        self.doc.iter_paragraphs_recursive().next()
-    }
-
-    /// Get the first session (returns Option)
-    pub fn first_session(&self) -> Option<&Session> {
-        self.doc.iter_sessions_recursive().next()
-    }
-
-    /// Get the first list (returns Option)
-    pub fn first_list(&self) -> Option<&List> {
-        self.doc.iter_lists_recursive().next()
-    }
-
-    /// Get the first definition (returns Option)
-    pub fn first_definition(&self) -> Option<&Definition> {
-        self.doc.iter_definitions_recursive().next()
-    }
-
-    /// Get the first annotation (returns Option)
-    pub fn first_annotation(&self) -> Option<&Annotation> {
-        self.doc.iter_annotations_recursive().next()
-    }
-
-    /// Get the first verbatim block (returns Option)
-    pub fn first_verbatim(&self) -> Option<&crate::lex::ast::Verbatim> {
-        self.doc.iter_verbatim_blocks_recursive().next()
-    }
+/// Macro to generate document loader shortcuts
+macro_rules! document_shortcuts {
+    ($($name:ident => $variant:ident, $label:literal);* $(;)?) => {
+        $(
+            #[doc = concat!("Load a ", $label, " document (fluent API)")]
+            pub fn $name(number: usize) -> ElementLoader {
+                Self::load_document(DocumentType::$variant, number)
+            }
+        )*
+    };
 }
 
 /// Interface for loading per-element test sources
@@ -424,46 +415,20 @@ impl Lexplore {
 
     // ===== Convenience shortcuts for specific element types =====
 
-    /// Load a paragraph variation (fluent API)
-    pub fn paragraph(number: usize) -> ElementLoader {
-        Self::load(ElementType::Paragraph, number)
-    }
-
-    /// Load a list variation (fluent API)
-    pub fn list(number: usize) -> ElementLoader {
-        Self::load(ElementType::List, number)
-    }
-
-    /// Load a session variation (fluent API)
-    pub fn session(number: usize) -> ElementLoader {
-        Self::load(ElementType::Session, number)
-    }
-
-    /// Load a definition variation (fluent API)
-    pub fn definition(number: usize) -> ElementLoader {
-        Self::load(ElementType::Definition, number)
-    }
-
-    /// Load an annotation variation (fluent API)
-    pub fn annotation(number: usize) -> ElementLoader {
-        Self::load(ElementType::Annotation, number)
-    }
-
-    /// Load a verbatim variation (fluent API)
-    pub fn verbatim(number: usize) -> ElementLoader {
-        Self::load(ElementType::Verbatim, number)
+    element_shortcuts! {
+        paragraph => Paragraph, "paragraph";
+        list => List, "list";
+        session => Session, "session";
+        definition => Definition, "definition";
+        annotation => Annotation, "annotation";
+        verbatim => Verbatim, "verbatim";
     }
 
     // ===== Convenience shortcuts for document collections =====
 
-    /// Load a benchmark document (fluent API)
-    pub fn benchmark(number: usize) -> ElementLoader {
-        Self::load_document(DocumentType::Benchmark, number)
-    }
-
-    /// Load a trifecta document (fluent API)
-    pub fn trifecta(number: usize) -> ElementLoader {
-        Self::load_document(DocumentType::Trifecta, number)
+    document_shortcuts! {
+        benchmark => Benchmark, "benchmark";
+        trifecta => Trifecta, "trifecta";
     }
 
     /// Get the path to a specific element type directory
@@ -479,17 +444,19 @@ impl Lexplore {
             .join(doc_type.dir_name())
     }
 
-    /// Find the file matching the element type and number
+    /// Generic file finder that searches for files matching a pattern in a directory
     ///
     /// # Panics
     ///
     /// Panics if multiple files exist with the same number. This is a critical error
-    /// that indicates the test corpus has duplicate numbers, which violates the design
-    /// where each number uniquely identifies a test case.
-    fn find_file(element_type: ElementType, number: usize) -> Result<PathBuf, ElementSourceError> {
-        let dir = Self::element_type_dir(element_type);
-        let pattern = format!("{}-{:02}-", element_type.prefix(), number);
-
+    /// that indicates the test corpus has duplicate numbers.
+    fn find_file_by_pattern(
+        dir: PathBuf,
+        pattern: &str,
+        type_name: &str,
+        number: usize,
+        number_format: &str,
+    ) -> Result<PathBuf, ElementSourceError> {
         // Collect all matching files to detect duplicates
         let mut matching_files: Vec<PathBuf> = Vec::new();
         let entries = fs::read_dir(&dir)?;
@@ -497,7 +464,7 @@ impl Lexplore {
             let entry = entry?;
             let filename = entry.file_name();
             if let Some(name) = filename.to_str() {
-                if name.starts_with(&pattern) && name.ends_with(".lex") {
+                if name.starts_with(pattern) && name.ends_with(".lex") {
                     matching_files.push(entry.path());
                 }
             }
@@ -505,8 +472,8 @@ impl Lexplore {
 
         match matching_files.len() {
             0 => Err(ElementSourceError::FileNotFound(format!(
-                "No file found for {:?} number {} in {}",
-                element_type,
+                "No file found for {} number {} in {}",
+                type_name,
                 number,
                 dir.display()
             ))),
@@ -520,19 +487,38 @@ impl Lexplore {
                     .join("\n");
                 panic!(
                     "DUPLICATE TEST NUMBERS DETECTED!\n\
-                    Found {} files with number {:02} for {:?}:\n\
+                    Found {} files with number {} for {}:\n\
                     {}\n\n\
-                    ERROR: Test numbers must be unique within each element directory.\n\
+                    ERROR: Test numbers must be unique within each directory.\n\
                     FIX: Rename the duplicate files to use unique numbers.\n\
                     Directory: {}",
                     matching_files.len(),
-                    number,
-                    element_type,
+                    format!("{}", number_format).replace("{}", &number.to_string()),
+                    type_name,
                     file_list,
                     dir.display()
                 );
             }
         }
+    }
+
+    /// Find the file matching the element type and number
+    ///
+    /// # Panics
+    ///
+    /// Panics if multiple files exist with the same number. This is a critical error
+    /// that indicates the test corpus has duplicate numbers, which violates the design
+    /// where each number uniquely identifies a test case.
+    fn find_file(element_type: ElementType, number: usize) -> Result<PathBuf, ElementSourceError> {
+        let dir = Self::element_type_dir(element_type);
+        let pattern = format!("{}-{:02}-", element_type.prefix(), number);
+        Self::find_file_by_pattern(
+            dir,
+            &pattern,
+            &format!("{:?}", element_type),
+            number,
+            "{:02}",
+        )
     }
 
     /// Find the file matching the document type and number
@@ -548,50 +534,7 @@ impl Lexplore {
     ) -> Result<PathBuf, ElementSourceError> {
         let dir = Self::document_type_dir(doc_type);
         let pattern = format!("{:03}-", number);
-
-        // Collect all matching files to detect duplicates
-        let mut matching_files: Vec<PathBuf> = Vec::new();
-        let entries = fs::read_dir(&dir)?;
-        for entry in entries {
-            let entry = entry?;
-            let filename = entry.file_name();
-            if let Some(name) = filename.to_str() {
-                if name.starts_with(&pattern) && name.ends_with(".lex") {
-                    matching_files.push(entry.path());
-                }
-            }
-        }
-
-        match matching_files.len() {
-            0 => Err(ElementSourceError::FileNotFound(format!(
-                "No file found for {:?} number {} in {}",
-                doc_type,
-                number,
-                dir.display()
-            ))),
-            1 => Ok(matching_files[0].clone()),
-            _ => {
-                // Multiple files with the same number - this is a critical error
-                let file_list = matching_files
-                    .iter()
-                    .map(|p| format!("  - {}", p.file_name().unwrap().to_string_lossy()))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                panic!(
-                    "DUPLICATE TEST NUMBERS DETECTED!\n\
-                    Found {} files with number {:03} for {:?}:\n\
-                    {}\n\n\
-                    ERROR: Test numbers must be unique within each document directory.\n\
-                    FIX: Rename the duplicate files to use unique numbers.\n\
-                    Directory: {}",
-                    matching_files.len(),
-                    number,
-                    doc_type,
-                    file_list,
-                    dir.display()
-                );
-            }
-        }
+        Self::find_file_by_pattern(dir, &pattern, &format!("{:?}", doc_type), number, "{:03}")
     }
 
     /// Get the source string for a specific element variation
