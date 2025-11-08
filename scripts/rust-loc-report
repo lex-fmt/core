@@ -6,11 +6,148 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-# Save cargo warloc output to temp file and read it
-TMPFILE=$(mktemp)
-trap "rm -f $TMPFILE" EXIT
+FORMAT="term"
+COMPARE_BRANCH=""
+TMPFILES=()
+ORIGINAL_BRANCH=""
 
-cargo warloc --by-file > "$TMPFILE"
+cleanup() {
+  for tmp in "${TMPFILES[@]}"; do
+    if [[ -f "$tmp" ]]; then
+      rm -f "$tmp"
+    fi
+  done
 
-python3 "$SCRIPT_DIR/_rust_loc.py" "$TMPFILE" | npx prettier --parser markdown
+  if [[ -n "$ORIGINAL_BRANCH" ]]; then
+    local current_branch
+    current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    if [[ -n "$current_branch" && "$current_branch" != "$ORIGINAL_BRANCH" ]]; then
+      git checkout "$ORIGINAL_BRANCH" >/dev/null 2>&1 || true
+    fi
+  fi
+}
+trap cleanup EXIT
+
+usage() {
+  echo "Usage: $0 [--format term|json] [--compare-branch <branch>]" >&2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --format)
+      FORMAT="$2"
+      shift 2
+      ;;
+    --format=*)
+      FORMAT="${1#*=}"
+      shift
+      ;;
+    --compare-branch)
+      COMPARE_BRANCH="$2"
+      shift 2
+      ;;
+    --compare-branch=*)
+      COMPARE_BRANCH="${1#*=}"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ "$FORMAT" != "term" && "$FORMAT" != "json" ]]; then
+  echo "Invalid format: $FORMAT" >&2
+  usage
+  exit 1
+fi
+
+generate_tmpfile() {
+  local tmpfile
+  tmpfile=$(mktemp)
+  TMPFILES+=("$tmpfile")
+  cargo warloc --by-file > "$tmpfile"
+  echo "$tmpfile"
+}
+
+render_report() {
+  local tmpfile="$1"
+  if [[ "$FORMAT" == "term" ]]; then
+    python3 "$SCRIPT_DIR/_rust_loc.py" --format term "$tmpfile" | npx prettier --parser markdown
+  else
+    python3 "$SCRIPT_DIR/_rust_loc.py" --format json "$tmpfile"
+  fi
+}
+
+collect_summary() {
+  local tmpfile="$1"
+  python3 "$SCRIPT_DIR/_rust_loc.py" --format json "$tmpfile"
+}
+
+print_comparison() {
+  local base_json="$1"
+  local compare_json="$2"
+  local base_branch="$3"
+  local compare_branch="$4"
+
+  python3 - "$base_json" "$compare_json" "$base_branch" "$compare_branch" <<'PY'
+import json
+import sys
+
+base = json.loads(sys.argv[1])
+other = json.loads(sys.argv[2])
+base_branch = sys.argv[3]
+other_branch = sys.argv[4]
+
+base_summary = base['summary']
+other_summary = other['summary']
+
+diff_code = other_summary['total_code'] - base_summary['total_code']
+diff_tests = other_summary['total_tests'] - base_summary['total_tests']
+
+print()
+print(f"Comparison against branch '{other_branch}':")
+print(f"  {base_branch}:   code {base_summary['total_code']}, tests {base_summary['total_tests']}")
+print(f"  {other_branch}: code {other_summary['total_code']}, tests {other_summary['total_tests']}")
+print(f"  Δ (other - {base_branch}): code {diff_code:+}, tests {diff_tests:+}")
+PY
+}
+
+if [[ -n "$COMPARE_BRANCH" ]]; then
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "Cannot compare branches with a dirty working tree. Please commit or stash changes first." >&2
+    exit 1
+  fi
+fi
+
+initial_tmp=$(generate_tmpfile)
+
+if [[ "$FORMAT" == "term" ]]; then
+  render_report "$initial_tmp"
+  current_summary_json=$(collect_summary "$initial_tmp")
+else
+  current_summary_json=$(render_report "$initial_tmp")
+  printf '%s\n' "$current_summary_json"
+fi
+
+if [[ -n "$COMPARE_BRANCH" ]]; then
+  ORIGINAL_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+  base_branch_name="$ORIGINAL_BRANCH"
+
+  git checkout "$COMPARE_BRANCH" >/dev/null 2>&1
+
+  compare_tmp=$(generate_tmpfile)
+  compare_summary_json=$(collect_summary "$compare_tmp")
+
+  git checkout "$ORIGINAL_BRANCH" >/dev/null 2>&1
+  ORIGINAL_BRANCH=""
+
+  print_comparison "$current_summary_json" "$compare_summary_json" "$base_branch_name" "$COMPARE_BRANCH"
+fi
 
