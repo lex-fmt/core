@@ -9,52 +9,40 @@ use crate::lex::ast::{Annotation, ContentItem, Definition, Document, List, Parag
 // ===== Helper functions for extracting elements from AST =====
 
 /// Get the first element of a specific type from the document
+/// Now uses the new recursive iterator API
 pub fn get_first_paragraph(doc: &Document) -> Option<&Paragraph> {
-    doc.root.children.iter().find_map(|item| match item {
-        ContentItem::Paragraph(p) => Some(p),
-        _ => None,
-    })
+    doc.iter_paragraphs_recursive().next()
 }
 
 /// Get the first session from the document
+/// Now uses the new recursive iterator API
 pub fn get_first_session(doc: &Document) -> Option<&Session> {
-    doc.root.children.iter().find_map(|item| match item {
-        ContentItem::Session(s) => Some(s),
-        _ => None,
-    })
+    doc.iter_sessions_recursive().next()
 }
 
 /// Get the first list from the document
+/// Now uses the new recursive iterator API
 pub fn get_first_list(doc: &Document) -> Option<&List> {
-    doc.root.children.iter().find_map(|item| match item {
-        ContentItem::List(l) => Some(l),
-        _ => None,
-    })
+    doc.iter_lists_recursive().next()
 }
 
 /// Get the first definition from the document
+/// Now uses the new recursive iterator API
 pub fn get_first_definition(doc: &Document) -> Option<&Definition> {
-    doc.root.children.iter().find_map(|item| match item {
-        ContentItem::Definition(d) => Some(d),
-        _ => None,
-    })
+    doc.iter_definitions_recursive().next()
 }
 
 /// Get the first annotation from the document
+/// Now uses the new recursive iterator API
 pub fn get_first_annotation(doc: &Document) -> Option<&Annotation> {
-    doc.root.children.iter().find_map(|item| match item {
-        ContentItem::Annotation(a) => Some(a),
-        _ => None,
-    })
+    doc.iter_annotations_recursive().next()
 }
 
 /// Get the first verbatim block from the document
 /// Note: Returns the boxed Verbatim from VerbatimBlock
+/// Now uses the new recursive iterator API
 pub fn get_first_verbatim(doc: &Document) -> Option<&crate::lex::ast::Verbatim> {
-    doc.root.children.iter().find_map(|item| match item {
-        ContentItem::VerbatimBlock(v) => Some(v.as_ref()),
-        _ => None,
-    })
+    doc.iter_verbatim_blocks_recursive().next()
 }
 
 // ===== Assertion helpers =====
