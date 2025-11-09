@@ -11,8 +11,8 @@
 //! 3. Build hierarchical tree based on Indent/Dedent markers
 //! 4. Convert to LineContainer structure expected by parser
 
-use crate::lex::lexing::linebased::tokens_linebased::{LineContainer, LineToken, LineType};
 use crate::lex::lexing::tokens_core::Token;
+use crate::lex::lexing::tokens_linebased::{LineContainer, LineToken, LineType};
 use std::ops::Range as ByteRange;
 
 /// Build a LineContainer tree from a flat stream of tokens.
