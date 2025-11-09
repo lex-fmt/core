@@ -374,3 +374,256 @@ fn ends_with_colon(tokens: &[Token]) -> bool {
 
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lex::pipeline::mapper::StreamMapper;
+
+    #[test]
+    fn test_classify_paragraph_line() {
+        let tokens = vec![
+            Token::Text("Hello".to_string()),
+            Token::Whitespace,
+            Token::Text("world".to_string()),
+            Token::Newline,
+        ];
+        assert_eq!(classify_line_tokens(&tokens), LineType::ParagraphLine);
+    }
+
+    #[test]
+    fn test_classify_subject_line() {
+        let tokens = vec![
+            Token::Text("Title".to_string()),
+            Token::Colon,
+            Token::Newline,
+        ];
+        assert_eq!(classify_line_tokens(&tokens), LineType::SubjectLine);
+    }
+
+    #[test]
+    fn test_classify_list_line() {
+        let tokens = vec![
+            Token::Dash,
+            Token::Whitespace,
+            Token::Text("Item".to_string()),
+            Token::Newline,
+        ];
+        assert_eq!(classify_line_tokens(&tokens), LineType::ListLine);
+    }
+
+    #[test]
+    fn test_classify_blank_line() {
+        let tokens = vec![Token::Whitespace, Token::Newline];
+        assert_eq!(classify_line_tokens(&tokens), LineType::BlankLine);
+    }
+
+    #[test]
+    fn test_classify_annotation_start_line() {
+        let tokens = vec![
+            Token::LexMarker,
+            Token::Whitespace,
+            Token::Text("label".to_string()),
+            Token::Whitespace,
+            Token::LexMarker,
+            Token::Newline,
+        ];
+        assert_eq!(classify_line_tokens(&tokens), LineType::AnnotationStartLine);
+    }
+
+    #[test]
+    fn test_classify_annotation_end_line() {
+        let tokens = vec![Token::LexMarker, Token::Newline];
+        assert_eq!(classify_line_tokens(&tokens), LineType::AnnotationEndLine);
+    }
+
+    #[test]
+    fn test_classify_subject_or_list_item_line() {
+        let tokens = vec![
+            Token::Dash,
+            Token::Whitespace,
+            Token::Text("Item".to_string()),
+            Token::Colon,
+            Token::Newline,
+        ];
+        assert_eq!(
+            classify_line_tokens(&tokens),
+            LineType::SubjectOrListItemLine
+        );
+    }
+
+    #[test]
+    fn test_group_single_line() {
+        let tokens = vec![
+            (Token::Text("Hello".to_string()), 0..5),
+            (Token::Newline, 5..6),
+        ];
+
+        let line_tokens = group_into_lines(tokens);
+
+        assert_eq!(line_tokens.len(), 1);
+        assert_eq!(line_tokens[0].line_type, LineType::ParagraphLine);
+        assert_eq!(line_tokens[0].source_tokens.len(), 2);
+        assert_eq!(line_tokens[0].token_spans.len(), 2);
+    }
+
+    #[test]
+    fn test_group_multiple_lines() {
+        let tokens = vec![
+            (Token::Text("Line1".to_string()), 0..5),
+            (Token::Newline, 5..6),
+            (Token::Text("Line2".to_string()), 6..11),
+            (Token::Newline, 11..12),
+        ];
+
+        let line_tokens = group_into_lines(tokens);
+
+        assert_eq!(line_tokens.len(), 2);
+        assert_eq!(line_tokens[0].line_type, LineType::ParagraphLine);
+        assert_eq!(line_tokens[1].line_type, LineType::ParagraphLine);
+    }
+
+    #[test]
+    fn test_group_with_indent_dedent() {
+        let tokens = vec![
+            (Token::Text("Title".to_string()), 0..5),
+            (Token::Colon, 5..6),
+            (Token::Newline, 6..7),
+            (Token::Indent(vec![(Token::Indentation, 7..11)]), 0..0),
+            (Token::Text("Content".to_string()), 11..18),
+            (Token::Newline, 18..19),
+            (Token::Dedent(vec![]), 0..0),
+        ];
+
+        let line_tokens = group_into_lines(tokens);
+
+        assert_eq!(line_tokens.len(), 4); // Title, Indent, Content, Dedent
+        assert_eq!(line_tokens[0].line_type, LineType::SubjectLine);
+        assert_eq!(line_tokens[1].line_type, LineType::Indent);
+        assert_eq!(line_tokens[2].line_type, LineType::ParagraphLine);
+        assert_eq!(line_tokens[3].line_type, LineType::Dedent);
+    }
+
+    #[test]
+    fn test_group_with_blank_line_token() {
+        let tokens = vec![
+            (Token::Text("Line1".to_string()), 0..5),
+            (Token::Newline, 5..6),
+            (
+                Token::BlankLine(vec![(Token::Whitespace, 6..7), (Token::Newline, 7..8)]),
+                0..0,
+            ),
+            (Token::Text("Line2".to_string()), 8..13),
+            (Token::Newline, 13..14),
+        ];
+
+        let line_tokens = group_into_lines(tokens);
+
+        assert_eq!(line_tokens.len(), 3);
+        assert_eq!(line_tokens[0].line_type, LineType::ParagraphLine);
+        assert_eq!(line_tokens[1].line_type, LineType::BlankLine);
+        assert_eq!(line_tokens[2].line_type, LineType::ParagraphLine);
+    }
+
+    #[test]
+    fn test_mapper_integration() {
+        let tokens = vec![
+            (Token::Text("Title".to_string()), 0..5),
+            (Token::Colon, 5..6),
+            (Token::Newline, 6..7),
+        ];
+
+        let mut mapper = LineTokenGroupingMapper::new();
+        let result = mapper.map_flat(tokens).unwrap();
+
+        match result {
+            TokenStream::Grouped(groups) => {
+                assert_eq!(groups.len(), 1);
+                assert_eq!(groups[0].source_tokens.len(), 3);
+                match groups[0].group_type {
+                    GroupType::Line(LineType::SubjectLine) => {}
+                    _ => panic!("Expected SubjectLine"),
+                }
+            }
+            _ => panic!("Expected Grouped stream"),
+        }
+    }
+
+    #[test]
+    fn test_dialog_detection() {
+        let tokens = vec![
+            (Token::Dash, 0..1),
+            (Token::Whitespace, 1..2),
+            (Token::Text("Hello".to_string()), 2..7),
+            (Token::Period, 7..8),
+            (Token::Period, 8..9),
+            (Token::Newline, 9..10),
+            (Token::Dash, 10..11),
+            (Token::Whitespace, 11..12),
+            (Token::Text("World".to_string()), 12..17),
+            (Token::Newline, 17..18),
+        ];
+
+        let line_tokens = group_into_lines(tokens);
+
+        assert_eq!(line_tokens.len(), 2);
+        assert_eq!(line_tokens[0].line_type, LineType::DialogLine); // First list with double punctuation
+        assert_eq!(line_tokens[1].line_type, LineType::DialogLine); // Subsequent list item in dialog
+    }
+
+    #[test]
+    fn test_ordered_list_markers() {
+        // Number-based
+        let tokens = vec![
+            Token::Number("1".to_string()),
+            Token::Period,
+            Token::Whitespace,
+            Token::Text("Item".to_string()),
+        ];
+        assert!(has_list_marker(&tokens));
+
+        // Letter-based
+        let tokens = vec![
+            Token::Text("a".to_string()),
+            Token::Period,
+            Token::Whitespace,
+            Token::Text("Item".to_string()),
+        ];
+        assert!(has_list_marker(&tokens));
+
+        // Roman numeral
+        let tokens = vec![
+            Token::Text("I".to_string()),
+            Token::Period,
+            Token::Whitespace,
+            Token::Text("Item".to_string()),
+        ];
+        assert!(has_list_marker(&tokens));
+
+        // With close paren
+        let tokens = vec![
+            Token::Number("1".to_string()),
+            Token::CloseParen,
+            Token::Whitespace,
+            Token::Text("Item".to_string()),
+        ];
+        assert!(has_list_marker(&tokens));
+    }
+
+    #[test]
+    fn test_preserves_ranges() {
+        let tokens = vec![
+            (Token::Text("Hello".to_string()), 0..5),
+            (Token::Whitespace, 5..6),
+            (Token::Text("world".to_string()), 6..11),
+            (Token::Newline, 11..12),
+        ];
+
+        let line_tokens = group_into_lines(tokens);
+
+        assert_eq!(line_tokens[0].token_spans[0], 0..5);
+        assert_eq!(line_tokens[0].token_spans[1], 5..6);
+        assert_eq!(line_tokens[0].token_spans[2], 6..11);
+        assert_eq!(line_tokens[0].token_spans[3], 11..12);
+    }
+}
