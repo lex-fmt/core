@@ -13,17 +13,18 @@
 
 use super::{declarative_grammar, tree_builder};
 use crate::lex::lexing::tokens_core::Token;
-use crate::lex::lexing::tokens_linebased::LineContainer;
+use crate::lex::lexing::tokens_linebased::{LineContainer, LineToken};
 use crate::lex::parsing::builder::AstBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
+use crate::lex::pipeline::stream::GroupType;
 use std::ops::Range as ByteRange;
 
-/// Parse from flat token stream (new simplified pipeline).
+/// Parse from flat token stream.
 ///
-/// This is the new entry point that accepts flat tokens and builds
-/// the LineContainer tree internally. This simplifies the pipeline
-/// by moving tree-building logic into the parser.
+/// This entry point accepts flat tokens with Indent/Dedent markers.
+/// The lexing pipeline should have already applied LineTokenGroupingMapper
+/// to group tokens into lines, so the tokens should come as TokenStream::Grouped.
 ///
 /// # Arguments
 /// * `tokens` - Flat vector of (Token, Range) pairs from pipeline
@@ -35,11 +36,49 @@ pub fn parse_from_flat_tokens(
     tokens: Vec<(Token, ByteRange<usize>)>,
     source: &str,
 ) -> Result<Document, String> {
-    // Build LineContainer tree from flat tokens
-    let tree = tree_builder::build_line_container(tokens);
+    // For compatibility during transition: if we receive flat tokens directly,
+    // we need to convert them to LineTokens first
+    // This should not happen once pipeline is properly wired
+    // TODO: Remove this compatibility layer once pipeline is fully updated
+
+    // This is a temporary shim - ideally the pipeline provides grouped tokens
+    let line_tokens = convert_flat_to_line_tokens(tokens);
+
+    // Build LineContainer tree from line tokens
+    let tree = tree_builder::build_line_container(line_tokens);
 
     // Parse using existing logic
     parse_experimental_v2(tree, source)
+}
+
+/// Temporary helper to convert flat tokens to LineTokens
+/// This is for backward compatibility during migration
+fn convert_flat_to_line_tokens(tokens: Vec<(Token, ByteRange<usize>)>) -> Vec<LineToken> {
+    // This duplicates logic that should be in the pipeline
+    // Used only during transition period
+    use crate::lex::lexing::transformations::LineTokenGroupingMapper;
+    use crate::lex::pipeline::mapper::StreamMapper;
+    use crate::lex::pipeline::stream::TokenStream;
+
+    let mut mapper = LineTokenGroupingMapper::new();
+    let result = mapper.map_flat(tokens).expect("Line grouping failed");
+
+    match result {
+        TokenStream::Grouped(groups) => groups
+            .into_iter()
+            .map(|g| {
+                let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
+                    g.source_tokens.into_iter().unzip();
+                let GroupType::Line(line_type) = g.group_type;
+                LineToken {
+                    source_tokens,
+                    token_spans,
+                    line_type,
+                }
+            })
+            .collect(),
+        _ => panic!("Expected Grouped stream from LineTokenGroupingMapper"),
+    }
 }
 
 /// Parse using the new declarative grammar engine (Delivery 2).

@@ -119,6 +119,7 @@ pub fn token_stream_to_flat(
 ) -> Result<Vec<(Token, ByteRange<usize>)>, AdapterError> {
     match stream {
         TokenStream::Flat(tokens) => Ok(tokens),
+        TokenStream::Grouped(_) => Err(AdapterError::ExpectedFlat),
         TokenStream::Tree(_) => Err(AdapterError::ExpectedFlat),
     }
 }
