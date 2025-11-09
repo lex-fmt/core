@@ -416,7 +416,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_with_reference_analyzer() {
-        use crate::lex::pipeline::mappers::*;
+        use crate::lex::lexing::transformations::*;
 
         let mut pipeline = Pipeline::new()
             .add_transformation(NormalizeWhitespaceMapper::new())
@@ -440,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_with_linebased_analyzer() {
-        use crate::lex::pipeline::mappers::*;
+        use crate::lex::lexing::transformations::*;
 
         // Linebased analyzer now builds the tree internally, so we only need flat transformations
         let mut pipeline = Pipeline::new()

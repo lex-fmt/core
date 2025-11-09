@@ -2,12 +2,12 @@
 
 use crate::lex::formats::{FormatError, FormatRegistry};
 use crate::lex::lexing::base_tokenization;
+use crate::lex::lexing::transformations::*;
 use crate::lex::parsing::{builder, Document};
 use crate::lex::pipeline::config::{
     AnalysisSpec, BuilderSpec, ConfigRegistry, PipelineSpec, TargetSpec,
 };
 use crate::lex::pipeline::mapper::walk_stream;
-use crate::lex::pipeline::mappers::*;
 use crate::lex::pipeline::stream::TokenStream;
 use std::fmt;
 

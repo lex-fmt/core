@@ -39,6 +39,7 @@ pub mod base_tokenization;
 pub mod common;
 pub mod tokens_core;
 pub mod tokens_linebased;
+pub mod transformations;
 
 pub use base_tokenization::tokenize;
 pub use common::{LexError, Lexer, LexerOutput};
@@ -68,10 +69,10 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
 /// 3. SemanticIndentation - convert Indentation tokens with location tracking
 /// 4. TransformBlankLines - convert Newline sequences with location tracking
 pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
-    use crate::lex::pipeline::stream::TokenStream;
-    use crate::lex::pipeline::{
+    use crate::lex::lexing::transformations::{
         BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper,
     };
+    use crate::lex::pipeline::stream::TokenStream;
 
     // Start with TokenStream::Flat and chain transformations
     let mut current_stream = TokenStream::Flat(tokens);
