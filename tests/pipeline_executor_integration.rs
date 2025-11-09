@@ -24,11 +24,11 @@ impl SampleSpec {
     fn load(&self) -> String {
         match *self {
             SampleSpec::Trifecta { number, .. } => {
-                Lexplore::must_get_document_source_for(DocumentType::Trifecta, number)
+                Lexplore::load_document(DocumentType::Trifecta, number).source()
             }
             SampleSpec::Element {
                 element, number, ..
-            } => Lexplore::must_get_source_for(element, number),
+            } => Lexplore::load(element, number).source(),
         }
     }
 
@@ -42,7 +42,7 @@ impl SampleSpec {
 #[test]
 fn test_executor_on_sample_paragraphs() {
     let executor = PipelineExecutor::new();
-    let source = Lexplore::must_get_document_source_for(DocumentType::Trifecta, 0);
+    let source = Lexplore::trifecta(0).source();
 
     let result = executor.execute("default", &source);
     assert!(
@@ -64,7 +64,7 @@ fn test_executor_on_sample_paragraphs() {
 #[test]
 fn test_executor_on_sample_lists() {
     let executor = PipelineExecutor::new();
-    let source = Lexplore::must_get_document_source_for(DocumentType::Trifecta, 40);
+    let source = Lexplore::trifecta(40).source();
 
     let result = executor.execute("default", &source);
     assert!(
@@ -83,7 +83,7 @@ fn test_executor_on_sample_lists() {
 #[test]
 fn test_executor_on_sample_definitions() {
     let executor = PipelineExecutor::new();
-    let source = Lexplore::must_get_source_for(ElementType::Definition, 1);
+    let source = Lexplore::definition(1).source();
 
     let result = executor.execute("default", &source);
     assert!(
@@ -102,7 +102,7 @@ fn test_executor_on_sample_definitions() {
 #[test]
 fn test_executor_on_sample_sessions() {
     let executor = PipelineExecutor::new();
-    let source = Lexplore::must_get_document_source_for(DocumentType::Trifecta, 10);
+    let source = Lexplore::trifecta(10).source();
 
     let result = executor.execute("default", &source);
     assert!(result.is_ok());
@@ -252,7 +252,7 @@ fn test_token_output_configs() {
 #[test]
 fn test_linebased_config_on_sample() {
     let executor = PipelineExecutor::new();
-    let source = Lexplore::must_get_document_source_for(DocumentType::Trifecta, 0);
+    let source = Lexplore::trifecta(0).source();
 
     let result = executor.execute("linebased", &source);
     assert!(

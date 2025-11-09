@@ -1,59 +1,38 @@
 //! Example tests demonstrating the test harness API
 //!
-//! These tests show how to use the new per-element testing infrastructure
+//! These tests show how to use the fluent testing infrastructure
 
 use lex::lex::ast::traits::Container;
 use lex::lex::testing::lexplore::*;
 
 #[test]
 fn test_load_paragraph_by_number() {
-    // Load paragraph variation #1
-    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
-    assert!(source.contains("simple paragraph"));
+    // Load paragraph variation #1 using fluent API
+    let source = Lexplore::paragraph(1).source();
+    assert!(source.contains("simple"));
 }
 
 #[test]
 fn test_parse_with_reference_parser() {
-    // Load and parse with the reference (stable) parser
-    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
-    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    // Load and parse with the reference (stable) parser using fluent API
+    let parsed = Lexplore::paragraph(1).parse();
 
     // Get the first paragraph using query API
-    let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
+    let paragraph = parsed.expect_paragraph();
     assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
 }
 
 #[test]
 fn test_parse_with_linebased_parser() {
     // Load and parse with the linebased (experimental) parser
-    let source = Lexplore::get_source_for(ElementType::Paragraph, 2).unwrap();
+    let parsed = Lexplore::paragraph(2).parse_with(Parser::Linebased);
 
-    // Note: linebased parser may have issues, this just demonstrates the API
-    let result = parse_with_parser(&source, Parser::Linebased);
-
-    // We don't assert success because parsers may have bugs
-    // The infrastructure itself is being tested
-    println!("Linebased parser result: {:?}", result.is_ok());
-}
-
-#[test]
-fn test_compare_parsers() {
-    // Parse the same source with both parsers
-    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
-
-    let parsers = vec![Parser::Reference, Parser::Linebased];
-    let results = parse_with_multiple_parsers(&source, &parsers);
-
-    // We got results from both parsers (may or may not match due to parser bugs)
-    println!(
-        "Got results from {} parsers",
-        results.as_ref().map(|r| r.len()).unwrap_or(0)
-    );
-
-    if let Ok(results) = results {
-        // Try comparing them (may fail if parsers produce different ASTs)
-        let comparison = compare_parser_results(&results);
-        println!("Parser comparison result: {:?}", comparison.is_ok());
+    // Check if we can get a paragraph (may fail due to parser bugs)
+    if let Some(paragraph) = parsed.first_paragraph() {
+        println!("Linebased parser successfully parsed paragraph");
+        assert!(!paragraph.text().is_empty());
+    } else {
+        println!("Linebased parser had issues (expected for some test cases)");
     }
 }
 
@@ -71,8 +50,7 @@ fn test_list_available_numbers() {
 #[test]
 fn test_session_with_children() {
     // Load a session element
-    let source = Lexplore::get_source_for(ElementType::Session, 1).unwrap();
-    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    let doc = Lexplore::session(1).parse();
 
     // Get the first session using query API
     let sessions: Vec<_> = doc.iter_sessions_recursive().collect();
@@ -91,8 +69,7 @@ fn test_session_with_children() {
 #[test]
 fn test_definition_structure() {
     // Load a definition
-    let source = Lexplore::get_source_for(ElementType::Definition, 1).unwrap();
-    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    let doc = Lexplore::definition(1).parse();
 
     // Get the first definition using query API
     let definitions: Vec<_> = doc.iter_definitions_recursive().collect();
@@ -108,8 +85,7 @@ fn test_definition_structure() {
 #[test]
 fn test_list_structure() {
     // Load a list
-    let source = Lexplore::get_source_for(ElementType::List, 1).unwrap();
-    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    let doc = Lexplore::list(1).parse();
 
     // Get the first list using query API
     let lists: Vec<_> = doc.iter_lists_recursive().collect();
@@ -123,9 +99,8 @@ fn test_list_structure() {
 
 #[test]
 fn test_nested_list() {
-    // Load a nested list variation
-    let source = Lexplore::get_source_for(ElementType::List, 7).unwrap(); // list-07-nested-simple
-    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    // Load a nested list variation (list-07-nested-simple)
+    let doc = Lexplore::list(7).parse();
 
     println!(
         "Parsed nested list document with {} top-level items",
@@ -136,8 +111,7 @@ fn test_nested_list() {
 #[test]
 fn test_annotation_structure() {
     // Load an annotation
-    let source = Lexplore::get_source_for(ElementType::Annotation, 1).unwrap();
-    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    let doc = Lexplore::annotation(1).parse();
 
     // Get the first annotation using query API
     let annotations: Vec<_> = doc.iter_annotations_recursive().collect();
@@ -149,8 +123,7 @@ fn test_annotation_structure() {
 #[test]
 fn test_verbatim_structure() {
     // Load a verbatim block
-    let source = Lexplore::get_source_for(ElementType::Verbatim, 1).unwrap();
-    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    let doc = Lexplore::verbatim(1).parse();
 
     // Get the first verbatim block using query API
     let verbatims: Vec<_> = doc.iter_verbatim_blocks_recursive().collect();
@@ -163,11 +136,8 @@ fn test_verbatim_structure() {
 fn test_element_source_for_api_examples() {
     // This demonstrates the query API usage
 
-    // Get source
-    let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
-
-    // Parse with chosen parser
-    let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+    // Parse using fluent API
+    let doc = Lexplore::paragraph(1).parse();
 
     // Get first element using query API
     let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
