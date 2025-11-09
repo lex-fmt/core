@@ -37,6 +37,7 @@
 
 pub mod base_tokenization;
 pub mod common;
+pub mod pipeline;
 pub mod tokens_core;
 pub mod tokens_linebased;
 pub mod transformations;

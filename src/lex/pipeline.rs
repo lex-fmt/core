@@ -16,7 +16,8 @@ pub mod mapper;
 pub mod stream;
 
 // Re-export low-level pipeline builder
-pub use builder::{AnalyzerConfig, Pipeline, PipelineOutput};
+pub use crate::lex::parsing::pipeline::AnalyzerConfig;
+pub use builder::{Pipeline, PipelineOutput};
 
 // Re-export config-based processing API (primary interface)
 pub use config::{ConfigRegistry, PipelineSpec, ProcessingConfig, TargetSpec};
