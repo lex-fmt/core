@@ -94,20 +94,20 @@ The harness has utilities tailored for different document types. They allow you 
 
 
 	1. Isolated Elements
-	
-	The harness includes facilities for individual elements: 
-        // Gets the source string 
-	 	paragraph = Lexplore.paragraph(1).parse().expect_paragraph()
+
+	The harness includes facilities for individual elements:
+        // Gets the element directly
+	 	paragraph = Lexplore.get_paragraph(1)
     :: rust ::
 
-	This one liner will: 
+	This one liner will:
 		- Find the element source string 1 for paragraphs in the test library.
         - Parse it with the reference parser.
-        - Return the first node of that element type.
+        - Return the element directly.
 
-    Note that this requires the document to follow the one relevant element rule to be most useful. (of course the parse will return the full AST, but this is a shortcut to get the first node of that element type.)
+    Note that this requires the document to follow the one relevant element rule to be most useful.
 	This , combined with the deep AST assertion library, allows for consice, robust and deep tests:
-		verbatim = Lexplore.verbatim(1).parse().expect_verbatim();
+		verbatim = Lexplore.get_verbatim(1);
          verbatim.assert_verbatim_block()
              .subject("This is the hello world example")
              .label("python");
