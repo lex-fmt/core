@@ -32,7 +32,7 @@
 
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{Annotation, ListItem, Parameter};
-use crate::lex::lexing::linebased::tokens_linebased::LineToken;
+use crate::lex::lexing::tokens_linebased::LineToken;
 use crate::lex::parsing::ContentItem;
 
 use super::builders;
@@ -698,8 +698,8 @@ pub fn build_verbatim_block_from_text(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexing::linebased::tokens_linebased::LineType;
     use crate::lex::lexing::tokens_core::Token;
+    use crate::lex::lexing::tokens_linebased::LineType;
 
     fn make_line_token(tokens: Vec<Token>, spans: Vec<std::ops::Range<usize>>) -> LineToken {
         LineToken {

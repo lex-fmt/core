@@ -1,51 +1,14 @@
-//! Low-level TokenStream transformation pipeline builder
+//! Unified pipeline builder orchestrating lexing and parsing stages.
 //!
-//! This module provides the `Pipeline` builder that chains StreamMapper transformations
-//! together. This is the low-level interface for building TokenStream transformation
-//! pipelines (NormalizeWhitespace, SemanticIndentation, ToLineTokens, etc.).
-//!
-//! For high-level lexer/parser orchestration (selecting lexer and parser combinations),
-//! see the `orchestration` module which provides the `LexPipeline` API.
-//!
-//! # Design
-//!
-//! The pipeline:
-//! 1. Calls base tokenization to get raw `Vec<(Token, Range)>` pairs
-//! 2. Converts to `TokenStream::Flat`
-//! 3. Applies each transformation in sequence via StreamMapper trait
-//! 4. Returns final `TokenStream` (can be Flat or Tree depending on transformations)
-//!
-//! # Architecture
-//!
-//! This is the **internal transformation infrastructure**. It handles the low-level
-//! token transformations that happen after base tokenization and before parsing.
-//! For executing named configurations, see `PipelineExecutor` in the executor module.
-//!
-//! # Examples
-//!
-//! ```ignore
-//! use lex::lex::pipeline::Pipeline;
-//!
-//! let mut pipeline = Pipeline::new()
-//!     .add_transformation(NormalizeWhitespaceMapper::new())
-//!     .add_transformation(SemanticIndentationMapper::new());
-//!
-//! let result = pipeline.run("hello world")?;
-//! ```
+//! This module wires the stage-specific pipelines (lexing, parsing, building)
+//! together while keeping the ergonomic builder-style API that internal tools
+//! and tests rely on.
 
-use crate::lex::lexing::base_tokenization;
-use crate::lex::parsing::{builder, Document};
+use crate::lex::lexing::pipeline::LexingPipeline;
+use crate::lex::parsing::pipeline::{self, AnalyzerConfig};
+use crate::lex::parsing::Document;
 use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
 use crate::lex::pipeline::stream::TokenStream;
-
-/// Which analyzer to use for syntactic analysis
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AnalyzerConfig {
-    /// Reference combinator analyzer
-    Reference,
-    /// Linebased declarative grammar analyzer
-    Linebased,
-}
 
 /// Output from pipeline execution
 #[derive(Debug)]
@@ -56,146 +19,48 @@ pub enum PipelineOutput {
     Document(Document),
 }
 
-/// A pipeline that chains StreamMapper transformations together.
-///
-/// The pipeline handles the complete flow from source text to transformed TokenStream:
-/// 1. Base tokenization (lexing)
-/// 2. Conversion to TokenStream
-/// 3. Sequential application of transformations
-/// 4. Optional analysis and building to AST
-///
-/// Transformations are applied in the order they were added via `add_transformation`.
+/// Pipeline orchestrator that delegates to stage-specific pipelines.
 pub struct Pipeline {
-    /// The sequence of transformations to apply
-    transformations: Vec<Box<dyn StreamMapper>>,
-    /// Optional analyzer to run after transformations
+    lexing: LexingPipeline,
     analyzer: Option<AnalyzerConfig>,
 }
 
 impl Pipeline {
     /// Create a new empty pipeline.
-    ///
-    /// The pipeline starts with no transformations. Add transformations using
-    /// `add_transformation()` before calling `run()`.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// let pipeline = Pipeline::new();
-    /// ```
     pub fn new() -> Self {
-        Pipeline {
-            transformations: Vec::new(),
+        Self {
+            lexing: LexingPipeline::new(),
             analyzer: None,
         }
     }
 
-    /// Add a transformation to the pipeline.
-    ///
-    /// Transformations are applied in the order they're added. This method uses
-    /// the builder pattern, allowing chaining:
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// let pipeline = Pipeline::new()
-    ///     .add_transformation(FirstMapper::new())
-    ///     .add_transformation(SecondMapper::new());
-    /// ```
-    ///
-    /// # Arguments
-    ///
-    /// * `mapper` - A StreamMapper implementation to add to the pipeline
+    /// Add a lexing transformation. Transformations execute in insertion order.
     pub fn add_transformation<T: StreamMapper + 'static>(mut self, mapper: T) -> Self {
-        self.transformations.push(Box::new(mapper));
+        self.lexing.add_transformation(mapper);
         self
     }
 
-    /// Configure the pipeline to analyze tokens and build an AST.
-    ///
-    /// If an analyzer is configured, `run()` will return `PipelineOutput::Document`.
-    /// Otherwise, it returns `PipelineOutput::Tokens`.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// let pipeline = Pipeline::new()
-    ///     .add_transformation(NormalizeWhitespaceMapper::new())
-    ///     .with_analyzer(AnalyzerConfig::Reference);
-    ///
-    /// let result = pipeline.run(source)?; // Returns Document
-    /// ```
+    /// Configure the pipeline to run an analyzer after lexing.
     pub fn with_analyzer(mut self, analyzer: AnalyzerConfig) -> Self {
         self.analyzer = Some(analyzer);
         self
     }
 
-    /// Run the pipeline on source text.
-    ///
-    /// This performs the complete transformation flow:
-    /// 1. Tokenize source using base_tokenization
-    /// 2. Convert tokens to TokenStream::Flat
-    /// 3. Apply each transformation in sequence
-    /// 4. Optionally analyze and build AST (if analyzer configured)
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - The source text to tokenize and transform
-    ///
-    /// # Returns
-    ///
-    /// `PipelineOutput::Tokens` if no analyzer configured, or
-    /// `PipelineOutput::Document` if analyzer configured.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// // Tokens only
-    /// let mut pipeline = Pipeline::new()
-    ///     .add_transformation(SomeMapper::new());
-    /// let result = pipeline.run("hello world")?; // Returns Tokens
-    ///
-    /// // Full analysis and building
-    /// let mut pipeline = Pipeline::new()
-    ///     .add_transformation(SomeMapper::new())
-    ///     .with_analyzer(AnalyzerConfig::Reference);
-    /// let result = pipeline.run("hello world")?; // Returns Document
-    /// ```
+    /// Run the pipeline on the provided source.
     pub fn run(&mut self, source: &str) -> Result<PipelineOutput, TransformationError> {
-        // Step 1: Base tokenization
-        let tokens = base_tokenization::tokenize(source);
-
-        // Step 2: Convert to TokenStream::Flat
-        let mut stream = TokenStream::Flat(tokens);
-
-        // Step 3: Apply each transformation in sequence
-        for transformation in &mut self.transformations {
-            stream = crate::lex::pipeline::mapper::walk_stream(stream, transformation.as_mut())?;
-        }
-
-        // Step 4: If analyzer configured, analyze and build AST
+        let stream = self.lexing.run(source)?;
         match self.analyzer {
             None => Ok(PipelineOutput::Tokens(stream)),
-            Some(AnalyzerConfig::Reference) => {
-                let tokens = stream.unroll();
-                let parse_node =
-                    crate::lex::parsing::reference::parse(tokens, source).map_err(|_| {
-                        TransformationError::Error("Reference analyzer failed".to_string())
-                    })?;
-                let builder = builder::AstBuilder::new(source);
-                let doc = builder.build(parse_node);
-                Ok(PipelineOutput::Document(doc))
-            }
-            Some(AnalyzerConfig::Linebased) => {
-                // New simplified path: parser builds tree internally
-                let tokens = stream.unroll();
-                let doc = crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source)
-                    .map_err(|e| {
-                        TransformationError::Error(format!("Linebased analyzer failed: {}", e))
-                    })?;
+            Some(analyzer) => {
+                let doc = pipeline::analyze(stream, source, analyzer)?;
                 Ok(PipelineOutput::Document(doc))
             }
         }
+    }
+
+    /// Number of transformations registered in the underlying lexing pipeline.
+    pub fn transformation_count(&self) -> usize {
+        self.lexing.transformation_count()
     }
 }
 
@@ -209,6 +74,7 @@ impl Default for Pipeline {
 mod tests {
     use super::*;
     use crate::lex::lexing::tokens_core::Token;
+    use crate::lex::pipeline::stream::TokenStream;
     use std::ops::Range as ByteRange;
 
     // Dummy mapper for testing - counts tokens
@@ -218,7 +84,7 @@ mod tests {
 
     impl TokenCounterMapper {
         fn new() -> Self {
-            TokenCounterMapper { count: 0 }
+            Self { count: 0 }
         }
     }
 
@@ -271,13 +137,13 @@ mod tests {
     #[test]
     fn test_pipeline_new() {
         let pipeline = Pipeline::new();
-        assert_eq!(pipeline.transformations.len(), 0);
+        assert_eq!(pipeline.transformation_count(), 0);
     }
 
     #[test]
     fn test_pipeline_default() {
         let pipeline = Pipeline::default();
-        assert_eq!(pipeline.transformations.len(), 0);
+        assert_eq!(pipeline.transformation_count(), 0);
     }
 
     #[test]
@@ -286,7 +152,7 @@ mod tests {
             .add_transformation(TokenCounterMapper::new())
             .add_transformation(UppercaseMapper);
 
-        assert_eq!(pipeline.transformations.len(), 2);
+        assert_eq!(pipeline.transformation_count(), 2);
     }
 
     #[test]
@@ -299,7 +165,6 @@ mod tests {
         match result.unwrap() {
             PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
                 assert!(!tokens.is_empty());
-                // Should have Text("hello"), Whitespace, Text("world") at minimum
                 assert!(tokens.len() >= 3);
             }
             _ => panic!("Expected Tokens output with Flat stream from empty pipeline"),
@@ -315,7 +180,6 @@ mod tests {
         assert!(result.is_ok());
         match result.unwrap() {
             PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
-                // Find the text token and verify it's uppercase
                 let text_tokens: Vec<_> = tokens
                     .iter()
                     .filter_map(|(token, _)| match token {
@@ -343,7 +207,6 @@ mod tests {
         assert!(result.is_ok());
         match result.unwrap() {
             PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
-                // Verify uppercase worked
                 let has_uppercase = tokens.iter().any(|(token, _)| match token {
                     Token::Text(s) => s.chars().any(|c| c.is_uppercase()),
                     _ => false,
@@ -376,7 +239,6 @@ mod tests {
         assert!(result.is_ok());
         match result.unwrap() {
             PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
-                // Empty source should produce minimal/no tokens
                 assert!(tokens.is_empty() || tokens.len() <= 1);
             }
             _ => panic!("Expected Tokens output with Flat stream"),
@@ -391,7 +253,7 @@ mod tests {
             .add_transformation(UppercaseMapper)
             .add_transformation(TokenCounterMapper::new());
 
-        assert_eq!(pipeline.transformations.len(), 3);
+        assert_eq!(pipeline.transformation_count(), 3);
     }
 
     #[test]
@@ -402,7 +264,6 @@ mod tests {
         assert!(result.is_ok());
         match result.unwrap() {
             PipelineOutput::Tokens(TokenStream::Flat(tokens)) => {
-                // Verify ranges are valid
                 for (_, range) in tokens {
                     assert!(range.start <= range.end);
                     assert!(range.end <= "hello".len());
@@ -412,11 +273,9 @@ mod tests {
         }
     }
 
-    // NEW TESTS: Analyzer support
-
     #[test]
     fn test_pipeline_with_reference_analyzer() {
-        use crate::lex::pipeline::mappers::*;
+        use crate::lex::lexing::transformations::*;
 
         let mut pipeline = Pipeline::new()
             .add_transformation(NormalizeWhitespaceMapper::new())
@@ -440,9 +299,8 @@ mod tests {
 
     #[test]
     fn test_pipeline_with_linebased_analyzer() {
-        use crate::lex::pipeline::mappers::*;
+        use crate::lex::lexing::transformations::*;
 
-        // Linebased analyzer now builds the tree internally, so we only need flat transformations
         let mut pipeline = Pipeline::new()
             .add_transformation(NormalizeWhitespaceMapper::new())
             .add_transformation(SemanticIndentationMapper::new())

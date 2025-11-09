@@ -11,6 +11,7 @@
 
 pub mod api;
 pub mod location;
+pub mod pipeline;
 
 pub(super) mod builders;
 pub(super) mod extraction;
