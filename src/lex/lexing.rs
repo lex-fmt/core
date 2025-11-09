@@ -10,7 +10,6 @@
 //! The pipeline consists of:
 //! 1. Core tokenization using logos lexer
 //! 2. Common Transformation pipeline:
-//!    - Whitespace remainder processing ./transformations/normalize_whitespace.rs
 //!    - Indentation transformation (Indent -> Indent/Dedent) ./transformations/sem_indentation.rs
 //!    - Blank line transformation (consecutive Newlines -> BlankLine) ./transformations/transform_blanklines.rs
 //! 3. Line-based pipeline (linebased):
@@ -72,19 +71,11 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
 /// 3. SemanticIndentation - convert Indentation tokens with location tracking
 /// 4. TransformBlankLines - convert Newline sequences with location tracking
 pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
-    use crate::lex::lexing::transformations::{
-        BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper,
-    };
+    use crate::lex::lexing::transformations::{BlankLinesMapper, SemanticIndentationMapper};
     use crate::lex::pipeline::stream::TokenStream;
 
     // Start with TokenStream::Flat and chain transformations
     let mut current_stream = TokenStream::Flat(tokens);
-
-    // Stage 1: NormalizeWhitespace
-    let mut normalize_mapper = NormalizeWhitespaceMapper::new();
-    current_stream =
-        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut normalize_mapper)
-            .expect("NormalizeWhitespace transformation failed");
 
     // Stage 2: SemanticIndentation
     let mut semantic_indent_mapper = SemanticIndentationMapper::new();
