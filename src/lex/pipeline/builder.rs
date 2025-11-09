@@ -278,7 +278,6 @@ mod tests {
         use crate::lex::lexing::transformations::*;
 
         let mut pipeline = Pipeline::new()
-            .add_transformation(NormalizeWhitespaceMapper::new())
             .add_transformation(SemanticIndentationMapper::new())
             .add_transformation(BlankLinesMapper::new())
             .with_analyzer(AnalyzerConfig::Reference);
@@ -302,7 +301,6 @@ mod tests {
         use crate::lex::lexing::transformations::*;
 
         let mut pipeline = Pipeline::new()
-            .add_transformation(NormalizeWhitespaceMapper::new())
             .add_transformation(SemanticIndentationMapper::new())
             .add_transformation(BlankLinesMapper::new())
             .with_analyzer(AnalyzerConfig::Linebased);

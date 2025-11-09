@@ -129,8 +129,6 @@ impl PipelineExecutor {
             }
             PipelineSpec::Indentation => {
                 // Indentation pipeline: no line grouping
-                stream = walk_stream(stream, &mut NormalizeWhitespaceMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 stream = walk_stream(stream, &mut SemanticIndentationMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 stream = walk_stream(stream, &mut BlankLinesMapper::new())
@@ -139,8 +137,6 @@ impl PipelineExecutor {
             }
             PipelineSpec::LinebasedFlat | PipelineSpec::Linebased => {
                 // Linebased pipeline: add line token grouping after base transformations
-                stream = walk_stream(stream, &mut NormalizeWhitespaceMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 stream = walk_stream(stream, &mut SemanticIndentationMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 stream = walk_stream(stream, &mut BlankLinesMapper::new())
