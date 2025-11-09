@@ -28,7 +28,7 @@
 //! ```
 
 use crate::lex::lexing::tokens_core::Token;
-use crate::lex::pipeline::stream::{TokenStream, TokenStreamNode};
+use crate::lex::pipeline::stream::{GroupedTokens, TokenStream, TokenStreamNode};
 use std::fmt;
 use std::ops::Range as ByteRange;
 
@@ -97,6 +97,25 @@ pub trait StreamMapper {
         tokens: Vec<(Token, ByteRange<usize>)>,
     ) -> Result<TokenStream, TransformationError> {
         Ok(TokenStream::Flat(tokens))
+    }
+
+    /// Transform a grouped token stream.
+    ///
+    /// Called when the walker encounters a `TokenStream::Grouped` variant.
+    /// Default implementation passes groups through unchanged.
+    ///
+    /// # Arguments
+    ///
+    /// * `groups` - The grouped tokens to transform
+    ///
+    /// # Returns
+    ///
+    /// The transformed token stream (can be flat, grouped, or tree)
+    fn map_grouped(
+        &mut self,
+        groups: Vec<GroupedTokens>,
+    ) -> Result<TokenStream, TransformationError> {
+        Ok(TokenStream::Grouped(groups))
     }
 
     /// Called in pre-order (before visiting children).
@@ -170,6 +189,7 @@ pub fn walk_stream(
 ) -> Result<TokenStream, TransformationError> {
     match stream {
         TokenStream::Flat(tokens) => mapper.map_flat(tokens),
+        TokenStream::Grouped(groups) => mapper.map_grouped(groups),
         TokenStream::Tree(nodes) => {
             let new_nodes = nodes
                 .into_iter()
