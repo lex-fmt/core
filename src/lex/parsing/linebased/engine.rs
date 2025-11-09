@@ -12,8 +12,8 @@
 //! making it testable and maintainable independently.
 
 use super::{declarative_grammar, tree_builder};
-use crate::lex::lexing::linebased::tokens_linebased::LineContainer;
 use crate::lex::lexing::tokens_core::Token;
+use crate::lex::lexing::tokens_linebased::LineContainer;
 use crate::lex::parsing::builder::AstBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
