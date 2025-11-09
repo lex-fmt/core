@@ -30,6 +30,7 @@ pub mod builder;
 pub mod common;
 pub mod ir;
 pub mod linebased;
+pub mod pipeline;
 pub mod reference;
 
 // Re-export common parser interfaces

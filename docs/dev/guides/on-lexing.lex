@@ -40,19 +40,19 @@ Lexing
 		Handles whitespace remainder tokens from logos
 		Converts WhitespaceRemainder to Whitespace
 		Simple token replacement
-		:: file src/lex/pipeline/mappers/normalize_whitespace.rs ::
+		:: file src/lex/lexing/transformations/normalize_whitespace.rs ::
 
 	SemanticIndentation:
 		Converts raw Indentation tokens into semantic Indent/Dedent pairs
 		Tracks indentation stack to detect level changes
 		Creates synthetic tokens with source_tokens preserved
-		:: file src/lex/pipeline/mappers/semantic_indentation.rs ::
+		:: file src/lex/lexing/transformations/semantic_indentation.rs ::
 
 	BlankLines:
 		Groups consecutive Newline tokens into BlankLine aggregates
 		Preserves original tokens in source_tokens field
 		Enables parsers to handle blank lines as single units
-		:: file src/lex/pipeline/mappers/blank_lines.rs ::
+		:: file src/lex/lexing/transformations/blank_lines.rs ::
 
 4. Token Streams
 
