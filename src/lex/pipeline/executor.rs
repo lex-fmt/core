@@ -127,14 +127,25 @@ impl PipelineExecutor {
                 // No transformations, return as-is
                 Ok(stream)
             }
-            PipelineSpec::Indentation | PipelineSpec::LinebasedFlat | PipelineSpec::Linebased => {
-                // All linebased specs now use the same flat pipeline
-                // Tree building is done internally by the parser
+            PipelineSpec::Indentation => {
+                // Indentation pipeline: no line grouping
                 stream = walk_stream(stream, &mut NormalizeWhitespaceMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 stream = walk_stream(stream, &mut SemanticIndentationMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 stream = walk_stream(stream, &mut BlankLinesMapper::new())
+                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
+                Ok(stream)
+            }
+            PipelineSpec::LinebasedFlat | PipelineSpec::Linebased => {
+                // Linebased pipeline: add line token grouping after base transformations
+                stream = walk_stream(stream, &mut NormalizeWhitespaceMapper::new())
+                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
+                stream = walk_stream(stream, &mut SemanticIndentationMapper::new())
+                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
+                stream = walk_stream(stream, &mut BlankLinesMapper::new())
+                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
+                stream = walk_stream(stream, &mut LineTokenGroupingMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 Ok(stream)
             }
@@ -160,10 +171,8 @@ impl PipelineExecutor {
                 Ok(builder.build(parse_node))
             }
             AnalysisSpec::Linebased => {
-                // New simplified path: pass flat tokens directly to parser
-                // The parser builds the tree internally
-                let tokens = stream.unroll();
-                crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source).map_err(
+                // Convert grouped tokens to line tokens and parse
+                crate::lex::parsing::linebased::parse_from_grouped_stream(stream, source).map_err(
                     |e| ExecutionError::ParsingFailed(format!("Linebased analyzer failed: {}", e)),
                 )
             }

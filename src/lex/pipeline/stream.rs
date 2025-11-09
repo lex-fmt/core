@@ -171,6 +171,33 @@ impl TokenStream {
             TokenStream::Tree(nodes) => nodes.iter().flat_map(|node| node.unroll()).collect(),
         }
     }
+
+    /// Convert TokenStream::Grouped to Vec<LineToken>.
+    ///
+    /// This is specifically for the linebased parser which expects LineTokens.
+    /// Returns an error if the stream is not Grouped.
+    pub fn into_line_tokens(
+        self,
+    ) -> Result<Vec<crate::lex::lexing::tokens_linebased::LineToken>, &'static str> {
+        use crate::lex::lexing::tokens_linebased::LineToken;
+
+        match self {
+            TokenStream::Grouped(groups) => Ok(groups
+                .into_iter()
+                .map(|g| {
+                    let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
+                        g.source_tokens.into_iter().unzip();
+                    let GroupType::Line(line_type) = g.group_type;
+                    LineToken {
+                        source_tokens,
+                        token_spans,
+                        line_type,
+                    }
+                })
+                .collect()),
+            _ => Err("Expected TokenStream::Grouped"),
+        }
+    }
 }
 
 impl TokenStreamNode {

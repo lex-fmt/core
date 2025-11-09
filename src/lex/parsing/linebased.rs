@@ -16,4 +16,4 @@ pub mod declarative_grammar;
 pub mod engine;
 pub mod tree_builder;
 
-pub use engine::{parse_experimental_v2, parse_from_flat_tokens};
+pub use engine::{parse_experimental_v2, parse_from_flat_tokens, parse_from_grouped_stream};
