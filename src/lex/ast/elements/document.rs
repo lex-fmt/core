@@ -160,6 +160,72 @@ impl Document {
         )
     }
 
+    // ========== Convenience "get first" methods ==========
+
+    /// Get the first paragraph in the document (returns None if not found)
+    pub fn first_paragraph(&self) -> Option<&Paragraph> {
+        self.iter_paragraphs_recursive().next()
+    }
+
+    /// Get the first session in the document (returns None if not found)
+    pub fn first_session(&self) -> Option<&Session> {
+        self.iter_sessions_recursive().next()
+    }
+
+    /// Get the first list in the document (returns None if not found)
+    pub fn first_list(&self) -> Option<&List> {
+        self.iter_lists_recursive().next()
+    }
+
+    /// Get the first definition in the document (returns None if not found)
+    pub fn first_definition(&self) -> Option<&super::Definition> {
+        self.iter_definitions_recursive().next()
+    }
+
+    /// Get the first annotation in the document (returns None if not found)
+    pub fn first_annotation(&self) -> Option<&Annotation> {
+        self.iter_annotations_recursive().next()
+    }
+
+    /// Get the first verbatim block in the document (returns None if not found)
+    pub fn first_verbatim(&self) -> Option<&Verbatim> {
+        self.iter_verbatim_blocks_recursive().next()
+    }
+
+    /// Get the first paragraph in the document, panicking if not found
+    pub fn expect_paragraph(&self) -> &Paragraph {
+        self.first_paragraph()
+            .expect("No paragraph found in document")
+    }
+
+    /// Get the first session in the document, panicking if not found
+    pub fn expect_session(&self) -> &Session {
+        self.first_session().expect("No session found in document")
+    }
+
+    /// Get the first list in the document, panicking if not found
+    pub fn expect_list(&self) -> &List {
+        self.first_list().expect("No list found in document")
+    }
+
+    /// Get the first definition in the document, panicking if not found
+    pub fn expect_definition(&self) -> &super::Definition {
+        self.first_definition()
+            .expect("No definition found in document")
+    }
+
+    /// Get the first annotation in the document, panicking if not found
+    pub fn expect_annotation(&self) -> &Annotation {
+        self.first_annotation()
+            .expect("No annotation found in document")
+    }
+
+    /// Get the first verbatim block in the document, panicking if not found
+    pub fn expect_verbatim(&self) -> &Verbatim {
+        self.first_verbatim()
+            .expect("No verbatim block found in document")
+    }
+
     // ========== Phase 2: Predicate-based Filtering Methods ==========
 
     /// Find all paragraphs matching a predicate

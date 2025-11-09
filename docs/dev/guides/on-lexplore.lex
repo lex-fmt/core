@@ -92,22 +92,26 @@ The harness has utilities tailored for different document types. They allow you 
 	Most parsing tests are about feeding a source string to the parser and checking the resulting AST.  The test harness API is designed to achieve this with the minimal amount of code.
 	 Additionally, by encapsulating much of the low level details, it makes for less brittle suite, where changes to the Lex grammar and parser instead of fixing hundreds of tests will only require the inner library changes.
 
+	The API has two forms depending on your needs:
+	- Direct element access: get_paragraph(), get_list(), etc. return the element directly
+	- Fluent pipeline: paragraph().parse(), list().tokenize() for full control over parsing/tokenization
+
 
 	1. Isolated Elements
-	
-	The harness includes facilities for individual elements: 
-        // Gets the source string 
-	 	paragraph = Lexplore.paragraph(1).parse().expect_paragraph()
+
+	For testing a single element, use the direct access API:
+        // Gets the element directly
+	 	paragraph = Lexplore.get_paragraph(1)
     :: rust ::
 
-	This one liner will: 
+	This one liner will:
 		- Find the element source string 1 for paragraphs in the test library.
         - Parse it with the reference parser.
-        - Return the first node of that element type.
+        - Return the element directly.
 
-    Note that this requires the document to follow the one relevant element rule to be most useful. (of course the parse will return the full AST, but this is a shortcut to get the first node of that element type.)
+    Note that this requires the document to follow the one relevant element rule to be most useful.
 	This , combined with the deep AST assertion library, allows for consice, robust and deep tests:
-		verbatim = Lexplore.verbatim(1).parse().expect_verbatim();
+		verbatim = Lexplore.get_verbatim(1);
          verbatim.assert_verbatim_block()
              .subject("This is the hello world example")
              .label("python");
@@ -115,20 +119,22 @@ The harness has utilities tailored for different document types. They allow you 
 
     2. Elements in Document
 
-		We can use the same api to load and parse, and the same ast assertions to verify the results. As before documents are loaded by the element type and number. 
+		When you need the full document (for iteration, tokenization, or source access), use the fluent API:
 
-		But in this case the document's position in the ast matters, hence there is no simple shortcut to get the element.
-
-		Iterate over the elements you're interested in: 
-			document = Lexplore.verbatim(8).parse(
+			document = Lexplore.verbatim(8).parse()
 			for verbatim in document.iter_verbatim_blocks() {
 				verbatim.assert_verbatim_block();
 			}
 		:: rust ::
-	     
+
+		The fluent API also provides access to source and tokens:
+			source = Lexplore.paragraph(1).source()
+			tokens = Lexplore.paragraph(1).tokenize()
+		:: rust ::
+
 
 	3. Benchmark Documents:
 
-	    Likewise, the api is to be used to load and parse full documents:
+	    Full documents use the fluent pipeline API:
 		document = Lexplore.benchmark(10).parse();
 

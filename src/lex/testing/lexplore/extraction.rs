@@ -62,13 +62,11 @@ pub fn content_items_match(item1: &ContentItem, item2: &ContentItem) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::pipeline::Parser;
     use crate::lex::testing::lexplore::loader::*;
 
     #[test]
     fn test_query_api_usage() {
-        let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
-        let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+        let doc = Lexplore::paragraph(1).parse();
 
         // Use query API directly
         let paragraph = doc.iter_paragraphs_recursive().next();
@@ -77,8 +75,7 @@ mod tests {
 
     #[test]
     fn test_paragraph_assertions() {
-        let source = Lexplore::get_source_for(ElementType::Paragraph, 1).unwrap();
-        let doc = parse_with_parser(&source, Parser::Reference).unwrap();
+        let doc = Lexplore::paragraph(1).parse();
 
         // Use query API directly
         let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
