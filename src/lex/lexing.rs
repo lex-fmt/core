@@ -37,6 +37,8 @@
 
 pub mod base_tokenization;
 pub mod common;
+pub mod line_classification;
+pub mod line_grouping;
 pub mod pipeline;
 pub mod tokens_core;
 pub mod tokens_linebased;

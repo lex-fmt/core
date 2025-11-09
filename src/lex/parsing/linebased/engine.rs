@@ -17,16 +17,40 @@ use crate::lex::lexing::tokens_linebased::LineContainer;
 use crate::lex::parsing::builder::AstBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
+use crate::lex::pipeline::stream::TokenStream;
 use std::ops::Range as ByteRange;
 
-/// Parse from flat token stream (new simplified pipeline).
+/// Parse from grouped token stream (main entry point).
 ///
-/// This is the new entry point that accepts flat tokens and builds
-/// the LineContainer tree internally. This simplifies the pipeline
-/// by moving tree-building logic into the parser.
+/// This entry point accepts TokenStream::Grouped from the lexing pipeline.
+/// The pipeline should have applied LineTokenGroupingMapper to group tokens into lines.
 ///
 /// # Arguments
-/// * `tokens` - Flat vector of (Token, Range) pairs from pipeline
+/// * `stream` - TokenStream::Grouped from lexing pipeline
+/// * `source` - The original source text (for location tracking)
+///
+/// # Returns
+/// A Document AST if successful
+pub fn parse_from_grouped_stream(stream: TokenStream, source: &str) -> Result<Document, String> {
+    // Convert grouped tokens to line tokens
+    let line_tokens = stream
+        .into_line_tokens()
+        .map_err(|e| format!("Expected grouped token stream: {}", e))?;
+
+    // Build LineContainer tree from line tokens
+    let tree = tree_builder::build_line_container(line_tokens);
+
+    // Parse using existing logic
+    parse_experimental_v2(tree, source)
+}
+
+/// Parse from flat token stream (legacy/test entry point).
+///
+/// This entry point is kept for backward compatibility with existing tests.
+/// Production code should use parse_from_grouped_stream instead.
+///
+/// # Arguments
+/// * `tokens` - Flat vector of (Token, Range) pairs
 /// * `source` - The original source text (for location tracking)
 ///
 /// # Returns
@@ -35,11 +59,16 @@ pub fn parse_from_flat_tokens(
     tokens: Vec<(Token, ByteRange<usize>)>,
     source: &str,
 ) -> Result<Document, String> {
-    // Build LineContainer tree from flat tokens
-    let tree = tree_builder::build_line_container(tokens);
+    // Apply grouping transformation inline for tests/legacy code
+    use crate::lex::lexing::transformations::LineTokenGroupingMapper;
+    use crate::lex::pipeline::mapper::StreamMapper;
 
-    // Parse using existing logic
-    parse_experimental_v2(tree, source)
+    let mut mapper = LineTokenGroupingMapper::new();
+    let stream = mapper
+        .map_flat(tokens)
+        .map_err(|e| format!("Line grouping failed: {}", e))?;
+
+    parse_from_grouped_stream(stream, source)
 }
 
 /// Parse using the new declarative grammar engine (Delivery 2).

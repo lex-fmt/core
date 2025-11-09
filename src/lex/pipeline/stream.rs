@@ -20,6 +20,29 @@ use crate::lex::lexing::tokens_core::Token;
 use crate::lex::lexing::tokens_linebased::LineType;
 use std::ops::Range as ByteRange;
 
+/// A group of tokens with associated classification.
+///
+/// Represents tokens that have been grouped together by some criteria
+/// (e.g., line boundaries) along with metadata about the group type.
+/// Each group maintains the original source tokens with their byte ranges.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupedTokens {
+    /// The original source tokens that comprise this group
+    pub source_tokens: Vec<(Token, ByteRange<usize>)>,
+
+    /// The type/classification of this group
+    pub group_type: GroupType,
+}
+
+/// Classification of a token group.
+///
+/// Indicates what kind of grouping was applied to the tokens.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GroupType {
+    /// Tokens grouped as a line with associated line type classification
+    Line(LineType),
+}
+
 /// A unified representation of a token collection that can be either a flat
 /// sequence or a hierarchical tree.
 ///
@@ -58,6 +81,13 @@ pub enum TokenStream {
     /// This is the initial state from the lexer and the format for simple,
     /// non-structural transformations.
     Flat(Vec<(Token, ByteRange<usize>)>),
+
+    /// Grouped tokens (e.g., tokens grouped into lines).
+    ///
+    /// Represents a flat sequence where tokens have been grouped by some criteria
+    /// (like line boundaries) but not yet organized into a hierarchical structure.
+    /// Each group maintains its original source tokens and a classification.
+    Grouped(Vec<GroupedTokens>),
 
     /// A hierarchical representation of tokens.
     ///
@@ -134,7 +164,38 @@ impl TokenStream {
     pub fn unroll(&self) -> Vec<(Token, ByteRange<usize>)> {
         match self {
             TokenStream::Flat(tokens) => tokens.clone(),
+            TokenStream::Grouped(groups) => groups
+                .iter()
+                .flat_map(|g| g.source_tokens.iter().cloned())
+                .collect(),
             TokenStream::Tree(nodes) => nodes.iter().flat_map(|node| node.unroll()).collect(),
+        }
+    }
+
+    /// Convert TokenStream::Grouped to Vec<LineToken>.
+    ///
+    /// This is specifically for the linebased parser which expects LineTokens.
+    /// Returns an error if the stream is not Grouped.
+    pub fn into_line_tokens(
+        self,
+    ) -> Result<Vec<crate::lex::lexing::tokens_linebased::LineToken>, &'static str> {
+        use crate::lex::lexing::tokens_linebased::LineToken;
+
+        match self {
+            TokenStream::Grouped(groups) => Ok(groups
+                .into_iter()
+                .map(|g| {
+                    let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
+                        g.source_tokens.into_iter().unzip();
+                    let GroupType::Line(line_type) = g.group_type;
+                    LineToken {
+                        source_tokens,
+                        token_spans,
+                        line_type,
+                    }
+                })
+                .collect()),
+            _ => Err("Expected TokenStream::Grouped"),
         }
     }
 }
