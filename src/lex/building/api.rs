@@ -293,7 +293,7 @@ pub fn build_paragraph_from_tokens(
         let mut new_token_lines = vec![];
         let mut current_line = vec![];
         for token_data in token_lines.remove(0) {
-            if let Token::Newline = token_data.0 {
+            if let Token::BlankLine(_) = token_data.0 {
                 if !current_line.is_empty() {
                     new_token_lines.push(current_line);
                     current_line = vec![];

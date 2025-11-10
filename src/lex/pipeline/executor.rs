@@ -131,15 +131,11 @@ impl PipelineExecutor {
                 // Indentation pipeline: no line grouping
                 stream = walk_stream(stream, &mut SemanticIndentationMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                stream = walk_stream(stream, &mut BlankLinesMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 Ok(stream)
             }
             PipelineSpec::LinebasedFlat | PipelineSpec::Linebased => {
                 // Linebased pipeline: add line token grouping after base transformations
                 stream = walk_stream(stream, &mut SemanticIndentationMapper::new())
-                    .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
-                stream = walk_stream(stream, &mut BlankLinesMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;
                 stream = walk_stream(stream, &mut LineTokenGroupingMapper::new())
                     .map_err(|e| ExecutionError::TransformationFailed(e.to_string()))?;

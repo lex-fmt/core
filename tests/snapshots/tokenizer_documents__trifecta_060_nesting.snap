@@ -1,6 +1,6 @@
 ---
 source: tests/tokenizer_documents.rs
-expression: tokens.tokens()
+expression: tokens
 ---
 [
     (
@@ -40,19 +40,20 @@ expression: tokens.tokens()
         22..35,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         35..36,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    36..37,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        36..37,
     ),
     (
         Text(
@@ -261,19 +262,20 @@ expression: tokens.tokens()
         162..175,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         175..176,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    176..177,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        176..177,
     ),
     (
         Number(
@@ -326,19 +328,20 @@ expression: tokens.tokens()
         203..210,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         210..211,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    211..212,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        211..212,
     ),
     (
         Indent(
@@ -432,19 +435,20 @@ expression: tokens.tokens()
         268..281,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         281..282,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    282..283,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        282..283,
     ),
     (
         Number(
@@ -527,19 +531,20 @@ expression: tokens.tokens()
         329..336,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         336..337,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    337..338,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        337..338,
     ),
     (
         Indent(
@@ -633,19 +638,20 @@ expression: tokens.tokens()
         388..401,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         401..402,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    402..403,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        402..403,
     ),
     (
         Dash,
@@ -712,7 +718,11 @@ expression: tokens.tokens()
         436..442,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         442..443,
     ),
     (
@@ -770,19 +780,20 @@ expression: tokens.tokens()
         480..486,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         486..487,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    487..488,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        487..488,
     ),
     (
         Dedent(
@@ -871,19 +882,20 @@ expression: tokens.tokens()
         529..536,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         536..537,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    537..538,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        537..538,
     ),
     (
         Indent(
@@ -961,7 +973,11 @@ expression: tokens.tokens()
         574..580,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         580..581,
     ),
     (
@@ -1019,19 +1035,20 @@ expression: tokens.tokens()
         617..623,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         623..624,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    624..625,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        624..625,
     ),
     (
         Text(
@@ -1084,19 +1101,20 @@ expression: tokens.tokens()
         655..668,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         668..669,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    669..670,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        669..670,
     ),
     (
         Number(
@@ -1179,19 +1197,20 @@ expression: tokens.tokens()
         717..724,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         724..725,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    725..726,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        725..726,
     ),
     (
         Indent(
@@ -1275,19 +1294,20 @@ expression: tokens.tokens()
         771..784,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         784..785,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    785..786,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        785..786,
     ),
     (
         Dash,
@@ -1354,7 +1374,11 @@ expression: tokens.tokens()
         825..831,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         831..832,
     ),
     (
@@ -1412,19 +1436,20 @@ expression: tokens.tokens()
         872..878,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         878..879,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    879..880,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        879..880,
     ),
     (
         Dash,
@@ -1481,7 +1506,11 @@ expression: tokens.tokens()
         922..928,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         928..929,
     ),
     (
@@ -1549,19 +1578,20 @@ expression: tokens.tokens()
         970..976,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         976..977,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    977..978,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        977..978,
     ),
     (
         Dedent(
@@ -1646,19 +1676,20 @@ expression: tokens.tokens()
         1014..1027,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1027..1028,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1028..1029,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1028..1029,
     ),
     (
         Dash,
@@ -1745,7 +1776,11 @@ expression: tokens.tokens()
         1075..1081,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1081..1082,
     ),
     (
@@ -1813,19 +1848,20 @@ expression: tokens.tokens()
         1112..1118,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1118..1119,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1119..1120,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1119..1120,
     ),
     (
         Dedent(
@@ -1894,19 +1930,20 @@ expression: tokens.tokens()
         1154..1161,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1161..1162,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1162..1163,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1162..1163,
     ),
     (
         Indent(
@@ -1990,19 +2027,20 @@ expression: tokens.tokens()
         1221..1234,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1234..1235,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1235..1236,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1235..1236,
     ),
     (
         Number(
@@ -2085,19 +2123,20 @@ expression: tokens.tokens()
         1281..1288,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1288..1289,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1289..1290,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1289..1290,
     ),
     (
         Indent(
@@ -2165,7 +2204,11 @@ expression: tokens.tokens()
         1324..1330,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1330..1331,
     ),
     (
@@ -2213,19 +2256,20 @@ expression: tokens.tokens()
         1363..1369,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1369..1370,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1370..1371,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1370..1371,
     ),
     (
         Text(
@@ -2278,19 +2322,20 @@ expression: tokens.tokens()
         1404..1417,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1417..1418,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1418..1419,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1418..1419,
     ),
     (
         Dash,
@@ -2357,7 +2402,11 @@ expression: tokens.tokens()
         1459..1465,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1465..1466,
     ),
     (
@@ -2425,19 +2474,20 @@ expression: tokens.tokens()
         1507..1513,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1513..1514,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1514..1515,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1514..1515,
     ),
     (
         Number(
@@ -2520,19 +2570,20 @@ expression: tokens.tokens()
         1560..1567,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1567..1568,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1568..1569,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1568..1569,
     ),
     (
         Indent(
@@ -2626,19 +2677,20 @@ expression: tokens.tokens()
         1630..1643,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1643..1644,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1644..1645,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1644..1645,
     ),
     (
         Dash,
@@ -2695,7 +2747,11 @@ expression: tokens.tokens()
         1682..1688,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1688..1689,
     ),
     (
@@ -2753,19 +2809,20 @@ expression: tokens.tokens()
         1727..1733,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1733..1734,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1734..1735,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1734..1735,
     ),
     (
         Text(
@@ -2828,19 +2885,20 @@ expression: tokens.tokens()
         1780..1793,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1793..1794,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1794..1795,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1794..1795,
     ),
     (
         Dash,
@@ -2897,7 +2955,11 @@ expression: tokens.tokens()
         1833..1839,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1839..1840,
     ),
     (
@@ -2965,19 +3027,20 @@ expression: tokens.tokens()
         1891..1897,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1897..1898,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    1898..1899,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        1898..1899,
     ),
     (
         Dedent(
@@ -3048,7 +3111,11 @@ expression: tokens.tokens()
         1927..1940,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         1940..1941,
     ),
 ]

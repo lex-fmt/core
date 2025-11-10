@@ -12,74 +12,48 @@ use std::ops::Range as ByteRange;
 /// Group flat tokens into classified LineTokens.
 ///
 /// This implements the logic from ToLineTokensMapper:
-/// - Groups consecutive tokens into lines (delimited by Newline)
+/// - Groups consecutive tokens into lines (terminated by BlankLine)
 /// - Classifies each line by type
-/// - Handles structural tokens (Indent, Dedent, BlankLine) specially
+/// - Handles structural tokens (Indent, Dedent) specially
 pub fn group_into_lines(tokens: Vec<(Token, ByteRange<usize>)>) -> Vec<LineToken> {
     let mut line_tokens = Vec::new();
     let mut current_line = Vec::new();
 
     for (token, span) in tokens {
-        let is_newline = matches!(token, Token::Newline);
-        let is_blank_line_token = matches!(token, Token::BlankLine(_));
-
-        // Structural tokens (Indent, Dedent, BlankLine) are pass-through
-        if let Token::Indent(ref sources) = token {
+        // Indent/Dedent are structural and get their own LineToken
+        if matches!(token, Token::Indent(_) | Token::Dedent(_)) {
             // Flush any accumulated line first
             if !current_line.is_empty() {
                 line_tokens.push(classify_and_create_line_token(current_line));
-                current_line = Vec::new();
             }
-            // Extract the stored source tokens from Indent
-            let (source_tokens, token_spans): (Vec<_>, Vec<_>) = sources.iter().cloned().unzip();
+            current_line = Vec::new();
+
+            let line_type = if matches!(token, Token::Indent(_)) {
+                LineType::Indent
+            } else {
+                LineType::Dedent
+            };
+
+            // Indent token carries its source tokens, Dedent is synthetic
+            let (source_tokens, token_spans) = if let Token::Indent(ref sources) = token {
+                sources.iter().cloned().unzip()
+            } else {
+                (vec![token], vec![span])
+            };
+
             line_tokens.push(LineToken {
                 source_tokens,
                 token_spans,
-                line_type: LineType::Indent,
+                line_type,
             });
             continue;
         }
 
-        if let Token::Dedent(_) = token {
-            // Flush any accumulated line first
-            if !current_line.is_empty() {
-                line_tokens.push(classify_and_create_line_token(current_line));
-                current_line = Vec::new();
-            }
-            // Dedent tokens are purely structural
-            line_tokens.push(LineToken {
-                source_tokens: vec![token],
-                token_spans: vec![span],
-                line_type: LineType::Dedent,
-            });
-            continue;
-        }
+        // Add current token to the line
+        current_line.push((token.clone(), span));
 
-        // BlankLine tokens are also structural
-        if is_blank_line_token {
-            // Flush any accumulated line first
-            if !current_line.is_empty() {
-                line_tokens.push(classify_and_create_line_token(current_line));
-                current_line = Vec::new();
-            }
-            // Extract the stored source tokens from BlankLine
-            if let Token::BlankLine(ref sources) = token {
-                let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
-                    sources.iter().cloned().unzip();
-                line_tokens.push(LineToken {
-                    source_tokens,
-                    token_spans,
-                    line_type: LineType::BlankLine,
-                });
-            }
-            continue;
-        }
-
-        // Accumulate token-span tuples for current line
-        current_line.push((token, span));
-
-        // Newline marks end of line
-        if is_newline {
+        // A BlankLine token signifies the end of a line.
+        if matches!(token, Token::BlankLine(_)) {
             line_tokens.push(classify_and_create_line_token(current_line));
             current_line = Vec::new();
         }
@@ -114,13 +88,20 @@ fn apply_dialog_detection(mut line_tokens: Vec<LineToken>) -> Vec<LineToken> {
     let mut in_dialog = false;
 
     for line_token in &mut line_tokens {
-        if line_token.line_type != LineType::ListLine {
+        if line_token.line_type == LineType::BlankLine {
+            in_dialog = false;
+            continue;
+        }
+
+        if line_token.line_type != LineType::ListLine && line_token.line_type != LineType::DialogLine {
             in_dialog = false;
         }
 
         if in_dialog {
             line_token.line_type = LineType::DialogLine;
-        } else if line_token.line_type == LineType::ListLine {
+        }
+
+        if line_token.line_type == LineType::ListLine {
             let non_whitespace_tokens: Vec<_> = line_token
                 .source_tokens
                 .iter()
@@ -150,7 +131,7 @@ mod tests {
     fn test_group_single_line() {
         let tokens = vec![
             (Token::Text("Hello".to_string()), 0..5),
-            (Token::Newline, 5..6),
+            (Token::BlankLine(Some("\n".to_string())), 5..6),
         ];
 
         let line_tokens = group_into_lines(tokens);
@@ -165,9 +146,9 @@ mod tests {
     fn test_group_multiple_lines() {
         let tokens = vec![
             (Token::Text("Line1".to_string()), 0..5),
-            (Token::Newline, 5..6),
+            (Token::BlankLine(Some("\n".to_string())), 5..6),
             (Token::Text("Line2".to_string()), 6..11),
-            (Token::Newline, 11..12),
+            (Token::BlankLine(Some("\n".to_string())), 11..12),
         ];
 
         let line_tokens = group_into_lines(tokens);
@@ -182,16 +163,16 @@ mod tests {
         let tokens = vec![
             (Token::Text("Title".to_string()), 0..5),
             (Token::Colon, 5..6),
-            (Token::Newline, 6..7),
+            (Token::BlankLine(Some("\n".to_string())), 6..7),
             (Token::Indent(vec![(Token::Indentation, 7..11)]), 0..0),
             (Token::Text("Content".to_string()), 11..18),
-            (Token::Newline, 18..19),
+            (Token::BlankLine(Some("\n".to_string())), 18..19),
             (Token::Dedent(vec![]), 0..0),
         ];
 
         let line_tokens = group_into_lines(tokens);
 
-        assert_eq!(line_tokens.len(), 4); // Title, Indent, Content, Dedent
+        assert_eq!(line_tokens.len(), 4);
         assert_eq!(line_tokens[0].line_type, LineType::SubjectLine);
         assert_eq!(line_tokens[1].line_type, LineType::Indent);
         assert_eq!(line_tokens[2].line_type, LineType::ParagraphLine);
@@ -202,13 +183,10 @@ mod tests {
     fn test_group_with_blank_line_token() {
         let tokens = vec![
             (Token::Text("Line1".to_string()), 0..5),
-            (Token::Newline, 5..6),
-            (
-                Token::BlankLine(vec![(Token::Whitespace, 6..7), (Token::Newline, 7..8)]),
-                0..0,
-            ),
+            (Token::BlankLine(Some("\n".to_string())), 5..6),
+            (Token::BlankLine(Some(" \n".to_string())), 6..8),
             (Token::Text("Line2".to_string()), 8..13),
-            (Token::Newline, 13..14),
+            (Token::BlankLine(Some("\n".to_string())), 13..14),
         ];
 
         let line_tokens = group_into_lines(tokens);
@@ -227,18 +205,18 @@ mod tests {
             (Token::Text("Hello".to_string()), 2..7),
             (Token::Period, 7..8),
             (Token::Period, 8..9),
-            (Token::Newline, 9..10),
+            (Token::BlankLine(Some("\n".to_string())), 9..10),
             (Token::Dash, 10..11),
             (Token::Whitespace, 11..12),
             (Token::Text("World".to_string()), 12..17),
-            (Token::Newline, 17..18),
+            (Token::BlankLine(Some("\n".to_string())), 17..18),
         ];
 
         let line_tokens = group_into_lines(tokens);
 
         assert_eq!(line_tokens.len(), 2);
-        assert_eq!(line_tokens[0].line_type, LineType::DialogLine); // First list with double punctuation
-        assert_eq!(line_tokens[1].line_type, LineType::DialogLine); // Subsequent list item in dialog
+        assert_eq!(line_tokens[0].line_type, LineType::DialogLine);
+        assert_eq!(line_tokens[1].line_type, LineType::DialogLine);
     }
 
     #[test]
@@ -247,7 +225,7 @@ mod tests {
             (Token::Text("Hello".to_string()), 0..5),
             (Token::Whitespace, 5..6),
             (Token::Text("world".to_string()), 6..11),
-            (Token::Newline, 11..12),
+            (Token::BlankLine(Some("\n".to_string())), 11..12),
         ];
 
         let line_tokens = group_into_lines(tokens);

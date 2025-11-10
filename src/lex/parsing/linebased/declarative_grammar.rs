@@ -33,7 +33,7 @@ const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
     // Verbatim Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
     (
         "verbatim_block",
-        r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<blank><blank-line>)?(?P<content><container>)?(?P<closing><annotation-end-line>)",
+        r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)?(?P<content><container>)?(?P<closing><annotation-end-line>)",
     ),
     // Annotation (multi-line with markers): <annotation-start-line><container><annotation-end-line>
     (
@@ -50,17 +50,17 @@ const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
     // List: <blank-line><list-line><container>?<list-line><container>?{1,+}<blank-line>?
     (
         "list",
-        r"^(?P<blank><blank-line>)(?P<items>((<list-line>|<subject-or-list-item-line>)(<container>)?){2,})(?P<trailing_blank><blank-line>)?",
+        r"^(?P<blank><blank-line>+)(?P<items>((<list-line>|<subject-or-list-item-line>)(<container>)?){2,})(?P<trailing_blank><blank-line>)?",
     ),
     // Session: <content-line><blank-line><container>
     (
         "session",
-        r"^(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>)(?P<content><container>)",
+        r"^(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?P<content><container>)",
     ),
-    // Definition: <subject-line>|<subject-or-list-item-line><container>
+    // Definition: <subject-line>|<subject-or-list-item-line>|<paragraph-line><container>
     (
         "definition",
-        r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<content><container>)",
+        r"^(?P<subject><subject-line>|<subject-or-list-item-line>|<paragraph-line>)(?P<content><container>)",
     ),
     // Paragraph: <content-line>+
     (
@@ -144,14 +144,18 @@ impl GrammarMatcher {
 
                     // Use captures to extract indices and build the pattern
                     let pattern = match *pattern_name {
-                        "verbatim_block" => PatternMatch::VerbatimBlock {
-                            subject_idx: 0,
-                            blank_idx: caps.name("blank").map(|_| 1),
-                            content_idx: caps
-                                .name("content")
-                                .map(|_| caps.name("blank").map_or(1, |_| 2)),
-                            closing_idx: consumed_count - 1,
-                        },
+                        "verbatim_block" => {
+                            let blank_count = caps
+                                .name("blank")
+                                .map(|m| Self::count_consumed_tokens(m.as_str()))
+                                .unwrap_or(0);
+                            PatternMatch::VerbatimBlock {
+                                subject_idx: 0,
+                                blank_idx: caps.name("blank").map(|_| 1),
+                                content_idx: caps.name("content").map(|_| 1 + blank_count),
+                                closing_idx: consumed_count - 1,
+                            }
+                        }
                         "annotation_block_with_end" => PatternMatch::AnnotationBlock {
                             start_idx: 0,
                             content_idx: 1,
@@ -164,9 +168,13 @@ impl GrammarMatcher {
                         },
                         "annotation_single" => PatternMatch::AnnotationSingle { start_idx: 0 },
                         "list" => {
+                            let blank_count = caps
+                                .name("blank")
+                                .map(|m| Self::count_consumed_tokens(m.as_str()))
+                                .unwrap_or(0);
                             let items_str = caps.name("items").unwrap().as_str();
                             let mut items = Vec::new();
-                            let mut token_idx = 1; // Start after the blank line
+                            let mut token_idx = blank_count;
                             for item_cap in LIST_ITEM_REGEX.find_iter(items_str) {
                                 let has_container = item_cap.as_str().contains("<container>");
                                 items.push((
@@ -184,11 +192,15 @@ impl GrammarMatcher {
                                 items,
                             }
                         }
-                        "session" => PatternMatch::Session {
-                            subject_idx: 0,
-                            blank_idx: 1,
-                            content_idx: 2,
-                        },
+                        "session" => {
+                            let blank_str = caps.name("blank").unwrap().as_str();
+                            let blank_count = Self::count_consumed_tokens(blank_str);
+                            PatternMatch::Session {
+                                subject_idx: 0,
+                                blank_idx: 1,
+                                content_idx: 1 + blank_count,
+                            }
+                        }
                         "definition" => PatternMatch::Definition {
                             subject_idx: 0,
                             content_idx: 1,
@@ -285,20 +297,17 @@ fn convert_pattern_to_item(
             let closing_token = extract_line_token(&tokens[pattern_offset + closing_idx])?;
 
             // Extract content lines from container if present
-            let content_lines = if let Some(content_idx_val) = content_idx {
-                if let LineContainer::Container { children, .. } =
-                    &tokens[pattern_offset + content_idx_val]
-                {
-                    children
-                        .iter()
-                        .filter_map(|t| extract_line_token(t).ok())
-                        .collect::<Vec<_>>()
-                } else {
-                    Vec::new()
+            let mut content_lines = Vec::new();
+            if let Some(content_idx_val) = content_idx {
+                if let Some(content_token) = tokens.get(pattern_offset + content_idx_val) {
+                    if let LineContainer::Container { children, .. } = content_token {
+                        content_lines = children
+                            .iter()
+                            .filter_map(|t| extract_line_token(t).ok())
+                            .collect::<Vec<_>>();
+                    }
                 }
-            } else {
-                Vec::new()
-            };
+            }
             let mut all_tokens = subject_token
                 .source_tokens
                 .clone()
@@ -415,10 +424,12 @@ fn convert_pattern_to_item(
                 let item_token = extract_line_token(&tokens[pattern_offset + item_idx])?;
 
                 let children = if let Some(content_idx_val) = content_idx {
-                    if let LineContainer::Container { children, .. } =
-                        &tokens[pattern_offset + content_idx_val]
-                    {
-                        parse_with_declarative_grammar(children.clone(), source)?
+                    if let Some(content_token) = tokens.get(pattern_offset + content_idx_val) {
+                        if let LineContainer::Container { children, .. } = content_token {
+                            parse_with_declarative_grammar(children.clone(), source)?
+                        } else {
+                            Vec::new()
+                        }
                     } else {
                         Vec::new()
                     }
@@ -446,10 +457,12 @@ fn convert_pattern_to_item(
         } => {
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
 
-            let children = if let LineContainer::Container { children, .. } =
-                &tokens[pattern_offset + content_idx]
-            {
-                parse_with_declarative_grammar(children.clone(), source)?
+            let children = if let Some(content_token) = tokens.get(pattern_offset + content_idx) {
+                if let LineContainer::Container { children, .. } = content_token {
+                    parse_with_declarative_grammar(children.clone(), source)?
+                } else {
+                    Vec::new()
+                }
             } else {
                 Vec::new()
             };
@@ -471,14 +484,12 @@ fn convert_pattern_to_item(
             content_idx,
         } => {
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
-
-            let children = if let LineContainer::Container { children, .. } =
-                &tokens[pattern_offset + content_idx]
-            {
-                parse_with_declarative_grammar(children.clone(), source)?
-            } else {
-                Vec::new()
-            };
+            let mut content_children = vec![];
+            if let Some(content_token) = tokens.get(pattern_offset + content_idx) {
+                if let LineContainer::Container { children, .. } = content_token {
+                    content_children = parse_with_declarative_grammar(children.clone(), source)?;
+                }
+            }
 
             Ok(ParseNode::new(
                 NodeType::Session,
@@ -488,7 +499,7 @@ fn convert_pattern_to_item(
                     .into_iter()
                     .zip(subject_token.token_spans.clone())
                     .collect(),
-                children,
+                content_children,
             ))
         }
         PatternMatch::Paragraph { start_idx, end_idx } => {
