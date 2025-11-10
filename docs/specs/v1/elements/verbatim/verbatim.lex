@@ -20,6 +20,21 @@ Syntax
 
 	Note: Optional blank line after subject is allowed in both forms.
 
+Verbatim Groups
+
+	Multiple subject/content pairs can share a single closing annotation. This is handy for
+	step-by-step shell transcripts or grouped code samples that use the same language.
+
+	Syntax:
+		(<subject-line>:
+		    <content lines>)+
+		:: label params ::
+
+		- Each subject anchors to the indentation wall established by the first subject.
+		- Content for every pair must be indented past the wall and preserves blank lines.
+		- Content remains optional for parity with marker blocks, but textual payloads are preferred.
+		- Example: docs/specs/v1/elements/verbatim/verbatim-11-group-shell.lex
+
 The Indentation Wall
 
 	Critical rule: The subject line establishes the base indentation level (the "wall").
@@ -90,3 +105,10 @@ Use Cases
 	- Binary data references (images, videos, PDFs)
 	- Command output
 	- Any non-lex text that needs exact preservation
+
+Implementation Notes
+
+	The AST exposes the first subject/content pair directly on the Verbatim node for backwards
+	compatibility. Additional pairs are available through the Verbatim::group() iterator, which
+	yields immutable subject/content views. Agents adding formatting logic should iterate over this
+	group API so multi-pair verbatim sequences stay cohesive.

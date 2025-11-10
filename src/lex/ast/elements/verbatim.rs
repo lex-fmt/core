@@ -44,14 +44,56 @@ use super::annotation::Annotation;
 use super::container::VerbatimContainer;
 use super::content_item::ContentItem;
 use std::fmt;
+use std::slice;
 
-/// A verbatim block represents content from another format/system
+/// A verbatim block represents content from another format/system.
+///
+/// # Verbatim Groups
+///
+/// Verbatim blocks can contain multiple subject/content pairs sharing a single closing
+/// annotation. This is useful for sequences like shell command transcripts or grouped
+/// code samples in the same language.
+///
+/// ## Storage Design
+///
+/// The first subject/content pair is stored directly in the `subject` and `children`
+/// fields for backwards compatibility with existing code that expects direct field access.
+/// Additional pairs are stored in the private `additional_groups` vector.
+///
+/// This split storage pattern allows:
+/// - Existing code to continue working unchanged (accessing first group via public fields)
+/// - New code to iterate over all groups uniformly using the `group()` method
+/// - Zero overhead for single-group verbatim blocks (the common case)
+///
+/// ## Usage
+///
+/// For single-group blocks, access fields directly:
+/// ```ignore
+/// let subject = verbatim.subject.as_string();
+/// let content = &verbatim.children;
+/// ```
+///
+/// For multi-group blocks, use the iterator:
+/// ```ignore
+/// for group in verbatim.group() {
+///     println!("Subject: {}", group.subject.as_string());
+///     for line in group.children.iter() {
+///         // Process each line
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Verbatim {
+    /// Subject line of the first group (backwards-compatible direct access)
     pub subject: TextContent,
+    /// Content lines of the first group (backwards-compatible direct access)
     pub children: VerbatimContainer,
+    /// Closing annotation shared by all groups
     pub closing_annotation: Annotation,
+    /// Location spanning all groups and the closing annotation
     pub location: Range,
+    /// Additional subject/content pairs beyond the first (for multi-group verbatims)
+    additional_groups: Vec<VerbatimGroupItem>,
 }
 
 impl Verbatim {
@@ -69,6 +111,7 @@ impl Verbatim {
             children: VerbatimContainer::new(children),
             closing_annotation,
             location: Self::default_location(),
+            additional_groups: Vec::new(),
         }
     }
 
@@ -78,6 +121,7 @@ impl Verbatim {
             children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
+            additional_groups: Vec::new(),
         }
     }
 
@@ -87,6 +131,7 @@ impl Verbatim {
             children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
+            additional_groups: Vec::new(),
         }
     }
 
@@ -94,6 +139,26 @@ impl Verbatim {
     pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
+    }
+
+    /// Attach additional verbatim group entries beyond the first pair.
+    pub fn with_additional_groups(mut self, groups: Vec<VerbatimGroupItem>) -> Self {
+        self.additional_groups = groups;
+        self
+    }
+
+    /// Returns an iterator over each subject/content pair in the group order.
+    pub fn group(&self) -> VerbatimGroupIter<'_> {
+        VerbatimGroupIter {
+            first_yielded: false,
+            verbatim: self,
+            rest: self.additional_groups.iter(),
+        }
+    }
+
+    /// Returns the number of subject/content pairs held by this verbatim block.
+    pub fn group_len(&self) -> usize {
+        1 + self.additional_groups.len()
     }
 }
 
@@ -115,7 +180,10 @@ impl AstNode for Verbatim {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_verbatim_block(self);
-        super::super::traits::visit_children(visitor, &self.children);
+        // Visit all groups, not just the first
+        for group in self.group() {
+            super::super::traits::visit_children(visitor, group.children);
+        }
     }
 }
 
@@ -135,12 +203,64 @@ impl Container for Verbatim {
 
 impl fmt::Display for Verbatim {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let group_count = self.group_len();
+        let group_word = if group_count == 1 { "group" } else { "groups" };
         write!(
             f,
-            "VerbatimBlock('{}', {} lines, closing: {})",
+            "VerbatimBlock('{}', {} {}, closing: {})",
             self.subject.as_string(),
-            self.children.len(),
+            group_count,
+            group_word,
             self.closing_annotation.label.value
         )
+    }
+}
+
+/// Stored representation of additional verbatim group entries
+#[derive(Debug, Clone, PartialEq)]
+pub struct VerbatimGroupItem {
+    pub subject: TextContent,
+    pub children: VerbatimContainer,
+}
+
+impl VerbatimGroupItem {
+    pub fn new(subject: TextContent, children: Vec<ContentItem>) -> Self {
+        Self {
+            subject,
+            children: VerbatimContainer::new(children),
+        }
+    }
+}
+
+/// Immutable view over a verbatim group entry.
+#[derive(Debug, Clone)]
+pub struct VerbatimGroupItemRef<'a> {
+    pub subject: &'a TextContent,
+    pub children: &'a VerbatimContainer,
+}
+
+/// Iterator over all subject/content pairs inside a verbatim block.
+pub struct VerbatimGroupIter<'a> {
+    first_yielded: bool,
+    verbatim: &'a Verbatim,
+    rest: slice::Iter<'a, VerbatimGroupItem>,
+}
+
+impl<'a> Iterator for VerbatimGroupIter<'a> {
+    type Item = VerbatimGroupItemRef<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.first_yielded {
+            self.first_yielded = true;
+            return Some(VerbatimGroupItemRef {
+                subject: &self.verbatim.subject,
+                children: &self.verbatim.children,
+            });
+        }
+
+        self.rest.next().map(|item| VerbatimGroupItemRef {
+            subject: &item.subject,
+            children: &item.children,
+        })
     }
 }

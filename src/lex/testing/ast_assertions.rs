@@ -1,9 +1,10 @@
 //! Fluent assertion API for AST nodes
 
 use super::matchers::TextMatch;
+use crate::lex::ast::elements::container::VerbatimContainer;
 use crate::lex::ast::{
     Annotation, Container, ContentItem, Definition, Document, List, ListItem, Paragraph, Session,
-    Verbatim,
+    TextContent, Verbatim,
 };
 
 // ============================================================================
@@ -721,14 +722,7 @@ impl<'a> VerbatimBlockkAssertion<'a> {
     }
     pub fn content_contains(self, substring: &str) -> Self {
         // Collect all content lines into a single string
-        let actual: String = self
-            .verbatim_block
-            .children
-            .iter()
-            .filter_map(|child| child.as_verbatim_line())
-            .map(|line| line.content.as_string())
-            .collect::<Vec<_>>()
-            .join("\n");
+        let actual = collect_verbatim_content(&self.verbatim_block.children);
 
         assert!(
             actual.contains(substring),
@@ -739,7 +733,7 @@ impl<'a> VerbatimBlockkAssertion<'a> {
         );
         self
     }
-    pub fn is_marker_form(self) -> Self {
+    pub fn assert_marker_form(self) -> Self {
         assert!(
             self.verbatim_block.children.is_empty(),
             "{}: Expected verbatim block to be marker form (empty children), but got {} children",
@@ -781,6 +775,97 @@ impl<'a> VerbatimBlockkAssertion<'a> {
         );
         self
     }
+
+    pub fn group_count(self, expected: usize) -> Self {
+        let actual = self.verbatim_block.group_len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected {} verbatim groups, found {}",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    pub fn group<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(VerbatimGroupAssertion<'a>),
+    {
+        let group_ref = self.verbatim_block.group().nth(index).unwrap_or_else(|| {
+            panic!(
+                "{}: Verbatim group index {} out of bounds ({} groups)",
+                self.context,
+                index,
+                self.verbatim_block.group_len()
+            )
+        });
+
+        assertion(VerbatimGroupAssertion {
+            subject: group_ref.subject,
+            children: group_ref.children,
+            context: format!("{}::group[{}]", self.context, index),
+        });
+
+        self
+    }
+}
+
+pub struct VerbatimGroupAssertion<'a> {
+    subject: &'a TextContent,
+    children: &'a VerbatimContainer,
+    context: String,
+}
+
+impl<'a> VerbatimGroupAssertion<'a> {
+    pub fn subject(self, expected: &str) -> Self {
+        let actual = self.subject.as_string();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected verbatim group subject to be '{}', but got '{}'",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    pub fn content_contains(self, substring: &str) -> Self {
+        let actual = collect_verbatim_content(self.children);
+        assert!(
+            actual.contains(substring),
+            "{}: Expected verbatim group content to contain '{}', but got '{}'",
+            self.context,
+            substring,
+            actual
+        );
+        self
+    }
+
+    pub fn line_count(self, expected: usize) -> Self {
+        let actual = self.children.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected verbatim group to have {} lines, but got {}",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    pub fn assert_marker_form(self) -> Self {
+        assert!(
+            self.children.is_empty(),
+            "{}: Expected group marker form to be empty, but got {} lines",
+            self.context,
+            self.children.len()
+        );
+        self
+    }
+}
+
+fn collect_verbatim_content(children: &VerbatimContainer) -> String {
+    children
+        .iter()
+        .filter_map(|child| child.as_verbatim_line())
+        .map(|line| line.content.as_string())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 // ============================================================================
