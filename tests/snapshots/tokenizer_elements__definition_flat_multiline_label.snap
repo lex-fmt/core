@@ -1,6 +1,6 @@
 ---
 source: tests/tokenizer_elements.rs
-expression: tokens.tokens()
+expression: tokens
 ---
 [
     (
@@ -14,7 +14,11 @@ expression: tokens.tokens()
         12..13,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         13..14,
     ),
     (
@@ -129,19 +133,20 @@ expression: tokens.tokens()
         97..98,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         98..99,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    99..100,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        99..100,
     ),
     (
         Text(
@@ -214,19 +219,20 @@ expression: tokens.tokens()
         157..158,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         158..159,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    159..160,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        159..160,
     ),
     (
         Dedent(
@@ -281,7 +287,11 @@ expression: tokens.tokens()
         184..191,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         191..192,
     ),
 ]

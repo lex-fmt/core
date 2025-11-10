@@ -27,8 +27,9 @@ impl ToLexString for Token {
             Token::LexMarker => "::".to_string(),
             Token::Indentation => "    ".to_string(),
             Token::Whitespace => " ".to_string(),
-            Token::Newline => "\n".to_string(),
-            Token::BlankLine(_) => "\n".to_string(), // BlankLine represents 2+ consecutive newlines, output as single newline
+            // BlankLine should always contain the newline character(s) for round-trip fidelity.
+            // The logos regex always produces Some(...), but we default to "\n" for safety.
+            Token::BlankLine(s) => s.as_deref().unwrap_or("\n").to_string(),
             Token::Dash => "-".to_string(),
             Token::Period => ".".to_string(),
             Token::OpenParen => "(".to_string(),
@@ -102,8 +103,8 @@ pub fn detokenize(tokens: &[Token]) -> String {
         match token {
             Token::Indent(_) => indent_level += 1,
             Token::Dedent(_) => indent_level -= 1,
-            Token::Newline => {
-                result.push('\n');
+            Token::BlankLine(_) => {
+                result.push_str(&token.to_lex_string());
             }
             _ => {
                 if result.ends_with('\n') || result.is_empty() {

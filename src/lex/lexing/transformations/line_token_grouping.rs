@@ -62,7 +62,7 @@ mod tests {
         let tokens = vec![
             (Token::Text("Title".to_string()), 0..5),
             (Token::Colon, 5..6),
-            (Token::Newline, 6..7),
+            (Token::BlankLine(Some("\n".to_string())), 6..7),
         ];
 
         let mut mapper = LineTokenGroupingMapper::new();

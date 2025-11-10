@@ -1,8 +1,7 @@
 //! Tree Builder - Builds hierarchical LineContainer tree from LineTokens
 //!
-//! This module builds hierarchical tree structure from already-grouped and classified
-//! LineTokens. The grouping and classification now happens in the lexing pipeline
-//! (LineTokenGroupingMapper transformation).
+//! This module builds a hierarchical tree structure from a flat list of classified
+//! LineTokens. It uses a recursive descent approach to handle indentation.
 //!
 //! # Responsibilities
 //!
@@ -10,112 +9,64 @@
 //! 2. Convert to LineContainer structure expected by parser
 
 use crate::lex::lexing::tokens_linebased::{LineContainer, LineToken, LineType};
+use std::iter::Peekable;
 
 /// Build a LineContainer tree from already-grouped LineTokens.
 ///
-/// This is the main entry point that builds hierarchical structure from
+/// This is the main entry point that builds a hierarchical structure from
 /// line tokens that have already been grouped and classified by the
-///lexing pipeline.
+/// lexing pipeline.
 ///
 /// # Arguments
 ///
-/// * `line_tokens` - Vector of LineTokens from lexing pipeline
+/// * `line_tokens` - Vector of LineTokens from the lexing pipeline
 ///
 /// # Returns
 ///
 /// A LineContainer tree ready for the line-based parser
 pub fn build_line_container(line_tokens: Vec<LineToken>) -> LineContainer {
-    // Build hierarchical structure
-    let children = build_hierarchy(line_tokens);
-
-    // Wrap in root container
+    let mut tokens_iter = line_tokens.into_iter().peekable();
+    let children = build_recursive(&mut tokens_iter);
     LineContainer::Container { children }
 }
 
-/// Build hierarchical structure from flat list of LineTokens based on Indent/Dedent.
+/// Recursively build a hierarchy of LineContainers from a stream of LineTokens.
 ///
-/// This implements the logic from IndentationToTreeMapper:
-/// - Maintains a stack of nesting levels
-/// - Indent starts a new nested level
-/// - Dedent closes current level and attaches to parent
-/// - Regular lines accumulate at current level
-fn build_hierarchy(line_tokens: Vec<LineToken>) -> Vec<LineContainer> {
-    // Stack of pending children at each indentation level
-    let mut stack: Vec<Vec<LineContainer>> = vec![Vec::new()];
-    let mut pending_containers: Vec<LineContainer> = Vec::new();
+/// This function processes tokens at the current indentation level. When it encounters
+/// an `Indent`, it recursively calls itself to build a nested `Container`. It stops
+/// processing the current level when it sees a `Dedent` (which belongs to the parent
+/// level) or when the token stream is exhausted.
+fn build_recursive<I>(tokens: &mut Peekable<I>) -> Vec<LineContainer>
+where
+    I: Iterator<Item = LineToken>,
+{
+    let mut children = Vec::new();
 
-    for line_token in line_tokens {
-        match line_token.line_type {
+    while let Some(token) = tokens.peek() {
+        match token.line_type {
             LineType::Indent => {
-                // Flush pending containers before entering nested level
-                if !pending_containers.is_empty() {
-                    let current_level = stack.last_mut().expect("Stack never empty");
-                    current_level.append(&mut pending_containers);
-                }
-                // Start a new nesting level
-                stack.push(Vec::new());
+                tokens.next(); // Consume Indent token
+                let indented_children = build_recursive(tokens);
+                children.push(LineContainer::Container {
+                    children: indented_children,
+                });
             }
             LineType::Dedent => {
-                // Flush pending containers before closing level
-                if !pending_containers.is_empty() {
-                    let current_level = stack.last_mut().expect("Stack never empty");
-                    current_level.append(&mut pending_containers);
-                }
-                // Close current level and attach as children to last container in parent
-                if let Some(children_containers) = stack.pop() {
-                    let parent_level = stack.last_mut().expect("Stack never empty");
-
-                    if let Some(last_parent) = parent_level.last_mut() {
-                        // Attach the nested children to the last parent container
-                        // If the parent is already a Container, extend its children
-                        // Otherwise, we need to convert Token to a structure that can hold children
-                        match last_parent {
-                            LineContainer::Container { ref mut children } => {
-                                children.extend(children_containers);
-                            }
-                            LineContainer::Token(_) => {
-                                // Need to replace Token with [Token, Container]
-                                // Extract the token first
-                                let token = std::mem::replace(
-                                    last_parent,
-                                    LineContainer::Container {
-                                        children: Vec::new(),
-                                    },
-                                );
-                                // Now last_parent is a placeholder Container
-                                // Replace it with the proper sequence
-                                *last_parent = token; // Put token back temporarily
-
-                                // We need to insert a container after this token
-                                // So we'll actually just append it to parent_level
-                                parent_level.push(LineContainer::Container {
-                                    children: children_containers,
-                                });
-                            }
-                        }
-                    } else {
-                        // If no parent exists, create a container node to hold children
-                        parent_level.push(LineContainer::Container {
-                            children: children_containers,
-                        });
-                    }
-                }
+                // This Dedent signifies the end of the current level.
+                // Consume it and return to the parent level.
+                tokens.next();
+                return children;
             }
             _ => {
-                // Accumulate regular line tokens at current level
-                pending_containers.push(LineContainer::Token(line_token));
+                // Regular token, consume and add to the current level's children.
+                if let Some(t) = tokens.next() {
+                    children.push(LineContainer::Token(t));
+                }
             }
         }
     }
 
-    // Flush any remaining pending containers at root level
-    if !pending_containers.is_empty() {
-        let root_level = stack.last_mut().expect("Stack never empty");
-        root_level.append(&mut pending_containers);
-    }
-
-    // Return the root level containers
-    stack.pop().expect("Stack should contain root level")
+    children
 }
 
 #[cfg(test)]
@@ -132,7 +83,7 @@ mod tests {
                 Token::Text("Hello".to_string()),
                 Token::Whitespace,
                 Token::Text("world".to_string()),
-                Token::Newline,
+                Token::BlankLine(Some("\n".to_string())),
             ],
             token_spans: vec![0..5, 5..6, 6..11, 11..12],
             line_type: LineType::ParagraphLine,
@@ -164,7 +115,7 @@ mod tests {
                 source_tokens: vec![
                     Token::Text("Title".to_string()),
                     Token::Colon,
-                    Token::Newline,
+                    Token::BlankLine(Some("\n".to_string())),
                 ],
                 token_spans: vec![0..5, 5..6, 6..7],
                 line_type: LineType::SubjectLine,
@@ -175,7 +126,10 @@ mod tests {
                 line_type: LineType::Indent,
             },
             LineToken {
-                source_tokens: vec![Token::Text("Content".to_string()), Token::Newline],
+                source_tokens: vec![
+                    Token::Text("Content".to_string()),
+                    Token::BlankLine(Some("\n".to_string())),
+                ],
                 token_spans: vec![11..18, 18..19],
                 line_type: LineType::ParagraphLine,
             },
@@ -188,17 +142,41 @@ mod tests {
 
         let container = build_line_container(line_tokens);
 
+        // Expected structure: [Token(Title), Container([Token(Content)])]
         match container {
             LineContainer::Container { children } => {
-                // Should have title token and then a container with the indented content
-                assert!(!children.is_empty());
+                assert_eq!(
+                    children.len(),
+                    2,
+                    "Should have two items at the root: the title token and the content container"
+                );
 
-                // First child should be the title
+                // First child should be the title token
                 match &children[0] {
                     LineContainer::Token(line_token) => {
                         assert_eq!(line_token.line_type, LineType::SubjectLine);
                     }
                     _ => panic!("Expected Token for title"),
+                }
+
+                // Second child should be the container for indented content
+                match &children[1] {
+                    LineContainer::Container {
+                        children: nested_children,
+                    } => {
+                        assert_eq!(
+                            nested_children.len(),
+                            1,
+                            "Nested container should have one item"
+                        );
+                        match &nested_children[0] {
+                            LineContainer::Token(line_token) => {
+                                assert_eq!(line_token.line_type, LineType::ParagraphLine);
+                            }
+                            _ => panic!("Expected Token for content"),
+                        }
+                    }
+                    _ => panic!("Expected Container for indented content"),
                 }
             }
             _ => panic!("Expected Container at root"),

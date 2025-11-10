@@ -134,7 +134,7 @@ fn group_tokens_by_line(tokens: Vec<TokenLocation>) -> Vec<Vec<TokenLocation>> {
     let mut current_line: Vec<TokenLocation> = vec![];
 
     for token_location in tokens {
-        if matches!(token_location.0, crate::lex::lexing::Token::Newline) {
+        if matches!(token_location.0, crate::lex::lexing::Token::BlankLine(_)) {
             lines.push(current_line);
             current_line = vec![];
         } else {

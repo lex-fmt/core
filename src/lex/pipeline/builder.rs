@@ -279,7 +279,6 @@ mod tests {
 
         let mut pipeline = Pipeline::new()
             .add_transformation(SemanticIndentationMapper::new())
-            .add_transformation(BlankLinesMapper::new())
             .with_analyzer(AnalyzerConfig::Reference);
 
         let result = pipeline.run("Hello world\n");
@@ -302,7 +301,6 @@ mod tests {
 
         let mut pipeline = Pipeline::new()
             .add_transformation(SemanticIndentationMapper::new())
-            .add_transformation(BlankLinesMapper::new())
             .with_analyzer(AnalyzerConfig::Linebased);
 
         let result = pipeline.run("Hello:\n    World\n");

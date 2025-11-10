@@ -107,7 +107,7 @@ proptest! {
         for (token, _) in tokens {
             match token {
                 Token::LexMarker | Token::Indentation | Token::Indent(_) | Token::Dedent(_) |
-                Token::BlankLine(_) | Token::Whitespace | Token::Newline | Token::Dash | Token::Period |
+                Token::BlankLine(_) | Token::Whitespace | Token::Dash | Token::Period |
                 Token::OpenParen | Token::CloseParen | Token::Colon | Token::ExclamationMark |
                 Token::QuestionMark | Token::Semicolon | Token::InvertedExclamationMark |
                 Token::InvertedQuestionMark | Token::Ellipsis | Token::IdeographicFullStop |
@@ -197,11 +197,11 @@ proptest! {
 
     #[test]
     fn test_multiline_tokenization(input in lex_text_strategy()) {
-        // Multiline text should contain Newline tokens
+        // Multiline text should contain blank line tokens
         let tokens = lex_helper(&input);
 
         if input.contains('\n') {
-            assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Newline)));
+            assert!(tokens.iter().any(|(t, _)| matches!(t, Token::BlankLine(_))));
         }
     }
 
