@@ -9,6 +9,8 @@ Whitespace Handling in Lex
 
 	Semantically a  empty blankline (i.e. "\n") is equivalent to others "   	\n", in which it is considered and treated like a blank line. Of course tokenization presevers the whitespaces as these affect location tracking and round trip checks, but semantically the are the same.
 
+	Blank lines are parsing significatn, that is they are required in some elements, like sessions and forbid in others, like definitions.
+
 3. Indentation
 
 	Indentation is defined in spaces, the value for one level being 4. Tabs are converted to spaces by mutliplying tabs by tab width. So replace tabs , multiplying by 4. 
