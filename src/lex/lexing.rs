@@ -69,9 +69,8 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
 /// 1. Base tokenization (done by caller) - raw tokens with source locations
 /// 2. NormalizeWhitespace - handle whitespace remainders with locations (uses new TokenStream mapper)
 /// 3. SemanticIndentation - convert Indentation tokens with location tracking
-/// 4. TransformBlankLines - convert Newline sequences with location tracking
 pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
-    use crate::lex::lexing::transformations::{BlankLinesMapper, SemanticIndentationMapper};
+    use crate::lex::lexing::transformations::{SemanticIndentationMapper};
     use crate::lex::pipeline::stream::TokenStream;
 
     // Start with TokenStream::Flat and chain transformations
@@ -82,12 +81,6 @@ pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops
     current_stream =
         crate::lex::pipeline::mapper::walk_stream(current_stream, &mut semantic_indent_mapper)
             .expect("SemanticIndentation transformation failed");
-
-    // Stage 3: BlankLines
-    let mut blank_lines_mapper = BlankLinesMapper::new();
-    current_stream =
-        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut blank_lines_mapper)
-            .expect("BlankLines transformation failed");
 
     // Unroll the final stream to get flat tokens for backward compatibility
     current_stream.unroll()
@@ -123,7 +116,7 @@ mod tests {
                 (Token::Whitespace, 9, 10),
                 (Token::Text("paragraph".to_string()), 10, 19),
                 (Token::Period, 19, 20),
-                (Token::Newline, 20, 21),
+                (Token::BlankLine(Some("\n".to_string())), 20, 21),
                 (Token::Text("It".to_string()), 21, 23),
                 (Token::Whitespace, 23, 24),
                 (Token::Text("has".to_string()), 24, 27),
@@ -132,7 +125,7 @@ mod tests {
                 (Token::Whitespace, 36, 37),
                 (Token::Text("lines".to_string()), 37, 42),
                 (Token::Period, 42, 43),
-                (Token::Newline, 43, 44),
+                (Token::BlankLine(Some("\n".to_string())), 43, 44),
             ])
         );
     }
@@ -152,13 +145,13 @@ mod tests {
                 (Token::Text("First".to_string()), 2, 7),
                 (Token::Whitespace, 7, 8),
                 (Token::Text("item".to_string()), 8, 12),
-                (Token::Newline, 12, 13),
+                (Token::BlankLine(Some("\n".to_string())), 12, 13),
                 (Token::Dash, 13, 14),
                 (Token::Whitespace, 14, 15),
                 (Token::Text("Second".to_string()), 15, 21),
                 (Token::Whitespace, 21, 22),
                 (Token::Text("item".to_string()), 22, 26),
-                (Token::Newline, 26, 27),
+                (Token::BlankLine(Some("\n".to_string())), 26, 27),
             ])
         );
     }
@@ -179,12 +172,12 @@ mod tests {
                 (Token::Text("Session".to_string()), 3, 10),
                 (Token::Whitespace, 10, 11),
                 (Token::Text("Title".to_string()), 11, 16),
-                (Token::Newline, 16, 17),
+                (Token::BlankLine(Some("\n".to_string())), 16, 17),
                 (Token::Indent(vec![(Token::Indentation, 17..21)]), 0, 0),
                 (Token::Text("Content".to_string()), 21, 28),
                 (Token::Whitespace, 28, 29),
                 (Token::Text("here".to_string()), 29, 33),
-                (Token::Newline, 33, 34),
+                (Token::BlankLine(Some("\n".to_string())), 33, 34),
                 (Token::Dedent(vec![]), 0, 0),
             ])
         );
@@ -207,7 +200,7 @@ mod tests {
                 (Token::LexMarker, 10, 12),
                 (Token::Whitespace, 12, 13),
                 (Token::Text("marker".to_string()), 13, 19),
-                (Token::Newline, 19, 20),
+                (Token::BlankLine(Some("\n".to_string())), 19, 20),
             ])
         );
     }
@@ -226,27 +219,27 @@ mod tests {
                 (Token::Period, 1, 2),
                 (Token::Whitespace, 2, 3),
                 (Token::Text("Session".to_string()), 3, 10),
-                (Token::Newline, 10, 11),
+                (Token::BlankLine(Some("\n".to_string())), 10, 11),
                 (Token::Indent(vec![(Token::Indentation, 11..15)]), 0, 0),
                 (Token::Dash, 15, 16),
                 (Token::Whitespace, 16, 17),
                 (Token::Text("Item".to_string()), 17, 21),
                 (Token::Whitespace, 21, 22),
                 (Token::Number("1".to_string()), 22, 23),
-                (Token::Newline, 23, 24),
+                (Token::BlankLine(Some("\n".to_string())), 23, 24),
                 (Token::Dash, 28, 29),
                 (Token::Whitespace, 29, 30),
                 (Token::Text("Item".to_string()), 30, 34),
                 (Token::Whitespace, 34, 35),
                 (Token::Number("2".to_string()), 35, 36),
-                (Token::Newline, 36, 37),
-                (Token::BlankLine(vec![(Token::Newline, 37..38)]), 0, 0),
+                (Token::BlankLine(Some("\n".to_string())), 36, 37),
+                (Token::BlankLine(Some("\n".to_string())), 37, 38),
                 (Token::Dedent(vec![]), 0, 0),
                 (Token::Text("Paragraph".to_string()), 38, 47),
                 (Token::Whitespace, 47, 48),
                 (Token::Text("after".to_string()), 48, 53),
                 (Token::Period, 53, 54),
-                (Token::Newline, 54, 55),
+                (Token::BlankLine(Some("\n".to_string())), 54, 55),
             ])
         );
     }

@@ -138,7 +138,7 @@ pub(crate) fn text_line(
 pub(crate) fn paragraph(
     _source: Arc<String>,
 ) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
-    let line_with_newline = text_line().then(filter(|(tok, _)| tok == &Token::Newline));
+    let line_with_newline = text_line().then(filter(|(tok, _)| matches!(tok, Token::BlankLine(_))));
 
     line_with_newline.repeated().at_least(1).map(
         move |lines: Vec<(Vec<TokenLocation>, TokenLocation)>| {
@@ -162,7 +162,8 @@ pub(crate) fn paragraph(
 /// by the universal pipeline in data_extraction.
 pub(crate) fn annotation_header(
 ) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
-    filter(|(t, _): &TokenLocation| !matches!(t, Token::LexMarker | Token::Newline)).repeated()
+    filter(|(t, _): &TokenLocation| !matches!(t, Token::LexMarker | Token::BlankLine(_)))
+        .repeated()
 }
 
 /// Build an annotation parser
@@ -180,7 +181,7 @@ where
     let block_form = {
         let header_for_block = header.clone();
         header_for_block
-            .then_ignore(token(Token::Newline))
+            .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))))
             .then(
                 filter(|(t, _)| matches!(t, Token::Indent(_)))
                     .ignore_then(items.clone())
@@ -188,7 +189,7 @@ where
                     .or_not(),
             )
             .then_ignore(token(Token::LexMarker))
-            .then_ignore(token(Token::Newline).or_not())
+            .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))).or_not())
             .map(move |(header_tokens, children)| {
                 ParseNode::new(
                     NodeType::Annotation,
@@ -202,7 +203,7 @@ where
         let header_for_single = header.clone();
         header_for_single
             .then(token(Token::Whitespace).ignore_then(text_line()).or_not())
-            .then_ignore(token(Token::Newline).or_not())
+            .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))).or_not())
             .map(move |(header_tokens, content_tokens)| {
                 let children = if let Some(tokens) = content_tokens {
                     let para_node = ParseNode::new(NodeType::Paragraph, tokens, vec![]);
@@ -226,11 +227,13 @@ where
 /// Returns tokens (not pre-extracted text) for universal pipeline
 pub(crate) fn definition_subject(
 ) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
-    filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::Newline))
+    filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::BlankLine(_)))
         .repeated()
         .at_least(1)
         .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
-        .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Newline)).ignored())
+        .then_ignore(
+            filter(|(t, _): &TokenLocation| matches!(t, Token::BlankLine(_))).ignored(),
+        )
     // No .map() - preserve tokens!
 }
 
@@ -262,7 +265,7 @@ where
 pub(crate) fn session_title(
 ) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
     text_line()
-        .then_ignore(token(Token::Newline))
+        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))))
         .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))))
     // No .map() - preserve tokens!
 }
@@ -364,7 +367,7 @@ where
     P: Parser<TokenLocation, Vec<ParseNode>, Error = ParserError> + Clone + 'static,
 {
     let single_list_item = non_dialog_list_item_line()
-        .then_ignore(token(Token::Newline))
+        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))))
         .then(
             filter(|(t, _)| matches!(t, Token::Indent(_)))
                 .ignore_then(items)
@@ -392,11 +395,13 @@ pub(crate) fn verbatim_block(
 ) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
     // Parse subject tokens (not just text)
     let subject_token_parser =
-        filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::Newline))
+        filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::BlankLine(_)))
             .repeated()
             .at_least(1)
             .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
-            .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Newline)).ignored());
+            .then_ignore(
+                filter(|(t, _): &TokenLocation| matches!(t, Token::BlankLine(_))).ignored(),
+            );
 
     // Parse content that handles nested indentation structures.
     // Returns tokens (not just byte ranges) so we can do indentation wall stripping
@@ -443,7 +448,7 @@ pub(crate) fn verbatim_block(
         .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))).repeated())
         .then(with_content.or_not())
         .then(closing_annotation_parser)
-        .then_ignore(token(Token::Newline).or_not())
+        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))).or_not())
         .map(
             move |((subject_tokens, content_tokens), closing_annotation)| {
                 let subject_node =
