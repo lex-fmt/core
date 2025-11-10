@@ -140,7 +140,10 @@ impl AstNode for Verbatim {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_verbatim_block(self);
-        super::super::traits::visit_children(visitor, &self.children);
+        // Visit all groups, not just the first
+        for group in self.group() {
+            super::super::traits::visit_children(visitor, group.children);
+        }
     }
 }
 
