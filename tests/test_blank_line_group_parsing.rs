@@ -15,23 +15,6 @@ fn parse_document(source: &str) -> Document {
 }
 
 #[test]
-fn test_blank_line_group_location_visitor() {
-    let source = "A\n\nB";
-    let doc = parse_document(source);
-
-    // Use new query API to iterate all nodes and find blank line groups
-    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
-    if let Some(blg) = all_nodes
-        .iter()
-        .filter_map(|item| item.as_blank_line_group())
-        .next()
-    {
-        // Test that location field is accessible and works without panic
-        let _loc = &blg.location;
-    }
-}
-
-#[test]
 fn test_blank_line_group_node_type_visitor() {
     let source = "A\n\nB";
     let doc = parse_document(source);

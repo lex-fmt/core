@@ -151,6 +151,21 @@ pub fn has_list_marker(tokens: &[Token]) -> bool {
         return true;
     }
 
+    // Check for parenthetical list marker: OpenParen (Number | Letter | RomanNumeral) CloseParen Whitespace
+    if i + 3 < tokens.len()
+        && matches!(tokens[i], Token::OpenParen)
+        && matches!(tokens[i + 3], Token::Whitespace)
+        && matches!(tokens[i + 2], Token::CloseParen)
+    {
+        let has_number = matches!(tokens[i + 1], Token::Number(_));
+        let has_letter = matches!(tokens[i + 1], Token::Text(ref s) if is_single_letter(s));
+        let has_roman = matches!(tokens[i + 1], Token::Text(ref s) if is_roman_numeral(s));
+
+        if has_number || has_letter || has_roman {
+            return true;
+        }
+    }
+
     // Check for ordered list marker: (Number | Letter | RomanNumeral) (Period | CloseParen) Whitespace
     if i + 2 < tokens.len() {
         let has_number = matches!(tokens[i], Token::Number(_));

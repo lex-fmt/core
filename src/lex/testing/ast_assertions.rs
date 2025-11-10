@@ -757,6 +757,16 @@ impl<'a> VerbatimBlockkAssertion<'a> {
         );
         self
     }
+
+    pub fn line_count(self, expected: usize) -> Self {
+        let actual = self.verbatim_block.children.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected verbatim block to have {} lines, but got {}",
+            self.context, expected, actual
+        );
+        self
+    }
     pub fn has_closing_parameter_with_value(self, key: &str, value: &str) -> Self {
         let found = self
             .verbatim_block
