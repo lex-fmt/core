@@ -60,9 +60,12 @@ pub fn classify_line_tokens(tokens: &[Token]) -> LineType {
 
 /// Check if line is blank (only whitespace and newline)
 fn is_blank_line(tokens: &[Token]) -> bool {
-    tokens
-        .iter()
-        .all(|t| matches!(t, Token::Whitespace | Token::Indentation | Token::BlankLine(_)))
+    tokens.iter().all(|t| {
+        matches!(
+            t,
+            Token::Whitespace | Token::Indentation | Token::BlankLine(_)
+        )
+    })
 }
 
 /// Check if line is an annotation end line: only :: marker (and optional whitespace/newline)
@@ -70,7 +73,12 @@ fn is_annotation_end_line(tokens: &[Token]) -> bool {
     // Find all non-whitespace/non-newline tokens
     let content_tokens: Vec<_> = tokens
         .iter()
-        .filter(|t| !matches!(t, Token::Whitespace | Token::BlankLine(_) | Token::Indentation))
+        .filter(|t| {
+            !matches!(
+                t,
+                Token::Whitespace | Token::BlankLine(_) | Token::Indentation
+            )
+        })
         .collect();
 
     // Must have exactly one token and it must be LexMarker
@@ -232,10 +240,7 @@ mod tests {
 
     #[test]
     fn test_classify_blank_line() {
-        let tokens = vec![
-            Token::Whitespace,
-            Token::BlankLine(Some("\n".to_string())),
-        ];
+        let tokens = vec![Token::Whitespace, Token::BlankLine(Some("\n".to_string()))];
         assert_eq!(classify_line_tokens(&tokens), LineType::BlankLine);
     }
 
@@ -254,10 +259,7 @@ mod tests {
 
     #[test]
     fn test_classify_annotation_end_line() {
-        let tokens = vec![
-            Token::LexMarker,
-            Token::BlankLine(Some("\n".to_string())),
-        ];
+        let tokens = vec![Token::LexMarker, Token::BlankLine(Some("\n".to_string()))];
         assert_eq!(classify_line_tokens(&tokens), LineType::AnnotationEndLine);
     }
 
