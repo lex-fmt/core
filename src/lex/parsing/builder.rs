@@ -92,22 +92,36 @@ impl<'a> AstBuilder<'a> {
     }
 
     fn build_verbatim_block(&self, node: ParseNode) -> ContentItem {
-        let mut subject_node = None;
-        let mut content_node = None;
+        use crate::lex::building::extraction::VerbatimGroupTokenLines;
+
         let mut closing_node = None;
+        let mut pending_subject: Option<ParseNode> = None;
+        let mut groups: Vec<VerbatimGroupTokenLines> = Vec::new();
 
         for child in node.children {
             match child.node_type {
-                NodeType::VerbatimBlockkSubject => subject_node = Some(child),
-                NodeType::VerbatimBlockkContent => content_node = Some(child),
+                NodeType::VerbatimBlockkSubject => pending_subject = Some(child),
+                NodeType::VerbatimBlockkContent => {
+                    let subject = pending_subject
+                        .take()
+                        .expect("Verbatim content encountered without subject");
+                    let content_lines = group_tokens_by_line(child.tokens);
+                    groups.push(VerbatimGroupTokenLines {
+                        subject_tokens: subject.tokens,
+                        content_token_lines: content_lines,
+                    });
+                }
                 NodeType::VerbatimBlockkClosing => closing_node = Some(child),
                 _ => {}
             }
         }
 
-        let subject_tokens = subject_node.unwrap().tokens;
-        let content_token_lines = group_tokens_by_line(content_node.unwrap().tokens);
-        let closing_annotation_node = closing_node.unwrap();
+        if pending_subject.is_some() {
+            panic!("Internal parser error: Malformed parse tree - subject node without corresponding content node. This indicates a bug in the parser, not invalid user input.");
+        }
+
+        let closing_annotation_node =
+            closing_node.expect("Missing closing annotation for verbatim block");
         let closing_annotation =
             if let ContentItem::Annotation(ann) = self.build_annotation(closing_annotation_node) {
                 ann
@@ -115,12 +129,7 @@ impl<'a> AstBuilder<'a> {
                 panic!("Expected Annotation for verbatim block closing");
             };
 
-        ast_builder::build_verbatim_block_from_tokens(
-            subject_tokens,
-            content_token_lines,
-            closing_annotation,
-            self.source,
-        )
+        ast_builder::build_verbatim_block_from_tokens(groups, closing_annotation, self.source)
     }
 }
 

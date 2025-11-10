@@ -397,14 +397,17 @@ pub(crate) fn verbatim_block(
     _source: Arc<String>,
 ) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
     // Parse subject tokens (not just text)
+    let blank_line = filter(|(t, _): &TokenLocation| matches!(t, Token::BlankLine(_)));
     let subject_token_parser =
         filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::BlankLine(_)))
             .repeated()
             .at_least(1)
+            .map(|tokens: Vec<TokenLocation>| {
+                let indent_depth = subject_indent_depth(&tokens);
+                (tokens, indent_depth)
+            })
             .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
-            .then_ignore(
-                filter(|(t, _): &TokenLocation| matches!(t, Token::BlankLine(_))).ignored(),
-            );
+            .then_ignore(blank_line.ignored().or_not());
 
     // Parse content that handles nested indentation structures.
     // Returns tokens (not just byte ranges) so we can do indentation wall stripping
@@ -447,32 +450,76 @@ pub(crate) fn verbatim_block(
             ParseNode::new(NodeType::Annotation, header_tokens, children)
         });
 
-    subject_token_parser
-        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))).repeated())
+    let subject_content_pair = subject_token_parser
+        .then_ignore(blank_line.repeated())
         .then(with_content.or_not())
-        .then(closing_annotation_parser)
-        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))).or_not())
+        .then_ignore(blank_line.repeated())
         .map(
-            move |((subject_tokens, content_tokens), closing_annotation)| {
-                let subject_node =
-                    ParseNode::new(NodeType::VerbatimBlockkSubject, subject_tokens, vec![]);
-                let content_node = ParseNode::new(
-                    NodeType::VerbatimBlockkContent,
-                    content_tokens.unwrap_or_default(),
-                    vec![],
-                );
-                let closing_node = ParseNode::new(
-                    NodeType::VerbatimBlockkClosing,
-                    closing_annotation.tokens,
-                    closing_annotation.children,
-                );
-                ParseNode::new(
-                    NodeType::VerbatimBlock,
-                    vec![],
-                    vec![subject_node, content_node, closing_node],
-                )
+            move |((subject_tokens, indent_depth), content_tokens)| VerbatimGroupParseData {
+                subject_tokens,
+                content_tokens: content_tokens.unwrap_or_default(),
+                indent_depth,
             },
-        )
+        );
+
+    subject_content_pair
+        .repeated()
+        .at_least(1)
+        .try_map(|pairs: Vec<VerbatimGroupParseData>, span| {
+            let expected_depth = pairs.first().map(|pair| pair.indent_depth).unwrap_or(0);
+            if pairs.iter().all(|pair| pair.indent_depth == expected_depth) {
+                Ok(pairs)
+            } else {
+                Err(Simple::custom(
+                    span,
+                    "Verbatim group subjects must share the same indentation",
+                ))
+            }
+        })
+        .map(|pairs| {
+            pairs
+                .into_iter()
+                .flat_map(|pair| {
+                    vec![
+                        ParseNode::new(
+                            NodeType::VerbatimBlockkSubject,
+                            pair.subject_tokens,
+                            vec![],
+                        ),
+                        ParseNode::new(
+                            NodeType::VerbatimBlockkContent,
+                            pair.content_tokens,
+                            vec![],
+                        ),
+                    ]
+                })
+                .collect::<Vec<_>>()
+        })
+        .then(closing_annotation_parser)
+        .then_ignore(blank_line.or_not())
+        .map(move |(mut pair_nodes, closing_annotation)| {
+            let closing_node = ParseNode::new(
+                NodeType::VerbatimBlockkClosing,
+                closing_annotation.tokens,
+                closing_annotation.children,
+            );
+            pair_nodes.push(closing_node);
+            ParseNode::new(NodeType::VerbatimBlock, vec![], pair_nodes)
+        })
+}
+
+#[derive(Clone)]
+struct VerbatimGroupParseData {
+    subject_tokens: Vec<TokenLocation>,
+    content_tokens: Vec<TokenLocation>,
+    indent_depth: usize,
+}
+
+fn subject_indent_depth(tokens: &[TokenLocation]) -> usize {
+    tokens
+        .iter()
+        .take_while(|(token, _)| matches!(token, Token::Indent(_) | Token::Indentation))
+        .count()
 }
 
 // NOTE: Label and parameter parsing logic has been moved to

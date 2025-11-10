@@ -6,6 +6,7 @@
 //! - Test isolated elements (one element per test)
 //! - Verify content and structure, not just counts
 
+use lex::lex::ast::AstNode;
 use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
 
@@ -263,4 +264,131 @@ fn test_verbatim_10_flat_simple_empty() {
             .closing_label("javascript")
             .line_count(0); // No content lines
     });
+}
+
+#[test]
+fn test_verbatim_11_group_sequences() {
+    // verbatim-11-group-shell.lex: Multiple subject/content pairs sharing an annotation
+    let doc = Lexplore::verbatim(11).parse();
+
+    assert_ast(&doc).item_count(4);
+
+    // Grouped CLI instructions stay within a single verbatim block
+    assert_ast(&doc).item(0, |item| {
+        item.assert_verbatim_block()
+            .subject("Installing with home brew is simple")
+            .closing_label("shell")
+            .group_count(3)
+            .group(0, |group| {
+                group
+                    .subject("Installing with home brew is simple")
+                    .content_contains("$ brew install lex");
+            })
+            .group(1, |group| {
+                group
+                    .subject("From there the interactive help is available")
+                    .content_contains("$ lex help");
+            })
+            .group(2, |group| {
+                group
+                    .subject("And the built-in viewer can be used to quickly view the parsing")
+                    .content_contains("$ lex view <path>");
+            });
+    });
+
+    // Content following the group should remain a regular paragraph
+    assert_ast(&doc).item(1, |item| {
+        item.assert_paragraph()
+            .text_contains("content below, correct, from parsing however");
+    });
+
+    // Subsequent verbatim groups can reuse the same closing annotation
+    assert_ast(&doc).item(2, |item| {
+        item.assert_verbatim_block()
+            .closing_label("shell")
+            .group_count(2)
+            .group(0, |group| {
+                group.subject("This is block 1").content_contains("$ ls");
+            })
+            .group(1, |group| {
+                group
+                    .subject("Which is a shell block")
+                    .content_contains("$ pwd");
+            });
+    });
+
+    // Regular single-pair verbatim blocks should continue to work
+    assert_ast(&doc).item(3, |item| {
+        item.assert_verbatim_block()
+            .subject("And this is a block 2")
+            .closing_label("javascript")
+            .group_count(1)
+            .content_contains("input(\"Favorite fruit:\")");
+    });
+}
+
+#[test]
+fn test_verbatim_11_group_visitor_sees_all_groups() {
+    // Verify that visitors see content from all groups, not just the first
+    use lex::lex::ast::elements::VerbatimLine;
+    use lex::lex::ast::Visitor;
+
+    struct VerbatimLineCounter {
+        count: usize,
+        lines: Vec<String>,
+    }
+
+    impl Visitor for VerbatimLineCounter {
+        fn visit_verbatim_line(&mut self, line: &VerbatimLine) {
+            self.count += 1;
+            self.lines.push(line.content.as_string().to_string());
+        }
+    }
+
+    let doc = Lexplore::verbatim(11).parse();
+
+    let mut visitor = VerbatimLineCounter {
+        count: 0,
+        lines: Vec::new(),
+    };
+    doc.accept(&mut visitor);
+
+    // First verbatim block has 3 groups with 1 line each = 3 lines
+    // Second verbatim block has 2 groups with 1 line each = 2 lines
+    // Third verbatim block has 1 group with 1 line = 1 line
+    // Total: 6 verbatim lines
+    assert_eq!(
+        visitor.count, 6,
+        "Visitor should see all lines from all groups, got {} lines",
+        visitor.count
+    );
+
+    // Verify we got lines from all groups
+    assert!(
+        visitor
+            .lines
+            .iter()
+            .any(|l| l.contains("$ brew install lex")),
+        "Should see line from first group of first block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("$ lex help")),
+        "Should see line from second group of first block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("$ lex view")),
+        "Should see line from third group of first block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("$ ls")),
+        "Should see line from first group of second block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("$ pwd")),
+        "Should see line from second group of second block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("input(")),
+        "Should see line from third block"
+    );
 }

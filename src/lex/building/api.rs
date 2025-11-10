@@ -258,7 +258,11 @@ pub fn build_verbatim_block(
         .collect();
 
     // 3. Extract (includes indentation wall stripping)
-    let data = extraction::extract_verbatim_block_data(subject_tokens, content_token_lines, source);
+    let group = extraction::VerbatimGroupTokenLines {
+        subject_tokens,
+        content_token_lines,
+    };
+    let data = extraction::extract_verbatim_block_data(vec![group], source);
 
     // 4. Create
     builders::create_verbatim_block(data, closing_annotation, source)
@@ -433,24 +437,20 @@ pub fn build_annotation_from_tokens(
 ///
 /// ```rust,ignore
 /// // Tokens already normalized from reference parser
-/// let subject_tokens = vec![(Token::Text("Code".into()), 0..4)];
-/// let content_lines = vec![
-///     vec![(Token::Indentation, 6..10), (Token::Text("line1".into()), 10..15)],
-///     vec![(Token::Indentation, 16..20), (Token::Indentation, 20..24), (Token::Text("line2".into()), 24..29)],
-/// ];
-/// // After extraction, wall of 1 indent is stripped: "line1\n    line2"
+/// let group = extraction::VerbatimGroupTokenLines {
+///     subject_tokens: vec![(Token::Text("Code".into()), 0..4)],
+///     content_token_lines: vec![
+///         vec![(Token::Indentation, 6..10), (Token::Text("line1".into()), 10..15)],
+///     ],
+/// };
+/// // After extraction, wall of 1 indent is stripped: "line1\nline2"
 /// ```
 pub fn build_verbatim_block_from_tokens(
-    subject_tokens: Vec<(Token, ByteRange<usize>)>,
-    content_token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
+    groups: Vec<extraction::VerbatimGroupTokenLines>,
     closing_annotation: Annotation,
     source: &str,
 ) -> ContentItem {
-    // Skip normalization, tokens already normalized
-    // 1. Extract (includes indentation wall stripping)
-    let data = extraction::extract_verbatim_block_data(subject_tokens, content_token_lines, source);
-
-    // 2. Create
+    let data = extraction::extract_verbatim_block_data(groups, source);
     builders::create_verbatim_block(data, closing_annotation, source)
 }
 

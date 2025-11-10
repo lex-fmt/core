@@ -113,18 +113,27 @@ pub(super) struct AnnotationData {
     pub parameters: Vec<ParameterData>,
 }
 
+/// Token buckets for a single verbatim subject/content pair prior to extraction.
+#[derive(Debug, Clone)]
+pub struct VerbatimGroupTokenLines {
+    pub subject_tokens: Vec<(Token, ByteRange<usize>)>,
+    pub content_token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
+}
+
+/// Extracted data for an individual verbatim group item.
+#[derive(Debug, Clone)]
+pub(super) struct VerbatimGroupData {
+    pub subject_text: String,
+    pub subject_byte_range: ByteRange<usize>,
+    pub content_lines: Vec<(String, ByteRange<usize>)>,
+}
+
 /// Extracted data for building a VerbatimBlock AST node.
 ///
-/// Contains subject, content lines, and their byte ranges.
-/// The content lines have the indentation wall already stripped.
+/// Contains the ordered verbatim groups with indentation wall already stripped.
 #[derive(Debug, Clone)]
 pub(super) struct VerbatimBlockkData {
-    /// The verbatim block subject text
-    pub subject_text: String,
-    /// Byte range of the subject
-    pub subject_byte_range: ByteRange<usize>,
-    /// The content lines (with indentation wall stripped) - each is (text, byte_range)
-    pub content_lines: Vec<(String, ByteRange<usize>)>,
+    pub groups: Vec<VerbatimGroupData>,
 }
 
 // ============================================================================
@@ -600,62 +609,44 @@ fn strip_indentation_wall(
         .collect()
 }
 
-/// Extract verbatim block data from subject, content, and closing tokens.
+/// Extract verbatim block data from grouped subject/content tokens.
 ///
-/// This function implements indentation wall stripping:
-/// 1. Calculate the wall (minimum indentation across all content lines)
-/// 2. Strip that many Indent tokens from the start of each line
-/// 3. Extract text from the remaining tokens
-///
-/// This ensures that verbatim blocks at different nesting levels have identical content.
-///
-/// # Arguments
-///
-/// * `subject_tokens` - Normalized tokens for the subject line
-/// * `content_token_lines` - Normalized token vectors for each content line
-/// * `source` - The original source string
-///
-/// # Returns
-///
-/// VerbatimBlockkData with the indentation wall stripped from content
-///
-/// # Example
-///
-/// ```rust,ignore
-/// // Top-level verbatim block: "Code:\n    line1\n    line2"
-/// // Content tokens have 1 Indent each
-///
-/// // Nested verbatim block: "Session:\n    Code:\n        line1\n        line2"
-/// // Content tokens have 2 Indents each
-///
-/// // After extraction, both have identical content: "line1\nline2"
-/// ```
+/// Applies indentation wall stripping per group so nested verbatim blocks share
+/// identical extracted content regardless of indentation depth.
 pub(super) fn extract_verbatim_block_data(
-    subject_tokens: Vec<(Token, ByteRange<usize>)>,
-    mut content_token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
+    groups: Vec<VerbatimGroupTokenLines>,
     source: &str,
 ) -> VerbatimBlockkData {
-    // Extract subject
+    let groups = groups
+        .into_iter()
+        .map(|group| extract_verbatim_group(group, source))
+        .collect();
+
+    VerbatimBlockkData { groups }
+}
+
+fn extract_verbatim_group(
+    VerbatimGroupTokenLines {
+        subject_tokens,
+        mut content_token_lines,
+    }: VerbatimGroupTokenLines,
+    source: &str,
+) -> VerbatimGroupData {
     let subject_byte_range = compute_bounding_box(&subject_tokens);
     let subject_text = extract_text(subject_byte_range.clone(), source)
         .trim()
         .to_string();
 
-    // Calculate and strip indentation wall
     let wall_depth = calculate_indentation_wall(&content_token_lines);
-
-    // Strip wall from each line
     content_token_lines = content_token_lines
         .into_iter()
         .map(|tokens| strip_indentation_wall(tokens, wall_depth))
         .collect();
 
-    // Extract content lines with their byte ranges
     let content_lines: Vec<(String, ByteRange<usize>)> = content_token_lines
         .into_iter()
         .map(|tokens| {
             if tokens.is_empty() {
-                // Empty line
                 (String::new(), 0..0)
             } else {
                 let byte_range = compute_bounding_box(&tokens);
@@ -665,7 +656,7 @@ pub(super) fn extract_verbatim_block_data(
         })
         .collect();
 
-    VerbatimBlockkData {
+    VerbatimGroupData {
         subject_text,
         subject_byte_range,
         content_lines,
@@ -723,13 +714,19 @@ mod tests {
             ],
         ];
 
-        let data = extract_verbatim_block_data(subject_tokens, content_lines, source);
+        let group = VerbatimGroupTokenLines {
+            subject_tokens,
+            content_token_lines: content_lines,
+        };
 
-        assert_eq!(data.subject_text, "Code");
+        let data = extract_verbatim_block_data(vec![group], source);
+
+        assert_eq!(data.groups.len(), 1);
+        assert_eq!(data.groups[0].subject_text, "Code");
         // Wall of 1 indent should be stripped from both lines
         // So line1 has no indent, line2 has 1 indent left
-        assert_eq!(data.content_lines.len(), 2);
-        assert_eq!(data.content_lines[0].0, "line1");
-        assert_eq!(data.content_lines[1].0, "    line2");
+        assert_eq!(data.groups[0].content_lines.len(), 2);
+        assert_eq!(data.groups[0].content_lines[0].0, "line1");
+        assert_eq!(data.groups[0].content_lines[1].0, "    line2");
     }
 }
