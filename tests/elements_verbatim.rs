@@ -65,13 +65,19 @@ fn test_verbatim_04_flat_marker_form() {
 }
 
 #[test]
+#[should_panic(expected = "Expected VerbatimBlock, found Paragraph")]
 fn test_verbatim_05_flat_special_chars() {
     // verbatim-05-flat-special-chars.lex: Verbatim with :: markers in content
-    // TODO: Currently parsed as paragraph due to :: in content - potential parser bug
+    // BUG: Reference parser incorrectly parses this as Paragraph instead of VerbatimBlock
+    // The :: markers in content confuse the reference parser
     let doc = Lexplore::verbatim(5).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
-        item.assert_paragraph().text_contains("Special Characters");
+        item.assert_verbatim_block()
+            .subject("Special Characters")
+            .closing_label("javascript")
+            .content_contains("// This content has :: markers")
+            .content_contains("return \"::\"");
     });
 }
 
