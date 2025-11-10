@@ -44,6 +44,7 @@ use super::annotation::Annotation;
 use super::container::VerbatimContainer;
 use super::content_item::ContentItem;
 use std::fmt;
+use std::slice;
 
 /// A verbatim block represents content from another format/system
 #[derive(Debug, Clone, PartialEq)]
@@ -52,6 +53,7 @@ pub struct Verbatim {
     pub children: VerbatimContainer,
     pub closing_annotation: Annotation,
     pub location: Range,
+    additional_groups: Vec<VerbatimGroupItem>,
 }
 
 impl Verbatim {
@@ -69,6 +71,7 @@ impl Verbatim {
             children: VerbatimContainer::new(children),
             closing_annotation,
             location: Self::default_location(),
+            additional_groups: Vec::new(),
         }
     }
 
@@ -78,6 +81,7 @@ impl Verbatim {
             children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
+            additional_groups: Vec::new(),
         }
     }
 
@@ -87,6 +91,7 @@ impl Verbatim {
             children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
+            additional_groups: Vec::new(),
         }
     }
 
@@ -94,6 +99,26 @@ impl Verbatim {
     pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
+    }
+
+    /// Attach additional verbatim group entries beyond the first pair.
+    pub fn with_additional_groups(mut self, groups: Vec<VerbatimGroupItem>) -> Self {
+        self.additional_groups = groups;
+        self
+    }
+
+    /// Returns an iterator over each subject/content pair in the group order.
+    pub fn group(&self) -> VerbatimGroupIter<'_> {
+        VerbatimGroupIter {
+            first_yielded: false,
+            verbatim: self,
+            rest: self.additional_groups.iter(),
+        }
+    }
+
+    /// Returns the number of subject/content pairs held by this verbatim block.
+    pub fn group_len(&self) -> usize {
+        1 + self.additional_groups.len()
     }
 }
 
@@ -137,10 +162,59 @@ impl fmt::Display for Verbatim {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "VerbatimBlock('{}', {} lines, closing: {})",
+            "VerbatimBlock('{}', {} groups, closing: {})",
             self.subject.as_string(),
-            self.children.len(),
+            self.group_len(),
             self.closing_annotation.label.value
         )
+    }
+}
+
+/// Stored representation of additional verbatim group entries
+#[derive(Debug, Clone, PartialEq)]
+pub struct VerbatimGroupItem {
+    pub subject: TextContent,
+    pub children: VerbatimContainer,
+}
+
+impl VerbatimGroupItem {
+    pub fn new(subject: TextContent, children: Vec<ContentItem>) -> Self {
+        Self {
+            subject,
+            children: VerbatimContainer::new(children),
+        }
+    }
+}
+
+/// Immutable view over a verbatim group entry.
+#[derive(Debug, Clone)]
+pub struct VerbatimGroupItemRef<'a> {
+    pub subject: &'a TextContent,
+    pub children: &'a VerbatimContainer,
+}
+
+/// Iterator over all subject/content pairs inside a verbatim block.
+pub struct VerbatimGroupIter<'a> {
+    first_yielded: bool,
+    verbatim: &'a Verbatim,
+    rest: slice::Iter<'a, VerbatimGroupItem>,
+}
+
+impl<'a> Iterator for VerbatimGroupIter<'a> {
+    type Item = VerbatimGroupItemRef<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.first_yielded {
+            self.first_yielded = true;
+            return Some(VerbatimGroupItemRef {
+                subject: &self.verbatim.subject,
+                children: &self.verbatim.children,
+            });
+        }
+
+        self.rest.next().map(|item| VerbatimGroupItemRef {
+            subject: &item.subject,
+            children: &item.children,
+        })
     }
 }

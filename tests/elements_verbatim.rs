@@ -264,3 +264,64 @@ fn test_verbatim_10_flat_simple_empty() {
             .line_count(0); // No content lines
     });
 }
+
+#[test]
+fn test_verbatim_11_group_sequences() {
+    // verbatim-11-group-shell.lex: Multiple subject/content pairs sharing an annotation
+    let doc = Lexplore::verbatim(11).parse();
+
+    assert_ast(&doc).item_count(4);
+
+    // Grouped CLI instructions stay within a single verbatim block
+    assert_ast(&doc).item(0, |item| {
+        item.assert_verbatim_block()
+            .subject("Installing with home brew is simple")
+            .closing_label("shell")
+            .group_count(3)
+            .group(0, |group| {
+                group
+                    .subject("Installing with home brew is simple")
+                    .content_contains("$ brew install lex");
+            })
+            .group(1, |group| {
+                group
+                    .subject("From there the interactive help is available")
+                    .content_contains("$ lex help");
+            })
+            .group(2, |group| {
+                group
+                    .subject("And the built-in viewer can be used to quickly view the parsing")
+                    .content_contains("$ lex view <path>");
+            });
+    });
+
+    // Content following the group should remain a regular paragraph
+    assert_ast(&doc).item(1, |item| {
+        item.assert_paragraph()
+            .text_contains("content below, correct, from parsing however");
+    });
+
+    // Subsequent verbatim groups can reuse the same closing annotation
+    assert_ast(&doc).item(2, |item| {
+        item.assert_verbatim_block()
+            .closing_label("shell")
+            .group_count(2)
+            .group(0, |group| {
+                group.subject("This is block 1").content_contains("$ ls");
+            })
+            .group(1, |group| {
+                group
+                    .subject("Which is a shell block")
+                    .content_contains("$ pwd");
+            });
+    });
+
+    // Regular single-pair verbatim blocks should continue to work
+    assert_ast(&doc).item(3, |item| {
+        item.assert_verbatim_block()
+            .subject("And this is a block 2")
+            .closing_label("javascript")
+            .group_count(1)
+            .content_contains("input(\"Favorite fruit:\")");
+    });
+}

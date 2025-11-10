@@ -30,10 +30,12 @@
 
 use super::extraction::{
     AnnotationData, DefinitionData, ListItemData, ParagraphData, SessionData, VerbatimBlockkData,
+    VerbatimGroupData,
 };
 use super::location::{
     aggregate_locations, byte_range_to_ast_range, compute_location_from_locations,
 };
+use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
 use crate::lex::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
     TextLine, Verbatim,
@@ -364,36 +366,55 @@ pub(super) fn create_verbatim_block(
     closing_annotation: Annotation,
     source: &str,
 ) -> ContentItem {
+    if data.groups.is_empty() {
+        panic!("Verbatim blocks must contain at least one subject/content pair");
+    }
+
+    let mut data_groups = data.groups.into_iter();
+    let (first_subject, first_children, mut location_sources) =
+        build_verbatim_group(data_groups.next().unwrap(), source);
+
+    let mut additional_groups: Vec<VerbatimGroupItem> = Vec::new();
+
+    for group_data in data_groups {
+        let (subject, children, mut group_locations) = build_verbatim_group(group_data, source);
+        location_sources.append(&mut group_locations);
+        additional_groups.push(VerbatimGroupItem::new(subject, children));
+    }
+
+    location_sources.push(closing_annotation.location.clone());
+    let location = compute_location_from_locations(&location_sources);
+
+    let verbatim_block = Verbatim::new(first_subject, first_children, closing_annotation)
+        .with_additional_groups(additional_groups)
+        .at(location);
+
+    ContentItem::VerbatimBlock(Box::new(verbatim_block))
+}
+
+fn build_verbatim_group(
+    group_data: VerbatimGroupData,
+    source: &str,
+) -> (TextContent, Vec<ContentItem>, Vec<Range>) {
     use crate::lex::ast::elements::VerbatimLine;
 
-    let subject_location = byte_range_to_ast_range(data.subject_byte_range, source);
-    let subject = TextContent::from_string(data.subject_text, Some(subject_location.clone()));
+    let subject_location = byte_range_to_ast_range(group_data.subject_byte_range, source);
+    let subject = TextContent::from_string(group_data.subject_text, Some(subject_location.clone()));
 
-    // Create VerbatimLine children from content lines
     let mut children: Vec<ContentItem> = Vec::new();
-    let mut line_locations: Vec<Range> = Vec::new();
+    let mut locations: Vec<Range> = vec![subject_location];
 
-    for (line_text, line_byte_range) in data.content_lines {
+    for (line_text, line_byte_range) in group_data.content_lines {
         let line_location = byte_range_to_ast_range(line_byte_range, source);
-        line_locations.push(line_location.clone());
+        locations.push(line_location.clone());
 
         let line_content = TextContent::from_string(line_text, Some(line_location.clone()));
         let verbatim_line = VerbatimLine::from_text_content(line_content).at(line_location);
         children.push(ContentItem::VerbatimLine(verbatim_line));
     }
 
-    // Validate that all children are VerbatimLines
     validate_only_verbatim_lines(&children);
-
-    // Aggregate location from subject, all lines, and closing annotation
-    let mut location_sources = vec![subject_location];
-    location_sources.extend(line_locations);
-    location_sources.push(closing_annotation.location.clone());
-    let location = compute_location_from_locations(&location_sources);
-
-    let verbatim_block = Verbatim::new(subject, children, closing_annotation).at(location);
-
-    ContentItem::VerbatimBlock(Box::new(verbatim_block))
+    (subject, children, locations)
 }
 
 #[cfg(test)]

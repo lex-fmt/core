@@ -122,10 +122,20 @@ fn build_annotation_snapshot(ann: &Annotation) -> AstSnapshot {
 }
 
 fn build_verbatim_block_snapshot(fb: &super::Verbatim) -> AstSnapshot {
-    let mut snapshot = AstSnapshot::new("VerbatimBlock".to_string(), fb.display_label());
-    for child in fb.children() {
-        snapshot.children.push(snapshot_from_content(child));
+    let label = format!("{} ({} groups)", fb.display_label(), fb.group_len());
+    let mut snapshot = AstSnapshot::new("VerbatimBlock".to_string(), label);
+
+    for (idx, group) in fb.group().enumerate() {
+        let mut group_snapshot = AstSnapshot::new(
+            "VerbatimGroup".to_string(),
+            format!("{}#{}", group.subject.as_string(), idx),
+        );
+        for child in group.children.iter() {
+            group_snapshot.children.push(snapshot_from_content(child));
+        }
+        snapshot.children.push(group_snapshot);
     }
+
     snapshot
 }
 
