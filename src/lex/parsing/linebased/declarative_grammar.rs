@@ -47,7 +47,12 @@ const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
     ),
     // Annotation (single-line): <annotation-start-line><content>
     ("annotation_single", r"^(?P<start><annotation-start-line>)"),
-    // List: <blank-line><list-line><container>?<list-line><container>?{1,+}<blank-line>?
+    // List without preceding blank line (for lists inside containers)
+    (
+        "list_no_blank",
+        r"^(?P<items>((<list-line>|<subject-or-list-item-line>)(<container>)?){2,})(?P<trailing_blank><blank-line>)?",
+    ),
+    // List with preceding blank line (for lists at root level)
     (
         "list",
         r"^(?P<blank><blank-line>+)(?P<items>((<list-line>|<subject-or-list-item-line>)(<container>)?){2,})(?P<trailing_blank><blank-line>)?",
@@ -167,6 +172,28 @@ impl GrammarMatcher {
                             end_idx: 1,
                         },
                         "annotation_single" => PatternMatch::AnnotationSingle { start_idx: 0 },
+                        "list_no_blank" => {
+                            // List without preceding blank line
+                            let items_str = caps.name("items").unwrap().as_str();
+                            let mut items = Vec::new();
+                            let mut token_idx = 0; // No blank line, so start at 0
+                            for item_cap in LIST_ITEM_REGEX.find_iter(items_str) {
+                                let has_container = item_cap.as_str().contains("<container>");
+                                items.push((
+                                    token_idx,
+                                    if has_container {
+                                        Some(token_idx + 1)
+                                    } else {
+                                        None
+                                    },
+                                ));
+                                token_idx += if has_container { 2 } else { 1 };
+                            }
+                            PatternMatch::List {
+                                blank_idx: 0,
+                                items,
+                            }
+                        }
                         "list" => {
                             let blank_count = caps
                                 .name("blank")
