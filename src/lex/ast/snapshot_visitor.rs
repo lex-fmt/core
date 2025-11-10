@@ -128,10 +128,17 @@ fn build_verbatim_block_snapshot(fb: &super::Verbatim) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("VerbatimBlock".to_string(), label);
 
     for (idx, group) in fb.group().enumerate() {
-        let mut group_snapshot = AstSnapshot::new(
-            "VerbatimGroup".to_string(),
-            format!("{}#{}", group.subject.as_string(), idx),
-        );
+        let label = if group_count == 1 {
+            group.subject.as_string().to_string()
+        } else {
+            format!(
+                "{} (group {} of {})",
+                group.subject.as_string(),
+                idx + 1,
+                group_count
+            )
+        };
+        let mut group_snapshot = AstSnapshot::new("VerbatimGroup".to_string(), label);
         for child in group.children.iter() {
             group_snapshot.children.push(snapshot_from_content(child));
         }
