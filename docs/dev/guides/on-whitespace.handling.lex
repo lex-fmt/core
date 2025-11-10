@@ -9,7 +9,10 @@ Whitespace Handling in Lex
 
 	Semantically a  empty blankline (i.e. "\n") is equivalent to others "   	\n", in which it is considered and treated like a blank line. Of course tokenization presevers the whitespaces as these affect location tracking and round trip checks, but semantically the are the same.
 
-	Blank lines are parsing significatn, that is they are required in some elements, like sessions and forbid in others, like definitions.
+	Blank lines are parsing significant, that is they are required in some elements, like sessions and forbid in others, like definitions. However one or more blank lines have the same semantic as a single blank line. Hence one or more blank lines: 
+	- Mean the same things
+    - None of it's characters matter ,should not be parsed.
+
 
 3. Indentation
 
