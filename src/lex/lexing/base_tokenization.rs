@@ -64,7 +64,7 @@ mod tests {
         assert_eq!(tokenss[3].0, Token::Text("Session".to_string())); // "Session"
         assert_eq!(tokenss[4].0, Token::Whitespace); // " "
         assert_eq!(tokenss[5].0, Token::Text("Title".to_string())); // "Title"
-        assert_eq!(tokenss[6].0, Token::Newline); // "\n"
+        assert_eq!(tokenss[6].0, Token::BlankLine(Some("\n".to_string()))); // "\n"
 
         // Expected tokens for "    - Item 1"
         assert_eq!(tokenss[7].0, Token::Indentation); // "    "
@@ -73,7 +73,7 @@ mod tests {
         assert_eq!(tokenss[10].0, Token::Text("Item".to_string())); // "Item"
         assert_eq!(tokenss[11].0, Token::Whitespace); // " "
         assert_eq!(tokenss[12].0, Token::Number("1".to_string())); // "1"
-        assert_eq!(tokenss[13].0, Token::Newline); // "\n"
+        assert_eq!(tokenss[13].0, Token::BlankLine(Some("\n".to_string()))); // "\n"
 
         // Expected tokens for "    - Item 2"
         assert_eq!(tokenss[14].0, Token::Indentation); // "    "

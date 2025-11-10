@@ -46,7 +46,7 @@ fn find_line_start(tokens: &[Token], mut pos: usize) -> usize {
     // Go backwards to find the previous newline or start of document
     while pos > 0 {
         pos -= 1;
-        if matches!(tokens[pos], Token::Newline) {
+        if matches!(tokens[pos], Token::BlankLine(_)) {
             return pos + 1;
         }
     }
@@ -63,7 +63,7 @@ fn is_line_blank(tokens: &[Token], line_start: usize) -> bool {
     }
 
     // Check if the next token is a newline (or end of file)
-    i >= tokens.len() || matches!(tokens[i], Token::Newline)
+    i >= tokens.len() || matches!(tokens[i], Token::BlankLine(_))
 }
 
 /// Count consecutive Indentation tokens at the beginning of a line
@@ -104,12 +104,12 @@ impl StreamMapper for SemanticIndentationMapper {
             // Skip blank lines - they don't affect indentation level
             if is_blank_line {
                 let mut j = line_start;
-                while j < token_kinds.len() && !matches!(token_kinds[j], Token::Newline) {
+                while j < token_kinds.len() && !matches!(token_kinds[j], Token::BlankLine(_)) {
                     j += 1;
                 }
-                if j < token_kinds.len() && matches!(token_kinds[j], Token::Newline) {
+                if j < token_kinds.len() && matches!(token_kinds[j], Token::BlankLine(_)) {
                     // Preserve the newline location
-                    result.push((Token::Newline, tokens[j].1.clone()));
+                    result.push((token_kinds[j].clone(), tokens[j].1.clone()));
                     j += 1;
                 }
                 i = j;
@@ -164,14 +164,14 @@ impl StreamMapper for SemanticIndentationMapper {
             }
 
             // Process the rest of the line, keeping all remaining tokens with locations
-            while j < token_kinds.len() && !matches!(token_kinds[j], Token::Newline) {
+            while j < token_kinds.len() && !matches!(token_kinds[j], Token::BlankLine(_)) {
                 result.push((token_kinds[j].clone(), tokens[j].1.clone()));
                 j += 1;
             }
 
             // Add the newline token if we haven't reached the end
-            if j < token_kinds.len() && matches!(token_kinds[j], Token::Newline) {
-                result.push((Token::Newline, tokens[j].1.clone()));
+            if j < token_kinds.len() && matches!(token_kinds[j], Token::BlankLine(_)) {
+                result.push((token_kinds[j].clone(), tokens[j].1.clone()));
                 j += 1;
             }
 
@@ -210,7 +210,7 @@ mod tests {
                 match t {
                     Token::Indent(_) => Token::Indent(vec![]),
                     Token::Dedent(_) => Token::Dedent(vec![]),
-                    Token::BlankLine(_) => Token::BlankLine(vec![]),
+                    Token::BlankLine(_) => Token::BlankLine(Some("\n".to_string())),
                     other => other,
                 }
             })
@@ -221,10 +221,10 @@ mod tests {
     fn test_simple_indentation() {
         let input = vec![
             Token::Text("a".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Dash,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
@@ -236,10 +236,10 @@ mod tests {
                     stripped,
                     vec![
                         Token::Text("a".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Indent(vec![]),
                         Token::Dash,
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Dedent(vec![]),
                     ]
                 );
@@ -252,14 +252,14 @@ mod tests {
     fn test_multiple_indent_levels() {
         let input = vec![
             Token::Text("a".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Indentation,
             Token::Dash,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Text("b".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
@@ -271,14 +271,14 @@ mod tests {
                     stripped,
                     vec![
                         Token::Text("a".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Indent(vec![]),
                         Token::Indent(vec![]),
                         Token::Dash,
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Dedent(vec![]),
                         Token::Text("b".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Dedent(vec![]),
                     ]
                 );
@@ -291,9 +291,9 @@ mod tests {
     fn test_no_indentation() {
         let input = vec![
             Token::Text("a".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Text("b".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
@@ -339,13 +339,13 @@ mod tests {
     fn test_blank_lines() {
         let input = vec![
             Token::Text("a".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Dash,
-            Token::Newline,
-            Token::Newline, // blank line
+            Token::BlankLine(Some("\n".to_string())),
+            Token::BlankLine(Some("\n".to_string())), // blank line
             Token::Dash,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
@@ -357,14 +357,14 @@ mod tests {
                     stripped,
                     vec![
                         Token::Text("a".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Indent(vec![]),
                         Token::Dash,
-                        Token::Newline,
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Dedent(vec![]),
                         Token::Dash,
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                     ]
                 );
             }
@@ -376,14 +376,14 @@ mod tests {
     fn test_blank_lines_with_indentation() {
         let input = vec![
             Token::Text("a".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Dash,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
-            Token::Newline, // blank line with indentation
+            Token::BlankLine(Some("\n".to_string())), // blank line with indentation
             Token::Dash,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
@@ -395,14 +395,14 @@ mod tests {
                     stripped,
                     vec![
                         Token::Text("a".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Indent(vec![]),
                         Token::Dash,
-                        Token::Newline,
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Dedent(vec![]),
                         Token::Dash,
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                     ]
                 );
             }
@@ -414,10 +414,10 @@ mod tests {
     fn test_file_ending_while_indented() {
         let input = vec![
             Token::Text("a".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Dash,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Indentation,
             Token::Text("b".to_string()),
@@ -432,10 +432,10 @@ mod tests {
                     stripped,
                     vec![
                         Token::Text("a".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Indent(vec![]),
                         Token::Dash,
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Indent(vec![]),
                         Token::Text("b".to_string()),
                         Token::Dedent(vec![]),
@@ -451,14 +451,14 @@ mod tests {
     fn test_sharp_drop_in_indentation() {
         let input = vec![
             Token::Text("a".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Indentation,
             Token::Indentation,
             Token::Dash,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Text("b".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
@@ -470,17 +470,17 @@ mod tests {
                     stripped,
                     vec![
                         Token::Text("a".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Indent(vec![]),
                         Token::Indent(vec![]),
                         Token::Indent(vec![]),
                         Token::Dash,
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Dedent(vec![]),
                         Token::Dedent(vec![]),
                         Token::Dedent(vec![]),
                         Token::Text("b".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                     ]
                 );
             }
@@ -505,7 +505,7 @@ mod tests {
     fn test_find_line_start() {
         let tokens = vec![
             Token::Text("a".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Dash,
         ];
@@ -520,7 +520,7 @@ mod tests {
         // Verify that Indent tokens capture their source Indentation tokens (Immutable Log principle)
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1),
-            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::BlankLine(Some("\n".to_string())), 1, 2),
             mk_token(Token::Indentation, 2, 6), // 4 spaces
             mk_token(Token::Text("b".to_string()), 6, 7),
         ];
@@ -564,7 +564,7 @@ mod tests {
         // Verify that multiple Indent tokens each capture their respective source tokens
         let input: Tokens = vec![
             mk_token(Token::Text("a".to_string()), 0, 1),
-            mk_token(Token::Newline, 1, 2),
+            mk_token(Token::BlankLine(Some("\n".to_string())), 1, 2),
             mk_token(Token::Indentation, 2, 6), // First indent level
             mk_token(Token::Indentation, 6, 10), // Second indent level
             mk_token(Token::Text("b".to_string()), 10, 11),
@@ -612,17 +612,17 @@ mod tests {
             Token::Indentation,
             Token::Indentation,
             Token::Text("Foo".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Indentation,
             Token::Text("Foo2".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
             Token::Indentation,
             Token::Indentation,
             Token::Text("Bar".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
@@ -636,12 +636,12 @@ mod tests {
                         Token::Indent(vec![]),
                         Token::Indent(vec![]),
                         Token::Text("Foo".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Text("Foo2".to_string()),
-                        Token::Newline,
-                        Token::Newline, // blank line preserved
+                        Token::BlankLine(Some("\n".to_string())),
+                        Token::BlankLine(Some("\n".to_string())), // blank line preserved
                         Token::Text("Bar".to_string()),
-                        Token::Newline,
+                        Token::BlankLine(Some("\n".to_string())),
                         Token::Dedent(vec![]),
                         Token::Dedent(vec![]),
                     ],

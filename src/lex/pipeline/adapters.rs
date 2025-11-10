@@ -294,7 +294,7 @@ mod tests {
             (Token::Text("hello".to_string()), 0..5),
             (Token::Whitespace, 5..6),
             (Token::Text("world".to_string()), 6..11),
-            (Token::Newline, 11..12),
+            (Token::BlankLine(Some("\n".to_string())), 11..12),
         ];
 
         // Convert to stream
@@ -327,7 +327,7 @@ mod tests {
     fn test_round_trip_preserves_token_types() {
         let original = vec![
             (Token::Text("test".to_string()), 0..4),
-            (Token::Newline, 4..5),
+            (Token::BlankLine(Some("\n".to_string())), 4..5),
             (Token::Whitespace, 5..6),
             (Token::Dash, 6..7),
             (Token::Colon, 7..8),
@@ -348,13 +348,13 @@ mod tests {
         // Test with tokens that have embedded source tokens (like Indent, Dedent, BlankLine)
         let original = vec![
             (Token::Text("hello".to_string()), 0..5),
-            (Token::Newline, 5..6),
+            (Token::BlankLine(Some("\n".to_string())), 5..6),
             (
                 Token::Indent(vec![(Token::Indentation, 6..10)]),
                 0..0, // Placeholder span
             ),
             (Token::Text("indented".to_string()), 10..18),
-            (Token::Newline, 18..19),
+            (Token::BlankLine(Some("\n".to_string())), 18..19),
             (
                 Token::Dedent(vec![]), // No source tokens
                 0..0,                  // Placeholder span
@@ -371,9 +371,9 @@ mod tests {
     fn test_adapter_with_blank_line_tokens() {
         let original = vec![
             (Token::Text("line1".to_string()), 0..5),
-            (Token::Newline, 5..6),
+            (Token::BlankLine(Some("\n".to_string())), 5..6),
             (
-                Token::BlankLine(vec![(Token::Newline, 6..7)]),
+                Token::BlankLine(Some("\n".to_string())),
                 0..0, // Placeholder span
             ),
             (Token::Text("line2".to_string()), 7..12),
@@ -484,7 +484,7 @@ mod tests {
             ],
             children: Some(Box::new(TokenStream::Flat(vec![
                 (Token::Text("b".to_string()), 10..11),
-                (Token::Newline, 11..12),
+                (Token::BlankLine(Some("\n".to_string())), 11..12),
             ]))),
             line_type: None,
         };
