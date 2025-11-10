@@ -368,49 +368,10 @@ fn convert_pattern_to_item(
 
             // Create closing node (it's an annotation, but we need to parse it properly)
             // The closing annotation can have content after it (caption text)
-            let closing_tokens = closing_token
-                .source_tokens
-                .clone()
-                .into_iter()
-                .zip(closing_token.token_spans.clone())
-                .collect::<Vec<_>>();
-
-            // Split closing tokens into header (between :: markers) and content (after second ::)
-            // The header should NOT include the LexMarker tokens - only tokens between them
-            let mut header_tokens = Vec::new();
-            let mut content_tokens_after = Vec::new();
-            let mut lex_marker_count = 0;
-            let mut content_started = false;
-
-            for (token, span) in closing_tokens {
-                if token == crate::lex::lexing::Token::LexMarker {
-                    lex_marker_count += 1;
-                    if lex_marker_count == 2 {
-                        content_started = true;
-                    }
-                    // Don't include LexMarker tokens in header_tokens
-                    continue;
-                }
-
-                if !content_started {
-                    // Collect tokens between the two :: markers (excluding the markers themselves)
-                    header_tokens.push((token, span));
-                } else {
-                    // Collect tokens after the second :: marker
-                    content_tokens_after.push((token, span));
-                }
-            }
-
-            // If there's content after the header, create a paragraph for it
-            let closing_children = if !content_tokens_after.is_empty() {
-                vec![ParseNode::new(
-                    NodeType::Paragraph,
-                    content_tokens_after,
-                    vec![],
-                )]
-            } else {
-                vec![]
-            };
+            // Use the same extraction logic as standalone annotations to ensure consistency
+            // Note: Verbatim block closing annotations are always single-line/marker form
+            let (header_tokens, closing_children) =
+                extract_annotation_single_content(closing_token);
 
             let closing_node = ParseNode::new(
                 NodeType::VerbatimBlockkClosing,
