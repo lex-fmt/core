@@ -332,8 +332,7 @@ fn convert_pattern_to_item(
                 .filter(|(token, _)| {
                     !matches!(
                         token,
-                        crate::lex::lexing::Token::Colon
-                            | crate::lex::lexing::Token::BlankLine(_)
+                        crate::lex::lexing::Token::Colon | crate::lex::lexing::Token::BlankLine(_)
                     )
                 })
                 .collect();
@@ -359,18 +358,12 @@ fn convert_pattern_to_item(
             }
 
             // Create subject node
-            let subject_node = ParseNode::new(
-                NodeType::VerbatimBlockkSubject,
-                subject_tokens,
-                vec![],
-            );
+            let subject_node =
+                ParseNode::new(NodeType::VerbatimBlockkSubject, subject_tokens, vec![]);
 
             // Create content node
-            let content_node = ParseNode::new(
-                NodeType::VerbatimBlockkContent,
-                content_tokens,
-                vec![],
-            );
+            let content_node =
+                ParseNode::new(NodeType::VerbatimBlockkContent, content_tokens, vec![]);
 
             // Create closing node (it's an annotation, but we need to parse it properly)
             // The closing annotation can have content after it (caption text)
@@ -403,7 +396,11 @@ fn convert_pattern_to_item(
 
             // If there's content after the header, create a paragraph for it
             let closing_children = if !content_tokens_after.is_empty() {
-                vec![ParseNode::new(NodeType::Paragraph, content_tokens_after, vec![])]
+                vec![ParseNode::new(
+                    NodeType::Paragraph,
+                    content_tokens_after,
+                    vec![],
+                )]
             } else {
                 vec![]
             };
