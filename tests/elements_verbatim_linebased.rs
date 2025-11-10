@@ -8,19 +8,14 @@
 //!
 //! ## Known Issues
 //!
-//! All tests are currently failing due to a critical bug in the linebased parser:
-//! - BUG: Closing annotation labels are empty (expected "javascript", got "")
-//! - BUG: Annotation parameters are not extracted
-//!
-//! These tests are marked with #[ignore] to document the expected behavior.
-//! Once the bugs are fixed, remove #[ignore] to verify the fixes.
+//! - test_verbatim_05_flat_special_chars: Verbatim content with :: markers is not handled correctly
+//!   (This is a content parsing issue, not an annotation parsing issue)
 
 use lex::lex::pipeline::DocumentLoader;
 use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::{Lexplore, Parser};
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
 fn test_verbatim_01_flat_simple_code() {
     // verbatim-01-flat-simple-code.lex: Verbatim block with simple code
     let source = Lexplore::verbatim(1).source();
@@ -37,7 +32,6 @@ fn test_verbatim_01_flat_simple_code() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
 fn test_verbatim_02_flat_with_caption() {
     // verbatim-02-flat-with-caption.lex: Verbatim block with caption in closing annotation
     let source = Lexplore::verbatim(2).source();
@@ -54,7 +48,6 @@ fn test_verbatim_02_flat_with_caption() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
 fn test_verbatim_03_flat_with_params() {
     // verbatim-03-flat-with-params.lex: Verbatim with parameters in closing annotation
     let source = Lexplore::verbatim(3).source();
@@ -72,7 +65,6 @@ fn test_verbatim_03_flat_with_params() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
 fn test_verbatim_04_flat_marker_form() {
     // verbatim-04-flat-marker-form.lex: Single-line marker-style verbatim
     // Note: In marker form, content after closing :: is part of the annotation, not verbatim content
@@ -112,7 +104,6 @@ fn test_verbatim_05_flat_special_chars() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
 fn test_verbatim_06_nested_in_definition() {
     // verbatim-06-nested-in-definition.lex: Verbatim nested inside a definition
     let source = Lexplore::verbatim(6).source();
@@ -156,7 +147,6 @@ fn test_verbatim_06_nested_in_definition() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
 fn test_verbatim_07_nested_in_list() {
     // verbatim-07-nested-in-list.lex: Verbatim blocks nested in list items
     let source = Lexplore::verbatim(7).source();
@@ -212,7 +202,6 @@ fn test_verbatim_07_nested_in_list() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
 fn test_verbatim_08_nested_deep() {
     // verbatim-08-nested-deep.lex: Deeply nested verbatim (3 levels)
     let source = Lexplore::verbatim(8).source();
@@ -280,7 +269,6 @@ fn test_verbatim_08_nested_deep() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
 fn test_verbatim_09_flat_simple_beyond_wall() {
     // verbatim-09-flat-simple-beyong-wall.lex: Verbatim with content beyond indentation wall
     // Content beyond the wall gets its indentation normalized
@@ -299,7 +287,6 @@ fn test_verbatim_09_flat_simple_beyond_wall() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
 fn test_verbatim_10_flat_simple_empty() {
     // verbatim-10-flat-simple-empty.lex: Empty verbatim block
     let source = Lexplore::verbatim(10).source();
