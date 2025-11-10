@@ -463,14 +463,26 @@ fn convert_pattern_to_item(
                 Vec::new()
             };
 
+            // Filter out Colon, Whitespace, and BlankLine tokens from definition subject
+            // Definition subject should only contain the text before the colon
+            let subject_tokens: Vec<_> = subject_token
+                .source_tokens
+                .clone()
+                .into_iter()
+                .zip(subject_token.token_spans.clone())
+                .filter(|(token, _)| {
+                    !matches!(
+                        token,
+                        crate::lex::lexing::Token::Colon
+                            | crate::lex::lexing::Token::Whitespace
+                            | crate::lex::lexing::Token::BlankLine(_)
+                    )
+                })
+                .collect();
+
             Ok(ParseNode::new(
                 NodeType::Definition,
-                subject_token
-                    .source_tokens
-                    .clone()
-                    .into_iter()
-                    .zip(subject_token.token_spans.clone())
-                    .collect(),
+                subject_tokens,
                 children,
             ))
         }
@@ -487,14 +499,24 @@ fn convert_pattern_to_item(
                 content_children = parse_with_declarative_grammar(children.clone(), source)?;
             }
 
+            // Filter out trailing Whitespace and BlankLine tokens from session label
+            let subject_tokens: Vec<_> = subject_token
+                .source_tokens
+                .clone()
+                .into_iter()
+                .zip(subject_token.token_spans.clone())
+                .filter(|(token, _)| {
+                    !matches!(
+                        token,
+                        crate::lex::lexing::Token::Whitespace
+                            | crate::lex::lexing::Token::BlankLine(_)
+                    )
+                })
+                .collect();
+
             Ok(ParseNode::new(
                 NodeType::Session,
-                subject_token
-                    .source_tokens
-                    .clone()
-                    .into_iter()
-                    .zip(subject_token.token_spans.clone())
-                    .collect(),
+                subject_tokens,
                 content_children,
             ))
         }
