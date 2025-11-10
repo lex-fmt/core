@@ -945,6 +945,252 @@ fn test_verified_ensemble_with_definitions() {
 // - elements/annotations.rs for annotation tests
 // - elements/verbatim.rs for verbatim block tests
 
+// ==================== BENCHMARK TESTS ====================
+// Comprehensive kitchensink test that includes all element types
+
+#[test]
+fn test_benchmark_010_kitchensink() {
+    // Comprehensive test including all major features:
+    // - Paragraphs (single/multi-line)
+    // - Definitions (root and nested)
+    // - Sessions (flat and nested, up to 2 levels)
+    // - Lists (simple and nested, up to 3 levels)
+    // - Annotations (marker and block)
+    // - Verbatim blocks (subject and marker style)
+
+    let source = Lexplore::benchmark(10).source();
+    let doc = parse_document(&source).unwrap();
+
+    // Document has 8 root items
+    assert_ast(&doc).item_count(8);
+
+    // Item 0: Title paragraph
+    assert_ast(&doc).item(0, |item| {
+        item.assert_paragraph()
+            .text("Kitchensink Test Document {{paragraph}}")
+            .line_count(1);
+    });
+
+    // Item 1: Description paragraph
+    assert_ast(&doc).item(1, |item| {
+        item.assert_paragraph()
+            .text_contains("includes all major features")
+            .text_contains("{{paragraph}}")
+            .line_count(1);
+    });
+
+    // Item 2: Multi-line paragraph
+    assert_ast(&doc).item(2, |item| {
+        item.assert_paragraph()
+            .text_contains("two-lined paragraph")
+            .text_contains("simple definition at the root level")
+            .line_count(2);
+    });
+
+    // Item 3: Root definition with mixed content (paragraph + list)
+    assert_ast(&doc).item(3, |item| {
+        item.assert_definition()
+            .subject("Root Definition")
+            .child_count(2)
+            .child(0, |para| {
+                para.assert_paragraph()
+                    .text_contains("contains a paragraph and a list")
+                    .text_contains("{{definition}}")
+                    .line_count(1);
+            })
+            .child(1, |list| {
+                list.assert_list().item_count(2);
+            });
+    });
+
+    // Item 4: Paragraph between root elements
+    assert_ast(&doc).item(4, |item| {
+        item.assert_paragraph()
+            .text_contains("marker annotation at the root level")
+            .line_count(1);
+    });
+
+    // Item 5: Primary Session (Level 1) with complex nested content
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session()
+            .label("1. Primary Session {{session}}")
+            .child_count(6); // para, list, annotation, nested session, para, verbatim
+    });
+
+    // Verify first paragraph in primary session
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session().child(0, |para| {
+            para.assert_paragraph()
+                .text_contains("main container for testing nested structures")
+                .text_contains("{{paragraph}}")
+                .line_count(1);
+        });
+    });
+
+    // Verify list in primary session
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session().child(1, |list| {
+            list.assert_list().item_count(2);
+        });
+    });
+
+    // Verify marker annotation in primary session
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session().child(2, |annotation| {
+            annotation
+                .assert_annotation()
+                .label("warning")
+                .child_count(1)
+                .child(0, |para| {
+                    para.assert_paragraph()
+                        .text_contains("single-line annotation inside the session");
+                });
+        });
+    });
+
+    // Verify nested session (Level 2)
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session().child(3, |nested_session| {
+            nested_session
+                .assert_session()
+                .label("1.1. Nested Session (Level 2) {{session}}")
+                .child_count(3); // para, definition, list with nested content
+        });
+    });
+
+    // Verify paragraph in nested session
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session().child(3, |nested_session| {
+            nested_session.assert_session().child(0, |para| {
+                para.assert_paragraph()
+                    .text_contains("second-level session")
+                    .text_contains("{{paragraph}}")
+                    .line_count(1);
+            });
+        });
+    });
+
+    // Verify nested definition inside nested session
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session().child(3, |nested_session| {
+            nested_session.assert_session().child(1, |def| {
+                def.assert_definition()
+                    .subject("Nested Definition")
+                    .child_count(2) // para + list
+                    .child(0, |para| {
+                        para.assert_paragraph()
+                            .text_contains("inside a nested session")
+                            .text_contains("{{definition}}")
+                            .line_count(1);
+                    })
+                    .child(1, |list| {
+                        list.assert_list().item_count(2);
+                    });
+            });
+        });
+    });
+
+    // Verify nested list (Level 2) with deeply nested content (Level 3)
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session().child(3, |nested_session| {
+            nested_session.assert_session().child(2, |list| {
+                list.assert_list().item_count(2).item(0, |item| {
+                    // First list item has nested paragraph + nested list (Level 3)
+                    item.child_count(2)
+                        .child(0, |para| {
+                            para.assert_paragraph()
+                                .text_contains("list item contains a nested paragraph")
+                                .text_contains("{{paragraph}}")
+                                .line_count(1);
+                        })
+                        .child(1, |nested_list| {
+                            nested_list.assert_list().item_count(2);
+                        });
+                });
+            });
+        });
+    });
+
+    // Verify paragraph back at first level
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session().child(4, |para| {
+            para.assert_paragraph()
+                .text_contains("paragraph back at the first level")
+                .text_contains("{{paragraph}}")
+                .line_count(1);
+        });
+    });
+
+    // Verify verbatim block with subject line
+    assert_ast(&doc).item(5, |item| {
+        item.assert_session().child(5, |verbatim| {
+            verbatim
+                .assert_verbatim_block()
+                .subject("Code Example (Verbatim Block)")
+                .line_count(3);
+        });
+    });
+
+    // Item 6: Second Root Session with annotations and verbatim
+    assert_ast(&doc).item(6, |item| {
+        item.assert_session()
+            .label("2. Second Root Session {{session}}")
+            .child_count(3); // para, block annotation, marker verbatim
+    });
+
+    // Verify paragraph in second session
+    assert_ast(&doc).item(6, |item| {
+        item.assert_session().child(0, |para| {
+            para.assert_paragraph()
+                .text_contains("annotations with block content")
+                .text_contains("{{paragraph}}")
+                .line_count(1);
+        });
+    });
+
+    // Verify block annotation with parameters and mixed content
+    assert_ast(&doc).item(6, |item| {
+        item.assert_session().child(1, |annotation| {
+            annotation
+                .assert_annotation()
+                .label("todo")
+                .child_count(3) // 2 paras + list
+                .child(0, |para| {
+                    para.assert_paragraph()
+                        .text_contains("block annotation")
+                        .text_contains("{{paragraph}}")
+                        .line_count(1);
+                })
+                .child(1, |para| {
+                    para.assert_paragraph()
+                        .text_contains("contains a paragraph and a list")
+                        .text_contains("{{paragraph}}")
+                        .line_count(1);
+                })
+                .child(2, |list| {
+                    list.assert_list().item_count(2);
+                });
+        });
+    });
+
+    // Verify marker-style verbatim block
+    assert_ast(&doc).item(6, |item| {
+        item.assert_session().child(2, |verbatim| {
+            verbatim
+                .assert_verbatim_block()
+                .subject("Image Reference (Marker Verbatim Block)")
+                .line_count(0); // Marker style has no content lines
+        });
+    });
+
+    // Item 7: Final root paragraph
+    assert_ast(&doc).item(7, |item| {
+        item.assert_paragraph()
+            .text("Final paragraph at the end of the document. {{paragraph}}")
+            .line_count(1);
+    });
+}
+
 #[test]
 fn test_regression_definition_with_list_followed_by_definition() {
     // Issue: https://github.com/arthur-debert/lex/issues/41
