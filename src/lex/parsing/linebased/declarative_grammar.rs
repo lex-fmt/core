@@ -30,10 +30,10 @@ static LIST_ITEM_REGEX: Lazy<Regex> =
 /// Grammar patterns as regex rules with names and patterns
 /// Order matters: patterns are tried in declaration order for correct disambiguation
 const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
-    // Verbatim Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>
+    // Verbatim Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>|<annotation-start-line>
     (
         "verbatim_block",
-        r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)?(?P<content><container>)?(?P<closing><annotation-end-line>)",
+        r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)?(?P<content><container>)?(?P<closing><annotation-end-line>|<annotation-start-line>)",
     ),
     // Annotation (multi-line with markers): <annotation-start-line><container><annotation-end-line>
     (
@@ -323,46 +323,99 @@ fn convert_pattern_to_item(
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
             let closing_token = extract_line_token(&tokens[pattern_offset + closing_idx])?;
 
-            // Extract content lines from container if present
-            let mut content_lines = Vec::new();
-            if let Some(content_idx_val) = content_idx {
-                if let Some(LineContainer::Container { children, .. }) =
-                    tokens.get(pattern_offset + content_idx_val)
-                {
-                    content_lines = children
-                        .iter()
-                        .filter_map(|t| extract_line_token(t).ok())
-                        .collect::<Vec<_>>();
-                }
-            }
-            let mut all_tokens = subject_token
+            // Extract subject tokens (filter out Colon and BlankLine)
+            let subject_tokens: Vec<_> = subject_token
                 .source_tokens
                 .clone()
                 .into_iter()
                 .zip(subject_token.token_spans.clone())
-                .collect::<Vec<_>>();
-            for line in content_lines {
-                all_tokens.extend(
-                    line.source_tokens
-                        .clone()
-                        .into_iter()
-                        .zip(line.token_spans.clone()),
-                );
+                .filter(|(token, _)| {
+                    !matches!(
+                        token,
+                        crate::lex::lexing::Token::Colon | crate::lex::lexing::Token::BlankLine(_)
+                    )
+                })
+                .collect();
+
+            // Extract content tokens from container if present
+            let mut content_tokens = Vec::new();
+            if let Some(content_idx_val) = content_idx {
+                if let Some(LineContainer::Container { children, .. }) =
+                    tokens.get(pattern_offset + content_idx_val)
+                {
+                    for child in children {
+                        if let Ok(line_token) = extract_line_token(child) {
+                            content_tokens.extend(
+                                line_token
+                                    .source_tokens
+                                    .clone()
+                                    .into_iter()
+                                    .zip(line_token.token_spans.clone()),
+                            );
+                        }
+                    }
+                }
             }
+
+            // Create subject node
+            let subject_node =
+                ParseNode::new(NodeType::VerbatimBlockkSubject, subject_tokens, vec![]);
+
+            // Create content node
+            let content_node =
+                ParseNode::new(NodeType::VerbatimBlockkContent, content_tokens, vec![]);
+
+            // Create closing node (it's an annotation, but we need to parse it properly)
+            // The closing annotation can have content after it (caption text)
+            let closing_tokens = closing_token
+                .source_tokens
+                .clone()
+                .into_iter()
+                .zip(closing_token.token_spans.clone())
+                .collect::<Vec<_>>();
+
+            // Split closing tokens into header (up to second ::) and content (after)
+            let mut header_tokens = Vec::new();
+            let mut content_tokens_after = Vec::new();
+            let mut lex_marker_count = 0;
+            let mut content_started = false;
+
+            for (token, span) in closing_tokens {
+                if !content_started {
+                    header_tokens.push((token.clone(), span.clone()));
+                    if token == crate::lex::lexing::Token::LexMarker {
+                        lex_marker_count += 1;
+                        if lex_marker_count == 2 {
+                            content_started = true;
+                        }
+                    }
+                } else {
+                    content_tokens_after.push((token, span));
+                }
+            }
+
+            // If there's content after the header, create a paragraph for it
+            let closing_children = if !content_tokens_after.is_empty() {
+                vec![ParseNode::new(
+                    NodeType::Paragraph,
+                    content_tokens_after,
+                    vec![],
+                )]
+            } else {
+                vec![]
+            };
+
             let closing_node = ParseNode::new(
-                NodeType::Annotation,
-                closing_token
-                    .source_tokens
-                    .clone()
-                    .into_iter()
-                    .zip(closing_token.token_spans.clone())
-                    .collect(),
-                vec![],
+                NodeType::VerbatimBlockkClosing,
+                header_tokens,
+                closing_children,
             );
+
+            // Create verbatim block with three children
             Ok(ParseNode::new(
                 NodeType::VerbatimBlock,
-                all_tokens,
-                vec![closing_node],
+                vec![],
+                vec![subject_node, content_node, closing_node],
             ))
         }
         PatternMatch::AnnotationBlock {
