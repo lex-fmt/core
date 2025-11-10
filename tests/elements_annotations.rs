@@ -33,6 +33,42 @@ fn test_annotation_02_flat_marker_with_params() {
 }
 
 #[test]
+fn test_annotation_03_flat_inline_text() {
+    // annotation-03-flat-inline-text.lex: Single-line annotation with inline text
+    let doc = Lexplore::annotation(3).parse();
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_annotation()
+            .label("note")
+            .child_count(1)
+            .child(0, |child| {
+                child
+                    .assert_paragraph()
+                    .text_contains("Important information");
+            });
+    });
+}
+
+#[test]
+fn test_annotation_04_flat_inline_with_params() {
+    // annotation-04-flat-inline-with-params.lex: Single-line annotation with params and inline text
+    let doc = Lexplore::annotation(4).parse();
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_annotation()
+            .label("warning")
+            .parameter_count(1)
+            .parameter(0, "severity", "high")
+            .child_count(1)
+            .child(0, |child| {
+                child
+                    .assert_paragraph()
+                    .text_contains("Check this carefully");
+            });
+    });
+}
+
+#[test]
 fn test_annotation_05_flat_block_paragraph() {
     // annotation-05-flat-block-paragraph.lex: Block annotation with paragraph content
     let doc = Lexplore::annotation(5).parse();
