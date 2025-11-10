@@ -6,6 +6,7 @@
 //! - Test isolated elements (one element per test)
 //! - Verify content and structure, not just counts
 
+use lex::lex::ast::AstNode;
 use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
 
@@ -324,4 +325,70 @@ fn test_verbatim_11_group_sequences() {
             .group_count(1)
             .content_contains("input(\"Favorite fruit:\")");
     });
+}
+
+#[test]
+fn test_verbatim_11_group_visitor_sees_all_groups() {
+    // Verify that visitors see content from all groups, not just the first
+    use lex::lex::ast::elements::VerbatimLine;
+    use lex::lex::ast::Visitor;
+
+    struct VerbatimLineCounter {
+        count: usize,
+        lines: Vec<String>,
+    }
+
+    impl Visitor for VerbatimLineCounter {
+        fn visit_verbatim_line(&mut self, line: &VerbatimLine) {
+            self.count += 1;
+            self.lines.push(line.content.as_string().to_string());
+        }
+    }
+
+    let doc = Lexplore::verbatim(11).parse();
+
+    let mut visitor = VerbatimLineCounter {
+        count: 0,
+        lines: Vec::new(),
+    };
+    doc.accept(&mut visitor);
+
+    // First verbatim block has 3 groups with 1 line each = 3 lines
+    // Second verbatim block has 2 groups with 1 line each = 2 lines
+    // Third verbatim block has 1 group with 1 line = 1 line
+    // Total: 6 verbatim lines
+    assert_eq!(
+        visitor.count, 6,
+        "Visitor should see all lines from all groups, got {} lines",
+        visitor.count
+    );
+
+    // Verify we got lines from all groups
+    assert!(
+        visitor
+            .lines
+            .iter()
+            .any(|l| l.contains("$ brew install lex")),
+        "Should see line from first group of first block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("$ lex help")),
+        "Should see line from second group of first block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("$ lex view")),
+        "Should see line from third group of first block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("$ ls")),
+        "Should see line from first group of second block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("$ pwd")),
+        "Should see line from second group of second block"
+    );
+    assert!(
+        visitor.lines.iter().any(|l| l.contains("input(")),
+        "Should see line from third block"
+    );
 }
