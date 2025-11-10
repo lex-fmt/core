@@ -203,11 +203,14 @@ impl Container for Verbatim {
 
 impl fmt::Display for Verbatim {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let group_count = self.group_len();
+        let group_word = if group_count == 1 { "group" } else { "groups" };
         write!(
             f,
-            "VerbatimBlock('{}', {} groups, closing: {})",
+            "VerbatimBlock('{}', {} {}, closing: {})",
             self.subject.as_string(),
-            self.group_len(),
+            group_count,
+            group_word,
             self.closing_annotation.label.value
         )
     }
