@@ -46,13 +46,53 @@ use super::content_item::ContentItem;
 use std::fmt;
 use std::slice;
 
-/// A verbatim block represents content from another format/system
+/// A verbatim block represents content from another format/system.
+///
+/// # Verbatim Groups
+///
+/// Verbatim blocks can contain multiple subject/content pairs sharing a single closing
+/// annotation. This is useful for sequences like shell command transcripts or grouped
+/// code samples in the same language.
+///
+/// ## Storage Design
+///
+/// The first subject/content pair is stored directly in the `subject` and `children`
+/// fields for backwards compatibility with existing code that expects direct field access.
+/// Additional pairs are stored in the private `additional_groups` vector.
+///
+/// This split storage pattern allows:
+/// - Existing code to continue working unchanged (accessing first group via public fields)
+/// - New code to iterate over all groups uniformly using the `group()` method
+/// - Zero overhead for single-group verbatim blocks (the common case)
+///
+/// ## Usage
+///
+/// For single-group blocks, access fields directly:
+/// ```ignore
+/// let subject = verbatim.subject.as_string();
+/// let content = &verbatim.children;
+/// ```
+///
+/// For multi-group blocks, use the iterator:
+/// ```ignore
+/// for group in verbatim.group() {
+///     println!("Subject: {}", group.subject.as_string());
+///     for line in group.children.iter() {
+///         // Process each line
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Verbatim {
+    /// Subject line of the first group (backwards-compatible direct access)
     pub subject: TextContent,
+    /// Content lines of the first group (backwards-compatible direct access)
     pub children: VerbatimContainer,
+    /// Closing annotation shared by all groups
     pub closing_annotation: Annotation,
+    /// Location spanning all groups and the closing annotation
     pub location: Range,
+    /// Additional subject/content pairs beyond the first (for multi-group verbatims)
     additional_groups: Vec<VerbatimGroupItem>,
 }
 
