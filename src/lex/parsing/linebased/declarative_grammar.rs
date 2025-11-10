@@ -17,6 +17,7 @@
 //! 7. paragraph (any content-line or sequence thereof)
 //! 8. blank_line_group (one or more consecutive blank lines)
 
+use crate::lex::lexing::tokens_core::Token;
 use crate::lex::lexing::tokens_linebased::{LineContainer, LineToken};
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use once_cell::sync::Lazy;
@@ -431,69 +432,27 @@ fn convert_pattern_to_item(
         } => {
             let start_token = extract_line_token(&tokens[pattern_offset + start_idx])?;
 
-            // Extract header tokens (between :: markers, excluding the markers themselves)
-            let header_tokens: Vec<_> = start_token
-                .source_tokens
-                .clone()
-                .into_iter()
-                .zip(start_token.token_spans.clone())
-                .filter(|(token, _)| !matches!(token, crate::lex::lexing::Token::LexMarker))
-                .collect();
+            // Extract header tokens using shared helper function
+            let header_tokens = extract_annotation_header_tokens(start_token);
 
-            // Extract content from container
-            if let LineContainer::Container { children, .. } = &tokens[pattern_offset + content_idx]
-            {
-                let children = parse_with_declarative_grammar(children.clone(), source)?;
-                Ok(ParseNode::new(
-                    NodeType::Annotation,
-                    header_tokens,
-                    children,
-                ))
-            } else {
-                Ok(ParseNode::new(NodeType::Annotation, header_tokens, vec![]))
-            }
+            // Extract content from container using shared helper function
+            // This ensures block forms use the same content extraction path
+            // Note: content_idx is relative to pattern_offset, so we need to add it
+            let children =
+                extract_annotation_block_content(tokens, pattern_offset + content_idx, source)?;
+
+            Ok(ParseNode::new(
+                NodeType::Annotation,
+                header_tokens,
+                children,
+            ))
         }
         PatternMatch::AnnotationSingle { start_idx } => {
             let start_token = extract_line_token(&tokens[pattern_offset + start_idx])?;
-            let mut children = vec![];
-            let mut header_tokens = vec![];
 
-            // Split tokens into header (between :: markers) and content (after second ::)
-            // The header should NOT include the LexMarker tokens - only tokens between them
-            let all_tokens = start_token
-                .source_tokens
-                .clone()
-                .into_iter()
-                .zip(start_token.token_spans.clone())
-                .collect::<Vec<_>>();
-
-            let mut lex_marker_count = 0;
-            let mut content_started = false;
-            let mut content_tokens = vec![];
-
-            for (token, span) in all_tokens {
-                if token == crate::lex::lexing::Token::LexMarker {
-                    lex_marker_count += 1;
-                    if lex_marker_count == 2 {
-                        content_started = true;
-                    }
-                    // Don't include LexMarker tokens in header_tokens
-                    continue;
-                }
-
-                if !content_started {
-                    // Collect tokens between the two :: markers (excluding the markers themselves)
-                    header_tokens.push((token, span));
-                } else {
-                    // Collect tokens after the second :: marker
-                    content_tokens.push((token, span));
-                }
-            }
-
-            // If there's content after the header, create a paragraph for it
-            if !content_tokens.is_empty() {
-                children.push(ParseNode::new(NodeType::Paragraph, content_tokens, vec![]));
-            }
+            // Extract header tokens and content using shared helper function
+            // This ensures single-line form uses the same extraction logic as block forms
+            let (header_tokens, children) = extract_annotation_single_content(start_token);
 
             Ok(ParseNode::new(
                 NodeType::Annotation,
@@ -635,5 +594,81 @@ fn extract_line_token(token: &LineContainer) -> Result<&LineToken, String> {
     match token {
         LineContainer::Token(t) => Ok(t),
         _ => Err("Expected LineToken, found Container".to_string()),
+    }
+}
+
+/// Extract header tokens from an annotation start line.
+/// Header tokens are all tokens between the two :: markers (excluding the markers themselves).
+fn extract_annotation_header_tokens(
+    start_token: &LineToken,
+) -> Vec<(Token, std::ops::Range<usize>)> {
+    start_token
+        .source_tokens
+        .clone()
+        .into_iter()
+        .zip(start_token.token_spans.clone())
+        .filter(|(token, _)| !matches!(token, Token::LexMarker))
+        .collect()
+}
+
+/// Extract content from an annotation single-line form.
+/// Returns (header_tokens, content_children) where content_children is either empty
+/// or contains a single Paragraph node with the inline content.
+fn extract_annotation_single_content(
+    start_token: &LineToken,
+) -> (Vec<(Token, std::ops::Range<usize>)>, Vec<ParseNode>) {
+    let all_tokens = start_token
+        .source_tokens
+        .clone()
+        .into_iter()
+        .zip(start_token.token_spans.clone())
+        .collect::<Vec<_>>();
+
+    let mut lex_marker_count = 0;
+    let mut content_started = false;
+    let mut header_tokens = Vec::new();
+    let mut content_tokens = Vec::new();
+
+    for (token, span) in all_tokens {
+        if token == Token::LexMarker {
+            lex_marker_count += 1;
+            if lex_marker_count == 2 {
+                content_started = true;
+            }
+            // Don't include LexMarker tokens in header_tokens
+            continue;
+        }
+
+        if !content_started {
+            // Collect tokens between the two :: markers (excluding the markers themselves)
+            header_tokens.push((token, span));
+        } else {
+            // Collect tokens after the second :: marker
+            content_tokens.push((token, span));
+        }
+    }
+
+    // If there's content after the header, create a paragraph for it
+    // This ensures single-line form content goes through the same structure as block forms
+    let children = if !content_tokens.is_empty() {
+        vec![ParseNode::new(NodeType::Paragraph, content_tokens, vec![])]
+    } else {
+        vec![]
+    };
+
+    (header_tokens, children)
+}
+
+/// Extract content from an annotation block form.
+/// Returns the parsed children from the container, or empty vector if no container.
+fn extract_annotation_block_content(
+    tokens: &[LineContainer],
+    content_idx: usize,
+    source: &str,
+) -> Result<Vec<ParseNode>, String> {
+    if let Some(LineContainer::Container { children, .. }) = tokens.get(content_idx) {
+        parse_with_declarative_grammar(children.clone(), source)
+    } else {
+        Ok(vec![])
     }
 }
