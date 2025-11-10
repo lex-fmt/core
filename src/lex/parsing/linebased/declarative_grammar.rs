@@ -374,22 +374,28 @@ fn convert_pattern_to_item(
                 .zip(closing_token.token_spans.clone())
                 .collect::<Vec<_>>();
 
-            // Split closing tokens into header (up to second ::) and content (after)
+            // Split closing tokens into header (between :: markers) and content (after second ::)
+            // The header should NOT include the LexMarker tokens - only tokens between them
             let mut header_tokens = Vec::new();
             let mut content_tokens_after = Vec::new();
             let mut lex_marker_count = 0;
             let mut content_started = false;
 
             for (token, span) in closing_tokens {
-                if !content_started {
-                    header_tokens.push((token.clone(), span.clone()));
-                    if token == crate::lex::lexing::Token::LexMarker {
-                        lex_marker_count += 1;
-                        if lex_marker_count == 2 {
-                            content_started = true;
-                        }
+                if token == crate::lex::lexing::Token::LexMarker {
+                    lex_marker_count += 1;
+                    if lex_marker_count == 2 {
+                        content_started = true;
                     }
+                    // Don't include LexMarker tokens in header_tokens
+                    continue;
+                }
+
+                if !content_started {
+                    // Collect tokens between the two :: markers (excluding the markers themselves)
+                    header_tokens.push((token, span));
                 } else {
+                    // Collect tokens after the second :: marker
                     content_tokens_after.push((token, span));
                 }
             }
@@ -425,31 +431,26 @@ fn convert_pattern_to_item(
         } => {
             let start_token = extract_line_token(&tokens[pattern_offset + start_idx])?;
 
+            // Extract header tokens (between :: markers, excluding the markers themselves)
+            let header_tokens: Vec<_> = start_token
+                .source_tokens
+                .clone()
+                .into_iter()
+                .zip(start_token.token_spans.clone())
+                .filter(|(token, _)| !matches!(token, crate::lex::lexing::Token::LexMarker))
+                .collect();
+
             // Extract content from container
             if let LineContainer::Container { children, .. } = &tokens[pattern_offset + content_idx]
             {
                 let children = parse_with_declarative_grammar(children.clone(), source)?;
                 Ok(ParseNode::new(
                     NodeType::Annotation,
-                    start_token
-                        .source_tokens
-                        .clone()
-                        .into_iter()
-                        .zip(start_token.token_spans.clone())
-                        .collect(),
+                    header_tokens,
                     children,
                 ))
             } else {
-                Ok(ParseNode::new(
-                    NodeType::Annotation,
-                    start_token
-                        .source_tokens
-                        .clone()
-                        .into_iter()
-                        .zip(start_token.token_spans.clone())
-                        .collect(),
-                    vec![],
-                ))
+                Ok(ParseNode::new(NodeType::Annotation, header_tokens, vec![]))
             }
         }
         PatternMatch::AnnotationSingle { start_idx } => {
@@ -457,7 +458,8 @@ fn convert_pattern_to_item(
             let mut children = vec![];
             let mut header_tokens = vec![];
 
-            // Manually split tokens into header (up to second ::) and content (after)
+            // Split tokens into header (between :: markers) and content (after second ::)
+            // The header should NOT include the LexMarker tokens - only tokens between them
             let all_tokens = start_token
                 .source_tokens
                 .clone()
@@ -470,15 +472,20 @@ fn convert_pattern_to_item(
             let mut content_tokens = vec![];
 
             for (token, span) in all_tokens {
-                if !content_started {
-                    header_tokens.push((token.clone(), span.clone()));
-                    if token == crate::lex::lexing::Token::LexMarker {
-                        lex_marker_count += 1;
-                        if lex_marker_count == 2 {
-                            content_started = true;
-                        }
+                if token == crate::lex::lexing::Token::LexMarker {
+                    lex_marker_count += 1;
+                    if lex_marker_count == 2 {
+                        content_started = true;
                     }
+                    // Don't include LexMarker tokens in header_tokens
+                    continue;
+                }
+
+                if !content_started {
+                    // Collect tokens between the two :: markers (excluding the markers themselves)
+                    header_tokens.push((token, span));
                 } else {
+                    // Collect tokens after the second :: marker
                     content_tokens.push((token, span));
                 }
             }
