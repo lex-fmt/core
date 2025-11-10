@@ -1,6 +1,6 @@
 ---
 source: tests/tokenizer_documents.rs
-expression: tokens.tokens()
+expression: tokens
 ---
 [
     (
@@ -40,19 +40,20 @@ expression: tokens.tokens()
         23..36,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         36..37,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    37..38,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        37..38,
     ),
     (
         Text(
@@ -155,19 +156,20 @@ expression: tokens.tokens()
         85..98,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         98..99,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    99..100,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        99..100,
     ),
     (
         Text(
@@ -230,7 +232,11 @@ expression: tokens.tokens()
         130..131,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         131..132,
     ),
     (
@@ -294,7 +300,11 @@ expression: tokens.tokens()
         163..164,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         164..165,
     ),
     (
@@ -368,19 +378,20 @@ expression: tokens.tokens()
         192..205,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         205..206,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    206..207,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        206..207,
     ),
     (
         Text(
@@ -463,19 +474,20 @@ expression: tokens.tokens()
         253..266,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         266..267,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    267..268,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        267..268,
     ),
     (
         Text(
@@ -626,19 +638,20 @@ expression: tokens.tokens()
         342..355,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         355..356,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    356..357,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        356..357,
     ),
     (
         Text(
@@ -729,19 +742,20 @@ expression: tokens.tokens()
         403..416,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         416..417,
     ),
     (
         BlankLine(
-            [
-                (
-                    Newline,
-                    417..418,
-                ),
-            ],
+            Some(
+                "\n",
+            ),
         ),
-        0..0,
+        417..418,
     ),
     (
         Text(
@@ -942,7 +956,11 @@ expression: tokens.tokens()
         509..522,
     ),
     (
-        Newline,
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
         522..523,
     ),
 ]

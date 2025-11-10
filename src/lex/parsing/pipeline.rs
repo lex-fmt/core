@@ -44,15 +44,11 @@ pub fn analyze(
 mod tests {
     use super::*;
     use crate::lex::lexing::pipeline::LexingPipeline;
-    use crate::lex::lexing::transformations::{
-        BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper,
-    };
+    use crate::lex::lexing::transformations::SemanticIndentationMapper;
 
     fn baseline_pipeline() -> LexingPipeline {
         let mut pipeline = LexingPipeline::new();
-        pipeline.add_transformation(NormalizeWhitespaceMapper::new());
         pipeline.add_transformation(SemanticIndentationMapper::new());
-        pipeline.add_transformation(BlankLinesMapper::new());
         pipeline
     }
 

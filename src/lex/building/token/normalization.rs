@@ -215,7 +215,7 @@ mod tests {
             ],
             vec![
                 (Token::Text("world".to_string()), 6..11),
-                (Token::Newline, 11..12),
+                (Token::BlankLine(Some("\n".to_string())), 11..12),
             ],
         ];
 

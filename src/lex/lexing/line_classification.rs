@@ -63,7 +63,7 @@ fn is_blank_line(tokens: &[Token]) -> bool {
     tokens.iter().all(|t| {
         matches!(
             t,
-            Token::Whitespace | Token::Indentation | Token::Newline | Token::BlankLine(_)
+            Token::Whitespace | Token::Indentation | Token::BlankLine(_)
         )
     })
 }
@@ -73,7 +73,12 @@ fn is_annotation_end_line(tokens: &[Token]) -> bool {
     // Find all non-whitespace/non-newline tokens
     let content_tokens: Vec<_> = tokens
         .iter()
-        .filter(|t| !matches!(t, Token::Whitespace | Token::Newline | Token::Indentation))
+        .filter(|t| {
+            !matches!(
+                t,
+                Token::Whitespace | Token::BlankLine(_) | Token::Indentation
+            )
+        })
         .collect();
 
     // Must have exactly one token and it must be LexMarker
@@ -186,7 +191,7 @@ pub fn ends_with_colon(tokens: &[Token]) -> bool {
     while i >= 0 {
         let token = &tokens[i as usize];
         match token {
-            Token::Newline | Token::Whitespace => {
+            Token::BlankLine(_) | Token::Whitespace => {
                 i -= 1;
             }
             Token::Colon => return true,
@@ -207,7 +212,7 @@ mod tests {
             Token::Text("Hello".to_string()),
             Token::Whitespace,
             Token::Text("world".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
         assert_eq!(classify_line_tokens(&tokens), LineType::ParagraphLine);
     }
@@ -217,7 +222,7 @@ mod tests {
         let tokens = vec![
             Token::Text("Title".to_string()),
             Token::Colon,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
         assert_eq!(classify_line_tokens(&tokens), LineType::SubjectLine);
     }
@@ -228,14 +233,14 @@ mod tests {
             Token::Dash,
             Token::Whitespace,
             Token::Text("Item".to_string()),
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
         assert_eq!(classify_line_tokens(&tokens), LineType::ListLine);
     }
 
     #[test]
     fn test_classify_blank_line() {
-        let tokens = vec![Token::Whitespace, Token::Newline];
+        let tokens = vec![Token::Whitespace, Token::BlankLine(Some("\n".to_string()))];
         assert_eq!(classify_line_tokens(&tokens), LineType::BlankLine);
     }
 
@@ -247,14 +252,14 @@ mod tests {
             Token::Text("label".to_string()),
             Token::Whitespace,
             Token::LexMarker,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
         assert_eq!(classify_line_tokens(&tokens), LineType::AnnotationStartLine);
     }
 
     #[test]
     fn test_classify_annotation_end_line() {
-        let tokens = vec![Token::LexMarker, Token::Newline];
+        let tokens = vec![Token::LexMarker, Token::BlankLine(Some("\n".to_string()))];
         assert_eq!(classify_line_tokens(&tokens), LineType::AnnotationEndLine);
     }
 
@@ -265,7 +270,7 @@ mod tests {
             Token::Whitespace,
             Token::Text("Item".to_string()),
             Token::Colon,
-            Token::Newline,
+            Token::BlankLine(Some("\n".to_string())),
         ];
         assert_eq!(
             classify_line_tokens(&tokens),

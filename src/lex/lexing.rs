@@ -9,10 +9,10 @@
 //!
 //! The pipeline consists of:
 //! 1. Core tokenization using logos lexer
+//!    - Each newline (\n) is tokenized as a BlankLine token directly by logos
+//!    - Indentation tokens (4 spaces or tab) are emitted for each indentation level
 //! 2. Common Transformation pipeline:
-//!    - Whitespace remainder processing ./transformations/normalize_whitespace.rs
-//!    - Indentation transformation (Indent -> Indent/Dedent) ./transformations/sem_indentation.rs
-//!    - Blank line transformation (consecutive Newlines -> BlankLine) ./transformations/transform_blanklines.rs
+//!    - Indentation transformation (Indent -> Indent/Dedent) ./transformations/semantic_indentation.rs
 //! 3. Line-based pipeline (linebased):
 //!    - Flatten tokens into line tokens
 //!    - Transform line tokens into a hierarchical tree
@@ -63,40 +63,25 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
     }
 }
 
-/// Main indentation lexer pipeline that returns fully processed tokens with locations
+/// Main lexer pipeline that returns fully processed tokens with locations
 /// Returns tokens with their corresponding source locations
-/// Synthetic tokens (Indent, Dedent, BlankLine) have meaningful locations
+/// Synthetic tokens (Indent, Dedent) have meaningful locations
 /// Processing pipeline:
-/// 1. Base tokenization (done by caller) - raw tokens with source locations
-/// 2. NormalizeWhitespace - handle whitespace remainders with locations (uses new TokenStream mapper)
-/// 3. SemanticIndentation - convert Indentation tokens with location tracking
-/// 4. TransformBlankLines - convert Newline sequences with location tracking
+/// 1. Base tokenization (done by caller) - raw tokens with source locations from logos
+///    - BlankLine tokens are created directly by logos for each newline
+/// 2. SemanticIndentation - convert Indentation tokens to Indent/Dedent with location tracking
 pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
-    use crate::lex::lexing::transformations::{
-        BlankLinesMapper, NormalizeWhitespaceMapper, SemanticIndentationMapper,
-    };
+    use crate::lex::lexing::transformations::SemanticIndentationMapper;
     use crate::lex::pipeline::stream::TokenStream;
 
     // Start with TokenStream::Flat and chain transformations
     let mut current_stream = TokenStream::Flat(tokens);
-
-    // Stage 1: NormalizeWhitespace
-    let mut normalize_mapper = NormalizeWhitespaceMapper::new();
-    current_stream =
-        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut normalize_mapper)
-            .expect("NormalizeWhitespace transformation failed");
 
     // Stage 2: SemanticIndentation
     let mut semantic_indent_mapper = SemanticIndentationMapper::new();
     current_stream =
         crate::lex::pipeline::mapper::walk_stream(current_stream, &mut semantic_indent_mapper)
             .expect("SemanticIndentation transformation failed");
-
-    // Stage 3: BlankLines
-    let mut blank_lines_mapper = BlankLinesMapper::new();
-    current_stream =
-        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut blank_lines_mapper)
-            .expect("BlankLines transformation failed");
 
     // Unroll the final stream to get flat tokens for backward compatibility
     current_stream.unroll()
@@ -132,7 +117,7 @@ mod tests {
                 (Token::Whitespace, 9, 10),
                 (Token::Text("paragraph".to_string()), 10, 19),
                 (Token::Period, 19, 20),
-                (Token::Newline, 20, 21),
+                (Token::BlankLine(Some("\n".to_string())), 20, 21),
                 (Token::Text("It".to_string()), 21, 23),
                 (Token::Whitespace, 23, 24),
                 (Token::Text("has".to_string()), 24, 27),
@@ -141,7 +126,7 @@ mod tests {
                 (Token::Whitespace, 36, 37),
                 (Token::Text("lines".to_string()), 37, 42),
                 (Token::Period, 42, 43),
-                (Token::Newline, 43, 44),
+                (Token::BlankLine(Some("\n".to_string())), 43, 44),
             ])
         );
     }
@@ -161,13 +146,13 @@ mod tests {
                 (Token::Text("First".to_string()), 2, 7),
                 (Token::Whitespace, 7, 8),
                 (Token::Text("item".to_string()), 8, 12),
-                (Token::Newline, 12, 13),
+                (Token::BlankLine(Some("\n".to_string())), 12, 13),
                 (Token::Dash, 13, 14),
                 (Token::Whitespace, 14, 15),
                 (Token::Text("Second".to_string()), 15, 21),
                 (Token::Whitespace, 21, 22),
                 (Token::Text("item".to_string()), 22, 26),
-                (Token::Newline, 26, 27),
+                (Token::BlankLine(Some("\n".to_string())), 26, 27),
             ])
         );
     }
@@ -188,12 +173,12 @@ mod tests {
                 (Token::Text("Session".to_string()), 3, 10),
                 (Token::Whitespace, 10, 11),
                 (Token::Text("Title".to_string()), 11, 16),
-                (Token::Newline, 16, 17),
+                (Token::BlankLine(Some("\n".to_string())), 16, 17),
                 (Token::Indent(vec![(Token::Indentation, 17..21)]), 0, 0),
                 (Token::Text("Content".to_string()), 21, 28),
                 (Token::Whitespace, 28, 29),
                 (Token::Text("here".to_string()), 29, 33),
-                (Token::Newline, 33, 34),
+                (Token::BlankLine(Some("\n".to_string())), 33, 34),
                 (Token::Dedent(vec![]), 0, 0),
             ])
         );
@@ -216,7 +201,7 @@ mod tests {
                 (Token::LexMarker, 10, 12),
                 (Token::Whitespace, 12, 13),
                 (Token::Text("marker".to_string()), 13, 19),
-                (Token::Newline, 19, 20),
+                (Token::BlankLine(Some("\n".to_string())), 19, 20),
             ])
         );
     }
@@ -235,28 +220,77 @@ mod tests {
                 (Token::Period, 1, 2),
                 (Token::Whitespace, 2, 3),
                 (Token::Text("Session".to_string()), 3, 10),
-                (Token::Newline, 10, 11),
+                (Token::BlankLine(Some("\n".to_string())), 10, 11),
                 (Token::Indent(vec![(Token::Indentation, 11..15)]), 0, 0),
                 (Token::Dash, 15, 16),
                 (Token::Whitespace, 16, 17),
                 (Token::Text("Item".to_string()), 17, 21),
                 (Token::Whitespace, 21, 22),
                 (Token::Number("1".to_string()), 22, 23),
-                (Token::Newline, 23, 24),
+                (Token::BlankLine(Some("\n".to_string())), 23, 24),
                 (Token::Dash, 28, 29),
                 (Token::Whitespace, 29, 30),
                 (Token::Text("Item".to_string()), 30, 34),
                 (Token::Whitespace, 34, 35),
                 (Token::Number("2".to_string()), 35, 36),
-                (Token::Newline, 36, 37),
-                (Token::BlankLine(vec![(Token::Newline, 37..38)]), 0, 0),
+                (Token::BlankLine(Some("\n".to_string())), 36, 37),
+                (Token::BlankLine(Some("\n".to_string())), 37, 38),
                 (Token::Dedent(vec![]), 0, 0),
                 (Token::Text("Paragraph".to_string()), 38, 47),
                 (Token::Whitespace, 47, 48),
                 (Token::Text("after".to_string()), 48, 53),
                 (Token::Period, 53, 54),
-                (Token::Newline, 54, 55),
+                (Token::BlankLine(Some("\n".to_string())), 54, 55),
             ])
         );
+    }
+
+    #[test]
+    fn test_consecutive_blank_lines() {
+        // Test that consecutive newlines are each tokenized as separate BlankLine tokens
+        // In lex semantics, 1+ blank lines mean the same thing at parse time,
+        // but we preserve the exact count for round-trip fidelity
+        let input = "First\n\n\nSecond"; // 3 consecutive newlines
+        let tokens = lex_helper(input);
+
+        // Should produce: First, BlankLine("\n"), BlankLine("\n"), BlankLine("\n"), Second, BlankLine("\n")
+        assert_eq!(
+            tokens,
+            mk_tokens(&[
+                (Token::Text("First".to_string()), 0, 5),
+                (Token::BlankLine(Some("\n".to_string())), 5, 6),
+                (Token::BlankLine(Some("\n".to_string())), 6, 7),
+                (Token::BlankLine(Some("\n".to_string())), 7, 8),
+                (Token::Text("Second".to_string()), 8, 14),
+                (Token::BlankLine(Some("\n".to_string())), 14, 15),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_blank_line_round_trip() {
+        // Verify that tokenization -> detokenization preserves the source
+        use crate::lex::formats::detokenizer::detokenize;
+
+        let inputs = vec![
+            "First\nSecond",       // Single newline
+            "First\n\nSecond",     // Two newlines (one blank line)
+            "First\n\n\nSecond",   // Three newlines (two blank lines)
+            "First\n\n\n\nSecond", // Four newlines (three blank lines)
+        ];
+
+        for input in inputs {
+            let tokens_with_spans = lex_helper(input);
+            let tokens: Vec<Token> = tokens_with_spans.into_iter().map(|(t, _)| t).collect();
+            let detokenized = detokenize(&tokens);
+
+            // Should preserve the exact number of newlines (plus the trailing one added by lex_helper)
+            let expected = ensure_source_ends_with_newline(input);
+            assert_eq!(
+                detokenized, expected,
+                "Round-trip failed for input: {:?}",
+                input
+            );
+        }
     }
 }
