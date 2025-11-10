@@ -117,7 +117,7 @@ impl<'a> AstBuilder<'a> {
         }
 
         if pending_subject.is_some() {
-            panic!("Dangling verbatim subject without content");
+            panic!("Internal parser error: Malformed parse tree - subject node without corresponding content node. This indicates a bug in the parser, not invalid user input.");
         }
 
         let closing_annotation_node =
