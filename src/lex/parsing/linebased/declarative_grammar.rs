@@ -299,13 +299,13 @@ fn convert_pattern_to_item(
             // Extract content lines from container if present
             let mut content_lines = Vec::new();
             if let Some(content_idx_val) = content_idx {
-                if let Some(content_token) = tokens.get(pattern_offset + content_idx_val) {
-                    if let LineContainer::Container { children, .. } = content_token {
-                        content_lines = children
-                            .iter()
-                            .filter_map(|t| extract_line_token(t).ok())
-                            .collect::<Vec<_>>();
-                    }
+                if let Some(LineContainer::Container { children, .. }) =
+                    tokens.get(pattern_offset + content_idx_val)
+                {
+                    content_lines = children
+                        .iter()
+                        .filter_map(|t| extract_line_token(t).ok())
+                        .collect::<Vec<_>>();
                 }
             }
             let mut all_tokens = subject_token
@@ -424,12 +424,10 @@ fn convert_pattern_to_item(
                 let item_token = extract_line_token(&tokens[pattern_offset + item_idx])?;
 
                 let children = if let Some(content_idx_val) = content_idx {
-                    if let Some(content_token) = tokens.get(pattern_offset + content_idx_val) {
-                        if let LineContainer::Container { children, .. } = content_token {
-                            parse_with_declarative_grammar(children.clone(), source)?
-                        } else {
-                            Vec::new()
-                        }
+                    if let Some(LineContainer::Container { children, .. }) =
+                        tokens.get(pattern_offset + content_idx_val)
+                    {
+                        parse_with_declarative_grammar(children.clone(), source)?
                     } else {
                         Vec::new()
                     }
@@ -457,12 +455,10 @@ fn convert_pattern_to_item(
         } => {
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
 
-            let children = if let Some(content_token) = tokens.get(pattern_offset + content_idx) {
-                if let LineContainer::Container { children, .. } = content_token {
-                    parse_with_declarative_grammar(children.clone(), source)?
-                } else {
-                    Vec::new()
-                }
+            let children = if let Some(LineContainer::Container { children, .. }) =
+                tokens.get(pattern_offset + content_idx)
+            {
+                parse_with_declarative_grammar(children.clone(), source)?
             } else {
                 Vec::new()
             };
@@ -485,10 +481,10 @@ fn convert_pattern_to_item(
         } => {
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
             let mut content_children = vec![];
-            if let Some(content_token) = tokens.get(pattern_offset + content_idx) {
-                if let LineContainer::Container { children, .. } = content_token {
-                    content_children = parse_with_declarative_grammar(children.clone(), source)?;
-                }
+            if let Some(LineContainer::Container { children, .. }) =
+                tokens.get(pattern_offset + content_idx)
+            {
+                content_children = parse_with_declarative_grammar(children.clone(), source)?;
             }
 
             Ok(ParseNode::new(

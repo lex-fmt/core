@@ -162,8 +162,7 @@ pub(crate) fn paragraph(
 /// by the universal pipeline in data_extraction.
 pub(crate) fn annotation_header(
 ) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
-    filter(|(t, _): &TokenLocation| !matches!(t, Token::LexMarker | Token::BlankLine(_)))
-        .repeated()
+    filter(|(t, _): &TokenLocation| !matches!(t, Token::LexMarker | Token::BlankLine(_))).repeated()
 }
 
 /// Build an annotation parser
@@ -231,9 +230,7 @@ pub(crate) fn definition_subject(
         .repeated()
         .at_least(1)
         .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
-        .then_ignore(
-            filter(|(t, _): &TokenLocation| matches!(t, Token::BlankLine(_))).ignored(),
-        )
+        .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::BlankLine(_))).ignored())
     // No .map() - preserve tokens!
 }
 
@@ -262,11 +259,17 @@ where
 
 /// Parse a session title
 /// Returns tokens (not pre-extracted text) for universal pipeline
+///
+/// A session title is a text line followed by one or more blank lines.
+/// Multiple consecutive blank lines are semantically equivalent to a single blank line,
+/// so we accept 1+ BlankLine tokens (which includes the newline ending the title line).
 pub(crate) fn session_title(
 ) -> impl Parser<TokenLocation, Vec<TokenLocation>, Error = ParserError> + Clone {
-    text_line()
-        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))))
-        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_))))
+    text_line().then_ignore(
+        filter(|(t, _)| matches!(t, Token::BlankLine(_)))
+            .repeated()
+            .at_least(1),
+    )
     // No .map() - preserve tokens!
 }
 
