@@ -44,7 +44,7 @@ pub fn analyze(
 mod tests {
     use super::*;
     use crate::lex::lexing::pipeline::LexingPipeline;
-    use crate::lex::lexing::transformations::{SemanticIndentationMapper};
+    use crate::lex::lexing::transformations::SemanticIndentationMapper;
 
     fn baseline_pipeline() -> LexingPipeline {
         let mut pipeline = LexingPipeline::new();

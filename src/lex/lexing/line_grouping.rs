@@ -93,7 +93,9 @@ fn apply_dialog_detection(mut line_tokens: Vec<LineToken>) -> Vec<LineToken> {
             continue;
         }
 
-        if line_token.line_type != LineType::ListLine && line_token.line_type != LineType::DialogLine {
+        if line_token.line_type != LineType::ListLine
+            && line_token.line_type != LineType::DialogLine
+        {
             in_dialog = false;
         }
 

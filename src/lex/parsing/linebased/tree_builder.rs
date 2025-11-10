@@ -69,7 +69,6 @@ where
     children
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,7 +145,11 @@ mod tests {
         // Expected structure: [Token(Title), Container([Token(Content)])]
         match container {
             LineContainer::Container { children } => {
-                assert_eq!(children.len(), 2, "Should have two items at the root: the title token and the content container");
+                assert_eq!(
+                    children.len(),
+                    2,
+                    "Should have two items at the root: the title token and the content container"
+                );
 
                 // First child should be the title token
                 match &children[0] {
@@ -158,8 +161,14 @@ mod tests {
 
                 // Second child should be the container for indented content
                 match &children[1] {
-                    LineContainer::Container { children: nested_children } => {
-                        assert_eq!(nested_children.len(), 1, "Nested container should have one item");
+                    LineContainer::Container {
+                        children: nested_children,
+                    } => {
+                        assert_eq!(
+                            nested_children.len(),
+                            1,
+                            "Nested container should have one item"
+                        );
                         match &nested_children[0] {
                             LineContainer::Token(line_token) => {
                                 assert_eq!(line_token.line_type, LineType::ParagraphLine);
