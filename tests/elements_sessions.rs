@@ -6,13 +6,15 @@
 //! - Test isolated elements (one element per test)
 //! - Verify content and structure, not just counts
 
+use lex::lex::pipeline::Parser;
 use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
+use rstest::rstest;
 
-#[test]
-fn test_session_01_flat_simple() {
+#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+fn test_session_01_flat_simple(parser: Parser) {
     // session-01-flat-simple.lex: Session with title "Introduction" and one paragraph
-    let doc = Lexplore::session(1).parse();
+    let doc = Lexplore::session(1).parse_with(parser);
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_session()
@@ -26,10 +28,10 @@ fn test_session_01_flat_simple() {
     });
 }
 
-#[test]
-fn test_session_02_flat_numbered_title() {
+#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+fn test_session_02_flat_numbered_title(parser: Parser) {
     // session-02-flat-numbered-title.lex: Session with numbered title "1. Introduction:"
-    let doc = Lexplore::session(2).parse();
+    let doc = Lexplore::session(2).parse_with(parser);
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_session()
@@ -43,10 +45,10 @@ fn test_session_02_flat_numbered_title() {
     });
 }
 
-#[test]
-fn test_session_05_nested_simple() {
+#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+fn test_session_05_nested_simple(parser: Parser) {
     // session-05-nested-simple.lex: Document with paragraphs and nested sessions
-    let doc = Lexplore::session(5).parse();
+    let doc = Lexplore::session(5).parse_with(parser);
 
     // Document structure: Para, Para, Session, Para, Session, Para
     assert_ast(&doc)
@@ -91,5 +93,123 @@ fn test_session_05_nested_simple() {
         .item(5, |item| {
             item.assert_paragraph()
                 .text_contains("Final paragraph at the root level");
+        });
+}
+
+#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+fn test_session_03_flat_multiple_paragraphs(parser: Parser) {
+    let doc = Lexplore::session(3).parse_with(parser);
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_session()
+            .label("Background:")
+            .child_count(3)
+            .child(0, |child| {
+                child
+                    .assert_paragraph()
+                    .text_contains("contains multiple paragraphs");
+            })
+            .child(1, |child| {
+                child
+                    .assert_paragraph()
+                    .text_contains("Each paragraph is indented");
+            })
+            .child(2, |child| {
+                child.assert_paragraph().text_contains("third paragraph");
+            });
+    });
+}
+
+#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+fn test_session_04_flat_alphanumeric_title(parser: Parser) {
+    let doc = Lexplore::session(4).parse_with(parser);
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_session()
+            .label("A. First Section:")
+            .child(0, |child| {
+                child
+                    .assert_paragraph()
+                    .text_contains("alphabetical markers in their titles");
+            });
+    });
+}
+
+#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+fn test_session_07_paragraphs_sessions_flat_multiple(parser: Parser) {
+    let doc = Lexplore::session(7).parse_with(parser);
+
+    assert_ast(&doc)
+        .item_count(9)
+        .item(0, |item| {
+            item.assert_paragraph()
+                .text_contains("Multiple Sessions Flat Test");
+        })
+        .item(2, |item| {
+            item.assert_session()
+                .label("1. First Session {{session-title}}")
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("content of the first session");
+                });
+        })
+        .item(5, |item| {
+            item.assert_session()
+                .label("3. Third Session {{session-title}}")
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("different amounts of content");
+                });
+        })
+        .item(7, |item| {
+            item.assert_session()
+                .label("4. Session Without Numbering {{session-title}}")
+                .child(0, |child| {
+                    child
+                        .assert_session()
+                        .label("Session titles don't require numbering markers. {{session-title}}")
+                        .child(0, |grandchild| {
+                            grandchild
+                                .assert_paragraph()
+                                .text_contains("followed by a blank line");
+                        });
+                });
+        });
+}
+
+#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+fn test_session_08_paragraphs_sessions_nested_multiple(parser: Parser) {
+    let doc = Lexplore::session(8).parse_with(parser);
+
+    assert_ast(&doc)
+        .item_count(5)
+        .item(0, |item| {
+            item.assert_paragraph()
+                .text_contains("Nested Sessions Test");
+        })
+        .item(2, |item| {
+            item.assert_session()
+                .label("1. Root Session {{session-title}}")
+                .child(1, |child| {
+                    child
+                        .assert_session()
+                        .label("1.1. First Sub-session {{session-title}}")
+                        .child(0, |grandchild| {
+                            grandchild
+                                .assert_paragraph()
+                                .text_contains("second nesting level");
+                        });
+                });
+        })
+        .item(3, |item| {
+            item.assert_session()
+                .label("2. Another Root Session {{session-title}}")
+                .child(0, |child| {
+                    child
+                        .assert_paragraph()
+                        .text_contains("root level alongside the first");
+                });
         });
 }
