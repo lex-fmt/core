@@ -422,29 +422,39 @@ pub(crate) fn verbatim_block(
             );
 
     // Parse content that handles nested indentation structures.
-    // Returns tokens (not just byte ranges) so we can do indentation wall stripping
+    // Returns tokens (not just byte ranges) so we can do indentation wall stripping.
+    //
+    // NOTE: Inline "::" sequences inside verbatim bodies are perfectly legal (the
+    // spec relies on indentation, not escaping, to mark the end of the block).
+    // The lexer still emits a Token::LexMarker for those sequences, so the parser
+    // MUST keep consuming tokens until it sees the dedent that returns to the
+    // subject depth instead of treating every LexMarker as a closing annotation.
+    // This recursive matcher therefore filters only on Dedent tokens and leaves
+    // everything else—including nested indents and inline :: markers—in place so
+    // the AST builder can reconstruct the exact content.
     let with_content = filter(|(t, _)| matches!(t, Token::Indent(_)))
         .ignore_then(recursive(|nested_content| {
             choice((
-                // Handle nested indentation: properly matched pairs
+                // Nested indentation: recurse until matching dedent and keep collected tokens
                 filter(|(t, _)| matches!(t, Token::Indent(_)))
                     .ignore_then(nested_content.clone())
                     .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_))))
-                    .map(|_| (Token::Indent(vec![]), 0..0)), // Dummy token, won't be used
-                // Regular content token (not LexMarker, not Dedent)
-                filter(|(t, _location): &TokenLocation| {
-                    !matches!(t, Token::LexMarker | Token::Dedent(_))
-                }),
+                    .map(|tokens: Vec<TokenLocation>| tokens),
+                // Regular content token (anything except a Dedent)
+                filter(|(t, _location): &TokenLocation| !matches!(t, Token::Dedent(_)))
+                    .map(|token| vec![token]),
             ))
             .repeated()
             .at_least(1)
+            .map(|segments: Vec<Vec<TokenLocation>>| {
+                segments.into_iter().flatten().collect::<Vec<_>>()
+            })
         }))
         .then_ignore(filter(|(t, _)| matches!(t, Token::Dedent(_))))
         .map(|tokens: Vec<TokenLocation>| {
-            // Keep tokens (not just ranges) and filter out dummy tokens
             tokens
                 .into_iter()
-                .filter(|(_, s)| s.start < s.end) // Filter out dummy ranges (0..0)
+                .filter(|(_, s)| s.start < s.end)
                 .collect::<Vec<_>>()
         });
 
