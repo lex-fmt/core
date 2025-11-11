@@ -1,5 +1,6 @@
 ---
 source: tests/experimental_parser_kitchensink.rs
+assertion_line: 28
 expression: snapshot
 ---
 Document with 8 root items:
@@ -37,7 +38,7 @@ Document with 8 root items:
           [1] List item with 0 content item(s):
       [1] List item with 0 content item(s):
   [4] Paragraph with 1 line(s):     [0] TextLine: A paragraph back at the first level of nesting. {{paragraph}}
-  [5] VerbatimBlock with 59 content char(s)
+  [5] VerbatimBlock with 72 content char(s)
 [6] Session with 3 item(s):
   [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}
   [1] Annotation with 2 parameter(s) and 3 content item(s):

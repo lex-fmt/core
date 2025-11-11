@@ -83,8 +83,6 @@ fn test_verbatim_04_flat_marker_form() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
-#[should_panic(expected = "Expected VerbatimBlock, found Paragraph")]
 fn test_verbatim_05_flat_special_chars() {
     // verbatim-05-flat-special-chars.lex: Verbatim with :: markers in content
     // BUG: Reference parser incorrectly parses this as Paragraph instead of VerbatimBlock
@@ -133,7 +131,9 @@ fn test_verbatim_06_nested_in_definition() {
                 .subject("Implementation")
                 .closing_label("javascript")
                 .content_contains("function counter()")
-                .line_count(3); // function counter() {, }, and blank line
+                .content_contains("let count = 0;")
+                .content_contains("return () => ++count;")
+                .line_count(5); // function counter() {, let count = 0;, return, }, and blank line
         });
     });
 
@@ -178,7 +178,8 @@ fn test_verbatim_07_nested_in_list() {
                         .subject("Simple function")
                         .closing_label("python")
                         .content_contains("def hello():")
-                        .line_count(1); // def hello():
+                        .content_contains("return \"world\"")
+                        .line_count(3); // def hello():, return "world", and blank line
                 });
         });
     });
@@ -282,7 +283,9 @@ fn test_verbatim_09_flat_simple_beyond_wall() {
             .subject("Code Example")
             .closing_label("javascript")
             .content_contains("function hello() {")
-            .line_count(1); // Only the function declaration line at the wall level
+            .content_contains("return \"world\";")
+            .content_contains("}")
+            .line_count(4); // function hello(), return, closing brace, and blank line
     });
 }
 
@@ -307,8 +310,6 @@ fn test_verbatim_10_flat_simple_empty() {
 // If verbatim groups work in the reference parser, they should work in the linebased parser too.
 
 #[test]
-#[ignore] // TODO: Parser issue - verbatim groups with subjects at column 0 and blank lines between groups
-          // are not correctly parsed. See test_verbatim_13_group_spades in elements_verbatim.rs for details.
 fn test_verbatim_13_group_spades() {
     // verbatim-13-group-spades.lex: Verbatim group with multiple pairs and blank lines
     let source = Lexplore::verbatim(13).source();
@@ -347,13 +348,13 @@ fn test_verbatim_13_group_spades() {
     // Verify paragraph after the verbatim group
     assert_ast(&doc).item(1, |item| {
         item.assert_paragraph()
-            .text_contains("Note that verbatim blocks conetnts can have any number of blank lines");
+            .text_contains(
+                "Note that verbatim blocks conetents can have any number of blank lines, including None."
+            );
     });
 }
 
 #[test]
-#[ignore] // TODO: Parser issue - verbatim groups within sessions are not correctly parsed.
-          // See test_verbatim_12_document_simple in elements_verbatim.rs for details.
 fn test_verbatim_12_document_simple() {
     // verbatim-12-document-simple.lex: Document with mix of verbatim blocks, groups, and general content
     let source = Lexplore::verbatim(12).source();
@@ -375,18 +376,18 @@ fn test_verbatim_12_document_simple() {
             .child(2, |verbatim| {
                 verbatim
                     .assert_verbatim_block()
-                    .subject("This is a groupped Verbatim Block, this is the first Group;")
+                    .subject("This is a groupped Verbatim Block, this is the first Group")
                     .closing_label("shell")
                     .group_count(4)
                     .group(0, |group| {
                         group
-                            .subject("This is a groupped Verbatim Block, this is the first Group;")
+                            .subject("This is a groupped Verbatim Block, this is the first Group")
                             .content_contains("$ pwd # always te staring point");
                     })
                     .group(1, |group| {
                         group
                             .subject(
-                                "Now that you know where you are, lets find out what's around you:",
+                                "Now that you know where you are, lets find out what's around you",
                             )
                             .content_contains("$ ls");
                     });
@@ -396,7 +397,7 @@ fn test_verbatim_12_document_simple() {
     // Verify image marker verbatim block
     assert_ast(&doc).item(7, |item| {
         item.assert_verbatim_block()
-            .subject("This is an Image Verbatim Representation:")
+            .subject("This is an Image Verbatim Representation")
             .closing_label("image")
             .assert_marker_form()
             .has_closing_parameter_with_value("src", "image.jpg");
@@ -405,7 +406,7 @@ fn test_verbatim_12_document_simple() {
     // Verify final verbatim block
     assert_ast(&doc).item(10, |item| {
         item.assert_verbatim_block()
-            .subject("Say goodbye mom:")
+            .subject("Say goodbye mom")
             .closing_label("javascript")
             .content_contains("alert(\"Goodbye mom!\")");
     });
