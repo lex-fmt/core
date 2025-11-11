@@ -439,12 +439,12 @@ fn test_verbatim_11_group_visitor_sees_all_groups() {
 }
 
 #[test]
-#[ignore] // TODO: Parser issue - verbatim groups within sessions are not correctly parsed.
-          // The parser treats verbatim group subjects as separate sessions/definitions within the parent session.
-          // This is a known limitation that needs to be addressed in the parser.
+#[ignore] // TODO: Parser bug - after a session with verbatim group, subsequent sessions fail to parse
+          // See GitHub issue #208: The parser correctly parses the first session with verbatim group,
+          // but then fails to parse session 2 at document level (parses as paragraph instead).
+          // This is NOT about malformed input - the .lex file syntax is now correct.
 fn test_verbatim_12_document_simple() {
     // verbatim-12-document-simple.lex: Document with mix of verbatim blocks, groups, and general content
-    // This test is ignored due to parser limitations with verbatim groups nested within sessions.
     let doc = Lexplore::verbatim(12).parse();
 
     // Verify first paragraph
@@ -475,30 +475,30 @@ fn test_verbatim_12_document_simple() {
             .child(2, |verbatim| {
                 verbatim
                     .assert_verbatim_block()
-                    .subject("This is a groupped Verbatim Block, this is the first Group;")
+                    .subject("This is a groupped Verbatim Block, this is the first Group")
                     .closing_label("shell")
                     .group_count(4)
                     .group(0, |group| {
                         group
-                            .subject("This is a groupped Verbatim Block, this is the first Group;")
+                            .subject("This is a groupped Verbatim Block, this is the first Group")
                             .content_contains("$ pwd # always te staring point");
                     })
                     .group(1, |group| {
                         group
                             .subject(
-                                "Now that you know where you are, lets find out what's around you:",
+                                "Now that you know where you are, lets find out what's around you",
                             )
                             .content_contains("$ ls")
                             .content_contains("$ ls -r # recursive");
                     })
                     .group(2, |group| {
                         group
-                            .subject("And let's go places:")
+                            .subject("And let's go places")
                             .content_contains("$ cd <path to go>");
                     })
                     .group(3, |group| {
                         group
-                            .subject("Feeling lost, let's get back home:")
+                            .subject("Feeling lost, let's get back home")
                             .content_contains("$ cd ~");
                     });
             });
@@ -525,7 +525,7 @@ fn test_verbatim_12_document_simple() {
             .child(1, |verbatim| {
                 verbatim
                     .assert_verbatim_block()
-                    .subject("Inner Verbatim Block:")
+                    .subject("Inner Verbatim Block")
                     .closing_label("text")
                     .content_contains("this should be inside the list's conetnt");
             });
