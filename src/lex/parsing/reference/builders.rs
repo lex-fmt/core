@@ -522,7 +522,6 @@ pub(crate) fn verbatim_block(
                 .collect::<Vec<_>>()
         })
         .then(closing_annotation_parser)
-        .then_ignore(blank_line.or_not())
         .map(move |(mut pair_nodes, closing_annotation)| {
             let closing_node = ParseNode::new(
                 NodeType::VerbatimBlockkClosing,

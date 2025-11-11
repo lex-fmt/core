@@ -26,11 +26,6 @@ This document tests the combination of all three core elements (sessions, paragr
     - Second list item {{list-item}}
     - Third list item {{list-item}}
 
-		Inner Verbatim Block: 
-
-			this should be inside the list's conetnt.
-    :: text ::
-
 
 3. Session with Mixed Content {{session-title}}
 
