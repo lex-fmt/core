@@ -290,9 +290,9 @@ mod tests {
     #[test]
     fn test_session_rule() {
         let re = Regex::new(GRAMMAR_RULES[5].1).unwrap(); // session rule
-        assert!(re.is_match("<blank-line><content-line><blank-line><container>"));
-        assert!(!re.is_match("<blank-line><content-line><container>"));
-        assert!(!re.is_match("<content-line><blank-line><container>"));
+        assert!(re.is_match("<blank-line><paragraph-line><blank-line><container>"));
+        assert!(!re.is_match("<blank-line><paragraph-line><container>"));
+        assert!(!re.is_match("<paragraph-line><blank-line><container>"));
     }
 
     #[test]

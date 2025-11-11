@@ -18,7 +18,7 @@
 //! 8. blank_line_group (one or more consecutive blank lines)
 
 use crate::lex::lexing::tokens_core::Token;
-use crate::lex::lexing::tokens_linebased::{LineContainer, LineToken};
+use crate::lex::lexing::tokens_linebased::{LineContainer, LineToken, LineType};
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -31,11 +31,6 @@ static LIST_ITEM_REGEX: Lazy<Regex> =
 /// Grammar patterns as regex rules with names and patterns
 /// Order matters: patterns are tried in declaration order for correct disambiguation
 const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
-    // Verbatim Block: <subject-line>|<subject-or-list-item-line><blank-line>?<container>?<annotation-end-line>|<annotation-start-line>
-    (
-        "verbatim_block",
-        r"^(?P<subject><subject-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)?(?P<content><container>)?(?P<closing><annotation-end-line>|<annotation-start-line>)",
-    ),
     // Annotation (multi-line with markers): <annotation-start-line><container><annotation-end-line>
     (
         "annotation_block_with_end",
@@ -80,27 +75,26 @@ const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
 /// Represents the result of pattern matching at one level
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+pub struct VerbatimGroupMatch {
+    pub subject_idx: usize,
+    pub content_idx: Option<usize>,
+}
+
 enum PatternMatch {
-    /// Verbatim block: subject + optional blank + optional content + closing annotation
+    /// Verbatim block: one or more subject/content pairs followed by closing annotation
     VerbatimBlock {
-        subject_idx: usize,
-        blank_idx: Option<usize>,
-        content_idx: Option<usize>,
+        groups: Vec<VerbatimGroupMatch>,
         closing_idx: usize,
     },
     /// Annotation block: start + container + end
     AnnotationBlock {
         start_idx: usize,
         content_idx: usize,
-        end_idx: usize,
     },
     /// Annotation single: just start line
     AnnotationSingle { start_idx: usize },
     /// List: preceding blank line + 2+ consecutive list items
-    List {
-        blank_idx: usize,
-        items: Vec<(usize, Option<usize>)>,
-    },
+    List { items: Vec<(usize, Option<usize>)> },
     /// Definition: subject + immediate indent + content
     Definition {
         subject_idx: usize,
@@ -109,13 +103,12 @@ enum PatternMatch {
     /// Session: subject + blank line + indent + content
     Session {
         subject_idx: usize,
-        blank_idx: usize,
         content_idx: usize,
     },
     /// Paragraph: one or more consecutive non-blank, non-special lines
     Paragraph { start_idx: usize, end_idx: usize },
     /// Blank line group: one or more consecutive blank lines
-    BlankLineGroup { start_idx: usize, end_idx: usize },
+    BlankLineGroup,
 }
 
 /// Pattern matcher for declarative grammar using regex-based matching
@@ -137,12 +130,19 @@ impl GrammarMatcher {
             return None;
         }
 
+        if let Some(result) = Self::match_verbatim_block(tokens, start_idx) {
+            return Some(result);
+        }
+
         // Convert remaining tokens to grammar string
         let remaining_tokens = &tokens[start_idx..];
         let token_string = Self::tokens_to_grammar_string(remaining_tokens)?;
 
         // Try each pattern in order
         for (pattern_name, pattern_regex_str) in GRAMMAR_PATTERNS {
+            if *pattern_name == "verbatim_block" {
+                continue;
+            }
             if let Ok(regex) = Regex::new(pattern_regex_str) {
                 if let Some(caps) = regex.captures(&token_string) {
                     let full_match = caps.get(0).unwrap();
@@ -150,27 +150,13 @@ impl GrammarMatcher {
 
                     // Use captures to extract indices and build the pattern
                     let pattern = match *pattern_name {
-                        "verbatim_block" => {
-                            let blank_count = caps
-                                .name("blank")
-                                .map(|m| Self::count_consumed_tokens(m.as_str()))
-                                .unwrap_or(0);
-                            PatternMatch::VerbatimBlock {
-                                subject_idx: 0,
-                                blank_idx: caps.name("blank").map(|_| 1),
-                                content_idx: caps.name("content").map(|_| 1 + blank_count),
-                                closing_idx: consumed_count - 1,
-                            }
-                        }
                         "annotation_block_with_end" => PatternMatch::AnnotationBlock {
                             start_idx: 0,
                             content_idx: 1,
-                            end_idx: 2,
                         },
                         "annotation_block" => PatternMatch::AnnotationBlock {
                             start_idx: 0,
                             content_idx: 1,
-                            end_idx: 1,
                         },
                         "annotation_single" => PatternMatch::AnnotationSingle { start_idx: 0 },
                         "list_no_blank" => {
@@ -190,10 +176,7 @@ impl GrammarMatcher {
                                 ));
                                 token_idx += if has_container { 2 } else { 1 };
                             }
-                            PatternMatch::List {
-                                blank_idx: 0,
-                                items,
-                            }
+                            PatternMatch::List { items }
                         }
                         "list" => {
                             let blank_count = caps
@@ -215,17 +198,13 @@ impl GrammarMatcher {
                                 ));
                                 token_idx += if has_container { 2 } else { 1 };
                             }
-                            PatternMatch::List {
-                                blank_idx: 0,
-                                items,
-                            }
+                            PatternMatch::List { items }
                         }
                         "session" => {
                             let blank_str = caps.name("blank").unwrap().as_str();
                             let blank_count = Self::count_consumed_tokens(blank_str);
                             PatternMatch::Session {
                                 subject_idx: 0,
-                                blank_idx: 1,
                                 content_idx: 1 + blank_count,
                             }
                         }
@@ -237,10 +216,7 @@ impl GrammarMatcher {
                             start_idx: 0,
                             end_idx: consumed_count - 1,
                         },
-                        "blank_line_group" => PatternMatch::BlankLineGroup {
-                            start_idx: 0,
-                            end_idx: consumed_count - 1,
-                        },
+                        "blank_line_group" => PatternMatch::BlankLineGroup,
                         _ => continue,
                     };
 
@@ -277,6 +253,101 @@ impl GrammarMatcher {
     fn count_consumed_tokens(grammar_str: &str) -> usize {
         grammar_str.matches('<').count()
     }
+
+    fn match_verbatim_block(
+        tokens: &[LineContainer],
+        start_idx: usize,
+    ) -> Option<(PatternMatch, Range<usize>)> {
+        use LineType::{
+            AnnotationEndLine, AnnotationStartLine, BlankLine, SubjectLine, SubjectOrListItemLine,
+        };
+
+        let mut idx = start_idx;
+        let len = tokens.len();
+        let mut groups = Vec::new();
+
+        // Allow blank lines before the first subject as part of the match
+        while idx < len {
+            if let LineContainer::Token(line) = &tokens[idx] {
+                if line.line_type == BlankLine {
+                    idx += 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        if idx >= len {
+            return None;
+        }
+
+        let mut current = idx;
+
+        loop {
+            let subject_idx = match &tokens.get(current)? {
+                LineContainer::Token(line)
+                    if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) =>
+                {
+                    let idx_val = current;
+                    current += 1;
+                    idx_val
+                }
+                _ => return None,
+            };
+
+            while current < len {
+                if let LineContainer::Token(line) = &tokens[current] {
+                    if line.line_type == BlankLine {
+                        current += 1;
+                        continue;
+                    }
+                }
+                break;
+            }
+
+            let mut content_idx = None;
+            if current < len && matches!(tokens[current], LineContainer::Container { .. }) {
+                content_idx = Some(current);
+                current += 1;
+            }
+
+            groups.push(VerbatimGroupMatch {
+                subject_idx,
+                content_idx,
+            });
+
+            while current < len {
+                if let LineContainer::Token(line) = &tokens[current] {
+                    if line.line_type == BlankLine {
+                        current += 1;
+                        continue;
+                    }
+                }
+                break;
+            }
+
+            if current < len {
+                if let LineContainer::Token(line) = &tokens[current] {
+                    if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
+                        let closing_idx = current;
+                        return Some((
+                            PatternMatch::VerbatimBlock {
+                                groups,
+                                closing_idx,
+                            },
+                            start_idx..(closing_idx + 1),
+                        ));
+                    }
+                } else {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+
+            // Continue loop expecting another subject
+        }
+    }
 }
 
 /// Main recursive descent parser using the declarative grammar
@@ -290,7 +361,7 @@ pub fn parse_with_declarative_grammar(
     while idx < tokens.len() {
         if let Some((pattern, range)) = GrammarMatcher::try_match(&tokens, idx) {
             // Skip blank line groups (they're structural, not content)
-            if !matches!(pattern, PatternMatch::BlankLineGroup { .. }) {
+            if !matches!(pattern, PatternMatch::BlankLineGroup) {
                 // Convert pattern to ContentItem
                 let item = convert_pattern_to_item(&tokens, &pattern, range.start, source)?;
                 items.push(item);
@@ -316,80 +387,69 @@ fn convert_pattern_to_item(
 ) -> Result<ParseNode, String> {
     match pattern {
         PatternMatch::VerbatimBlock {
-            subject_idx,
-            blank_idx: _,
-            content_idx,
+            groups,
             closing_idx,
         } => {
-            let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
-            let closing_token = extract_line_token(&tokens[pattern_offset + closing_idx])?;
+            let mut child_nodes = Vec::new();
 
-            // Extract subject tokens (filter out Colon and BlankLine)
-            let subject_tokens: Vec<_> = subject_token
-                .source_tokens
-                .clone()
-                .into_iter()
-                .zip(subject_token.token_spans.clone())
-                .filter(|(token, _)| {
-                    !matches!(
-                        token,
-                        crate::lex::lexing::Token::Colon | crate::lex::lexing::Token::BlankLine(_)
-                    )
-                })
-                .collect();
+            for group in groups {
+                let subject_token = extract_line_token(&tokens[group.subject_idx])?;
+                let subject_tokens: Vec<_> = subject_token
+                    .source_tokens
+                    .clone()
+                    .into_iter()
+                    .zip(subject_token.token_spans.clone())
+                    .filter(|(token, _)| {
+                        !matches!(
+                            token,
+                            crate::lex::lexing::Token::Colon
+                                | crate::lex::lexing::Token::BlankLine(_)
+                        )
+                    })
+                    .collect();
 
-            // Extract content tokens from container if present
-            let mut content_tokens = Vec::new();
-            if let Some(content_idx_val) = content_idx {
-                if let Some(LineContainer::Container { children, .. }) =
-                    tokens.get(pattern_offset + content_idx_val)
-                {
-                    for child in children {
-                        if let Ok(line_token) = extract_line_token(child) {
+                let mut content_tokens = Vec::new();
+                if let Some(content_idx_val) = group.content_idx {
+                    if let Some(container) = tokens.get(content_idx_val) {
+                        let mut line_tokens = Vec::new();
+                        collect_line_tokens(container, &mut line_tokens);
+                        for line_token in line_tokens {
                             content_tokens.extend(
                                 line_token
                                     .source_tokens
-                                    .clone()
                                     .into_iter()
-                                    .zip(line_token.token_spans.clone()),
+                                    .zip(line_token.token_spans.into_iter()),
                             );
                         }
                     }
                 }
+
+                child_nodes.push(ParseNode::new(
+                    NodeType::VerbatimBlockkSubject,
+                    subject_tokens,
+                    vec![],
+                ));
+                child_nodes.push(ParseNode::new(
+                    NodeType::VerbatimBlockkContent,
+                    content_tokens,
+                    vec![],
+                ));
             }
 
-            // Create subject node
-            let subject_node =
-                ParseNode::new(NodeType::VerbatimBlockkSubject, subject_tokens, vec![]);
-
-            // Create content node
-            let content_node =
-                ParseNode::new(NodeType::VerbatimBlockkContent, content_tokens, vec![]);
-
-            // Create closing node (it's an annotation, but we need to parse it properly)
-            // The closing annotation can have content after it (caption text)
-            // Use the same extraction logic as standalone annotations to ensure consistency
-            // Note: Verbatim block closing annotations are always single-line/marker form
+            let closing_token = extract_line_token(&tokens[*closing_idx])?;
             let (header_tokens, closing_children) =
                 extract_annotation_single_content(closing_token);
-
-            let closing_node = ParseNode::new(
+            child_nodes.push(ParseNode::new(
                 NodeType::VerbatimBlockkClosing,
                 header_tokens,
                 closing_children,
-            );
+            ));
 
-            // Create verbatim block with three children
-            Ok(ParseNode::new(
-                NodeType::VerbatimBlock,
-                vec![],
-                vec![subject_node, content_node, closing_node],
-            ))
+            Ok(ParseNode::new(NodeType::VerbatimBlock, vec![], child_nodes))
         }
         PatternMatch::AnnotationBlock {
             start_idx,
             content_idx,
-            end_idx: _,
         } => {
             let start_token = extract_line_token(&tokens[pattern_offset + start_idx])?;
 
@@ -421,10 +481,7 @@ fn convert_pattern_to_item(
                 children,
             ))
         }
-        PatternMatch::List {
-            blank_idx: _,
-            items,
-        } => {
+        PatternMatch::List { items } => {
             let mut list_items = Vec::new();
 
             for (item_idx, content_idx) in items {
@@ -495,7 +552,6 @@ fn convert_pattern_to_item(
         }
         PatternMatch::Session {
             subject_idx,
-            blank_idx: _,
             content_idx,
         } => {
             let subject_token = extract_line_token(&tokens[pattern_offset + subject_idx])?;
@@ -542,7 +598,7 @@ fn convert_pattern_to_item(
             }
             Ok(ParseNode::new(NodeType::Paragraph, all_tokens, vec![]))
         }
-        PatternMatch::BlankLineGroup { .. } => {
+        PatternMatch::BlankLineGroup => {
             // BlankLineGroups should have been filtered out in parse_with_declarative_grammar
             // If we reach here, something went wrong
             Err("Internal error: BlankLineGroup reached convert_pattern_to_item".to_string())
@@ -555,6 +611,25 @@ fn extract_line_token(token: &LineContainer) -> Result<&LineToken, String> {
     match token {
         LineContainer::Token(t) => Ok(t),
         _ => Err("Expected LineToken, found Container".to_string()),
+    }
+}
+
+/// Recursively gather all LineTokens contained within a LineContainer tree.
+///
+/// The linebased tokenizer already encodes indentation structure via nested
+/// `LineContainer::Container` nodes, so verbatim content that spans multiple
+/// indentation levels needs to be flattened before we hand the tokens to the
+/// shared AST builders. We keep every nested line (including those that contain
+/// inline `::` markers) so verbatim blocks rely on dedent boundaries instead of
+/// mistaking inline markers for closing annotations.
+fn collect_line_tokens(container: &LineContainer, out: &mut Vec<LineToken>) {
+    match container {
+        LineContainer::Token(token) => out.push(token.clone()),
+        LineContainer::Container { children } => {
+            for child in children {
+                collect_line_tokens(child, out);
+            }
+        }
     }
 }
 
