@@ -341,19 +341,16 @@ fn convert_pattern_to_item(
             // Extract content tokens from container if present
             let mut content_tokens = Vec::new();
             if let Some(content_idx_val) = content_idx {
-                if let Some(LineContainer::Container { children, .. }) =
-                    tokens.get(pattern_offset + content_idx_val)
-                {
-                    for child in children {
-                        if let Ok(line_token) = extract_line_token(child) {
-                            content_tokens.extend(
-                                line_token
-                                    .source_tokens
-                                    .clone()
-                                    .into_iter()
-                                    .zip(line_token.token_spans.clone()),
-                            );
-                        }
+                if let Some(container) = tokens.get(pattern_offset + content_idx_val) {
+                    let mut line_tokens = Vec::new();
+                    collect_line_tokens(container, &mut line_tokens);
+                    for line_token in line_tokens {
+                        content_tokens.extend(
+                            line_token
+                                .source_tokens
+                                .into_iter()
+                                .zip(line_token.token_spans.into_iter()),
+                        );
                     }
                 }
             }
@@ -555,6 +552,25 @@ fn extract_line_token(token: &LineContainer) -> Result<&LineToken, String> {
     match token {
         LineContainer::Token(t) => Ok(t),
         _ => Err("Expected LineToken, found Container".to_string()),
+    }
+}
+
+/// Recursively gather all LineTokens contained within a LineContainer tree.
+///
+/// The linebased tokenizer already encodes indentation structure via nested
+/// `LineContainer::Container` nodes, so verbatim content that spans multiple
+/// indentation levels needs to be flattened before we hand the tokens to the
+/// shared AST builders. We keep every nested line (including those that contain
+/// inline `::` markers) so verbatim blocks rely on dedent boundaries instead of
+/// mistaking inline markers for closing annotations.
+fn collect_line_tokens(container: &LineContainer, out: &mut Vec<LineToken>) {
+    match container {
+        LineContainer::Token(token) => out.push(token.clone()),
+        LineContainer::Container { children } => {
+            for child in children {
+                collect_line_tokens(child, out);
+            }
+        }
     }
 }
 

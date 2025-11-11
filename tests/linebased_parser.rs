@@ -1154,7 +1154,8 @@ fn test_benchmark_010_kitchensink() {
             verbatim
                 .assert_verbatim_block()
                 .subject("Code Example (Verbatim Block)")
-                .line_count(3);
+                .line_count(4)
+                .content_contains("return \"lex\";");
         });
     });
 

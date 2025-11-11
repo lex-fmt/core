@@ -83,8 +83,6 @@ fn test_verbatim_04_flat_marker_form() {
 }
 
 #[test]
-#[ignore] // BUG: Linebased parser annotation labels are empty
-#[should_panic(expected = "Expected VerbatimBlock, found Paragraph")]
 fn test_verbatim_05_flat_special_chars() {
     // verbatim-05-flat-special-chars.lex: Verbatim with :: markers in content
     // BUG: Reference parser incorrectly parses this as Paragraph instead of VerbatimBlock
@@ -133,7 +131,9 @@ fn test_verbatim_06_nested_in_definition() {
                 .subject("Implementation")
                 .closing_label("javascript")
                 .content_contains("function counter()")
-                .line_count(3); // function counter() {, }, and blank line
+                .content_contains("let count = 0;")
+                .content_contains("return () => ++count;")
+                .line_count(5); // function counter() {, let count = 0;, return, }, and blank line
         });
     });
 
@@ -178,7 +178,8 @@ fn test_verbatim_07_nested_in_list() {
                         .subject("Simple function")
                         .closing_label("python")
                         .content_contains("def hello():")
-                        .line_count(1); // def hello():
+                        .content_contains("return \"world\"")
+                        .line_count(3); // def hello():, return "world", and blank line
                 });
         });
     });
@@ -282,7 +283,9 @@ fn test_verbatim_09_flat_simple_beyond_wall() {
             .subject("Code Example")
             .closing_label("javascript")
             .content_contains("function hello() {")
-            .line_count(1); // Only the function declaration line at the wall level
+            .content_contains("return \"world\";")
+            .content_contains("}")
+            .line_count(4); // function hello(), return, closing brace, and blank line
     });
 }
 
