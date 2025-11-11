@@ -14,16 +14,10 @@
 
 set -e
 
-# Parse command line arguments
-VERBOSE=false
 ALL_MODE=false
 
 for arg in "$@"; do
     case $arg in
-        --verbose)
-            VERBOSE=true
-            shift
-            ;;
         --all)
             ALL_MODE=true
             shift
@@ -31,21 +25,12 @@ for arg in "$@"; do
     esac
 done
 
-# Set verbose flags for cargo commands
-if [ "$VERBOSE" = "true" ]; then
-    CARGO_FLAGS="--verbose"
-else
-    CARGO_FLAGS=""
-fi
-
 # Ensure Rust tools are in PATH
 if ! command -v cargo >/dev/null 2>&1; then
     # Try .envrc first (direnv integration)
     if [ -f ".envrc" ]; then
         # Source relevant parts of .envrc for PATH setup
         # This mimics what direnv would do
-        PROJECT_ROOT="$PWD"
-        SCRIPTS_ROOT="$PROJECT_ROOT/scripts"
         
         # 1. Standard cargo location
         if [ -d "$HOME/.cargo/bin" ]; then
@@ -54,6 +39,8 @@ if ! command -v cargo >/dev/null 2>&1; then
         
         # 2. Source cargo env if available
         if [ -f "$HOME/.cargo/env" ]; then
+            # shellcheck disable=SC1091
+            # Cargo's env file sets up PATH and environment variables for Rust toolchain
             source "$HOME/.cargo/env"
         fi
         
@@ -102,7 +89,9 @@ else
     fi
     
     echo "📝 Staged Rust files:"
-    echo "$STAGED_FILES" | sed 's/^/  /'
+    while IFS= read -r line; do
+        echo "  $line"
+    done <<< "$STAGED_FILES"
 fi
 
 # 1. Auto-fix code formatting
@@ -122,15 +111,22 @@ fi
 # 2. Run Clippy lints with auto-fix
 echo ""
 echo "🔍 Running Clippy lints with auto-fix..."
-# Get list of modified files before clippy
-MODIFIED_BEFORE=$(git status --porcelain 2>/dev/null | grep '^ M' | wc -l)
+# Get list of modified files before clippy (use wc -l for reliable counting, strip whitespace)
+MODIFIED_BEFORE=$(git status --porcelain 2>/dev/null | grep -c '^ M' 2>/dev/null || echo "0")
+MODIFIED_BEFORE=$(echo "$MODIFIED_BEFORE" | tr -d '[:space:]')
+# Default to 0 if empty (shouldn't happen, but be safe)
+[ -z "$MODIFIED_BEFORE" ] && MODIFIED_BEFORE=0
 
 # Try to auto-fix what we can
 if cargo clippy --fix --all-targets --all-features --allow-dirty --allow-staged 2>/dev/null; then
     # Check if clippy actually made changes
-    MODIFIED_AFTER=$(git status --porcelain 2>/dev/null | grep '^ M' | wc -l)
+    MODIFIED_AFTER=$(git status --porcelain 2>/dev/null | grep -c '^ M' 2>/dev/null || echo "0")
+    MODIFIED_AFTER=$(echo "$MODIFIED_AFTER" | tr -d '[:space:]')
+    # Default to 0 if empty (shouldn't happen, but be safe)
+    [ -z "$MODIFIED_AFTER" ] && MODIFIED_AFTER=0
 
-    if [ "$MODIFIED_AFTER" -gt "$MODIFIED_BEFORE" ]; then
+    # Use arithmetic comparison which handles integer conversion automatically
+    if (( MODIFIED_AFTER > MODIFIED_BEFORE )) 2>/dev/null; then
         # Clippy made actual changes - re-stage all modified files
         git add -A 2>/dev/null || true
         echo "🔧 Auto-fixed some Clippy issues and re-staged files"
@@ -148,7 +144,7 @@ echo "✅ Clippy checks passed"
 # 3. CRITICAL: Build (matches CI exactly)
 echo ""
 echo "🔨 Building project..."
-if ! cargo build $CARGO_FLAGS; then
+if ! cargo build ; then
     echo "❌ Build failed!"
     exit 1
 fi
@@ -157,7 +153,20 @@ echo "✅ Build successful"
 # 4. CRITICAL: Run tests (matches CI exactly)
 echo ""
 echo "🧪 Running tests..."
-if ! cargo test $CARGO_FLAGS; then
+# Check if nextest is available (try as cargo subcommand)
+if ! cargo nextest --version >/dev/null 2>&1; then
+    echo "❌ ERROR: cargo-nextest is required but not installed!"
+    echo ""
+    echo "💡 Install it with:"
+    echo "   cargo install --locked cargo-nextest"
+    echo ""
+    echo "   Or see https://get.nexte.st for pre-built binaries and other installation methods."
+    echo ""
+    exit 1
+fi
+
+# Use nextest (required)
+if ! cargo nextest run --no-fail-fast; then
     echo "❌ Tests failed!"
     exit 1
 fi
