@@ -355,8 +355,6 @@ fn test_verbatim_13_group_spades() {
 }
 
 #[test]
-#[ignore] // TODO: Parser issue - verbatim groups within sessions are not correctly parsed.
-          // See test_verbatim_12_document_simple in elements_verbatim.rs for details.
 fn test_verbatim_12_document_simple() {
     // verbatim-12-document-simple.lex: Document with mix of verbatim blocks, groups, and general content
     let source = Lexplore::verbatim(12).source();
@@ -378,18 +376,18 @@ fn test_verbatim_12_document_simple() {
             .child(2, |verbatim| {
                 verbatim
                     .assert_verbatim_block()
-                    .subject("This is a groupped Verbatim Block, this is the first Group;")
+                    .subject("This is a groupped Verbatim Block, this is the first Group")
                     .closing_label("shell")
                     .group_count(4)
                     .group(0, |group| {
                         group
-                            .subject("This is a groupped Verbatim Block, this is the first Group;")
+                            .subject("This is a groupped Verbatim Block, this is the first Group")
                             .content_contains("$ pwd # always te staring point");
                     })
                     .group(1, |group| {
                         group
                             .subject(
-                                "Now that you know where you are, lets find out what's around you:",
+                                "Now that you know where you are, lets find out what's around you",
                             )
                             .content_contains("$ ls");
                     });
@@ -399,7 +397,7 @@ fn test_verbatim_12_document_simple() {
     // Verify image marker verbatim block
     assert_ast(&doc).item(7, |item| {
         item.assert_verbatim_block()
-            .subject("This is an Image Verbatim Representation:")
+            .subject("This is an Image Verbatim Representation")
             .closing_label("image")
             .assert_marker_form()
             .has_closing_parameter_with_value("src", "image.jpg");
@@ -408,7 +406,7 @@ fn test_verbatim_12_document_simple() {
     // Verify final verbatim block
     assert_ast(&doc).item(10, |item| {
         item.assert_verbatim_block()
-            .subject("Say goodbye mom:")
+            .subject("Say goodbye mom")
             .closing_label("javascript")
             .content_contains("alert(\"Goodbye mom!\")");
     });
