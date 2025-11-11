@@ -974,7 +974,6 @@ fn test_verified_ensemble_with_definitions() {
 // Comprehensive kitchensink test that includes all element types
 
 #[test]
-#[ignore] // TODO: Verbatim blocks not recognized - see GitHub issue
 fn test_benchmark_010_kitchensink() {
     // Comprehensive test including all major features:
     // - Paragraphs (single/multi-line)
