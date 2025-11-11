@@ -310,8 +310,6 @@ fn test_verbatim_10_flat_simple_empty() {
 // If verbatim groups work in the reference parser, they should work in the linebased parser too.
 
 #[test]
-#[ignore] // TODO: Parser issue - verbatim groups with subjects at column 0 and blank lines between groups
-          // are not correctly parsed. See test_verbatim_13_group_spades in elements_verbatim.rs for details.
 fn test_verbatim_13_group_spades() {
     // verbatim-13-group-spades.lex: Verbatim group with multiple pairs and blank lines
     let source = Lexplore::verbatim(13).source();
@@ -350,7 +348,9 @@ fn test_verbatim_13_group_spades() {
     // Verify paragraph after the verbatim group
     assert_ast(&doc).item(1, |item| {
         item.assert_paragraph()
-            .text_contains("Note that verbatim blocks conetnts can have any number of blank lines");
+            .text_contains(
+                "Note that verbatim blocks conetents can have any number of blank lines, including None."
+            );
     });
 }
 
