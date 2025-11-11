@@ -407,7 +407,13 @@ pub(crate) fn verbatim_block(
                 (tokens, indent_depth)
             })
             .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
-            .then_ignore(blank_line.ignored().or_not());
+            .then_ignore(
+                // Ignore whitespace after colon (common formatting: "Subject: \n")
+                filter(|(t, _): &TokenLocation| matches!(t, Token::Whitespace))
+                    .repeated()
+                    .then(blank_line.ignored().or_not())
+                    .ignored(),
+            );
 
     // Parse content that handles nested indentation structures.
     // Returns tokens (not just byte ranges) so we can do indentation wall stripping
@@ -450,21 +456,35 @@ pub(crate) fn verbatim_block(
             ParseNode::new(NodeType::Annotation, header_tokens, children)
         });
 
-    let subject_content_pair = subject_token_parser
-        .then_ignore(blank_line.repeated())
-        .then(with_content.or_not())
-        .then_ignore(blank_line.repeated())
+    // Parse verbatim group pairs
+    // Unified approach: match pairs where blank lines can appear:
+    // 1. Before the subject (between pairs)
+    // 2. After the subject (before content)
+    // 3. After content (between pairs or before closing annotation)
+    //
+    // The key: we match pairs greedily, consuming blank lines as separators.
+    // Blank lines after content of one pair are the same as blank lines before the next subject.
+    let pair_with_leading_blanks = blank_line
+        .repeated()
+        .then(
+            subject_token_parser
+                .then_ignore(blank_line.repeated())
+                .then(with_content.clone().or_not()),
+        )
         .map(
-            move |((subject_tokens, indent_depth), content_tokens)| VerbatimGroupParseData {
+            |(_, ((subject_tokens, indent_depth), content_tokens))| VerbatimGroupParseData {
                 subject_tokens,
                 content_tokens: content_tokens.unwrap_or_default(),
                 indent_depth,
             },
         );
 
-    subject_content_pair
+    // Match one or more pairs (blank lines before first pair are allowed but optional)
+    pair_with_leading_blanks
         .repeated()
         .at_least(1)
+        // Consume any remaining blank lines before the closing annotation
+        .then_ignore(blank_line.repeated())
         .try_map(|pairs: Vec<VerbatimGroupParseData>, span| {
             let expected_depth = pairs.first().map(|pair| pair.indent_depth).unwrap_or(0);
             if pairs.iter().all(|pair| pair.indent_depth == expected_depth) {
