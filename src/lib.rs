@@ -24,6 +24,8 @@
 //! For comprehensive testing guidelines, see the [testing module](lex::testing).
 //! All parser tests must follow strict rules using verified lex sources and AST assertions.
 
+#![allow(rustdoc::invalid_html_tags)]
+
 pub mod lex;
 
 /// A simple function to demonstrate the library works
