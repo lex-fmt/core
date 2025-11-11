@@ -3,7 +3,7 @@
 //! This module provides utilities for testing individual element variations
 //! using the per-element library in `docs/specs/v1/elements/`.
 //!
-//! # Module Organization
+//! Module Organization
 //!
 //! - `loader`: File loading, parsing, and tokenization infrastructure
 //! - `extraction`: AST node extraction and assertion helpers
