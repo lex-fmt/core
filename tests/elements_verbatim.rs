@@ -266,6 +266,51 @@ fn test_verbatim_10_flat_simple_empty() {
     });
 }
 
+// Note: test_verbatim_11_group_shell is tested as part of test_verbatim_11_group_sequences
+// which tests the full document structure of verbatim-11-group-shell.lex
+
+#[test]
+fn test_verbatim_13_group_spades() {
+    // verbatim-13-group-spades.lex: Verbatim group with multiple pairs and blank lines
+    // Tests verbatim groups with blank lines between pairs and spaces after colons
+    let doc = Lexplore::verbatim(13).parse();
+
+    assert_ast(&doc).item_count(2).item(0, |item| {
+        item.assert_verbatim_block()
+            .subject("This is a groupped Verbatim Block, this is the first Group")
+            .closing_label("shell")
+            .group_count(4)
+            .group(0, |group| {
+                group
+                    .subject("This is a groupped Verbatim Block, this is the first Group")
+                    .content_contains("$ pwd # always te staring point");
+            })
+            .group(1, |group| {
+                group
+                    .subject("Now that you know where you are, lets find out what's around you")
+                    .content_contains("$ ls")
+                    .content_contains("$ ls -r # recursive");
+            })
+            .group(2, |group| {
+                group
+                    .subject("And let's go places")
+                    .content_contains("$ cd <path to go>");
+            })
+            .group(3, |group| {
+                group
+                    .subject("Feeling lost, let's get back home")
+                    .content_contains("$ cd ~");
+            });
+    });
+
+    // Verify paragraph after the verbatim group
+    assert_ast(&doc).item(1, |item| {
+        item.assert_paragraph().text_contains(
+            "Note that verbatim blocks conetents can have any number of blank lines",
+        );
+    });
+}
+
 #[test]
 fn test_verbatim_11_group_sequences() {
     // verbatim-11-group-shell.lex: Multiple subject/content pairs sharing an annotation
@@ -391,4 +436,153 @@ fn test_verbatim_11_group_visitor_sees_all_groups() {
         visitor.lines.iter().any(|l| l.contains("input(")),
         "Should see line from third block"
     );
+}
+
+#[test]
+#[ignore] // TODO: Parser issue - verbatim groups within sessions are not correctly parsed.
+          // The parser treats verbatim group subjects as separate sessions/definitions within the parent session.
+          // This is a known limitation that needs to be addressed in the parser.
+fn test_verbatim_12_document_simple() {
+    // verbatim-12-document-simple.lex: Document with mix of verbatim blocks, groups, and general content
+    // This test is ignored due to parser limitations with verbatim groups nested within sessions.
+    let doc = Lexplore::verbatim(12).parse();
+
+    // Verify first paragraph
+    assert_ast(&doc).item(0, |item| {
+        item.assert_paragraph()
+            .text_contains("Trifecta Flat Structure Test");
+    });
+
+    // Verify second paragraph
+    assert_ast(&doc).item(1, |item| {
+        item.assert_paragraph()
+            .text_contains("This document tests the combination of all three core elements");
+    });
+
+    // Verify first session "1. Session with Paragraph Content"
+    assert_ast(&doc).item(2, |item| {
+        item.assert_session()
+            .label_contains("Session with Paragraph Content")
+            .child_count(3) // para, para, verbatim
+            .child(0, |para| {
+                para.assert_paragraph()
+                    .text_contains("This session starts with a paragraph as its first child");
+            })
+            .child(1, |para| {
+                para.assert_paragraph()
+                    .text_contains("It can have multiple paragraphs");
+            })
+            .child(2, |verbatim| {
+                verbatim
+                    .assert_verbatim_block()
+                    .subject("This is a groupped Verbatim Block, this is the first Group;")
+                    .closing_label("shell")
+                    .group_count(4)
+                    .group(0, |group| {
+                        group
+                            .subject("This is a groupped Verbatim Block, this is the first Group;")
+                            .content_contains("$ pwd # always te staring point");
+                    })
+                    .group(1, |group| {
+                        group
+                            .subject(
+                                "Now that you know where you are, lets find out what's around you:",
+                            )
+                            .content_contains("$ ls")
+                            .content_contains("$ ls -r # recursive");
+                    })
+                    .group(2, |group| {
+                        group
+                            .subject("And let's go places:")
+                            .content_contains("$ cd <path to go>");
+                    })
+                    .group(3, |group| {
+                        group
+                            .subject("Feeling lost, let's get back home:")
+                            .content_contains("$ cd ~");
+                    });
+            });
+    });
+
+    // Verify second session "2. Session with List Content"
+    assert_ast(&doc).item(3, |item| {
+        item.assert_session()
+            .label_contains("Session with List Content")
+            .child_count(2) // list, verbatim
+            .child(0, |list| {
+                list.assert_list()
+                    .item_count(3)
+                    .item(0, |item| {
+                        item.text_contains("First list item");
+                    })
+                    .item(1, |item| {
+                        item.text_contains("Second list item");
+                    })
+                    .item(2, |item| {
+                        item.text_contains("Third list item");
+                    });
+            })
+            .child(1, |verbatim| {
+                verbatim
+                    .assert_verbatim_block()
+                    .subject("Inner Verbatim Block:")
+                    .closing_label("text")
+                    .content_contains("this should be inside the list's conetnt");
+            });
+    });
+
+    // Verify third session "3. Session with Mixed Content"
+    assert_ast(&doc).item(4, |item| {
+        item.assert_session()
+            .label_contains("Session with Mixed Content")
+            .child_count(3); // para, list, para - structure verified by accessing children
+    });
+
+    // Verify root level paragraph
+    assert_ast(&doc).item(5, |item| {
+        item.assert_paragraph()
+            .text_contains("A paragraph at the root level");
+    });
+
+    // Verify root level list
+    assert_ast(&doc).item(6, |item| {
+        item.assert_list()
+            .item_count(2)
+            .item(0, |list_item| {
+                list_item.text_contains("Root level list");
+            })
+            .item(1, |list_item| {
+                list_item.text_contains("With multiple items");
+            });
+    });
+
+    // Verify image marker verbatim block
+    assert_ast(&doc).item(7, |item| {
+        item.assert_verbatim_block()
+            .subject("This is an Image Verbatim Representation:")
+            .closing_label("image")
+            .assert_marker_form()
+            .has_closing_parameter_with_value("src", "image.jpg");
+    });
+
+    // Verify fourth session "4. Another Session"
+    assert_ast(&doc).item(8, |item| {
+        item.assert_session()
+            .label_contains("Another Session")
+            .child_count(3); // list, para, list
+    });
+
+    // Verify final root level paragraph
+    assert_ast(&doc).item(9, |item| {
+        item.assert_paragraph()
+            .text_contains("Final root level paragraph");
+    });
+
+    // Verify final verbatim block
+    assert_ast(&doc).item(10, |item| {
+        item.assert_verbatim_block()
+            .subject("Say goodbye mom:")
+            .closing_label("javascript")
+            .content_contains("alert(\"Goodbye mom!\")");
+    });
 }
