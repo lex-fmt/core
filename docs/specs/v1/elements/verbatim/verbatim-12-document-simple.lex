@@ -8,15 +8,15 @@ This document tests the combination of all three core elements (sessions, paragr
 
     It can have multiple paragraphs. {{paragraph}}
 
-	This is a groupped Verbatim Block, this is the first Group; 
-		$ pwd # always te staring point 
-    Now that you know where you are, lets find out what's around you: 
+	This is a groupped Verbatim Block, this is the first Group:
+		$ pwd # always te staring point
+    Now that you know where you are, lets find out what's around you:
 		$ ls
         $ ls -r # recursive
 
-	And let's go places: 
+	And let's go places:
 		$ cd <path to go>
-    Feeling lost, let's get back home: 
+    Feeling lost, let's get back home:
 		$ cd ~
     :: shell ::
 
@@ -29,7 +29,7 @@ This document tests the combination of all three core elements (sessions, paragr
 		Inner Verbatim Block: 
 
 			this should be inside the list's conetnt.
-        :: text
+    :: text ::
 
 
 3. Session with Mixed Content {{session-title}}
@@ -46,7 +46,7 @@ A paragraph at the root level. {{paragraph}}
 - Root level list {{list-item}}
 - With multiple items {{list-item}}
 
-This is an Image Verbatim Representation:: 
+This is an Image Verbatim Representation:
 :: image src="image.jpg" ::
 
 4. Another Session {{session-title}}
