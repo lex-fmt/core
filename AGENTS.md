@@ -7,9 +7,12 @@ The Rust library entrypoint is `src/lib.rs`, with parsing, tokenizing, and UI mo
 - `cargo check` — fast gate used before every edit loop to validate the workspace.
 - `cargo build --release` — produces the optimized `target/release/lex` binary for manual verification.
 - `cargo run --bin lex -- examples/minimal.lex` — exercise the CLI parser against a sample document.
-- `cargo test --all-targets` — runs unit, integration, proptest, and `insta` snapshot suites.
+- `cargo nextest run --no-fail-fast` — runs unit, integration, proptest, and `insta` snapshot suites (requires `cargo-nextest`).
 - `cargo fmt --all && cargo clippy --all-targets -- -D warnings` — enforces formatting and lints identical to CI.
 - `./scripts/pre-commit --all` chains the same fmt/clippy/test steps the CI expects; use before every push. Coverage fans can run `./scripts/test-coverage` (requires `cargo-tarpaulin`).
+
+**Required Tools:**
+- `cargo-nextest` — install with `cargo install --locked cargo-nextest` or see https://get.nexte.st
 
 ## Coding Style & Naming Conventions
 Follow `rustfmt` defaults (4-space indentation, trailing commas for multi-line literals). Prefer snake_case files and modules, CamelCase types, and SCREAMING_SNAKE_CASE constants to match existing modules. Keep parser stages pure and retry-friendly; pass shared state via structs instead of globals. Document grammar nuances in `///` doc comments and mirror the tone from `docs/specs` (terse, factual). New command-line flags should be added through Clap derives in `src/bin/lex.rs` and reflected in the specs.

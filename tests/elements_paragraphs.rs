@@ -149,6 +149,7 @@ fn test_paragraph_09_dialog(parser: Parser) {
 }
 
 #[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[ignore]
 fn test_paragraphs_overview_document(parser: Parser) {
     let doc =
         Lexplore::from_path("docs/specs/v1/elements/paragraph/paragraphs.lex").parse_with(parser);

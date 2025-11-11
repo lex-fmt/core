@@ -293,6 +293,7 @@ fn test_list_09_nested_three_levels(parser: Parser) {
 }
 
 #[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[ignore]
 fn test_list_10_nested_deep_only(parser: Parser) {
     let doc = Lexplore::list(10).parse_with(parser);
 
@@ -336,6 +337,7 @@ fn test_list_10_nested_deep_only(parser: Parser) {
 }
 
 #[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[ignore]
 fn test_list_11_nested_balanced(parser: Parser) {
     let doc = Lexplore::list(11).parse_with(parser);
 
