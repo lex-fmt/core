@@ -301,3 +301,112 @@ fn test_verbatim_10_flat_simple_empty() {
             .line_count(0); // No content lines
     });
 }
+
+// Note: verbatim-11-group-shell.lex is tested as part of the document-level tests.
+// The linebased parser should handle verbatim groups the same way as the reference parser.
+// If verbatim groups work in the reference parser, they should work in the linebased parser too.
+
+#[test]
+#[ignore] // TODO: Parser issue - verbatim groups with subjects at column 0 and blank lines between groups
+          // are not correctly parsed. See test_verbatim_13_group_spades in elements_verbatim.rs for details.
+fn test_verbatim_13_group_spades() {
+    // verbatim-13-group-spades.lex: Verbatim group with multiple pairs and blank lines
+    let source = Lexplore::verbatim(13).source();
+    let doc = DocumentLoader::new()
+        .parse_with(&source, Parser::Linebased)
+        .unwrap();
+
+    assert_ast(&doc).item_count(2).item(0, |item| {
+        item.assert_verbatim_block()
+            .subject("This is a groupped Verbatim Block, this is the first Group:")
+            .closing_label("shell")
+            .group_count(4)
+            .group(0, |group| {
+                group
+                    .subject("This is a groupped Verbatim Block, this is the first Group:")
+                    .content_contains("$ pwd # always te staring point");
+            })
+            .group(1, |group| {
+                group
+                    .subject("Now that you know where you are, lets find out what's around you:")
+                    .content_contains("$ ls")
+                    .content_contains("$ ls -r # recursive");
+            })
+            .group(2, |group| {
+                group
+                    .subject("And let's go places:")
+                    .content_contains("$ cd <path to go>");
+            })
+            .group(3, |group| {
+                group
+                    .subject("Feeling lost, let's get back home:")
+                    .content_contains("$ cd ~");
+            });
+    });
+
+    // Verify paragraph after the verbatim group
+    assert_ast(&doc).item(1, |item| {
+        item.assert_paragraph()
+            .text_contains("Note that verbatim blocks conetnts can have any number of blank lines");
+    });
+}
+
+#[test]
+#[ignore] // TODO: Parser issue - verbatim groups within sessions are not correctly parsed.
+          // See test_verbatim_12_document_simple in elements_verbatim.rs for details.
+fn test_verbatim_12_document_simple() {
+    // verbatim-12-document-simple.lex: Document with mix of verbatim blocks, groups, and general content
+    let source = Lexplore::verbatim(12).source();
+    let doc = DocumentLoader::new()
+        .parse_with(&source, Parser::Linebased)
+        .unwrap();
+
+    // Verify first paragraph
+    assert_ast(&doc).item(0, |item| {
+        item.assert_paragraph()
+            .text_contains("Trifecta Flat Structure Test");
+    });
+
+    // Verify first session contains verbatim group
+    assert_ast(&doc).item(2, |item| {
+        item.assert_session()
+            .label_contains("Session with Paragraph Content")
+            .child_count(3)
+            .child(2, |verbatim| {
+                verbatim
+                    .assert_verbatim_block()
+                    .subject("This is a groupped Verbatim Block, this is the first Group;")
+                    .closing_label("shell")
+                    .group_count(4)
+                    .group(0, |group| {
+                        group
+                            .subject("This is a groupped Verbatim Block, this is the first Group;")
+                            .content_contains("$ pwd # always te staring point");
+                    })
+                    .group(1, |group| {
+                        group
+                            .subject(
+                                "Now that you know where you are, lets find out what's around you:",
+                            )
+                            .content_contains("$ ls");
+                    });
+            });
+    });
+
+    // Verify image marker verbatim block
+    assert_ast(&doc).item(7, |item| {
+        item.assert_verbatim_block()
+            .subject("This is an Image Verbatim Representation:")
+            .closing_label("image")
+            .assert_marker_form()
+            .has_closing_parameter_with_value("src", "image.jpg");
+    });
+
+    // Verify final verbatim block
+    assert_ast(&doc).item(10, |item| {
+        item.assert_verbatim_block()
+            .subject("Say goodbye mom:")
+            .closing_label("javascript")
+            .content_contains("alert(\"Goodbye mom!\")");
+    });
+}
