@@ -33,7 +33,12 @@ Verbatim Groups
 		- Each subject anchors to the indentation wall established by the first subject.
 		- Content for every pair must be indented past the wall and preserves blank lines.
 		- Content remains optional for parity with marker blocks, but textual payloads are preferred.
-		- Example: docs/specs/v1/elements/verbatim/verbatim-11-group-shell.lex
+		- Blank lines between groups are preserved and do not break the group structure.
+
+	Examples:
+		- docs/specs/v1/elements/verbatim/verbatim-11-group-shell.lex - Multiple groups with mixed content
+		- docs/specs/v1/elements/verbatim/verbatim-13-group-spades.lex - Groups with blank lines between pairs
+		- docs/specs/v1/elements/verbatim/verbatim-12-document-simple.lex - Groups within document context
 
 The Indentation Wall
 

@@ -398,15 +398,21 @@ pub(crate) fn verbatim_block(
 ) -> impl Parser<TokenLocation, ParseNode, Error = ParserError> + Clone {
     // Parse subject tokens (not just text)
     let blank_line = filter(|(t, _): &TokenLocation| matches!(t, Token::BlankLine(_)));
+    // Parse subject tokens - must end with colon
+    // Using explicit .then() instead of .then_ignore() to ensure proper rewinding
+    // when colon is not found (allows session parser to try instead)
     let subject_token_parser =
         filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::BlankLine(_)))
             .repeated()
             .at_least(1)
-            .map(|tokens: Vec<TokenLocation>| {
+            .then(
+                // Explicitly match colon - if not found, this fails and rewinds
+                filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)),
+            )
+            .map(|(tokens, _colon)| {
                 let indent_depth = subject_indent_depth(&tokens);
                 (tokens, indent_depth)
             })
-            .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
             .then_ignore(
                 // Ignore whitespace after colon (common formatting: "Subject: \n")
                 filter(|(t, _): &TokenLocation| matches!(t, Token::Whitespace))

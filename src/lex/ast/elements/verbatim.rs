@@ -33,8 +33,13 @@
 //!             }
 //!      :: javascript ::
 //!
+//! # Verbatim Groups
+//!
+//! Verbatim blocks support multiple subject/content pairs sharing a single closing annotation.
+//! Use the `group()` iterator to access all pairs. See the spec for syntax and examples.
+//!
 //! Learn More:
-//! - Verbatim blocks spec: docs/specs/v1/elements/verbatim.lex
+//! - Verbatim blocks spec: docs/specs/v1/elements/verbatim/verbatim.lex
 //!
 
 use super::super::range::{Position, Range};

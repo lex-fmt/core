@@ -32,17 +32,17 @@ The parser produces separate sessions/definitions instead of a single verbatim g
 
 ```
 This is a groupped Verbatim Block, this is the first Group: 
-	$ pwd # always te staring point 
+ $ pwd # always te staring point 
 Now that you know where you are, lets find out what's around you: 
 
-	$ ls
-	$ ls -r # recursive
+ $ ls
+ $ ls -r # recursive
 
 And let's go places: 
-	$ cd <path to go>
+ $ cd <path to go>
 
 Feeling lost, let's get back home: 
-	$ cd ~
+ $ cd ~
 :: shell ::
 
 Note that verbatim blocks conetents can have any number of blank lines, including None.
@@ -81,7 +81,8 @@ And the built-in viewer can be used to quickly view the parsing:
 
 **Pattern**: `Subject → Content (NO BLANK) → Subject → BLANK → Content → ...`
 
-**Why it fails**: 
+**Why it fails**:
+
 - First subject has NO blank line after it
 - Blank lines appear BETWEEN pairs, not immediately after subjects
 - The parser doesn't correctly recognize that subjects at the same level after blank lines are continuing the verbatim group
@@ -89,21 +90,25 @@ And the built-in viewer can be used to quickly view the parsing:
 ## Root Cause Analysis
 
 The verbatim block parser uses:
+
 ```rust
 subject_content_pair.repeated().at_least(1).then(closing_annotation_parser)
 ```
 
 Where `subject_content_pair` is:
+
 ```
 subject → optional blank → content → optional blank
 ```
 
 **The Problem**: The repetition logic may fail when:
+
 1. There are blank lines between pairs (after content ends with Dedent, before next subject)
 2. The first subject has no blank line after it (content starts immediately)
 3. The parser may stop after the first pair instead of recognizing subsequent subjects
 
 **Possible causes**:
+
 1. **Content boundary detection**: After content ends with `Dedent`, blank lines, then another subject, the parser may not recognize this as continuing the verbatim group
 2. **Repetition logic**: The `subject_content_pair.repeated()` may stop prematurely when it encounters blank lines between pairs
 3. **Token consumption**: Blank lines between pairs may be consumed in a way that prevents the repetition from continuing
@@ -113,6 +118,7 @@ subject → optional blank → content → optional blank
 ### Parse Order (Correct)
 
 The reference parser tries elements in this order:
+
 1. `verbatim_block` - **FIRST** (correct priority - should win over sessions)
 2. `annotation_parser`
 3. `list_parser`
@@ -131,6 +137,7 @@ The reference parser tries elements in this order:
 ### Token Stream Analysis
 
 For `verbatim-13-group-spades.lex`, the token stream should be:
+
 1. Subject tokens (column 0) + Colon
 2. (No blank line) → Indent token
 3. Content tokens (tab-indented)
@@ -164,6 +171,7 @@ The parser should recognize that steps 6-9 represent another pair in the same ve
 ## Root Cause Analysis
 
 **RESOLVED**: The issue was that when a subject line has a space after the colon (e.g., "Subject: \n"), the token stream contains:
+
 1. Colon token
 2. Whitespace token (the space)
 3. BlankLine token (the newline)
@@ -185,6 +193,7 @@ Modified `subject_token_parser` in `src/lex/parsing/reference/builders.rs` to al
 ```
 
 This allows the parser to correctly handle:
+
 - "Subject:\n" (no space, no blank line after colon)
 - "Subject: \n" (space after colon, then newline)
 - "Subject:\n\n" (no space, blank line after colon)
