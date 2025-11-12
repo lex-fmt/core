@@ -50,12 +50,14 @@ use super::verbatim_line::VerbatimLine;
 // CONTENT ELEMENT (No Sessions or Annotations)
 // ============================================================================
 
-/// ContentElement represents all elements EXCEPT Sessions and Annotations
+/// ContentElement represents all elements EXCEPT Sessions
 ///
 /// Used by GeneralContainer (Definition.children, Annotation.children, ListItem.children)
 /// to enforce that Sessions cannot be nested in these contexts.
+/// Annotations ARE allowed in ContentElement.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ContentElement {
+    Annotation(Annotation),
     Paragraph(Paragraph),
     List(List),
     Definition(Definition),
@@ -71,7 +73,7 @@ impl TryFrom<ContentItem> for ContentElement {
     fn try_from(item: ContentItem) -> Result<Self, Self::Error> {
         match item {
             ContentItem::Session(_) => Err("Sessions are not allowed in ContentElement"),
-            ContentItem::Annotation(_) => Err("Annotations are not allowed in ContentElement"),
+            ContentItem::Annotation(a) => Ok(ContentElement::Annotation(a)),
             ContentItem::Paragraph(p) => Ok(ContentElement::Paragraph(p)),
             ContentItem::List(l) => Ok(ContentElement::List(l)),
             ContentItem::Definition(d) => Ok(ContentElement::Definition(d)),
@@ -87,6 +89,7 @@ impl TryFrom<ContentItem> for ContentElement {
 impl From<ContentElement> for ContentItem {
     fn from(element: ContentElement) -> Self {
         match element {
+            ContentElement::Annotation(a) => ContentItem::Annotation(a),
             ContentElement::Paragraph(p) => ContentItem::Paragraph(p),
             ContentElement::List(l) => ContentItem::List(l),
             ContentElement::Definition(d) => ContentItem::Definition(d),
@@ -105,11 +108,11 @@ impl From<ContentElement> for ContentItem {
 /// SessionContent represents all elements including Sessions
 ///
 /// Used by SessionContainer (Document.root, Session.children) where unlimited
-/// Session nesting is allowed.
+/// Session nesting is allowed. Since Annotations are now part of ContentElement,
+/// SessionContent only needs to distinguish Sessions from everything else.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SessionContent {
     Session(Session),
-    Annotation(Annotation),
     Element(ContentElement),
 }
 
@@ -117,13 +120,10 @@ impl From<ContentItem> for SessionContent {
     fn from(item: ContentItem) -> Self {
         match item {
             ContentItem::Session(s) => SessionContent::Session(s),
-            ContentItem::Annotation(a) => SessionContent::Annotation(a),
-            // Everything else goes through ContentElement
+            // Annotations and everything else go through ContentElement
             other => match ContentElement::try_from(other) {
                 Ok(element) => SessionContent::Element(element),
-                Err(_) => unreachable!(
-                    "All non-Session/Annotation items should convert to ContentElement"
-                ),
+                Err(_) => unreachable!("All non-Session items should convert to ContentElement"),
             },
         }
     }
@@ -133,7 +133,6 @@ impl From<SessionContent> for ContentItem {
     fn from(content: SessionContent) -> Self {
         match content {
             SessionContent::Session(s) => ContentItem::Session(s),
-            SessionContent::Annotation(a) => ContentItem::Annotation(a),
             SessionContent::Element(e) => e.into(),
         }
     }
