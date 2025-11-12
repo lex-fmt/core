@@ -149,8 +149,7 @@ fn test_paragraph_09_dialog() {
 #[test]
 #[ignore]
 fn test_paragraphs_overview_document() {
-    let doc =
-        Lexplore::from_path("docs/specs/v1/elements/paragraph/paragraphs.lex").parse();
+    let doc = Lexplore::from_path("docs/specs/v1/elements/paragraph/paragraphs.lex").parse();
 
     assert_ast(&doc)
         .item(0, |item| {

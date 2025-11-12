@@ -19,6 +19,7 @@ use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
 use std::ops::Range as ByteRange;
 
+use crate::lex::lexing::tokens_linebased::LineToken;
 /// Parse from grouped token stream (main entry point).
 ///
 /// This entry point accepts TokenStream::Grouped from the lexing pipeline.
@@ -30,10 +31,12 @@ use std::ops::Range as ByteRange;
 ///
 /// # Returns
 /// A Document AST if successful
-use crate::lex::lexing::transformations::line_token_grouping::{GroupedTokens, GroupType};
-use crate::lex::lexing::tokens_linebased::LineToken;
+use crate::lex::lexing::transformations::line_token_grouping::{GroupType, GroupedTokens};
 
-pub fn parse_from_grouped_stream(grouped_tokens: Vec<GroupedTokens>, source: &str) -> Result<Document, String> {
+pub fn parse_from_grouped_stream(
+    grouped_tokens: Vec<GroupedTokens>,
+    source: &str,
+) -> Result<Document, String> {
     // Convert grouped tokens to line tokens
     let line_tokens = grouped_tokens
         .into_iter()

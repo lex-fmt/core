@@ -9,10 +9,7 @@ use lex::lex::testing::lexplore::{DocumentType, Lexplore};
 
 #[derive(Copy, Clone)]
 enum SampleSpec {
-    Trifecta {
-        number: usize,
-        label: &'static str,
-    },
+    Trifecta { number: usize, label: &'static str },
 }
 
 impl SampleSpec {
@@ -150,11 +147,7 @@ fn test_default_config_works() {
 
     // The default config should work without error
     let result = executor.execute(source);
-    assert!(
-        result.is_ok(),
-        "Default config failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Default config failed: {:?}", result.err());
 }
 
 #[test]
@@ -177,13 +170,7 @@ fn test_on_multiple_samples() {
 
         let output = executor
             .execute(&source)
-            .unwrap_or_else(|err| {
-                panic!(
-                    "Default config failed on {}: {:?}",
-                    sample.label(),
-                    err
-                )
-            });
+            .unwrap_or_else(|err| panic!("Default config failed on {}: {:?}", sample.label(), err));
 
         match output {
             ExecutionOutput::Document(doc) => {
@@ -197,7 +184,6 @@ fn test_on_multiple_samples() {
         }
     }
 }
-
 
 #[test]
 fn test_executor_with_nested_content() {
