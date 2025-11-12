@@ -283,7 +283,8 @@ fn test_annotation_10_nested_complex(parser: Parser) {
 }
 
 #[rstest(parser => [Parser::Reference, Parser::Linebased])]
-#[ignore]
+#[ignore] // TODO: Complex document - Reference parser has issues with session titles ending in colons
+          // This is tested more simply in test_session_09_flat_colon_title
 fn test_annotations_overview_document(parser: Parser) {
     // annotations.lex: Specification overview document for annotations
     let doc =

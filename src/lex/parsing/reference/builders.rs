@@ -229,9 +229,10 @@ pub(crate) fn definition_subject(
     filter(|(t, _location): &TokenLocation| !matches!(t, Token::Colon | Token::BlankLine(_)))
         .repeated()
         .at_least(1)
-        .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)).ignored())
-        .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::BlankLine(_))).ignored())
+        .then_ignore(filter(|(t, _): &TokenLocation| matches!(t, Token::Colon)))
     // No .map() - preserve tokens!
+    // Note: Colon is REQUIRED (no .ignored()). The blank line is NOT consumed here,
+    // allowing proper backtracking for session parser when definition match fails.
 }
 
 /// Build a definition parser
@@ -243,6 +244,7 @@ where
     P: Parser<TokenLocation, Vec<ParseNode>, Error = ParserError> + Clone + 'static,
 {
     definition_subject()
+        .then_ignore(filter(|(t, _)| matches!(t, Token::BlankLine(_)))) // consume newline after colon
         .then(
             filter(|(t, _)| matches!(t, Token::Indent(_)))
                 .ignore_then(items)

@@ -213,3 +213,21 @@ fn test_session_08_paragraphs_sessions_nested_multiple(parser: Parser) {
                 });
         });
 }
+
+#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+fn test_session_09_flat_colon_title(parser: Parser) {
+    // session-09-flat-colon-title.lex: Session title ending with colon (bug #212)
+    // Tests that sessions can have colons in their titles, distinguished from definitions
+    // by blank lines between title and content
+    let doc = Lexplore::session(9).parse_with(parser);
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_session()
+            .label("Subject Title:")
+            .child(0, |child| {
+                child
+                    .assert_paragraph()
+                    .text_contains("session whose title ends with a colon");
+            });
+    });
+}
