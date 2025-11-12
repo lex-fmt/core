@@ -1,0 +1,25 @@
+[package]
+name = "lex-cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["lex contributors"]
+description = "Command-line interface for the lex format"
+license = "MIT"
+repository = "https://github.com/adebert/lex"
+keywords = ["cli", "format", "lex"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "lex"
+path = "src/main.rs"
+# We use plenty of lex in code docs, and having to explicitly avoid error is not worth it
+doctest = false
+
+[dependencies]
+lex-parser = { path = "../lex-parser" }
+clap = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
