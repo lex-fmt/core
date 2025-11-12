@@ -30,9 +30,7 @@ Lexing
 
 	Output: Flat Vec<(Token, Range<usize>)>
 
-	Both the reference parser and linebased parser consume this same flat output:
-		Reference parser: Uses it directly
-		LineBased parser: Builds tree structure internally via tree_builder module
+	The linebased parser consumes this flat output and builds its own LineContainer tree before matching grammar patterns.
 
 3. The Three Core Transformations
 
@@ -71,18 +69,12 @@ Lexing
 
 5. Parser Integration
 
-	The flat token stream goes directly to parsers:
+	The flat token stream feeds the linebased parser:
 
-	Reference Parser:
 		Receives: Vec<(Token, Range<usize>)>
-		Uses directly for combinator parsing
-		:: file src/lex/parsing/reference/api.rs ::
-
-	LineBased Parser:
-		Receives: Vec<(Token, Range<usize>)>
-		Builds LineContainer tree internally via tree_builder
+		Builds a LineContainer tree internally via tree_builder
 		:: file src/lex/parsing/linebased/tree_builder.rs ::
 		Groups tokens into lines, classifies them, builds hierarchy
-		Tree complexity localized to the parser
+		Tree complexity remains localized to the parser
 
-	The transformation pipeline is simple and focused: flat token transformations only.
+	The transformation pipeline stays simple and focused: flat token transformations only.

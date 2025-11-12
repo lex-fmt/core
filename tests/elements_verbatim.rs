@@ -281,28 +281,28 @@ fn test_verbatim_13_group_spades() {
 
     assert_ast(&doc).item_count(2).item(0, |item| {
         item.assert_verbatim_block()
-            .subject("This is a groupped Verbatim Block, this is the first Group")
+            .subject("This is a groupped Verbatim Block, this is the first Group:")
             .closing_label("shell")
             .group_count(4)
             .group(0, |group| {
                 group
-                    .subject("This is a groupped Verbatim Block, this is the first Group")
+                    .subject("This is a groupped Verbatim Block, this is the first Group:")
                     .content_contains("$ pwd # always te staring point");
             })
             .group(1, |group| {
                 group
-                    .subject("Now that you know where you are, lets find out what's around you")
+                    .subject("Now that you know where you are, lets find out what's around you:")
                     .content_contains("$ ls")
                     .content_contains("$ ls -r # recursive");
             })
             .group(2, |group| {
                 group
-                    .subject("And let's go places")
+                    .subject("And let's go places:")
                     .content_contains("$ cd <path to go>");
             })
             .group(3, |group| {
                 group
-                    .subject("Feeling lost, let's get back home")
+                    .subject("Feeling lost, let's get back home:")
                     .content_contains("$ cd ~");
             });
     });

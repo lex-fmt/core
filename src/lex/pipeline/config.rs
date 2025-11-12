@@ -58,9 +58,6 @@ pub enum TargetSpec {
 /// Which syntactic analyzer (parser) to use
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnalysisSpec {
-    /// Reference combinator parser
-    Reference,
-
     /// Linebased declarative grammar parser
     Linebased,
 }
@@ -111,21 +108,21 @@ impl ConfigRegistry {
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
 
-        // Standard stable configuration
+        // Standard configuration (linebased parser)
         registry.register(ProcessingConfig {
             name: "default".into(),
-            description: "Stable: Indentation lexer + Reference analyzer + LSP builder".into(),
-            pipeline_spec: PipelineSpec::Indentation,
+            description: "Default: Linebased lexer + analyzer + LSP builder".into(),
+            pipeline_spec: PipelineSpec::Linebased,
             target: TargetSpec::Ast {
-                analyzer: AnalysisSpec::Reference,
+                analyzer: AnalysisSpec::Linebased,
                 builder: BuilderSpec::Lsp,
             },
         });
 
-        // Linebased experimental configuration
+        // Explicit linebased configuration (alias for clarity)
         registry.register(ProcessingConfig {
             name: "linebased".into(),
-            description: "Experimental: Linebased lexer + Linebased analyzer + LSP builder".into(),
+            description: "Linebased lexer + analyzer + LSP builder".into(),
             pipeline_spec: PipelineSpec::Linebased,
             target: TargetSpec::Ast {
                 analyzer: AnalysisSpec::Linebased,
@@ -162,32 +159,10 @@ impl ConfigRegistry {
             target: TargetSpec::Tokens,
         });
 
-        // Serialization configurations
+        // Serialization configurations (linebased parser)
         registry.register(ProcessingConfig {
             name: "lex-to-tag".into(),
             description: "Parse and serialize to tag format (AST XML-like)".into(),
-            pipeline_spec: PipelineSpec::Indentation,
-            target: TargetSpec::Serialized {
-                analyzer: AnalysisSpec::Reference,
-                builder: BuilderSpec::Lsp,
-                format: "tag".into(),
-            },
-        });
-
-        registry.register(ProcessingConfig {
-            name: "lex-to-treeviz".into(),
-            description: "Parse and serialize to treeviz format (tree visualization)".into(),
-            pipeline_spec: PipelineSpec::Indentation,
-            target: TargetSpec::Serialized {
-                analyzer: AnalysisSpec::Reference,
-                builder: BuilderSpec::Lsp,
-                format: "treeviz".into(),
-            },
-        });
-
-        registry.register(ProcessingConfig {
-            name: "lex-to-tag-linebased".into(),
-            description: "Parse with linebased and serialize to tag format".into(),
             pipeline_spec: PipelineSpec::Linebased,
             target: TargetSpec::Serialized {
                 analyzer: AnalysisSpec::Linebased,
@@ -197,8 +172,8 @@ impl ConfigRegistry {
         });
 
         registry.register(ProcessingConfig {
-            name: "lex-to-treeviz-linebased".into(),
-            description: "Parse with linebased and serialize to treeviz format".into(),
+            name: "lex-to-treeviz".into(),
+            description: "Parse and serialize to treeviz format (tree visualization)".into(),
             pipeline_spec: PipelineSpec::Linebased,
             target: TargetSpec::Serialized {
                 analyzer: AnalysisSpec::Linebased,
@@ -247,7 +222,7 @@ mod tests {
         let registry = ConfigRegistry::with_defaults();
         let config = registry.get("default").unwrap();
         assert_eq!(config.name, "default");
-        assert_eq!(config.pipeline_spec, PipelineSpec::Indentation);
+        assert_eq!(config.pipeline_spec, PipelineSpec::Linebased);
         assert!(matches!(config.target, TargetSpec::Ast { .. }));
     }
 
@@ -303,12 +278,12 @@ mod tests {
         let config = registry.get("default").unwrap();
 
         assert_eq!(config.name, "default");
-        assert!(config.description.contains("Stable"));
-        assert_eq!(config.pipeline_spec, PipelineSpec::Indentation);
+        assert!(config.description.contains("Linebased"));
+        assert_eq!(config.pipeline_spec, PipelineSpec::Linebased);
         assert_eq!(
             config.target,
             TargetSpec::Ast {
-                analyzer: AnalysisSpec::Reference,
+                analyzer: AnalysisSpec::Linebased,
                 builder: BuilderSpec::Lsp,
             }
         );
@@ -320,7 +295,7 @@ mod tests {
         let config = registry.get("linebased").unwrap();
 
         assert_eq!(config.name, "linebased");
-        assert!(config.description.contains("Experimental"));
+        assert!(config.description.contains("Linebased"));
         assert_eq!(config.pipeline_spec, PipelineSpec::Linebased);
         assert_eq!(
             config.target,
@@ -352,7 +327,7 @@ mod tests {
         assert_ne!(
             TargetSpec::Tokens,
             TargetSpec::Ast {
-                analyzer: AnalysisSpec::Reference,
+                analyzer: AnalysisSpec::Linebased,
                 builder: BuilderSpec::Lsp,
             }
         );
@@ -360,8 +335,7 @@ mod tests {
 
     #[test]
     fn test_analyzer_spec_equality() {
-        assert_eq!(AnalysisSpec::Reference, AnalysisSpec::Reference);
-        assert_ne!(AnalysisSpec::Reference, AnalysisSpec::Linebased);
+        assert_eq!(AnalysisSpec::Linebased, AnalysisSpec::Linebased);
     }
 
     #[test]

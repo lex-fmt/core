@@ -5,14 +5,9 @@
 //! 2. **Analysis**: Syntactic analysis to produce IR nodes
 //! 3. **Building**: Construction of AST from IR nodes
 //!
-//! ## Independent Analyzer Implementations
-//!
-//! - **Reference Analyzer**: Traditional combinator-based analyzer (reference/)
-//!   - Contains element parsers and parser combinators
-//! - **Linebased Analyzer**: Regex-based grammar-driven analyzer (linebased/)
-//!   - Uses regex matching and pattern unwrapping
-//!
-//! No shared code between analyzers (each is completely independent).
+//! The current analyzer is the line-based, declarative grammar engine.  It consumes
+//! grouped line tokens, matches them against the ordered grammar, and produces IR
+//! nodes that are turned into AST items via the shared builder.
 //!
 //! ## Terminology
 //!
@@ -31,7 +26,8 @@ pub mod common;
 pub mod ir;
 pub mod linebased;
 pub mod pipeline;
-pub mod reference;
+// Temporary keepers for future analyzer experiments remain available via the
+// AnalyzerConfig infrastructure in crate::lex::parsing::pipeline.
 
 // Re-export common parser interfaces
 pub use common::{ParseError, Parser, ParserInput};
@@ -44,13 +40,8 @@ pub use crate::lex::ast::{
 };
 
 pub use crate::lex::formats::{serialize_ast_tag, to_treeviz_str};
-pub use reference::parse;
-
-/// Type alias for processing result with spanned tokens
-type ProcessResult = Result<
-    Document,
-    Vec<chumsky::prelude::Simple<(crate::lex::lexing::Token, std::ops::Range<usize>)>>,
->;
+/// Type alias for processing results returned by helper APIs.
+type ProcessResult = Result<Document, String>;
 
 /// Process source text through the complete pipeline: lex, analyze, and build.
 ///
@@ -79,9 +70,8 @@ pub fn process_full(source: &str) -> ProcessResult {
     let source_with_newline = crate::lex::lexing::ensure_source_ends_with_newline(source);
     let token_stream = crate::lex::lexing::base_tokenization::tokenize(&source_with_newline);
     let tokens = crate::lex::lexing::lex(token_stream);
-    let parse_tree = parse(tokens, source)?;
-    let builder = builder::AstBuilder::new(source);
-    Ok(builder.build(parse_tree))
+    crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source)
+        .map_err(|err| format!("Parsing failed: {}", err))
 }
 
 /// Alias for `process_full` to maintain backward compatibility.

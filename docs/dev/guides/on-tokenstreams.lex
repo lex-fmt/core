@@ -88,18 +88,14 @@ Token Streams: Simplified Flat Transformation Architecture
 	Errors propagate cleanly through the Result type
 	The final TokenStream goes to parsers (with optional adapters)
 
-	Example pipeline (both parsers use the same pipeline):
+	Example pipeline:
 		Base tokenization → Flat stream
 		NormalizeWhitespace → Flat stream
 		SemanticIndentation → Flat stream (with Indent/Dedent)
 		BlankLines → Flat stream
-		→ Parser (reference or linebased)
+		→ Parser (linebased)
 
 7. Parser Integration
-
-	Reference Parser:
-		Consumes flat TokenStream directly
-		No adapter needed (just passes the Vec through)
 
 	LineBased Parser:
 		Builds tree structure internally in tree_builder module

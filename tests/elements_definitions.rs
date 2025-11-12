@@ -11,7 +11,7 @@ use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
 use rstest::rstest;
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_definition_01_flat_simple(parser: Parser) {
     // definition-01-flat-simple.lex: Definition with single paragraph content
     let doc = Lexplore::definition(1).parse_with(parser);
@@ -35,7 +35,7 @@ fn test_definition_01_flat_simple(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_definition_02_flat_multi_paragraph(parser: Parser) {
     // definition-02-flat-multi-paragraph.lex: Definition with multiple paragraphs
     let doc = Lexplore::definition(2).parse_with(parser);
@@ -63,7 +63,7 @@ fn test_definition_02_flat_multi_paragraph(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_definition_03_flat_with_list(parser: Parser) {
     // definition-03-flat-with-list.lex: Due to blank line after "HTTP Methods:",
     // parser treats this as an unnumbered Session, not a Definition.
@@ -101,7 +101,7 @@ fn test_definition_03_flat_with_list(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_definition_05_nested_with_list(parser: Parser) {
     // definition-05-nested-with-list.lex: Definition with paragraphs + list content
     let doc = Lexplore::definition(5).parse_with(parser);
@@ -137,7 +137,7 @@ fn test_definition_05_nested_with_list(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 #[ignore = "Reference parser drops nested definitions; verified via lex-to-treeviz-linebased"]
 fn test_definition_06_nested_definitions(parser: Parser) {
     // definition-06-nested-definitions.lex: Nested definition hierarchy (Authentication -> OAuth -> OAuth 2.0)
@@ -175,7 +175,7 @@ fn test_definition_06_nested_definitions(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_definition_07_nested_deep_only(parser: Parser) {
     // definition-07-nested-deep-only.lex: Deeply nested definitions chain
     let doc = Lexplore::definition(7).parse_with(parser);
@@ -218,7 +218,7 @@ fn test_definition_07_nested_deep_only(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_definition_90_document_simple(parser: Parser) {
     let doc = Lexplore::definition(90).parse_with(parser);
 
@@ -229,7 +229,7 @@ fn test_definition_90_document_simple(parser: Parser) {
     );
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 #[ignore]
 fn test_definitions_overview_document(parser: Parser) {
     // definitions.lex: Specification overview covering syntax/disambiguation
