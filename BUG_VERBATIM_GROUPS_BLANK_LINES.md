@@ -67,7 +67,7 @@ From there the interactive help is available:
     $ lex help
 And the built-in viewer can be used to quickly view the parsing:
 
-    $ lex view <path>
+    $ lexv <path>
 :: shell ::
 ```
 

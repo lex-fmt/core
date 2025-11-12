@@ -1,0 +1,22 @@
+[package]
+name = "lex-viewer"
+version = "0.1.0"
+edition = "2021"
+authors = ["lex contributors"]
+description = "Interactive terminal viewer for the lex document format"
+license = "MIT"
+repository = "https://github.com/adebert/lex"
+keywords = ["cli", "viewer", "lex"]
+categories = ["command-line-utilities"]
+default-run = "lexv"
+
+[[bin]]
+name = "lexv"
+path = "src/main.rs"
+doctest = false
+
+[dependencies]
+lex-parser = { path = "../lex-parser" }
+clap = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
