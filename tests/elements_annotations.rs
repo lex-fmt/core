@@ -96,7 +96,7 @@ fn test_annotation_06_flat_block_multi_paragraph(parser: Parser) {
         item.assert_annotation()
             .label("note")
             .parameter_count(1)
-            .parameter(0, "author", "Jane Doe")
+            .parameter(0, "author", "\"Jane Doe\"")
             .child_count(2)
             .child(0, |child| {
                 child
@@ -153,7 +153,7 @@ fn test_annotation_08_nested_with_list_and_paragraph(parser: Parser) {
         item.assert_annotation()
             .label("note")
             .parameter_count(1)
-            .parameter(0, "author", "Jane")
+            .parameter(0, "author", "\"Jane\"")
             .child_count(3)
             .child(0, |child| {
                 child
