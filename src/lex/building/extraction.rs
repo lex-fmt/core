@@ -409,17 +409,22 @@ fn parse_parameter(
             }
         } else {
             is_quoted = false;
-            // Unquoted value - collect until comma or end
+            // Unquoted value - collect until comma, LexMarker, BlankLine, or end
             while i < tokens.len() {
                 match &tokens[i].0 {
-                    Token::Comma => break,
+                    Token::Comma | Token::LexMarker | Token::BlankLine(_) => break,
                     Token::Whitespace => {
-                        // Check if there's a comma after whitespace
+                        // Check if there's a comma, LexMarker, or BlankLine after whitespace
                         let mut peek = i + 1;
                         while peek < tokens.len() && matches!(tokens[peek].0, Token::Whitespace) {
                             peek += 1;
                         }
-                        if peek < tokens.len() && matches!(tokens[peek].0, Token::Comma) {
+                        if peek < tokens.len()
+                            && matches!(
+                                tokens[peek].0,
+                                Token::Comma | Token::LexMarker | Token::BlankLine(_)
+                            )
+                        {
                             break;
                         }
                         val_tokens.push(tokens[i].clone());
