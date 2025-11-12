@@ -44,6 +44,33 @@ use crate::lex::ast::{
 use crate::lex::parsing::ContentItem;
 
 // ============================================================================
+// TYPE SAFETY STATUS
+// ============================================================================
+//
+// This module has been partially refactored for type safety (Steps 1-4 of #228):
+//
+// ✓ Step 1-4 Complete: Type conversions validate nesting rules
+//   - create_definition: Validates no Sessions via try_into_content_elements()
+//   - create_list_item: Validates no Sessions via try_into_content_elements()
+//   - create_annotation: Validates no Sessions via try_into_content_elements()
+//
+// ⚠ Step 5 Incomplete: Full type-safe pipeline
+//   - Element constructors still accept Vec<ContentItem> for backward compatibility
+//   - Parser returns Vec<ParseNode> → Vec<ContentItem>, not typed variants
+//
+// Future work (remainder of Step 5, #233):
+//   1. Update element constructors to accept typed content:
+//      - Definition::new(subject, Vec<ContentElement>)
+//      - Session::new(title, Vec<SessionContent>)
+//      - Annotation::new(label, params, Vec<ContentElement>)
+//   2. Optionally: Thread policy types through parser for parse-time validation
+//
+// Current state provides runtime type safety via conversions that fail with
+// clear error messages. Full compile-time safety would require the above changes.
+//
+// ============================================================================
+
+// ============================================================================
 // PARAGRAPH CREATION
 // ============================================================================
 
