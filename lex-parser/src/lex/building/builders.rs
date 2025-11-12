@@ -36,6 +36,7 @@ use super::location::{
     aggregate_locations, byte_range_to_ast_range, compute_location_from_locations,
 };
 use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
+use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
     TextLine, Verbatim,
