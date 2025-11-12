@@ -1,0 +1,27 @@
+[package]
+name = "lex-parser"
+version = "0.1.0"
+edition = "2021"
+authors = ["lex contributors"]
+description = "Parser library for the lex format"
+license = "MIT"
+repository = "https://github.com/adebert/lex"
+keywords = ["parser", "format", "lex"]
+categories = ["parsing", "text-processing"]
+
+[lib]
+# Disable doctests for the library; docs contain lex examples that aren't Rust
+doctest = false
+
+[dependencies]
+logos = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+regex = { workspace = true }
+once_cell = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+insta = { workspace = true }
+rstest = { workspace = true }
