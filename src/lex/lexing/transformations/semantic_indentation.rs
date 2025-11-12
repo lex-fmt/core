@@ -16,11 +16,19 @@
 //!
 //! This is a pure adaptation of the existing sem_indentation transformation
 //! to the TokenStream architecture.
-
 use crate::lex::lexing::tokens_core::Token;
-use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
-use crate::lex::pipeline::stream::TokenStream;
 use std::ops::Range as ByteRange;
+#[derive(Debug, Clone, PartialEq)]
+pub enum TransformationError {
+    Error(String),
+}
+impl std::fmt::Display for TransformationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TransformationError::Error(msg) => write!(f, "Transformation error: {}", msg),
+        }
+    }
+}
 
 /// A mapper that converts raw Indentation tokens to semantic Indent/Dedent pairs.
 ///
@@ -79,11 +87,11 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
     count
 }
 
-impl StreamMapper for SemanticIndentationMapper {
-    fn map_flat(
+impl SemanticIndentationMapper {
+    pub fn map(
         &mut self,
         tokens: Vec<(Token, ByteRange<usize>)>,
-    ) -> Result<TokenStream, TransformationError> {
+    ) -> Result<Vec<(Token, ByteRange<usize>)>, TransformationError> {
         // Extract just the tokens for processing
         let token_kinds: Vec<Token> = tokens.iter().map(|(t, _)| t.clone()).collect();
 
@@ -184,7 +192,7 @@ impl StreamMapper for SemanticIndentationMapper {
             result.push((Token::Dedent(vec![]), 0..0));
         }
 
-        Ok(TokenStream::Flat(result))
+        Ok(result)
     }
 }
 
@@ -228,24 +236,19 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input)).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(
-                    stripped,
-                    vec![
-                        Token::Text("a".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Indent(vec![]),
-                        Token::Dash,
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Dedent(vec![]),
-                    ]
-                );
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input)).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(
+            stripped,
+            vec![
+                Token::Text("a".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Indent(vec![]),
+                Token::Dash,
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Dedent(vec![]),
+            ]
+        );
     }
 
     #[test]
@@ -263,28 +266,23 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input)).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(
-                    stripped,
-                    vec![
-                        Token::Text("a".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Indent(vec![]),
-                        Token::Indent(vec![]),
-                        Token::Dash,
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Dedent(vec![]),
-                        Token::Text("b".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Dedent(vec![]),
-                    ]
-                );
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input)).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(
+            stripped,
+            vec![
+                Token::Text("a".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Indent(vec![]),
+                Token::Indent(vec![]),
+                Token::Dash,
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Dedent(vec![]),
+                Token::Text("b".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Dedent(vec![]),
+            ]
+        );
     }
 
     #[test]
@@ -297,42 +295,27 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input.clone())).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(stripped, input);
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input.clone())).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(stripped, input);
     }
 
     #[test]
     fn test_empty_input() {
         let input = vec![];
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input)).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(stripped, vec![]);
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input)).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(stripped, vec![]);
     }
 
     #[test]
     fn test_single_line() {
         let input = vec![Token::Text("a".to_string())];
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input)).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(stripped, vec![Token::Text("a".to_string())]);
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input)).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(stripped, vec![Token::Text("a".to_string())]);
     }
 
     #[test]
@@ -349,27 +332,22 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input)).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(
-                    stripped,
-                    vec![
-                        Token::Text("a".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Indent(vec![]),
-                        Token::Dash,
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Dedent(vec![]),
-                        Token::Dash,
-                        Token::BlankLine(Some("\n".to_string())),
-                    ]
-                );
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input)).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(
+            stripped,
+            vec![
+                Token::Text("a".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Indent(vec![]),
+                Token::Dash,
+                Token::BlankLine(Some("\n".to_string())),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Dedent(vec![]),
+                Token::Dash,
+                Token::BlankLine(Some("\n".to_string())),
+            ]
+        );
     }
 
     #[test]
@@ -387,27 +365,22 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input)).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(
-                    stripped,
-                    vec![
-                        Token::Text("a".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Indent(vec![]),
-                        Token::Dash,
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Dedent(vec![]),
-                        Token::Dash,
-                        Token::BlankLine(Some("\n".to_string())),
-                    ]
-                );
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input)).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(
+            stripped,
+            vec![
+                Token::Text("a".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Indent(vec![]),
+                Token::Dash,
+                Token::BlankLine(Some("\n".to_string())),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Dedent(vec![]),
+                Token::Dash,
+                Token::BlankLine(Some("\n".to_string())),
+            ]
+        );
     }
 
     #[test]
@@ -424,27 +397,22 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input)).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(
-                    stripped,
-                    vec![
-                        Token::Text("a".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Indent(vec![]),
-                        Token::Dash,
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Indent(vec![]),
-                        Token::Text("b".to_string()),
-                        Token::Dedent(vec![]),
-                        Token::Dedent(vec![]),
-                    ]
-                );
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input)).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(
+            stripped,
+            vec![
+                Token::Text("a".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Indent(vec![]),
+                Token::Dash,
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Indent(vec![]),
+                Token::Text("b".to_string()),
+                Token::Dedent(vec![]),
+                Token::Dedent(vec![]),
+            ]
+        );
     }
 
     #[test]
@@ -462,30 +430,25 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input)).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(
-                    stripped,
-                    vec![
-                        Token::Text("a".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Indent(vec![]),
-                        Token::Indent(vec![]),
-                        Token::Indent(vec![]),
-                        Token::Dash,
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Dedent(vec![]),
-                        Token::Dedent(vec![]),
-                        Token::Dedent(vec![]),
-                        Token::Text("b".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                    ]
-                );
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input)).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(
+            stripped,
+            vec![
+                Token::Text("a".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Indent(vec![]),
+                Token::Indent(vec![]),
+                Token::Indent(vec![]),
+                Token::Dash,
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Dedent(vec![]),
+                Token::Dedent(vec![]),
+                Token::Dedent(vec![]),
+                Token::Text("b".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+            ]
+        );
     }
 
     #[test]
@@ -526,37 +489,32 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(input).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                // Find the Indent token
-                let indent_pos = tokens
-                    .iter()
-                    .position(|(t, _)| matches!(t, Token::Indent(_)))
-                    .expect("Should have Indent token");
+        let tokens = mapper.map(input).unwrap();
+        // Find the Indent token
+        let indent_pos = tokens
+            .iter()
+            .position(|(t, _)| matches!(t, Token::Indent(_)))
+            .expect("Should have Indent token");
 
-                // Verify source_tokens are captured correctly
-                if let Token::Indent(source_tokens) = &tokens[indent_pos].0 {
-                    assert_eq!(
-                        source_tokens.len(),
-                        1,
-                        "Indent should capture 1 source Indentation token"
-                    );
-                    assert_eq!(source_tokens[0].0, Token::Indentation);
-                    assert_eq!(
-                        source_tokens[0].1,
-                        2..6,
-                        "Source token should have correct range"
-                    );
-                } else {
-                    panic!("Expected Indent token");
-                }
-
-                // Verify placeholder span is used
-                assert_eq!(tokens[indent_pos].1, 0..0, "Indent uses placeholder span");
-            }
-            _ => panic!("Expected Flat stream"),
+        // Verify source_tokens are captured correctly
+        if let Token::Indent(source_tokens) = &tokens[indent_pos].0 {
+            assert_eq!(
+                source_tokens.len(),
+                1,
+                "Indent should capture 1 source Indentation token"
+            );
+            assert_eq!(source_tokens[0].0, Token::Indentation);
+            assert_eq!(
+                source_tokens[0].1,
+                2..6,
+                "Source token should have correct range"
+            );
+        } else {
+            panic!("Expected Indent token");
         }
+
+        // Verify placeholder span is used
+        assert_eq!(tokens[indent_pos].1, 0..0, "Indent uses placeholder span");
     }
 
     #[test]
@@ -571,37 +529,32 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(input).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                // Find Indent tokens
-                let indent_positions: Vec<_> = tokens
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, (t, _))| {
-                        if matches!(t, Token::Indent(_)) {
-                            Some(i)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-
-                assert_eq!(indent_positions.len(), 2, "Should have 2 Indent tokens");
-
-                // Verify first Indent captures first Indentation token
-                if let Token::Indent(source_tokens) = &tokens[indent_positions[0]].0 {
-                    assert_eq!(source_tokens.len(), 1);
-                    assert_eq!(source_tokens[0].1, 2..6, "First Indent source range");
+        let tokens = mapper.map(input).unwrap();
+        // Find Indent tokens
+        let indent_positions: Vec<_> = tokens
+            .iter()
+            .enumerate()
+            .filter_map(|(i, (t, _))| {
+                if matches!(t, Token::Indent(_)) {
+                    Some(i)
+                } else {
+                    None
                 }
+            })
+            .collect();
 
-                // Verify second Indent captures second Indentation token
-                if let Token::Indent(source_tokens) = &tokens[indent_positions[1]].0 {
-                    assert_eq!(source_tokens.len(), 1);
-                    assert_eq!(source_tokens[0].1, 6..10, "Second Indent source range");
-                }
-            }
-            _ => panic!("Expected Flat stream"),
+        assert_eq!(indent_positions.len(), 2, "Should have 2 Indent tokens");
+
+        // Verify first Indent captures first Indentation token
+        if let Token::Indent(source_tokens) = &tokens[indent_positions[0]].0 {
+            assert_eq!(source_tokens.len(), 1);
+            assert_eq!(source_tokens[0].1, 2..6, "First Indent source range");
+        }
+
+        // Verify second Indent captures second Indentation token
+        if let Token::Indent(source_tokens) = &tokens[indent_positions[1]].0 {
+            assert_eq!(source_tokens.len(), 1);
+            assert_eq!(source_tokens[0].1, 6..10, "Second Indent source range");
         }
     }
 
@@ -626,29 +579,24 @@ mod tests {
         ];
 
         let mut mapper = SemanticIndentationMapper::new();
-        let result = mapper.map_flat(with_loc(input)).unwrap();
-        match result {
-            TokenStream::Flat(tokens) => {
-                let stripped = strip_loc(tokens);
-                assert_eq!(
-                    stripped,
-                    vec![
-                        Token::Indent(vec![]),
-                        Token::Indent(vec![]),
-                        Token::Text("Foo".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Text("Foo2".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::BlankLine(Some("\n".to_string())), // blank line preserved
-                        Token::Text("Bar".to_string()),
-                        Token::BlankLine(Some("\n".to_string())),
-                        Token::Dedent(vec![]),
-                        Token::Dedent(vec![]),
-                    ],
-                    "Blank lines with only spaces should NOT produce dedent/indent tokens"
-                );
-            }
-            _ => panic!("Expected Flat stream"),
-        }
+        let tokens = mapper.map(with_loc(input)).unwrap();
+        let stripped = strip_loc(tokens);
+        assert_eq!(
+            stripped,
+            vec![
+                Token::Indent(vec![]),
+                Token::Indent(vec![]),
+                Token::Text("Foo".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Text("Foo2".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::BlankLine(Some("\n".to_string())), // blank line preserved
+                Token::Text("Bar".to_string()),
+                Token::BlankLine(Some("\n".to_string())),
+                Token::Dedent(vec![]),
+                Token::Dedent(vec![]),
+            ],
+            "Blank lines with only spaces should NOT produce dedent/indent tokens"
+        );
     }
 }

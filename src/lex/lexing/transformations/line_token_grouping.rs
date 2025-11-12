@@ -11,8 +11,6 @@
 
 use crate::lex::lexing::line_grouping::group_into_lines;
 use crate::lex::lexing::tokens_core::Token;
-use crate::lex::pipeline::mapper::{StreamMapper, TransformationError};
-use crate::lex::pipeline::stream::{GroupType, GroupedTokens, TokenStream};
 use std::ops::Range as ByteRange;
 
 /// Transformation that groups flat tokens into line-based groups.
@@ -30,11 +28,22 @@ impl Default for LineTokenGroupingMapper {
     }
 }
 
-impl StreamMapper for LineTokenGroupingMapper {
-    fn map_flat(
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupedTokens {
+    pub source_tokens: Vec<(Token, ByteRange<usize>)>,
+    pub group_type: GroupType,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GroupType {
+    Line(crate::lex::lexing::tokens_linebased::LineType),
+}
+
+impl LineTokenGroupingMapper {
+    pub fn map(
         &mut self,
         tokens: Vec<(Token, ByteRange<usize>)>,
-    ) -> Result<TokenStream, TransformationError> {
+    ) -> Vec<GroupedTokens> {
         // Group tokens into LineTokens
         let line_tokens = group_into_lines(tokens);
 
@@ -47,7 +56,7 @@ impl StreamMapper for LineTokenGroupingMapper {
             })
             .collect();
 
-        Ok(TokenStream::Grouped(grouped_tokens))
+        grouped_tokens
     }
 }
 
@@ -55,7 +64,6 @@ impl StreamMapper for LineTokenGroupingMapper {
 mod tests {
     use super::*;
     use crate::lex::lexing::tokens_linebased::LineType;
-    use crate::lex::pipeline::mapper::StreamMapper;
 
     #[test]
     fn test_mapper_integration() {
@@ -66,18 +74,13 @@ mod tests {
         ];
 
         let mut mapper = LineTokenGroupingMapper::new();
-        let result = mapper.map_flat(tokens).unwrap();
+        let groups = mapper.map(tokens);
 
-        match result {
-            TokenStream::Grouped(groups) => {
-                assert_eq!(groups.len(), 1);
-                assert_eq!(groups[0].source_tokens.len(), 3);
-                match groups[0].group_type {
-                    GroupType::Line(LineType::SubjectLine) => {}
-                    _ => panic!("Expected SubjectLine"),
-                }
-            }
-            _ => panic!("Expected Grouped stream"),
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].source_tokens.len(), 3);
+        match groups[0].group_type {
+            GroupType::Line(LineType::SubjectLine) => {}
+            _ => panic!("Expected SubjectLine"),
         }
     }
 }

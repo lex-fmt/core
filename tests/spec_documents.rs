@@ -1,13 +1,11 @@
 //! Tests for spec/overview documents that don't map to numbered element loaders
 
-use lex::lex::pipeline::Parser;
 use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
-use rstest::rstest;
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_labels_spec_document(parser: Parser) {
-    let doc = Lexplore::from_path("docs/specs/v1/elements/label/labels.lex").parse_with(parser);
+#[test]
+fn test_labels_spec_document() {
+    let doc = Lexplore::from_path("docs/specs/v1/elements/label/labels.lex").parse();
 
     assert_ast(&doc)
         .item(0, |item| {
@@ -24,10 +22,10 @@ fn test_labels_spec_document(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_parameters_spec_document(parser: Parser) {
+#[test]
+fn test_parameters_spec_document() {
     let doc =
-        Lexplore::from_path("docs/specs/v1/elements/parameter/parameters.lex").parse_with(parser);
+        Lexplore::from_path("docs/specs/v1/elements/parameter/parameters.lex").parse();
 
     assert_ast(&doc)
         .item(0, |item| {
@@ -38,10 +36,10 @@ fn test_parameters_spec_document(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_verbatim_spec_document(parser: Parser) {
+#[test]
+fn test_verbatim_spec_document() {
     let doc =
-        Lexplore::from_path("docs/specs/v1/elements/verbatim/verbatim.lex").parse_with(parser);
+        Lexplore::from_path("docs/specs/v1/elements/verbatim/verbatim.lex").parse();
 
     assert_ast(&doc)
         .item(0, |item| {
@@ -55,10 +53,10 @@ fn test_verbatim_spec_document(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_template_document_simple(parser: Parser) {
+#[test]
+fn test_template_document_simple() {
     let doc =
-        Lexplore::from_path("docs/specs/v1/elements/XXX-document-simple.lex").parse_with(parser);
+        Lexplore::from_path("docs/specs/v1/elements/XXX-document-simple.lex").parse();
 
     assert_ast(&doc)
         .item(0, |item| {
@@ -74,10 +72,10 @@ fn test_template_document_simple(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_template_document_tricky(parser: Parser) {
+#[test]
+fn test_template_document_tricky() {
     let doc =
-        Lexplore::from_path("docs/specs/v1/elements/XXX-document-tricky.lex").parse_with(parser);
+        Lexplore::from_path("docs/specs/v1/elements/XXX-document-tricky.lex").parse();
 
     assert_ast(&doc)
         .item(0, |item| {

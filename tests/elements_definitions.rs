@@ -6,15 +6,13 @@
 //! - Test isolated elements (one element per test)
 //! - Verify content and structure, not just counts
 
-use lex::lex::pipeline::Parser;
 use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
-use rstest::rstest;
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_definition_01_flat_simple(parser: Parser) {
+#[test]
+fn test_definition_01_flat_simple() {
     // definition-01-flat-simple.lex: Definition with single paragraph content
-    let doc = Lexplore::definition(1).parse_with(parser);
+    let doc = Lexplore::definition(1).parse();
 
     // Document: Definition + trailing paragraph "Something to finish the element"
     assert_ast(&doc)
@@ -35,10 +33,10 @@ fn test_definition_01_flat_simple(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_definition_02_flat_multi_paragraph(parser: Parser) {
+#[test]
+fn test_definition_02_flat_multi_paragraph() {
     // definition-02-flat-multi-paragraph.lex: Definition with multiple paragraphs
-    let doc = Lexplore::definition(2).parse_with(parser);
+    let doc = Lexplore::definition(2).parse();
 
     assert_ast(&doc)
         .item_count(2)
@@ -63,12 +61,12 @@ fn test_definition_02_flat_multi_paragraph(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_definition_03_flat_with_list(parser: Parser) {
+#[test]
+fn test_definition_03_flat_with_list() {
     // definition-03-flat-with-list.lex: Due to blank line after "HTTP Methods:",
     // parser treats this as an unnumbered Session, not a Definition.
     // Definitions require content immediately after the colon (no blank line).
-    let doc = Lexplore::definition(3).parse_with(parser);
+    let doc = Lexplore::definition(3).parse();
 
     assert_ast(&doc)
         .item_count(2)
@@ -101,10 +99,10 @@ fn test_definition_03_flat_with_list(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_definition_05_nested_with_list(parser: Parser) {
+#[test]
+fn test_definition_05_nested_with_list() {
     // definition-05-nested-with-list.lex: Definition with paragraphs + list content
-    let doc = Lexplore::definition(5).parse_with(parser);
+    let doc = Lexplore::definition(5).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -137,11 +135,11 @@ fn test_definition_05_nested_with_list(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
+#[test]
 #[ignore = "Line parser still drops nested definitions; verified via lex-to-treeviz"]
-fn test_definition_06_nested_definitions(parser: Parser) {
+fn test_definition_06_nested_definitions() {
     // definition-06-nested-definitions.lex: Nested definition hierarchy (Authentication -> OAuth -> OAuth 2.0)
-    let doc = Lexplore::definition(6).parse_with(parser);
+    let doc = Lexplore::definition(6).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -175,10 +173,10 @@ fn test_definition_06_nested_definitions(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_definition_07_nested_deep_only(parser: Parser) {
+#[test]
+fn test_definition_07_nested_deep_only() {
     // definition-07-nested-deep-only.lex: Deeply nested definitions chain
-    let doc = Lexplore::definition(7).parse_with(parser);
+    let doc = Lexplore::definition(7).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -218,23 +216,22 @@ fn test_definition_07_nested_deep_only(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_definition_90_document_simple(parser: Parser) {
-    let doc = Lexplore::definition(90).parse_with(parser);
+#[test]
+fn test_definition_90_document_simple() {
+    let doc = Lexplore::definition(90).parse();
 
     assert!(
         !doc.root.children.is_empty(),
-        "definition-90 should parse with {:?}",
-        parser
+        "definition-90 should parse"
     );
 }
 
-#[rstest(parser => [Parser::Linebased])]
+#[test]
 #[ignore]
-fn test_definitions_overview_document(parser: Parser) {
+fn test_definitions_overview_document() {
     // definitions.lex: Specification overview covering syntax/disambiguation
     let doc =
-        Lexplore::from_path("docs/specs/v1/elements/definition/definitions.lex").parse_with(parser);
+        Lexplore::from_path("docs/specs/v1/elements/definition/definitions.lex").parse();
 
     assert_ast(&doc)
         .item_count(4)

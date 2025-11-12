@@ -25,12 +25,11 @@ pub mod builder;
 pub mod common;
 pub mod ir;
 pub mod linebased;
-pub mod pipeline;
 // Temporary keepers for future analyzer experiments remain available via the
 // AnalyzerConfig infrastructure in crate::lex::parsing::pipeline.
 
 // Re-export common parser interfaces
-pub use common::{ParseError, Parser, ParserInput};
+pub use common::{ParseError, ParserInput};
 
 // Re-export AST types and utilities from the ast module
 pub use crate::lex::ast::{
@@ -67,11 +66,7 @@ type ProcessResult = Result<Document, String>;
 /// let document = process_full(source)?;
 /// ```
 pub fn process_full(source: &str) -> ProcessResult {
-    let source_with_newline = crate::lex::lexing::ensure_source_ends_with_newline(source);
-    let token_stream = crate::lex::lexing::base_tokenization::tokenize(&source_with_newline);
-    let tokens = crate::lex::lexing::lex(token_stream);
-    crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source)
-        .map_err(|err| format!("Parsing failed: {}", err))
+    crate::lex::pipeline::Pipeline::new().run(source)
 }
 
 /// Alias for `process_full` to maintain backward compatibility.
