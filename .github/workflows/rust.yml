@@ -62,4 +62,4 @@ jobs:
         cache-on-failure: true
 
     - name: Build documentation
-      run: cargo doc --no-deps --all-features
+      run: cargo doc --workspace --no-deps --all-features
