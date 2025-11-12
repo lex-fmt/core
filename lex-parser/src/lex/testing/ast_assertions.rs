@@ -2,6 +2,7 @@
 
 use super::matchers::TextMatch;
 use crate::lex::ast::elements::container::VerbatimContainer;
+use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{
     Annotation, Container, ContentItem, Definition, Document, List, ListItem, Paragraph, Session,
     TextContent, Verbatim,

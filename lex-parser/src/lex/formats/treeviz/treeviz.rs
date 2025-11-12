@@ -62,7 +62,7 @@
 //!         ReferenceFootnote: ³
 //!         ReferenceSession: #
 
-use crate::lex::ast::{snapshot_visitor::snapshot_from_document, AstSnapshot, Document};
+use crate::lex::ast::{snapshot_from_document, AstSnapshot, Document};
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() > max_chars {
