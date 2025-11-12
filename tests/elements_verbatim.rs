@@ -68,8 +68,7 @@ fn test_verbatim_04_flat_marker_form() {
 #[test]
 fn test_verbatim_05_flat_special_chars() {
     // verbatim-05-flat-special-chars.lex: Verbatim with :: markers in content
-    // BUG: Reference parser incorrectly parses this as Paragraph instead of VerbatimBlock
-    // The :: markers in content confuse the reference parser
+    // Regression test: ensure :: markers inside content do not get misparsed as a paragraph.
     let doc = Lexplore::verbatim(5).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {

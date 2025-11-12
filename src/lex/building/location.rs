@@ -1,6 +1,6 @@
 //! Location utilities for AST node building
 //!
-//! Provides shared location handling utilities used by both reference and linebased parsers.
+//! Provides shared location handling utilities used by the parser/AST builder.
 //! These utilities handle the conversion from byte ranges to line/column positions and
 //! compute bounding boxes for container nodes (sessions, lists, definitions, etc.).
 

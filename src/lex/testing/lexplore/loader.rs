@@ -114,7 +114,7 @@ impl ElementLoader {
             .unwrap_or_else(|e| panic!("Failed to parse {}: {}", path.display(), e))
     }
 
-    /// Parse with the Reference parser (shorthand)
+    /// Parse with the linebased parser (shorthand)
     pub fn parse(self) -> Document {
         self.parse_with(crate::lex::pipeline::Parser::Linebased)
     }
@@ -128,7 +128,7 @@ impl ElementLoader {
             .unwrap_or_else(|e| panic!("Failed to tokenize {}: {}", path.display(), e))
     }
 
-    /// Tokenize with the Reference parser (shorthand)
+    /// Tokenize with the linebased parser (shorthand)
     pub fn tokenize(self) -> Vec<(Token, std::ops::Range<usize>)> {
         self.tokenize_with(crate::lex::pipeline::Parser::Linebased)
     }

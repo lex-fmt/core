@@ -129,13 +129,13 @@ pub(crate) fn flatten(
 }
 
 // ============================================================================
-// REFERENCE PARSER SUPPORT
+// NORMALIZED TOKEN SUPPORT
 // ============================================================================
 
 /// Normalize tokens that are already in (Token, Range) format.
 ///
-/// This is a pass-through for reference parser tokens, which are already
-/// in the normalized format. Provided for API consistency.
+/// Pass-through for callers that already have tokens in normalized format.
+/// Provided for API consistency.
 ///
 /// # Arguments
 ///
@@ -148,7 +148,7 @@ pub(crate) fn flatten(
 /// # Example
 ///
 /// ```rust,ignore
-/// let tokens: Vec<(Token, Range<usize>)> = /* ... from reference parser ... */;
+/// let tokens: Vec<(Token, Range<usize>)> = /* ... already normalized ... */;
 /// let normalized = normalize_token_pairs(&tokens);
 /// // Same as input, but owned
 /// ```

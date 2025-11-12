@@ -85,8 +85,8 @@ fn test_verbatim_04_flat_marker_form() {
 #[test]
 fn test_verbatim_05_flat_special_chars() {
     // verbatim-05-flat-special-chars.lex: Verbatim with :: markers in content
-    // BUG: Reference parser incorrectly parses this as Paragraph instead of VerbatimBlock
-    // The :: markers in content confuse the reference parser
+    // BUG: Earlier parser implementation incorrectly parsed this as Paragraph.
+    // The :: markers in content confused the matcher.
     let source = Lexplore::verbatim(5).source();
     let doc = DocumentLoader::new()
         .parse_with(&source, Parser::Linebased)
@@ -306,8 +306,8 @@ fn test_verbatim_10_flat_simple_empty() {
 }
 
 // Note: verbatim-11-group-shell.lex is tested as part of the document-level tests.
-// The linebased parser should handle verbatim groups the same way as the reference parser.
-// If verbatim groups work in the reference parser, they should work in the linebased parser too.
+// The linebased parser should handle verbatim groups consistently with previous expectations.
+// If verbatim groups work in one context, they should work everywhere.
 
 #[test]
 fn test_verbatim_13_group_spades() {
