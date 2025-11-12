@@ -2,88 +2,57 @@
 //! This binary is used to view / convert / process lex files into (and, in the future, from) different formats.
 //!
 //! Usage:
-//!   lex execute --config `<config>` `<path>` [--format `<format>`]  - Execute a pipeline configuration
-//!   lex view `<path>`                                            - Open an interactive TUI viewer
-//!   lex list-configs                                           - List all available configurations
-mod viewer;
+//!   lex `<path>` --config `<config>` [--format `<format>`]   - Execute a pipeline configuration
+//!   lex --list-configs                                      - List all available configurations
 
-use clap::{Arg, Command};
-use std::path::PathBuf;
+use clap::{Arg, ArgAction, Command};
 
 fn main() {
     let matches = Command::new("lex")
         .version(env!("CARGO_PKG_VERSION"))
         .about("A tool for inspecting and processing lex files")
-        .subcommand_required(true)
         .arg_required_else_help(true)
-        .subcommand(
-            Command::new("view")
-                .about("Open an interactive TUI viewer")
-                .arg(
-                    Arg::new("path")
-                        .help("Path to the lex file to view")
-                        .required(true)
-                        .index(1),
-                ),
+        .arg(
+            Arg::new("path")
+                .help("Path to the lex file")
+                .required_unless_present("list-configs")
+                .index(1),
         )
-        .subcommand(
-            Command::new("execute")
-                .about("Execute a processing configuration")
-                .arg(
-                    Arg::new("config")
-                        .long("config")
-                        .short('c')
-                        .help("Configuration name (e.g., 'default', 'linebased', 'tokens-indentation')")
-                        .required(true),
-                )
-                .arg(
-                    Arg::new("path")
-                        .help("Path to the lex file")
-                        .required(true)
-                        .index(1),
-                )
-                .arg(
-                    Arg::new("format")
-                        .long("format")
-                        .short('f')
-                        .help("Output format (default: ast-tag for Document, token-json for Tokens)")
-                        .default_value("auto"),
-                ),
+        .arg(
+            Arg::new("config")
+                .long("config")
+                .short('c')
+                .help("Configuration name (e.g., 'default', 'linebased', 'tokens-indentation')")
+                .required_unless_present("list-configs"),
         )
-        .subcommand(
-            Command::new("list-configs").about("List available processing configurations"),
+        .arg(
+            Arg::new("format")
+                .long("format")
+                .short('f')
+                .help("Output format (default: ast-tag for Document, token-json for Tokens)")
+                .default_value("auto"),
+        )
+        .arg(
+            Arg::new("list-configs")
+                .long("list-configs")
+                .help("List available processing configurations")
+                .action(ArgAction::SetTrue),
         )
         .get_matches();
 
-    // Handle subcommands
-    match matches.subcommand() {
-        Some(("view", view_matches)) => {
-            let path = view_matches.get_one::<String>("path").unwrap();
-            handle_view_command(path);
-        }
-        Some(("execute", execute_matches)) => {
-            let config = execute_matches.get_one::<String>("config").unwrap();
-            let path = execute_matches.get_one::<String>("path").unwrap();
-            let format = execute_matches.get_one::<String>("format").unwrap();
-            handle_execute_command(config, path, format);
-        }
-        Some(("list-configs", _)) => {
-            handle_list_configs_command();
-        }
-        _ => unreachable!(),
+    if matches.get_flag("list-configs") {
+        handle_list_configs_command();
+        return;
     }
-}
 
-/// Handle the view command
-fn handle_view_command(path: &str) {
-    let file_path = PathBuf::from(path);
-    match viewer::viewer::run_viewer(file_path) {
-        Ok(_) => {}
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
-        }
-    }
+    let config = matches
+        .get_one::<String>("config")
+        .expect("config is required unless listing configs");
+    let path = matches
+        .get_one::<String>("path")
+        .expect("path is required unless listing configs");
+    let format = matches.get_one::<String>("format").unwrap();
+    handle_execute_command(config, path, format);
 }
 
 /// Handle the execute command
