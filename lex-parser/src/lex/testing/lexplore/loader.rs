@@ -313,6 +313,7 @@ mod tests {
     use crate::lex::ast::traits::Container;
     use crate::lex::lexing::Token;
     use crate::lex::testing::lexplore::extraction::*;
+    use crate::lex::testing::workspace_path;
 
     // Tests for the old direct API (get_source_for, etc.) have been removed.
     // Use the fluent API instead: Lexplore::paragraph(1).parse()
@@ -447,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_from_path_parse() {
-        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let path = workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
         let doc = Lexplore::from_path(path).parse();
 
         let paragraph = doc.expect_paragraph();
@@ -456,7 +457,7 @@ mod tests {
 
     #[test]
     fn test_from_path_tokenize() {
-        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let path = workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
         let tokens = Lexplore::from_path(path).tokenize();
 
         assert!(!tokens.is_empty());
@@ -465,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_from_path_source() {
-        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let path = workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
         let source = Lexplore::from_path(path).source();
 
         assert!(!source.is_empty());
@@ -473,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_from_path_with_parser() {
-        let path = "docs/specs/v1/elements/list/list-01-flat-simple-dash.lex";
+        let path = workspace_path("docs/specs/v1/elements/list/list-01-flat-simple-dash.lex");
         let doc = Lexplore::from_path(path).parse_with(Parser::Linebased);
 
         let list = doc.expect_list();
@@ -482,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_from_path_tokenize_with_parser() {
-        let path = "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex";
+        let path = workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
         let tokens = Lexplore::from_path(path).tokenize_with(Parser::Linebased);
 
         assert!(!tokens.is_empty());
@@ -503,7 +504,7 @@ mod tests {
 
     #[test]
     fn test_from_path_with_benchmark() {
-        let path = "docs/specs/v1/benchmark/010-kitchensink.lex";
+        let path = workspace_path("docs/specs/v1/benchmark/010-kitchensink.lex");
         let doc = Lexplore::from_path(path).parse();
 
         assert!(!doc.root.children.is_empty());
@@ -511,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_from_path_with_trifecta() {
-        let path = "docs/specs/v1/trifecta/000-paragraphs.lex";
+        let path = workspace_path("docs/specs/v1/trifecta/000-paragraphs.lex");
         let doc = Lexplore::from_path(path).parse();
 
         assert!(!doc.root.children.is_empty());
@@ -545,7 +546,7 @@ mod tests {
 
     #[test]
     fn test_detokenize_from_path() {
-        let path = "docs/specs/v1/benchmark/010-kitchensink.lex";
+        let path = workspace_path("docs/specs/v1/benchmark/010-kitchensink.lex");
         let tokens = Lexplore::from_path(path).tokenize();
         let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
         let detokenized = crate::lex::formats::detokenize(&token_only);
@@ -582,7 +583,10 @@ mod tests {
     #[test]
     fn test_detokenize_fluent_api() {
         // Demonstrate fluent API usage
-        let tokens = Lexplore::from_path("docs/specs/v1/benchmark/010-kitchensink.lex").tokenize();
+        let tokens = Lexplore::from_path(workspace_path(
+            "docs/specs/v1/benchmark/010-kitchensink.lex",
+        ))
+        .tokenize();
         let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
         let detokenized = crate::lex::formats::detokenize(&token_only);
 

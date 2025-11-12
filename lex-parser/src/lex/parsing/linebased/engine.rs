@@ -103,6 +103,7 @@ mod tests {
     use super::*;
     use crate::lex::parsing::ContentItem;
     use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
+    use crate::lex::testing::workspace_path;
 
     // Helper to prepare flat token stream from pipeline
     fn lex_helper(
@@ -200,8 +201,10 @@ mod tests {
 
     #[test]
     fn test_annotations_120_simple() {
-        let source = std::fs::read_to_string("docs/specs/v1/samples/120-annotations-simple.lex")
-            .expect("Could not read 120 sample");
+        let source = std::fs::read_to_string(workspace_path(
+            "docs/specs/v1/samples/120-annotations-simple.lex",
+        ))
+        .expect("Could not read 120 sample");
         let tokens = lex_helper(&source).expect("Failed to tokenize");
 
         let doc = parse_from_flat_tokens(tokens, &source).expect("Parser failed");
@@ -247,9 +250,10 @@ mod tests {
 
     #[test]
     fn test_annotations_130_block_content() {
-        let source =
-            std::fs::read_to_string("docs/specs/v1/samples/130-annotations-block-content.lex")
-                .expect("Could not read 130 sample");
+        let source = std::fs::read_to_string(workspace_path(
+            "docs/specs/v1/samples/130-annotations-block-content.lex",
+        ))
+        .expect("Could not read 130 sample");
         let tokens = lex_helper(&source).expect("Failed to tokenize");
 
         let doc = parse_from_flat_tokens(tokens, &source).expect("Parser failed");

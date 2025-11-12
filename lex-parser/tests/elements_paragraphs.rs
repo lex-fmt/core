@@ -9,6 +9,7 @@
 use lex_parser::lex::pipeline::Parser;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
+use lex_parser::lex::testing::workspace_path;
 use rstest::rstest;
 
 #[rstest(parser => [Parser::Linebased])]
@@ -151,8 +152,10 @@ fn test_paragraph_09_dialog(parser: Parser) {
 #[rstest(parser => [Parser::Linebased])]
 #[ignore]
 fn test_paragraphs_overview_document(parser: Parser) {
-    let doc =
-        Lexplore::from_path("docs/specs/v1/elements/paragraph/paragraphs.lex").parse_with(parser);
+    let doc = Lexplore::from_path(workspace_path(
+        "docs/specs/v1/elements/paragraph/paragraphs.lex",
+    ))
+    .parse_with(parser);
 
     assert_ast(&doc)
         .item(0, |item| {

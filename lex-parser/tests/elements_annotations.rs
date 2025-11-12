@@ -9,6 +9,7 @@
 use lex_parser::lex::pipeline::Parser;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
+use lex_parser::lex::testing::workspace_path;
 use rstest::rstest;
 
 #[rstest(parser => [Parser::Linebased])]
@@ -285,8 +286,10 @@ fn test_annotation_10_nested_complex(parser: Parser) {
           // This is tested more simply in test_session_09_flat_colon_title
 fn test_annotations_overview_document(parser: Parser) {
     // annotations.lex: Specification overview document for annotations
-    let doc =
-        Lexplore::from_path("docs/specs/v1/elements/annotation/annotations.lex").parse_with(parser);
+    let doc = Lexplore::from_path(workspace_path(
+        "docs/specs/v1/elements/annotation/annotations.lex",
+    ))
+    .parse_with(parser);
 
     assert_ast(&doc)
         .item(0, |item| {
