@@ -134,7 +134,9 @@ mod proptest_tests {
             if let Ok(doc) = result {
                 let annotation = doc.root.children[0].as_annotation().unwrap();
                 prop_assert_eq!(&annotation.parameters[0].key, &key);
-                prop_assert_eq!(&annotation.parameters[0].value, &value);
+                // Quotes are preserved in the value
+                let expected_value = format!("\"{}\"", value);
+                prop_assert_eq!(&annotation.parameters[0].value, &expected_value);
             }
         }
 
@@ -230,7 +232,7 @@ mod specific_tests {
             item.assert_annotation()
                 .label("note")
                 .parameter_count(1)
-                .has_parameter_with_value("message", "Hello World");
+                .has_parameter_with_value("message", "\"Hello World\"");
         });
     }
 
@@ -245,7 +247,7 @@ mod specific_tests {
             item.assert_annotation()
                 .label("note")
                 .parameter_count(1)
-                .has_parameter_with_value("message", "value with, comma");
+                .has_parameter_with_value("message", "\"value with, comma\"");
         });
     }
 
@@ -260,7 +262,7 @@ mod specific_tests {
             item.assert_annotation()
                 .label("note")
                 .parameter_count(1)
-                .has_parameter_with_value("message", "");
+                .has_parameter_with_value("message", "\"\"");
         });
     }
 

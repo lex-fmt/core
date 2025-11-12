@@ -400,7 +400,7 @@ fn test_verbatim_12_document_simple() {
             .subject("This is an Image Verbatim Representation")
             .closing_label("image")
             .assert_marker_form()
-            .has_closing_parameter_with_value("src", "image.jpg");
+            .has_closing_parameter_with_value("src", "\"image.jpg\"");
     });
 
     // Verify final verbatim block
