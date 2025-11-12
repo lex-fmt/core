@@ -518,22 +518,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
-name = "lex"
+name = "lex-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
  "crossterm",
+ "lex-parser",
+ "ratatui",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "lex-parser"
+version = "0.1.0"
+dependencies = [
  "insta",
  "logos",
  "once_cell",
  "proptest",
- "ratatui",
  "regex",
  "rstest",
  "serde",
  "serde_json",
  "serde_yaml",
- "tokio",
 ]
 
 [[package]]
