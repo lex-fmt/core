@@ -27,6 +27,7 @@ use super::content_item::ContentItem;
 use super::list::List;
 use super::paragraph::Paragraph;
 use super::session::Session;
+use super::typed_content;
 use super::verbatim::Verbatim;
 use std::fmt;
 
@@ -84,7 +85,8 @@ impl Document {
 
     pub fn with_content(content: Vec<ContentItem>) -> Self {
         let mut root = Session::with_title(String::new());
-        root.children = super::container::SessionContainer::new(content);
+        let session_content = typed_content::into_session_contents(content);
+        root.children = super::container::SessionContainer::from_typed(session_content);
         Self {
             metadata: Vec::new(),
             root,
@@ -93,7 +95,8 @@ impl Document {
 
     pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
         let mut root = Session::with_title(String::new());
-        root.children = super::container::SessionContainer::new(content);
+        let session_content = typed_content::into_session_contents(content);
+        root.children = super::container::SessionContainer::from_typed(session_content);
         Self { metadata, root }
     }
 

@@ -54,16 +54,13 @@ use crate::lex::parsing::ContentItem;
 //   - create_list_item: Validates no Sessions via try_into_content_elements()
 //   - create_annotation: Validates no Sessions via try_into_content_elements()
 //
-// ⚠ Step 5 Incomplete: Full type-safe pipeline
-//   - Element constructors still accept Vec<ContentItem> for backward compatibility
-//   - Parser returns Vec<ParseNode> → Vec<ContentItem>, not typed variants
+// ✓ Step 5 Complete: Element constructors now require typed content
+//   - Definition::new(subject, Vec<ContentElement>)
+//   - Session::new(title, Vec<SessionContent>)
+//   - Annotation::new(label, params, Vec<ContentElement>)
 //
-// Future work (remainder of Step 5, #233):
-//   1. Update element constructors to accept typed content:
-//      - Definition::new(subject, Vec<ContentElement>)
-//      - Session::new(title, Vec<SessionContent>)
-//      - Annotation::new(label, params, Vec<ContentElement>)
-//   2. Optionally: Thread policy types through parser for parse-time validation
+// Future work (#233 follow-up):
+//   - Thread policy types through parser for parse-time validation
 //
 // Current state provides runtime type safety via conversions that fail with
 // clear error messages. Full compile-time safety would require the above changes.
@@ -138,8 +135,9 @@ pub(super) fn create_session(
     let title_location = byte_range_to_ast_range(data.title_byte_range, source);
     let title = TextContent::from_string(data.title_text, Some(title_location.clone()));
     let location = aggregate_locations(title_location, &content);
+    let typed_content = typed_content::into_session_contents(content);
 
-    let session = Session::new(title, content).at(location);
+    let session = Session::new(title, typed_content).at(location);
     ContentItem::Session(session)
 }
 
@@ -166,15 +164,13 @@ pub(super) fn create_definition(
     content: Vec<ContentItem>,
     source: &str,
 ) -> ContentItem {
-    // Convert to typed content - will fail if Sessions are present
-    let _typed_content = typed_content::try_into_content_elements(content.clone())
-        .expect("Definition cannot contain Session elements");
-
     let subject_location = byte_range_to_ast_range(data.subject_byte_range, source);
     let subject = TextContent::from_string(data.subject_text, Some(subject_location.clone()));
     let location = aggregate_locations(subject_location, &content);
+    let typed_content = typed_content::try_into_content_elements(content)
+        .expect("Definition cannot contain Session elements");
 
-    let definition = Definition::new(subject, content).at(location);
+    let definition = Definition::new(subject, typed_content).at(location);
     ContentItem::Definition(definition)
 }
 
@@ -277,10 +273,6 @@ pub(super) fn create_annotation(
 ) -> ContentItem {
     use crate::lex::ast::Parameter;
 
-    // Convert to typed content - will fail if Sessions are present
-    let _typed_content = typed_content::try_into_content_elements(content.clone())
-        .expect("Annotation cannot contain Session elements");
-
     let label_location = byte_range_to_ast_range(data.label_byte_range, source);
     let label = Label::new(data.label_text).at(label_location.clone());
 
@@ -300,13 +292,10 @@ pub(super) fn create_annotation(
 
     // Aggregate location from label and content
     let location = aggregate_locations(label_location, &content);
+    let typed_content = typed_content::try_into_content_elements(content)
+        .expect("Annotation cannot contain Session elements");
 
-    let annotation = Annotation {
-        label,
-        parameters,
-        children: crate::lex::ast::elements::container::GeneralContainer::new(content),
-        location,
-    };
+    let annotation = Annotation::new(label, parameters, typed_content).at(location);
 
     ContentItem::Annotation(annotation)
 }

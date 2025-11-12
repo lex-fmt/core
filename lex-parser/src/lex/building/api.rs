@@ -30,6 +30,7 @@
 //! let session = ast_builder::build_session(&title_token, content, source);
 //! ```
 
+use crate::lex::ast::elements::typed_content;
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{Annotation, ListItem, Parameter};
 use crate::lex::lexing::tokens_linebased::LineToken;
@@ -516,8 +517,9 @@ pub fn build_session_from_text(
 
     let title = TextContent::from_string(title_text, Some(title_location.clone()));
     let location = aggregate_locations(title_location, &content);
+    let typed_content = typed_content::into_session_contents(content);
 
-    let session = Session::new(title, content).at(location);
+    let session = Session::new(title, typed_content).at(location);
     ContentItem::Session(session)
 }
 
@@ -542,8 +544,10 @@ pub fn build_definition_from_text(
 
     let subject = TextContent::from_string(subject_text, Some(subject_location.clone()));
     let location = aggregate_locations(subject_location, &content);
+    let typed_content = typed_content::try_into_content_elements(content)
+        .expect("Definition cannot contain Session elements");
 
-    let definition = Definition::new(subject, content).at(location);
+    let definition = Definition::new(subject, typed_content).at(location);
     ContentItem::Definition(definition)
 }
 
@@ -570,13 +574,11 @@ pub fn build_annotation_from_text(
 
     let label = Label::new(label_text).at(label_location.clone());
     let location = aggregate_locations(label_location, &content);
+    let typed_content = typed_content::try_into_content_elements(content)
+        .expect("Annotation cannot contain Session elements");
 
-    ContentItem::Annotation(Annotation {
-        label,
-        parameters,
-        children: crate::lex::ast::elements::container::GeneralContainer::new(content),
-        location,
-    })
+    let annotation = Annotation::new(label, parameters, typed_content).at(location);
+    ContentItem::Annotation(annotation)
 }
 
 /// Build a List from content items.
