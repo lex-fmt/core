@@ -35,73 +35,13 @@ use super::extraction::{
 use super::location::{
     aggregate_locations, byte_range_to_ast_range, compute_location_from_locations,
 };
+use crate::lex::ast::elements::typed_content;
 use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
-use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
     TextLine, Verbatim,
 };
 use crate::lex::parsing::ContentItem;
-
-// ============================================================================
-// VALIDATION FUNCTIONS
-// ============================================================================
-
-/// Validates that a container does not contain any Session nodes.
-///
-/// Used for GeneralContainer types (Definition, Annotation, ListItem) where
-/// Session nesting is prohibited by the Lex specification.
-///
-/// # Panics
-///
-/// Panics if any Session is found in the content with a descriptive error message.
-fn validate_no_sessions(content: &[ContentItem], container_name: &str) {
-    for item in content {
-        if item.is_session() {
-            panic!(
-                "Invalid nesting: {} cannot contain Session elements. \
-                 Sessions can only be nested within Document or other Sessions.",
-                container_name
-            );
-        }
-    }
-}
-
-/// Validates that a container only contains ListItem nodes.
-///
-/// Used for ListContainer types where only ListItem variants are allowed.
-///
-/// # Panics
-///
-/// Panics if any non-ListItem is found in the content.
-fn validate_only_list_items(content: &[ContentItem]) {
-    for item in content {
-        if !item.is_list_item() {
-            panic!(
-                "Invalid List content: Lists can only contain ListItem elements, found {}",
-                item.node_type()
-            );
-        }
-    }
-}
-
-/// Validates that a container only contains VerbatimLine nodes.
-///
-/// Used for VerbatimContainer types where only VerbatimLine nodes are allowed.
-///
-/// # Panics
-///
-/// Panics if any non-VerbatimLine is found in the content.
-fn validate_only_verbatim_lines(content: &[ContentItem]) {
-    for item in content {
-        if !item.is_verbatim_line() {
-            panic!(
-                "Invalid VerbatimBlock content: VerbatimBlockks can only contain VerbatimLine elements, found {}",
-                item.node_type()
-            );
-        }
-    }
-}
 
 // ============================================================================
 // PARAGRAPH CREATION
@@ -199,8 +139,9 @@ pub(super) fn create_definition(
     content: Vec<ContentItem>,
     source: &str,
 ) -> ContentItem {
-    // Validate that content doesn't contain Sessions
-    validate_no_sessions(&content, "Definition");
+    // Convert to typed content - will fail if Sessions are present
+    let _typed_content = typed_content::try_into_content_elements(content.clone())
+        .expect("Definition cannot contain Session elements");
 
     let subject_location = byte_range_to_ast_range(data.subject_byte_range, source);
     let subject = TextContent::from_string(data.subject_text, Some(subject_location.clone()));
@@ -228,9 +169,6 @@ pub(super) fn create_definition(
 pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
     // Convert ListItems to ContentItems
     let content: Vec<ContentItem> = items.into_iter().map(ContentItem::ListItem).collect();
-
-    // Validate that all items are ListItems (should always be true, but verify)
-    validate_only_list_items(&content);
 
     // Get locations from all items for aggregation
     let item_locations: Vec<Range> = content
@@ -276,8 +214,9 @@ pub(super) fn create_list_item(
     content: Vec<ContentItem>,
     source: &str,
 ) -> ListItem {
-    // Validate that content doesn't contain Sessions
-    validate_no_sessions(&content, "ListItem");
+    // Convert to typed content - will fail if Sessions are present
+    let _typed_content = typed_content::try_into_content_elements(content.clone())
+        .expect("ListItem cannot contain Session elements");
 
     let marker_location = byte_range_to_ast_range(data.marker_byte_range, source);
     let marker = TextContent::from_string(data.marker_text, Some(marker_location.clone()));
@@ -311,8 +250,9 @@ pub(super) fn create_annotation(
 ) -> ContentItem {
     use crate::lex::ast::Parameter;
 
-    // Validate that content doesn't contain Sessions
-    validate_no_sessions(&content, "Annotation");
+    // Convert to typed content - will fail if Sessions are present
+    let _typed_content = typed_content::try_into_content_elements(content.clone())
+        .expect("Annotation cannot contain Session elements");
 
     let label_location = byte_range_to_ast_range(data.label_byte_range, source);
     let label = Label::new(data.label_text).at(label_location.clone());
@@ -414,7 +354,7 @@ fn build_verbatim_group(
         children.push(ContentItem::VerbatimLine(verbatim_line));
     }
 
-    validate_only_verbatim_lines(&children);
+    // Children are all VerbatimLines by construction - no validation needed
     (subject, children, locations)
 }
 

@@ -53,6 +53,7 @@
 use super::super::range::Range;
 use super::super::traits::{AstNode, Visitor};
 use super::content_item::ContentItem;
+use super::typed_content::{ContentElement, ListContent, SessionContent, VerbatimContent};
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -65,6 +66,9 @@ use std::marker::PhantomData;
 /// This trait provides compile-time information about nesting rules.
 /// Each policy type defines which element types can be contained.
 pub trait ContainerPolicy: 'static {
+    /// The typed content variant this policy accepts
+    type ContentType: Into<ContentItem> + Clone;
+
     /// Whether this container allows Session elements
     const ALLOWS_SESSIONS: bool;
 
@@ -82,6 +86,8 @@ pub trait ContainerPolicy: 'static {
 pub struct SessionPolicy;
 
 impl ContainerPolicy for SessionPolicy {
+    type ContentType = SessionContent;
+
     const ALLOWS_SESSIONS: bool = true;
     const ALLOWS_ANNOTATIONS: bool = true;
     const POLICY_NAME: &'static str = "SessionPolicy";
@@ -94,6 +100,8 @@ impl ContainerPolicy for SessionPolicy {
 pub struct GeneralPolicy;
 
 impl ContainerPolicy for GeneralPolicy {
+    type ContentType = ContentElement;
+
     const ALLOWS_SESSIONS: bool = false;
     const ALLOWS_ANNOTATIONS: bool = true;
     const POLICY_NAME: &'static str = "GeneralPolicy";
@@ -106,6 +114,8 @@ impl ContainerPolicy for GeneralPolicy {
 pub struct ListPolicy;
 
 impl ContainerPolicy for ListPolicy {
+    type ContentType = ListContent;
+
     const ALLOWS_SESSIONS: bool = false;
     const ALLOWS_ANNOTATIONS: bool = false;
     const POLICY_NAME: &'static str = "ListPolicy";
@@ -118,6 +128,8 @@ impl ContainerPolicy for ListPolicy {
 pub struct VerbatimPolicy;
 
 impl ContainerPolicy for VerbatimPolicy {
+    type ContentType = VerbatimContent;
+
     const ALLOWS_SESSIONS: bool = false;
     const ALLOWS_ANNOTATIONS: bool = false;
     const POLICY_NAME: &'static str = "VerbatimPolicy";
@@ -169,10 +181,24 @@ pub type VerbatimContainer = Container<VerbatimPolicy>;
 // ============================================================================
 
 impl<P: ContainerPolicy> Container<P> {
-    /// Create a new container with the given children
+    /// Create a new container with the given children (legacy, accepts ContentItem)
+    ///
+    /// Note: This bypasses type checking. Prefer `from_typed` for type-safe construction.
     pub fn new(children: Vec<ContentItem>) -> Self {
         Self {
             children,
+            location: Range::default(),
+            _policy: PhantomData,
+        }
+    }
+
+    /// Create a type-safe container from typed content
+    ///
+    /// This is the preferred way to create containers as it enforces nesting rules
+    /// at compile time via the policy's ContentType.
+    pub fn from_typed(children: Vec<P::ContentType>) -> Self {
+        Self {
+            children: children.into_iter().map(|c| c.into()).collect(),
             location: Range::default(),
             _policy: PhantomData,
         }
