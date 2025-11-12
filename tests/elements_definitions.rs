@@ -220,18 +220,14 @@ fn test_definition_07_nested_deep_only() {
 fn test_definition_90_document_simple() {
     let doc = Lexplore::definition(90).parse();
 
-    assert!(
-        !doc.root.children.is_empty(),
-        "definition-90 should parse"
-    );
+    assert!(!doc.root.children.is_empty(), "definition-90 should parse");
 }
 
 #[test]
 #[ignore]
 fn test_definitions_overview_document() {
     // definitions.lex: Specification overview covering syntax/disambiguation
-    let doc =
-        Lexplore::from_path("docs/specs/v1/elements/definition/definitions.lex").parse();
+    let doc = Lexplore::from_path("docs/specs/v1/elements/definition/definitions.lex").parse();
 
     assert_ast(&doc)
         .item_count(4)

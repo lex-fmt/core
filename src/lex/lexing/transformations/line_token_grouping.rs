@@ -40,10 +40,7 @@ pub enum GroupType {
 }
 
 impl LineTokenGroupingMapper {
-    pub fn map(
-        &mut self,
-        tokens: Vec<(Token, ByteRange<usize>)>,
-    ) -> Vec<GroupedTokens> {
+    pub fn map(&mut self, tokens: Vec<(Token, ByteRange<usize>)>) -> Vec<GroupedTokens> {
         // Group tokens into LineTokens
         let line_tokens = group_into_lines(tokens);
 

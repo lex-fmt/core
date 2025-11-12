@@ -23,19 +23,13 @@ fn trifecta_010_paragraphs_sessions_flat_single() {
 #[test]
 fn trifecta_020_paragraphs_sessions_flat_multiple() {
     let doc = Lexplore::trifecta(20).parse();
-    assert_not_empty(
-        &doc,
-        "trifecta_020_paragraphs_sessions_flat_multiple",
-    );
+    assert_not_empty(&doc, "trifecta_020_paragraphs_sessions_flat_multiple");
 }
 
 #[test]
 fn trifecta_030_paragraphs_sessions_nested_multiple() {
     let doc = Lexplore::trifecta(30).parse();
-    assert_not_empty(
-        &doc,
-        "trifecta_030_paragraphs_sessions_nested_multiple",
-    );
+    assert_not_empty(&doc, "trifecta_030_paragraphs_sessions_nested_multiple");
 }
 
 #[test]

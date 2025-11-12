@@ -43,9 +43,7 @@ fn main() {
                         .default_value("ast-tag"),
                 ),
         )
-        .subcommand(
-            Command::new("list-configs").about("List available processing configurations"),
-        )
+        .subcommand(Command::new("list-configs").about("List available processing configurations"))
         .get_matches();
 
     // Handle subcommands
@@ -87,10 +85,12 @@ fn handle_execute_command(path: &str, format: &str) {
     });
 
     let executor = PipelineExecutor::new();
-    let output = executor.execute_and_serialize(&source, format).unwrap_or_else(|e| {
-        eprintln!("Execution error: {}", e);
-        std::process::exit(1);
-    });
+    let output = executor
+        .execute_and_serialize(&source, format)
+        .unwrap_or_else(|e| {
+            eprintln!("Execution error: {}", e);
+            std::process::exit(1);
+        });
 
     print!("{}", output);
 }

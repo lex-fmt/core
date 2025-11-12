@@ -6,8 +6,8 @@
 use crate::lex::ast::elements::{Annotation, Definition, List, Paragraph, Session, Verbatim};
 use crate::lex::ast::Document;
 use crate::lex::lexing::Token;
-use crate::lex::parsing::ParseError;
 use crate::lex::parsing::parse_document;
+use crate::lex::parsing::ParseError;
 use crate::lex::testing::lexplore::specfile_finder;
 use std::fs;
 use std::path::PathBuf;
@@ -381,7 +381,6 @@ mod tests {
         assert!(!tokens.is_empty());
     }
 
-
     #[test]
     fn test_tokenize_list() {
         let tokens = Lexplore::list(1).tokenize();
@@ -407,7 +406,6 @@ mod tests {
         assert!(!tokens.is_empty());
         assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
     }
-
 
     // ===== Path-based Loading Tests =====
 
@@ -436,7 +434,6 @@ mod tests {
 
         assert!(!source.is_empty());
     }
-
 
     // Removed test for deleted API: test_get_source_from_path
 

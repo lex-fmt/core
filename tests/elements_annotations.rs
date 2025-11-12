@@ -283,8 +283,7 @@ fn test_annotation_10_nested_complex() {
           // This is tested more simply in test_session_09_flat_colon_title
 fn test_annotations_overview_document() {
     // annotations.lex: Specification overview document for annotations
-    let doc =
-        Lexplore::from_path("docs/specs/v1/elements/annotation/annotations.lex").parse();
+    let doc = Lexplore::from_path("docs/specs/v1/elements/annotation/annotations.lex").parse();
 
     assert_ast(&doc)
         .item(0, |item| {

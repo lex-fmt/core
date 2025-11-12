@@ -39,7 +39,9 @@ impl PipelineExecutor {
 
     pub fn execute(&self, source: &str) -> Result<ExecutionOutput, ExecutionError> {
         let pipeline = Pipeline::new();
-        let doc = pipeline.run(source).map_err(ExecutionError::ParsingFailed)?;
+        let doc = pipeline
+            .run(source)
+            .map_err(ExecutionError::ParsingFailed)?;
         Ok(ExecutionOutput::Document(doc))
     }
 
