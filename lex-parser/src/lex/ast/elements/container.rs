@@ -20,6 +20,35 @@
 //!   - Used by: List.items
 //! - **VerbatimContainer**: Homogeneous container for VerbatimLine nodes only
 //!   - Used by: VerbatimBlock.children
+//!
+//! ## Accessing Container Children
+//!
+//! The `.children` field is private. Use one of these access patterns:
+//!
+//! **Deref coercion** (preferred for Vec operations):
+//! ```ignore
+//! let session = Session::new(...);
+//! for child in &session.children {  // Deref to &Vec<ContentItem>
+//!     // process child
+//! }
+//! let count = session.children.len();  // Works via Deref
+//! ```
+//!
+//! **ContentItem polymorphic access**:
+//! ```ignore
+//! fn process(item: &ContentItem) {
+//!     if let Some(children) = item.children() {
+//!         // Access children polymorphically
+//!     }
+//! }
+//! ```
+//!
+//! **Container trait**:
+//! ```ignore
+//! fn process<T: Container>(container: &T) {
+//!     let children = container.children();  // Returns &[ContentItem]
+//! }
+//! ```
 
 use super::super::range::Range;
 use super::super::traits::{AstNode, Visitor};
@@ -31,7 +60,7 @@ use std::fmt;
 /// Used for document-level containers where unlimited Session nesting is allowed.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SessionContainer {
-    pub children: Vec<ContentItem>,
+    children: Vec<ContentItem>,
     pub location: Range,
 }
 
@@ -41,7 +70,7 @@ pub struct SessionContainer {
 /// is prohibited.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeneralContainer {
-    pub children: Vec<ContentItem>,
+    children: Vec<ContentItem>,
     pub location: Range,
 }
 
@@ -50,7 +79,7 @@ pub struct GeneralContainer {
 /// Used by List.items to enforce that lists only contain list items.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListContainer {
-    pub children: Vec<ContentItem>,
+    children: Vec<ContentItem>,
     pub location: Range,
 }
 
@@ -60,7 +89,7 @@ pub struct ListContainer {
 /// verbatim lines (content from other formats).
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerbatimContainer {
-    pub children: Vec<ContentItem>,
+    children: Vec<ContentItem>,
     pub location: Range,
 }
 
