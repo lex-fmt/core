@@ -35,7 +35,7 @@ use super::extraction::{
 use super::location::{
     aggregate_locations, byte_range_to_ast_range, compute_location_from_locations,
 };
-use crate::lex::ast::elements::typed_content;
+use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
 use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
 use crate::lex::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
@@ -58,9 +58,8 @@ use crate::lex::parsing::ContentItem;
 //   - Definition::new(subject, Vec<ContentElement>)
 //   - Session::new(title, Vec<SessionContent>)
 //   - Annotation::new(label, params, Vec<ContentElement>)
-//
-// Future work (#233 follow-up):
-//   - Thread policy types through parser for parse-time validation
+// ✓ Step 6 (optional) Complete: Parser/AST builder now supplies typed content so
+//   container policies are enforced before AST construction.
 //
 // Current state provides runtime type safety via conversions that fail with
 // clear error messages. Full compile-time safety would require the above changes.
@@ -129,15 +128,15 @@ pub(super) fn create_paragraph(data: ParagraphData, source: &str) -> ContentItem
 /// A Session ContentItem
 pub(super) fn create_session(
     data: SessionData,
-    content: Vec<ContentItem>,
+    content: Vec<SessionContent>,
     source: &str,
 ) -> ContentItem {
     let title_location = byte_range_to_ast_range(data.title_byte_range, source);
     let title = TextContent::from_string(data.title_text, Some(title_location.clone()));
-    let location = aggregate_locations(title_location, &content);
-    let typed_content = typed_content::into_session_contents(content);
+    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
+    let location = aggregate_locations(title_location, &child_items);
 
-    let session = Session::new(title, typed_content).at(location);
+    let session = Session::new(title, content).at(location);
     ContentItem::Session(session)
 }
 
@@ -161,16 +160,15 @@ pub(super) fn create_session(
 /// A Definition ContentItem
 pub(super) fn create_definition(
     data: DefinitionData,
-    content: Vec<ContentItem>,
+    content: Vec<ContentElement>,
     source: &str,
 ) -> ContentItem {
     let subject_location = byte_range_to_ast_range(data.subject_byte_range, source);
     let subject = TextContent::from_string(data.subject_text, Some(subject_location.clone()));
-    let location = aggregate_locations(subject_location, &content);
-    let typed_content = typed_content::try_into_content_elements(content)
-        .expect("Definition cannot contain Session elements");
+    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
+    let location = aggregate_locations(subject_location, &child_items);
 
-    let definition = Definition::new(subject, typed_content).at(location);
+    let definition = Definition::new(subject, content).at(location);
     ContentItem::Definition(definition)
 }
 
@@ -234,18 +232,15 @@ pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
 /// A ListItem node (not wrapped in ContentItem)
 pub(super) fn create_list_item(
     data: ListItemData,
-    content: Vec<ContentItem>,
+    content: Vec<ContentElement>,
     source: &str,
 ) -> ListItem {
-    // Convert to typed content - will fail if Sessions are present
-    let _typed_content = typed_content::try_into_content_elements(content.clone())
-        .expect("ListItem cannot contain Session elements");
-
     let marker_location = byte_range_to_ast_range(data.marker_byte_range, source);
     let marker = TextContent::from_string(data.marker_text, Some(marker_location.clone()));
-    let location = aggregate_locations(marker_location, &content);
+    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
+    let location = aggregate_locations(marker_location, &child_items);
 
-    ListItem::with_text_content(marker, content).at(location)
+    ListItem::with_text_content(marker, child_items).at(location)
 }
 
 // ============================================================================
@@ -268,7 +263,7 @@ pub(super) fn create_list_item(
 /// An Annotation ContentItem
 pub(super) fn create_annotation(
     data: AnnotationData,
-    content: Vec<ContentItem>,
+    content: Vec<ContentElement>,
     source: &str,
 ) -> ContentItem {
     use crate::lex::ast::Parameter;
@@ -291,11 +286,10 @@ pub(super) fn create_annotation(
         .collect();
 
     // Aggregate location from label and content
-    let location = aggregate_locations(label_location, &content);
-    let typed_content = typed_content::try_into_content_elements(content)
-        .expect("Annotation cannot contain Session elements");
+    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
+    let location = aggregate_locations(label_location, &child_items);
 
-    let annotation = Annotation::new(label, parameters, typed_content).at(location);
+    let annotation = Annotation::new(label, parameters, content).at(location);
 
     ContentItem::Annotation(annotation)
 }
@@ -377,6 +371,7 @@ fn build_verbatim_group(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
     use crate::lex::ast::Position;
 
     #[test]
@@ -407,7 +402,7 @@ mod tests {
             title_byte_range: 0..7,
         };
 
-        let result = create_session(data, vec![], source);
+        let result = create_session(data, Vec::<SessionContent>::new(), source);
 
         match result {
             ContentItem::Session(session) => {
@@ -424,67 +419,12 @@ mod tests {
     // ============================================================================
 
     #[test]
-    #[should_panic(expected = "Definition cannot contain Session elements")]
-    fn test_definition_rejects_session_child() {
-        use crate::lex::ast::elements::Session;
-
-        let source = "Test Subject:\n    Nested Session\n";
-        let session = Session::with_title("Nested Session".to_string());
-        let content = vec![ContentItem::Session(session)];
-
-        let data = DefinitionData {
-            subject_text: "Test Subject".to_string(),
-            subject_byte_range: 0..12,
-        };
-
-        // This should panic during validation
-        let _definition = create_definition(data, content, source);
-    }
-
-    #[test]
-    #[should_panic(expected = "Annotation cannot contain Session elements")]
-    fn test_annotation_rejects_session_child() {
-        use crate::lex::ast::elements::Session;
-
-        let source = ":: test ::\n    Nested Session\n";
-        let session = Session::with_title("Nested Session".to_string());
-        let content = vec![ContentItem::Session(session)];
-
-        let data = AnnotationData {
-            label_text: "test".to_string(),
-            label_byte_range: 0..4,
-            parameters: vec![],
-        };
-
-        // This should panic during validation
-        let _annotation = create_annotation(data, content, source);
-    }
-
-    #[test]
-    #[should_panic(expected = "ListItem cannot contain Session elements")]
-    fn test_list_item_rejects_session_child() {
-        use crate::lex::ast::elements::Session;
-
-        let source = "- Item\n    Nested Session\n";
-        let session = Session::with_title("Nested Session".to_string());
-        let content = vec![ContentItem::Session(session)];
-
-        let data = ListItemData {
-            marker_text: "- ".to_string(),
-            marker_byte_range: 0..2,
-        };
-
-        // This should panic during validation
-        let _list_item = create_list_item(data, content, source);
-    }
-
-    #[test]
     fn test_session_allows_session_child() {
         use crate::lex::ast::elements::Session;
 
         let source = "Parent Session\n    Nested Session\n";
         let nested_session = Session::with_title("Nested Session".to_string());
-        let content = vec![ContentItem::Session(nested_session)];
+        let content = vec![SessionContent::Session(nested_session)];
 
         let data = SessionData {
             title_text: "Parent Session".to_string(),
@@ -509,7 +449,7 @@ mod tests {
 
         let source = "Test Subject:\n    Some content\n";
         let para = Paragraph::from_line("Some content".to_string());
-        let content = vec![ContentItem::Paragraph(para)];
+        let content = vec![ContentElement::Paragraph(para)];
 
         let data = DefinitionData {
             subject_text: "Test Subject".to_string(),
@@ -534,7 +474,7 @@ mod tests {
 
         let source = ":: note ::\n    Some content\n";
         let para = Paragraph::from_line("Some content".to_string());
-        let content = vec![ContentItem::Paragraph(para)];
+        let content = vec![ContentElement::Paragraph(para)];
 
         let data = AnnotationData {
             label_text: "note".to_string(),
@@ -560,7 +500,7 @@ mod tests {
 
         let source = "- Item\n    Some content\n";
         let para = Paragraph::from_line("Item content".to_string());
-        let content = vec![ContentItem::Paragraph(para)];
+        let content = vec![ContentElement::Paragraph(para)];
 
         let data = ListItemData {
             marker_text: "- ".to_string(),

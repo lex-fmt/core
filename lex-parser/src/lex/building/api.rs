@@ -30,7 +30,7 @@
 //! let session = ast_builder::build_session(&title_token, content, source);
 //! ```
 
-use crate::lex::ast::elements::typed_content;
+use crate::lex::ast::elements::typed_content::{self, ContentElement, SessionContent};
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{Annotation, ListItem, Parameter};
 use crate::lex::lexing::tokens_linebased::LineToken;
@@ -91,7 +91,7 @@ pub fn build_paragraph(line_tokens: &[LineToken], source: &str) -> ContentItem {
 /// A Session ContentItem
 pub fn build_session(
     title_token: &LineToken,
-    content: Vec<ContentItem>,
+    content: Vec<SessionContent>,
     source: &str,
 ) -> ContentItem {
     // 1. Normalize
@@ -121,7 +121,7 @@ pub fn build_session(
 /// A Definition ContentItem
 pub fn build_definition(
     subject_token: &LineToken,
-    content: Vec<ContentItem>,
+    content: Vec<ContentElement>,
     source: &str,
 ) -> ContentItem {
     // 1. Normalize
@@ -169,7 +169,7 @@ pub fn build_list(items: Vec<ListItem>) -> ContentItem {
 /// A ListItem node (not wrapped in ContentItem)
 pub fn build_list_item(
     marker_token: &LineToken,
-    content: Vec<ContentItem>,
+    content: Vec<ContentElement>,
     source: &str,
 ) -> ListItem {
     // 1. Normalize
@@ -201,7 +201,7 @@ pub fn build_list_item(
 /// An Annotation ContentItem
 pub fn build_annotation(
     label_token: &LineToken,
-    content: Vec<ContentItem>,
+    content: Vec<ContentElement>,
     source: &str,
 ) -> ContentItem {
     // 1. Normalize
@@ -333,7 +333,7 @@ pub fn build_paragraph_from_tokens(
 /// A Session ContentItem
 pub fn build_session_from_tokens(
     title_tokens: Vec<(Token, ByteRange<usize>)>,
-    content: Vec<ContentItem>,
+    content: Vec<SessionContent>,
     source: &str,
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
@@ -357,7 +357,7 @@ pub fn build_session_from_tokens(
 /// A Definition ContentItem
 pub fn build_definition_from_tokens(
     subject_tokens: Vec<(Token, ByteRange<usize>)>,
-    content: Vec<ContentItem>,
+    content: Vec<ContentElement>,
     source: &str,
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
@@ -381,7 +381,7 @@ pub fn build_definition_from_tokens(
 /// A ListItem node (not wrapped in ContentItem)
 pub fn build_list_item_from_tokens(
     marker_tokens: Vec<(Token, ByteRange<usize>)>,
-    content: Vec<ContentItem>,
+    content: Vec<ContentElement>,
     source: &str,
 ) -> ListItem {
     // Skip normalization, tokens already normalized
@@ -407,7 +407,7 @@ pub fn build_list_item_from_tokens(
 /// An Annotation ContentItem
 pub fn build_annotation_from_tokens(
     label_tokens: Vec<(Token, ByteRange<usize>)>,
-    content: Vec<ContentItem>,
+    content: Vec<ContentElement>,
     source: &str,
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
@@ -699,6 +699,7 @@ pub fn build_verbatim_block_from_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lex::ast::elements::typed_content::SessionContent;
     use crate::lex::lexing::tokens_core::Token;
     use crate::lex::lexing::tokens_linebased::LineType;
 
@@ -740,7 +741,7 @@ mod tests {
             vec![0..7, 7..8],
         );
 
-        let result = build_session(&title_token, vec![], source);
+        let result = build_session(&title_token, Vec::<SessionContent>::new(), source);
 
         match result {
             ContentItem::Session(session) => {
