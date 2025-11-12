@@ -22,6 +22,7 @@ pub mod list;
 pub mod paragraph;
 pub mod parameter;
 pub mod session;
+pub mod typed_content;
 pub mod verbatim;
 pub mod verbatim_line;
 
@@ -38,5 +39,6 @@ pub use list::{List, ListItem};
 pub use paragraph::{Paragraph, TextLine};
 pub use parameter::Parameter;
 pub use session::Session;
+pub use typed_content::{ContentElement, ListContent, SessionContent, VerbatimContent};
 pub use verbatim::Verbatim;
 pub use verbatim_line::VerbatimLine;
