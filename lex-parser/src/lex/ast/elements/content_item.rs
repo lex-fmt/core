@@ -98,36 +98,6 @@ impl AstNode for ContentItem {
 }
 
 impl ContentItem {
-    pub fn node_type(&self) -> &'static str {
-        match self {
-            ContentItem::Paragraph(p) => p.node_type(),
-            ContentItem::Session(s) => s.node_type(),
-            ContentItem::List(l) => l.node_type(),
-            ContentItem::ListItem(li) => li.node_type(),
-            ContentItem::TextLine(tl) => tl.node_type(),
-            ContentItem::Definition(d) => d.node_type(),
-            ContentItem::Annotation(a) => a.node_type(),
-            ContentItem::VerbatimBlock(fb) => fb.node_type(),
-            ContentItem::VerbatimLine(fl) => fl.node_type(),
-            ContentItem::BlankLineGroup(blg) => blg.node_type(),
-        }
-    }
-
-    pub fn display_label(&self) -> String {
-        match self {
-            ContentItem::Paragraph(p) => p.display_label(),
-            ContentItem::Session(s) => s.display_label(),
-            ContentItem::List(l) => l.display_label(),
-            ContentItem::ListItem(li) => li.display_label(),
-            ContentItem::TextLine(tl) => tl.display_label(),
-            ContentItem::Definition(d) => d.display_label(),
-            ContentItem::Annotation(a) => a.display_label(),
-            ContentItem::VerbatimBlock(fb) => fb.display_label(),
-            ContentItem::VerbatimLine(fl) => fl.display_label(),
-            ContentItem::BlankLineGroup(blg) => blg.display_label(),
-        }
-    }
-
     pub fn label(&self) -> Option<&str> {
         match self {
             ContentItem::Session(s) => Some(s.label()),

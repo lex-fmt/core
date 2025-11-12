@@ -402,6 +402,35 @@ impl Document {
         }
         None
     }
+
+    /// Find nodes at a given position in the document
+    ///
+    /// Returns a vector containing the deepest AST node at the given position.
+    /// If no node is found at the position, returns an empty vector.
+    pub fn find_nodes_at_position(&self, position: Position) -> Vec<&dyn AstNode> {
+        if let Some(item) = self.element_at(position) {
+            vec![item as &dyn AstNode]
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Format information about nodes at a given position
+    ///
+    /// Returns a formatted string describing the AST nodes at the given position,
+    /// or a message indicating no nodes were found.
+    pub fn format_at_position(&self, position: Position) -> String {
+        let nodes = self.find_nodes_at_position(position);
+        if nodes.is_empty() {
+            "No AST nodes at this position".to_string()
+        } else {
+            nodes
+                .iter()
+                .map(|node| format!("- {}: {}", node.node_type(), node.display_label()))
+                .collect::<Vec<_>>()
+                .join("\n")
+        }
+    }
 }
 
 impl AstNode for Document {

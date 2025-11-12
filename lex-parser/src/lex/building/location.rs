@@ -34,15 +34,6 @@ pub(super) fn byte_range_to_ast_range(range: ByteRange<usize>, source: &str) -> 
     source_location.byte_range_to_ast_range(&range)
 }
 
-/// Convert a byte range to a Location (line:column positions) - Legacy API
-///
-/// This is a wrapper around byte_range_to_ast_range with different parameter order
-/// for backwards compatibility. Prefer using byte_range_to_ast_range directly.
-#[deprecated(note = "Use byte_range_to_ast_range instead")]
-pub fn byte_range_to_location(source: &str, range: &ByteRange<usize>) -> Range {
-    byte_range_to_ast_range(range.clone(), source)
-}
-
 /// High-level convenience: convert tokens directly to an AST Range
 ///
 /// This combines computing the bounding box and converting to AST Range.

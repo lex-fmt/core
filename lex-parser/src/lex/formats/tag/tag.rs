@@ -90,7 +90,7 @@ pub fn serialize_document(doc: &Document) -> String {
     serializer.indent_level = 1;
 
     // Serialize the root session
-    let snapshot = crate::lex::ast::snapshot_visitor::snapshot_from_document(doc);
+    let snapshot = crate::lex::ast::snapshot_from_document(doc);
     serializer.serialize_snapshot(&snapshot);
 
     result.push_str(&serializer.output);
