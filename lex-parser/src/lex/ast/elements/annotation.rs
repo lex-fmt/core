@@ -47,6 +47,7 @@ use super::container::GeneralContainer;
 use super::content_item::ContentItem;
 use super::label::Label;
 use super::parameter::Parameter;
+use super::typed_content::ContentElement;
 use std::fmt;
 
 /// An annotation represents some metadata about an ast element.
@@ -62,11 +63,11 @@ impl Annotation {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(label: Label, parameters: Vec<Parameter>, children: Vec<ContentItem>) -> Self {
+    pub fn new(label: Label, parameters: Vec<Parameter>, children: Vec<ContentElement>) -> Self {
         Self {
             label,
             parameters,
-            children: GeneralContainer::new(children),
+            children: GeneralContainer::from_typed(children),
             location: Self::default_location(),
         }
     }

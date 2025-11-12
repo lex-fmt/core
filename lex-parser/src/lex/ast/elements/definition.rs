@@ -26,6 +26,7 @@ use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
 use super::container::GeneralContainer;
 use super::content_item::ContentItem;
+use super::typed_content::ContentElement;
 use std::fmt;
 
 /// A definition provides a subject and associated content
@@ -40,10 +41,10 @@ impl Definition {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(subject: TextContent, children: Vec<ContentItem>) -> Self {
+    pub fn new(subject: TextContent, children: Vec<ContentElement>) -> Self {
         Self {
             subject,
-            children: GeneralContainer::new(children),
+            children: GeneralContainer::from_typed(children),
             location: Self::default_location(),
         }
     }
