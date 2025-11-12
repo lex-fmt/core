@@ -215,6 +215,7 @@ mod tests {
     use crate::lex::ast::elements::annotation::Annotation;
     use crate::lex::ast::elements::paragraph::Paragraph;
     use crate::lex::ast::elements::session::Session;
+    use crate::lex::ast::elements::typed_content::ContentElement;
 
     #[test]
     fn test_snapshot_from_document_empty() {
@@ -253,7 +254,11 @@ mod tests {
     fn test_snapshot_excludes_metadata() {
         use crate::lex::ast::elements::label::Label;
 
-        let annotation = Annotation::new(Label::new("test-label".to_string()), vec![], vec![]);
+        let annotation = Annotation::new(
+            Label::new("test-label".to_string()),
+            vec![],
+            Vec::<ContentElement>::new(),
+        );
         let doc = Document::with_metadata_and_content(
             vec![annotation],
             vec![ContentItem::Paragraph(Paragraph::from_line(

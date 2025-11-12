@@ -24,3 +24,4 @@ once_cell = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
 insta = { workspace = true }
+trybuild = "1.0"

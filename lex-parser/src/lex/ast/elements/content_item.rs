@@ -417,6 +417,7 @@ mod tests {
     use super::super::super::range::{Position, Range};
     use super::super::paragraph::Paragraph;
     use super::*;
+    use crate::lex::ast::elements::typed_content;
 
     #[test]
     fn test_element_at_simple_paragraph() {
@@ -472,7 +473,7 @@ mod tests {
                 "Section".to_string(),
                 None,
             ),
-            vec![ContentItem::Paragraph(para)],
+            typed_content::into_session_contents(vec![ContentItem::Paragraph(para)]),
         )
         .at(Range::new(0..0, Position::new(0, 0), Position::new(2, 0)));
         let item = ContentItem::Session(session);

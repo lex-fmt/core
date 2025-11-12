@@ -130,6 +130,7 @@ impl crate::lex::formats::registry::Formatter for TagFormatter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lex::ast::elements::typed_content;
     use crate::lex::ast::{ContentItem, Paragraph, Session, TextContent};
 
     #[test]
@@ -150,9 +151,9 @@ mod tests {
     fn test_serialize_session_with_paragraph() {
         let doc = Document::with_content(vec![ContentItem::Session(Session::new(
             TextContent::from_string("Introduction".to_string(), None),
-            vec![ContentItem::Paragraph(Paragraph::from_line(
-                "Welcome".to_string(),
-            ))],
+            typed_content::into_session_contents(vec![ContentItem::Paragraph(
+                Paragraph::from_line("Welcome".to_string()),
+            )]),
         ))]);
 
         let result = serialize_document(&doc);
@@ -168,15 +169,15 @@ mod tests {
     fn test_serialize_nested_sessions() {
         let doc = Document::with_content(vec![ContentItem::Session(Session::new(
             TextContent::from_string("Root".to_string(), None),
-            vec![
+            typed_content::into_session_contents(vec![
                 ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
                 ContentItem::Session(Session::new(
                     TextContent::from_string("Nested".to_string(), None),
-                    vec![ContentItem::Paragraph(Paragraph::from_line(
-                        "Nested para".to_string(),
-                    ))],
+                    typed_content::into_session_contents(vec![ContentItem::Paragraph(
+                        Paragraph::from_line("Nested para".to_string()),
+                    )]),
                 )),
-            ],
+            ]),
         ))]);
 
         let result = serialize_document(&doc);
@@ -214,8 +215,8 @@ mod tests {
         use crate::lex::ast::{List, ListItem};
 
         let doc = Document::with_content(vec![ContentItem::List(List::new(vec![
-            ContentItem::ListItem(ListItem::new("- First item".to_string())),
-            ContentItem::ListItem(ListItem::new("- Second item".to_string())),
+            ListItem::new("- First item".to_string()),
+            ListItem::new("- Second item".to_string()),
         ]))]);
 
         let result = serialize_document(&doc);
