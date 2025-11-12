@@ -1,7 +1,7 @@
 Lexpore: Testing Parsing
 
 
-	The code base has a multi-layer test harness that solves a few key challenges when testing the parser. Lex is a novel format, with no established references nor a reference parser It's also a changing format, with changes occuring frequently.
+	The code base has a multi-layer test harness that solves a few key challenges when testing the parser. Lex is a novel format with no established references or external parsers to compare against. It's also a changing format, with updates happening frequently.
 
 	TLDR: 
 	- Use Lexplore to get the source string, parsed, and the element ready.
@@ -16,7 +16,7 @@ Lexpore: Testing Parsing
 
 	Also, from it's indentation based natures, it's often the case where element counts are a poor assertion. Not only can the same count be wrong, but often the elements will be in the wrong session or container. Hence never use element counts as many parsing results can have the same count, and often an element will be parsed to the wrong container, another point you can to verify.   
 
-	It ensures the central repository of pre-approved Lex source strings is used, and provides a simple and powerful API to access the parsed AST. It allows for selecting the parser implementation and running multiple parsers in parallel to compare results.
+	It ensures the central repository of pre-approved Lex source strings is used, and provides a simple and powerful API to access the parsed AST. The harness used to run multiple parser implementations in parallel; today it always targets the linebased parser, but the API surface remains ready for future experiments.
 
     It is powered by the test library, which contains the corpora of language samples to be be used with the api on top.
 
@@ -106,7 +106,7 @@ The harness has utilities tailored for different document types. They allow you 
 
 	This one liner will:
 		- Find the element source string 1 for paragraphs in the test library.
-        - Parse it with the reference parser.
+	        - Parse it with the linebased parser.
         - Return the element directly.
 
     Note that this requires the document to follow the one relevant element rule to be most useful.
@@ -137,4 +137,3 @@ The harness has utilities tailored for different document types. They allow you 
 
 	    Full documents use the fluent pipeline API:
 		document = Lexplore.benchmark(10).parse();
-
