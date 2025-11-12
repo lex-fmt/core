@@ -11,7 +11,7 @@ use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
 use rstest::rstest;
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_list_01_flat_simple_dash(parser: Parser) {
     // list-01-flat-simple-dash.lex: Paragraph "Test:" followed by dash list
     let doc = Lexplore::list(1).parse_with(parser);
@@ -37,7 +37,7 @@ fn test_list_01_flat_simple_dash(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_list_02_flat_numbered(parser: Parser) {
     // list-02-flat-numbered.lex: Paragraph + numbered list
     let doc = Lexplore::list(2).parse_with(parser);
@@ -62,7 +62,7 @@ fn test_list_02_flat_numbered(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_list_07_nested_simple(parser: Parser) {
     // list-07-nested-simple.lex: Paragraph + two-level nested list
     // Tests nesting structure: outer list items with nested lists
@@ -108,7 +108,7 @@ fn test_list_07_nested_simple(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_list_03_flat_alphabetical(parser: Parser) {
     let doc = Lexplore::list(3).parse_with(parser);
 
@@ -132,7 +132,7 @@ fn test_list_03_flat_alphabetical(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_list_04_flat_mixed_markers(parser: Parser) {
     let doc = Lexplore::list(4).parse_with(parser);
 
@@ -157,7 +157,7 @@ fn test_list_04_flat_mixed_markers(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_list_05_flat_parenthetical(parser: Parser) {
     let doc = Lexplore::list(5).parse_with(parser);
 
@@ -181,7 +181,7 @@ fn test_list_05_flat_parenthetical(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_list_06_flat_roman_numerals(parser: Parser) {
     let doc = Lexplore::list(6).parse_with(parser);
 
@@ -205,7 +205,7 @@ fn test_list_06_flat_roman_numerals(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_list_08_nested_with_paragraph(parser: Parser) {
     let doc = Lexplore::list(8).parse_with(parser);
 
@@ -254,7 +254,7 @@ fn test_list_08_nested_with_paragraph(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_list_09_nested_three_levels(parser: Parser) {
     let doc = Lexplore::list(9).parse_with(parser);
 
@@ -293,7 +293,7 @@ fn test_list_09_nested_three_levels(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 #[ignore]
 fn test_list_10_nested_deep_only(parser: Parser) {
     let doc = Lexplore::list(10).parse_with(parser);
@@ -337,7 +337,7 @@ fn test_list_10_nested_deep_only(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 #[ignore]
 fn test_list_11_nested_balanced(parser: Parser) {
     let doc = Lexplore::list(11).parse_with(parser);
@@ -364,7 +364,7 @@ fn test_list_11_nested_balanced(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 #[ignore = "Reference parser rejects nested sessions inside list items"]
 fn test_list_12_nested_three_full_form(parser: Parser) {
     let doc = Lexplore::list(12).parse_with(parser);
@@ -379,7 +379,7 @@ fn test_list_12_nested_three_full_form(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_lists_overview_document(parser: Parser) {
     let doc = Lexplore::from_path("docs/specs/v1/elements/list/lists.lex").parse_with(parser);
 

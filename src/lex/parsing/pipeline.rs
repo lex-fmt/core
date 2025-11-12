@@ -8,10 +8,11 @@ use crate::lex::pipeline::mapper::TransformationError;
 use crate::lex::pipeline::stream::TokenStream;
 
 /// Which analyzer to use for syntactic analysis.
+///
+/// Keeping the enum around makes it easy to plug alternative analyzers
+/// back in without reshaping the pipeline API again.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnalyzerConfig {
-    /// Reference combinator analyzer
-    Reference,
     /// Linebased declarative grammar analyzer
     Linebased,
 }
@@ -23,14 +24,6 @@ pub fn analyze(
     analyzer: AnalyzerConfig,
 ) -> Result<Document, TransformationError> {
     match analyzer {
-        AnalyzerConfig::Reference => {
-            let tokens = stream.unroll();
-            let parse_node = crate::lex::parsing::reference::parse(tokens, source)
-                .map_err(|_| TransformationError::Error("Reference analyzer failed".to_string()))?;
-            Ok(crate::lex::building::pipeline::build_document(
-                parse_node, source,
-            ))
-        }
         AnalyzerConfig::Linebased => {
             let tokens = stream.unroll();
             crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source).map_err(|e| {
@@ -50,17 +43,6 @@ mod tests {
         let mut pipeline = LexingPipeline::new();
         pipeline.add_transformation(SemanticIndentationMapper::new());
         pipeline
-    }
-
-    #[test]
-    fn test_reference_analyzer_produces_document() {
-        let source = "Hello world\n";
-        let mut lexing = baseline_pipeline();
-        let stream = lexing.run(source).expect("lexing failed");
-
-        let result = analyze(stream, source, AnalyzerConfig::Reference);
-        assert!(result.is_ok());
-        assert!(!result.unwrap().root.children.is_empty());
     }
 
     #[test]

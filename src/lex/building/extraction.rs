@@ -399,13 +399,15 @@ fn parse_parameter(
         // Check if value is quoted
         if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
             is_quoted = true;
-            i += 1; // Skip opening quote
+            val_tokens.push(tokens[i].clone()); // Include opening quote
+            i += 1;
             while i < tokens.len() && !matches!(tokens[i].0, Token::Quote) {
                 val_tokens.push(tokens[i].clone());
                 i += 1;
             }
             if i < tokens.len() && matches!(tokens[i].0, Token::Quote) {
-                i += 1; // Skip closing quote
+                val_tokens.push(tokens[i].clone()); // Include closing quote
+                i += 1;
             }
         } else {
             is_quoted = false;

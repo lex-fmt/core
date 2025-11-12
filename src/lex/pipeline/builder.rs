@@ -274,28 +274,6 @@ mod tests {
     }
 
     #[test]
-    fn test_pipeline_with_reference_analyzer() {
-        use crate::lex::lexing::transformations::*;
-
-        let mut pipeline = Pipeline::new()
-            .add_transformation(SemanticIndentationMapper::new())
-            .with_analyzer(AnalyzerConfig::Reference);
-
-        let result = pipeline.run("Hello world\n");
-
-        match result {
-            Ok(PipelineOutput::Document(doc)) => {
-                assert!(
-                    !doc.root.children.is_empty(),
-                    "Document should have content"
-                );
-            }
-            Ok(_) => panic!("Expected Document output"),
-            Err(e) => panic!("Pipeline failed: {:?}", e),
-        }
-    }
-
-    #[test]
     fn test_pipeline_with_linebased_analyzer() {
         use crate::lex::lexing::transformations::*;
 

@@ -1,4 +1,4 @@
-//! Integration tests for the reference parser.
+//! Integration tests for the parser.
 
 use lex::lex::parsing::parse_document;
 use lex::lex::testing::assert_ast;
