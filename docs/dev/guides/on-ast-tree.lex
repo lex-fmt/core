@@ -27,16 +27,25 @@ AST Tree Querying and Traversal
 
 	The query API provides two levels of functionality: recursive iteration and predicate-based filtering.
 
-	2.1 Recursive Iteration
+	2.1 Shallow vs Recursive Iteration
 
-		The recursive iterators find all nodes of a specific type at any depth in the tree:
+		The Document API provides two levels of iteration:
 
-			let paragraphs: Vec<_> = doc.iter_paragraphs_recursive().collect();
-			let sessions: Vec<_> = doc.iter_sessions_recursive().collect();
+		Shallow iterators traverse only direct children of the document root:
+
+			let top_level_paras = doc.iter_paragraphs();  // Only top-level paragraphs
+			let top_level_sessions = doc.iter_sessions();  // Only top-level sessions
+			let all_top_items = doc.iter_items();  // All direct children
+		:: rust ::
+
+		Recursive iterators find all nodes of a specific type at any depth in the tree:
+
+			let all_paragraphs: Vec<_> = doc.iter_paragraphs_recursive().collect();
+			let all_sessions: Vec<_> = doc.iter_sessions_recursive().collect();
 			let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
 		:: rust ::
 
-		These methods return iterators that can be chained with standard iterator combinators. Unlike the non-recursive variants (iter_paragraphs, iter_sessions), they traverse the entire tree.
+		Use shallow iterators when working with document outline structure. Use recursive iterators when searching through all content regardless of nesting.
 
 	2.2 Predicate-Based Filtering
 
@@ -57,12 +66,20 @@ AST Tree Querying and Traversal
 
 		When tree depth matters, use depth-aware methods:
 
+			// Find all nodes at a specific depth
 			let top_level = doc.find_nodes_at_depth(0);
-			let deep_sessions = doc.find_sessions_at_depth(3);
+
+			// Find nodes within a depth range
 			let mid_range = doc.find_nodes_in_depth_range(1, 3);
+
+			// Filter by type using as_* methods
+			let deep_sessions: Vec<_> = doc.find_nodes_at_depth(3)
+				.into_iter()
+				.filter_map(|n| n.as_session())
+				.collect();
 		:: rust ::
 
-		Depth is measured from the document root, where direct children are at depth 0.
+		Depth is measured from the document root, where direct children are at depth 0. To find specific node types at a depth, use find_nodes_at_depth combined with type filtering.
 
 	2.4 Combined Queries
 
@@ -126,8 +143,9 @@ AST Tree Querying and Traversal
 
 	4.4 Extracting Top-Level Headings
 
-			let headings = doc.find_sessions_at_depth(0)
-				.iter()
+			let headings = doc.find_nodes_at_depth(0)
+				.into_iter()
+				.filter_map(|n| n.as_session())
 				.map(|s| s.title.as_string())
 				.collect::<Vec<_>>();
 		:: rust ::
@@ -172,13 +190,17 @@ AST Tree Querying and Traversal
 7. Available Query Methods
 
 	On Document:
+		Shallow iteration: iter_items, iter_paragraphs, iter_sessions, iter_lists, iter_verbatim_blocks
+
 		Recursive iteration: iter_paragraphs_recursive, iter_sessions_recursive, iter_lists_recursive, iter_definitions_recursive, iter_annotations_recursive, iter_verbatim_blocks_recursive, iter_list_items_recursive
 
 		General traversal: iter_all_nodes, iter_all_nodes_with_depth
 
 		Predicate filtering: find_paragraphs, find_sessions, find_lists, find_definitions, find_annotations, find_nodes
 
-		Depth filtering: find_nodes_at_depth, find_nodes_in_depth_range, find_sessions_at_depth, find_paragraphs_at_depth, find_nodes_with_depth
+		Depth filtering: find_nodes_at_depth, find_nodes_in_depth_range, find_nodes_with_depth
+
+		Convenience methods: first_paragraph, first_session, first_list, first_definition, first_annotation, first_verbatim
 
 	On ContentItem:
 		descendants: Get all descendants of any node
