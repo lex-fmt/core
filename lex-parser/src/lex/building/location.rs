@@ -3,13 +3,22 @@
 //! Provides shared location handling utilities used by the parser/AST builder.
 //! These utilities handle the conversion from byte ranges to line/column positions and
 //! compute bounding boxes for container nodes (sessions, lists, definitions, etc.).
+//!
+//! ## Relationship to `ast/range.rs`
+//!
+//! This module builds on top of `ast/range.rs`:
+//! - `ast/range.rs` provides the foundation types (`Position`, `Range`, `SourceLocation`)
+//! - This module provides high-level helpers for AST construction
+//!
+//! The separation maintains clean architecture:
+//! - `ast/range.rs` = Pure types with no AST dependencies
+//! - `building/location.rs` = Builder utilities that work with AST nodes
 
 use std::ops::Range as ByteRange;
 
 use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{ContentItem, Range};
-use crate::lex::lexing::tokens_core::Token;
 
 // ============================================================================
 // BYTE RANGE TO AST RANGE CONVERSION
@@ -32,19 +41,6 @@ use crate::lex::lexing::tokens_core::Token;
 pub(super) fn byte_range_to_ast_range(range: ByteRange<usize>, source: &str) -> Range {
     let source_location = SourceLocation::new(source);
     source_location.byte_range_to_ast_range(&range)
-}
-
-/// High-level convenience: convert tokens directly to an AST Range
-///
-/// This combines computing the bounding box and converting to AST Range.
-///
-/// # Panics
-///
-/// Panics if tokens is empty.
-#[allow(dead_code)]
-pub(super) fn tokens_to_ast_range(tokens: &[(Token, ByteRange<usize>)], source: &str) -> Range {
-    let range = super::token::processing::compute_bounding_box(tokens);
-    byte_range_to_ast_range(range, source)
 }
 
 // ============================================================================
@@ -91,21 +87,6 @@ pub(super) fn aggregate_locations(primary: Range, children: &[ContentItem]) -> R
     let mut sources = vec![primary];
     sources.extend(children.iter().map(|item| item.range().clone()));
     compute_location_from_locations(&sources)
-}
-
-/// Compute location bounds from byte ranges
-///
-/// Finds the minimum start and maximum end across all byte ranges.
-/// Used when combining multiple token ranges into a single location.
-#[allow(dead_code)]
-pub(super) fn compute_byte_range_bounds(ranges: &[ByteRange<usize>]) -> ByteRange<usize> {
-    if ranges.is_empty() {
-        0..0
-    } else {
-        let start = ranges.iter().map(|r| r.start).min().unwrap_or(0);
-        let end = ranges.iter().map(|r| r.end).max().unwrap_or(0);
-        start..end
-    }
 }
 
 /// Create a default location (0,0)..(0,0)
