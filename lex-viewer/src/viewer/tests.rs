@@ -43,7 +43,7 @@ impl TestApp {
     /// Load a test document from file
     pub fn with_file(path: &str) -> Self {
         // In a workspace, we need to construct the path from the workspace root
-        // CARGO_MANIFEST_DIR points to lex-cli/, so we go up one level to workspace root
+        // CARGO_MANIFEST_DIR points to lex-viewer/, so we go up one level to workspace root
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let workspace_root = std::path::Path::new(manifest_dir).parent().unwrap();
         let full_path = workspace_root.join(path);

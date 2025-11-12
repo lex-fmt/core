@@ -340,7 +340,7 @@ fn test_verbatim_11_group_sequences() {
             .group(2, |group| {
                 group
                     .subject("And the built-in viewer can be used to quickly view the parsing")
-                    .content_contains("$ lex view <path>");
+                    .content_contains("$ lexv <path>");
             });
     });
 
@@ -424,7 +424,7 @@ fn test_verbatim_11_group_visitor_sees_all_groups() {
         "Should see line from second group of first block"
     );
     assert!(
-        visitor.lines.iter().any(|l| l.contains("$ lex view")),
+        visitor.lines.iter().any(|l| l.contains("$ lexv")),
         "Should see line from third group of first block"
     );
     assert!(
