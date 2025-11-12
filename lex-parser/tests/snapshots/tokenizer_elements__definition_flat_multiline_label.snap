@@ -286,12 +286,4 @@ expression: tokens
         ),
         184..191,
     ),
-    (
-        BlankLine(
-            Some(
-                "\n",
-            ),
-        ),
-        191..192,
-    ),
 ]

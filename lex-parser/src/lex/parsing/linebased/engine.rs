@@ -17,9 +17,9 @@ use crate::lex::lexing::tokens_linebased::LineContainer;
 use crate::lex::parsing::builder::AstBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
-use crate::lex::pipeline::stream::TokenStream;
 use std::ops::Range as ByteRange;
 
+use crate::lex::lexing::tokens_linebased::LineToken;
 /// Parse from grouped token stream (main entry point).
 ///
 /// This entry point accepts TokenStream::Grouped from the lexing pipeline.
@@ -31,11 +31,26 @@ use std::ops::Range as ByteRange;
 ///
 /// # Returns
 /// A Document AST if successful
-pub fn parse_from_grouped_stream(stream: TokenStream, source: &str) -> Result<Document, String> {
+use crate::lex::lexing::transformations::line_token_grouping::{GroupType, GroupedTokens};
+
+pub fn parse_from_grouped_stream(
+    grouped_tokens: Vec<GroupedTokens>,
+    source: &str,
+) -> Result<Document, String> {
     // Convert grouped tokens to line tokens
-    let line_tokens = stream
-        .into_line_tokens()
-        .map_err(|e| format!("Expected grouped token stream: {}", e))?;
+    let line_tokens = grouped_tokens
+        .into_iter()
+        .map(|g| {
+            let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
+                g.source_tokens.into_iter().unzip();
+            let GroupType::Line(line_type) = g.group_type;
+            LineToken {
+                source_tokens,
+                token_spans,
+                line_type,
+            }
+        })
+        .collect();
 
     // Build LineContainer tree from line tokens
     let tree = tree_builder::build_line_container(line_tokens);
@@ -61,14 +76,11 @@ pub fn parse_from_flat_tokens(
 ) -> Result<Document, String> {
     // Apply grouping transformation inline for tests/legacy code
     use crate::lex::lexing::transformations::LineTokenGroupingMapper;
-    use crate::lex::pipeline::mapper::StreamMapper;
 
     let mut mapper = LineTokenGroupingMapper::new();
-    let stream = mapper
-        .map_flat(tokens)
-        .map_err(|e| format!("Line grouping failed: {}", e))?;
+    let grouped_tokens = mapper.map(tokens);
 
-    parse_from_grouped_stream(stream, source)
+    parse_from_grouped_stream(grouped_tokens, source)
 }
 
 /// Parse using the new declarative grammar engine (Delivery 2).
@@ -102,10 +114,9 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
 mod tests {
     use super::*;
     use crate::lex::parsing::ContentItem;
-    use crate::lex::pipeline::{ExecutionOutput, PipelineExecutor};
     use crate::lex::testing::workspace_path;
 
-    // Helper to prepare flat token stream from pipeline
+    // Helper to prepare flat token stream
     fn lex_helper(
         source: &str,
     ) -> Result<
@@ -115,16 +126,8 @@ mod tests {
         )>,
         String,
     > {
-        let executor = PipelineExecutor::new();
-        // Use the indentation pipeline (which produces flat tokens with semantic indentation)
-        let output = executor
-            .execute("tokens-indentation", source)
-            .map_err(|e| format!("Pipeline execution failed: {}", e))?;
-
-        match output {
-            ExecutionOutput::Tokens(stream) => Ok(stream.unroll()),
-            _ => Err("Expected Tokens output from tokens-indentation config".to_string()),
-        }
+        let tokens = crate::lex::lexing::tokenize(source);
+        Ok(crate::lex::lexing::lex(tokens))
     }
 
     #[test]

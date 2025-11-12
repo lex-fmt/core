@@ -1,90 +1,87 @@
-use lex_parser::lex::pipeline::Parser;
 use lex_parser::lex::testing::lexplore::Lexplore;
-use rstest::rstest;
 
-fn assert_non_empty(doc: &lex_parser::lex::ast::Document, label: &str, parser: Parser) {
+fn assert_non_empty(doc: &lex_parser::lex::ast::Document, label: &str) {
     assert!(
         !doc.root.children.is_empty(),
-        "{} should produce items for {:?}",
-        label,
-        parser
+        "{} should produce items",
+        label
     );
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_01(parser: Parser) {
-    let doc = Lexplore::verbatim(1).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_01", parser);
+#[test]
+fn verbatim_dual_01() {
+    let doc = Lexplore::verbatim(1).parse();
+    assert_non_empty(&doc, "verbatim_dual_01");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_02(parser: Parser) {
-    let doc = Lexplore::verbatim(2).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_02", parser);
+#[test]
+fn verbatim_dual_02() {
+    let doc = Lexplore::verbatim(2).parse();
+    assert_non_empty(&doc, "verbatim_dual_02");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_03(parser: Parser) {
-    let doc = Lexplore::verbatim(3).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_03", parser);
+#[test]
+fn verbatim_dual_03() {
+    let doc = Lexplore::verbatim(3).parse();
+    assert_non_empty(&doc, "verbatim_dual_03");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_04(parser: Parser) {
-    let doc = Lexplore::verbatim(4).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_04", parser);
+#[test]
+fn verbatim_dual_04() {
+    let doc = Lexplore::verbatim(4).parse();
+    assert_non_empty(&doc, "verbatim_dual_04");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_05(parser: Parser) {
-    let doc = Lexplore::verbatim(5).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_05", parser);
+#[test]
+fn verbatim_dual_05() {
+    let doc = Lexplore::verbatim(5).parse();
+    assert_non_empty(&doc, "verbatim_dual_05");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_06(parser: Parser) {
-    let doc = Lexplore::verbatim(6).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_06", parser);
+#[test]
+fn verbatim_dual_06() {
+    let doc = Lexplore::verbatim(6).parse();
+    assert_non_empty(&doc, "verbatim_dual_06");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_07(parser: Parser) {
-    let doc = Lexplore::verbatim(7).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_07", parser);
+#[test]
+fn verbatim_dual_07() {
+    let doc = Lexplore::verbatim(7).parse();
+    assert_non_empty(&doc, "verbatim_dual_07");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_08(parser: Parser) {
-    let doc = Lexplore::verbatim(8).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_08", parser);
+#[test]
+fn verbatim_dual_08() {
+    let doc = Lexplore::verbatim(8).parse();
+    assert_non_empty(&doc, "verbatim_dual_08");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_09(parser: Parser) {
-    let doc = Lexplore::verbatim(9).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_09", parser);
+#[test]
+fn verbatim_dual_09() {
+    let doc = Lexplore::verbatim(9).parse();
+    assert_non_empty(&doc, "verbatim_dual_09");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_10(parser: Parser) {
-    let doc = Lexplore::verbatim(10).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_10", parser);
+#[test]
+fn verbatim_dual_10() {
+    let doc = Lexplore::verbatim(10).parse();
+    assert_non_empty(&doc, "verbatim_dual_10");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_11(parser: Parser) {
-    let doc = Lexplore::verbatim(11).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_11", parser);
+#[test]
+fn verbatim_dual_11() {
+    let doc = Lexplore::verbatim(11).parse();
+    assert_non_empty(&doc, "verbatim_dual_11");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_12(parser: Parser) {
-    let doc = Lexplore::verbatim(12).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_12", parser);
+#[test]
+fn verbatim_dual_12() {
+    let doc = Lexplore::verbatim(12).parse();
+    assert_non_empty(&doc, "verbatim_dual_12");
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn verbatim_dual_13(parser: Parser) {
-    let doc = Lexplore::verbatim(13).parse_with(parser);
-    assert_non_empty(&doc, "verbatim_dual_13", parser);
+#[test]
+fn verbatim_dual_13() {
+    let doc = Lexplore::verbatim(13).parse();
+    assert_non_empty(&doc, "verbatim_dual_13");
 }
