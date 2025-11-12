@@ -215,8 +215,8 @@ mod tests {
         use crate::lex::ast::{List, ListItem};
 
         let doc = Document::with_content(vec![ContentItem::List(List::new(vec![
-            ContentItem::ListItem(ListItem::new("- First item".to_string())),
-            ContentItem::ListItem(ListItem::new("- Second item".to_string())),
+            ListItem::new("- First item".to_string()),
+            ListItem::new("- Second item".to_string()),
         ]))]);
 
         let result = serialize_document(&doc);

@@ -4,6 +4,9 @@
 //! This is used for true parent>child relationships (Sessions, Definitions, etc.)
 //! and is distinct from "core items" (lines in paragraphs, items in lists).
 //!
+//! See `docs/architecture/type-safe-containers.md` for a deep dive on the policy
+//! system and the compile-fail test suite that keeps the invariants honest.
+//!
 //! The Container types provide:
 //! - Type safety distinguishing children from core items
 //! - Type-level enforcement of nesting rules (Session vs General containers)
@@ -181,17 +184,6 @@ pub type VerbatimContainer = Container<VerbatimPolicy>;
 // ============================================================================
 
 impl<P: ContainerPolicy> Container<P> {
-    /// Create a new container with the given children (legacy, accepts ContentItem)
-    ///
-    /// Note: This bypasses type checking. Prefer `from_typed` for type-safe construction.
-    pub fn new(children: Vec<ContentItem>) -> Self {
-        Self {
-            children,
-            location: Range::default(),
-            _policy: PhantomData,
-        }
-    }
-
     /// Create a type-safe container from typed content
     ///
     /// This is the preferred way to create containers as it enforces nesting rules
@@ -212,7 +204,11 @@ impl<P: ContainerPolicy> Container<P> {
 
     /// Create an empty container
     pub fn empty() -> Self {
-        Self::new(Vec::new())
+        Self {
+            children: Vec::new(),
+            location: Range::default(),
+            _policy: PhantomData,
+        }
     }
 
     /// Set the location for this container (builder pattern)
@@ -309,7 +305,9 @@ impl<'a, P: ContainerPolicy> IntoIterator for &'a mut Container<P> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::list::ListItem;
     use super::super::paragraph::Paragraph;
+    use super::super::typed_content::{ContentElement, ListContent, SessionContent};
     use super::*;
 
     #[test]
@@ -343,7 +341,9 @@ mod tests {
     #[test]
     fn test_container_with_items() {
         let para = Paragraph::from_line("Test".to_string());
-        let container = SessionContainer::new(vec![ContentItem::Paragraph(para)]);
+        let container = SessionContainer::from_typed(vec![SessionContent::Element(
+            ContentElement::Paragraph(para),
+        )]);
         assert_eq!(container.len(), 1);
         assert!(!container.is_empty());
     }
@@ -358,8 +358,8 @@ mod tests {
 
     #[test]
     fn test_container_deref() {
-        let para = Paragraph::from_line("Test".to_string());
-        let container = ListContainer::new(vec![ContentItem::Paragraph(para)]);
+        let list_item = ListItem::new("- Item".to_string());
+        let container = ListContainer::from_typed(vec![ListContent::ListItem(list_item)]);
         // Should be able to use Vec methods directly via Deref
         assert_eq!(container.len(), 1);
         assert!(!container.is_empty());

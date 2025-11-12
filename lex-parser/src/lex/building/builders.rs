@@ -35,7 +35,9 @@ use super::extraction::{
 use super::location::{
     aggregate_locations, byte_range_to_ast_range, compute_location_from_locations,
 };
-use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
+use crate::lex::ast::elements::typed_content::{
+    ContentElement, ListContent, SessionContent, VerbatimContent,
+};
 use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
 use crate::lex::ast::{
     Annotation, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
@@ -50,9 +52,6 @@ use crate::lex::parsing::ContentItem;
 // This module has been partially refactored for type safety (Steps 1-4 of #228):
 //
 // ✓ Step 1-4 Complete: Type conversions validate nesting rules
-//   - create_definition: Validates no Sessions via try_into_content_elements()
-//   - create_list_item: Validates no Sessions via try_into_content_elements()
-//   - create_annotation: Validates no Sessions via try_into_content_elements()
 //
 // ✓ Step 5 Complete: Element constructors now require typed content
 //   - Definition::new(subject, Vec<ContentElement>)
@@ -60,9 +59,11 @@ use crate::lex::parsing::ContentItem;
 //   - Annotation::new(label, params, Vec<ContentElement>)
 // ✓ Step 6 (optional) Complete: Parser/AST builder now supplies typed content so
 //   container policies are enforced before AST construction.
+// ✓ Step 7 Complete: Deprecated container shims removed; no runtime conversion
+//   paths remain in the builder pipeline.
 //
-// Current state provides runtime type safety via conversions that fail with
-// clear error messages. Full compile-time safety would require the above changes.
+// The builder now relies exclusively on typed content supplied by upstream
+// stages. Conversion helpers only exist in tests to assert enum behavior.
 //
 // ============================================================================
 
@@ -99,13 +100,10 @@ pub(super) fn create_paragraph(data: ParagraphData, source: &str) -> ContentItem
     // Convert overall byte range to AST range
     let overall_location = byte_range_to_ast_range(data.overall_byte_range, source);
 
-    #[allow(deprecated)]
-    {
-        ContentItem::Paragraph(Paragraph {
-            lines: crate::lex::ast::elements::container::Container::new(lines),
-            location: overall_location,
-        })
-    }
+    ContentItem::Paragraph(Paragraph {
+        lines,
+        location: overall_location,
+    })
 }
 
 // ============================================================================
@@ -188,17 +186,8 @@ pub(super) fn create_definition(
 ///
 /// A List ContentItem
 pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
-    // Convert ListItems to ContentItems
-    let content: Vec<ContentItem> = items.into_iter().map(ContentItem::ListItem).collect();
-
-    // Get locations from all items for aggregation
-    let item_locations: Vec<Range> = content
-        .iter()
-        .map(|item| match item {
-            ContentItem::ListItem(li) => li.location.clone(),
-            _ => unreachable!(),
-        })
-        .collect();
+    let item_locations: Vec<Range> = items.iter().map(|item| item.location.clone()).collect();
+    let typed_items: Vec<ListContent> = items.into_iter().map(ListContent::ListItem).collect();
 
     let location = if item_locations.is_empty() {
         Range::default()
@@ -207,7 +196,7 @@ pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
     };
 
     ContentItem::List(List {
-        items: crate::lex::ast::elements::container::ListContainer::new(content),
+        items: crate::lex::ast::elements::container::ListContainer::from_typed(typed_items),
         location,
     })
 }
@@ -240,7 +229,7 @@ pub(super) fn create_list_item(
     let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
     let location = aggregate_locations(marker_location, &child_items);
 
-    ListItem::with_text_content(marker, child_items).at(location)
+    ListItem::with_text_content(marker, content).at(location)
 }
 
 // ============================================================================
@@ -346,13 +335,13 @@ pub(super) fn create_verbatim_block(
 fn build_verbatim_group(
     group_data: VerbatimGroupData,
     source: &str,
-) -> (TextContent, Vec<ContentItem>, Vec<Range>) {
+) -> (TextContent, Vec<VerbatimContent>, Vec<Range>) {
     use crate::lex::ast::elements::VerbatimLine;
 
     let subject_location = byte_range_to_ast_range(group_data.subject_byte_range, source);
     let subject = TextContent::from_string(group_data.subject_text, Some(subject_location.clone()));
 
-    let mut children: Vec<ContentItem> = Vec::new();
+    let mut children: Vec<VerbatimContent> = Vec::new();
     let mut locations: Vec<Range> = vec![subject_location];
 
     for (line_text, line_byte_range) in group_data.content_lines {
@@ -361,7 +350,7 @@ fn build_verbatim_group(
 
         let line_content = TextContent::from_string(line_text, Some(line_location.clone()));
         let verbatim_line = VerbatimLine::from_text_content(line_content).at(line_location);
-        children.push(ContentItem::VerbatimLine(verbatim_line));
+        children.push(VerbatimContent::VerbatimLine(verbatim_line));
     }
 
     // Children are all VerbatimLines by construction - no validation needed
