@@ -39,7 +39,6 @@ pub mod base_tokenization;
 pub mod common;
 pub mod line_classification;
 pub mod line_grouping;
-pub mod pipeline;
 pub mod tokens_core;
 pub mod tokens_linebased;
 pub mod transformations;
@@ -63,28 +62,10 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
     }
 }
 
-/// Main lexer pipeline that returns fully processed tokens with locations
-/// Returns tokens with their corresponding source locations
-/// Synthetic tokens (Indent, Dedent) have meaningful locations
-/// Processing pipeline:
-/// 1. Base tokenization (done by caller) - raw tokens with source locations from logos
-///    - BlankLine tokens are created directly by logos for each newline
-/// 2. SemanticIndentation - convert Indentation tokens to Indent/Dedent with location tracking
 pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
-    use crate::lex::lexing::transformations::SemanticIndentationMapper;
-    use crate::lex::pipeline::stream::TokenStream;
-
-    // Start with TokenStream::Flat and chain transformations
-    let mut current_stream = TokenStream::Flat(tokens);
-
-    // Stage 2: SemanticIndentation
-    let mut semantic_indent_mapper = SemanticIndentationMapper::new();
-    current_stream =
-        crate::lex::pipeline::mapper::walk_stream(current_stream, &mut semantic_indent_mapper)
-            .expect("SemanticIndentation transformation failed");
-
-    // Unroll the final stream to get flat tokens for backward compatibility
-    current_stream.unroll()
+    use crate::lex::lexing::transformations::semantic_indentation::SemanticIndentationMapper;
+    let mut mapper = SemanticIndentationMapper::new();
+    mapper.map(tokens).expect("SemanticIndentation transformation failed")
 }
 
 #[cfg(test)]

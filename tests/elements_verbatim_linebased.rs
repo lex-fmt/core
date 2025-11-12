@@ -11,17 +11,14 @@
 //! - test_verbatim_05_flat_special_chars: Verbatim content with :: markers is not handled correctly
 //!   (This is a content parsing issue, not an annotation parsing issue)
 
-use lex::lex::pipeline::DocumentLoader;
 use lex::lex::testing::assert_ast;
-use lex::lex::testing::lexplore::{Lexplore, Parser};
+use lex::lex::testing::lexplore::Lexplore;
 
 #[test]
 fn test_verbatim_01_flat_simple_code() {
     // verbatim-01-flat-simple-code.lex: Verbatim block with simple code
     let source = Lexplore::verbatim(1).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -35,9 +32,7 @@ fn test_verbatim_01_flat_simple_code() {
 fn test_verbatim_02_flat_with_caption() {
     // verbatim-02-flat-with-caption.lex: Verbatim block with caption in closing annotation
     let source = Lexplore::verbatim(2).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -51,9 +46,7 @@ fn test_verbatim_02_flat_with_caption() {
 fn test_verbatim_03_flat_with_params() {
     // verbatim-03-flat-with-params.lex: Verbatim with parameters in closing annotation
     let source = Lexplore::verbatim(3).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -69,9 +62,7 @@ fn test_verbatim_04_flat_marker_form() {
     // verbatim-04-flat-marker-form.lex: Single-line marker-style verbatim
     // Note: In marker form, content after closing :: is part of the annotation, not verbatim content
     let source = Lexplore::verbatim(4).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -88,9 +79,7 @@ fn test_verbatim_05_flat_special_chars() {
     // BUG: Earlier parser implementation incorrectly parsed this as Paragraph.
     // The :: markers in content confused the matcher.
     let source = Lexplore::verbatim(5).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -105,9 +94,7 @@ fn test_verbatim_05_flat_special_chars() {
 fn test_verbatim_06_nested_in_definition() {
     // verbatim-06-nested-in-definition.lex: Verbatim nested inside a definition
     let source = Lexplore::verbatim(6).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -150,9 +137,7 @@ fn test_verbatim_06_nested_in_definition() {
 fn test_verbatim_07_nested_in_list() {
     // verbatim-07-nested-in-list.lex: Verbatim blocks nested in list items
     let source = Lexplore::verbatim(7).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(2); // para, list
 
@@ -206,9 +191,7 @@ fn test_verbatim_07_nested_in_list() {
 fn test_verbatim_08_nested_deep() {
     // verbatim-08-nested-deep.lex: Deeply nested verbatim (3 levels)
     let source = Lexplore::verbatim(8).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -274,9 +257,7 @@ fn test_verbatim_09_flat_simple_beyond_wall() {
     // verbatim-09-flat-simple-beyong-wall.lex: Verbatim with content beyond indentation wall
     // Content beyond the wall gets its indentation normalized
     let source = Lexplore::verbatim(9).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -293,9 +274,7 @@ fn test_verbatim_09_flat_simple_beyond_wall() {
 fn test_verbatim_10_flat_simple_empty() {
     // verbatim-10-flat-simple-empty.lex: Empty verbatim block
     let source = Lexplore::verbatim(10).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -313,9 +292,7 @@ fn test_verbatim_10_flat_simple_empty() {
 fn test_verbatim_13_group_spades() {
     // verbatim-13-group-spades.lex: Verbatim group with multiple pairs and blank lines
     let source = Lexplore::verbatim(13).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     assert_ast(&doc).item_count(2).item(0, |item| {
         item.assert_verbatim_block()
@@ -358,9 +335,7 @@ fn test_verbatim_13_group_spades() {
 fn test_verbatim_12_document_simple() {
     // verbatim-12-document-simple.lex: Document with mix of verbatim blocks, groups, and general content
     let source = Lexplore::verbatim(12).source();
-    let doc = DocumentLoader::new()
-        .parse_with(&source, Parser::Linebased)
-        .unwrap();
+    let doc = lex::lex::parsing::parse_document(&source).unwrap();
 
     // Verify first paragraph
     assert_ast(&doc).item(0, |item| {

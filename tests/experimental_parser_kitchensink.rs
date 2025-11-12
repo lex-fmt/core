@@ -12,15 +12,15 @@ fn _parser_kitchensink_snapshot() {
     let source = std::fs::read_to_string("docs/specs/v1/regression-bugs/kitchensink.lex")
         .expect("Could not read kitchensink.lex");
 
-    // Use PipelineExecutor with linebased config
+    // Use PipelineExecutor
     let executor = PipelineExecutor::new();
     let output = executor
-        .execute("linebased", &source)
+        .execute(&source)
         .expect("Failed to execute pipeline");
 
     let doc = match output {
         ExecutionOutput::Document(doc) => doc,
-        _ => panic!("Expected Document output from linebased config"),
+        _ => panic!("Expected Document output"),
     };
 
     // Create a readable representation of the AST for snapshot testing

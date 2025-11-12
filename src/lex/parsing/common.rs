@@ -2,12 +2,11 @@
 //!
 //! This module contains shared interfaces for parser implementations.
 
-use crate::lex::parsing::Document;
-use crate::lex::pipeline::stream::TokenStream;
 use std::fmt;
 
+use crate::lex::lexing::Token;
 /// Input type for parsers
-pub type ParserInput = TokenStream;
+pub type ParserInput = Vec<(Token, std::ops::Range<usize>)>;
 
 /// Errors that can occur during parsing
 #[derive(Debug, Clone)]
@@ -25,9 +24,3 @@ impl fmt::Display for ParseError {
 }
 
 impl std::error::Error for ParseError {}
-
-/// Trait for parser implementations
-pub trait Parser {
-    /// Parse the input into a document
-    fn parse(&self, input: ParserInput, source: &str) -> Result<Document, ParseError>;
-}
