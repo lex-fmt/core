@@ -7,4 +7,3 @@ pub mod line_token_grouping;
 pub mod semantic_indentation;
 
 pub use line_token_grouping::LineTokenGroupingMapper;
-pub use semantic_indentation::SemanticIndentationMapper;

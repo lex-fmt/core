@@ -6,16 +6,14 @@
 //! - Test isolated elements (one element per test)
 //! - Verify content and structure, not just counts
 
-use lex_parser::lex::pipeline::Parser;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
 use lex_parser::lex::testing::workspace_path;
-use rstest::rstest;
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_paragraph_01_flat_oneline(parser: Parser) {
+#[test]
+fn test_paragraph_01_flat_oneline() {
     // paragraph-01-flat-oneline.lex: "This is a simple paragraph with just one line."
-    let doc = Lexplore::paragraph(1).parse_with(parser);
+    let doc = Lexplore::paragraph(1).parse();
 
     // Verify the document contains exactly one paragraph with expected content
     assert_ast(&doc).item_count(1).item(0, |item| {
@@ -25,10 +23,10 @@ fn test_paragraph_01_flat_oneline(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_paragraph_02_flat_multiline(parser: Parser) {
+#[test]
+fn test_paragraph_02_flat_multiline() {
     // paragraph-02-flat-multiline.lex: Three lines of text
-    let doc = Lexplore::paragraph(2).parse_with(parser);
+    let doc = Lexplore::paragraph(2).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -39,10 +37,10 @@ fn test_paragraph_02_flat_multiline(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_paragraph_03_flat_special_chars(parser: Parser) {
+#[test]
+fn test_paragraph_03_flat_special_chars() {
     // paragraph-03-flat-special-chars.lex: Tests that special characters are preserved
-    let doc = Lexplore::paragraph(3).parse_with(parser);
+    let doc = Lexplore::paragraph(3).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -52,9 +50,9 @@ fn test_paragraph_03_flat_special_chars(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_paragraph_04_flat_numbers(parser: Parser) {
-    let doc = Lexplore::paragraph(4).parse_with(parser);
+#[test]
+fn test_paragraph_04_flat_numbers() {
+    let doc = Lexplore::paragraph(4).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -64,9 +62,9 @@ fn test_paragraph_04_flat_numbers(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_paragraph_05_flat_mixed_content(parser: Parser) {
-    let doc = Lexplore::paragraph(5).parse_with(parser);
+#[test]
+fn test_paragraph_05_flat_mixed_content() {
+    let doc = Lexplore::paragraph(5).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -75,9 +73,9 @@ fn test_paragraph_05_flat_mixed_content(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_paragraph_06_nested_in_session(parser: Parser) {
-    let doc = Lexplore::paragraph(6).parse_with(parser);
+#[test]
+fn test_paragraph_06_nested_in_session() {
+    let doc = Lexplore::paragraph(6).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_session()
@@ -91,9 +89,9 @@ fn test_paragraph_06_nested_in_session(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_paragraph_07_nested_in_definition(parser: Parser) {
-    let doc = Lexplore::paragraph(7).parse_with(parser);
+#[test]
+fn test_paragraph_07_nested_in_definition() {
+    let doc = Lexplore::paragraph(7).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition().subject("Cache").child(0, |child| {
@@ -104,9 +102,9 @@ fn test_paragraph_07_nested_in_definition(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_paragraph_08_nested_deeply(parser: Parser) {
-    let doc = Lexplore::paragraph(8).parse_with(parser);
+#[test]
+fn test_paragraph_08_nested_deeply() {
+    let doc = Lexplore::paragraph(8).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -138,9 +136,9 @@ fn test_paragraph_08_nested_deeply(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
-fn test_paragraph_09_dialog(parser: Parser) {
-    let doc = Lexplore::paragraph(9).parse_with(parser);
+#[test]
+fn test_paragraph_09_dialog() {
+    let doc = Lexplore::paragraph(9).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -149,13 +147,13 @@ fn test_paragraph_09_dialog(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Linebased])]
+#[test]
 #[ignore]
-fn test_paragraphs_overview_document(parser: Parser) {
+fn test_paragraphs_overview_document() {
     let doc = Lexplore::from_path(workspace_path(
         "docs/specs/v1/elements/paragraph/paragraphs.lex",
     ))
-    .parse_with(parser);
+    .parse();
 
     assert_ast(&doc)
         .item(0, |item| {

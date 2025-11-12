@@ -18,4 +18,3 @@ doctest = false
 [dependencies]
 lex-parser = { path = "../lex-parser" }
 clap = { workspace = true }
-serde_json = { workspace = true }

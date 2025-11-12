@@ -6,14 +6,11 @@
 use crate::lex::ast::elements::{Annotation, Definition, List, Paragraph, Session, Verbatim};
 use crate::lex::ast::Document;
 use crate::lex::lexing::Token;
+use crate::lex::parsing::parse_document;
 use crate::lex::parsing::ParseError;
-use crate::lex::pipeline::DocumentLoader;
 use crate::lex::testing::lexplore::specfile_finder;
 use std::fs;
 use std::path::PathBuf;
-
-// Re-export Parser from pipeline for backward compatibility
-pub use crate::lex::pipeline::Parser;
 
 // Re-export types from specfile_finder for public API
 pub use specfile_finder::{DocumentType, ElementType};
@@ -105,32 +102,17 @@ impl ElementLoader {
             .unwrap_or_else(|e| panic!("Failed to read {}: {}", path.display(), e))
     }
 
-    /// Parse with the specified parser and return a Document
-    pub fn parse_with(self, parser: Parser) -> Document {
-        let path = self.get_path();
-        let loader = DocumentLoader::new();
-        loader
-            .load_and_parse_with(&path, parser)
-            .unwrap_or_else(|e| panic!("Failed to parse {}: {}", path.display(), e))
-    }
-
     /// Parse with the linebased parser (shorthand)
     pub fn parse(self) -> Document {
-        self.parse_with(crate::lex::pipeline::Parser::Linebased)
-    }
-
-    /// Tokenize with the specified parser and return tokens with their byte ranges
-    pub fn tokenize_with(self, parser: Parser) -> Vec<(Token, std::ops::Range<usize>)> {
-        let path = self.get_path();
-        let loader = DocumentLoader::new();
-        loader
-            .load_and_tokenize_with(&path, parser)
-            .unwrap_or_else(|e| panic!("Failed to tokenize {}: {}", path.display(), e))
+        let source = self.source();
+        parse_document(&source).unwrap()
     }
 
     /// Tokenize with the linebased parser (shorthand)
     pub fn tokenize(self) -> Vec<(Token, std::ops::Range<usize>)> {
-        self.tokenize_with(crate::lex::pipeline::Parser::Linebased)
+        let source = self.source();
+        let tokens = crate::lex::lexing::tokenize(&source);
+        crate::lex::lexing::lex(tokens)
     }
 }
 
@@ -145,11 +127,9 @@ impl ElementLoader {
 fn load_isolated_element(element_type: ElementType, number: usize) -> Document {
     let path = specfile_finder::find_element_file(element_type, number)
         .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", element_type, number, e));
-
-    let loader = DocumentLoader::new();
-    loader
-        .load_and_parse_with(&path, Parser::Linebased)
-        .unwrap_or_else(|e| panic!("Failed to parse {}: {}", path.display(), e))
+    let source = fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {}", path.display(), e));
+    parse_document(&source).unwrap()
 }
 
 /// Macro to generate element loader shortcuts
@@ -403,14 +383,6 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_with_parser() {
-        let tokens = Lexplore::paragraph(1).tokenize_with(Parser::Linebased);
-
-        assert!(!tokens.is_empty());
-        assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
-    }
-
-    #[test]
     fn test_tokenize_list() {
         let tokens = Lexplore::list(1).tokenize();
 
@@ -431,14 +403,6 @@ mod tests {
     #[test]
     fn test_tokenize_trifecta() {
         let tokens = Lexplore::trifecta(0).tokenize();
-
-        assert!(!tokens.is_empty());
-        assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
-    }
-
-    #[test]
-    fn test_tokenize_linebased_parser() {
-        let tokens = Lexplore::paragraph(1).tokenize_with(Parser::Linebased);
 
         assert!(!tokens.is_empty());
         assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
@@ -471,25 +435,6 @@ mod tests {
 
         assert!(!source.is_empty());
     }
-
-    #[test]
-    fn test_from_path_with_parser() {
-        let path = workspace_path("docs/specs/v1/elements/list/list-01-flat-simple-dash.lex");
-        let doc = Lexplore::from_path(path).parse_with(Parser::Linebased);
-
-        let list = doc.expect_list();
-        assert!(!list.items.is_empty());
-    }
-
-    #[test]
-    fn test_from_path_tokenize_with_parser() {
-        let path = workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
-        let tokens = Lexplore::from_path(path).tokenize_with(Parser::Linebased);
-
-        assert!(!tokens.is_empty());
-        assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
-    }
-
     // Removed test for deleted API: test_get_source_from_path
 
     // Removed test for deleted API: test_must_get_source_from_path

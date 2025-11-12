@@ -160,12 +160,4 @@ expression: tokens
         ),
         84..91,
     ),
-    (
-        BlankLine(
-            Some(
-                "\n",
-            ),
-        ),
-        91..92,
-    ),
 ]
