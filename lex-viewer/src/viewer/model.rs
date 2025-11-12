@@ -11,7 +11,7 @@
 use lex_parser::lex::ast::elements::content_item::ContentItem;
 use lex_parser::lex::ast::range::{Position, Range};
 use lex_parser::lex::ast::traits::AstNode;
-use lex_parser::lex::ast::{snapshot_visitor::snapshot_from_document, AstSnapshot};
+use lex_parser::lex::ast::{snapshot_from_document, AstSnapshot};
 use lex_parser::lex::parsing::Document;
 use std::collections::HashSet;
 
