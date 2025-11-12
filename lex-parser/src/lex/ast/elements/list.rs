@@ -30,6 +30,7 @@ use super::super::traits::Container;
 use super::super::traits::Visitor;
 use super::container::{GeneralContainer, ListContainer};
 use super::content_item::ContentItem;
+use super::typed_content::{ContentElement, ListContent};
 use std::fmt;
 
 /// A list contains multiple list items
@@ -51,9 +52,13 @@ impl List {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(items: Vec<ContentItem>) -> Self {
+    pub fn new(items: Vec<ListItem>) -> Self {
+        let typed_items = items
+            .into_iter()
+            .map(ListContent::ListItem)
+            .collect::<Vec<_>>();
         Self {
-            items: ListContainer::new(items),
+            items: ListContainer::from_typed(typed_items),
             location: Self::default_location(),
         }
     }
@@ -99,18 +104,18 @@ impl ListItem {
             location: Self::default_location(),
         }
     }
-    pub fn with_content(text: String, children: Vec<ContentItem>) -> Self {
+    pub fn with_content(text: String, children: Vec<ContentElement>) -> Self {
         Self {
             text: vec![TextContent::from_string(text, None)],
-            children: GeneralContainer::new(children),
+            children: GeneralContainer::from_typed(children),
             location: Self::default_location(),
         }
     }
     /// Create a ListItem with TextContent that may have location information
-    pub fn with_text_content(text_content: TextContent, children: Vec<ContentItem>) -> Self {
+    pub fn with_text_content(text_content: TextContent, children: Vec<ContentElement>) -> Self {
         Self {
             text: vec![text_content],
-            children: GeneralContainer::new(children),
+            children: GeneralContainer::from_typed(children),
             location: Self::default_location(),
         }
     }

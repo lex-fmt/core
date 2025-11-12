@@ -28,6 +28,7 @@ use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
 use super::container::SessionContainer;
 use super::content_item::ContentItem;
+use super::typed_content::SessionContent;
 use std::fmt;
 
 /// A session represents a hierarchical container with a title
@@ -42,10 +43,10 @@ impl Session {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(title: TextContent, children: Vec<ContentItem>) -> Self {
+    pub fn new(title: TextContent, children: Vec<SessionContent>) -> Self {
         Self {
             title,
-            children: SessionContainer::new(children),
+            children: SessionContainer::from_typed(children),
             location: Self::default_location(),
         }
     }

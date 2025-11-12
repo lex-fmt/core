@@ -48,6 +48,7 @@ use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::container::VerbatimContainer;
 use super::content_item::ContentItem;
+use super::typed_content::VerbatimContent;
 use std::fmt;
 use std::slice;
 
@@ -108,12 +109,12 @@ impl Verbatim {
 
     pub fn new(
         subject: TextContent,
-        children: Vec<ContentItem>,
+        children: Vec<VerbatimContent>,
         closing_annotation: Annotation,
     ) -> Self {
         Self {
             subject,
-            children: VerbatimContainer::new(children),
+            children: VerbatimContainer::from_typed(children),
             closing_annotation,
             location: Self::default_location(),
             additional_groups: Vec::new(),
@@ -229,10 +230,10 @@ pub struct VerbatimGroupItem {
 }
 
 impl VerbatimGroupItem {
-    pub fn new(subject: TextContent, children: Vec<ContentItem>) -> Self {
+    pub fn new(subject: TextContent, children: Vec<VerbatimContent>) -> Self {
         Self {
             subject,
-            children: VerbatimContainer::new(children),
+            children: VerbatimContainer::from_typed(children),
         }
     }
 }
