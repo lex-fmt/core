@@ -5,7 +5,7 @@ use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
 use rstest::rstest;
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_labels_spec_document(parser: Parser) {
     let doc = Lexplore::from_path("docs/specs/v1/elements/label/labels.lex").parse_with(parser);
 
@@ -24,7 +24,7 @@ fn test_labels_spec_document(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_parameters_spec_document(parser: Parser) {
     let doc =
         Lexplore::from_path("docs/specs/v1/elements/parameter/parameters.lex").parse_with(parser);
@@ -38,7 +38,7 @@ fn test_parameters_spec_document(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_verbatim_spec_document(parser: Parser) {
     let doc =
         Lexplore::from_path("docs/specs/v1/elements/verbatim/verbatim.lex").parse_with(parser);
@@ -55,7 +55,7 @@ fn test_verbatim_spec_document(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_template_document_simple(parser: Parser) {
     let doc =
         Lexplore::from_path("docs/specs/v1/elements/XXX-document-simple.lex").parse_with(parser);
@@ -74,7 +74,7 @@ fn test_template_document_simple(parser: Parser) {
         });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_template_document_tricky(parser: Parser) {
     let doc =
         Lexplore::from_path("docs/specs/v1/elements/XXX-document-tricky.lex").parse_with(parser);

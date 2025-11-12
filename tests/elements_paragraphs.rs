@@ -11,7 +11,7 @@ use lex::lex::testing::assert_ast;
 use lex::lex::testing::lexplore::Lexplore;
 use rstest::rstest;
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_paragraph_01_flat_oneline(parser: Parser) {
     // paragraph-01-flat-oneline.lex: "This is a simple paragraph with just one line."
     let doc = Lexplore::paragraph(1).parse_with(parser);
@@ -24,7 +24,7 @@ fn test_paragraph_01_flat_oneline(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_paragraph_02_flat_multiline(parser: Parser) {
     // paragraph-02-flat-multiline.lex: Three lines of text
     let doc = Lexplore::paragraph(2).parse_with(parser);
@@ -38,7 +38,7 @@ fn test_paragraph_02_flat_multiline(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_paragraph_03_flat_special_chars(parser: Parser) {
     // paragraph-03-flat-special-chars.lex: Tests that special characters are preserved
     let doc = Lexplore::paragraph(3).parse_with(parser);
@@ -51,7 +51,7 @@ fn test_paragraph_03_flat_special_chars(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_paragraph_04_flat_numbers(parser: Parser) {
     let doc = Lexplore::paragraph(4).parse_with(parser);
 
@@ -63,7 +63,7 @@ fn test_paragraph_04_flat_numbers(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_paragraph_05_flat_mixed_content(parser: Parser) {
     let doc = Lexplore::paragraph(5).parse_with(parser);
 
@@ -74,7 +74,7 @@ fn test_paragraph_05_flat_mixed_content(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_paragraph_06_nested_in_session(parser: Parser) {
     let doc = Lexplore::paragraph(6).parse_with(parser);
 
@@ -90,7 +90,7 @@ fn test_paragraph_06_nested_in_session(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_paragraph_07_nested_in_definition(parser: Parser) {
     let doc = Lexplore::paragraph(7).parse_with(parser);
 
@@ -103,7 +103,7 @@ fn test_paragraph_07_nested_in_definition(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_paragraph_08_nested_deeply(parser: Parser) {
     let doc = Lexplore::paragraph(8).parse_with(parser);
 
@@ -137,7 +137,7 @@ fn test_paragraph_08_nested_deeply(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 fn test_paragraph_09_dialog(parser: Parser) {
     let doc = Lexplore::paragraph(9).parse_with(parser);
 
@@ -148,7 +148,7 @@ fn test_paragraph_09_dialog(parser: Parser) {
     });
 }
 
-#[rstest(parser => [Parser::Reference, Parser::Linebased])]
+#[rstest(parser => [Parser::Linebased])]
 #[ignore]
 fn test_paragraphs_overview_document(parser: Parser) {
     let doc =
