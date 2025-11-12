@@ -88,6 +88,20 @@ fn count_line_indent_steps(tokens: &[Token], start: usize) -> usize {
 }
 
 impl SemanticIndentationMapper {
+    /// Transforms flat tokens by converting Indentation tokens into semantic Indent/Dedent pairs.
+    ///
+    /// # Algorithm Overview
+    ///
+    /// This transformation processes tokens line-by-line:
+    /// 1. For each line, count leading Indentation tokens to determine its indent level
+    /// 2. Compare with previous line's level to emit Indent/Dedent tokens
+    /// 3. Skip the consumed Indentation tokens and emit remaining line content
+    /// 4. Preserve all original token locations for AST building
+    ///
+    /// # Example
+    ///
+    /// Input:  `[Text("a"), BlankLine, Indentation, Text("b"), BlankLine]`
+    /// Output: `[Text("a"), BlankLine, Indent([Indentation]), Text("b"), BlankLine, Dedent([])]`
     pub fn map(
         &mut self,
         tokens: Vec<(Token, ByteRange<usize>)>,
@@ -96,9 +110,10 @@ impl SemanticIndentationMapper {
         let token_kinds: Vec<Token> = tokens.iter().map(|(t, _)| t.clone()).collect();
 
         let mut result = Vec::new();
-        let mut current_level = 0;
+        let mut current_level = 0; // Track current indentation level
         let mut i = 0;
 
+        // Main loop: Process tokens line-by-line
         while i < tokens.len() {
             // Find the start of the current line
             let line_start = find_line_start(&token_kinds, i);
@@ -127,10 +142,12 @@ impl SemanticIndentationMapper {
             // Calculate the target indentation level for this line
             let target_level = line_indent_level;
 
-            // Generate appropriate Indent/Dedent tokens storing source tokens
+            // Stage 1: Emit Indent or Dedent tokens based on level change
+            // This is where we transform indentation changes into semantic structure
             match target_level.cmp(&current_level) {
                 std::cmp::Ordering::Greater => {
-                    // Indent tokens: each stores the original Indentation token it replaces
+                    // Indenting: emit one Indent token per level increase
+                    // Each Indent stores the original Indentation token it replaces for source fidelity
                     let indent_start_idx = line_start;
                     for level_idx in 0..(target_level - current_level) {
                         let indent_token_idx = indent_start_idx + current_level + level_idx;
@@ -148,22 +165,23 @@ impl SemanticIndentationMapper {
                     }
                 }
                 std::cmp::Ordering::Less => {
-                    // Dedent tokens: purely structural, don't replace any tokens
-                    // Store empty source_tokens since dedents are synthetic markers
+                    // Dedenting: emit one Dedent token per level decrease
+                    // Dedent tokens are purely structural (don't replace any source tokens)
                     for _ in 0..(current_level - target_level) {
                         // Placeholder span 0..0 - will never be used
                         result.push((Token::Dedent(vec![]), 0..0));
                     }
                 }
                 std::cmp::Ordering::Equal => {
-                    // No indentation change needed
+                    // Same level: no indentation tokens needed
                 }
             }
 
-            // Update current level
+            // Update current level to match this line
             current_level = target_level;
 
-            // Skip the initial Indentation tokens that were processed as indentation
+            // Stage 2: Skip the Indentation tokens we already processed
+            // These have been transformed into Indent tokens above
             let mut j = line_start;
             for _ in 0..line_indent_level {
                 if j < token_kinds.len() && matches!(token_kinds[j], Token::Indentation) {
@@ -171,23 +189,25 @@ impl SemanticIndentationMapper {
                 }
             }
 
-            // Process the rest of the line, keeping all remaining tokens with locations
+            // Stage 3: Emit the rest of the line content (everything except BlankLine)
+            // Preserve all tokens with their original source locations
             while j < token_kinds.len() && !matches!(token_kinds[j], Token::BlankLine(_)) {
                 result.push((token_kinds[j].clone(), tokens[j].1.clone()));
                 j += 1;
             }
 
-            // Add the newline token if we haven't reached the end
+            // Stage 4: Emit the BlankLine token (end of line marker)
             if j < token_kinds.len() && matches!(token_kinds[j], Token::BlankLine(_)) {
                 result.push((token_kinds[j].clone(), tokens[j].1.clone()));
                 j += 1;
             }
 
+            // Move to next line
             i = j;
         }
 
-        // Add dedents to close all remaining indentation levels
-        // These occur at the end of file - they don't replace any tokens
+        // Final cleanup: Add Dedent tokens to close all remaining indentation levels
+        // This ensures the document structure is properly closed (like closing braces)
         for _ in 0..current_level {
             result.push((Token::Dedent(vec![]), 0..0));
         }
