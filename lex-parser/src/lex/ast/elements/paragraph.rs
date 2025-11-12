@@ -16,7 +16,7 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, TextNode, Visitor};
-use super::container::SessionContainer as ContainerNode;
+use super::content_item::ContentItem;
 use std::fmt;
 
 /// A text line within a paragraph
@@ -80,7 +80,7 @@ impl fmt::Display for TextLine {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paragraph {
     /// Lines stored as ContentItems (each a TextLine wrapping TextContent)
-    pub lines: ContainerNode,
+    pub lines: Vec<ContentItem>,
     pub location: Range,
 }
 
@@ -88,29 +88,32 @@ impl Paragraph {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(lines: Vec<super::content_item::ContentItem>) -> Self {
+    pub fn new(lines: Vec<ContentItem>) -> Self {
+        debug_assert!(
+            lines
+                .iter()
+                .all(|item| matches!(item, ContentItem::TextLine(_))),
+            "Paragraph lines must be TextLine items"
+        );
         Self {
-            #[allow(deprecated)]
-            lines: ContainerNode::new(lines),
+            lines,
             location: Self::default_location(),
         }
     }
     pub fn from_line(line: String) -> Self {
         Self {
-            #[allow(deprecated)]
-            lines: ContainerNode::new(vec![super::content_item::ContentItem::TextLine(
-                TextLine::new(TextContent::from_string(line, None)),
-            )]),
+            lines: vec![ContentItem::TextLine(TextLine::new(
+                TextContent::from_string(line, None),
+            ))],
             location: Self::default_location(),
         }
     }
     /// Create a paragraph with a single line and attach a location
     pub fn from_line_at(line: String, location: Range) -> Self {
         let mut para = Self {
-            #[allow(deprecated)]
-            lines: ContainerNode::new(vec![super::content_item::ContentItem::TextLine(
-                TextLine::new(TextContent::from_string(line, None)),
-            )]),
+            lines: vec![ContentItem::TextLine(TextLine::new(
+                TextContent::from_string(line, None),
+            ))],
             location: Self::default_location(),
         };
         para = para.at(location);

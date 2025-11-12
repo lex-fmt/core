@@ -59,6 +59,13 @@
 //! - `lookup` - Position-based AST node lookup functionality
 //! - `snapshot` - Normalized intermediate representation for serialization
 //! - `error` - Error types for AST operations
+//!
+//! ## Type-Safe Containers
+//!
+//! Containers such as `Session`, `Definition`, and `Annotation` now take typed
+//! vectors (`SessionContent`, `ContentElement`, etc.) so invalid nesting is ruled
+//! out at compile time. See `docs/architecture/type-safe-containers.md` for
+//! details and compile-fail examples.
 
 pub mod elements;
 pub mod error;
