@@ -50,7 +50,7 @@ impl Parser {
     /// Get the pipeline config name for this parser (AST output)
     pub fn config_name(&self) -> &'static str {
         match self {
-            Parser::Linebased => "linebased",
+            Parser::Linebased => "default",
         }
     }
 
@@ -679,7 +679,7 @@ mod tests {
 
     #[test]
     fn test_parser_config_names() {
-        assert_eq!(Parser::Linebased.config_name(), "linebased");
+        assert_eq!(Parser::Linebased.config_name(), "default");
         assert_eq!(Parser::Linebased.token_config_name(), "tokens-indentation");
     }
 
