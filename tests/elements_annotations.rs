@@ -112,7 +112,6 @@ fn test_annotation_06_flat_block_multi_paragraph(parser: Parser) {
 }
 
 #[rstest(parser => [Parser::Reference, Parser::Linebased])]
-#[ignore]
 fn test_annotation_07_flat_block_with_list(parser: Parser) {
     // annotation-07-flat-block-with-list.lex: Block annotation mixing paragraph and list content
     let doc = Lexplore::annotation(7).parse_with(parser);
@@ -224,7 +223,6 @@ fn test_annotation_09_nested_definition_inside(parser: Parser) {
 }
 
 #[rstest(parser => [Parser::Reference, Parser::Linebased])]
-#[ignore]
 fn test_annotation_10_nested_complex(parser: Parser) {
     // annotation-10-nested-complex.lex: Mixed paragraphs, nested lists, and parameters
     let doc = Lexplore::annotation(10).parse_with(parser);
@@ -283,7 +281,8 @@ fn test_annotation_10_nested_complex(parser: Parser) {
 }
 
 #[rstest(parser => [Parser::Reference, Parser::Linebased])]
-#[ignore]
+#[ignore] // TODO: Complex document - Reference parser has issues with session titles ending in colons
+          // This is tested more simply in test_session_09_flat_colon_title
 fn test_annotations_overview_document(parser: Parser) {
     // annotations.lex: Specification overview document for annotations
     let doc =
