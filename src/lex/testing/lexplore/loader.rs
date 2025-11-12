@@ -116,7 +116,7 @@ impl ElementLoader {
 
     /// Parse with the Reference parser (shorthand)
     pub fn parse(self) -> Document {
-        self.parse_with(crate::lex::pipeline::Parser::Reference)
+        self.parse_with(crate::lex::pipeline::Parser::Linebased)
     }
 
     /// Tokenize with the specified parser and return tokens with their byte ranges
@@ -130,7 +130,7 @@ impl ElementLoader {
 
     /// Tokenize with the Reference parser (shorthand)
     pub fn tokenize(self) -> Vec<(Token, std::ops::Range<usize>)> {
-        self.tokenize_with(crate::lex::pipeline::Parser::Reference)
+        self.tokenize_with(crate::lex::pipeline::Parser::Linebased)
     }
 }
 
@@ -148,7 +148,7 @@ fn load_isolated_element(element_type: ElementType, number: usize) -> Document {
 
     let loader = DocumentLoader::new();
     loader
-        .load_and_parse_with(&path, Parser::Reference)
+        .load_and_parse_with(&path, Parser::Linebased)
         .unwrap_or_else(|e| panic!("Failed to parse {}: {}", path.display(), e))
 }
 
@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_with_parser() {
-        let tokens = Lexplore::paragraph(1).tokenize_with(Parser::Reference);
+        let tokens = Lexplore::paragraph(1).tokenize_with(Parser::Linebased);
 
         assert!(!tokens.is_empty());
         assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
@@ -474,7 +474,7 @@ mod tests {
     #[test]
     fn test_from_path_with_parser() {
         let path = "docs/specs/v1/elements/list/list-01-flat-simple-dash.lex";
-        let doc = Lexplore::from_path(path).parse_with(Parser::Reference);
+        let doc = Lexplore::from_path(path).parse_with(Parser::Linebased);
 
         let list = doc.expect_list();
         assert!(!list.items.is_empty());

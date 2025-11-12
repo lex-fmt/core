@@ -42,9 +42,7 @@ use std::path::Path;
 /// Parser implementation to use for parsing and tokenization
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Parser {
-    /// Reference parser (combinator-based, stable)
-    Reference,
-    /// Linebased parser (grammar-based, experimental)
+    /// Linebased parser (grammar-based, current default)
     Linebased,
 }
 
@@ -52,7 +50,6 @@ impl Parser {
     /// Get the pipeline config name for this parser (AST output)
     pub fn config_name(&self) -> &'static str {
         match self {
-            Parser::Reference => "default",
             Parser::Linebased => "linebased",
         }
     }
@@ -60,8 +57,7 @@ impl Parser {
     /// Get the pipeline config name for tokenization (Token output)
     pub fn token_config_name(&self) -> &'static str {
         match self {
-            Parser::Reference => "tokens-indentation",
-            Parser::Linebased => "tokens-linebased-flat",
+            Parser::Linebased => "tokens-indentation",
         }
     }
 }
@@ -143,8 +139,8 @@ impl DocumentLoader {
 
     /// Parse source text into a Document using the default parser
     ///
-    /// This is a convenience method that uses the reference parser (stable, default).
-    /// For other parsers, use `parse_with()`.
+    /// This is a convenience method that uses the linebased parser (current default).
+    /// For other analyzers, use `parse_with()` when they become available.
     ///
     /// # Example
     ///
@@ -153,7 +149,7 @@ impl DocumentLoader {
     /// let doc = loader.parse("Hello world\n")?;
     /// ```
     pub fn parse(&self, source: &str) -> Result<Document, ExecutionError> {
-        self.parse_with(source, Parser::Reference)
+        self.parse_with(source, Parser::Linebased)
     }
 
     /// Parse source text with a specific parser
@@ -196,7 +192,7 @@ impl DocumentLoader {
         &self,
         source: &str,
     ) -> Result<Vec<(Token, std::ops::Range<usize>)>, ExecutionError> {
-        self.tokenize_with(source, Parser::Reference)
+        self.tokenize_with(source, Parser::Linebased)
     }
 
     /// Tokenize source text with a specific parser's tokenizer
@@ -420,13 +416,10 @@ impl DocumentLoader {
     pub fn convert_with(
         &self,
         source: &str,
-        parser: Parser,
+        _parser: Parser,
         format: &str,
     ) -> Result<String, ExecutionError> {
-        let config_name = match parser {
-            Parser::Reference => format!("lex-to-{}", format),
-            Parser::Linebased => format!("lex-to-{}-linebased", format),
-        };
+        let config_name = format!("lex-to-{}", format);
         let output = self.execute(&config_name, source)?;
         match output {
             ExecutionOutput::Serialized(s) => Ok(s),
@@ -502,16 +495,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_with_reference_parser() {
-        let loader = DocumentLoader::new();
-        let doc = loader.parse_with("Hello world\n", Parser::Reference);
-
-        assert!(doc.is_ok());
-        let doc = doc.unwrap();
-        assert!(!doc.root.children.is_empty());
-    }
-
-    #[test]
     fn test_parse_with_linebased_parser() {
         let loader = DocumentLoader::new();
         let doc = loader.parse_with("Hello:\n    World\n", Parser::Linebased);
@@ -525,16 +508,6 @@ mod tests {
     fn test_tokenize_simple_source() {
         let loader = DocumentLoader::new();
         let tokens = loader.tokenize("Hello world");
-
-        assert!(tokens.is_ok());
-        let tokens = tokens.unwrap();
-        assert!(!tokens.is_empty());
-    }
-
-    #[test]
-    fn test_tokenize_with_reference() {
-        let loader = DocumentLoader::new();
-        let tokens = loader.tokenize_with("Hello world", Parser::Reference);
 
         assert!(tokens.is_ok());
         let tokens = tokens.unwrap();
@@ -618,7 +591,7 @@ mod tests {
         let loader = DocumentLoader::new();
         let result = loader.load_and_parse_with(
             "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
-            Parser::Reference,
+            Parser::Linebased,
         );
 
         assert!(result.is_ok());
@@ -706,13 +679,8 @@ mod tests {
 
     #[test]
     fn test_parser_config_names() {
-        assert_eq!(Parser::Reference.config_name(), "default");
         assert_eq!(Parser::Linebased.config_name(), "linebased");
-        assert_eq!(Parser::Reference.token_config_name(), "tokens-indentation");
-        assert_eq!(
-            Parser::Linebased.token_config_name(),
-            "tokens-linebased-flat"
-        );
+        assert_eq!(Parser::Linebased.token_config_name(), "tokens-indentation");
     }
 
     // ===== Serialization tests =====
@@ -769,7 +737,7 @@ mod tests {
         let loader = DocumentLoader::new();
         let result = loader.load_and_convert_with(
             "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
-            Parser::Reference,
+            Parser::Linebased,
             "treeviz",
         );
 

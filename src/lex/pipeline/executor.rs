@@ -3,7 +3,7 @@
 use crate::lex::formats::{FormatError, FormatRegistry};
 use crate::lex::lexing::base_tokenization;
 use crate::lex::lexing::transformations::*;
-use crate::lex::parsing::{builder, Document};
+use crate::lex::parsing::Document;
 use crate::lex::pipeline::config::{
     AnalysisSpec, BuilderSpec, ConfigRegistry, PipelineSpec, TargetSpec,
 };
@@ -153,17 +153,7 @@ impl PipelineExecutor {
     ) -> Result<Document, ExecutionError> {
         // Note: Currently only one builder (LSP) is supported, so we don't need to match on it
         match analyzer {
-            AnalysisSpec::Reference => {
-                let tokens = stream.unroll();
-                let parse_node =
-                    crate::lex::parsing::reference::parse(tokens, source).map_err(|_| {
-                        ExecutionError::ParsingFailed("Reference analyzer failed".to_string())
-                    })?;
-                let builder = builder::AstBuilder::new(source);
-                Ok(builder.build(parse_node))
-            }
             AnalysisSpec::Linebased => {
-                // Convert grouped tokens to line tokens and parse
                 crate::lex::parsing::linebased::parse_from_grouped_stream(stream, source).map_err(
                     |e| ExecutionError::ParsingFailed(format!("Linebased analyzer failed: {}", e)),
                 )
