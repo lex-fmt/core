@@ -2,6 +2,7 @@
 members = [
     "lex-parser",
     "lex-cli",
+    "lex-viewer",
 ]
 resolver = "2"
 
