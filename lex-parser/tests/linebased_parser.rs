@@ -3,10 +3,10 @@
 //! Regression suite focused on the linebased parser implementation.
 //! to verify how many tests pass with the linebased parser implementation.
 
+use lex_parser::lex::parsing::parse_document;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
 use lex_parser::lex::testing::workspace_path;
-use parse_document;
 
 #[test]
 fn test_real_content_extraction() {

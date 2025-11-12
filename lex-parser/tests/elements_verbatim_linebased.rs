@@ -11,7 +11,6 @@
 //! - test_verbatim_05_flat_special_chars: Verbatim content with :: markers is not handled correctly
 //!   (This is a content parsing issue, not an annotation parsing issue)
 
-use lex_parser::lex::parsing::parse_document;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
 
