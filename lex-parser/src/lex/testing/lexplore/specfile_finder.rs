@@ -108,7 +108,11 @@ impl From<std::io::Error> for SpecFileError {
 /// get_doc_root("benchmark", None) -> "docs/specs/v1/benchmark"
 /// ```
 pub fn get_doc_root(category: &str, subcategory: Option<&str>) -> PathBuf {
-    let mut path = PathBuf::from(DOCS_ROOT);
+    // In a workspace, CARGO_MANIFEST_DIR points to lex-parser/, so we need to go up one level
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let workspace_root = std::path::Path::new(manifest_dir).parent().unwrap();
+
+    let mut path = workspace_root.join(DOCS_ROOT);
     path.push(SPEC_VERSION);
     path.push(category);
     if let Some(subcat) = subcategory {
