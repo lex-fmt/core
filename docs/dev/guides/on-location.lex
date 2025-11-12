@@ -56,7 +56,7 @@ Source String Location / Range Tracking in lex
 
 		2.1.3. Preservation, Not Transformation: Crucially, these aggregate tokens store the original source_tokens that comprise them. They should not calculate or store their own aggregate spans (they use placeholder 0..0 ranges). The Indent token for "    " would contain the (Token::Indentation, 5..9) source token, and that's it.
 
-		2.1.4. Parser's Role: Parsers work with the token stream (flat for reference parser, tree built internally for linebased parser). When building AST nodes, they extract source_tokens from any aggregates to get back to the ground truth.
+		2.1.4. Parser's Role: The linebased parser consumes the flat token stream, builds its own LineContainer tree, and when it's time to build AST nodes it expands every aggregate back into the original source_tokens to return to the immutable log.
 
 	3. AST Building: When creating an AST node, the builder gathers all tokens involved. It extracts source_tokens from any aggregates, creating a flat list of all original tokens from the immutable log. This list is then used to:
 

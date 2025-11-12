@@ -35,39 +35,20 @@ This is a high level overview of how the Lex parser is designed.
 		3. During this process, node span ranges are translated into AST Location objects
 
 
-3. Parser Designs:
+3. Parser Design:
 
-	We currently have two parser designs active.
+	The project now runs exclusively on the linebased parser. The multi-parser plumbing (AnalyzerConfig, pipeline registry, etc.) remains so we can stand up alternative analyzers in the future, but the active implementation is the line-based grammar engine.
 
-	1. Reference
+	Linebased parser overview:
 
-		This is the initial parser. It uses the chumsky parser combinator library for analysis but offloads actual AST building to the building stage.
+		- Receives the same flat Vec<(Token, Range<usize>)> produced by the lexing pipeline
+		- Groups tokens into logical lines and indentation scopes (tree_builder module)
+		- Classifies each line (SubjectLine, ListLine, etc.) and wraps them in LineContainer nodes
+		- Uses declarative regex patterns to match container sequences and emit IR nodes
 
-		It operates on the core tokens with three transformations:
-			- NormalizeWhitespace
-			- SemanticIndentation (converts Indentation to Indent/Dedent tokens)
-			- BlankLines
+	The grammar at the container level is simple enough to be expressed as ordered regular expressions, which is what the declarative_grammar engine does. Tree building complexity is isolated inside the parser, not in the pipeline.
 
-		Receives: flat Vec<(Token, Range<usize>)>
-		Uses directly for combinator parsing
-
-	2. Linebased
-
-		This parser leverages Lex's specific constraints that make parsing simple despite appearing complex (recursive, stateful, indentation-significant).
-
-		Receives: flat Vec<(Token, Range<usize>)> from same pipeline as reference parser
-
-		Internal tree building:
-			- Groups tokens into lines (tree_builder module)
-			- Classifies lines (SubjectLine, ListLine, etc.)
-			- Groups into hierarchical levels (indent/dedent)
-			- Creates LineContainer tree structure
-
-		The grammar at the container level is so simple it can be expressed as regular expressions. That's what the declarative_grammar engine does.
-
-		Tree building complexity is localized inside the linebased parser, not in the pipeline.
-
-		Key files:
-			- src/lex/parsing/linebased/tree_builder.rs (tree construction)
-			- src/lex/parsing/linebased/declarative_grammar.rs (pattern matching)
-			- src/lex/lexing/linebased/tokens_linebased.rs (LineToken/LineContainer types)
+	Key files:
+		- src/lex/parsing/linebased/tree_builder.rs (tree construction)
+		- src/lex/parsing/linebased/declarative_grammar.rs (pattern matching)
+		- src/lex/lexing/linebased/tokens_linebased.rs (LineToken/LineContainer types)
