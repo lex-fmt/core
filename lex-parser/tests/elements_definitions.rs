@@ -9,6 +9,7 @@
 use lex_parser::lex::pipeline::Parser;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
+use lex_parser::lex::testing::workspace_path;
 use rstest::rstest;
 
 #[rstest(parser => [Parser::Linebased])]
@@ -233,8 +234,10 @@ fn test_definition_90_document_simple(parser: Parser) {
 #[ignore]
 fn test_definitions_overview_document(parser: Parser) {
     // definitions.lex: Specification overview covering syntax/disambiguation
-    let doc =
-        Lexplore::from_path("docs/specs/v1/elements/definition/definitions.lex").parse_with(parser);
+    let doc = Lexplore::from_path(workspace_path(
+        "docs/specs/v1/elements/definition/definitions.lex",
+    ))
+    .parse_with(parser);
 
     assert_ast(&doc)
         .item_count(4)

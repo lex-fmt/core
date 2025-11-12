@@ -6,11 +6,14 @@
 
 use lex_parser::lex::parsing::ContentItem;
 use lex_parser::lex::pipeline::{ExecutionOutput, PipelineExecutor};
+use lex_parser::lex::testing::workspace_path;
 
 #[test]
 fn _parser_kitchensink_snapshot() {
-    let source = std::fs::read_to_string("docs/specs/v1/regression-bugs/kitchensink.lex")
-        .expect("Could not read kitchensink.lex");
+    let source = std::fs::read_to_string(workspace_path(
+        "docs/specs/v1/regression-bugs/kitchensink.lex",
+    ))
+    .expect("Could not read kitchensink.lex");
 
     // Use PipelineExecutor with linebased config
     let executor = PipelineExecutor::new();

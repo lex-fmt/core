@@ -170,3 +170,19 @@ pub use matchers::TextMatch;
 pub mod factories {
     pub use super::token_factories::*;
 }
+
+/// Get a path relative to the workspace root for testing purposes.
+///
+/// In a workspace, `CARGO_MANIFEST_DIR` points to the crate directory (lex-parser/),
+/// so we need to go up one level to reach the workspace root where docs/, fixtures/, etc. live.
+///
+/// # Example
+/// ```rust,ignore
+/// let path = workspace_path("docs/specs/v1/elements/paragraph/01-simple.lex");
+/// let content = std::fs::read_to_string(path).unwrap();
+/// ```
+pub fn workspace_path(relative_path: &str) -> std::path::PathBuf {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let workspace_root = std::path::Path::new(manifest_dir).parent().unwrap();
+    workspace_root.join(relative_path)
+}

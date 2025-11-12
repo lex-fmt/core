@@ -9,6 +9,7 @@
 use lex_parser::lex::pipeline::Parser;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
+use lex_parser::lex::testing::workspace_path;
 use rstest::rstest;
 
 #[rstest(parser => [Parser::Linebased])]
@@ -381,7 +382,8 @@ fn test_list_12_nested_three_full_form(parser: Parser) {
 
 #[rstest(parser => [Parser::Linebased])]
 fn test_lists_overview_document(parser: Parser) {
-    let doc = Lexplore::from_path("docs/specs/v1/elements/list/lists.lex").parse_with(parser);
+    let doc = Lexplore::from_path(workspace_path("docs/specs/v1/elements/list/lists.lex"))
+        .parse_with(parser);
 
     assert_ast(&doc)
         .item(0, |item| {

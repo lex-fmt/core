@@ -471,6 +471,7 @@ impl Default for DocumentLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lex::testing::workspace_path;
 
     #[test]
     fn test_loader_creation() {
@@ -578,8 +579,9 @@ mod tests {
     #[test]
     fn test_load_and_parse_file() {
         let loader = DocumentLoader::new();
-        let result =
-            loader.load_and_parse("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
+        let result = loader.load_and_parse(workspace_path(
+            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+        ));
 
         assert!(result.is_ok());
         let doc = result.unwrap();
@@ -590,7 +592,7 @@ mod tests {
     fn test_load_and_parse_with_parser() {
         let loader = DocumentLoader::new();
         let result = loader.load_and_parse_with(
-            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+            workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex"),
             Parser::Linebased,
         );
 
@@ -602,8 +604,9 @@ mod tests {
     #[test]
     fn test_load_and_tokenize_file() {
         let loader = DocumentLoader::new();
-        let result = loader
-            .load_and_tokenize("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
+        let result = loader.load_and_tokenize(workspace_path(
+            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+        ));
 
         assert!(result.is_ok());
         let tokens = result.unwrap();
@@ -614,7 +617,7 @@ mod tests {
     fn test_load_and_tokenize_with_parser() {
         let loader = DocumentLoader::new();
         let result = loader.load_and_tokenize_with(
-            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+            workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex"),
             Parser::Linebased,
         );
 
@@ -626,8 +629,9 @@ mod tests {
     #[test]
     fn test_load_source_file() {
         let loader = DocumentLoader::new();
-        let result =
-            loader.load_source("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
+        let result = loader.load_source(workspace_path(
+            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+        ));
 
         assert!(result.is_ok());
         let source = result.unwrap();
@@ -646,7 +650,7 @@ mod tests {
     fn test_load_and_execute_default() {
         let loader = DocumentLoader::new();
         let result = loader.load_and_execute(
-            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+            workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex"),
             "default",
         );
 
@@ -663,7 +667,7 @@ mod tests {
     fn test_load_and_execute_tokens() {
         let loader = DocumentLoader::new();
         let result = loader.load_and_execute(
-            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+            workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex"),
             "tokens-indentation",
         );
 
@@ -723,7 +727,7 @@ mod tests {
     fn test_load_and_convert() {
         let loader = DocumentLoader::new();
         let result = loader.load_and_convert(
-            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+            workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex"),
             "tag",
         );
 
@@ -736,7 +740,7 @@ mod tests {
     fn test_load_and_convert_with_parser() {
         let loader = DocumentLoader::new();
         let result = loader.load_and_convert_with(
-            "docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex",
+            workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex"),
             Parser::Linebased,
             "treeviz",
         );

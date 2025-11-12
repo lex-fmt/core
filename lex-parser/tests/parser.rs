@@ -3,6 +3,7 @@
 use lex_parser::lex::parsing::parse_document;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
+use lex_parser::lex::testing::workspace_path;
 
 #[test]
 fn test_real_content_extraction() {
@@ -693,8 +694,10 @@ fn test_trifecta_050_paragraph_lists() {
 fn test_trifecta_flat_simple() {
     // Test flat structure with all three elements
     // Renamed from 050 to 070 to avoid duplicate numbers
-    let source =
-        Lexplore::from_path("docs/specs/v1/trifecta/070-trifecta-flat-simple.lex").source();
+    let source = Lexplore::from_path(workspace_path(
+        "docs/specs/v1/trifecta/070-trifecta-flat-simple.lex",
+    ))
+    .source();
     let doc = parse_document(&source).unwrap();
 
     // Item 0-1: Opening paragraphs
@@ -1197,9 +1200,9 @@ fn test_regression_definition_with_list_followed_by_definition() {
     // Issue: https://github.com/arthur-debert/lex/issues/41
     // See: docs/specs/v1/regression-bugs/parser-definition-list-transition.lex
 
-    let source = std::fs::read_to_string(
+    let source = std::fs::read_to_string(workspace_path(
         "docs/specs/v1/regression-bugs/parser-definition-list-transition.lex",
-    )
+    ))
     .expect("Failed to load regression test file");
 
     let doc = parse_document(&source)
