@@ -138,7 +138,7 @@ fn test_definition_05_nested_with_list(parser: Parser) {
 }
 
 #[rstest(parser => [Parser::Linebased])]
-#[ignore = "Reference parser drops nested definitions; verified via lex-to-treeviz-linebased"]
+#[ignore = "Line parser still drops nested definitions; verified via lex-to-treeviz"]
 fn test_definition_06_nested_definitions(parser: Parser) {
     // definition-06-nested-definitions.lex: Nested definition hierarchy (Authentication -> OAuth -> OAuth 2.0)
     let doc = Lexplore::definition(6).parse_with(parser);

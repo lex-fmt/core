@@ -269,17 +269,17 @@ pub fn build_verbatim_block(
 }
 
 // ============================================================================
-// REFERENCE PARSER API (tokens already normalized)
+// NORMALIZED TOKEN API (tokens already normalized)
 // ============================================================================
 //
-// The reference parser works with flat token streams (Token, ByteRange) that
-// are already in normalized format. These functions skip the normalization
-// step and go straight to data extraction.
+// Some callers (e.g., the linebased parser's unwrappers) already work with
+// normalized Vec<(Token, Range)> sequences. These helpers skip the
+// normalization pass and go straight to data extraction/AST creation.
 
 use crate::lex::lexing::tokens_core::Token;
 use std::ops::Range as ByteRange;
 
-/// Build a Paragraph from already-normalized token lines (for reference parser).
+/// Build a Paragraph from already-normalized token lines.
 ///
 /// # Arguments
 ///
@@ -319,7 +319,7 @@ pub fn build_paragraph_from_tokens(
     builders::create_paragraph(data, source)
 }
 
-/// Build a Session from already-normalized title tokens (for reference parser).
+/// Build a Session from already-normalized title tokens.
 ///
 /// # Arguments
 ///
@@ -343,7 +343,7 @@ pub fn build_session_from_tokens(
     builders::create_session(data, content, source)
 }
 
-/// Build a Definition from already-normalized subject tokens (for reference parser).
+/// Build a Definition from already-normalized subject tokens.
 ///
 /// # Arguments
 ///
@@ -367,7 +367,7 @@ pub fn build_definition_from_tokens(
     builders::create_definition(data, content, source)
 }
 
-/// Build a ListItem from already-normalized marker tokens (for reference parser).
+/// Build a ListItem from already-normalized marker tokens.
 ///
 /// # Arguments
 ///
@@ -391,7 +391,7 @@ pub fn build_list_item_from_tokens(
     builders::create_list_item(data, content, source)
 }
 
-/// Build an Annotation from already-normalized label tokens (for reference parser).
+/// Build an Annotation from already-normalized label tokens.
 ///
 /// Skips normalization, goes through: extract (with label/param parsing) → create.
 ///
@@ -417,7 +417,7 @@ pub fn build_annotation_from_tokens(
     builders::create_annotation(data, content, source)
 }
 
-/// Build a VerbatimBlock from already-normalized tokens (for reference parser).
+/// Build a VerbatimBlock from already-normalized tokens.
 ///
 /// This implements indentation wall stripping - content at different nesting
 /// levels will have identical text after wall removal.
@@ -436,7 +436,7 @@ pub fn build_annotation_from_tokens(
 /// # Example
 ///
 /// ```rust,ignore
-/// // Tokens already normalized from reference parser
+/// // Tokens already normalized upstream
 /// let group = extraction::VerbatimGroupTokenLines {
 ///     subject_tokens: vec![(Token::Text("Code".into()), 0..4)],
 ///     content_token_lines: vec![
@@ -455,12 +455,11 @@ pub fn build_verbatim_block_from_tokens(
 }
 
 // ============================================================================
-// TEXT-BASED API (for reference parser and simple cases)
+// TEXT-BASED API (for pre-extracted inputs)
 // ============================================================================
 //
-// These functions accept pre-extracted text and ast::Range locations.
-// They are used by the reference parser which extracts text during parsing,
-// and for simple cases where text has already been extracted.
+// These functions accept pre-extracted text and ast::Range locations for tests
+// or any parser variant that wants to bypass token processing entirely.
 
 /// Build a Paragraph from pre-extracted text lines with locations.
 ///

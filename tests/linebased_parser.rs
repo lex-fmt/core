@@ -1,6 +1,6 @@
 //! Integration tests for the linebased parser.
 //!
-//! This test file is a copy of reference_parser.rs but using Parser::Linebased
+//! Regression suite focused on the linebased parser implementation.
 //! to verify how many tests pass with the linebased parser implementation.
 
 use lex::lex::pipeline::DocumentLoader;

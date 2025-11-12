@@ -19,7 +19,7 @@ use crate::lex::lexing::tokens_core::Token;
 ///
 /// By preserving raw tokens and their individual spans, we can later
 /// pass them directly to existing AST constructors (using the same unified approach as the
-/// reference parser), which handles all location tracking and AST node creation automatically.
+/// the parser), which handles all location tracking and AST node creation automatically.
 ///
 /// Note: LineToken does NOT store an aggregate source_span. The AST construction facade
 /// will compute bounding boxes from the individual token_spans when needed.

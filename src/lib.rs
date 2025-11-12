@@ -13,11 +13,10 @@
 //! do not commit to a common lexer or parser outputs. But often different designs do share a
 //! significant amount of code.
 //!
-//! Hence the layour should be:
+//! Hence the layout should be:
 //! src/lex/parser
-//!   ├── linebased       The linebased parser design
-//!   └── reference  The reference parser design
-//!   └── <common>   Shared code between the two designs
+//!   ├── linebased    The current parser design
+//!   └── <common>     Shared code for AST building and IR
 
 //! So the general form is src/lex/parser|lexer|design|common
 //!   
