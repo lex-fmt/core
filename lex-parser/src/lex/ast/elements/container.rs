@@ -196,6 +196,13 @@ impl<P: ContainerPolicy> Container<P> {
     ///
     /// This is the preferred way to create containers as it enforces nesting rules
     /// at compile time via the policy's ContentType.
+    ///
+    /// # Future Work
+    ///
+    /// Currently, element constructors (Session::new, Definition::new, etc.) still
+    /// accept Vec<ContentItem> for backward compatibility. A future refactoring
+    /// could update these to accept typed content directly, enabling full compile-time
+    /// enforcement throughout the construction pipeline.
     pub fn from_typed(children: Vec<P::ContentType>) -> Self {
         Self {
             children: children.into_iter().map(|c| c.into()).collect(),
