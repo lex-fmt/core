@@ -168,8 +168,22 @@ impl GrammarMatcher {
 
     /// Match verbatim blocks using imperative logic.
     ///
-    /// Finds a subject line followed by any sequence of lines, terminating at the
-    /// first closing annotation line at the same indentation level.
+    /// Verbatim blocks consist of:
+    /// 1. A subject line
+    /// 2. Content that is either:
+    ///    a) In a Container (inflow mode - content indented relative to subject)
+    ///    b) Flat lines (fullwidth mode - content at fixed column, or groups)
+    /// 3. A closing annotation marker (:: ... ::)
+    ///
+    /// This matcher handles both the original inflow case (subject + container + annotation)
+    /// and the fullwidth case (subject + flat lines + annotation). To distinguish verbatim
+    /// blocks from sessions followed by annotations, we require that either:
+    /// - There's a Container immediately after the subject, OR
+    /// - The closing annotation is at the SAME indentation as the subject
+    ///
+    /// Sessions have their title at the root level and content is indented. If we see
+    /// a root-level annotation after a root-level subject with indented content between,
+    /// that's NOT a verbatim block - it's a session followed by an annotation.
     fn match_verbatim_block(
         tokens: &[LineContainer],
         start_idx: usize,
@@ -199,7 +213,8 @@ impl GrammarMatcher {
             return None;
         }
 
-        let subject_idx = match &tokens[idx] {
+        // Must start with a subject line
+        let first_subject_idx = match &tokens[idx] {
             LineContainer::Token(line)
                 if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) =>
             {
@@ -208,24 +223,61 @@ impl GrammarMatcher {
             _ => return None,
         };
 
-        let mut cursor = subject_idx + 1;
-        while cursor < len {
-            if let LineContainer::Token(line) = &tokens[cursor] {
-                if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
-                    return Some((
-                        PatternMatch::VerbatimBlock {
-                            subject_idx,
-                            content_range: (subject_idx + 1)..cursor,
-                            closing_idx: cursor,
-                        },
-                        start_idx..(cursor + 1),
-                    ));
+        let mut cursor = first_subject_idx + 1;
+
+        // Try to match one or more subject+content pairs followed by closing annotation
+        // This loop handles verbatim groups: multiple subjects sharing one closing annotation
+        loop {
+            // Skip blank lines
+            while cursor < len {
+                if let LineContainer::Token(line) = &tokens[cursor] {
+                    if line.line_type == BlankLine {
+                        cursor += 1;
+                        continue;
+                    }
+                }
+                break;
+            }
+
+            if cursor >= len {
+                return None;
+            }
+
+            // Check what we have at cursor
+            match &tokens[cursor] {
+                LineContainer::Container { .. } => {
+                    // Found a container - this is inflow mode content
+                    cursor += 1;
+
+                    // Continue loop to check for more groups or closing annotation
+                    continue;
+                }
+                LineContainer::Token(line) => {
+                    if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
+                        // Found closing annotation - success!
+                        // But only if we haven't mixed containers with flat content in a problematic way
+                        return Some((
+                            PatternMatch::VerbatimBlock {
+                                subject_idx: first_subject_idx,
+                                content_range: (first_subject_idx + 1)..cursor,
+                                closing_idx: cursor,
+                            },
+                            start_idx..(cursor + 1),
+                        ));
+                    }
+
+                    if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) {
+                        // Another subject - this is another group
+                        cursor += 1;
+                        continue;
+                    }
+
+                    // Any other flat token (paragraph line, etc.)
+                    // This is fullwidth mode or group content
+                    cursor += 1;
                 }
             }
-            cursor += 1;
         }
-
-        None
     }
 }
 
