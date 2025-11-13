@@ -455,7 +455,7 @@ fn test_nested_elements_have_location_information() {
     // This test verifies the issue: nested paragraph/list elements should have
     // location information just like their parent session elements do.
 
-    let app = TestApp::with_file("docs/specs/v1/samples/070-trifecta-flat-simple.lex");
+    let app = TestApp::with_file("docs/specs/v1/trifecta/070-trifecta-flat-simple.lex");
 
     let flattened = app.app().model.flattened_tree();
 
@@ -504,7 +504,7 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
     // FileViewer cursor on nested element → get_node_at_position finds it →
     // emit event → model updates → tree should highlight
 
-    let mut app = TestApp::with_file("docs/specs/v1/samples/070-trifecta-flat-simple.lex");
+    let mut app = TestApp::with_file("docs/specs/v1/trifecta/070-trifecta-flat-simple.lex");
 
     // Navigate the tree to a nested element to know where it is
     app.send_key(KeyCode::Tab); // Focus tree viewer
@@ -590,7 +590,7 @@ fn test_tree_viewer_expand_collapse_indicators() {
     // - ▶ for collapsed nodes with children
     // - two spaces for leaf nodes (no children)
 
-    let mut app = TestApp::with_file("docs/specs/v1/samples/070-trifecta-flat-simple.lex");
+    let mut app = TestApp::with_file("docs/specs/v1/trifecta/070-trifecta-flat-simple.lex");
 
     // Switch to tree viewer
     app.send_key(KeyCode::Tab);
@@ -681,7 +681,7 @@ fn test_tree_viewer_expand_collapse_indicators() {
 #[test]
 fn test_tree_viewer_leaf_nodes_have_alignment_spacing() {
     // Verify that leaf nodes (without children) show proper spacing for alignment
-    let app = TestApp::with_file("docs/specs/v1/samples/070-trifecta-flat-simple.lex");
+    let app = TestApp::with_file("docs/specs/v1/trifecta/070-trifecta-flat-simple.lex");
 
     let flattened = app.app().model.flattened_tree();
 
