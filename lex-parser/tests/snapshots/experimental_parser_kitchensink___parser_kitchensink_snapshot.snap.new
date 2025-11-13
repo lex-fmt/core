@@ -1,0 +1,53 @@
+---
+source: lex-parser/tests/experimental_parser_kitchensink.rs
+assertion_line: 17
+expression: snapshot
+---
+Document with 7 root items:
+
+[0] Paragraph with 1 line(s):   [0] TextLine: Kitchensink Test Document {{paragraph}}
+[1] Paragraph with 1 line(s):   [0] TextLine: This document includes all major features of the lex language to serve as a comprehensive "kitchensink" regression test for the parser. {{paragraph}}
+[2] Paragraph with 2 line(s):
+  [0] TextLine: This is a two-lined paragraph.
+  [1] TextLine: First, a simple definition at the root level. {{paragraph}}
+[3] Paragraph with 1 line(s):   [0] TextLine: This is a marker annotation at the root level, attached to the definition above.
+[4] Session with 6 item(s):
+  [0] Paragraph with 1 line(s):     [0] TextLine: This session acts as the main container for testing nested structures. It starts with a simple paragraph. {{paragraph}}
+  [1] List with 2 item(s):
+    [0] List item with 0 content item(s):
+    [1] List item with 0 content item(s):
+  [2] Annotation with 1 parameter(s) and 1 content item(s):
+    [0] Paragraph with 1 line(s):       [0] TextLine:  This is a single-line annotation inside the session.
+  [3] Session with 2 item(s):
+    [0] Session with 2 item(s):
+      [0] Paragraph with 2 line(s):
+        [0] TextLine: Nested Definition:
+        [1] TextLine: This definition is inside a nested session and contains a list. {{definition}}
+      [1] List with 2 item(s):
+        [0] List item with 0 content item(s):
+        [1] List item with 0 content item(s):
+    [1] List with 2 item(s):
+      [0] List item with 2 content item(s):
+        [0] Paragraph with 1 line(s):           [0] TextLine: This list item contains a nested paragraph. {{paragraph}}
+        [1] List with 2 item(s):
+          [0] List item with 0 content item(s):
+          [1] List item with 0 content item(s):
+      [1] List item with 0 content item(s):
+  [4] Session with 2 item(s):
+    [0] Paragraph with 3 line(s):
+      [0] TextLine: Code Example (Verbatim Block):
+      [1] TextLine: // This is a verbatim block with code.
+      [2] TextLine: function example() {
+    [1] Paragraph with 1 line(s):       [0] TextLine: }
+  [5] Annotation with 0 parameter(s) and 1 content item(s):
+    [0] Paragraph with 0 line(s):
+[5] Session with 3 item(s):
+  [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}
+  [1] Annotation with 2 parameter(s) and 3 content item(s):
+    [0] Paragraph with 1 line(s):       [0] TextLine: This is a block annotation. {{paragraph}}
+    [1] Paragraph with 1 line(s):       [0] TextLine: It contains a paragraph and a list. {{paragraph}}
+    [2] List with 2 item(s):
+      [0] List item with 0 content item(s):
+      [1] List item with 0 content item(s):
+  [2] VerbatimBlock with 0 content char(s)
+[6] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}
