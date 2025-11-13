@@ -290,7 +290,7 @@ pub(super) fn annotation_node(
 /// # Arguments
 ///
 /// * `data` - Extracted verbatim block data (with indentation wall already stripped)
-/// * `closing_annotation` - The closing annotation node
+/// * `closing_data` - The closing data node
 /// * `source` - Original source string
 ///
 /// # Returns
@@ -298,7 +298,7 @@ pub(super) fn annotation_node(
 /// A VerbatimBlock ContentItem
 pub(super) fn verbatim_block_node(
     data: VerbatimBlockData,
-    closing_annotation: Annotation,
+    closing_data: Data,
     source: &str,
 ) -> ContentItem {
     if data.groups.is_empty() {
@@ -314,9 +314,9 @@ pub(super) fn verbatim_block_node(
         location_sources.append(&mut group_locations);
         additional_groups.push(VerbatimGroupItem::new(subject, children));
     }
-    location_sources.push(closing_annotation.location.clone());
+    location_sources.push(closing_data.location.clone());
     let location = compute_location_from_locations(&location_sources);
-    let verbatim_block = Verbatim::new(first_subject, first_children, closing_annotation, mode)
+    let verbatim_block = Verbatim::new(first_subject, first_children, closing_data, mode)
         .with_additional_groups(additional_groups)
         .at(location);
     ContentItem::VerbatimBlock(Box::new(verbatim_block))

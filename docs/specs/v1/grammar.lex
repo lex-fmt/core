@@ -360,12 +360,11 @@ Grammar for lex
 
         What the spec says:
         - Two forms: block form (with indented content) and marker form (no content)
-        - Closing annotation is listed as <closing-annotation> with optional content
+        - Closing data is listed as <closing-data> (reusable data node syntax)
 
         What implementation clarifies:
-        - Closing annotation MUST be present (not truly optional, grammar is slightly misleading)
-        - The closing annotation can include trailing text after the second :: marker
-        - This trailing text becomes part of the annotation, not separate paragraph content
+        - Closing data MUST be present (not optional)
+        - Descriptive text belongs inside the block content, not after the closing data line
         - Content is NOT parsed (preserves raw whitespace/formatting exactly)
 
         Indentation Wall rule: Correctly enforced - content must be indented deeper than subject.

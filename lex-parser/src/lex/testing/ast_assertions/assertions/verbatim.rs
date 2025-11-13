@@ -41,10 +41,10 @@ impl<'a> VerbatimBlockkAssertion<'a> {
         self
     }
     pub fn closing_label(self, expected: &str) -> Self {
-        let actual = &self.verbatim_block.closing_annotation.data.label.value;
+        let actual = &self.verbatim_block.closing_data.label.value;
         assert_eq!(
             actual, expected,
-            "{}: Expected closing annotation label to be '{}', but got '{}'",
+            "{}: Expected closing data label to be '{}', but got '{}'",
             self.context, expected, actual
         );
         self
@@ -71,14 +71,13 @@ impl<'a> VerbatimBlockkAssertion<'a> {
     pub fn has_closing_parameter_with_value(self, key: &str, value: &str) -> Self {
         let found = self
             .verbatim_block
-            .closing_annotation
-            .data
+            .closing_data
             .parameters
             .iter()
             .any(|p| p.key == key && p.value == value);
         assert!(
             found,
-            "{}: Expected closing annotation to have parameter '{}={}'",
+            "{}: Expected closing data to have parameter '{}={}'",
             self.context, key, value
         );
         self
