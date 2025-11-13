@@ -197,7 +197,7 @@ impl fmt::Display for Verbatim {
             self.subject.as_string(),
             group_count,
             group_word,
-            self.closing_annotation.label.value
+            self.closing_annotation.data.label.value
         )
     }
 }

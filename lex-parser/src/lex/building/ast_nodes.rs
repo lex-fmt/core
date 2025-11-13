@@ -29,7 +29,7 @@
 //! conversion happens here using `byte_range_to_ast_range()`.
 
 use super::extraction::{
-    AnnotationData, DefinitionData, ListItemData, ParagraphData, SessionData, VerbatimBlockData,
+    DataExtraction, DefinitionData, ListItemData, ParagraphData, SessionData, VerbatimBlockData,
     VerbatimGroupData,
 };
 use super::location::{
@@ -40,7 +40,7 @@ use crate::lex::ast::elements::typed_content::{
 };
 use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
 use crate::lex::ast::{
-    Annotation, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
+    Annotation, Data, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
     TextLine, Verbatim,
 };
 use crate::lex::parsing::ContentItem;
@@ -236,36 +236,21 @@ pub(super) fn list_item_node(
 // ANNOTATION CREATION
 // ============================================================================
 
-/// Create an Annotation AST node from extracted annotation data.
-///
-/// Converts byte ranges to AST Ranges, creates Label and Parameters from extracted data,
-/// and aggregates location from label and children.
-///
-/// # Arguments
-///
-/// * `data` - Extracted annotation data with label text, parameters, and byte ranges
-/// * `content` - Child content items
-/// * `source` - Original source string
-///
-/// # Returns
-///
-/// An Annotation ContentItem
-pub(super) fn annotation_node(
-    data: AnnotationData,
-    content: Vec<ContentElement>,
-    source: &str,
-) -> ContentItem {
+/// Build a Data AST node from extracted information.
+pub(super) fn data_node(data: DataExtraction, source: &str) -> Data {
     use crate::lex::ast::Parameter;
 
     let label_location = byte_range_to_ast_range(data.label_byte_range, source);
     let label = Label::new(data.label_text).at(label_location.clone());
 
     // Convert ParameterData to Parameter AST nodes
+    let mut parameter_ranges = vec![label_location.clone()];
     let parameters: Vec<Parameter> = data
         .parameters
         .into_iter()
         .map(|param_data| {
             let location = byte_range_to_ast_range(param_data.overall_byte_range, source);
+            parameter_ranges.push(location.clone());
             Parameter {
                 key: param_data.key_text,
                 value: param_data.value_text.unwrap_or_default(),
@@ -274,11 +259,21 @@ pub(super) fn annotation_node(
         })
         .collect();
 
-    // Aggregate location from label and content
-    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
-    let location = aggregate_locations(label_location, &child_items);
+    let location = compute_location_from_locations(&parameter_ranges);
 
-    let annotation = Annotation::new(label, parameters, content).at(location);
+    Data::new(label, parameters).at(location)
+}
+
+/// Create an Annotation AST node from a Data node and child content.
+pub(super) fn annotation_node(
+    data: Data,
+    content: Vec<ContentElement>,
+    _source: &str,
+) -> ContentItem {
+    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
+    let location = aggregate_locations(data.location.clone(), &child_items);
+
+    let annotation = Annotation::from_data(data, content).at(location);
 
     ContentItem::Annotation(annotation)
 }
@@ -460,19 +455,20 @@ mod tests {
         let para = Paragraph::from_line("Some content".to_string());
         let content = vec![ContentElement::Paragraph(para)];
 
-        let data = AnnotationData {
+        let data = DataExtraction {
             label_text: "note".to_string(),
             label_byte_range: 0..4,
             parameters: vec![],
         };
 
         // This should succeed - Annotations can contain Paragraphs
-        let result = annotation_node(data, content, source);
+        let data_node = data_node(data, source);
+        let result = annotation_node(data_node, content, source);
 
         match result {
             ContentItem::Annotation(ann) => {
                 assert_eq!(ann.children.len(), 1);
-                assert_eq!(ann.label.value, "note");
+                assert_eq!(ann.data.label.value, "note");
             }
             _ => panic!("Expected Annotation"),
         }

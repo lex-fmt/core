@@ -4,16 +4,22 @@ Introduction
 
 	Annotations are a core element in lex, but a metadata one. They provide , not only a way for authors and colaborators to register non content related information, but the right hooks for tooling to build on top of lex, such as a commenting system before publishing.
 
-	As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling). Labels are mandatory; parameters extend the label but never replace it.
+	As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling). Labels live inside a reusable data node (docs/specs/v1/elements/data/data.lex), which begins with ::, contains the label plus optional parameters, and is then consumed by the annotation element. Labels are mandatory; parameters extend the label but never replace it.
 
 
 	Core features:
 
-	- Annotations require labels [./labels.lex]; parameters [./parameters.lex] are optional augmentations
-	- Parameters may enrich the label but cannot exist without one
+	- Annotations embed a data node: :: <label> <parameters>? (no closing ::)
+	- After the data node, annotations add a closing :: marker and optional content
+	- Labels [./labels.lex] remain mandatory; parameters [./parameters.lex] are optional augmentations
 	- Annotations have optional content: which can be the single line shortcut or the regular content conatainer form, which allows all elements but sessions to be part (including nesting). While not prohibited, annotations should not contain other annotations as their content as the semantic meaning would be ... why bother? 
 
 Syntax Forms:
+
+	Data node (reusable header):
+		:: label
+		:: label params
+		(The closing :: belongs to the embedding element.)
 
 	Marker form (no content):
 		:: label ::

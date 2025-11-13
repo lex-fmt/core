@@ -2,7 +2,10 @@
 //!
 //! Handles construction of verbatim block nodes from matched patterns.
 
-use super::helpers::{collect_line_tokens, extract_annotation_single_content, extract_line_token};
+use super::helpers::{
+    collect_line_tokens, extract_annotation_single_content, extract_line_token,
+    AnnotationHeaderAndContent,
+};
 use crate::lex::parsing::ir::{NodeType, ParseNode, ParseNodePayload};
 use crate::lex::token::LineContainer;
 use std::ops::Range;
@@ -24,7 +27,10 @@ pub(in crate::lex::parsing::parser::builder) fn build_verbatim_block(
     }
 
     let closing_token = extract_line_token(&tokens[closing_idx])?;
-    let (header_tokens, closing_children) = extract_annotation_single_content(closing_token)?;
+    let AnnotationHeaderAndContent {
+        header_tokens,
+        children: closing_children,
+    } = extract_annotation_single_content(closing_token)?;
     let closing_node = ParseNode::new(NodeType::Annotation, header_tokens, closing_children);
 
     let verbatim_node = ParseNode::new(NodeType::VerbatimBlock, vec![], vec![closing_node])

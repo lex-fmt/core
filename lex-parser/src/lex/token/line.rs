@@ -66,6 +66,9 @@ pub enum LineType {
     /// Annotation start line: follows annotation grammar <lex-marker><space><label>(<space><parameters>)? <lex-marker> <content>?
     AnnotationStartLine,
 
+    /// Data line: :: label params? (no closing :: marker)
+    DataLine,
+
     /// Line ending with colon (could be subject/definition/session title)
     SubjectLine,
 
@@ -94,6 +97,7 @@ impl fmt::Display for LineType {
             LineType::BlankLine => "BLANK_LINE",
             LineType::AnnotationEndLine => "ANNOTATION_END_LINE",
             LineType::AnnotationStartLine => "ANNOTATION_START_LINE",
+            LineType::DataLine => "DATA_LINE",
             LineType::SubjectLine => "SUBJECT_LINE",
             LineType::ListLine => "LIST_LINE",
             LineType::SubjectOrListItemLine => "SUBJECT_OR_LIST_ITEM_LINE",
@@ -120,6 +124,7 @@ impl LineType {
             LineType::BlankLine => "blank-line",
             LineType::AnnotationEndLine => "annotation-end-line",
             LineType::AnnotationStartLine => "annotation-start-line",
+            LineType::DataLine => "data-line",
             LineType::SubjectLine => "subject-line",
             LineType::ListLine => "list-line",
             LineType::SubjectOrListItemLine => "subject-or-list-item-line",
