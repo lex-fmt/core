@@ -100,27 +100,12 @@ impl<'a> AstTreeBuilder<'a> {
         let ParseNodePayload::VerbatimBlock {
             subject,
             content_lines,
+            closing_data_tokens,
         } = payload;
 
-        let closing_node = node
-            .children
-            .into_iter()
-            .find(|child| child.node_type == NodeType::Annotation)
-            .expect("Missing closing annotation for verbatim block");
+        let closing_data = ast_api::data_from_tokens(closing_data_tokens, self.source);
 
-        let closing_annotation =
-            if let ContentItem::Annotation(ann) = self.build_annotation(closing_node) {
-                ann
-            } else {
-                panic!("Expected Annotation for verbatim block closing");
-            };
-
-        ast_api::verbatim_block_from_lines(
-            &subject,
-            &content_lines,
-            closing_annotation,
-            self.source,
-        )
+        ast_api::verbatim_block_from_lines(&subject, &content_lines, closing_data, self.source)
     }
 
     fn build_session_content(&self, nodes: Vec<ParseNode>) -> Vec<SessionContent> {

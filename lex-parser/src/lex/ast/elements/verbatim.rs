@@ -9,10 +9,10 @@
 //! Structure:
 //! - subject: The lead item identifying what the verbatim block contains
 //! - children: VerbatimLine nodes containing the actual content (can be empty)
-//! - closing_annotation: The closing marker (format: `::label::`)
+//! - closing_data: The closing marker (format: `:: label params?`)
 //!
-//! The subject introduces what the content is, and the closing annotation terminates the block.
-//! The annotation can take any valid annotation form, and the label is user defined. As a convention
+//! The subject introduces what the content is, and the closing data terminates the block.
+//! The data node carries the label/parameters describing the payload. As a convention
 //! though, if the content is to be interpreted by a tool, the label should be the name of the tool/language.
 //! While the lex software will not parse the content, it will preserve it exactly as it is, and can be used
 //! to format the content in editors and other tools.
@@ -20,18 +20,19 @@
 //! Syntax:
 //! <subject-line>
 //! <indent> <content> ... any number of content elements
-//! <dedent>  <annotation>
+//! <dedent>  <data>
 //!
 //! Examples:
 //!     Images:
 //!         Sunset Photo:
-//!         :: image type=jpg, src=sunset.jpg :: As the sun sets over the ocean.
+//!             As the sun sets over the ocean.
+//!         :: image type=jpg, src=sunset.jpg
 //!     Code:
 //!         JavaScript Example:
 //!             function hello() {
 //!                 return "world";
 //!             }
-//!      :: javascript ::
+//!      :: javascript
 //!
 //! # Verbatim Groups
 //!
@@ -45,9 +46,9 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
-use super::annotation::Annotation;
 use super::container::VerbatimContainer;
 use super::content_item::ContentItem;
+use super::data::Data;
 use super::typed_content::VerbatimContent;
 use std::fmt;
 use std::slice;
@@ -68,9 +69,9 @@ pub struct Verbatim {
     pub subject: TextContent,
     /// Content lines of the first group (backwards-compatible direct access)
     pub children: VerbatimContainer,
-    /// Closing annotation shared by all groups
-    pub closing_annotation: Annotation,
-    /// Location spanning all groups and the closing annotation
+    /// Closing data shared by all groups
+    pub closing_data: Data,
+    /// Location spanning all groups and the closing data
     pub location: Range,
     /// The rendering mode of the verbatim block.
     pub mode: VerbatimBlockMode,
@@ -86,35 +87,35 @@ impl Verbatim {
     pub fn new(
         subject: TextContent,
         children: Vec<VerbatimContent>,
-        closing_annotation: Annotation,
+        closing_data: Data,
         mode: VerbatimBlockMode,
     ) -> Self {
         Self {
             subject,
             children: VerbatimContainer::from_typed(children),
-            closing_annotation,
+            closing_data,
             location: Self::default_location(),
             mode,
             additional_groups: Vec::new(),
         }
     }
 
-    pub fn with_subject(subject: String, closing_annotation: Annotation) -> Self {
+    pub fn with_subject(subject: String, closing_data: Data) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
             children: VerbatimContainer::empty(),
-            closing_annotation,
+            closing_data,
             location: Self::default_location(),
             mode: VerbatimBlockMode::Inflow,
             additional_groups: Vec::new(),
         }
     }
 
-    pub fn marker(subject: String, closing_annotation: Annotation) -> Self {
+    pub fn marker(subject: String, closing_data: Data) -> Self {
         Self {
             subject: TextContent::from_string(subject, None),
             children: VerbatimContainer::empty(),
-            closing_annotation,
+            closing_data,
             location: Self::default_location(),
             mode: VerbatimBlockMode::Inflow,
             additional_groups: Vec::new(),
@@ -197,7 +198,7 @@ impl fmt::Display for Verbatim {
             self.subject.as_string(),
             group_count,
             group_word,
-            self.closing_annotation.label.value
+            self.closing_data.label.value
         )
     }
 }

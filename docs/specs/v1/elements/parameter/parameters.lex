@@ -2,7 +2,7 @@ Parameters
 
 Introduction
 
-	Parameters are a component of annotations (not standalone elements). They provide structured metadata for tooling and are typically removed during publishing.
+	Parameters are a component of annotations (not standalone elements). They provide structured metadata for tooling and are typically removed during publishing. Every parameter list is anchored to a label; standalone parameter headers are invalid.
 
 Syntax
 
@@ -40,4 +40,4 @@ Examples
 	:: note severity=high ::
 	:: warning type=critical, id=123 ::
 	:: author name="Jane Doe" ::
-	:: version=3.11 :: (params-only annotation, no label)
+	:: meta version=3.11 :: (labels remain mandatory; meta carries the identity)

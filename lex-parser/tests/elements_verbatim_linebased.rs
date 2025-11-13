@@ -30,7 +30,7 @@ fn test_verbatim_01_flat_simple_code() {
 
 #[test]
 fn test_verbatim_02_flat_with_caption() {
-    // verbatim-02-flat-with-caption.lex: Verbatim block with caption in closing annotation
+    // verbatim-02-flat-with-caption.lex: Verbatim block with caption stored as content before closing data
     let source = Lexplore::verbatim(2).source();
     let doc = lex_parser::lex::parsing::parse_document(&source).unwrap();
 
@@ -44,7 +44,7 @@ fn test_verbatim_02_flat_with_caption() {
 
 #[test]
 fn test_verbatim_03_flat_with_params() {
-    // verbatim-03-flat-with-params.lex: Verbatim with parameters in closing annotation
+    // verbatim-03-flat-with-params.lex: Verbatim with parameters in closing data
     let source = Lexplore::verbatim(3).source();
     let doc = lex_parser::lex::parsing::parse_document(&source).unwrap();
 
@@ -59,8 +59,7 @@ fn test_verbatim_03_flat_with_params() {
 
 #[test]
 fn test_verbatim_04_flat_marker_form() {
-    // verbatim-04-flat-marker-form.lex: Single-line marker-style verbatim
-    // Note: In marker form, content after closing :: is part of the annotation, not verbatim content
+    // verbatim-04-flat-marker-form.lex: Marker-style verbatim with descriptive content
     let source = Lexplore::verbatim(4).source();
     let doc = lex_parser::lex::parsing::parse_document(&source).unwrap();
 
@@ -69,7 +68,8 @@ fn test_verbatim_04_flat_marker_form() {
             .subject("Sunset Photo")
             .closing_label("image")
             .has_closing_parameter_with_value("src", "sunset.jpg")
-            .line_count(0); // Marker form has no content lines
+            .content_contains("As the sun sets over the ocean.")
+            .line_count(1);
     });
 }
 

@@ -18,23 +18,23 @@ Annotations And Metadata in Lex
 
 	3.1. Primary Rule: Prefix Attachment
 
-		An annotation attaches to the content element it immediately precedes, with no blank lines between them. This "prefix" model makes the author's intent explicit and removes ambiguity.
+		An annotation attaches to the content element it immediately precedes, with  blank lines being discoureged (hence not shown in documentation ) but allowed between them. This "prefix" model makes the author's intent explicit and removes ambiguity.
 
 		Example: Attaching to a Paragraph
-			:: author="John Doe" ::
+			:: note author="John Doe" ::
 			This is the paragraph being annotated.
-		:: lex ::
+		:: lex 
 
 		Example: Attaching to a Session
-			:: review-status="draft" ::
+			:: session review_status="draft" ::
 			1. My Session Title
 
 			    Content of the session.
-		:: lex ::
+		:: lex 
 
 	3.2. Graceful Degradation: Orphaned Annotations
 
-		Lex is designed to be forgiving. If an annotation does not immediately precede a content element (e.g., it is followed by a blank line or is the last item in a container), it is not discarded. Instead, it becomes an "orphaned" annotation.
+		Lex is designed to be forgiving. If an annotation does not immediately precede a content element (e.g., it is the last item in a container), it is to be attached to the parent container.
 
 		Orphaned annotations are attached to the `annotations` field of their immediate parent container (e.g., a Session, List Item, or the root Document). This preserves the metadata and allows tooling to identify and potentially flag misplaced annotations without causing a parse failure.
 
@@ -43,12 +43,12 @@ Annotations And Metadata in Lex
 
 			    A paragraph inside the session.
 
-			    :: status="misplaced" ::
+			    :: note status="misplaced" ::
 
 			    Another paragraph.
 		:: lex ::
 
-		In this case, the `:: status="misplaced" ::` annotation is separated by a blank line from the following paragraph. It will be attached as an "orphaned" annotation to the `Session` node itself.
+		In this case, the `:: note status="misplaced" ::` annotation is separated by a blank line from the following paragraph. It will be attached as an "orphaned" annotation to the `Session` node itself.
 
 	3.3. Special Cases
 

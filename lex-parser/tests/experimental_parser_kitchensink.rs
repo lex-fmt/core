@@ -95,7 +95,7 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
         ContentItem::Annotation(a) => {
             let mut result = format!(
                 "Annotation with {} parameter(s) and {} content item(s):\n",
-                a.parameters.len(),
+                a.data.parameters.len(),
                 a.children.len()
             );
             if !a.children.is_empty() {

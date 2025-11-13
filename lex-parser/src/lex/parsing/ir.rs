@@ -27,10 +27,11 @@ pub enum NodeType {
 /// Additional payload carried by specific parse nodes.
 #[derive(Debug, Clone)]
 pub enum ParseNodePayload {
-    /// Raw line tokens needed to build a verbatim block (subject + content lines)
+    /// Raw line tokens needed to build a verbatim block (subject + content lines + closing data)
     VerbatimBlock {
         subject: LineToken,
         content_lines: Vec<LineToken>,
+        closing_data_tokens: Vec<TokenLocation>,
     },
 }
 

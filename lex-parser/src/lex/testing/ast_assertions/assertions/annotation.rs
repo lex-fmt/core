@@ -1,5 +1,6 @@
 //! Annotation assertions
 
+use super::data::DataAssertion;
 use super::summarize_items;
 use crate::lex::ast::traits::Container;
 use crate::lex::ast::Annotation;
@@ -12,7 +13,7 @@ pub struct AnnotationAssertion<'a> {
 
 impl<'a> AnnotationAssertion<'a> {
     pub fn label(self, expected: &str) -> Self {
-        let actual = &self.annotation.label.value;
+        let actual = &self.annotation.data.label.value;
         assert_eq!(
             actual, expected,
             "{}: Expected annotation label to be '{}', but got '{}'",
@@ -20,8 +21,18 @@ impl<'a> AnnotationAssertion<'a> {
         );
         self
     }
+    pub fn data<F>(self, assertion: F) -> Self
+    where
+        F: FnOnce(DataAssertion<'a>),
+    {
+        assertion(DataAssertion {
+            data: &self.annotation.data,
+            context: format!("{}:data", self.context),
+        });
+        self
+    }
     pub fn parameter_count(self, expected: usize) -> Self {
-        let actual = self.annotation.parameters.len();
+        let actual = self.annotation.data.parameters.len();
         assert_eq!(
             actual, expected,
             "{}: Expected {} parameters, found {} parameters",
@@ -32,13 +43,14 @@ impl<'a> AnnotationAssertion<'a> {
 
     /// Assert that a parameter with the given key exists (any value)
     pub fn has_parameter(self, key: &str) -> Self {
-        let found = self.annotation.parameters.iter().any(|p| p.key == key);
+        let found = self.annotation.data.parameters.iter().any(|p| p.key == key);
         assert!(
             found,
             "{}: Expected parameter with key '{}' to exist, but found parameters: [{}]",
             self.context,
             key,
             self.annotation
+                .data
                 .parameters
                 .iter()
                 .map(|p| format!("{}={}", p.key, p.value))
@@ -50,13 +62,14 @@ impl<'a> AnnotationAssertion<'a> {
 
     /// Assert that a parameter with the given key does NOT exist
     pub fn no_parameter(self, key: &str) -> Self {
-        let found = self.annotation.parameters.iter().any(|p| p.key == key);
+        let found = self.annotation.data.parameters.iter().any(|p| p.key == key);
         assert!(
             !found,
             "{}: Expected no parameter with key '{}', but found it with value '{}'",
             self.context,
             key,
             self.annotation
+                .data
                 .parameters
                 .iter()
                 .find(|p| p.key == key)
@@ -68,7 +81,12 @@ impl<'a> AnnotationAssertion<'a> {
 
     /// Assert that a parameter with the given key has the expected value
     pub fn has_parameter_with_value(self, key: &str, value: &str) -> Self {
-        let param = self.annotation.parameters.iter().find(|p| p.key == key);
+        let param = self
+            .annotation
+            .data
+            .parameters
+            .iter()
+            .find(|p| p.key == key);
         match param {
             Some(p) => {
                 assert_eq!(
@@ -84,8 +102,9 @@ impl<'a> AnnotationAssertion<'a> {
                     key,
                     value,
                     key,
-                    self.annotation
-                        .parameters
+                        self.annotation
+                            .data
+                            .parameters
                         .iter()
                         .map(|p| format!("{}={}", p.key, p.value))
                         .collect::<Vec<_>>()
@@ -99,13 +118,13 @@ impl<'a> AnnotationAssertion<'a> {
     /// Assert on a specific parameter by index
     pub fn parameter(self, index: usize, expected_key: &str, expected_value: &str) -> Self {
         assert!(
-            index < self.annotation.parameters.len(),
+            index < self.annotation.data.parameters.len(),
             "{}: Parameter index {} out of bounds (annotation has {} parameters)",
             self.context,
             index,
-            self.annotation.parameters.len()
+            self.annotation.data.parameters.len()
         );
-        let param = &self.annotation.parameters[index];
+        let param = &self.annotation.data.parameters[index];
         assert_eq!(
             param.key, expected_key,
             "{}: Expected parameter[{}].key to be '{}', but got '{}'",
@@ -122,13 +141,13 @@ impl<'a> AnnotationAssertion<'a> {
     /// Assert that parameter at given index has the expected key (any value)
     pub fn parameter_key(self, index: usize, expected_key: &str) -> Self {
         assert!(
-            index < self.annotation.parameters.len(),
+            index < self.annotation.data.parameters.len(),
             "{}: Parameter index {} out of bounds (annotation has {} parameters)",
             self.context,
             index,
-            self.annotation.parameters.len()
+            self.annotation.data.parameters.len()
         );
-        let param = &self.annotation.parameters[index];
+        let param = &self.annotation.data.parameters[index];
         assert_eq!(
             param.key, expected_key,
             "{}: Expected parameter[{}].key to be '{}', but got '{}'",
@@ -175,7 +194,7 @@ impl<'a> AnnotationAssertion<'a> {
 mod tests {
     use super::*;
     use crate::lex::ast::range::{Position, Range};
-    use crate::lex::ast::{Label, Parameter};
+    use crate::lex::ast::{Data, Label, Parameter};
 
     fn create_test_annotation(label: &str, parameters: Vec<(&str, &str)>) -> Annotation {
         let location = Range::new(0..0, Position::new(0, 0), Position::new(0, 10));
@@ -188,18 +207,14 @@ mod tests {
                 location: location.clone(),
             })
             .collect();
-        Annotation {
-            label,
-            parameters,
-            children: crate::lex::ast::elements::container::GeneralContainer::empty(),
-            location,
-        }
+        let data = Data::new(label, parameters).at(location.clone());
+        Annotation::from_data(data, Vec::new()).at(location)
     }
 
     #[test]
     fn test_annotation_label_assertion() {
         let annotation = create_test_annotation("test", vec![]);
-        assert_eq!(annotation.label.value, "test");
+        assert_eq!(annotation.data.label.value, "test");
 
         let annotation_assertion = AnnotationAssertion {
             annotation: &annotation,
@@ -222,7 +237,7 @@ mod tests {
     #[test]
     fn test_parameter_count_assertion() {
         let annotation = create_test_annotation("test", vec![("key1", "val1"), ("key2", "val2")]);
-        assert_eq!(annotation.parameters.len(), 2);
+        assert_eq!(annotation.data.parameters.len(), 2);
 
         let annotation_assertion = AnnotationAssertion {
             annotation: &annotation,
@@ -245,7 +260,7 @@ mod tests {
     #[test]
     fn test_has_parameter_assertion() {
         let annotation = create_test_annotation("test", vec![("foo", "bar"), ("baz", "qux")]);
-        assert!(annotation.parameters.iter().any(|p| p.key == "foo"));
+        assert!(annotation.data.parameters.iter().any(|p| p.key == "foo"));
 
         let annotation_assertion = AnnotationAssertion {
             annotation: &annotation,
@@ -268,7 +283,11 @@ mod tests {
     #[test]
     fn test_no_parameter_assertion() {
         let annotation = create_test_annotation("test", vec![("foo", "bar")]);
-        assert!(!annotation.parameters.iter().any(|p| p.key == "missing"));
+        assert!(!annotation
+            .data
+            .parameters
+            .iter()
+            .any(|p| p.key == "missing"));
 
         let annotation_assertion = AnnotationAssertion {
             annotation: &annotation,
@@ -291,7 +310,7 @@ mod tests {
     #[test]
     fn test_has_parameter_with_value_assertion() {
         let annotation = create_test_annotation("test", vec![("key", "value"), ("other", "data")]);
-        let param = annotation.parameters.iter().find(|p| p.key == "key");
+        let param = annotation.data.parameters.iter().find(|p| p.key == "key");
         assert!(param.is_some());
         assert_eq!(param.unwrap().value, "value");
 
@@ -327,10 +346,10 @@ mod tests {
     #[test]
     fn test_parameter_by_index_assertion() {
         let annotation = create_test_annotation("test", vec![("first", "1"), ("second", "2")]);
-        assert_eq!(annotation.parameters[0].key, "first");
-        assert_eq!(annotation.parameters[0].value, "1");
-        assert_eq!(annotation.parameters[1].key, "second");
-        assert_eq!(annotation.parameters[1].value, "2");
+        assert_eq!(annotation.data.parameters[0].key, "first");
+        assert_eq!(annotation.data.parameters[0].value, "1");
+        assert_eq!(annotation.data.parameters[1].key, "second");
+        assert_eq!(annotation.data.parameters[1].value, "2");
 
         let annotation_assertion = AnnotationAssertion {
             annotation: &annotation,
@@ -377,8 +396,8 @@ mod tests {
     #[test]
     fn test_parameter_key_by_index_assertion() {
         let annotation = create_test_annotation("test", vec![("key1", "val1"), ("key2", "val2")]);
-        assert_eq!(annotation.parameters[0].key, "key1");
-        assert_eq!(annotation.parameters[1].key, "key2");
+        assert_eq!(annotation.data.parameters[0].key, "key1");
+        assert_eq!(annotation.data.parameters[1].key, "key2");
 
         let annotation_assertion = AnnotationAssertion {
             annotation: &annotation,

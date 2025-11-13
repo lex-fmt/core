@@ -28,8 +28,8 @@
 //!         :: note severity=high :: Check this carefully
 //!      Marker form (no content):
 //!         :: debug ::
-//!      Params-only:
-//!         :: type=python :: (params-only, no label)
+//!      Parameters augmenting the label:
+//!         :: meta type=python :: (parameters need an accompanying label)
 //!      Long Form:
 //!         :: label ::
 //!             John has reviewed this paragraph. Hence we're only lacking:
@@ -45,16 +45,16 @@ use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
 use super::container::GeneralContainer;
 use super::content_item::ContentItem;
+use super::data::Data;
 use super::label::Label;
 use super::parameter::Parameter;
 use super::typed_content::ContentElement;
 use std::fmt;
 
-/// An annotation represents some metadata about an ast element.
+/// An annotation represents some metadata about an AST element.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Annotation {
-    pub label: Label,
-    pub parameters: Vec<Parameter>,
+    pub data: Data,
     pub children: GeneralContainer,
     pub location: Range,
 }
@@ -64,26 +64,19 @@ impl Annotation {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
     pub fn new(label: Label, parameters: Vec<Parameter>, children: Vec<ContentElement>) -> Self {
-        Self {
-            label,
-            parameters,
-            children: GeneralContainer::from_typed(children),
-            location: Self::default_location(),
-        }
+        let data = Data::new(label, parameters);
+        Self::from_data(data, children)
     }
     pub fn marker(label: Label) -> Self {
-        Self {
-            label,
-            parameters: Vec::new(),
-            children: GeneralContainer::empty(),
-            location: Self::default_location(),
-        }
+        Self::from_data(Data::new(label, Vec::new()), Vec::new())
     }
     pub fn with_parameters(label: Label, parameters: Vec<Parameter>) -> Self {
+        Self::from_data(Data::new(label, parameters), Vec::new())
+    }
+    pub fn from_data(data: Data, children: Vec<ContentElement>) -> Self {
         Self {
-            label,
-            parameters,
-            children: GeneralContainer::empty(),
+            data,
+            children: GeneralContainer::from_typed(children),
             location: Self::default_location(),
         }
     }
@@ -100,10 +93,14 @@ impl AstNode for Annotation {
         "Annotation"
     }
     fn display_label(&self) -> String {
-        if self.parameters.is_empty() {
-            self.label.value.clone()
+        if self.data.parameters.is_empty() {
+            self.data.label.value.clone()
         } else {
-            format!("{} ({} params)", self.label.value, self.parameters.len())
+            format!(
+                "{} ({} params)",
+                self.data.label.value,
+                self.data.parameters.len()
+            )
         }
     }
     fn range(&self) -> &Range {
@@ -118,7 +115,7 @@ impl AstNode for Annotation {
 
 impl Container for Annotation {
     fn label(&self) -> &str {
-        &self.label.value
+        &self.data.label.value
     }
     fn children(&self) -> &[ContentItem] {
         &self.children
@@ -133,8 +130,8 @@ impl fmt::Display for Annotation {
         write!(
             f,
             "Annotation('{}', {} params, {} items)",
-            self.label.value,
-            self.parameters.len(),
+            self.data.label.value,
+            self.data.parameters.len(),
             self.children.len()
         )
     }

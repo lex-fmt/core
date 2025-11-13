@@ -178,28 +178,32 @@ Grammar for lex
                 Used to close annotation blocks and verbatim blocks.
 
             3. annotation-start-line:
-                <annotation-start-line> = <indent>? <lex-marker> <whitespace> (<label> <whitespace>)? <parameters>? <whitespace> <lex-marker> <whitespace>* <line-break>
-                Follows annotation grammar: starts with ::, has optional label and/or parameters, ends with ::
+                <annotation-start-line> = <indent>? <data> <whitespace> <lex-marker> <whitespace>* <line-break>
+                Follows annotation grammar: starts with :: data payload, ends with ::
                 Can have optional trailing content after closing marker.
 
-            4. subject-or-list-item-line:
+            4. data-line:
+                <data-line> = <indent>? <data> <whitespace>* <line-break>
+                Header-only lines (no closing ::). Classification must check for annotation-start-line first to avoid mislabeling.
+
+            5. subject-or-list-item-line:
                 <subject-or-list-item-line> = <indent>? <list-marker> <whitespace> <text-span>+ <colon> <line-break>
                 A line that starts with a list marker AND ends with a colon.
                 Example: "1. This is a list item or subject:"
                 Note: Classification prefers list-marker over colon when both are present.
 
-            5. list-item-line:
+            6. list-item-line:
                 <list-item-line> = <indent>? <list-marker> <whitespace> <text-span>+ <line-break>
                 Starts with a list marker (dash, number with period/paren, letter, or Roman numeral) followed by whitespace.
                 Does NOT end with a colon.
                 <list-marker> = <dash> | (<number> | <letter> | <roman-numeral>) (<period> | <close-paren>)
 
-            6. subject-line:
+            7. subject-line:
                 <subject-line> = <indent>? <text-span>+ <colon> <line-break>
                 Any line ending with a colon, except those starting with a list marker.
                 Used for definitions, sessions, and subjects.
 
-            7. content-line (paragraph fallback):
+            8. content-line (paragraph fallback):
                 <content-line> = <indent>? <text-span>+ <line-break>
                 Any non-blank line that doesn't match the above patterns.
                 Forms paragraphs when consecutive.
@@ -226,9 +230,9 @@ Grammar for lex
 
     These are the core elements of lex: annotations, lists, definitions, sessions, verbatim blocks, and paragraphs:
 
-    <annotation> = <annotation-marker> <annotation-header> <annotation-marker> <annotation-tail>?
+    <data> = <lex-marker> <whitespace> <label> (<whitespace> <parameters>)?
+    <annotation> = <data> <annotation-marker> <annotation-tail>?
     <annotation-marker> = "::"
-    <annotation-header> = (<label> <parameters>?) | <parameters>
     <label> = <letter> (<letter> | <digit> | "_" | "-" | ".")*
     <parameters> = <parameter> ("," <parameter>)*
     <parameter> = <key> "=" <value>
@@ -242,9 +246,8 @@ Grammar for lex
     - Marker form: :: label :: (no content, no tail)
     - Single-line form: :: label :: inline text (text is the tail)
     - Block form: :: label :: \n <indent>content<dedent> :: (note TWO closing :: markers)
-    - Parameters-only: :: params :: (no label)
     - Combined: :: label params :: inline text
-    Either label or parameters must be present (or both).
+    Labels are mandatory; parameters are optional.
     Content cannot include sessions or nested annotations.
 
     <list> = <blank-line> <list-item-line>{2,*}
@@ -298,10 +301,9 @@ Grammar for lex
         - Marker form: :: label :: (empty, no content)
         - Single-line form: :: label :: inline text
         - Block form: :: label :: <newline> <indent>content<dedent> ::
-        - Parameters-only: :: params :: (no label required)
+        - Combined form with parameters still requires labels
 
-        Clarification: The grammar says "Either label or parameters must be present (or both)".
-        Implementation enforces this - both cannot be absent.
+        Clarification: Earlier revisions allowed parameter-only annotations; the grammar now factors the shared :: label params? portion into <data> so other elements can embed the same payload while keeping labels mandatory.
 
         Constraint verification: Content cannot include sessions or nested annotations (enforced).
 
@@ -358,12 +360,11 @@ Grammar for lex
 
         What the spec says:
         - Two forms: block form (with indented content) and marker form (no content)
-        - Closing annotation is listed as <closing-annotation> with optional content
+        - Closing data is listed as <closing-data> (reusable data node syntax)
 
         What implementation clarifies:
-        - Closing annotation MUST be present (not truly optional, grammar is slightly misleading)
-        - The closing annotation can include trailing text after the second :: marker
-        - This trailing text becomes part of the annotation, not separate paragraph content
+        - Closing data MUST be present (not optional)
+        - Descriptive text belongs inside the block content, not after the closing data line
         - Content is NOT parsed (preserves raw whitespace/formatting exactly)
 
         Indentation Wall rule: Correctly enforced - content must be indented deeper than subject.

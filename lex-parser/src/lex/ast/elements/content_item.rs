@@ -397,8 +397,8 @@ impl fmt::Display for ContentItem {
             ContentItem::Annotation(a) => write!(
                 f,
                 "Annotation('{}', {} params, {} items)",
-                a.label.value,
-                a.parameters.len(),
+                a.data.label.value,
+                a.data.parameters.len(),
                 a.children.len()
             ),
             ContentItem::VerbatimBlock(fb) => {
