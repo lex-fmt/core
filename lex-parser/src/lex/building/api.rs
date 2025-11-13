@@ -272,7 +272,7 @@ pub fn build_verbatim_block(
 // NORMALIZED TOKEN API (tokens already normalized)
 // ============================================================================
 //
-// Some callers (e.g., the linebased parser's unwrappers) already work with
+// Some callers (e.g., the parser's unwrappers) already work with
 // normalized Vec<(Token, Range)> sequences. These helpers skip the
 // normalization pass and go straight to data extraction/AST creation.
 

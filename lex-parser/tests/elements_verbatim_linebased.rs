@@ -1,4 +1,4 @@
-//! Unit tests for isolated verbatim elements using linebased parser
+//! Unit tests for isolated verbatim elements using the parser
 //!
 //! Tests verbatim block parsing in isolation following the on-lexplore.lex guidelines:
 //! - Use Lexplore to load centralized test files
@@ -285,7 +285,7 @@ fn test_verbatim_10_flat_simple_empty() {
 }
 
 // Note: verbatim-11-group-shell.lex is tested as part of the document-level tests.
-// The linebased parser should handle verbatim groups consistently with previous expectations.
+// The parser should handle verbatim groups consistently with previous expectations.
 // If verbatim groups work in one context, they should work everywhere.
 
 #[test]

@@ -1,7 +1,6 @@
-//! Integration tests for the linebased parser.
+//! Integration tests for the parser.
 //!
-//! Regression suite focused on the linebased parser implementation.
-//! to verify how many tests pass with the linebased parser implementation.
+//! Regression suite focused on the parser implementation.
 
 use lex_parser::lex::parsing::parse_document;
 use lex_parser::lex::testing::assert_ast;

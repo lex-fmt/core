@@ -102,13 +102,13 @@ impl ElementLoader {
             .unwrap_or_else(|e| panic!("Failed to read {}: {}", path.display(), e))
     }
 
-    /// Parse with the linebased parser (shorthand)
+    /// Parse with the parser (shorthand)
     pub fn parse(self) -> Document {
         let source = self.source();
         parse_document(&source).unwrap()
     }
 
-    /// Tokenize with the linebased parser (shorthand)
+    /// Tokenize with the parser (shorthand)
     pub fn tokenize(self) -> Vec<(Token, std::ops::Range<usize>)> {
         let source = self.source();
         let tokens = crate::lex::lexing::tokenize(&source);
