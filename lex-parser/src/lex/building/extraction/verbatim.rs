@@ -401,4 +401,61 @@ mod tests {
         assert_eq!(data.groups[1].subject_text, "Another block");
         assert_eq!(data.groups[1].content_lines[0].0, "inner body");
     }
+
+    #[test]
+    fn detects_fullwidth_at_exact_boundary() {
+        // Test that content at exactly column index 1 (FULLWIDTH_INDENT_COLUMN) triggers fullwidth
+        let mut builder = SourceBuilder::new();
+        let subject = subject_line(&mut builder, 0, "Boundary Test");
+        let content = content_line(&mut builder, FULLWIDTH_INDENT_COLUMN, "At exact boundary");
+
+        let data = extract_verbatim_block_data(&subject, &[content], &builder.text);
+
+        assert_eq!(data.mode, VerbatimBlockMode::Fullwidth);
+        assert_eq!(data.groups[0].content_lines[0].0, "At exact boundary");
+    }
+
+    #[test]
+    fn detects_inflow_at_column_2() {
+        // Test that content at column 2 or beyond triggers inflow mode
+        let mut builder = SourceBuilder::new();
+        let subject = subject_line(&mut builder, 0, "Inflow Test");
+        // Column 2 (index 2, which is > FULLWIDTH_INDENT_COLUMN)
+        let content = content_line(&mut builder, 2, "Beyond fullwidth boundary");
+
+        let data = extract_verbatim_block_data(&subject, &[content], &builder.text);
+
+        assert_eq!(data.mode, VerbatimBlockMode::Inflow);
+    }
+
+    #[test]
+    fn detects_inflow_at_standard_indent() {
+        // Test inflow mode with standard 4-space indent after root-level subject
+        let mut builder = SourceBuilder::new();
+        let subject = subject_line(&mut builder, 0, "Standard Test");
+        // Subject at column 0, so inflow content should be at column 4
+        let content = content_line(&mut builder, INFLOW_INDENT_STEP_COLUMNS, "Standard indent");
+
+        let data = extract_verbatim_block_data(&subject, &[content], &builder.text);
+
+        assert_eq!(data.mode, VerbatimBlockMode::Inflow);
+        assert_eq!(data.groups[0].content_lines[0].0, "Standard indent");
+    }
+
+    #[test]
+    fn detects_mode_skips_blank_lines() {
+        // Test that mode detection skips blank lines to find first content
+        let mut builder = SourceBuilder::new();
+        let subject = subject_line(&mut builder, 0, "With Blanks");
+        let blank1 = content_line(&mut builder, 0, "");
+        let blank2 = content_line(&mut builder, 0, "");
+        let content = content_line(&mut builder, FULLWIDTH_INDENT_COLUMN, "First real content");
+
+        let data = extract_verbatim_block_data(&subject, &[blank1, blank2, content], &builder.text);
+
+        assert_eq!(data.mode, VerbatimBlockMode::Fullwidth);
+        // Blank lines should be included but empty
+        assert_eq!(data.groups[0].content_lines.len(), 3);
+        assert_eq!(data.groups[0].content_lines[2].0, "First real content");
+    }
 }
