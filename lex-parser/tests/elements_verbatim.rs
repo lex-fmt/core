@@ -6,6 +6,7 @@
 //! - Test isolated elements (one element per test)
 //! - Verify content and structure, not just counts
 
+use lex_parser::lex::ast::elements::verbatim::VerbatimBlockMode;
 use lex_parser::lex::ast::AstNode;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
@@ -311,6 +312,51 @@ fn test_verbatim_13_group_spades() {
         item.assert_paragraph().text_contains(
             "Note that verbatim blocks conetents can have any number of blank lines",
         );
+    });
+}
+
+#[test]
+fn test_verbatim_14_fullwidth_table() {
+    // verbatim-14-fullwidth.lex: Fullwidth block starting near the left margin
+    let doc = Lexplore::verbatim(14).parse();
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_verbatim_block()
+            .subject("Fullwidth Table Example")
+            .mode(VerbatimBlockMode::Fullwidth)
+            .line_count(4)
+            .content_contains("Header | Value | Notes")
+            .content_contains("Beta   | 25    | extended range");
+    });
+}
+
+#[test]
+fn test_verbatim_16_fullwidth_at_root() {
+    // verbatim-16-fullwidth-nested.lex: Fullwidth verbatim at root level
+    // Demonstrates fullwidth mode works correctly with other root-level elements
+    let doc = Lexplore::verbatim(16).parse();
+
+    assert_ast(&doc).item_count(3); // para before, verbatim, para after
+
+    // First: paragraph before
+    assert_ast(&doc).item(0, |item| {
+        item.assert_paragraph().text_contains("comes before");
+    });
+
+    // Second: fullwidth verbatim at root level
+    assert_ast(&doc).item(1, |item| {
+        item.assert_verbatim_block()
+            .subject("Fullwidth Table at Root")
+            .mode(VerbatimBlockMode::Fullwidth)
+            .closing_label("data")
+            .line_count(4) // table rows
+            .content_contains("ID | Name")
+            .content_contains("Alice");
+    });
+
+    // Third: paragraph after verbatim
+    assert_ast(&doc).item(2, |item| {
+        item.assert_paragraph().text_contains("comes after");
     });
 }
 
