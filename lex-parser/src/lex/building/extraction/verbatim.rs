@@ -458,4 +458,82 @@ mod tests {
         assert_eq!(data.groups[0].content_lines.len(), 3);
         assert_eq!(data.groups[0].content_lines[2].0, "First real content");
     }
+
+    #[test]
+    fn handles_tabs_in_fullwidth_content() {
+        // Test that tabs are properly counted as 4 columns (INFLOW_INDENT_STEP_COLUMNS)
+        let mut builder = SourceBuilder::new();
+        let subject = subject_line(&mut builder, 0, "Tab Test");
+
+        // Create content with a tab character - tab should count as 4 columns
+        // For fullwidth to trigger, content must start at column 1
+        // A single space (column 1) followed by text should trigger fullwidth
+        let mut parts = Vec::new();
+        let range = builder.push(" "); // Single space at column 1
+        parts.push((Token::Whitespace, range));
+        let range = builder.push("Content\twith\ttabs");
+        parts.push((Token::Text("Content\twith\ttabs".to_string()), range));
+        let range = builder.push("\n");
+        parts.push((Token::BlankLine(Some("\n".to_string())), range));
+        let content = line_token(LineType::ParagraphLine, parts);
+
+        let data = extract_verbatim_block_data(&subject, &[content], &builder.text);
+
+        assert_eq!(data.mode, VerbatimBlockMode::Fullwidth);
+        assert_eq!(data.groups[0].content_lines[0].0, "Content\twith\ttabs");
+    }
+
+    #[test]
+    fn handles_empty_fullwidth_block() {
+        // Test fullwidth block with no content (only blank lines before annotation)
+        let mut builder = SourceBuilder::new();
+        let subject = subject_line(&mut builder, 0, "Empty Fullwidth");
+
+        // No content lines - the annotation would follow immediately
+        let data = extract_verbatim_block_data(&subject, &[], &builder.text);
+
+        // With no content, defaults to Inflow mode (since no line to detect from)
+        assert_eq!(data.mode, VerbatimBlockMode::Inflow);
+        assert_eq!(data.groups.len(), 1);
+        assert_eq!(data.groups[0].content_lines.len(), 0);
+    }
+
+    #[test]
+    fn handles_fullwidth_with_only_blank_lines() {
+        // Test fullwidth block where all content lines are blank
+        let mut builder = SourceBuilder::new();
+        let subject = subject_line(&mut builder, 0, "All Blanks");
+        let blank1 = content_line(&mut builder, 0, "");
+        let blank2 = content_line(&mut builder, 0, "");
+        let blank3 = content_line(&mut builder, 0, "");
+
+        let data = extract_verbatim_block_data(&subject, &[blank1, blank2, blank3], &builder.text);
+
+        // All blank lines means no real content to detect mode from, defaults to Inflow
+        assert_eq!(data.mode, VerbatimBlockMode::Inflow);
+        assert_eq!(data.groups[0].content_lines.len(), 3);
+    }
+
+    #[test]
+    fn handles_tab_indentation_in_inflow_mode() {
+        // Test that tabs work correctly in inflow mode
+        // A tab should count as 4 columns (INFLOW_INDENT_STEP_COLUMNS)
+        let mut builder = SourceBuilder::new();
+        let subject = subject_line(&mut builder, 0, "Tab Inflow");
+
+        // Create content with tabs that add up to inflow indent (4 columns)
+        let mut parts = Vec::new();
+        let range = builder.push("\t"); // Tab = 4 columns
+        parts.push((Token::Indentation, range));
+        let range = builder.push("Tabbed content");
+        parts.push((Token::Text("Tabbed content".to_string()), range));
+        let range = builder.push("\n");
+        parts.push((Token::BlankLine(Some("\n".to_string())), range));
+        let content = line_token(LineType::ParagraphLine, parts);
+
+        let data = extract_verbatim_block_data(&subject, &[content], &builder.text);
+
+        assert_eq!(data.mode, VerbatimBlockMode::Inflow);
+        assert_eq!(data.groups[0].content_lines[0].0, "Tabbed content");
+    }
 }
