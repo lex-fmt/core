@@ -378,7 +378,7 @@ mod tests {
             ContentItem::Paragraph(para2),
         ]);
 
-        let result = doc.element_at(Position::new(1, 3));
+        let result = doc.root.element_at(Position::new(1, 3));
         // We get the deepest element: TextLine
         assert!(result.is_some(), "Expected to find element at position");
         assert!(
@@ -434,10 +434,10 @@ mod tests {
         ]);
 
         // Direct iteration should only find top-level paragraph
-        assert_eq!(doc.iter_paragraphs().count(), 1);
+        assert_eq!(doc.root.iter_paragraphs().count(), 1);
 
         // Recursive iteration should find all 3 paragraphs
-        let paragraphs: Vec<_> = doc.iter_paragraphs_recursive().collect();
+        let paragraphs: Vec<_> = doc.root.iter_paragraphs_recursive().collect();
         assert_eq!(paragraphs.len(), 3);
     }
 
@@ -452,10 +452,10 @@ mod tests {
         let doc = Document::with_content(vec![ContentItem::Session(outer_session)]);
 
         // Direct iteration finds 1 session
-        assert_eq!(doc.iter_sessions().count(), 1);
+        assert_eq!(doc.root.iter_sessions().count(), 1);
 
         // Recursive iteration finds both sessions
-        assert_eq!(doc.iter_sessions_recursive().count(), 2);
+        assert_eq!(doc.root.iter_sessions_recursive().count(), 2);
     }
 
     #[test]
@@ -478,7 +478,7 @@ mod tests {
             ContentItem::Session(outer_session),
         ]);
 
-        let nodes_with_depth: Vec<_> = doc.iter_all_nodes_with_depth().collect();
+        let nodes_with_depth: Vec<_> = doc.root.iter_all_nodes_with_depth().collect();
 
         // Should have: paragraph(0), paragraph's TextLine(1), outer_session(0),
         // inner_session(1), deep_paragraph(2), deep_paragraph's TextLine(3)
@@ -528,11 +528,11 @@ mod tests {
         ]);
 
         // Example 1: Find all paragraphs recursively (previously required custom visitor)
-        let all_paragraphs: Vec<_> = doc.iter_paragraphs_recursive().collect();
+        let all_paragraphs: Vec<_> = doc.root.iter_paragraphs_recursive().collect();
         assert_eq!(all_paragraphs.len(), 4); // preamble, intro, nested, advanced
 
         // Example 2: Find all sessions recursively
-        let all_sessions: Vec<_> = doc.iter_sessions_recursive().collect();
+        let all_sessions: Vec<_> = doc.root.iter_sessions_recursive().collect();
         assert_eq!(all_sessions.len(), 3); // chapter1, section1.1, chapter2
 
         // Example 3: Filter paragraphs by content using iterator combinators
@@ -598,15 +598,15 @@ mod tests {
         ]);
 
         // Find paragraphs starting with "Hello"
-        let hello_paras = doc.find_paragraphs(|p| p.text().starts_with("Hello"));
+        let hello_paras = doc.root.find_paragraphs(|p| p.text().starts_with("Hello"));
         assert_eq!(hello_paras.len(), 2);
 
         // Find paragraphs containing "Goodbye"
-        let goodbye_paras = doc.find_paragraphs(|p| p.text().contains("Goodbye"));
+        let goodbye_paras = doc.root.find_paragraphs(|p| p.text().contains("Goodbye"));
         assert_eq!(goodbye_paras.len(), 1);
 
         // Find paragraphs with more than 12 characters
-        let long_paras = doc.find_paragraphs(|p| p.text().len() > 12);
+        let long_paras = doc.root.find_paragraphs(|p| p.text().len() > 12);
         assert_eq!(long_paras.len(), 2); // "Hello, world!" (13) and "Goodbye, world!" (15)
     }
 
@@ -624,15 +624,21 @@ mod tests {
         ]);
 
         // Find sessions with "Chapter" in title
-        let chapters = doc.find_sessions(|s| s.title.as_string().contains("Chapter"));
+        let chapters = doc
+            .root
+            .find_sessions(|s| s.title.as_string().contains("Chapter"));
         assert_eq!(chapters.len(), 2);
 
         // Find sessions with "Section" in title
-        let sections = doc.find_sessions(|s| s.title.as_string().contains("Section"));
+        let sections = doc
+            .root
+            .find_sessions(|s| s.title.as_string().contains("Section"));
         assert_eq!(sections.len(), 1);
 
         // Find sessions with "Advanced" in title
-        let advanced = doc.find_sessions(|s| s.title.as_string().contains("Advanced"));
+        let advanced = doc
+            .root
+            .find_sessions(|s| s.title.as_string().contains("Advanced"));
         assert_eq!(advanced.len(), 1);
     }
 
@@ -661,14 +667,14 @@ mod tests {
         ]);
 
         // Find sessions with more than 2 children
-        let big_sessions = doc.find_nodes(|node| {
+        let big_sessions = doc.root.find_nodes(|node| {
             matches!(node, ContentItem::Session(_))
                 && node.children().map(|c| c.len() > 2).unwrap_or(false)
         });
         assert_eq!(big_sessions.len(), 1);
 
         // Find all paragraphs (using generic predicate)
-        let all_paragraphs = doc.find_nodes(|node| node.is_paragraph());
+        let all_paragraphs = doc.root.find_nodes(|node| node.is_paragraph());
         assert_eq!(all_paragraphs.len(), 4); // top + 3 children
     }
 
@@ -694,15 +700,15 @@ mod tests {
         ]);
 
         // Find all depth 0 nodes
-        let depth_0 = doc.find_nodes_at_depth(0);
+        let depth_0 = doc.root.find_nodes_at_depth(0);
         assert_eq!(depth_0.len(), 2); // paragraph + session1
 
         // Find all depth 1 nodes (should have session2 at least)
-        let depth_1 = doc.find_nodes_at_depth(1);
+        let depth_1 = doc.root.find_nodes_at_depth(1);
         assert!(!depth_1.is_empty()); // at minimum session2
 
         // Find all depth 2 nodes (should have deep paragraph at least)
-        let depth_2 = doc.find_nodes_at_depth(2);
+        let depth_2 = doc.root.find_nodes_at_depth(2);
         assert!(!depth_2.is_empty()); // at minimum deep paragraph
     }
 
@@ -775,15 +781,15 @@ mod tests {
         ]);
 
         // Find nodes in range 0-1
-        let shallow = doc.find_nodes_in_depth_range(0, 1);
+        let shallow = doc.root.find_nodes_in_depth_range(0, 1);
         assert!(shallow.len() >= 2);
 
         // Find nodes in range 1-2
-        let mid_range = doc.find_nodes_in_depth_range(1, 2);
+        let mid_range = doc.root.find_nodes_in_depth_range(1, 2);
         assert!(mid_range.len() >= 2);
 
         // Find nodes in range 0-10 (should get everything)
-        let all = doc.find_nodes_in_depth_range(0, 10);
+        let all = doc.root.find_nodes_in_depth_range(0, 10);
         assert!(!all.is_empty());
     }
 
@@ -802,7 +808,7 @@ mod tests {
         ]);
 
         // Find paragraphs at depth 0 containing "Hello"
-        let depth_0_hello = doc.find_nodes_with_depth(0, |node| {
+        let depth_0_hello = doc.root.find_nodes_with_depth(0, |node| {
             node.as_paragraph()
                 .map(|p| p.text().contains("Hello"))
                 .unwrap_or(false)
@@ -810,7 +816,7 @@ mod tests {
         assert_eq!(depth_0_hello.len(), 1);
 
         // Find paragraphs at depth 1 containing "Hello"
-        let depth_1_hello = doc.find_nodes_with_depth(1, |node| {
+        let depth_1_hello = doc.root.find_nodes_with_depth(1, |node| {
             node.as_paragraph()
                 .map(|p| p.text().contains("Hello"))
                 .unwrap_or(false)
@@ -818,7 +824,7 @@ mod tests {
         assert_eq!(depth_1_hello.len(), 1);
 
         // Find sessions at depth 0
-        let depth_0_sessions = doc.find_nodes_with_depth(0, |node| node.is_session());
+        let depth_0_sessions = doc.root.find_nodes_with_depth(0, |node| node.is_session());
         assert_eq!(depth_0_sessions.len(), 1);
     }
 
@@ -887,7 +893,9 @@ mod tests {
         ]);
 
         // Example 1: Find paragraphs containing "advanced" (case-insensitive)
-        let advanced_paras = doc.find_paragraphs(|p| p.text().to_lowercase().contains("advanced"));
+        let advanced_paras = doc
+            .root
+            .find_paragraphs(|p| p.text().to_lowercase().contains("advanced"));
         assert_eq!(advanced_paras.len(), 1);
 
         // Example 2: Find chapters (sessions at depth 0 with "Chapter" in title)
@@ -907,22 +915,24 @@ mod tests {
         assert_eq!(subsections.len(), 2);
 
         // Example 4: Find all "Introduction" sections
-        let intro_sections = doc.find_sessions(|s| s.title.as_string().contains("Introduction"));
+        let intro_sections = doc
+            .root
+            .find_sessions(|s| s.title.as_string().contains("Introduction"));
         assert_eq!(intro_sections.len(), 1);
 
         // Example 5: Find paragraphs with greetings
-        let greeting_paras = doc.find_paragraphs(|p| {
+        let greeting_paras = doc.root.find_paragraphs(|p| {
             let text = p.text();
             text.contains("Hello") || text.contains("welcome")
         });
         assert_eq!(greeting_paras.len(), 1);
 
         // Example 6: Complex query - sessions with at least one child
-        let non_empty_sessions = doc.find_sessions(|s| !s.children.is_empty());
+        let non_empty_sessions = doc.root.find_sessions(|s| !s.children.is_empty());
         assert_eq!(non_empty_sessions.len(), 4); // all sessions have content
 
         // Example 7: Find nodes in mid-level depth range (1-2)
-        let mid_level = doc.find_nodes_in_depth_range(1, 2);
+        let mid_level = doc.root.find_nodes_in_depth_range(1, 2);
         assert!(!mid_level.is_empty());
     }
 }
