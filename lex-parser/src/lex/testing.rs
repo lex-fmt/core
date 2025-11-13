@@ -30,7 +30,8 @@
 //! let doc = parse_document(&source)?;
 //!
 //! // OR use the fluent API
-//! let paragraph = Lexplore::paragraph(1).parse().expect_paragraph();
+//! let parsed = Lexplore::paragraph(1).parse();
+//! let paragraph = parsed.root.expect_paragraph();
 //!
 //! // WRONG: Don't write lex content directly in tests
 //! let doc = parse_document("Some paragraph\n\nAnother paragraph\n\n")?;

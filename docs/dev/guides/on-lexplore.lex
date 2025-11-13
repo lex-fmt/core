@@ -122,7 +122,7 @@ The harness has utilities tailored for different document types. They allow you 
 		When you need the full document (for iteration, tokenization, or source access), use the fluent API:
 
 			document = Lexplore.verbatim(8).parse()
-			for verbatim in document.iter_verbatim_blocks() {
+			for verbatim in document.root.iter_verbatim_blocks() {
 				verbatim.assert_verbatim_block();
 			}
 		:: rust ::

@@ -29,20 +29,23 @@ AST Tree Querying and Traversal
 
 	2.1 Shallow vs Recursive Iteration
 
-		The Document API provides two levels of iteration:
+		The root session (`doc.root`) provides two levels of iteration:
 
-		Shallow iterators traverse only direct children of the document root:
+		Shallow iterators traverse only direct children of the document root. In the
+		following examples `tree` refers to the root session: `let tree = &doc.root;`
 
-			let top_level_paras = doc.iter_paragraphs();  // Only top-level paragraphs
-			let top_level_sessions = doc.iter_sessions();  // Only top-level sessions
-			let all_top_items = doc.iter_items();  // All direct children
+			let tree = &doc.root;
+			let top_level_paras = tree.iter_paragraphs();  // Only top-level paragraphs
+			let top_level_sessions = tree.iter_sessions();  // Only top-level sessions
+			let all_top_items = tree.iter_items();  // All direct children
 		:: rust ::
 
 		Recursive iterators find all nodes of a specific type at any depth in the tree:
 
-			let all_paragraphs: Vec<_> = doc.iter_paragraphs_recursive().collect();
-			let all_sessions: Vec<_> = doc.iter_sessions_recursive().collect();
-			let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+			let tree = &doc.root;
+			let all_paragraphs: Vec<_> = tree.iter_paragraphs_recursive().collect();
+			let all_sessions: Vec<_> = tree.iter_sessions_recursive().collect();
+			let all_nodes: Vec<_> = tree.iter_all_nodes().collect();
 		:: rust ::
 
 		Use shallow iterators when working with document outline structure. Use recursive iterators when searching through all content regardless of nesting.
@@ -51,11 +54,12 @@ AST Tree Querying and Traversal
 
 		For more complex queries, use the find methods with predicates:
 
-			let intro_paras = doc.find_paragraphs(|p| {
+			let tree = &doc.root;
+			let intro_paras = tree.find_paragraphs(|p| {
 				p.text().to_lowercase().contains("introduction")
 			});
 
-			let chapters = doc.find_sessions(|s| {
+			let chapters = tree.find_sessions(|s| {
 				s.title.as_string().starts_with("Chapter")
 			});
 		:: rust ::
@@ -66,14 +70,15 @@ AST Tree Querying and Traversal
 
 		When tree depth matters, use depth-aware methods:
 
+			let tree = &doc.root;
 			// Find all nodes at a specific depth
-			let top_level = doc.find_nodes_at_depth(0);
+			let top_level = tree.find_nodes_at_depth(0);
 
 			// Find nodes within a depth range
-			let mid_range = doc.find_nodes_in_depth_range(1, 3);
+			let mid_range = tree.find_nodes_in_depth_range(1, 3);
 
 			// Filter by type using as_* methods
-			let deep_sessions: Vec<_> = doc.find_nodes_at_depth(3)
+			let deep_sessions: Vec<_> = tree.find_nodes_at_depth(3)
 				.into_iter()
 				.filter_map(|n| n.as_session())
 				.collect();
@@ -85,7 +90,8 @@ AST Tree Querying and Traversal
 
 		Depth and predicates can be combined:
 
-			let results = doc.find_nodes_with_depth(2, |node| {
+			let tree = &doc.root;
+			let results = tree.find_nodes_with_depth(2, |node| {
 				node.as_paragraph()
 					.map(|p| p.text().len() > 100)
 					.unwrap_or(false)
@@ -122,14 +128,16 @@ AST Tree Querying and Traversal
 
 	4.1 Finding All Code Blocks
 
-			let code_blocks = doc.iter_verbatim_blocks_recursive()
+			let tree = &doc.root;
+			let code_blocks = tree.iter_verbatim_blocks_recursive()
 				.filter(|v| v.label().map(|l| l == "code").unwrap_or(false))
 				.collect::<Vec<_>>();
 		:: rust ::
 
 	4.2 Counting Nodes at Each Depth
 
-			let counts_by_depth = doc.iter_all_nodes_with_depth()
+			let tree = &doc.root;
+			let counts_by_depth = tree.iter_all_nodes_with_depth()
 				.fold(HashMap::new(), |mut acc, (_, depth)| {
 					*acc.entry(depth).or_insert(0) += 1;
 					acc
@@ -138,12 +146,14 @@ AST Tree Querying and Traversal
 
 	4.3 Finding Empty Sessions
 
-			let empty_sessions = doc.find_sessions(|s| s.children.is_empty());
+			let tree = &doc.root;
+			let empty_sessions = tree.find_sessions(|s| s.children.is_empty());
 		:: rust ::
 
 	4.4 Extracting Top-Level Headings
 
-			let headings = doc.find_nodes_at_depth(0)
+			let tree = &doc.root;
+			let headings = tree.find_nodes_at_depth(0)
 				.into_iter()
 				.filter_map(|n| n.as_session())
 				.map(|s| s.title.as_string())
@@ -154,13 +164,15 @@ AST Tree Querying and Traversal
 
 	The query APIs use Rust's iterator pattern, which provides zero-cost abstractions. Iterators are lazy - they only traverse when consumed. This means:
 
-		let iter = doc.iter_paragraphs_recursive(); // No work done yet
+		let tree = &doc.root;
+		let iter = tree.iter_paragraphs_recursive(); // No work done yet
 		let first = iter.next(); // Only traverses until first paragraph found
 	:: rust ::
 
 	For operations requiring multiple passes, collect once and reuse:
 
-		let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+		let tree = &doc.root;
+		let all_nodes: Vec<_> = tree.iter_all_nodes().collect();
 		let paragraph_count = all_nodes.iter().filter(|n| n.is_paragraph()).count();
 		let session_count = all_nodes.iter().filter(|n| n.is_session()).count();
 	:: rust ::
@@ -180,7 +192,8 @@ AST Tree Querying and Traversal
 	:: rust ::
 
 	After:
-		for p in doc.find_paragraphs(|p| p.text().starts_with("Note:")) {
+		let tree = &doc.root;
+		for p in tree.find_paragraphs(|p| p.text().starts_with("Note:")) {
 			// process
 		}
 	:: rust ::
@@ -189,7 +202,7 @@ AST Tree Querying and Traversal
 
 7. Available Query Methods
 
-	On Document:
+	On the root Session (`let tree = &doc.root;`):
 		Shallow iteration: iter_items, iter_paragraphs, iter_sessions, iter_lists, iter_verbatim_blocks
 
 		Recursive iteration: iter_paragraphs_recursive, iter_sessions_recursive, iter_lists_recursive, iter_definitions_recursive, iter_annotations_recursive, iter_verbatim_blocks_recursive, iter_list_items_recursive
