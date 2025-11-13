@@ -1,5 +1,5 @@
 ---
-source: tests/tokenizer_elements.rs
+source: lex-parser/tests/tokenizer_elements.rs
 expression: tokens
 ---
 [
@@ -163,62 +163,30 @@ expression: tokens
         51..52,
     ),
     (
-        Dedent(
-            [],
-        ),
-        0..0,
-    ),
-    (
-        LexMarker,
-        52..54,
-    ),
-    (
-        Whitespace,
-        54..55,
-    ),
-    (
-        Text(
-            "json",
-        ),
-        55..59,
-    ),
-    (
-        Whitespace,
-        59..60,
-    ),
-    (
-        LexMarker,
-        60..62,
-    ),
-    (
-        Whitespace,
-        62..63,
-    ),
-    (
         Text(
             "Example",
         ),
-        63..70,
+        56..63,
     ),
     (
         Whitespace,
-        70..71,
+        63..64,
     ),
     (
         Text(
             "API",
         ),
-        71..74,
+        64..67,
     ),
     (
         Whitespace,
-        74..75,
+        67..68,
     ),
     (
         Text(
             "response",
         ),
-        75..83,
+        68..76,
     ),
     (
         BlankLine(
@@ -226,6 +194,34 @@ expression: tokens
                 "\n",
             ),
         ),
-        83..84,
+        76..77,
+    ),
+    (
+        Dedent(
+            [],
+        ),
+        0..0,
+    ),
+    (
+        LexMarker,
+        77..79,
+    ),
+    (
+        Whitespace,
+        79..80,
+    ),
+    (
+        Text(
+            "json",
+        ),
+        80..84,
+    ),
+    (
+        BlankLine(
+            Some(
+                "\n",
+            ),
+        ),
+        84..85,
     ),
 ]

@@ -26,7 +26,7 @@ fn test_verbatim_01_flat_simple_code() {
 
 #[test]
 fn test_verbatim_02_flat_with_caption() {
-    // verbatim-02-flat-with-caption.lex: Verbatim block with caption in closing annotation
+    // verbatim-02-flat-with-caption.lex: Verbatim block with caption stored as content before closing data
     let doc = Lexplore::verbatim(2).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
@@ -39,7 +39,7 @@ fn test_verbatim_02_flat_with_caption() {
 
 #[test]
 fn test_verbatim_03_flat_with_params() {
-    // verbatim-03-flat-with-params.lex: Verbatim with parameters in closing annotation
+    // verbatim-03-flat-with-params.lex: Verbatim with parameters in closing data
     let doc = Lexplore::verbatim(3).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
@@ -53,8 +53,7 @@ fn test_verbatim_03_flat_with_params() {
 
 #[test]
 fn test_verbatim_04_flat_marker_form() {
-    // verbatim-04-flat-marker-form.lex: Single-line marker-style verbatim
-    // Note: In marker form, content after closing :: is part of the annotation, not verbatim content
+    // verbatim-04-flat-marker-form.lex: Marker-style verbatim with descriptive content
     let doc = Lexplore::verbatim(4).parse();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
@@ -62,7 +61,8 @@ fn test_verbatim_04_flat_marker_form() {
             .subject("Sunset Photo")
             .closing_label("image")
             .has_closing_parameter_with_value("src", "sunset.jpg")
-            .line_count(0); // Marker form has no content lines
+            .content_contains("As the sun sets over the ocean.")
+            .line_count(1);
     });
 }
 
@@ -324,8 +324,9 @@ fn test_verbatim_14_fullwidth_table() {
         item.assert_verbatim_block()
             .subject("Fullwidth Table Example")
             .mode(VerbatimBlockMode::Fullwidth)
-            .line_count(4)
+            .line_count(5)
             .content_contains("Header | Value | Notes")
+            .content_contains("Minimal fullwidth block for wide tables")
             .content_contains("Beta   | 25    | extended range");
     });
 }
@@ -396,7 +397,7 @@ fn test_verbatim_11_group_sequences() {
             .text_contains("content below, correct, from parsing however");
     });
 
-    // Subsequent verbatim groups can reuse the same closing annotation
+    // Subsequent verbatim groups reuse the same closing data
     assert_ast(&doc).item(2, |item| {
         item.assert_verbatim_block()
             .closing_label("shell")

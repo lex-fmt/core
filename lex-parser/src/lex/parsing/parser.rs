@@ -188,9 +188,7 @@ impl GrammarMatcher {
         tokens: &[LineContainer],
         start_idx: usize,
     ) -> Option<(PatternMatch, Range<usize>)> {
-        use LineType::{
-            AnnotationEndLine, AnnotationStartLine, BlankLine, SubjectLine, SubjectOrListItemLine,
-        };
+        use LineType::{BlankLine, DataLine, SubjectLine, SubjectOrListItemLine};
 
         let len = tokens.len();
         if start_idx >= len {
@@ -270,7 +268,7 @@ impl GrammarMatcher {
 
                     match &tokens[cursor] {
                         LineContainer::Token(line) => {
-                            if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
+                            if matches!(line.line_type, DataLine) {
                                 // Container followed by annotation - this IS verbatim!
                                 // Continue loop to match it
                                 continue;
@@ -290,7 +288,7 @@ impl GrammarMatcher {
                     }
                 }
                 LineContainer::Token(line) => {
-                    if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
+                    if matches!(line.line_type, DataLine) {
                         // Found closing annotation - success!
                         // But only if we haven't mixed containers with flat content in a problematic way
                         return Some((

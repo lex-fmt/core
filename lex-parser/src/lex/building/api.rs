@@ -32,7 +32,7 @@
 //! ```
 
 use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
-use crate::lex::ast::{Annotation, Data, ListItem};
+use crate::lex::ast::{Data, ListItem};
 use crate::lex::parsing::ContentItem;
 use crate::lex::token::{normalization, LineToken};
 
@@ -221,7 +221,7 @@ pub fn data_from_tokens(label_tokens: Vec<(Token, ByteRange<usize>)>, source: &s
 // VERBATIM BLOCK BUILDING
 // ============================================================================
 
-/// Build a VerbatimBlock AST node from subject, content, and closing annotation.
+/// Build a VerbatimBlock AST node from subject, content, and closing data.
 ///
 /// This function implements the indentation wall stripping logic - content at
 /// different nesting levels will have identical text after wall removal.
@@ -230,7 +230,7 @@ pub fn data_from_tokens(label_tokens: Vec<(Token, ByteRange<usize>)>, source: &s
 ///
 /// * `subject_token` - LineToken for the verbatim block subject
 /// * `content_tokens` - LineTokens for each content line
-/// * `closing_annotation` - The closing annotation node
+/// * `closing_data` - The closing data node (label + parameters)
 /// * `source` - Original source string
 ///
 /// # Returns
@@ -240,8 +240,8 @@ pub fn data_from_tokens(label_tokens: Vec<(Token, ByteRange<usize>)>, source: &s
 /// # Example
 ///
 /// ```rust,ignore
-/// // Top-level: "Code:\n    line1\n    line2\n:: js ::"
-/// // Nested:    "Session:\n    Code:\n        line1\n        line2\n    :: js ::"
+/// // Top-level: "Code:\n    line1\n    line2\n:: js"
+/// // Nested:    "Session:\n    Code:\n        line1\n        line2\n    :: js"
 /// //
 /// // Both produce VerbatimBlock with content: "line1\nline2"
 /// // The indentation wall (minimum indentation) is stripped.
@@ -249,14 +249,14 @@ pub fn data_from_tokens(label_tokens: Vec<(Token, ByteRange<usize>)>, source: &s
 pub fn verbatim_block_from_lines(
     subject_token: &LineToken,
     content_tokens: &[LineToken],
-    closing_annotation: Annotation,
+    closing_data: Data,
     source: &str,
 ) -> ContentItem {
     // 1. Extract (includes mode detection and indentation wall stripping)
     let data = extraction::extract_verbatim_block_data(subject_token, content_tokens, source);
 
     // 2. Create
-    ast_nodes::verbatim_block_node(data, closing_annotation, source)
+    ast_nodes::verbatim_block_node(data, closing_data, source)
 }
 
 // ============================================================================
