@@ -15,7 +15,7 @@
 //!
 //! Hence the layout should be:
 //! src/lex/parser
-//!   ├── linebased    The current parser design
+//!   ├── parser       The current parser design
 //!   └── <common>     Shared code for AST building and IR
 
 //! So the general form is src/lex/parser|lexer|design|common

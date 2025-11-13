@@ -81,7 +81,7 @@ fn classify_and_create_line_token(token_tuples: Vec<(Token, ByteRange<usize>)>) 
 
 /// Apply dialog line detection logic.
 ///
-/// In the linebased parser, once a dialog line is detected, all subsequent lines
+/// In the parser, once a dialog line is detected, all subsequent lines
 /// are also treated as dialog lines until the end of the block.
 fn apply_dialog_detection(mut line_tokens: Vec<LineToken>) -> Vec<LineToken> {
     let mut in_dialog = false;

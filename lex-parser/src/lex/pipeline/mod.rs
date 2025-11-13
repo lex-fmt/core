@@ -10,7 +10,7 @@
 //!
 //! 1. **Base Tokenization** - Raw lexical analysis using logos
 //! 2. **Semantic Indentation** - Transform Indentation tokens into Indent/Dedent pairs
-//! 3. **Parsing** - Build AST using the linebased parser
+//! 3. **Parsing** - Build AST using the parser
 //!
 //! # Usage
 //!
@@ -81,7 +81,7 @@ impl Pipeline {
     /// 1. Ensure source ends with newline (required for paragraph parsing at EOF)
     /// 2. Base tokenization - raw lexical tokens from logos
     /// 3. Semantic indentation - convert Indentation tokens to Indent/Dedent
-    /// 4. Parse - build AST using linebased parser
+    /// 4. Parse - build AST using the parser
     ///
     /// # Example
     ///
@@ -96,7 +96,7 @@ impl Pipeline {
         let source_with_newline = crate::lex::lexing::ensure_source_ends_with_newline(source);
         let token_stream = crate::lex::lexing::base_tokenization::tokenize(&source_with_newline);
         let tokens = crate::lex::lexing::lex(token_stream);
-        crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source)
+        crate::lex::parsing::engine::parse_from_flat_tokens(tokens, source)
             .map_err(|err| format!("Parsing failed: {}", err))
     }
 }
