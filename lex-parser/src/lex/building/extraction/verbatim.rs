@@ -125,6 +125,40 @@ fn detect_mode(content_lines: &[LineToken], source: &str) -> VerbatimBlockMode {
     VerbatimBlockMode::Inflow
 }
 
+/// Split content lines into verbatim groups.
+///
+/// A verbatim block can contain multiple subject/content pairs (groups) that share
+/// a single closing annotation. This function identifies group boundaries by finding
+/// subject lines at the same indentation level as the first subject.
+///
+/// # Algorithm
+///
+/// 1. Start with the first subject and empty content accumulator
+/// 2. For each content line:
+///    - Skip leading blank lines before any content is accumulated (these belong
+///      to the previous group or are inter-group spacing)
+///    - If the line is a subject at `base_subject_column`, it starts a new group:
+///      push the accumulated (subject, content) pair and start fresh
+///    - Otherwise, add the line to the current group's content
+/// 3. After processing all lines, push the final accumulated group
+///
+/// # Invariants
+///
+/// - All group subjects must be at the same indentation level (`base_subject_column`)
+/// - Blank lines between groups (before any content) are skipped
+/// - Blank lines within a group's content are preserved
+/// - Returns at least one group (the first subject with possibly empty content)
+///
+/// # Arguments
+///
+/// * `first_subject` - The initial subject line that starts the verbatim block
+/// * `content_lines` - All lines between the first subject and closing annotation
+/// * `base_subject_column` - The column where all group subjects must start
+/// * `source` - Original source text for column calculation
+///
+/// # Returns
+///
+/// Vector of (subject, content_lines) pairs in order of appearance
 fn split_groups(
     first_subject: &LineToken,
     content_lines: &[LineToken],
@@ -136,21 +170,28 @@ fn split_groups(
     let mut current_content: Vec<LineToken> = Vec::new();
 
     for line in content_lines {
+        // Skip blank lines that appear before any content is accumulated.
+        // These are inter-group spacing and don't belong to the current group.
         if line.line_type == LineType::BlankLine
             && is_effectively_blank(line)
             && current_content.is_empty()
         {
             continue;
         }
+
+        // Check if this line starts a new group (subject at base indentation).
         if is_new_group_subject(line, base_subject_column, source) {
+            // Save the current group and start a new one
             groups.push((current_subject, current_content));
             current_subject = line.clone();
             current_content = Vec::new();
         } else {
+            // Add line to current group's content
             current_content.push(line.clone());
         }
     }
 
+    // Don't forget the final group
     groups.push((current_subject, current_content));
     groups
 }
