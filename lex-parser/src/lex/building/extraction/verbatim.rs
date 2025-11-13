@@ -1,12 +1,78 @@
 //! Verbatim Block Data Extraction
+//!
+//! This module handles the extraction of verbatim block content from line tokens,
+//! including mode detection (inflow vs. fullwidth) and indentation wall stripping.
+//!
+//! # Verbatim Block Modes
+//!
+//! ## Inflow Mode (Default)
+//! Content is indented relative to the subject line:
+//! ```text
+//! Code Example:
+//!     def hello():
+//!         return "world"
+//! :: python ::
+//! ```
+//! The indentation wall is at `subject_column + INFLOW_INDENT_STEP_COLUMNS`.
+//!
+//! ## Fullwidth Mode
+//! Content starts at a fixed, absolute column regardless of nesting:
+//! ```text
+//! Wide Table:
+//!  Header | Value | Notes
+//!  -------+-------+------
+//!  Alpha  | 10    | data
+//! :: table ::
+//! ```
+//! The indentation wall is at `FULLWIDTH_INDENT_COLUMN` (column 2 in user-facing terms,
+//! index 1 in zero-based).
+//!
+//! # Mode Detection
+//!
+//! The mode is automatically inferred by examining the first non-blank content line:
+//! - If its first non-whitespace character is at column index 1 → Fullwidth
+//! - Otherwise → Inflow
+//!
+//! # Indentation Wall Stripping
+//!
+//! After mode detection, the appropriate indentation wall is calculated and stripped
+//! from all content lines. This normalization ensures verbatim content at different
+//! nesting levels produces identical text output.
+//!
+//! # Verbatim Groups
+//!
+//! A single verbatim block can contain multiple subject/content pairs sharing one
+//! closing annotation:
+//! ```text
+//! First command:
+//!     $ ls
+//! Second command:
+//!     $ pwd
+//! :: shell ::
+//! ```
+//! The `split_groups` function identifies these pairs by finding subject lines
+//! at the same indentation level as the first subject.
+
 use crate::lex::ast::elements::verbatim::VerbatimBlockMode;
 use crate::lex::token::line::{LineToken, LineType};
 use crate::lex::token::normalization::utilities::{compute_bounding_box, extract_text};
 use crate::lex::token::Token;
 use std::ops::Range as ByteRange;
 
-const FULLWIDTH_INDENT_COLUMN: usize = 1; // Zero-based column index
-const INFLOW_INDENT_STEP_COLUMNS: usize = 4;
+/// The column (zero-based index) at which fullwidth verbatim content starts.
+///
+/// This is column 2 in user-facing terms (1-based). Using column 2 provides:
+/// - Clear visual offset from the left margin
+/// - Avoids ambiguity with closing annotation markers (`::`) which appear at column 1
+///
+/// See: docs/dev/proposals/fullwidth.lex for design rationale
+pub(crate) const FULLWIDTH_INDENT_COLUMN: usize = 1;
+
+/// The number of columns (spaces) that represent one indentation step in Lex.
+///
+/// Lex uses 4-space indentation. This constant is used to calculate the indentation
+/// wall for inflow mode: `subject_column + INFLOW_INDENT_STEP_COLUMNS`.
+pub(crate) const INFLOW_INDENT_STEP_COLUMNS: usize = 4;
 
 /// Extracted data for an individual verbatim group item.
 #[derive(Debug, Clone)]
