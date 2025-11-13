@@ -486,4 +486,29 @@ mod tests {
             panic!("Expected to find deepest element");
         }
     }
+
+    #[test]
+    fn test_descendants_on_session_content_item() {
+        let mut inner_session = Session::with_title("Inner".to_string());
+        inner_session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Grandchild".to_string(),
+            )));
+
+        let mut session = Session::with_title("Outer".to_string());
+        session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Child".to_string(),
+            )));
+        session.children.push(ContentItem::Session(inner_session));
+
+        let item = ContentItem::Session(session);
+        let descendants: Vec<_> = item.descendants().collect();
+        assert_eq!(descendants.len(), 5);
+
+        let paragraphs: Vec<_> = item.descendants().filter(|d| d.is_paragraph()).collect();
+        assert_eq!(paragraphs.len(), 2);
+    }
 }

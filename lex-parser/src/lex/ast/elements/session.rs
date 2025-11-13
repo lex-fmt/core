@@ -432,4 +432,346 @@ mod tests {
         let session = Session::with_title("Title".to_string()).at(location.clone());
         assert_eq!(session.location, location);
     }
+
+    #[test]
+    fn test_iter_paragraphs_recursive() {
+        let mut inner_session = Session::with_title("Inner".to_string());
+        inner_session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Nested 2".to_string(),
+            )));
+
+        let mut outer_session = Session::with_title("Outer".to_string());
+        outer_session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Nested 1".to_string(),
+            )));
+        outer_session
+            .children
+            .push(ContentItem::Session(inner_session));
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Top".to_string(),
+            )));
+        root.children.push(ContentItem::Session(outer_session));
+
+        assert_eq!(root.iter_paragraphs().count(), 1);
+        let paragraphs: Vec<_> = root.iter_paragraphs_recursive().collect();
+        assert_eq!(paragraphs.len(), 3);
+    }
+
+    #[test]
+    fn test_iter_sessions_recursive() {
+        let inner_session = Session::with_title("Inner".to_string());
+        let mut outer_session = Session::with_title("Outer".to_string());
+        outer_session
+            .children
+            .push(ContentItem::Session(inner_session));
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children.push(ContentItem::Session(outer_session));
+
+        assert_eq!(root.iter_sessions().count(), 1);
+        assert_eq!(root.iter_sessions_recursive().count(), 2);
+    }
+
+    #[test]
+    fn test_iter_all_nodes_with_depth() {
+        let mut inner_session = Session::with_title("Inner".to_string());
+        inner_session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Deep".to_string(),
+            )));
+
+        let mut outer_session = Session::with_title("Outer".to_string());
+        outer_session
+            .children
+            .push(ContentItem::Session(inner_session));
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Top".to_string(),
+            )));
+        root.children.push(ContentItem::Session(outer_session));
+
+        let nodes_with_depth: Vec<_> = root.iter_all_nodes_with_depth().collect();
+        assert_eq!(nodes_with_depth.len(), 6);
+        assert_eq!(nodes_with_depth[0].1, 0);
+        assert!(nodes_with_depth[0].0.is_paragraph());
+        assert_eq!(nodes_with_depth[1].1, 1);
+        assert!(nodes_with_depth[1].0.is_text_line());
+    }
+
+    #[test]
+    fn test_query_api_example_on_session() {
+        let mut chapter1 = Session::with_title("Chapter 1: Introduction".to_string());
+        chapter1
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Hello, this is the intro.".to_string(),
+            )));
+
+        let mut section1_1 = Session::with_title("Section 1.1".to_string());
+        section1_1
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Nested content here.".to_string(),
+            )));
+        chapter1.children.push(ContentItem::Session(section1_1));
+
+        let mut chapter2 = Session::with_title("Chapter 2: Advanced".to_string());
+        chapter2
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Advanced topics.".to_string(),
+            )));
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Preamble".to_string(),
+            )));
+        root.children.push(ContentItem::Session(chapter1));
+        root.children.push(ContentItem::Session(chapter2));
+
+        assert_eq!(root.iter_paragraphs_recursive().count(), 4);
+        assert_eq!(root.iter_sessions_recursive().count(), 3);
+
+        let hello_paragraphs: Vec<_> = root
+            .iter_paragraphs_recursive()
+            .filter(|p| p.text().contains("Hello"))
+            .collect();
+        assert_eq!(hello_paragraphs.len(), 1);
+
+        let nested_sessions: Vec<_> = root
+            .iter_all_nodes_with_depth()
+            .filter(|(node, depth)| node.is_session() && *depth >= 1)
+            .collect();
+        assert_eq!(nested_sessions.len(), 1);
+    }
+
+    #[test]
+    fn test_find_paragraphs_with_predicate() {
+        let mut root = Session::with_title("Root".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Hello, world!".to_string(),
+            )));
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Goodbye, world!".to_string(),
+            )));
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Hello again!".to_string(),
+            )));
+
+        let hello_paras = root.find_paragraphs(|p| p.text().starts_with("Hello"));
+        assert_eq!(hello_paras.len(), 2);
+
+        let goodbye_paras = root.find_paragraphs(|p| p.text().contains("Goodbye"));
+        assert_eq!(goodbye_paras.len(), 1);
+    }
+
+    #[test]
+    fn test_find_sessions_with_predicate() {
+        let mut session1 = Session::with_title("Chapter 1: Introduction".to_string());
+        session1
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Intro".to_string(),
+            )));
+        let session2 = Session::with_title("Chapter 2: Advanced".to_string());
+        let section = Session::with_title("Section 1.1".to_string());
+        session1.children.push(ContentItem::Session(section));
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children.push(ContentItem::Session(session1));
+        root.children.push(ContentItem::Session(session2));
+
+        let chapters = root.find_sessions(|s| s.title.as_string().contains("Chapter"));
+        assert_eq!(chapters.len(), 2);
+    }
+
+    #[test]
+    fn test_find_nodes_generic_predicate() {
+        let mut session = Session::with_title("Test".to_string());
+        session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Child 1".to_string(),
+            )));
+        session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Child 2".to_string(),
+            )));
+        session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Child 3".to_string(),
+            )));
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Top".to_string(),
+            )));
+        root.children.push(ContentItem::Session(session));
+
+        let big_sessions = root.find_nodes(|node| {
+            matches!(node, ContentItem::Session(_))
+                && node.children().map(|c| c.len() > 2).unwrap_or(false)
+        });
+        assert_eq!(big_sessions.len(), 1);
+    }
+
+    #[test]
+    fn test_find_nodes_at_depth() {
+        let mut inner = Session::with_title("Inner".to_string());
+        inner
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Deep".to_string(),
+            )));
+        let mut outer = Session::with_title("Outer".to_string());
+        outer.children.push(ContentItem::Session(inner));
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Top".to_string(),
+            )));
+        root.children.push(ContentItem::Session(outer));
+
+        assert_eq!(root.find_nodes_at_depth(0).len(), 2);
+        assert!(!root.find_nodes_at_depth(1).is_empty());
+    }
+
+    #[test]
+    fn test_find_sessions_at_depth() {
+        let mut level2 = Session::with_title("Level 2".to_string());
+        level2
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Leaf".to_string(),
+            )));
+        let mut level1 = Session::with_title("Level 1".to_string());
+        level1.children.push(ContentItem::Session(level2));
+        let mut root = Session::with_title("Level 0".to_string());
+        root.children.push(ContentItem::Session(level1));
+
+        let level_0: Vec<_> = root
+            .find_nodes_at_depth(0)
+            .into_iter()
+            .filter_map(|n| n.as_session())
+            .collect();
+        assert_eq!(level_0.len(), 1);
+
+        let level_1: Vec<_> = root
+            .find_nodes_at_depth(1)
+            .into_iter()
+            .filter_map(|n| n.as_session())
+            .collect();
+        assert_eq!(level_1.len(), 1);
+    }
+
+    #[test]
+    fn test_find_nodes_in_depth_range() {
+        let mut deep = Session::with_title("Deep".to_string());
+        deep.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Very deep".to_string(),
+            )));
+        let mut mid = Session::with_title("Mid".to_string());
+        mid.children.push(ContentItem::Session(deep));
+        let mut root = Session::with_title("Top".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Root".to_string(),
+            )));
+        root.children.push(ContentItem::Session(mid));
+
+        assert!(!root.find_nodes_in_depth_range(0, 1).is_empty());
+        assert!(!root.find_nodes_in_depth_range(1, 2).is_empty());
+    }
+
+    #[test]
+    fn test_find_nodes_with_depth_and_predicate() {
+        let mut session = Session::with_title("Test Session".to_string());
+        session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Hello from nested".to_string(),
+            )));
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Hello from top".to_string(),
+            )));
+        root.children.push(ContentItem::Session(session));
+
+        let depth_0_hello = root.find_nodes_with_depth(0, |node| {
+            node.as_paragraph()
+                .map(|p| p.text().contains("Hello"))
+                .unwrap_or(false)
+        });
+        assert_eq!(depth_0_hello.len(), 1);
+    }
+
+    #[test]
+    fn test_find_paragraphs_at_depth() {
+        let mut session = Session::with_title("Section".to_string());
+        session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Nested para".to_string(),
+            )));
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Top".to_string(),
+            )));
+        root.children.push(ContentItem::Session(session));
+
+        let top_paras: Vec<_> = root
+            .find_nodes_at_depth(0)
+            .into_iter()
+            .filter_map(|n| n.as_paragraph())
+            .collect();
+        assert_eq!(top_paras.len(), 1);
+    }
+
+    #[test]
+    fn test_phase_2_comprehensive_example() {
+        let mut session1 = Session::with_title("Chapter 1".to_string());
+        session1
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Intro".to_string(),
+            )));
+
+        let session2 = Session::with_title("Chapter 2".to_string());
+
+        let mut root = Session::with_title("Root".to_string());
+        root.children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Preface".to_string(),
+            )));
+        root.children.push(ContentItem::Session(session1));
+        root.children.push(ContentItem::Session(session2));
+
+        let all_paragraphs: Vec<_> = root.iter_paragraphs_recursive().collect();
+        assert_eq!(all_paragraphs.len(), 2);
+        let all_sessions: Vec<_> = root.iter_sessions_recursive().collect();
+        assert_eq!(all_sessions.len(), 2);
+    }
 }
