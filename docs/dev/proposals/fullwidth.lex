@@ -41,6 +41,16 @@ Fullwidth Verbatim Blocks
 
 	This implementation avoids changes to the low-level tokenizer in favor of centralizing the detection logic within the more context-aware mappers of the lexing pipeline. This approach keeps the initial tokenization simple and robust.
 
+
+	5.0 Prep work: 
+
+		Before starting the code, be sure to add Lex sample files for this feature to : docs/specs/v1/elements/verbatim, using the guidelines as in docs/dev/guides/on-lexplore.lex, including: 
+			- Isolated Elements: files for tests.
+            - Simple ensambles (can be with only sessions, paragraphs) so that you can test the bblocks at different levels of nesting.
+			- More complicated ensables with more eelements, the block being the last in a level that is about to be dedented and so on
+
+			- When all is working add one instance of the block in the kitchensink document.
+
 	5.1. Phase 1: No Lexer/Token Changes
 
 		- Keep `tokens_core.rs` unchanged. Do not introduce a special `<fullwidth>` token. The initial `logos`-based tokenizer will continue to see all leading whitespace as standard `Whitespace` tokens. This maintains the simplicity and context-free nature of the foundational lexing layer.
