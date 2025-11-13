@@ -6,7 +6,7 @@
 //! - Parameters are separated by commas only (not whitespace)
 //! - Whitespace around parameters is ignored
 
-use lex_parser::lex::parsing::parse_document;
+use lex_parser::lex::parsing::{parse_document, ContentItem};
 use lex_parser::lex::testing::assert_ast;
 use proptest::prelude::*;
 
@@ -165,6 +165,18 @@ mod proptest_tests {
             }
         }
     }
+}
+
+#[test]
+fn test_parameter_only_header_is_not_annotation() {
+    let source = ":: severity=high ::\n\nBody. {{paragraph}}\n";
+    let doc = parse_document(source).expect("parser should not fail on invalid annotations");
+
+    assert!(doc
+        .root
+        .children
+        .iter()
+        .all(|item| !matches!(item, ContentItem::Annotation(_))));
 }
 
 #[cfg(test)]
