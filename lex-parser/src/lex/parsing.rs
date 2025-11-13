@@ -25,7 +25,6 @@ pub mod common;
 pub mod engine;
 pub mod ir;
 pub mod parser;
-pub mod tree_builder;
 // Temporary keepers for future analyzer experiments remain available via the
 // AnalyzerConfig infrastructure in crate::lex::parsing::pipeline.
 

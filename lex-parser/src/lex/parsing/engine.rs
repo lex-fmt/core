@@ -10,12 +10,11 @@
 //!
 //! The tree walking is completely decoupled from grammar/pattern matching,
 //! making it testable and maintainable independently.
-
-use super::{parser, tree_builder};
+use super::parser;
 use crate::lex::building::ast_builder::AstBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
-use crate::lex::token::{LineContainer, LineToken, Token};
+use crate::lex::token::{to_line_container, LineContainer, LineToken, Token};
 use std::ops::Range as ByteRange;
 
 /// Parse from grouped token stream (main entry point).
@@ -51,7 +50,7 @@ pub fn parse_from_grouped_stream(
         .collect();
 
     // Build LineContainer tree from line tokens
-    let tree = tree_builder::build_line_container(line_tokens);
+    let tree = to_line_container::build_line_container(line_tokens);
 
     // Parse using existing logic
     parse_experimental_v2(tree, source)
