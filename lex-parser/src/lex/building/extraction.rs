@@ -29,7 +29,7 @@
 //! The conversion to `ast::Range` happens later in the ast_creation layer.
 
 // Module declarations
-mod annotation;
+mod data;
 mod definition;
 mod list_item;
 mod paragraph;
@@ -38,7 +38,7 @@ mod session;
 mod verbatim;
 
 // Re-export data structures and functions
-pub(super) use annotation::{extract_annotation_data, AnnotationData};
+pub(super) use data::{extract_data, DataExtraction};
 pub(super) use definition::{extract_definition_data, DefinitionData};
 pub(super) use list_item::{extract_list_item_data, ListItemData};
 pub(super) use paragraph::{extract_paragraph_data, ParagraphData};

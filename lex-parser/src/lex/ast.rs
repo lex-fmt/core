@@ -76,8 +76,8 @@ pub mod traits;
 
 // Re-export commonly used types at module root
 pub use elements::{
-    Annotation, ContentItem, Definition, Document, Label, List, ListItem, Paragraph, Parameter,
-    Session, TextLine, Verbatim,
+    Annotation, ContentItem, Data, Definition, Document, Label, List, ListItem, Paragraph,
+    Parameter, Session, TextLine, Verbatim,
 };
 pub use error::PositionLookupError;
 pub use range::{Position, Range, SourceLocation};

@@ -84,11 +84,11 @@ mod proptest_tests {
 
             if let Ok(doc) = result {
                 let annotation = doc.root.children[0].as_annotation().unwrap();
-                prop_assert_eq!(annotation.parameters.len(), 1);
+                prop_assert_eq!(annotation.data.parameters.len(), 1);
 
                 // Extract key and value from the parameter string
                 let parts: Vec<&str> = param.splitn(2, '=').collect();
-                prop_assert_eq!(&annotation.parameters[0].key, parts[0]);
+                prop_assert_eq!(&annotation.data.parameters[0].key, parts[0]);
             }
         }
 
@@ -104,7 +104,7 @@ mod proptest_tests {
             if let Ok(doc) = result {
                 let annotation = doc.root.children[0].as_annotation().unwrap();
                 let expected_count = params.split(',').count();
-                prop_assert_eq!(annotation.parameters.len(), expected_count);
+                prop_assert_eq!(annotation.data.parameters.len(), expected_count);
             }
         }
 
@@ -118,8 +118,8 @@ mod proptest_tests {
 
             if let Ok(doc) = result {
                 let annotation = doc.root.children[0].as_annotation().unwrap();
-                prop_assert_eq!(&annotation.parameters[0].key, &key);
-                prop_assert_eq!(&annotation.parameters[0].value, &value);
+                prop_assert_eq!(&annotation.data.parameters[0].key, &key);
+                prop_assert_eq!(&annotation.data.parameters[0].value, &value);
             }
         }
 
@@ -133,10 +133,10 @@ mod proptest_tests {
 
             if let Ok(doc) = result {
                 let annotation = doc.root.children[0].as_annotation().unwrap();
-                prop_assert_eq!(&annotation.parameters[0].key, &key);
+                prop_assert_eq!(&annotation.data.parameters[0].key, &key);
                 // Quotes are preserved in the value
                 let expected_value = format!("\"{}\"", value);
-                prop_assert_eq!(&annotation.parameters[0].value, &expected_value);
+                prop_assert_eq!(&annotation.data.parameters[0].value, &expected_value);
             }
         }
 
@@ -156,7 +156,7 @@ mod proptest_tests {
                     .map(|p| p.split('=').next().unwrap())
                     .collect();
 
-                let actual_keys: Vec<&str> = annotation.parameters
+                let actual_keys: Vec<&str> = annotation.data.parameters
                     .iter()
                     .map(|p| p.key.as_str())
                     .collect();

@@ -51,18 +51,18 @@ pub(super) fn extract_annotation_header_tokens(
     Ok(header_tokens)
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct AnnotationHeaderAndContent {
+    pub header_tokens: Vec<(Token, Range<usize>)>,
+    pub children: Vec<crate::lex::parsing::ir::ParseNode>,
+}
+
 /// Extract content from an annotation single-line form.
 /// Returns (header_tokens, content_children) where content_children is either empty
 /// or contains a single Paragraph node with the inline content.
 pub(super) fn extract_annotation_single_content(
     start_token: &LineToken,
-) -> Result<
-    (
-        Vec<(Token, Range<usize>)>,
-        Vec<crate::lex::parsing::ir::ParseNode>,
-    ),
-    String,
-> {
+) -> Result<AnnotationHeaderAndContent, String> {
     use crate::lex::parsing::ir::{NodeType, ParseNode};
 
     let all_tokens = start_token
@@ -102,7 +102,10 @@ pub(super) fn extract_annotation_single_content(
         vec![]
     };
 
-    Ok((header_tokens, children))
+    Ok(AnnotationHeaderAndContent {
+        header_tokens,
+        children,
+    })
 }
 
 fn ensure_header_has_label(

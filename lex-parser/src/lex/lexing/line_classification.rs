@@ -36,6 +36,11 @@ pub fn classify_line_tokens(tokens: &[Token]) -> LineType {
         return LineType::AnnotationStartLine;
     }
 
+    // DATA_LINE: :: label params? without closing ::
+    if is_data_line(tokens) {
+        return LineType::DataLine;
+    }
+
     // Check if line both starts with list marker AND ends with colon
     let has_list_marker = has_list_marker(tokens);
     let has_colon = ends_with_colon(tokens);
@@ -142,6 +147,60 @@ fn is_annotation_start_line(tokens: &[Token]) -> bool {
     // Require a label between the markers
     let header_tokens = &tokens[first_marker_idx + 1..second_marker_idx];
     analyze_annotation_header_tokens(header_tokens).has_label
+}
+
+/// Check if a line is a data line (:: label params? without closing ::)
+fn is_data_line(tokens: &[Token]) -> bool {
+    if tokens.is_empty() {
+        return false;
+    }
+
+    // Find first LexMarker after optional indentation/whitespace
+    let mut first_marker_idx = None;
+    for (i, token) in tokens.iter().enumerate() {
+        match token {
+            Token::Indentation | Token::Whitespace => continue,
+            Token::LexMarker => {
+                first_marker_idx = Some(i);
+                break;
+            }
+            _ => return false,
+        }
+    }
+
+    let Some(first_marker_idx) = first_marker_idx else {
+        return false;
+    };
+
+    // After first marker we expect whitespace
+    if first_marker_idx + 1 >= tokens.len()
+        || !matches!(tokens[first_marker_idx + 1], Token::Whitespace)
+    {
+        return false;
+    }
+
+    // Data lines must not contain a second LexMarker before newline
+    if tokens[first_marker_idx + 1..]
+        .iter()
+        .any(|t| matches!(t, Token::LexMarker))
+    {
+        return false;
+    }
+
+    // Collect header tokens (until newline) and ensure we have a label
+    let mut header_tokens = Vec::new();
+    for token in tokens[first_marker_idx + 1..].iter() {
+        if matches!(token, Token::BlankLine(_)) {
+            continue;
+        }
+        header_tokens.push(token.clone());
+    }
+
+    if header_tokens.is_empty() {
+        return false;
+    }
+
+    analyze_annotation_header_tokens(&header_tokens).has_label
 }
 
 /// Check if line starts with a list marker (after optional indentation)
@@ -280,6 +339,17 @@ mod tests {
             Token::BlankLine(Some("\n".to_string())),
         ];
         assert_eq!(classify_line_tokens(&tokens), LineType::AnnotationStartLine);
+    }
+
+    #[test]
+    fn test_classify_data_line() {
+        let tokens = vec![
+            Token::LexMarker,
+            Token::Whitespace,
+            Token::Text("label".to_string()),
+            Token::BlankLine(Some("\n".to_string())),
+        ];
+        assert_eq!(classify_line_tokens(&tokens), LineType::DataLine);
     }
 
     #[test]

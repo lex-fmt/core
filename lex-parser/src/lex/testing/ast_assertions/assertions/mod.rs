@@ -4,6 +4,7 @@
 
 mod annotation;
 mod children;
+mod data;
 mod definition;
 mod document;
 mod list;
@@ -13,6 +14,8 @@ mod verbatim;
 
 pub use annotation::AnnotationAssertion;
 pub use children::ChildrenAssertion;
+#[allow(unused_imports)]
+pub use data::DataAssertion;
 pub use definition::DefinitionAssertion;
 pub use document::DocumentAssertion;
 pub use list::{ListAssertion, ListItemAssertion};

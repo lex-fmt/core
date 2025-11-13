@@ -32,7 +32,7 @@
 //! ```
 
 use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
-use crate::lex::ast::{Annotation, ListItem};
+use crate::lex::ast::{Annotation, Data, ListItem};
 use crate::lex::parsing::ContentItem;
 use crate::lex::token::{normalization, LineToken};
 
@@ -206,11 +206,15 @@ pub fn annotation_from_label_token(
     // 1. Normalize
     let tokens = normalization::normalize_line_token(label_token);
 
-    // 2. Extract (parses label AND parameters from tokens)
-    let data = extraction::extract_annotation_data(tokens, source);
+    let data = data_from_tokens(tokens, source);
 
-    // 3. Create
     ast_nodes::annotation_node(data, content, source)
+}
+
+/// Build a Data node from already-normalized tokens (no closing :: marker).
+pub fn data_from_tokens(label_tokens: Vec<(Token, ByteRange<usize>)>, source: &str) -> Data {
+    let data = extraction::extract_data(label_tokens, source);
+    ast_nodes::data_node(data, source)
 }
 
 // ============================================================================
@@ -396,11 +400,7 @@ pub fn annotation_from_tokens(
     content: Vec<ContentElement>,
     source: &str,
 ) -> ContentItem {
-    // Skip normalization, tokens already normalized
-    // 1. Extract (parses label AND parameters from tokens)
-    let data = extraction::extract_annotation_data(label_tokens, source);
-
-    // 2. Create
+    let data = data_from_tokens(label_tokens, source);
     ast_nodes::annotation_node(data, content, source)
 }
 
