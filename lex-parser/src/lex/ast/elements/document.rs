@@ -64,6 +64,18 @@ impl Document {
         self.root.location = location;
         self
     }
+
+    pub fn root_session(&self) -> &Session {
+        &self.root
+    }
+
+    pub fn root_session_mut(&mut self) -> &mut Session {
+        &mut self.root
+    }
+
+    pub fn into_root(self) -> Session {
+        self.root
+    }
 }
 
 impl AstNode for Document {
