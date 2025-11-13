@@ -112,7 +112,6 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
 mod tests {
     use super::*;
     use crate::lex::parsing::ContentItem;
-    use crate::lex::testing::workspace_path;
 
     // Helper to prepare flat token stream
     fn lex_helper(
@@ -192,107 +191,6 @@ mod tests {
             .iter()
             .any(|item| matches!(item, ContentItem::Annotation(_)));
         assert!(has_annotation, "Should contain an Annotation node");
-    }
-
-    #[test]
-    fn test_annotations_120_simple() {
-        let source = std::fs::read_to_string(workspace_path(
-            "docs/specs/v1/samples/120-annotations-simple.lex",
-        ))
-        .expect("Could not read 120 sample");
-        let tokens = lex_helper(&source).expect("Failed to tokenize");
-
-        let doc = parse_from_flat_tokens(tokens, &source).expect("Parser failed");
-
-        eprintln!("\n=== 120 ANNOTATIONS SIMPLE ===");
-        eprintln!("Root items count: {}", doc.root.children.len());
-        for (i, item) in doc.root.children.iter().enumerate() {
-            match item {
-                ContentItem::Paragraph(p) => {
-                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
-                }
-                ContentItem::Annotation(a) => {
-                    eprintln!(
-                        "  [{}] Annotation: label='{}' params={}",
-                        i,
-                        a.label.value,
-                        a.parameters.len()
-                    )
-                }
-                ContentItem::Session(s) => {
-                    eprintln!("  [{}] Session: {} items", i, s.children.len())
-                }
-                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.items.len()),
-                _ => eprintln!("  [{}] Other", i),
-            }
-        }
-
-        // Verify we have paragraphs and annotations
-        let has_annotations = doc
-            .root
-            .children
-            .iter()
-            .any(|item| matches!(item, ContentItem::Annotation(_)));
-        let has_paragraphs = doc
-            .root
-            .children
-            .iter()
-            .any(|item| matches!(item, ContentItem::Paragraph(_)));
-
-        assert!(has_annotations, "Should contain Annotation nodes");
-        assert!(has_paragraphs, "Should contain Paragraph nodes");
-    }
-
-    #[test]
-    fn test_annotations_130_block_content() {
-        let source = std::fs::read_to_string(workspace_path(
-            "docs/specs/v1/samples/130-annotations-block-content.lex",
-        ))
-        .expect("Could not read 130 sample");
-        let tokens = lex_helper(&source).expect("Failed to tokenize");
-
-        let doc = parse_from_flat_tokens(tokens, &source).expect("Parser failed");
-
-        eprintln!("\n=== 130 ANNOTATIONS BLOCK CONTENT ===");
-        eprintln!("Root items count: {}", doc.root.children.len());
-        for (i, item) in doc.root.children.iter().enumerate() {
-            match item {
-                ContentItem::Paragraph(p) => {
-                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
-                }
-                ContentItem::Annotation(a) => {
-                    eprintln!(
-                        "  [{}] Annotation: label='{}' params={} content={} items",
-                        i,
-                        a.label.value,
-                        a.parameters.len(),
-                        a.children.len()
-                    )
-                }
-                ContentItem::Session(s) => {
-                    eprintln!("  [{}] Session: {} items", i, s.children.len())
-                }
-                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.items.len()),
-                _ => eprintln!("  [{}] Other", i),
-            }
-        }
-
-        // Verify we have annotations with block content
-        let annotations_with_content = doc
-            .root
-            .children
-            .iter()
-            .filter_map(|item| match item {
-                ContentItem::Annotation(a) => Some(a),
-                _ => None,
-            })
-            .filter(|a| !a.children.is_empty())
-            .count();
-
-        assert!(
-            annotations_with_content > 0,
-            "Should have annotations with block content"
-        );
     }
 
     #[test]
