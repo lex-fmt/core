@@ -13,13 +13,11 @@
 
 use super::{declarative_grammar, tree_builder};
 use crate::lex::building::ast_builder::AstBuilder;
-use crate::lex::lexing::tokens_core::Token;
-use crate::lex::lexing::tokens_linebased::LineContainer;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
+use crate::lex::token::{LineContainer, LineToken, Token};
 use std::ops::Range as ByteRange;
 
-use crate::lex::lexing::tokens_linebased::LineToken;
 /// Parse from grouped token stream (main entry point).
 ///
 /// This entry point accepts TokenStream::Grouped from the lexing pipeline.
@@ -119,13 +117,7 @@ mod tests {
     // Helper to prepare flat token stream
     fn lex_helper(
         source: &str,
-    ) -> Result<
-        Vec<(
-            crate::lex::lexing::tokens_core::Token,
-            std::ops::Range<usize>,
-        )>,
-        String,
-    > {
+    ) -> Result<Vec<(crate::lex::token::Token, std::ops::Range<usize>)>, String> {
         let tokens = crate::lex::lexing::tokenize(source);
         Ok(crate::lex::lexing::lex(tokens))
     }

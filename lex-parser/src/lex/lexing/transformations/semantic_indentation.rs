@@ -16,7 +16,7 @@
 //!
 //! This is a pure adaptation of the existing sem_indentation transformation
 //! to the TokenStream architecture.
-use crate::lex::lexing::tokens_core::Token;
+use crate::lex::token::Token;
 use std::ops::Range as ByteRange;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TransformationError {
@@ -219,8 +219,8 @@ impl SemanticIndentationMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexing::tokens_core::Token;
     use crate::lex::testing::factories::{mk_token, Tokens};
+    use crate::lex::token::Token;
 
     fn with_loc(tokens: Vec<Token>) -> Tokens {
         tokens
