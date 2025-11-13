@@ -1,0 +1,97 @@
+//! Helper functions for AST builders
+//!
+//! This module provides utility functions used across different element builders
+//! for extracting and processing tokens.
+
+use crate::lex::token::{LineContainer, LineToken, Token};
+use std::ops::Range;
+
+/// Extract a LineToken from a LineContainer
+pub(super) fn extract_line_token(token: &LineContainer) -> Result<&LineToken, String> {
+    match token {
+        LineContainer::Token(t) => Ok(t),
+        _ => Err("Expected LineToken, found Container".to_string()),
+    }
+}
+
+/// Recursively gather all LineTokens contained within a LineContainer tree.
+///
+/// The tokenizer already encodes indentation structure via nested
+/// `LineContainer::Container` nodes, so verbatim content that spans multiple
+/// indentation levels needs to be flattened before we hand the tokens to the
+/// shared AST builders. We keep every nested line (including those that contain
+/// inline `::` markers) so verbatim blocks rely on dedent boundaries instead of
+/// mistaking inline markers for closing annotations.
+pub(super) fn collect_line_tokens(container: &LineContainer, out: &mut Vec<LineToken>) {
+    match container {
+        LineContainer::Token(token) => out.push(token.clone()),
+        LineContainer::Container { children } => {
+            for child in children {
+                collect_line_tokens(child, out);
+            }
+        }
+    }
+}
+
+/// Extract header tokens from an annotation start line.
+/// Header tokens are all tokens between the two :: markers (excluding the markers themselves).
+pub(super) fn extract_annotation_header_tokens(
+    start_token: &LineToken,
+) -> Vec<(Token, std::ops::Range<usize>)> {
+    start_token
+        .source_tokens
+        .clone()
+        .into_iter()
+        .zip(start_token.token_spans.clone())
+        .filter(|(token, _)| !matches!(token, Token::LexMarker))
+        .collect()
+}
+
+/// Extract content from an annotation single-line form.
+/// Returns (header_tokens, content_children) where content_children is either empty
+/// or contains a single Paragraph node with the inline content.
+pub(super) fn extract_annotation_single_content(
+    start_token: &LineToken,
+) -> (
+    Vec<(Token, Range<usize>)>,
+    Vec<crate::lex::parsing::ir::ParseNode>,
+) {
+    use crate::lex::parsing::ir::{NodeType, ParseNode};
+
+    let all_tokens = start_token
+        .source_tokens
+        .clone()
+        .into_iter()
+        .zip(start_token.token_spans.clone())
+        .collect::<Vec<_>>();
+
+    let mut lex_marker_count = 0;
+    let mut content_started = false;
+    let mut header_tokens = Vec::new();
+    let mut content_tokens = Vec::new();
+
+    for (token, span) in all_tokens {
+        if token == Token::LexMarker {
+            lex_marker_count += 1;
+            if lex_marker_count == 2 {
+                content_started = true;
+            }
+            continue;
+        }
+
+        if !content_started {
+            header_tokens.push((token, span));
+        } else {
+            content_tokens.push((token, span));
+        }
+    }
+
+    // If there's content after the header, create a paragraph for it
+    let children = if !content_tokens.is_empty() {
+        vec![ParseNode::new(NodeType::Paragraph, content_tokens, vec![])]
+    } else {
+        vec![]
+    };
+
+    (header_tokens, children)
+}
