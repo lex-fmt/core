@@ -26,7 +26,7 @@ pub fn analyze(
     match analyzer {
         AnalyzerConfig::Linebased => {
             let tokens = stream.unroll();
-            crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source).map_err(|e| {
+            crate::lex::parsing::engine::parse_from_flat_tokens(tokens, source).map_err(|e| {
                 TransformationError::Error(format!("Linebased analyzer failed: {}", e))
             })
         }
