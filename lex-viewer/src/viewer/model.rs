@@ -241,7 +241,7 @@ impl Model {
         let pos = Position::new(row, col);
 
         // Find the deepest element at this position using AST locations
-        if let Some(element) = self.document.element_at(pos) {
+        if let Some(element) = self.document.root.element_at(pos) {
             self.find_node_id_for_element(element)
         } else {
             None

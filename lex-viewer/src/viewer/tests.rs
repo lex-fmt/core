@@ -533,14 +533,14 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
                     location.end.column
                 );
 
-                // Try to find the node using document.element_at
+                // Try to find the node using the root session's element lookup
                 use lex_parser::lex::ast::range::Position;
                 let pos = Position::new(location.start.line, location.start.column);
-                let element = app.app().model.document.element_at(pos);
-                // Verify document.element_at() now finds nested elements
+                let element = app.app().model.document.root.element_at(pos);
+                // Verify Session::element_at() now finds nested elements
                 assert!(
                     element.is_some(),
-                    "document.element_at() should find nested elements at position {:?}",
+                    "Session::element_at() should find nested elements at position {:?}",
                     pos
                 );
 
