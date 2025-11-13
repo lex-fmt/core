@@ -1,21 +1,21 @@
 //! AST Builder from ParseNode IR
 //!
-//! This module contains the `AstBuilder`, which walks the `ParseNode` tree
+//! This module contains the `AstTreeBuilder`, which walks the `ParseNode` tree
 //! produced by the parser and constructs the final AST.
 
 use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
 use crate::lex::ast::{AstNode, ContentItem, Document, ListItem, Range};
-use crate::lex::building::api as ast_builder;
+use crate::lex::building::api as ast_api;
 use crate::lex::building::location::compute_location_from_locations;
 use crate::lex::parsing::ir::{NodeType, ParseNode, TokenLocation};
 
 /// A builder that constructs an AST from a `ParseNode` tree.
-pub struct AstBuilder<'a> {
+pub struct AstTreeBuilder<'a> {
     source: &'a str,
 }
 
-impl<'a> AstBuilder<'a> {
-    /// Creates a new `AstBuilder`.
+impl<'a> AstTreeBuilder<'a> {
+    /// Creates a new `AstTreeBuilder`.
     pub fn new(source: &'a str) -> Self {
         Self { source }
     }
@@ -56,19 +56,19 @@ impl<'a> AstBuilder<'a> {
 
     fn build_paragraph(&self, node: ParseNode) -> ContentItem {
         let token_lines = group_tokens_by_line(node.tokens);
-        ast_builder::build_paragraph_from_tokens(token_lines, self.source)
+        ast_api::paragraph_from_token_lines(token_lines, self.source)
     }
 
     fn build_session(&self, node: ParseNode) -> ContentItem {
         let title_tokens = node.tokens;
         let content = self.build_session_content(node.children);
-        ast_builder::build_session_from_tokens(title_tokens, content, self.source)
+        ast_api::session_from_tokens(title_tokens, content, self.source)
     }
 
     fn build_definition(&self, node: ParseNode) -> ContentItem {
         let subject_tokens = node.tokens;
         let content = self.build_general_content(node.children, "Definition");
-        ast_builder::build_definition_from_tokens(subject_tokens, content, self.source)
+        ast_api::definition_from_tokens(subject_tokens, content, self.source)
     }
 
     fn build_list(&self, node: ParseNode) -> ContentItem {
@@ -77,19 +77,19 @@ impl<'a> AstBuilder<'a> {
             .into_iter()
             .map(|child_node| self.build_list_item(child_node))
             .collect();
-        ast_builder::build_list(list_items)
+        ast_api::list_from_items(list_items)
     }
 
     fn build_list_item(&self, node: ParseNode) -> ListItem {
         let marker_tokens = node.tokens;
         let content = self.build_general_content(node.children, "ListItem");
-        ast_builder::build_list_item_from_tokens(marker_tokens, content, self.source)
+        ast_api::list_item_from_tokens(marker_tokens, content, self.source)
     }
 
     fn build_annotation(&self, node: ParseNode) -> ContentItem {
         let header_tokens = node.tokens;
         let content = self.build_general_content(node.children, "Annotation");
-        ast_builder::build_annotation_from_tokens(header_tokens, content, self.source)
+        ast_api::annotation_from_tokens(header_tokens, content, self.source)
     }
 
     fn build_verbatim_block(&self, node: ParseNode) -> ContentItem {
@@ -130,7 +130,7 @@ impl<'a> AstBuilder<'a> {
                 panic!("Expected Annotation for verbatim block closing");
             };
 
-        ast_builder::build_verbatim_block_from_tokens(groups, closing_annotation, self.source)
+        ast_api::verbatim_block_from_token_groups(groups, closing_annotation, self.source)
     }
 
     fn build_session_content(&self, nodes: Vec<ParseNode>) -> Vec<SessionContent> {

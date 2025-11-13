@@ -1,30 +1,16 @@
-//! Integration test for linebased parser using the kitchensink test file.
+//! Integration test for the parser using the kitchensink test file.
 //!
-//! This test uses insta snapshot testing to ensure the linebased parser
+//! This test uses insta snapshot testing to ensure the parser
 //! produces the correct AST structure for a complex, comprehensive test file.
 //! Any regression in parsing will be caught automatically.
 
 use lex_parser::lex::parsing::ContentItem;
-use lex_parser::lex::pipeline::{ExecutionOutput, PipelineExecutor};
-use lex_parser::lex::testing::workspace_path;
+use lex_parser::lex::testing::lexplore::Lexplore;
 
 #[test]
 fn _parser_kitchensink_snapshot() {
-    let source = std::fs::read_to_string(workspace_path(
-        "docs/specs/v1/regression-bugs/kitchensink.lex",
-    ))
-    .expect("Could not read kitchensink.lex");
-
-    // Use PipelineExecutor
-    let executor = PipelineExecutor::new();
-    let output = executor
-        .execute(&source)
-        .expect("Failed to execute pipeline");
-
-    let doc = match output {
-        ExecutionOutput::Document(doc) => doc,
-        _ => panic!("Expected Document output"),
-    };
+    // Use Lexplore to load the benchmark kitchensink document
+    let doc = Lexplore::benchmark(10).parse();
 
     // Create a readable representation of the AST for snapshot testing
     let snapshot = format_ast_snapshot(&doc.root.children);

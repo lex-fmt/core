@@ -84,7 +84,7 @@ use crate::lex::parsing::ContentItem;
 /// # Returns
 ///
 /// A Paragraph ContentItem with proper ast::Range locations
-pub(super) fn create_paragraph(data: ParagraphData, source: &str) -> ContentItem {
+pub(super) fn paragraph_node(data: ParagraphData, source: &str) -> ContentItem {
     // Convert byte ranges to AST ranges and build TextLines
     let lines: Vec<ContentItem> = data
         .text_lines
@@ -124,7 +124,7 @@ pub(super) fn create_paragraph(data: ParagraphData, source: &str) -> ContentItem
 /// # Returns
 ///
 /// A Session ContentItem
-pub(super) fn create_session(
+pub(super) fn session_node(
     data: SessionData,
     content: Vec<SessionContent>,
     source: &str,
@@ -156,7 +156,7 @@ pub(super) fn create_session(
 /// # Returns
 ///
 /// A Definition ContentItem
-pub(super) fn create_definition(
+pub(super) fn definition_node(
     data: DefinitionData,
     content: Vec<ContentElement>,
     source: &str,
@@ -185,7 +185,7 @@ pub(super) fn create_definition(
 /// # Returns
 ///
 /// A List ContentItem
-pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
+pub(super) fn list_node(items: Vec<ListItem>) -> ContentItem {
     let item_locations: Vec<Range> = items.iter().map(|item| item.location.clone()).collect();
     let typed_items: Vec<ListContent> = items.into_iter().map(ListContent::ListItem).collect();
 
@@ -219,7 +219,7 @@ pub(super) fn create_list(items: Vec<ListItem>) -> ContentItem {
 /// # Returns
 ///
 /// A ListItem node (not wrapped in ContentItem)
-pub(super) fn create_list_item(
+pub(super) fn list_item_node(
     data: ListItemData,
     content: Vec<ContentElement>,
     source: &str,
@@ -250,7 +250,7 @@ pub(super) fn create_list_item(
 /// # Returns
 ///
 /// An Annotation ContentItem
-pub(super) fn create_annotation(
+pub(super) fn annotation_node(
     data: AnnotationData,
     content: Vec<ContentElement>,
     source: &str,
@@ -301,7 +301,7 @@ pub(super) fn create_annotation(
 /// # Returns
 ///
 /// A VerbatimBlock ContentItem
-pub(super) fn create_verbatim_block(
+pub(super) fn verbatim_block_node(
     data: VerbatimBlockkData,
     closing_annotation: Annotation,
     source: &str,
@@ -364,14 +364,14 @@ mod tests {
     use crate::lex::ast::Position;
 
     #[test]
-    fn test_create_paragraph() {
+    fn test_paragraph_node() {
         let source = "hello";
         let data = ParagraphData {
             text_lines: vec![("hello".to_string(), 0..5)],
             overall_byte_range: 0..5,
         };
 
-        let result = create_paragraph(data, source);
+        let result = paragraph_node(data, source);
 
         match result {
             ContentItem::Paragraph(para) => {
@@ -384,14 +384,14 @@ mod tests {
     }
 
     #[test]
-    fn test_create_session() {
+    fn test_session_node() {
         let source = "Session";
         let data = SessionData {
             title_text: "Session".to_string(),
             title_byte_range: 0..7,
         };
 
-        let result = create_session(data, Vec::<SessionContent>::new(), source);
+        let result = session_node(data, Vec::<SessionContent>::new(), source);
 
         match result {
             ContentItem::Session(session) => {
@@ -421,7 +421,7 @@ mod tests {
         };
 
         // This should succeed - Sessions can contain Sessions
-        let result = create_session(data, content, source);
+        let result = session_node(data, content, source);
 
         match result {
             ContentItem::Session(session) => {
@@ -446,7 +446,7 @@ mod tests {
         };
 
         // This should succeed - Definitions can contain Paragraphs
-        let result = create_definition(data, content, source);
+        let result = definition_node(data, content, source);
 
         match result {
             ContentItem::Definition(def) => {
@@ -472,7 +472,7 @@ mod tests {
         };
 
         // This should succeed - Annotations can contain Paragraphs
-        let result = create_annotation(data, content, source);
+        let result = annotation_node(data, content, source);
 
         match result {
             ContentItem::Annotation(ann) => {
@@ -497,7 +497,7 @@ mod tests {
         };
 
         // This should succeed - ListItems can contain Paragraphs
-        let result = create_list_item(data, content, source);
+        let result = list_item_node(data, content, source);
         assert_eq!(result.children.len(), 1);
         assert_eq!(result.text(), "- ");
     }

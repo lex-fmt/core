@@ -5,6 +5,7 @@ pub mod formatting;
 pub mod line;
 pub mod normalization;
 pub mod testing;
+pub mod to_line_container;
 
 pub use core::Token;
 pub use formatting::{detokenize, ToLexString};

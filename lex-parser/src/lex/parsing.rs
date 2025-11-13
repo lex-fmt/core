@@ -22,8 +22,9 @@
 
 // Parser implementations
 pub mod common;
+pub mod engine;
 pub mod ir;
-pub mod linebased;
+pub mod parser;
 // Temporary keepers for future analyzer experiments remain available via the
 // AnalyzerConfig infrastructure in crate::lex::parsing::pipeline.
 

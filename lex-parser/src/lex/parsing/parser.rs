@@ -615,7 +615,7 @@ fn extract_line_token(token: &LineContainer) -> Result<&LineToken, String> {
 
 /// Recursively gather all LineTokens contained within a LineContainer tree.
 ///
-/// The linebased tokenizer already encodes indentation structure via nested
+/// The tokenizer already encodes indentation structure via nested
 /// `LineContainer::Container` nodes, so verbatim content that spans multiple
 /// indentation levels needs to be flattened before we hand the tokens to the
 /// shared AST builders. We keep every nested line (including those that contain

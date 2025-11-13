@@ -89,7 +89,7 @@ Fullwidth Verbatim Blocks
 
 	5.4. Phase 4: Update the Builder
 
-		- Modify `builders.rs`: The `create_verbatim_block` function will be updated to accept the `VerbatimBlockMode` from the extraction layer. It will then use this to populate the new `mode` field when constructing the final `VerbatimBlock` AST node.
+		- Modify `ast_nodes.rs`: The `verbatim_block_node` function will be updated to accept the `VerbatimBlockMode` from the extraction layer. It will then use this to populate the new `mode` field when constructing the final `VerbatimBlock` AST node.
 
 	5.5. Phase 5: Testing
 
@@ -108,4 +108,3 @@ Fullwidth Verbatim Blocks
 			- Were it to start at col 1, there would be no way to differentiate a inner content's annotation mark like line from the actual verbatim block end line without escaping , which is antethical to the goal of lex to be a simple and forgiving language.
 		- Logically then anything from column two onwards are good candadiates, and the sorter the better.
 		- However, tests shows that col 2 is not a good candidate, because it's too close to the indentation wall, and people often mistake it for an error. Hence position 2 makes is more obvioius to be a deliberate choice.
-

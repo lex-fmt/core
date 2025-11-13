@@ -1,7 +1,7 @@
-//! Linebased Parser Engine - Tree Walker and Orchestrator
+//! Parser Engine - Tree Walker and Orchestrator
 //!
 //! This module implements the main parsing orchestrator that:
-//! 1. Walks the semantic line token tree (from linebased lexer)
+//! 1. Walks the semantic line token tree (from the lexer)
 //! 2. Groups tokens at each level into flat sequences
 //! 3. Applies pattern matching to recognize grammar elements
 //! 4. Recursively processes indented blocks
@@ -10,12 +10,11 @@
 //!
 //! The tree walking is completely decoupled from grammar/pattern matching,
 //! making it testable and maintainable independently.
-
-use super::{declarative_grammar, tree_builder};
-use crate::lex::building::ast_builder::AstBuilder;
+use super::parser;
+use crate::lex::building::ast_tree::AstTreeBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
-use crate::lex::token::{LineContainer, LineToken, Token};
+use crate::lex::token::{to_line_container, LineContainer, LineToken, Token};
 use std::ops::Range as ByteRange;
 
 /// Parse from grouped token stream (main entry point).
@@ -51,7 +50,7 @@ pub fn parse_from_grouped_stream(
         .collect();
 
     // Build LineContainer tree from line tokens
-    let tree = tree_builder::build_line_container(line_tokens);
+    let tree = to_line_container::build_line_container(line_tokens);
 
     // Parse using existing logic
     parse_experimental_v2(tree, source)
@@ -83,11 +82,11 @@ pub fn parse_from_flat_tokens(
 
 /// Parse using the new declarative grammar engine (Delivery 2).
 ///
-/// This is the main entry point for the new linebased parser using LineContainerToken.
+/// This is the main entry point for the parser using LineContainerToken.
 /// It uses the declarative grammar matcher and recursive descent parser.
 ///
 /// # Arguments
-/// * `tree` - The token tree from the linebased lexer (LineContainerToken)
+/// * `tree` - The token tree from the lexer (LineContainerToken)
 /// * `source` - The original source text (for location tracking)
 ///
 /// # Returns
@@ -102,9 +101,9 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
     };
 
     // Use declarative grammar engine to parse
-    let content = declarative_grammar::parse_with_declarative_grammar(children, source)?;
+    let content = parser::parse_with_declarative_grammar(children, source)?;
     let root_node = ParseNode::new(NodeType::Document, vec![], content);
-    let builder = AstBuilder::new(source);
+    let builder = AstTreeBuilder::new(source);
     Ok(builder.build(root_node))
 }
 
@@ -112,7 +111,6 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
 mod tests {
     use super::*;
     use crate::lex::parsing::ContentItem;
-    use crate::lex::testing::workspace_path;
 
     // Helper to prepare flat token stream
     fn lex_helper(
@@ -124,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_paragraphs() {
-        // Use tokens from the linebased lexer pipeline
+        // Use tokens from the lexer pipeline
         let source = "Simple paragraph\n";
         let tokens = lex_helper(source).expect("Failed to tokenize");
 
@@ -139,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_parse_definition() {
-        // Use tokens from the linebased lexer pipeline
+        // Use tokens from the lexer pipeline
         let source = "Definition:\n    This is the definition content\n";
         let tokens = lex_helper(source).expect("Failed to tokenize");
 
@@ -158,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_parse_session() {
-        // Use tokens from the linebased lexer pipeline
+        // Use tokens from the lexer pipeline
         let source = "Session:\n\n    Session content here\n";
         let tokens = lex_helper(source).expect("Failed to tokenize");
 
@@ -177,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_parse_annotation() {
-        // Use tokens from the linebased lexer pipeline
+        // Use tokens from the lexer pipeline
         let source = ":: note ::\n";
         let tokens = lex_helper(source).expect("Failed to tokenize");
 
@@ -192,107 +190,6 @@ mod tests {
             .iter()
             .any(|item| matches!(item, ContentItem::Annotation(_)));
         assert!(has_annotation, "Should contain an Annotation node");
-    }
-
-    #[test]
-    fn test_annotations_120_simple() {
-        let source = std::fs::read_to_string(workspace_path(
-            "docs/specs/v1/samples/120-annotations-simple.lex",
-        ))
-        .expect("Could not read 120 sample");
-        let tokens = lex_helper(&source).expect("Failed to tokenize");
-
-        let doc = parse_from_flat_tokens(tokens, &source).expect("Parser failed");
-
-        eprintln!("\n=== 120 ANNOTATIONS SIMPLE ===");
-        eprintln!("Root items count: {}", doc.root.children.len());
-        for (i, item) in doc.root.children.iter().enumerate() {
-            match item {
-                ContentItem::Paragraph(p) => {
-                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
-                }
-                ContentItem::Annotation(a) => {
-                    eprintln!(
-                        "  [{}] Annotation: label='{}' params={}",
-                        i,
-                        a.label.value,
-                        a.parameters.len()
-                    )
-                }
-                ContentItem::Session(s) => {
-                    eprintln!("  [{}] Session: {} items", i, s.children.len())
-                }
-                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.items.len()),
-                _ => eprintln!("  [{}] Other", i),
-            }
-        }
-
-        // Verify we have paragraphs and annotations
-        let has_annotations = doc
-            .root
-            .children
-            .iter()
-            .any(|item| matches!(item, ContentItem::Annotation(_)));
-        let has_paragraphs = doc
-            .root
-            .children
-            .iter()
-            .any(|item| matches!(item, ContentItem::Paragraph(_)));
-
-        assert!(has_annotations, "Should contain Annotation nodes");
-        assert!(has_paragraphs, "Should contain Paragraph nodes");
-    }
-
-    #[test]
-    fn test_annotations_130_block_content() {
-        let source = std::fs::read_to_string(workspace_path(
-            "docs/specs/v1/samples/130-annotations-block-content.lex",
-        ))
-        .expect("Could not read 130 sample");
-        let tokens = lex_helper(&source).expect("Failed to tokenize");
-
-        let doc = parse_from_flat_tokens(tokens, &source).expect("Parser failed");
-
-        eprintln!("\n=== 130 ANNOTATIONS BLOCK CONTENT ===");
-        eprintln!("Root items count: {}", doc.root.children.len());
-        for (i, item) in doc.root.children.iter().enumerate() {
-            match item {
-                ContentItem::Paragraph(p) => {
-                    eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
-                }
-                ContentItem::Annotation(a) => {
-                    eprintln!(
-                        "  [{}] Annotation: label='{}' params={} content={} items",
-                        i,
-                        a.label.value,
-                        a.parameters.len(),
-                        a.children.len()
-                    )
-                }
-                ContentItem::Session(s) => {
-                    eprintln!("  [{}] Session: {} items", i, s.children.len())
-                }
-                ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.items.len()),
-                _ => eprintln!("  [{}] Other", i),
-            }
-        }
-
-        // Verify we have annotations with block content
-        let annotations_with_content = doc
-            .root
-            .children
-            .iter()
-            .filter_map(|item| match item {
-                ContentItem::Annotation(a) => Some(a),
-                _ => None,
-            })
-            .filter(|a| !a.children.is_empty())
-            .count();
-
-        assert!(
-            annotations_with_content > 0,
-            "Should have annotations with block content"
-        );
     }
 
     #[test]

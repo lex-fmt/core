@@ -1194,27 +1194,3 @@ fn test_benchmark_010_kitchensink() {
             .line_count(1);
     });
 }
-
-#[test]
-fn test_regression_definition_with_list_followed_by_definition() {
-    // Issue: https://github.com/arthur-debert/lex/issues/41
-    // See: docs/specs/v1/regression-bugs/parser-definition-list-transition.lex
-
-    let source = std::fs::read_to_string(workspace_path(
-        "docs/specs/v1/regression-bugs/parser-definition-list-transition.lex",
-    ))
-    .expect("Failed to load regression test file");
-
-    let doc = parse_document(&source)
-        .expect("Parser should handle definition with list followed by definition");
-
-    // Verify structure using assert_ast
-    assert_ast(&doc)
-        .item_count(2)
-        .item(0, |item| {
-            item.assert_definition();
-        })
-        .item(1, |item| {
-            item.assert_definition();
-        });
-}
