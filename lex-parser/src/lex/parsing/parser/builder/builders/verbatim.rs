@@ -24,7 +24,7 @@ pub(in crate::lex::parsing::parser::builder) fn build_verbatim_block(
     }
 
     let closing_token = extract_line_token(&tokens[closing_idx])?;
-    let (header_tokens, closing_children) = extract_annotation_single_content(closing_token);
+    let (header_tokens, closing_children) = extract_annotation_single_content(closing_token)?;
     let closing_node = ParseNode::new(NodeType::Annotation, header_tokens, closing_children);
 
     let verbatim_node = ParseNode::new(NodeType::VerbatimBlock, vec![], vec![closing_node])

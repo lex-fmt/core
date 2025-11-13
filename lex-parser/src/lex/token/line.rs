@@ -63,7 +63,7 @@ pub enum LineType {
     /// Annotation end line: a line starting with :: marker and having no further content
     AnnotationEndLine,
 
-    /// Annotation start line: follows annotation grammar <lex-marker><space>(<label><space>)?<parameters>? <lex-marker> <content>?
+    /// Annotation start line: follows annotation grammar <lex-marker><space><label>(<space><parameters>)? <lex-marker> <content>?
     AnnotationStartLine,
 
     /// Line ending with colon (could be subject/definition/session title)

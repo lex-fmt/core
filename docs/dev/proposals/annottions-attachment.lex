@@ -21,12 +21,12 @@ Annotations And Metadata in Lex
 		An annotation attaches to the content element it immediately precedes, with no blank lines between them. This "prefix" model makes the author's intent explicit and removes ambiguity.
 
 		Example: Attaching to a Paragraph
-			:: author="John Doe" ::
+			:: note author="John Doe" ::
 			This is the paragraph being annotated.
 		:: lex ::
 
 		Example: Attaching to a Session
-			:: review-status="draft" ::
+			:: session review_status="draft" ::
 			1. My Session Title
 
 			    Content of the session.
@@ -43,12 +43,12 @@ Annotations And Metadata in Lex
 
 			    A paragraph inside the session.
 
-			    :: status="misplaced" ::
+			    :: note status="misplaced" ::
 
 			    Another paragraph.
 		:: lex ::
 
-		In this case, the `:: status="misplaced" ::` annotation is separated by a blank line from the following paragraph. It will be attached as an "orphaned" annotation to the `Session` node itself.
+		In this case, the `:: note status="misplaced" ::` annotation is separated by a blank line from the following paragraph. It will be attached as an "orphaned" annotation to the `Session` node itself.
 
 	3.3. Special Cases
 

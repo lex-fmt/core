@@ -3,6 +3,7 @@
 //! This module provides utility functions used across different element builders
 //! for extracting and processing tokens.
 
+use crate::lex::annotation::analyze_annotation_header_token_pairs;
 use crate::lex::token::{LineContainer, LineToken, Token};
 use std::ops::Range;
 
@@ -37,14 +38,17 @@ pub(super) fn collect_line_tokens(container: &LineContainer, out: &mut Vec<LineT
 /// Header tokens are all tokens between the two :: markers (excluding the markers themselves).
 pub(super) fn extract_annotation_header_tokens(
     start_token: &LineToken,
-) -> Vec<(Token, std::ops::Range<usize>)> {
-    start_token
+) -> Result<Vec<(Token, std::ops::Range<usize>)>, String> {
+    let header_tokens: Vec<_> = start_token
         .source_tokens
         .clone()
         .into_iter()
         .zip(start_token.token_spans.clone())
         .filter(|(token, _)| !matches!(token, Token::LexMarker))
-        .collect()
+        .collect();
+
+    ensure_header_has_label(start_token, &header_tokens)?;
+    Ok(header_tokens)
 }
 
 /// Extract content from an annotation single-line form.
@@ -52,10 +56,13 @@ pub(super) fn extract_annotation_header_tokens(
 /// or contains a single Paragraph node with the inline content.
 pub(super) fn extract_annotation_single_content(
     start_token: &LineToken,
-) -> (
-    Vec<(Token, Range<usize>)>,
-    Vec<crate::lex::parsing::ir::ParseNode>,
-) {
+) -> Result<
+    (
+        Vec<(Token, Range<usize>)>,
+        Vec<crate::lex::parsing::ir::ParseNode>,
+    ),
+    String,
+> {
     use crate::lex::parsing::ir::{NodeType, ParseNode};
 
     let all_tokens = start_token
@@ -86,6 +93,8 @@ pub(super) fn extract_annotation_single_content(
         }
     }
 
+    ensure_header_has_label(start_token, &header_tokens)?;
+
     // If there's content after the header, create a paragraph for it
     let children = if !content_tokens.is_empty() {
         vec![ParseNode::new(NodeType::Paragraph, content_tokens, vec![])]
@@ -93,5 +102,26 @@ pub(super) fn extract_annotation_single_content(
         vec![]
     };
 
-    (header_tokens, children)
+    Ok((header_tokens, children))
+}
+
+fn ensure_header_has_label(
+    start_token: &LineToken,
+    header_tokens: &[(Token, Range<usize>)],
+) -> Result<(), String> {
+    let analysis = analyze_annotation_header_token_pairs(header_tokens);
+    if analysis.has_label {
+        return Ok(());
+    }
+
+    let byte = header_tokens
+        .first()
+        .map(|(_, span)| span.start)
+        .or_else(|| start_token.token_spans.first().map(|span| span.start))
+        .unwrap_or(0);
+
+    Err(format!(
+        "Annotation starting at byte {} must include a label before any parameters",
+        byte
+    ))
 }

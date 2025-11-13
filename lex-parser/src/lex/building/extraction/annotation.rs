@@ -3,8 +3,8 @@
 //! Extracts primitive data (text, byte ranges) from normalized token vectors
 //! for building Annotation AST nodes. Orchestrates label and parameter parsing.
 
-use super::label::parse_label_tokens;
 use super::parameter::{parse_parameter, ParameterData};
+use crate::lex::annotation::split_label_tokens_with_ranges;
 use crate::lex::token::normalization::utilities::{compute_bounding_box, extract_text};
 use crate::lex::token::Token;
 use std::ops::Range as ByteRange;
@@ -55,15 +55,14 @@ pub(in crate::lex::building) fn extract_annotation_data(
     source: &str,
 ) -> AnnotationData {
     if tokens.is_empty() {
-        return AnnotationData {
-            label_text: String::new(),
-            label_byte_range: 0..0,
-            parameters: Vec::new(),
-        };
+        panic!("Annotation header tokens cannot be empty; parser must ensure labels are present");
     }
 
     // 1. Parse label
-    let (label_tokens, mut i) = parse_label_tokens(&tokens);
+    let (label_tokens, mut i, has_label) = split_label_tokens_with_ranges(&tokens);
+    if !has_label {
+        panic!("Annotation header must include a label before parameters");
+    }
 
     let (label_text, label_byte_range) = if !label_tokens.is_empty() {
         let range = compute_bounding_box(&label_tokens);

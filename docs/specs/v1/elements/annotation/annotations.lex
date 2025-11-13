@@ -4,13 +4,13 @@ Introduction
 
 	Annotations are a core element in lex, but a metadata one. They provide , not only a way for authors and colaborators to register non content related information, but the right hooks for tooling to build on top of lex, such as a commenting system before publishing.
 
-	As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling).
+	As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling). Labels are mandatory; parameters extend the label but never replace it.
 
 
 	Core features:
 
-	- Annotations have an optional labels [./labels.lex] and parameters [./parameters.lex]
-	- Labels are mandatory, parameters are optional.
+	- Annotations require labels [./labels.lex]; parameters [./parameters.lex] are optional augmentations
+	- Parameters may enrich the label but cannot exist without one
 	- Annotations have optional content: which can be the single line shortcut or the regular content conatainer form, which allows all elements but sessions to be part (including nesting). While not prohibited, annotations should not contain other annotations as their content as the semantic meaning would be ... why bother? 
 
 Syntax Forms:
@@ -49,4 +49,4 @@ Examples:
 :: note :: Important information
 :: warning severity=high :: Check this carefully
 :: debug :: (marker form, no content)
-:: type=python :: (params-only, no label)
+:: meta type=python :: (parameters enhance the label, but the label is still required)

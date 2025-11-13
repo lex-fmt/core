@@ -28,8 +28,8 @@
 //!         :: note severity=high :: Check this carefully
 //!      Marker form (no content):
 //!         :: debug ::
-//!      Params-only:
-//!         :: type=python :: (params-only, no label)
+//!      Parameters augmenting the label:
+//!         :: meta type=python :: (parameters need an accompanying label)
 //!      Long Form:
 //!         :: label ::
 //!             John has reviewed this paragraph. Hence we're only lacking:

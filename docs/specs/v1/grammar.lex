@@ -178,8 +178,8 @@ Grammar for lex
                 Used to close annotation blocks and verbatim blocks.
 
             3. annotation-start-line:
-                <annotation-start-line> = <indent>? <lex-marker> <whitespace> (<label> <whitespace>)? <parameters>? <whitespace> <lex-marker> <whitespace>* <line-break>
-                Follows annotation grammar: starts with ::, has optional label and/or parameters, ends with ::
+                <annotation-start-line> = <indent>? <lex-marker> <whitespace> <label> (<whitespace> <parameters>)? <whitespace> <lex-marker> <whitespace>* <line-break>
+                Follows annotation grammar: starts with ::, includes a mandatory label, optional parameters, then ends with ::
                 Can have optional trailing content after closing marker.
 
             4. subject-or-list-item-line:
@@ -228,7 +228,7 @@ Grammar for lex
 
     <annotation> = <annotation-marker> <annotation-header> <annotation-marker> <annotation-tail>?
     <annotation-marker> = "::"
-    <annotation-header> = (<label> <parameters>?) | <parameters>
+    <annotation-header> = <label> <parameters>?
     <label> = <letter> (<letter> | <digit> | "_" | "-" | ".")*
     <parameters> = <parameter> ("," <parameter>)*
     <parameter> = <key> "=" <value>
@@ -242,9 +242,8 @@ Grammar for lex
     - Marker form: :: label :: (no content, no tail)
     - Single-line form: :: label :: inline text (text is the tail)
     - Block form: :: label :: \n <indent>content<dedent> :: (note TWO closing :: markers)
-    - Parameters-only: :: params :: (no label)
     - Combined: :: label params :: inline text
-    Either label or parameters must be present (or both).
+    Labels are mandatory; parameters are optional.
     Content cannot include sessions or nested annotations.
 
     <list> = <blank-line> <list-item-line>{2,*}
@@ -298,10 +297,9 @@ Grammar for lex
         - Marker form: :: label :: (empty, no content)
         - Single-line form: :: label :: inline text
         - Block form: :: label :: <newline> <indent>content<dedent> ::
-        - Parameters-only: :: params :: (no label required)
+        - Combined form with parameters still requires labels
 
-        Clarification: The grammar says "Either label or parameters must be present (or both)".
-        Implementation enforces this - both cannot be absent.
+        Clarification: Earlier revisions allowed parameter-only annotations; the grammar and implementation now require a label, with parameters remaining optional.
 
         Constraint verification: Content cannot include sessions or nested annotations (enforced).
 

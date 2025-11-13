@@ -3,6 +3,7 @@
 //! Core classification logic for determining line types based on token patterns.
 //! This module contains the classifiers used by the lexer to categorize lines.
 
+use crate::lex::annotation::analyze_annotation_header_tokens;
 use crate::lex::token::{LineType, Token};
 
 /// Determine the type of a line based on its tokens.
@@ -85,7 +86,7 @@ fn is_annotation_end_line(tokens: &[Token]) -> bool {
 }
 
 /// Check if line is an annotation start line: follows annotation grammar
-/// Grammar: <lex-marker><space>(<label><space>)?<parameters>? <lex-marker> <content>?
+/// Grammar: <lex-marker><space><label>(<space><parameters>)? <lex-marker> <content>?
 fn is_annotation_start_line(tokens: &[Token]) -> bool {
     if tokens.is_empty() {
         return false;
@@ -126,11 +127,21 @@ fn is_annotation_start_line(tokens: &[Token]) -> bool {
     }
 
     // Must have a second LexMarker somewhere after the first
-    let has_second_marker = tokens[first_marker_idx + 1..]
-        .iter()
-        .any(|t| matches!(t, Token::LexMarker));
+    let mut second_marker_idx = None;
+    for (i, token) in tokens.iter().enumerate().skip(first_marker_idx + 1) {
+        if matches!(token, Token::LexMarker) {
+            second_marker_idx = Some(i);
+            break;
+        }
+    }
 
-    has_second_marker
+    let Some(second_marker_idx) = second_marker_idx else {
+        return false;
+    };
+
+    // Require a label between the markers
+    let header_tokens = &tokens[first_marker_idx + 1..second_marker_idx];
+    analyze_annotation_header_tokens(header_tokens).has_label
 }
 
 /// Check if line starts with a list marker (after optional indentation)
@@ -269,6 +280,22 @@ mod tests {
             Token::BlankLine(Some("\n".to_string())),
         ];
         assert_eq!(classify_line_tokens(&tokens), LineType::AnnotationStartLine);
+    }
+
+    #[test]
+    fn test_annotation_line_without_label_falls_back_to_paragraph() {
+        let tokens = vec![
+            Token::LexMarker,
+            Token::Whitespace,
+            Token::Text("version".to_string()),
+            Token::Equals,
+            Token::Number("3.11".to_string()),
+            Token::Whitespace,
+            Token::LexMarker,
+            Token::BlankLine(Some("\n".to_string())),
+        ];
+
+        assert_eq!(classify_line_tokens(&tokens), LineType::ParagraphLine);
     }
 
     #[test]
