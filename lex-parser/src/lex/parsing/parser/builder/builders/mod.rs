@@ -19,4 +19,3 @@ pub(in crate::lex::parsing::parser::builder) use list::build_list;
 pub(in crate::lex::parsing::parser::builder) use paragraph::build_paragraph;
 pub(in crate::lex::parsing::parser::builder) use session::build_session;
 pub(in crate::lex::parsing::parser::builder) use verbatim::build_verbatim_block;
-pub(in crate::lex::parsing::parser) use verbatim::VerbatimGroupMatch;

@@ -6,6 +6,7 @@
 //! - Test isolated elements (one element per test)
 //! - Verify content and structure, not just counts
 
+use lex_parser::lex::ast::elements::verbatim::VerbatimBlockMode;
 use lex_parser::lex::ast::AstNode;
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
@@ -311,6 +312,21 @@ fn test_verbatim_13_group_spades() {
         item.assert_paragraph().text_contains(
             "Note that verbatim blocks conetents can have any number of blank lines",
         );
+    });
+}
+
+#[test]
+fn test_verbatim_14_fullwidth_table() {
+    // verbatim-14-fullwidth.lex: Fullwidth block starting near the left margin
+    let doc = Lexplore::verbatim(14).parse();
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_verbatim_block()
+            .subject("Fullwidth Table Example")
+            .mode(VerbatimBlockMode::Fullwidth)
+            .line_count(4)
+            .content_contains("Header | Value | Notes")
+            .content_contains("Beta   | 25    | extended range");
     });
 }
 

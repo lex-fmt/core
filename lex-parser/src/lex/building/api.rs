@@ -242,29 +242,16 @@ pub fn annotation_from_label_token(
 /// // Both produce VerbatimBlock with content: "line1\nline2"
 /// // The indentation wall (minimum indentation) is stripped.
 /// ```
-pub fn verbatim_block_from_subject_tokens(
+pub fn verbatim_block_from_lines(
     subject_token: &LineToken,
-    content_tokens: Vec<&LineToken>,
+    content_tokens: &[LineToken],
     closing_annotation: Annotation,
     source: &str,
 ) -> ContentItem {
-    // 1. Normalize subject
-    let subject_tokens = normalization::normalize_line_token(subject_token);
+    // 1. Extract (includes mode detection and indentation wall stripping)
+    let data = extraction::extract_verbatim_block_data(subject_token, content_tokens, source);
 
-    // 2. Normalize content (preserving line boundaries for wall calculation)
-    let content_token_lines: Vec<Vec<_>> = content_tokens
-        .iter()
-        .map(|lt| normalization::normalize_line_token(lt))
-        .collect();
-
-    // 3. Extract (includes indentation wall stripping)
-    let group = extraction::VerbatimGroupTokenLines {
-        subject_tokens,
-        content_token_lines,
-    };
-    let data = extraction::extract_verbatim_block_data(vec![group], source);
-
-    // 4. Create
+    // 2. Create
     ast_nodes::verbatim_block_node(data, closing_annotation, source)
 }
 
@@ -415,43 +402,6 @@ pub fn annotation_from_tokens(
 
     // 2. Create
     ast_nodes::annotation_node(data, content, source)
-}
-
-/// Build a VerbatimBlock from already-normalized tokens.
-///
-/// This implements indentation wall stripping - content at different nesting
-/// levels will have identical text after wall removal.
-///
-/// # Arguments
-///
-/// * `subject_tokens` - Normalized tokens for the verbatim block subject
-/// * `content_token_lines` - Normalized token vectors for each content line
-/// * `closing_annotation` - The closing annotation node
-/// * `source` - Original source string
-///
-/// # Returns
-///
-/// A VerbatimBlock ContentItem
-///
-/// # Example
-///
-/// ```rust,ignore
-/// // Tokens already normalized upstream
-/// let group = extraction::VerbatimGroupTokenLines {
-///     subject_tokens: vec![(Token::Text("Code".into()), 0..4)],
-///     content_token_lines: vec![
-///         vec![(Token::Indentation, 6..10), (Token::Text("line1".into()), 10..15)],
-///     ],
-/// };
-/// // After extraction, wall of 1 indent is stripped: "line1\nline2"
-/// ```
-pub fn verbatim_block_from_token_groups(
-    groups: Vec<extraction::VerbatimGroupTokenLines>,
-    closing_annotation: Annotation,
-    source: &str,
-) -> ContentItem {
-    let data = extraction::extract_verbatim_block_data(groups, source);
-    ast_nodes::verbatim_block_node(data, closing_annotation, source)
 }
 
 // ============================================================================

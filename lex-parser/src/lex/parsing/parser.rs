@@ -19,7 +19,7 @@ use std::ops::Range;
 mod builder;
 mod grammar;
 
-use builder::{convert_pattern_to_node, PatternMatch, VerbatimGroupMatch};
+use builder::{convert_pattern_to_node, PatternMatch};
 use grammar::{GRAMMAR_PATTERNS, LIST_ITEM_REGEX};
 
 /// Pattern matcher for declarative grammar using regex-based matching
@@ -168,12 +168,8 @@ impl GrammarMatcher {
 
     /// Match verbatim blocks using imperative logic.
     ///
-    /// Verbatim blocks require special handling because they consist of:
-    /// 1. One or more subject/content pairs (subject line + optional container)
-    /// 2. A closing annotation marker (:: ... ::)
-    ///
-    /// This cannot be easily expressed as a single regex pattern due to the
-    /// variable number of groups and the need to track indices for each group.
+    /// Finds a subject line followed by any sequence of lines, terminating at the
+    /// first closing annotation line at the same indentation level.
     fn match_verbatim_block(
         tokens: &[LineContainer],
         start_idx: usize,
@@ -182,11 +178,13 @@ impl GrammarMatcher {
             AnnotationEndLine, AnnotationStartLine, BlankLine, SubjectLine, SubjectOrListItemLine,
         };
 
-        let mut idx = start_idx;
         let len = tokens.len();
-        let mut groups = Vec::new();
+        if start_idx >= len {
+            return None;
+        }
 
-        // Allow blank lines before the first subject as part of the match
+        // Allow blank lines before the subject to be consumed as part of this match
+        let mut idx = start_idx;
         while idx < len {
             if let LineContainer::Token(line) = &tokens[idx] {
                 if line.line_type == BlankLine {
@@ -201,76 +199,33 @@ impl GrammarMatcher {
             return None;
         }
 
-        let mut current = idx;
-
-        loop {
-            let subject_idx = match &tokens.get(current)? {
-                LineContainer::Token(line)
-                    if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) =>
-                {
-                    let idx_val = current;
-                    current += 1;
-                    idx_val
-                }
-                _ => return None,
-            };
-
-            // Skip blank lines after subject
-            while current < len {
-                if let LineContainer::Token(line) = &tokens[current] {
-                    if line.line_type == BlankLine {
-                        current += 1;
-                        continue;
-                    }
-                }
-                break;
+        let subject_idx = match &tokens[idx] {
+            LineContainer::Token(line)
+                if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) =>
+            {
+                idx
             }
+            _ => return None,
+        };
 
-            // Optional content container
-            let mut content_idx = None;
-            if current < len && matches!(tokens[current], LineContainer::Container { .. }) {
-                content_idx = Some(current);
-                current += 1;
-            }
-
-            groups.push(VerbatimGroupMatch {
-                subject_idx,
-                content_idx,
-            });
-
-            // Skip blank lines after content
-            while current < len {
-                if let LineContainer::Token(line) = &tokens[current] {
-                    if line.line_type == BlankLine {
-                        current += 1;
-                        continue;
-                    }
+        let mut cursor = subject_idx + 1;
+        while cursor < len {
+            if let LineContainer::Token(line) = &tokens[cursor] {
+                if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
+                    return Some((
+                        PatternMatch::VerbatimBlock {
+                            subject_idx,
+                            content_range: (subject_idx + 1)..cursor,
+                            closing_idx: cursor,
+                        },
+                        start_idx..(cursor + 1),
+                    ));
                 }
-                break;
             }
-
-            // Check for closing annotation or another subject
-            if current < len {
-                if let LineContainer::Token(line) = &tokens[current] {
-                    if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
-                        let closing_idx = current;
-                        return Some((
-                            PatternMatch::VerbatimBlock {
-                                groups,
-                                closing_idx,
-                            },
-                            start_idx..(closing_idx + 1),
-                        ));
-                    }
-                } else {
-                    return None;
-                }
-            } else {
-                return None;
-            }
-
-            // Continue loop expecting another subject
+            cursor += 1;
         }
+
+        None
     }
 }
 

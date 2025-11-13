@@ -5,6 +5,7 @@
 //! without coupling the parser to the AST building logic.
 
 use crate::lex::lexing::Token;
+use crate::lex::token::LineToken;
 use std::ops::Range;
 
 /// Type alias for token with location
@@ -21,9 +22,16 @@ pub enum NodeType {
     Definition,
     Annotation,
     VerbatimBlock,
-    VerbatimBlockkSubject,
-    VerbatimBlockkContent,
-    VerbatimBlockkClosing,
+}
+
+/// Additional payload carried by specific parse nodes.
+#[derive(Debug, Clone)]
+pub enum ParseNodePayload {
+    /// Raw line tokens needed to build a verbatim block (subject + content lines)
+    VerbatimBlock {
+        subject: LineToken,
+        content_lines: Vec<LineToken>,
+    },
 }
 
 /// A node in the parse tree.
@@ -32,6 +40,7 @@ pub struct ParseNode {
     pub node_type: NodeType,
     pub tokens: Vec<TokenLocation>,
     pub children: Vec<ParseNode>,
+    pub payload: Option<ParseNodePayload>,
 }
 
 impl ParseNode {
@@ -41,6 +50,13 @@ impl ParseNode {
             node_type,
             tokens,
             children,
+            payload: None,
         }
+    }
+
+    /// Attach a payload to this node.
+    pub fn with_payload(mut self, payload: ParseNodePayload) -> Self {
+        self.payload = Some(payload);
+        self
     }
 }
