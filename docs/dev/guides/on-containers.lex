@@ -21,7 +21,7 @@ Containers , Structure and Parsing in Lex
 		Definition::new(subject, Vec<ContentElement>)
 		Annotation::new(label, params, Vec<ContentElement>)
 		List::new(Vec<ListItem>) (each ListItem already owns a GeneralContainer)
-		Verbatim::new(subject, Vec<VerbatimContent>, closing_annotation)
+		Verbatim::new(subject, Vec<VerbatimContent>, closing_data)
 
 	Consequences:
 		No more `ContainerNode`, `Container::new`, or `_from_text` helpers.

@@ -12,11 +12,12 @@ Syntax
 		Subject:
 		    raw content here
 		    preserves all formatting
-		:: label params ::
+		:: label params
 
 	Marker form (no content, typically for binary references):
 		Subject:
-		:: label params :: optional caption text
+		    optional caption text now lives inside the block
+		:: label params
 
 	Note: Optional blank line after subject is allowed in both forms.
 
@@ -28,7 +29,7 @@ Verbatim Groups
 	Syntax:
 		(<subject-line>:
 		    <content lines>)+
-		:: label params ::
+		:: label params
 
 		- Each subject anchors to the indentation wall established by the first subject.
 		- Content for every pair must be indented past the wall and preserves blank lines.
@@ -48,7 +49,7 @@ The Indentation Wall
 		Subject:
 		    content (indented past wall)
 		        more content (further indented - preserved)
-		:: label ::
+		:: label
 
 	Invalid:
 		Subject:
@@ -57,7 +58,7 @@ The Indentation Wall
 	The wall ensures:
 		- Unambiguous content boundaries without escaping
 		- Content can contain :: markers (they're ignored if indented)
-		- Clean detection of closing annotation
+		- Clean detection of closing data lines
 
 Fullwidth Mode
 
@@ -66,7 +67,7 @@ Fullwidth Mode
 	this automatically when the first non-blank content line starts at that
 	column.
 
-		- The closing annotation stays aligned with the subject, so existing
+		- The closing data stays aligned with the subject, so existing
 		  readers still see the same structure.
 		- All content lines share the same wall regardless of how deeply the block
 		  is nested.
@@ -89,19 +90,19 @@ Content Preservation
 		    // spaces    preserved
 		    
 		    function() { return "::"; }  // :: not treated as marker
-		:: javascript ::
+		:: javascript
 
-Closing Annotation
+Closing Data
 
-	The closing annotation:
+	The closing data node:
 		- Must be at same indentation level as subject (at the wall)
-		- Is a full annotation (can have label, params, text content)
-		- Signals end of verbatim block
+		- Contains the label plus optional parameters (no trailing :: marker)
+		- Signals end of the verbatim block
 
 	Examples:
-		:: javascript caption="Hello World" ::
-		:: python version=3.11 :: Example code
-		:: image src=photo.jpg :: Beautiful sunset
+		:: javascript caption="Hello World"
+		:: python version=3.11
+		:: image src=photo.jpg
 
 Examples
 
@@ -110,16 +111,18 @@ Examples
 		    function hello() {
 		        return "world";
 		    }
-		:: javascript ::
+		:: javascript
 
 	Marker form for images:
-Sunset Photo:
-		:: image type=jpg, src=sunset.jpg :: As the sun sets over the ocean.
+		Sunset Photo:
+		    As the sun sets over the ocean.
+		:: image type=jpg, src=sunset.jpg
 
 	With parameters and caption:
 		API Response:
 		    {"status": "ok", "data": [...]}
-		:: json format=pretty :: Example API response from /users endpoint
+		    Example API response from /users endpoint
+		:: json format=pretty
 
 Use Cases
 

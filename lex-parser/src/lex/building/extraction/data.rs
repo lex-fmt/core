@@ -1,19 +1,19 @@
-//! Annotation Data Extraction
+//! Data Node Extraction
 //!
 //! Extracts primitive data (text, byte ranges) from normalized token vectors
-//! for building Annotation AST nodes. Orchestrates label and parameter parsing.
+//! for building Data AST nodes (label + optional parameters).
 
-use super::label::parse_label_tokens;
 use super::parameter::{parse_parameter, ParameterData};
+use crate::lex::annotation::split_label_tokens_with_ranges;
 use crate::lex::token::normalization::utilities::{compute_bounding_box, extract_text};
 use crate::lex::token::Token;
 use std::ops::Range as ByteRange;
 
-/// Extracted data for building an Annotation AST node.
+/// Extracted data for building a `Data` AST node.
 ///
 /// Contains the label text, parameters, and their byte ranges.
 #[derive(Debug, Clone)]
-pub(in crate::lex::building) struct AnnotationData {
+pub(in crate::lex::building) struct DataExtraction {
     /// The annotation label text
     pub label_text: String,
     /// Byte range of the label
@@ -22,7 +22,7 @@ pub(in crate::lex::building) struct AnnotationData {
     pub parameters: Vec<ParameterData>,
 }
 
-/// Extract annotation data from tokens (between :: markers).
+/// Extract data node contents from tokens (between :: markers).
 ///
 /// This function implements the full annotation header parsing logic:
 /// 1. Identify label tokens (before any '=' sign)
@@ -36,13 +36,13 @@ pub(in crate::lex::building) struct AnnotationData {
 ///
 /// # Returns
 ///
-/// AnnotationData containing label text, parameters, and byte ranges
+/// `DataExtraction` containing label text, parameters, and byte ranges
 ///
 /// # Example
 ///
 /// ```ignore
 /// Input tokens: "warning severity=high, category=security"
-/// Output: AnnotationData {
+/// Output: DataExtraction {
 ///   label_text: "warning",
 ///   parameters: [
 ///     { key: "severity", value: Some("high") },
@@ -50,20 +50,19 @@ pub(in crate::lex::building) struct AnnotationData {
 ///   ]
 /// }
 /// ```
-pub(in crate::lex::building) fn extract_annotation_data(
+pub(in crate::lex::building) fn extract_data(
     tokens: Vec<(Token, ByteRange<usize>)>,
     source: &str,
-) -> AnnotationData {
+) -> DataExtraction {
     if tokens.is_empty() {
-        return AnnotationData {
-            label_text: String::new(),
-            label_byte_range: 0..0,
-            parameters: Vec::new(),
-        };
+        panic!("Annotation header tokens cannot be empty; parser must ensure labels are present");
     }
 
     // 1. Parse label
-    let (label_tokens, mut i) = parse_label_tokens(&tokens);
+    let (label_tokens, mut i, has_label) = split_label_tokens_with_ranges(&tokens);
+    if !has_label {
+        panic!("Annotation header must include a label before parameters");
+    }
 
     let (label_text, label_byte_range) = if !label_tokens.is_empty() {
         let range = compute_bounding_box(&label_tokens);
@@ -84,7 +83,7 @@ pub(in crate::lex::building) fn extract_annotation_data(
         }
     }
 
-    AnnotationData {
+    DataExtraction {
         label_text,
         label_byte_range,
         parameters,

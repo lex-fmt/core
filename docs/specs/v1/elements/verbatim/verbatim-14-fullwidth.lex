@@ -3,4 +3,5 @@ Fullwidth Table Example:
  -------+-------+------
  Alpha  | 10    | baseline
 Beta   | 25    | extended range
-:: table summary="export" :: Minimal fullwidth block for wide tables
+ Minimal fullwidth block for wide tables
+:: table summary="export"

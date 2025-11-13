@@ -4,6 +4,7 @@
 
 use super::helpers::{
     extract_annotation_header_tokens, extract_annotation_single_content, extract_line_token,
+    AnnotationHeaderAndContent,
 };
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::token::LineContainer;
@@ -20,7 +21,7 @@ pub(in crate::lex::parsing::parser::builder) fn build_annotation_block(
     parse_children: &ParserFn,
 ) -> Result<ParseNode, String> {
     let start_token = extract_line_token(&tokens[start_idx])?;
-    let header_tokens = extract_annotation_header_tokens(start_token);
+    let header_tokens = extract_annotation_header_tokens(start_token)?;
 
     let children = if let Some(LineContainer::Container { children, .. }) = tokens.get(content_idx)
     {
@@ -42,7 +43,10 @@ pub(in crate::lex::parsing::parser::builder) fn build_annotation_single(
     start_idx: usize,
 ) -> Result<ParseNode, String> {
     let start_token = extract_line_token(&tokens[start_idx])?;
-    let (header_tokens, children) = extract_annotation_single_content(start_token);
+    let AnnotationHeaderAndContent {
+        header_tokens,
+        children,
+    } = extract_annotation_single_content(start_token)?;
 
     Ok(ParseNode::new(
         NodeType::Annotation,

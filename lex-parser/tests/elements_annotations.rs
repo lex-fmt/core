@@ -6,6 +6,7 @@
 //! - Test isolated elements (one element per test)
 //! - Verify content and structure, not just counts
 
+use lex_parser::lex::parsing::{parse_document, ContentItem};
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
 use lex_parser::lex::testing::workspace_path;
@@ -277,6 +278,22 @@ fn test_annotation_10_nested_complex() {
                     .text_contains("Conclusion paragraph");
             });
     });
+}
+
+#[test]
+fn test_annotation_requires_label() {
+    let doc = parse_document(":: severity=high ::\n").expect("parser should succeed");
+
+    let has_annotation = doc
+        .root
+        .children
+        .iter()
+        .any(|item| matches!(item, ContentItem::Annotation(_)));
+
+    assert!(
+        !has_annotation,
+        "Parameter-only annotations must not be recognized as Annotation nodes"
+    );
 }
 
 #[test]

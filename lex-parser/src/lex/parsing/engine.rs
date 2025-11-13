@@ -235,7 +235,7 @@ Final paragraph.
                     eprintln!(
                         "  [{}] Annotation: label='{}' content={} items",
                         i,
-                        a.label.value,
+                        a.data.label.value,
                         a.children.len()
                     )
                 }

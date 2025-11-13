@@ -32,7 +32,7 @@ The lex language
 
         Annotations are metadata elements that provide structured non-content information such as author comments, build tool directives, and semantic markers.
 
-        Annotations are introduced by the :: marker and consist of an optional label, optional parameters (at least one of label or parameters must be present), and optional content.
+	    Annotations are introduced by a :: data node (label + optional parameters) followed by a closing :: marker and optional content.
 
         Three forms exist: marker form (:: label ::), single-line form (:: label :: content), and block form (:: label :: \n indented content \n ::).
 
