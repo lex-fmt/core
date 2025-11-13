@@ -26,9 +26,9 @@
 //! use crate::lex::building::api;
 //!
 //! // In parser:
-//! let paragraph = ast_builder::build_paragraph(&line_tokens, source);
+//! let paragraph = api::paragraph_from_line_tokens(&line_tokens, source);
 //! let session_children: Vec<SessionContent> = vec![];
-//! let session = ast_builder::build_session(&title_token, session_children, source);
+//! let session = api::session_from_title_token(&title_token, session_children, source);
 //! ```
 
 use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
@@ -36,7 +36,7 @@ use crate::lex::ast::{Annotation, ListItem};
 use crate::lex::parsing::ContentItem;
 use crate::lex::token::{normalization, LineToken};
 
-use super::builders;
+use super::ast_nodes;
 use super::extraction;
 
 // ============================================================================
@@ -60,9 +60,9 @@ use super::extraction;
 ///
 /// ```rust,ignore
 /// let line_tokens: Vec<LineToken> = /* ... from parser ... */;
-/// let paragraph = build_paragraph(&line_tokens, source);
+/// let paragraph = paragraph_from_line_tokens(&line_tokens, source);
 /// ```
-pub fn build_paragraph(line_tokens: &[LineToken], source: &str) -> ContentItem {
+pub fn paragraph_from_line_tokens(line_tokens: &[LineToken], source: &str) -> ContentItem {
     // 1. Normalize: LineTokens → Vec<Vec<(Token, Range<usize>)>>
     let token_lines = normalization::normalize_line_tokens(line_tokens);
 
@@ -70,7 +70,7 @@ pub fn build_paragraph(line_tokens: &[LineToken], source: &str) -> ContentItem {
     let data = extraction::extract_paragraph_data(token_lines, source);
 
     // 3. Create: ParagraphData → Paragraph AST node
-    builders::create_paragraph(data, source)
+    ast_nodes::paragraph_node(data, source)
 }
 
 // ============================================================================
@@ -88,7 +88,7 @@ pub fn build_paragraph(line_tokens: &[LineToken], source: &str) -> ContentItem {
 /// # Returns
 ///
 /// A Session ContentItem
-pub fn build_session(
+pub fn session_from_title_token(
     title_token: &LineToken,
     content: Vec<SessionContent>,
     source: &str,
@@ -100,7 +100,7 @@ pub fn build_session(
     let data = extraction::extract_session_data(tokens, source);
 
     // 3. Create
-    builders::create_session(data, content, source)
+    ast_nodes::session_node(data, content, source)
 }
 
 // ============================================================================
@@ -118,7 +118,7 @@ pub fn build_session(
 /// # Returns
 ///
 /// A Definition ContentItem
-pub fn build_definition(
+pub fn definition_from_subject_token(
     subject_token: &LineToken,
     content: Vec<ContentElement>,
     source: &str,
@@ -130,7 +130,7 @@ pub fn build_definition(
     let data = extraction::extract_definition_data(tokens, source);
 
     // 3. Create
-    builders::create_definition(data, content, source)
+    ast_nodes::definition_node(data, content, source)
 }
 
 // ============================================================================
@@ -146,9 +146,9 @@ pub fn build_definition(
 /// # Returns
 ///
 /// A List ContentItem
-pub fn build_list(items: Vec<ListItem>) -> ContentItem {
+pub fn list_from_items(items: Vec<ListItem>) -> ContentItem {
     // No normalization/extraction needed - items already constructed
-    builders::create_list(items)
+    ast_nodes::list_node(items)
 }
 
 // ============================================================================
@@ -166,7 +166,7 @@ pub fn build_list(items: Vec<ListItem>) -> ContentItem {
 /// # Returns
 ///
 /// A ListItem node (not wrapped in ContentItem)
-pub fn build_list_item(
+pub fn list_item_from_marker_token(
     marker_token: &LineToken,
     content: Vec<ContentElement>,
     source: &str,
@@ -178,7 +178,7 @@ pub fn build_list_item(
     let data = extraction::extract_list_item_data(tokens, source);
 
     // 3. Create
-    builders::create_list_item(data, content, source)
+    ast_nodes::list_item_node(data, content, source)
 }
 
 // ============================================================================
@@ -198,7 +198,7 @@ pub fn build_list_item(
 /// # Returns
 ///
 /// An Annotation ContentItem
-pub fn build_annotation(
+pub fn annotation_from_label_token(
     label_token: &LineToken,
     content: Vec<ContentElement>,
     source: &str,
@@ -210,7 +210,7 @@ pub fn build_annotation(
     let data = extraction::extract_annotation_data(tokens, source);
 
     // 3. Create
-    builders::create_annotation(data, content, source)
+    ast_nodes::annotation_node(data, content, source)
 }
 
 // ============================================================================
@@ -242,7 +242,7 @@ pub fn build_annotation(
 /// // Both produce VerbatimBlock with content: "line1\nline2"
 /// // The indentation wall (minimum indentation) is stripped.
 /// ```
-pub fn build_verbatim_block(
+pub fn verbatim_block_from_subject_tokens(
     subject_token: &LineToken,
     content_tokens: Vec<&LineToken>,
     closing_annotation: Annotation,
@@ -265,7 +265,7 @@ pub fn build_verbatim_block(
     let data = extraction::extract_verbatim_block_data(vec![group], source);
 
     // 4. Create
-    builders::create_verbatim_block(data, closing_annotation, source)
+    ast_nodes::verbatim_block_node(data, closing_annotation, source)
 }
 
 // ============================================================================
@@ -289,7 +289,7 @@ use std::ops::Range as ByteRange;
 /// # Returns
 ///
 /// A Paragraph ContentItem
-pub fn build_paragraph_from_tokens(
+pub fn paragraph_from_token_lines(
     mut token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
     source: &str,
 ) -> ContentItem {
@@ -316,7 +316,7 @@ pub fn build_paragraph_from_tokens(
     let data = extraction::extract_paragraph_data(token_lines, source);
 
     // 2. Create
-    builders::create_paragraph(data, source)
+    ast_nodes::paragraph_node(data, source)
 }
 
 /// Build a Session from already-normalized title tokens.
@@ -330,7 +330,7 @@ pub fn build_paragraph_from_tokens(
 /// # Returns
 ///
 /// A Session ContentItem
-pub fn build_session_from_tokens(
+pub fn session_from_tokens(
     title_tokens: Vec<(Token, ByteRange<usize>)>,
     content: Vec<SessionContent>,
     source: &str,
@@ -340,7 +340,7 @@ pub fn build_session_from_tokens(
     let data = extraction::extract_session_data(title_tokens, source);
 
     // 2. Create
-    builders::create_session(data, content, source)
+    ast_nodes::session_node(data, content, source)
 }
 
 /// Build a Definition from already-normalized subject tokens.
@@ -354,7 +354,7 @@ pub fn build_session_from_tokens(
 /// # Returns
 ///
 /// A Definition ContentItem
-pub fn build_definition_from_tokens(
+pub fn definition_from_tokens(
     subject_tokens: Vec<(Token, ByteRange<usize>)>,
     content: Vec<ContentElement>,
     source: &str,
@@ -364,7 +364,7 @@ pub fn build_definition_from_tokens(
     let data = extraction::extract_definition_data(subject_tokens, source);
 
     // 2. Create
-    builders::create_definition(data, content, source)
+    ast_nodes::definition_node(data, content, source)
 }
 
 /// Build a ListItem from already-normalized marker tokens.
@@ -378,7 +378,7 @@ pub fn build_definition_from_tokens(
 /// # Returns
 ///
 /// A ListItem node (not wrapped in ContentItem)
-pub fn build_list_item_from_tokens(
+pub fn list_item_from_tokens(
     marker_tokens: Vec<(Token, ByteRange<usize>)>,
     content: Vec<ContentElement>,
     source: &str,
@@ -388,7 +388,7 @@ pub fn build_list_item_from_tokens(
     let data = extraction::extract_list_item_data(marker_tokens, source);
 
     // 2. Create
-    builders::create_list_item(data, content, source)
+    ast_nodes::list_item_node(data, content, source)
 }
 
 /// Build an Annotation from already-normalized label tokens.
@@ -404,7 +404,7 @@ pub fn build_list_item_from_tokens(
 /// # Returns
 ///
 /// An Annotation ContentItem
-pub fn build_annotation_from_tokens(
+pub fn annotation_from_tokens(
     label_tokens: Vec<(Token, ByteRange<usize>)>,
     content: Vec<ContentElement>,
     source: &str,
@@ -414,7 +414,7 @@ pub fn build_annotation_from_tokens(
     let data = extraction::extract_annotation_data(label_tokens, source);
 
     // 2. Create
-    builders::create_annotation(data, content, source)
+    ast_nodes::annotation_node(data, content, source)
 }
 
 /// Build a VerbatimBlock from already-normalized tokens.
@@ -445,13 +445,13 @@ pub fn build_annotation_from_tokens(
 /// };
 /// // After extraction, wall of 1 indent is stripped: "line1\nline2"
 /// ```
-pub fn build_verbatim_block_from_tokens(
+pub fn verbatim_block_from_token_groups(
     groups: Vec<extraction::VerbatimGroupTokenLines>,
     closing_annotation: Annotation,
     source: &str,
 ) -> ContentItem {
     let data = extraction::extract_verbatim_block_data(groups, source);
-    builders::create_verbatim_block(data, closing_annotation, source)
+    ast_nodes::verbatim_block_node(data, closing_annotation, source)
 }
 
 // ============================================================================
@@ -471,7 +471,7 @@ pub fn build_verbatim_block_from_tokens(
 /// # Returns
 ///
 /// A Paragraph ContentItem
-pub fn build_paragraph_from_text(
+pub fn paragraph_from_text_segments(
     text_lines: Vec<(String, crate::lex::ast::Range)>,
     overall_location: crate::lex::ast::Range,
 ) -> ContentItem {
@@ -511,7 +511,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_paragraph() {
+    fn test_paragraph_from_line_tokens() {
         let source = "hello world";
         let line_tokens = vec![make_line_token(
             vec![
@@ -522,7 +522,7 @@ mod tests {
             vec![0..5, 5..6, 6..11],
         )];
 
-        let result = build_paragraph(&line_tokens, source);
+        let result = paragraph_from_line_tokens(&line_tokens, source);
 
         match result {
             ContentItem::Paragraph(para) => {
@@ -533,14 +533,14 @@ mod tests {
     }
 
     #[test]
-    fn test_build_session() {
+    fn test_session_from_title_token() {
         let source = "Session:";
         let title_token = make_line_token(
             vec![Token::Text("Session".to_string()), Token::Colon],
             vec![0..7, 7..8],
         );
 
-        let result = build_session(&title_token, Vec::<SessionContent>::new(), source);
+        let result = session_from_title_token(&title_token, Vec::<SessionContent>::new(), source);
 
         match result {
             ContentItem::Session(session) => {
