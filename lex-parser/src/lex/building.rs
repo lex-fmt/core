@@ -10,12 +10,13 @@
 //! Parsers should primarily use the `api` module which provides the public API.
 
 pub mod api;
+pub mod ast_builder;
 pub mod location;
 pub mod pipeline;
 
 pub(super) mod builders;
 pub(super) mod extraction;
-pub(super) mod token;
+pub(super) mod normalization;
 
 // Re-export public API
 pub use api::*;

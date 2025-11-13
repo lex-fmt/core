@@ -28,7 +28,7 @@
 //! This layer works with **primitives only**. Byte ranges stay as `Range<usize>`.
 //! The conversion to `ast::Range` happens later in the ast_creation layer.
 
-use super::token::processing::{compute_bounding_box, extract_text};
+use super::normalization::utilities::{compute_bounding_box, extract_text};
 use crate::lex::lexing::tokens_core::Token;
 use std::ops::Range as ByteRange;
 
