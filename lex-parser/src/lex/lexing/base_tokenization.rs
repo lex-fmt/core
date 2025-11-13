@@ -6,7 +6,7 @@
 //! This is NOT a transformation - transformations operate on token streams.
 //! This is the source that creates the initial token stream from a string.
 
-use crate::lex::lexing::tokens_core::Token;
+use crate::lex::token::Token;
 use logos::Logos;
 
 /// Tokenize source code with location information

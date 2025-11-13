@@ -20,7 +20,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use crate::lex::building::normalization;
+//! use crate::lex::token::normalization;
 //!
 //! // Normalize a single line token
 //! let tokens = normalization::normalize_line_token(&line_token);
@@ -32,8 +32,7 @@
 //! let flat_tokens = token_normalization::flatten(&token_lines);
 //! ```
 
-use crate::lex::lexing::tokens_core::Token;
-use crate::lex::lexing::tokens_linebased::LineToken;
+use crate::lex::token::{LineToken, Token};
 use std::ops::Range as ByteRange;
 
 use super::utilities::flatten_token_vecs;
@@ -162,8 +161,7 @@ pub(crate) fn normalize_token_pairs(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexing::tokens_core::Token;
-    use crate::lex::lexing::tokens_linebased::LineType;
+    use crate::lex::token::{LineType, Token};
 
     fn make_line_token(tokens: Vec<Token>, spans: Vec<ByteRange<usize>>) -> LineToken {
         LineToken {

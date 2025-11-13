@@ -2,7 +2,7 @@
 //!
 //! This module contains shared interfaces and utilities for lexer implementations.
 
-use crate::lex::lexing::tokens_core::Token;
+use crate::lex::token::Token;
 use std::fmt;
 use std::ops::Range;
 

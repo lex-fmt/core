@@ -5,8 +5,7 @@
 //! and creates LineToken structures.
 
 use crate::lex::lexing::line_classification::classify_line_tokens;
-use crate::lex::lexing::tokens_core::Token;
-use crate::lex::lexing::tokens_linebased::{LineToken, LineType};
+use crate::lex::token::{LineToken, LineType, Token};
 use std::ops::Range as ByteRange;
 
 /// Group flat tokens into classified LineTokens.

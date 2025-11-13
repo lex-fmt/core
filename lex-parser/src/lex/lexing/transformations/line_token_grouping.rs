@@ -10,7 +10,7 @@
 //! Converts: TokenStream::Flat → TokenStream::Grouped
 
 use crate::lex::lexing::line_grouping::group_into_lines;
-use crate::lex::lexing::tokens_core::Token;
+use crate::lex::token::{LineType, Token};
 use std::ops::Range as ByteRange;
 
 /// Transformation that groups flat tokens into line-based groups.
@@ -36,7 +36,7 @@ pub struct GroupedTokens {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GroupType {
-    Line(crate::lex::lexing::tokens_linebased::LineType),
+    Line(LineType),
 }
 
 impl LineTokenGroupingMapper {
@@ -60,7 +60,6 @@ impl LineTokenGroupingMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexing::tokens_linebased::LineType;
 
     #[test]
     fn test_mapper_integration() {

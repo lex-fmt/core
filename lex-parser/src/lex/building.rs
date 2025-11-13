@@ -16,7 +16,6 @@ pub mod pipeline;
 
 pub(super) mod builders;
 pub(super) mod extraction;
-pub(super) mod normalization;
 
 // Re-export public API
 pub use api::*;
