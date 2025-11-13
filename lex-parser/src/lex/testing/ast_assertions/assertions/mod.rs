@@ -18,9 +18,9 @@ pub use document::DocumentAssertion;
 pub use list::{ListAssertion, ListItemAssertion};
 pub use paragraph::ParagraphAssertion;
 pub use session::SessionAssertion;
-pub use verbatim::{VerbatimBlockkAssertion, VerbatimGroupAssertion};
+pub use verbatim::VerbatimBlockkAssertion;
 
-use crate::lex::ast::traits::{AstNode, Container};
+use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::ContentItem;
 
 // ============================================================================
