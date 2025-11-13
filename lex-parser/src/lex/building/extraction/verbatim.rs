@@ -252,10 +252,29 @@ fn extract_content_line(
     (text, start_offset..trimmed_end)
 }
 
+/// Check if a line is effectively blank (contains only whitespace tokens).
+///
+/// Used to distinguish truly blank lines from those that might have content.
+/// This helps with proper handling of inter-group spacing in verbatim blocks.
 fn is_effectively_blank(line: &LineToken) -> bool {
     line.source_tokens.iter().all(|token| token.is_whitespace())
 }
 
+/// Determine if a line is a new group subject at the specified column.
+///
+/// A line qualifies as a new group subject if:
+/// 1. It has a subject line type (SubjectLine or SubjectOrListItemLine)
+/// 2. Its first non-whitespace content starts at exactly `base_column`
+///
+/// # Arguments
+///
+/// * `line` - The line token to check
+/// * `base_column` - The column where group subjects must start
+/// * `source` - Original source text for column calculation
+///
+/// # Returns
+///
+/// `true` if this line starts a new verbatim group, `false` otherwise
 fn is_new_group_subject(line: &LineToken, base_column: usize, source: &str) -> bool {
     if !matches!(
         line.line_type,
@@ -266,6 +285,19 @@ fn is_new_group_subject(line: &LineToken, base_column: usize, source: &str) -> b
     first_visual_column(line, source) == Some(base_column)
 }
 
+/// Find the visual column of the first non-whitespace token in a line.
+///
+/// Visual columns account for tab expansion (tabs count as 4 columns each).
+/// Returns `None` if the line contains only whitespace.
+///
+/// # Arguments
+///
+/// * `line` - The line token to analyze
+/// * `source` - Original source text for column calculation
+///
+/// # Returns
+///
+/// The visual column (0-indexed) where the first content appears, or `None` for blank lines
 fn first_visual_column(line: &LineToken, source: &str) -> Option<usize> {
     line.source_token_pairs()
         .into_iter()
