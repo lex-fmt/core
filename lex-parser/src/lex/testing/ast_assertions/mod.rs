@@ -5,7 +5,6 @@ mod assertions;
 pub use assertions::{
     AnnotationAssertion, ChildrenAssertion, DefinitionAssertion, DocumentAssertion, ListAssertion,
     ListItemAssertion, ParagraphAssertion, SessionAssertion, VerbatimBlockkAssertion,
-    VerbatimGroupAssertion,
 };
 
 use crate::lex::ast::traits::AstNode;
