@@ -11,7 +11,7 @@
 //! The tree walking is completely decoupled from grammar/pattern matching,
 //! making it testable and maintainable independently.
 use super::parser;
-use crate::lex::building::ast_builder::AstBuilder;
+use crate::lex::building::ast_tree::AstTreeBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
 use crate::lex::token::{to_line_container, LineContainer, LineToken, Token};
@@ -103,7 +103,7 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
     // Use declarative grammar engine to parse
     let content = parser::parse_with_declarative_grammar(children, source)?;
     let root_node = ParseNode::new(NodeType::Document, vec![], content);
-    let builder = AstBuilder::new(source);
+    let builder = AstTreeBuilder::new(source);
     Ok(builder.build(root_node))
 }
 

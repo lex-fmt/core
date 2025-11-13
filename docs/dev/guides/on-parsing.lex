@@ -30,14 +30,14 @@ Parser Integration
 		Receives flat Vec<(Token, Range<usize>)>
 		Builds LineContainer tree internally via tree_builder module
 		:: file src/lex/parsing/linebased/tree_builder.rs ::
-		Uses unwrapper pattern in builders.rs
+		Uses unwrapper pattern in ast_nodes.rs
 		Declarative grammar extracts patterns
-		Unwrappers delegate to ast_builder
+		Unwrappers delegate to ast_tree
 		:: file src/lex/parsing/linebased/engine.rs ::
 		:: file src/lex/parsing/linebased/declarative_grammar.rs ::
 
 	Flow for line-based parser:
-		Flat tokens → tree_builder.build_line_container() → Pattern Match → unwrap_* → ast::build_* → AST Node
+		Flat tokens → tree_builder.build_line_container() → Pattern Match → unwrap_* → ast::api::*_from_* → AST Node
 
 Notes:
 

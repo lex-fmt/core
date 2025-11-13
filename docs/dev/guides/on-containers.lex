@@ -30,9 +30,9 @@ Containers , Structure and Parsing in Lex
 
 3. Parser / Builder Flow
 
-	`AstBuilder` converts `ParseNode` children into typed vectors before calling the builders. Example (see :: file src/lex/parsing/builder.rs ::):
-		Sessions → `build_session_from_tokens(title, Vec<SessionContent>, source)`
-		Definitions / annotations / list items → `build_*` with `Vec<ContentElement>`
+	`AstTreeBuilder` converts `ParseNode` children into typed vectors before calling the builder API. Example (see :: file src/lex/parsing/builder.rs ::):
+		Sessions → `session_from_tokens(title, Vec<SessionContent>, source)`
+		Definitions / annotations / list items → `*_from_tokens` with `Vec<ContentElement>`
 
 	Builders aggregate locations by temporarily projecting the typed vec back into `ContentItem`, but the AST structs only ever see the typed inputs.
 
