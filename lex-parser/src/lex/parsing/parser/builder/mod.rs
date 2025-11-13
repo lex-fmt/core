@@ -6,6 +6,7 @@
 
 use crate::lex::parsing::ir::ParseNode;
 use crate::lex::token::LineContainer;
+use std::ops::Range;
 
 mod builders;
 
@@ -14,17 +15,16 @@ use builders::{
     build_session, build_verbatim_block,
 };
 
-pub(super) use builders::VerbatimGroupMatch;
-
 /// Type alias for the recursive parser function callback
 type ParserFn = dyn Fn(Vec<LineContainer>, &str) -> Result<Vec<ParseNode>, String>;
 
 /// Represents the result of pattern matching
 #[derive(Debug, Clone)]
 pub(super) enum PatternMatch {
-    /// Verbatim block: one or more subject/content pairs followed by closing annotation
+    /// Verbatim block: subject + arbitrary content lines + closing annotation
     VerbatimBlock {
-        groups: Vec<VerbatimGroupMatch>,
+        subject_idx: usize,
+        content_range: Range<usize>,
         closing_idx: usize,
     },
     /// Annotation block: start + container + end
@@ -70,9 +70,10 @@ pub(super) fn convert_pattern_to_node(
 ) -> Result<ParseNode, String> {
     match pattern {
         PatternMatch::VerbatimBlock {
-            groups,
+            subject_idx,
+            content_range,
             closing_idx,
-        } => build_verbatim_block(tokens, groups, *closing_idx),
+        } => build_verbatim_block(tokens, *subject_idx, content_range.clone(), *closing_idx),
         PatternMatch::AnnotationBlock {
             start_idx,
             content_idx,

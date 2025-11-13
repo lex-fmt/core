@@ -124,6 +124,34 @@ pub fn extract_text(range: ByteRange<usize>, source: &str) -> String {
     source[range].to_string()
 }
 
+/// Compute the 0-indexed column number for a given byte offset in the source string.
+///
+/// # Arguments
+///
+/// * `offset` - The byte offset to get the column for
+/// * `source` - The original source string
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let source = "hello\n world";
+/// // 'w' is at byte offset 6
+/// let col = compute_column(6, source);
+/// assert_eq!(col, 1);
+/// ```
+pub fn compute_column(offset: usize, source: &str) -> usize {
+    let mut last_newline = 0;
+    for (i, c) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if c == '\n' {
+            last_newline = i + 1;
+        }
+    }
+    offset - last_newline
+}
+
 /// High-level convenience: extract text directly from tokens.
 ///
 /// This combines `compute_bounding_box` and `extract_text` for convenience.

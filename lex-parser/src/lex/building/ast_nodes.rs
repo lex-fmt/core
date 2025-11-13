@@ -29,7 +29,7 @@
 //! conversion happens here using `byte_range_to_ast_range()`.
 
 use super::extraction::{
-    AnnotationData, DefinitionData, ListItemData, ParagraphData, SessionData, VerbatimBlockkData,
+    AnnotationData, DefinitionData, ListItemData, ParagraphData, SessionData, VerbatimBlockData,
     VerbatimGroupData,
 };
 use super::location::{
@@ -302,33 +302,28 @@ pub(super) fn annotation_node(
 ///
 /// A VerbatimBlock ContentItem
 pub(super) fn verbatim_block_node(
-    data: VerbatimBlockkData,
+    data: VerbatimBlockData,
     closing_annotation: Annotation,
     source: &str,
 ) -> ContentItem {
     if data.groups.is_empty() {
         panic!("Verbatim blocks must contain at least one subject/content pair");
     }
-
+    let mode = data.mode;
     let mut data_groups = data.groups.into_iter();
     let (first_subject, first_children, mut location_sources) =
         build_verbatim_group(data_groups.next().unwrap(), source);
-
     let mut additional_groups: Vec<VerbatimGroupItem> = Vec::new();
-
     for group_data in data_groups {
         let (subject, children, mut group_locations) = build_verbatim_group(group_data, source);
         location_sources.append(&mut group_locations);
         additional_groups.push(VerbatimGroupItem::new(subject, children));
     }
-
     location_sources.push(closing_annotation.location.clone());
     let location = compute_location_from_locations(&location_sources);
-
-    let verbatim_block = Verbatim::new(first_subject, first_children, closing_annotation)
+    let verbatim_block = Verbatim::new(first_subject, first_children, closing_annotation, mode)
         .with_additional_groups(additional_groups)
         .at(location);
-
     ContentItem::VerbatimBlock(Box::new(verbatim_block))
 }
 

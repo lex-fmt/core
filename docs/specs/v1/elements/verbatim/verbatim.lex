@@ -59,6 +59,24 @@ The Indentation Wall
 		- Content can contain :: markers (they're ignored if indented)
 		- Clean detection of closing annotation
 
+Fullwidth Mode
+
+	When indentation steals too much horizontal space, content can drop to a
+	fixed, absolute wall at column 2 (zero-based index 1). The parser detects
+	this automatically when the first non-blank content line starts at that
+	column.
+
+		- The closing annotation stays aligned with the subject, so existing
+		  readers still see the same structure.
+		- All content lines share the same wall regardless of how deeply the block
+		  is nested.
+		- Blank lines and any indentation beyond the wall remain untouched after
+		  extraction.
+
+	Example:
+		- docs/specs/v1/elements/verbatim/verbatim-14-fullwidth.lex - Flat table
+		  whose rows start near the left margin
+
 Content Preservation
 
 	Everything between subject and closing annotation is preserved exactly:

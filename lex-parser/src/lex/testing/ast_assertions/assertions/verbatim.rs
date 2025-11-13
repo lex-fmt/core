@@ -1,6 +1,7 @@
 //! Verbatim block assertions
 
 use crate::lex::ast::elements::container::VerbatimContainer;
+use crate::lex::ast::elements::verbatim::VerbatimBlockMode;
 use crate::lex::ast::{ContentItem, TextContent, Verbatim};
 
 pub struct VerbatimBlockkAssertion<'a> {
@@ -45,6 +46,15 @@ impl<'a> VerbatimBlockkAssertion<'a> {
             actual, expected,
             "{}: Expected closing annotation label to be '{}', but got '{}'",
             self.context, expected, actual
+        );
+        self
+    }
+
+    pub fn mode(self, expected: VerbatimBlockMode) -> Self {
+        assert_eq!(
+            self.verbatim_block.mode, expected,
+            "{}: Expected verbatim block mode {:?}, got {:?}",
+            self.context, expected, self.verbatim_block.mode
         );
         self
     }

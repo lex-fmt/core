@@ -52,42 +52,16 @@ use super::typed_content::VerbatimContent;
 use std::fmt;
 use std::slice;
 
+/// Represents the mode of a verbatim block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VerbatimBlockMode {
+    /// The block's content is indented relative to the subject line.
+    Inflow,
+    /// The block's content starts at a fixed, absolute column.
+    Fullwidth,
+}
+
 /// A verbatim block represents content from another format/system.
-///
-/// # Verbatim Groups
-///
-/// Verbatim blocks can contain multiple subject/content pairs sharing a single closing
-/// annotation. This is useful for sequences like shell command transcripts or grouped
-/// code samples in the same language.
-///
-/// ## Storage Design
-///
-/// The first subject/content pair is stored directly in the `subject` and `children`
-/// fields for backwards compatibility with existing code that expects direct field access.
-/// Additional pairs are stored in the private `additional_groups` vector.
-///
-/// This split storage pattern allows:
-/// - Existing code to continue working unchanged (accessing first group via public fields)
-/// - New code to iterate over all groups uniformly using the `group()` method
-/// - Zero overhead for single-group verbatim blocks (the common case)
-///
-/// ## Usage
-///
-/// For single-group blocks, access fields directly:
-/// ```ignore
-/// let subject = verbatim.subject.as_string();
-/// let content = &verbatim.children;
-/// ```
-///
-/// For multi-group blocks, use the iterator:
-/// ```ignore
-/// for group in verbatim.group() {
-///     println!("Subject: {}", group.subject.as_string());
-///     for line in group.children.iter() {
-///         // Process each line
-///     }
-/// }
-/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Verbatim {
     /// Subject line of the first group (backwards-compatible direct access)
@@ -98,6 +72,8 @@ pub struct Verbatim {
     pub closing_annotation: Annotation,
     /// Location spanning all groups and the closing annotation
     pub location: Range,
+    /// The rendering mode of the verbatim block.
+    pub mode: VerbatimBlockMode,
     /// Additional subject/content pairs beyond the first (for multi-group verbatims)
     additional_groups: Vec<VerbatimGroupItem>,
 }
@@ -111,12 +87,14 @@ impl Verbatim {
         subject: TextContent,
         children: Vec<VerbatimContent>,
         closing_annotation: Annotation,
+        mode: VerbatimBlockMode,
     ) -> Self {
         Self {
             subject,
             children: VerbatimContainer::from_typed(children),
             closing_annotation,
             location: Self::default_location(),
+            mode,
             additional_groups: Vec::new(),
         }
     }
@@ -127,6 +105,7 @@ impl Verbatim {
             children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
+            mode: VerbatimBlockMode::Inflow,
             additional_groups: Vec::new(),
         }
     }
@@ -137,6 +116,7 @@ impl Verbatim {
             children: VerbatimContainer::empty(),
             closing_annotation,
             location: Self::default_location(),
+            mode: VerbatimBlockMode::Inflow,
             additional_groups: Vec::new(),
         }
     }

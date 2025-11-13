@@ -19,7 +19,7 @@ use std::ops::Range;
 mod builder;
 mod grammar;
 
-use builder::{convert_pattern_to_node, PatternMatch, VerbatimGroupMatch};
+use builder::{convert_pattern_to_node, PatternMatch};
 use grammar::{GRAMMAR_PATTERNS, LIST_ITEM_REGEX};
 
 /// Pattern matcher for declarative grammar using regex-based matching
@@ -168,12 +168,22 @@ impl GrammarMatcher {
 
     /// Match verbatim blocks using imperative logic.
     ///
-    /// Verbatim blocks require special handling because they consist of:
-    /// 1. One or more subject/content pairs (subject line + optional container)
-    /// 2. A closing annotation marker (:: ... ::)
+    /// Verbatim blocks consist of:
+    /// 1. A subject line
+    /// 2. Content that is either:
+    ///    a) In a Container (inflow mode - content indented relative to subject)
+    ///    b) Flat lines (fullwidth mode - content at fixed column, or groups)
+    /// 3. A closing annotation marker (:: ... ::)
     ///
-    /// This cannot be easily expressed as a single regex pattern due to the
-    /// variable number of groups and the need to track indices for each group.
+    /// This matcher handles both the original inflow case (subject + container + annotation)
+    /// and the fullwidth case (subject + flat lines + annotation). To distinguish verbatim
+    /// blocks from sessions followed by annotations, we require that either:
+    /// - There's a Container immediately after the subject, OR
+    /// - The closing annotation is at the SAME indentation as the subject
+    ///
+    /// Sessions have their title at the root level and content is indented. If we see
+    /// a root-level annotation after a root-level subject with indented content between,
+    /// that's NOT a verbatim block - it's a session followed by an annotation.
     fn match_verbatim_block(
         tokens: &[LineContainer],
         start_idx: usize,
@@ -182,11 +192,13 @@ impl GrammarMatcher {
             AnnotationEndLine, AnnotationStartLine, BlankLine, SubjectLine, SubjectOrListItemLine,
         };
 
-        let mut idx = start_idx;
         let len = tokens.len();
-        let mut groups = Vec::new();
+        if start_idx >= len {
+            return None;
+        }
 
-        // Allow blank lines before the first subject as part of the match
+        // Allow blank lines before the subject to be consumed as part of this match
+        let mut idx = start_idx;
         while idx < len {
             if let LineContainer::Token(line) = &tokens[idx] {
                 if line.line_type == BlankLine {
@@ -201,75 +213,107 @@ impl GrammarMatcher {
             return None;
         }
 
-        let mut current = idx;
+        // Must start with a subject line
+        let first_subject_idx = match &tokens[idx] {
+            LineContainer::Token(line)
+                if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) =>
+            {
+                idx
+            }
+            _ => return None,
+        };
 
+        let mut cursor = first_subject_idx + 1;
+
+        // Try to match one or more subject+content pairs followed by closing annotation
+        // This loop handles verbatim groups: multiple subjects sharing one closing annotation
         loop {
-            let subject_idx = match &tokens.get(current)? {
-                LineContainer::Token(line)
-                    if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) =>
-                {
-                    let idx_val = current;
-                    current += 1;
-                    idx_val
-                }
-                _ => return None,
-            };
-
-            // Skip blank lines after subject
-            while current < len {
-                if let LineContainer::Token(line) = &tokens[current] {
+            // Skip blank lines
+            while cursor < len {
+                if let LineContainer::Token(line) = &tokens[cursor] {
                     if line.line_type == BlankLine {
-                        current += 1;
+                        cursor += 1;
                         continue;
                     }
                 }
                 break;
             }
 
-            // Optional content container
-            let mut content_idx = None;
-            if current < len && matches!(tokens[current], LineContainer::Container { .. }) {
-                content_idx = Some(current);
-                current += 1;
-            }
-
-            groups.push(VerbatimGroupMatch {
-                subject_idx,
-                content_idx,
-            });
-
-            // Skip blank lines after content
-            while current < len {
-                if let LineContainer::Token(line) = &tokens[current] {
-                    if line.line_type == BlankLine {
-                        current += 1;
-                        continue;
-                    }
-                }
-                break;
-            }
-
-            // Check for closing annotation or another subject
-            if current < len {
-                if let LineContainer::Token(line) = &tokens[current] {
-                    if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
-                        let closing_idx = current;
-                        return Some((
-                            PatternMatch::VerbatimBlock {
-                                groups,
-                                closing_idx,
-                            },
-                            start_idx..(closing_idx + 1),
-                        ));
-                    }
-                } else {
-                    return None;
-                }
-            } else {
+            if cursor >= len {
                 return None;
             }
 
-            // Continue loop expecting another subject
+            // Check what we have at cursor
+            match &tokens[cursor] {
+                LineContainer::Container { .. } => {
+                    // Found a container - this is potentially inflow mode verbatim content
+                    // But we need to verify the pattern:
+                    // - Verbatim: subject + container + (annotation OR another subject+container)
+                    // - Session: subject + container + (other content)
+                    cursor += 1;
+
+                    // Skip blank lines after container
+                    while cursor < len {
+                        if let LineContainer::Token(line) = &tokens[cursor] {
+                            if line.line_type == BlankLine {
+                                cursor += 1;
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+
+                    // After container, check what follows
+                    if cursor >= len {
+                        return None; // Container at end - not a verbatim block
+                    }
+
+                    match &tokens[cursor] {
+                        LineContainer::Token(line) => {
+                            if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
+                                // Container followed by annotation - this IS verbatim!
+                                // Continue loop to match it
+                                continue;
+                            }
+                            if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) {
+                                // Container followed by another subject - this is a verbatim group!
+                                // Continue loop to match more groups
+                                continue;
+                            }
+                            // Container followed by something else - NOT a verbatim block
+                            return None;
+                        }
+                        LineContainer::Container { .. } => {
+                            // Container followed by another container - NOT verbatim pattern
+                            return None;
+                        }
+                    }
+                }
+                LineContainer::Token(line) => {
+                    if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
+                        // Found closing annotation - success!
+                        // But only if we haven't mixed containers with flat content in a problematic way
+                        return Some((
+                            PatternMatch::VerbatimBlock {
+                                subject_idx: first_subject_idx,
+                                content_range: (first_subject_idx + 1)..cursor,
+                                closing_idx: cursor,
+                            },
+                            start_idx..(cursor + 1),
+                        ));
+                    }
+
+                    if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) {
+                        // Another subject - this is another group
+                        cursor += 1;
+                        continue;
+                    }
+
+                    // Any other flat token (paragraph line, etc.)
+                    // This is fullwidth mode or group content
+                    cursor += 1;
+                }
+            }
         }
     }
 }
