@@ -38,7 +38,7 @@ use crate::lex::parsing::ContentItem;
 
 use super::builders;
 use super::extraction;
-use super::token::normalization;
+use super::normalization;
 
 // ============================================================================
 // PARAGRAPH BUILDING

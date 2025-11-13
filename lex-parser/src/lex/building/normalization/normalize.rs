@@ -20,13 +20,13 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use crate::lex::building::token::normalization;
+//! use crate::lex::building::normalization;
 //!
 //! // Normalize a single line token
-//! let tokens = token_normalization::normalize_line_token(&line_token);
+//! let tokens = normalization::normalize_line_token(&line_token);
 //!
 //! // Normalize multiple line tokens
-//! let token_lines = token_normalization::normalize_line_tokens(&line_tokens);
+//! let token_lines = normalization::normalize_line_tokens(&line_tokens);
 //!
 //! // Flatten to single vector
 //! let flat_tokens = token_normalization::flatten(&token_lines);
@@ -36,7 +36,7 @@ use crate::lex::lexing::tokens_core::Token;
 use crate::lex::lexing::tokens_linebased::LineToken;
 use std::ops::Range as ByteRange;
 
-use super::processing::flatten_token_vecs;
+use super::utilities::flatten_token_vecs;
 
 // ============================================================================
 // SINGLE LINE TOKEN NORMALIZATION

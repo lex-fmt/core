@@ -21,7 +21,6 @@
 //! for comprehensive documentation on using verified lex sources and AST assertions.
 
 // Parser implementations
-pub mod builder;
 pub mod common;
 pub mod ir;
 pub mod linebased;
