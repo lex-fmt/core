@@ -15,7 +15,7 @@
 //!
 //! Note: Conversion from byte ranges to AST Range is handled in the `location` module.
 
-use crate::lex::lexing::tokens_core::Token;
+use crate::lex::token::core::Token;
 use std::ops::Range as ByteRange;
 
 /// Trait that any token structure can implement to provide access to source tokens.
