@@ -33,12 +33,11 @@
 
 use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
 use crate::lex::ast::{Annotation, ListItem};
-use crate::lex::lexing::tokens_linebased::LineToken;
 use crate::lex::parsing::ContentItem;
+use crate::lex::token::{normalization, LineToken};
 
 use super::builders;
 use super::extraction;
-use super::normalization;
 
 // ============================================================================
 // PARAGRAPH BUILDING
@@ -277,7 +276,7 @@ pub fn build_verbatim_block(
 // normalized Vec<(Token, Range)> sequences. These helpers skip the
 // normalization pass and go straight to data extraction/AST creation.
 
-use crate::lex::lexing::tokens_core::Token;
+use crate::lex::token::Token;
 use std::ops::Range as ByteRange;
 
 /// Build a Paragraph from already-normalized token lines.
@@ -500,8 +499,8 @@ pub fn build_paragraph_from_text(
 mod tests {
     use super::*;
     use crate::lex::ast::elements::typed_content::SessionContent;
-    use crate::lex::lexing::tokens_core::Token;
-    use crate::lex::lexing::tokens_linebased::LineType;
+    use crate::lex::token::LineType;
+    use crate::lex::token::Token;
 
     fn make_line_token(tokens: Vec<Token>, spans: Vec<std::ops::Range<usize>>) -> LineToken {
         LineToken {

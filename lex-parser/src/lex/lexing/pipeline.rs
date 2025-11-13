@@ -63,7 +63,7 @@ impl Default for LexingPipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexing::tokens_core::Token;
+    use crate::lex::token::Token;
     use crate::lex::pipeline::stream::TokenStream;
     use std::ops::Range as ByteRange;
 

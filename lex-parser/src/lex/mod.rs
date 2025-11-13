@@ -7,3 +7,4 @@ pub mod lexing;
 pub mod parsing;
 pub mod pipeline;
 pub mod testing;
+pub mod token;

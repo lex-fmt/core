@@ -157,7 +157,6 @@
 mod ast_assertions;
 pub mod lexplore;
 mod matchers;
-mod token_factories;
 
 pub use ast_assertions::{
     assert_ast, AnnotationAssertion, ChildrenAssertion, ContentItemAssertion, DefinitionAssertion,
@@ -168,7 +167,7 @@ pub use matchers::TextMatch;
 
 // Public submodule path: crate::lex::testing::factories
 pub mod factories {
-    pub use super::token_factories::*;
+    pub use crate::lex::token::testing::*;
 }
 
 /// Get a path relative to the workspace root for testing purposes.

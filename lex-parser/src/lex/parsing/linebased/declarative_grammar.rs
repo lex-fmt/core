@@ -17,9 +17,8 @@
 //! 7. paragraph (any content-line or sequence thereof)
 //! 8. blank_line_group (one or more consecutive blank lines)
 
-use crate::lex::lexing::tokens_core::Token;
-use crate::lex::lexing::tokens_linebased::{LineContainer, LineToken, LineType};
 use crate::lex::parsing::ir::{NodeType, ParseNode};
+use crate::lex::token::{LineContainer, LineToken, LineType, Token};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::ops::Range;

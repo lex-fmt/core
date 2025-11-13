@@ -39,15 +39,12 @@ pub mod base_tokenization;
 pub mod common;
 pub mod line_classification;
 pub mod line_grouping;
-pub mod tokens_core;
-pub mod tokens_linebased;
 pub mod transformations;
 
 pub use base_tokenization::tokenize;
 pub use common::{LexError, Lexer, LexerOutput};
-pub use tokens_core::Token;
-// Re-export line-based types for convenience
-pub use tokens_linebased::{LineContainer, LineToken, LineType};
+// Re-export token types for consumers that still import them from `lexing`
+pub use crate::lex::token::{LineContainer, LineToken, LineType, Token};
 
 /// Preprocesses source text to ensure it ends with a newline.
 ///

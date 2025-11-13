@@ -3,8 +3,7 @@
 //! Core classification logic for determining line types based on token patterns.
 //! This module contains the classifiers used by the lexer to categorize lines.
 
-use crate::lex::lexing::tokens_core::Token;
-use crate::lex::lexing::tokens_linebased::LineType;
+use crate::lex::token::{LineType, Token};
 
 /// Determine the type of a line based on its tokens.
 ///

@@ -8,7 +8,7 @@
 //! 1. Build hierarchical tree based on Indent/Dedent markers
 //! 2. Convert to LineContainer structure expected by parser
 
-use crate::lex::lexing::tokens_linebased::{LineContainer, LineToken, LineType};
+use crate::lex::token::{LineContainer, LineToken, LineType};
 use std::iter::Peekable;
 
 /// Build a LineContainer tree from already-grouped LineTokens.
@@ -72,7 +72,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::lexing::tokens_core::Token;
+    use crate::lex::token::Token;
 
     #[allow(clippy::single_range_in_vec_init)]
     #[test]
