@@ -7,7 +7,7 @@ use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
 use crate::lex::ast::{AstNode, ContentItem, Document, ListItem, Range};
 use crate::lex::building::api as ast_api;
 use crate::lex::building::location::compute_location_from_locations;
-use crate::lex::parsing::ir::{NodeType, ParseNode, TokenLocation};
+use crate::lex::parsing::ir::{NodeType, ParseNode, ParseNodePayload, TokenLocation};
 
 /// A builder that constructs an AST from a `ParseNode` tree.
 pub struct AstTreeBuilder<'a> {
@@ -92,45 +92,35 @@ impl<'a> AstTreeBuilder<'a> {
         ast_api::annotation_from_tokens(header_tokens, content, self.source)
     }
 
-    fn build_verbatim_block(&self, node: ParseNode) -> ContentItem {
-        use crate::lex::building::extraction::VerbatimGroupTokenLines;
+    fn build_verbatim_block(&self, mut node: ParseNode) -> ContentItem {
+        let payload = node
+            .payload
+            .take()
+            .expect("Parser must attach verbatim payload");
+        let ParseNodePayload::VerbatimBlock {
+            subject,
+            content_lines,
+        } = payload;
 
-        let mut closing_node = None;
-        let mut pending_subject: Option<ParseNode> = None;
-        let mut groups: Vec<VerbatimGroupTokenLines> = Vec::new();
+        let closing_node = node
+            .children
+            .into_iter()
+            .find(|child| child.node_type == NodeType::Annotation)
+            .expect("Missing closing annotation for verbatim block");
 
-        for child in node.children {
-            match child.node_type {
-                NodeType::VerbatimBlockkSubject => pending_subject = Some(child),
-                NodeType::VerbatimBlockkContent => {
-                    let subject = pending_subject
-                        .take()
-                        .expect("Verbatim content encountered without subject");
-                    let content_lines = group_tokens_by_line(child.tokens);
-                    groups.push(VerbatimGroupTokenLines {
-                        subject_tokens: subject.tokens,
-                        content_token_lines: content_lines,
-                    });
-                }
-                NodeType::VerbatimBlockkClosing => closing_node = Some(child),
-                _ => {}
-            }
-        }
-
-        if pending_subject.is_some() {
-            panic!("Internal parser error: Malformed parse tree - subject node without corresponding content node. This indicates a bug in the parser, not invalid user input.");
-        }
-
-        let closing_annotation_node =
-            closing_node.expect("Missing closing annotation for verbatim block");
         let closing_annotation =
-            if let ContentItem::Annotation(ann) = self.build_annotation(closing_annotation_node) {
+            if let ContentItem::Annotation(ann) = self.build_annotation(closing_node) {
                 ann
             } else {
                 panic!("Expected Annotation for verbatim block closing");
             };
 
-        ast_api::verbatim_block_from_token_groups(groups, closing_annotation, self.source)
+        ast_api::verbatim_block_from_lines(
+            &subject,
+            &content_lines,
+            closing_annotation,
+            self.source,
+        )
     }
 
     fn build_session_content(&self, nodes: Vec<ParseNode>) -> Vec<SessionContent> {
