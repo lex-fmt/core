@@ -246,11 +246,48 @@ impl GrammarMatcher {
             // Check what we have at cursor
             match &tokens[cursor] {
                 LineContainer::Container { .. } => {
-                    // Found a container - this is inflow mode content
+                    // Found a container - this is potentially inflow mode verbatim content
+                    // But we need to verify the pattern:
+                    // - Verbatim: subject + container + (annotation OR another subject+container)
+                    // - Session: subject + container + (other content)
                     cursor += 1;
 
-                    // Continue loop to check for more groups or closing annotation
-                    continue;
+                    // Skip blank lines after container
+                    while cursor < len {
+                        if let LineContainer::Token(line) = &tokens[cursor] {
+                            if line.line_type == BlankLine {
+                                cursor += 1;
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+
+                    // After container, check what follows
+                    if cursor >= len {
+                        return None; // Container at end - not a verbatim block
+                    }
+
+                    match &tokens[cursor] {
+                        LineContainer::Token(line) => {
+                            if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
+                                // Container followed by annotation - this IS verbatim!
+                                // Continue loop to match it
+                                continue;
+                            }
+                            if matches!(line.line_type, SubjectLine | SubjectOrListItemLine) {
+                                // Container followed by another subject - this is a verbatim group!
+                                // Continue loop to match more groups
+                                continue;
+                            }
+                            // Container followed by something else - NOT a verbatim block
+                            return None;
+                        }
+                        LineContainer::Container { .. } => {
+                            // Container followed by another container - NOT verbatim pattern
+                            return None;
+                        }
+                    }
                 }
                 LineContainer::Token(line) => {
                     if matches!(line.line_type, AnnotationStartLine | AnnotationEndLine) {
