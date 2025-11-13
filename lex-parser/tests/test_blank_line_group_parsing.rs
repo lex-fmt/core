@@ -18,8 +18,9 @@ fn parse_document(source: &str) -> Document {
 fn test_blank_line_group_node_type_visitor() {
     let source = "A\n\nB";
     let doc = parse_document(source);
+    let root = &doc.root;
 
-    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+    let all_nodes: Vec<_> = root.iter_all_nodes().collect();
     if let Some(blg) = all_nodes
         .iter()
         .filter_map(|item| item.as_blank_line_group())
@@ -35,8 +36,9 @@ fn test_blank_line_group_node_type_visitor() {
 fn test_blank_line_group_display_label_visitor() {
     let source = "A\n\nB";
     let doc = parse_document(source);
+    let root = &doc.root;
 
-    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+    let all_nodes: Vec<_> = root.iter_all_nodes().collect();
     if let Some(blg) = all_nodes
         .iter()
         .filter_map(|item| item.as_blank_line_group())
@@ -52,8 +54,9 @@ fn test_blank_line_group_display_label_visitor() {
 fn test_blank_line_group_structure_count() {
     let source = "A\n\nB";
     let doc = parse_document(source);
+    let root = &doc.root;
 
-    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+    let all_nodes: Vec<_> = root.iter_all_nodes().collect();
     if let Some(blg) = all_nodes
         .iter()
         .filter_map(|item| item.as_blank_line_group())
@@ -68,8 +71,9 @@ fn test_blank_line_group_structure_count() {
 fn test_blank_line_group_structure_source_tokens() {
     let source = "A\n\nB";
     let doc = parse_document(source);
+    let root = &doc.root;
 
-    let all_nodes: Vec<_> = doc.iter_all_nodes().collect();
+    let all_nodes: Vec<_> = root.iter_all_nodes().collect();
     if let Some(blg) = all_nodes
         .iter()
         .filter_map(|item| item.as_blank_line_group())
@@ -93,9 +97,10 @@ fn test_blank_line_group_structure_source_tokens() {
 fn test_blank_line_group_in_list_items() {
     let source = "- Item\n\n    Content";
     let doc = parse_document(source);
+    let root = &doc.root;
 
     // Use new query API to find list items with blank line groups
-    let list_items: Vec<_> = doc.iter_list_items_recursive().collect();
+    let list_items: Vec<_> = root.iter_list_items_recursive().collect();
     if let Some(list_item) = list_items.iter().find(|li| {
         li.children
             .iter()
@@ -116,9 +121,10 @@ fn test_blank_line_group_in_list_items() {
 fn test_blank_line_group_in_definitions() {
     let source = "Definition:\n    First\n\n    Second";
     let doc = parse_document(source);
+    let root = &doc.root;
 
     // Use new query API to find definitions with blank line groups
-    let definitions = doc.find_definitions(|def| {
+    let definitions = root.find_definitions(|def| {
         def.children
             .iter()
             .any(|child| matches!(child, ContentItem::BlankLineGroup(_)))
@@ -140,9 +146,10 @@ fn test_blank_line_group_in_definitions() {
 fn test_blank_line_group_in_sessions() {
     let source = "Title\n\n    First\n\n    Second";
     let doc = parse_document(source);
+    let root = &doc.root;
 
     // Use new query API to find sessions with blank line groups
-    let sessions = doc.find_sessions(|s| {
+    let sessions = root.find_sessions(|s| {
         s.children
             .iter()
             .any(|child| matches!(child, ContentItem::BlankLineGroup(_)))

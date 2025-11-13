@@ -15,7 +15,7 @@
 //!
 //! // Load and parse elements
 //! let parsed = Lexplore::paragraph(1).parse();
-//! let paragraph = parsed.expect_paragraph();
+//! let paragraph = parsed.root.expect_paragraph();
 //!
 //! // Load and tokenize
 //! let tokens = Lexplore::paragraph(1).tokenize();

@@ -94,7 +94,7 @@ pub use traits::{AstNode, Container, TextNode, Visitor};
 /// Returns a vector containing the deepest AST node at the given position.
 #[inline]
 pub fn find_nodes_at_position(document: &Document, position: Position) -> Vec<&dyn AstNode> {
-    document.find_nodes_at_position(position)
+    document.root.find_nodes_at_position(position)
 }
 
 /// Format information about nodes at a given position
@@ -103,5 +103,5 @@ pub fn find_nodes_at_position(document: &Document, position: Position) -> Vec<&d
 /// Returns a formatted string describing the AST nodes at the given position.
 #[inline]
 pub fn format_at_position(document: &Document, position: Position) -> String {
-    document.format_at_position(position)
+    document.root.format_at_position(position)
 }

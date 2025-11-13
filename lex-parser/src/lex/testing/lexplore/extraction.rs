@@ -1,10 +1,10 @@
 //! AST element extraction and assertion helpers
 //!
 //! This module provides utilities for making assertions about AST content.
-//! For extracting elements, use the query APIs directly on Document:
-//!   - doc.iter_paragraphs_recursive().next()
-//!   - doc.iter_sessions_recursive().next()
-//!   - doc.find_paragraphs(|p| ...)
+//! For extracting elements, use the query APIs directly on the root session:
+//!   - doc.root.iter_paragraphs_recursive().next()
+//!   - doc.root.iter_sessions_recursive().next()
+//!   - doc.root.find_paragraphs(|p| ...)
 //!     etc.
 
 use crate::lex::ast::traits::{Container, TextNode};
@@ -69,7 +69,7 @@ mod tests {
         let doc = Lexplore::paragraph(1).parse();
 
         // Use query API directly
-        let paragraph = doc.iter_paragraphs_recursive().next();
+        let paragraph = doc.root.iter_paragraphs_recursive().next();
         assert!(paragraph.is_some());
     }
 
@@ -78,7 +78,7 @@ mod tests {
         let doc = Lexplore::paragraph(1).parse();
 
         // Use query API directly
-        let paragraph = doc.iter_paragraphs_recursive().next().unwrap();
+        let paragraph = doc.root.iter_paragraphs_recursive().next().unwrap();
 
         assert!(paragraph_text_starts_with(paragraph, "This is a simple"));
     }
