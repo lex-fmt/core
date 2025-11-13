@@ -96,7 +96,7 @@ impl Pipeline {
         let source_with_newline = crate::lex::lexing::ensure_source_ends_with_newline(source);
         let token_stream = crate::lex::lexing::base_tokenization::tokenize(&source_with_newline);
         let tokens = crate::lex::lexing::lex(token_stream);
-        crate::lex::parsing::linebased::parse_from_flat_tokens(tokens, source)
+        crate::lex::parsing::engine::parse_from_flat_tokens(tokens, source)
             .map_err(|err| format!("Parsing failed: {}", err))
     }
 }
