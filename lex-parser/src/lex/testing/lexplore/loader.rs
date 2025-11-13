@@ -200,52 +200,53 @@ impl Lexplore {
     /// assert!(paragraph.text().starts_with("Expected"));
     /// ```
     pub fn get_paragraph(number: usize) -> &'static Paragraph {
-        Box::leak(Box::new(load_isolated_element(
+        let doc = Box::leak(Box::new(load_isolated_element(
             ElementType::Paragraph,
             number,
-        )))
-        .expect_paragraph()
+        )));
+        doc.root.expect_paragraph()
     }
 
     /// Load a list element file and return the list directly
     pub fn get_list(number: usize) -> &'static List {
-        Box::leak(Box::new(load_isolated_element(ElementType::List, number))).expect_list()
+        let doc = Box::leak(Box::new(load_isolated_element(ElementType::List, number)));
+        doc.root.expect_list()
     }
 
     /// Load a session element file and return the session directly
     pub fn get_session(number: usize) -> &'static Session {
-        Box::leak(Box::new(load_isolated_element(
+        let doc = Box::leak(Box::new(load_isolated_element(
             ElementType::Session,
             number,
-        )))
-        .expect_session()
+        )));
+        doc.root.expect_session()
     }
 
     /// Load a definition element file and return the definition directly
     pub fn get_definition(number: usize) -> &'static Definition {
-        Box::leak(Box::new(load_isolated_element(
+        let doc = Box::leak(Box::new(load_isolated_element(
             ElementType::Definition,
             number,
-        )))
-        .expect_definition()
+        )));
+        doc.root.expect_definition()
     }
 
     /// Load an annotation element file and return the annotation directly
     pub fn get_annotation(number: usize) -> &'static Annotation {
-        Box::leak(Box::new(load_isolated_element(
+        let doc = Box::leak(Box::new(load_isolated_element(
             ElementType::Annotation,
             number,
-        )))
-        .expect_annotation()
+        )));
+        doc.root.expect_annotation()
     }
 
     /// Load a verbatim element file and return the verbatim block directly
     pub fn get_verbatim(number: usize) -> &'static Verbatim {
-        Box::leak(Box::new(load_isolated_element(
+        let doc = Box::leak(Box::new(load_isolated_element(
             ElementType::Verbatim,
             number,
-        )))
-        .expect_verbatim()
+        )));
+        doc.root.expect_verbatim()
     }
 
     // ===== Convenience shortcuts for element files (fluent API) =====
@@ -415,7 +416,7 @@ mod tests {
         let path = workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
         let doc = Lexplore::from_path(path).parse();
 
-        let paragraph = doc.expect_paragraph();
+        let paragraph = doc.root.expect_paragraph();
         assert!(!paragraph.text().is_empty());
     }
 
