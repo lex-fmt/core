@@ -31,8 +31,10 @@
 // Module declarations
 mod annotation;
 mod definition;
+mod label;
 mod list_item;
 mod paragraph;
+mod parameter;
 mod session;
 mod verbatim;
 
