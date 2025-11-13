@@ -13,8 +13,8 @@ use crate::lex::pipeline::stream::TokenStream;
 /// back in without reshaping the pipeline API again.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnalyzerConfig {
-    /// Linebased declarative grammar analyzer
-    Linebased,
+    /// Declarative grammar analyzer
+    Parser,
 }
 
 /// Run the selected analyzer over the provided token stream and build a document.
@@ -24,10 +24,10 @@ pub fn analyze(
     analyzer: AnalyzerConfig,
 ) -> Result<Document, TransformationError> {
     match analyzer {
-        AnalyzerConfig::Linebased => {
+        AnalyzerConfig::Parser => {
             let tokens = stream.unroll();
             crate::lex::parsing::engine::parse_from_flat_tokens(tokens, source).map_err(|e| {
-                TransformationError::Error(format!("Linebased analyzer failed: {}", e))
+                TransformationError::Error(format!("Parser failed: {}", e))
             })
         }
     }
@@ -46,12 +46,12 @@ mod tests {
     }
 
     #[test]
-    fn test_linebased_analyzer_produces_document() {
+    fn test_parser_produces_document() {
         let source = "Hello:\n    World\n";
         let mut lexing = baseline_pipeline();
         let stream = lexing.run(source).expect("lexing failed");
 
-        let result = analyze(stream, source, AnalyzerConfig::Linebased);
+        let result = analyze(stream, source, AnalyzerConfig::Parser);
         assert!(result.is_ok());
         assert!(!result.unwrap().root.children.is_empty());
     }

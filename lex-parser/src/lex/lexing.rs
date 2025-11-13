@@ -13,7 +13,7 @@
 //!    - Indentation tokens (4 spaces or tab) are emitted for each indentation level
 //! 2. Common Transformation pipeline:
 //!    - Indentation transformation (Indent -> Indent/Dedent) ./transformations/semantic_indentation.rs
-//! 3. Line-based pipeline (linebased):
+//! 3. Line-based pipeline:
 //!    - Flatten tokens into line tokens
 //!    - Transform line tokens into a hierarchical tree
 //!

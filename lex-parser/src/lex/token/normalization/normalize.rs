@@ -43,7 +43,7 @@ use super::utilities::flatten_token_vecs;
 
 /// Normalize a single LineToken to a vector of (Token, Range) pairs.
 ///
-/// This is the primary normalization function for linebased parser tokens.
+/// This is the primary normalization function for parser tokens.
 /// It extracts the source tokens and their byte ranges from the LineToken
 /// structure.
 ///

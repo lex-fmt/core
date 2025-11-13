@@ -10,7 +10,7 @@
 //!
 //! 1. **Base Tokenization** - Raw lexical analysis using logos
 //! 2. **Semantic Indentation** - Transform Indentation tokens into Indent/Dedent pairs
-//! 3. **Parsing** - Build AST using the linebased parser
+//! 3. **Parsing** - Build AST using the parser
 //!
 //! # Usage
 //!
@@ -81,7 +81,7 @@ impl Pipeline {
     /// 1. Ensure source ends with newline (required for paragraph parsing at EOF)
     /// 2. Base tokenization - raw lexical tokens from logos
     /// 3. Semantic indentation - convert Indentation tokens to Indent/Dedent
-    /// 4. Parse - build AST using linebased parser
+    /// 4. Parse - build AST using the parser
     ///
     /// # Example
     ///
