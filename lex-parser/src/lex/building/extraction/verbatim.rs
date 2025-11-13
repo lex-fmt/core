@@ -361,7 +361,12 @@ mod tests {
     fn detects_fullwidth_mode_and_trims_wall() {
         let mut builder = SourceBuilder::new();
         let subject = subject_line(&mut builder, 0, "Fullwidth Example");
-        let content = content_line(&mut builder, 1, "Header | Value | Notes");
+        // Content at FULLWIDTH_INDENT_COLUMN triggers fullwidth mode
+        let content = content_line(
+            &mut builder,
+            FULLWIDTH_INDENT_COLUMN,
+            "Header | Value | Notes",
+        );
 
         let data = extract_verbatim_block_data(&subject, &[content], &builder.text);
 
@@ -375,11 +380,16 @@ mod tests {
     #[test]
     fn splits_groups_and_strips_inflow_wall() {
         let mut builder = SourceBuilder::new();
-        let subject = subject_line(&mut builder, 1, "Snippet");
-        let line1 = content_line(&mut builder, 8, "line one");
-        let line2 = content_line(&mut builder, 8, "line two");
-        let second_subject = subject_line(&mut builder, 1, "Another block");
-        let line3 = content_line(&mut builder, 8, "inner body");
+        let subject_indent_level = 1;
+        let subject = subject_line(&mut builder, subject_indent_level, "Snippet");
+        // Inflow mode: content indented relative to subject (subject_column + INFLOW_INDENT_STEP_COLUMNS)
+        // Subject at indent level 1 = column 4 (1 * 4 spaces)
+        // Content wall = 4 + 4 = column 8
+        let inflow_content_column = (subject_indent_level * 4) + INFLOW_INDENT_STEP_COLUMNS;
+        let line1 = content_line(&mut builder, inflow_content_column, "line one");
+        let line2 = content_line(&mut builder, inflow_content_column, "line two");
+        let second_subject = subject_line(&mut builder, subject_indent_level, "Another block");
+        let line3 = content_line(&mut builder, inflow_content_column, "inner body");
 
         let content = vec![line1, line2, second_subject.clone(), line3];
         let data = extract_verbatim_block_data(&subject, &content, &builder.text);
