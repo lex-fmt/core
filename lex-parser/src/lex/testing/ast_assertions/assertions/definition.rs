@@ -1,0 +1,72 @@
+//! Definition assertions
+
+use super::{summarize_items, ChildrenAssertion};
+use crate::lex::ast::traits::Container;
+use crate::lex::ast::Definition;
+use crate::lex::testing::ast_assertions::ContentItemAssertion;
+use crate::lex::testing::matchers::TextMatch;
+
+pub struct DefinitionAssertion<'a> {
+    pub(crate) definition: &'a Definition,
+    pub(crate) context: String,
+}
+
+impl<'a> DefinitionAssertion<'a> {
+    pub fn subject(self, expected: &str) -> Self {
+        TextMatch::Exact(expected.to_string())
+            .assert(self.definition.subject.as_string(), &self.context);
+        self
+    }
+    pub fn subject_starts_with(self, prefix: &str) -> Self {
+        TextMatch::StartsWith(prefix.to_string())
+            .assert(self.definition.subject.as_string(), &self.context);
+        self
+    }
+    pub fn subject_contains(self, substring: &str) -> Self {
+        TextMatch::Contains(substring.to_string())
+            .assert(self.definition.subject.as_string(), &self.context);
+        self
+    }
+    pub fn child_count(self, expected: usize) -> Self {
+        let actual = self.definition.children().len();
+        assert_eq!(
+            actual,
+            expected,
+            "{}: Expected {} children, found {} children: [{}]",
+            self.context,
+            expected,
+            actual,
+            summarize_items(self.definition.children())
+        );
+        self
+    }
+    pub fn child<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(ContentItemAssertion<'a>),
+    {
+        let children = self.definition.children();
+        assert!(
+            index < children.len(),
+            "{}: Child index {} out of bounds (definition has {} children)",
+            self.context,
+            index,
+            children.len()
+        );
+        let child = &children[index];
+        assertion(ContentItemAssertion {
+            item: child,
+            context: format!("{}:children[{}]", self.context, index),
+        });
+        self
+    }
+    pub fn children<F>(self, assertion: F) -> Self
+    where
+        F: FnOnce(ChildrenAssertion<'a>),
+    {
+        assertion(ChildrenAssertion {
+            children: self.definition.children(),
+            context: format!("{}:children", self.context),
+        });
+        self
+    }
+}
