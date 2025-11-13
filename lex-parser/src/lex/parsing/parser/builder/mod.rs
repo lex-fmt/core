@@ -1,0 +1,119 @@
+//! AST Node Builder
+//!
+//! This module converts matched grammar patterns into ParseNode AST structures.
+//! It handles the extraction of tokens from LineContainers and the recursive
+//! descent into nested containers.
+
+use crate::lex::parsing::ir::ParseNode;
+use crate::lex::token::LineContainer;
+
+mod builders;
+
+use builders::{
+    build_annotation_block, build_annotation_single, build_definition, build_list, build_paragraph,
+    build_session, build_verbatim_block,
+};
+
+pub(super) use builders::VerbatimGroupMatch;
+
+/// Type alias for the recursive parser function callback
+type ParserFn = dyn Fn(Vec<LineContainer>, &str) -> Result<Vec<ParseNode>, String>;
+
+/// Represents the result of pattern matching
+#[derive(Debug, Clone)]
+pub(super) enum PatternMatch {
+    /// Verbatim block: one or more subject/content pairs followed by closing annotation
+    VerbatimBlock {
+        groups: Vec<VerbatimGroupMatch>,
+        closing_idx: usize,
+    },
+    /// Annotation block: start + container + end
+    AnnotationBlock {
+        start_idx: usize,
+        content_idx: usize,
+    },
+    /// Annotation single: just start line
+    AnnotationSingle { start_idx: usize },
+    /// List: preceding blank line + 2+ consecutive list items
+    List { items: Vec<(usize, Option<usize>)> },
+    /// Definition: subject + immediate indent + content
+    Definition {
+        subject_idx: usize,
+        content_idx: usize,
+    },
+    /// Session: subject + blank line + indent + content
+    Session {
+        subject_idx: usize,
+        content_idx: usize,
+    },
+    /// Paragraph: one or more consecutive non-blank, non-special lines
+    Paragraph { start_idx: usize, end_idx: usize },
+    /// Blank line group: one or more consecutive blank lines
+    BlankLineGroup,
+}
+
+/// Convert a matched pattern to a ParseNode.
+///
+/// # Arguments
+///
+/// * `tokens` - The full token array
+/// * `pattern` - The matched pattern with relative indices
+/// * `pattern_offset` - Index where the pattern starts (converts relative to absolute indices)
+/// * `source` - Original source text
+/// * `parse_children` - Function to recursively parse nested containers
+pub(super) fn convert_pattern_to_node(
+    tokens: &[LineContainer],
+    pattern: &PatternMatch,
+    pattern_offset: usize,
+    source: &str,
+    parse_children: &ParserFn,
+) -> Result<ParseNode, String> {
+    match pattern {
+        PatternMatch::VerbatimBlock {
+            groups,
+            closing_idx,
+        } => build_verbatim_block(tokens, groups, *closing_idx),
+        PatternMatch::AnnotationBlock {
+            start_idx,
+            content_idx,
+        } => build_annotation_block(
+            tokens,
+            pattern_offset + start_idx,
+            pattern_offset + content_idx,
+            source,
+            parse_children,
+        ),
+        PatternMatch::AnnotationSingle { start_idx } => {
+            build_annotation_single(tokens, pattern_offset + start_idx)
+        }
+        PatternMatch::List { items } => {
+            build_list(tokens, items, pattern_offset, source, parse_children)
+        }
+        PatternMatch::Definition {
+            subject_idx,
+            content_idx,
+        } => build_definition(
+            tokens,
+            pattern_offset + subject_idx,
+            pattern_offset + content_idx,
+            source,
+            parse_children,
+        ),
+        PatternMatch::Session {
+            subject_idx,
+            content_idx,
+        } => build_session(
+            tokens,
+            pattern_offset + subject_idx,
+            pattern_offset + content_idx,
+            source,
+            parse_children,
+        ),
+        PatternMatch::Paragraph { start_idx, end_idx } => {
+            build_paragraph(tokens, pattern_offset + start_idx, pattern_offset + end_idx)
+        }
+        PatternMatch::BlankLineGroup => {
+            Err("Internal error: BlankLineGroup reached convert_pattern_to_node".to_string())
+        }
+    }
+}
