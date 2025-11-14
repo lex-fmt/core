@@ -422,6 +422,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "lex-parser",
+ "serde_json",
 ]
 
 [[package]]

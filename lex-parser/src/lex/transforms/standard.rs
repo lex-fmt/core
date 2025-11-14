@@ -3,9 +3,10 @@
 //! This module provides pre-built transforms for common use cases.
 //! All transforms are defined as static references using `once_cell::sync::Lazy`.
 
+use crate::lex::parsing::ir::ParseNode;
 use crate::lex::parsing::Document;
 use crate::lex::token::Token;
-use crate::lex::transforms::stages::{CoreTokenization, SemanticIndentation};
+use crate::lex::transforms::stages::{CoreTokenization, Parsing, SemanticIndentation};
 use crate::lex::transforms::Transform;
 use once_cell::sync::Lazy;
 use std::ops::Range;
@@ -57,12 +58,34 @@ pub static LEXING: Lazy<LexingTransform> = Lazy::new(|| {
         .then(SemanticIndentation::new())
 });
 
+/// Type alias for IR transform
+pub type IrTransform = Transform<String, ParseNode>;
+
+/// String to IR transform: String → ParseNode
+///
+/// Pipeline from source text to intermediate representation (IR):
+/// 1. Core tokenization
+/// 2. Semantic indentation
+/// 3. Line token grouping
+/// 4. Parsing to IR
+///
+/// # Example
+///
+/// ```rust
+/// use lex_parser::lex::transforms::standard::TO_IR;
+///
+/// let ir = TO_IR.run("Hello world\n".to_string()).unwrap();
+/// ```
+pub static TO_IR: Lazy<IrTransform> = Lazy::new(|| Transform::from_fn(Ok).then(Parsing::new()));
+
 /// String to AST transform: String → Document
 ///
 /// Complete pipeline from source text to parsed AST:
 /// 1. Core tokenization
 /// 2. Semantic indentation
-/// 3. Parsing
+/// 3. Line token grouping
+/// 4. Parsing to IR
+/// 5. Building AST
 ///
 /// This is the standard transform for most use cases.
 ///
