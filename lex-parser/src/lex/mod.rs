@@ -5,6 +5,7 @@ pub mod ast;
 pub mod building;
 pub mod formats;
 pub mod lexing;
+pub mod loader;
 pub mod parsing;
 pub mod pipeline;
 pub mod testing;
