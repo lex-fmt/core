@@ -16,9 +16,9 @@ Lexpore: Testing Parsing
 
 	Also, from it's indentation based natures, it's often the case where element counts are a poor assertion. Not only can the same count be wrong, but often the elements will be in the wrong session or container. Hence never use element counts as many parsing results can have the same count, and often an element will be parsed to the wrong container, another point you can to verify.   
 
-	It ensures the central repository of pre-approved Lex source strings is used, and provides a simple and powerful API to access the parsed AST. The harness used to run multiple parser implementations in parallel; today it always targets the linebased parser, but the API surface remains ready for future experiments.
+	It ensures the central repository of pre-approved Lex source strings is used, and provides a simple and powerful API to access the parsed AST. The harness uses the DocumentLoader API to provide both direct element access and full pipeline control.
 
-    It is powered by the test library, which contains the corpora of language samples to be be used with the api on top.
+    It is powered by the test library, which contains the corpora of language samples to be used with the API on top.
 
 
 Trifecta:
@@ -89,12 +89,17 @@ The harness has utilities tailored for different document types. They allow you 
 
 2. The Test Harness API
 
-	Most parsing tests are about feeding a source string to the parser and checking the resulting AST.  The test harness API is designed to achieve this with the minimal amount of code.
-	 Additionally, by encapsulating much of the low level details, it makes for less brittle suite, where changes to the Lex grammar and parser instead of fixing hundreds of tests will only require the inner library changes.
+	Most parsing tests are about feeding a source string to the parser and checking the resulting AST. The test harness API is designed to achieve this with minimal code.
+	Additionally, by encapsulating the low-level details, it makes for a less brittle suite. Changes to the Lex grammar and parser require only inner library changes instead of fixing hundreds of tests.
 
 	The API has two forms depending on your needs:
 	- Direct element access: get_paragraph(), get_list(), etc. return the element directly
 	- Fluent pipeline: paragraph().parse(), list().tokenize() for full control over parsing/tokenization
+
+	Both forms use DocumentLoader under the hood, which provides:
+	- Universal file/string loading API
+	- Access to different processing stages (source, tokens, AST)
+	- Integration with the composable transform system
 
 
 	1. Isolated Elements
@@ -105,12 +110,13 @@ The harness has utilities tailored for different document types. They allow you 
     :: rust ::
 
 	This one liner will:
-		- Find the element source string 1 for paragraphs in the test library.
-	        - Parse it with the linebased parser.
-        - Return the element directly.
+		- Find the element source string 1 for paragraphs in the test library
+		- Load it using DocumentLoader
+		- Parse it through the transform pipeline (tokenization → lexing → parsing → AST building)
+		- Return the element directly
 
-    Note that this requires the document to follow the one relevant element rule to be most useful.
-	This , combined with the deep AST assertion library, allows for consice, robust and deep tests:
+	Note that this requires the document to follow the one relevant element rule to be most useful.
+	This, combined with the deep AST assertion library, allows for concise, robust and deep tests:
 		verbatim = Lexplore.get_verbatim(1);
          verbatim.assert_verbatim_block()
              .subject("This is the hello world example")
@@ -127,9 +133,10 @@ The harness has utilities tailored for different document types. They allow you 
 			}
 		:: rust ::
 
-		The fluent API also provides access to source and tokens:
-			source = Lexplore.paragraph(1).source()
-			tokens = Lexplore.paragraph(1).tokenize()
+		The fluent API also provides access to source and tokens via DocumentLoader:
+			source = Lexplore.paragraph(1).source()      // Original source text
+			tokens = Lexplore.paragraph(1).tokenize()    // Lexed tokens (with Indent/Dedent)
+			base = Lexplore.paragraph(1).base_tokens()   // Core tokens only
 		:: rust ::
 
 
