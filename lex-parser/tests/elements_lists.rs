@@ -364,7 +364,6 @@ fn test_list_11_nested_balanced() {
 }
 
 #[test]
-#[ignore = "Line parser currently rejects nested sessions inside list items"]
 fn test_list_12_nested_three_full_form() {
     let doc = Lexplore::list(12).parse().unwrap();
 
