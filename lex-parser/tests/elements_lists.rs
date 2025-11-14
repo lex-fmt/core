@@ -293,8 +293,8 @@ fn test_list_09_nested_three_levels() {
 }
 
 #[test]
-#[ignore] // See issue #253: Parser treats single-item lists as Paragraphs
 fn test_list_10_nested_deep_only() {
+    // Deep nesting with 2 items at each level (tests nested list parsing)
     let doc = Lexplore::list(10).parse().unwrap();
 
     assert_ast(&doc)
@@ -303,42 +303,62 @@ fn test_list_10_nested_deep_only() {
             item.assert_paragraph().text("Test:");
         })
         .item(1, |item| {
-            item.assert_list().item_count(1).item(0, |outer| {
-                outer
-                    .text_contains("Level one")
-                    .child_count(1)
-                    .child(0, |child| {
-                        child.assert_list().item_count(1).item(0, |level_two| {
-                            level_two.text_contains("Level two").child_count(1).child(
-                                0,
-                                |level_three| {
-                                    level_three
-                                        .assert_list()
-                                        .item_count(1)
-                                        .item(0, |level_four| {
-                                            level_four
-                                                .text_contains("Level three")
-                                                .child_count(1)
-                                                .child(0, |deep| {
-                                                    deep.assert_list().item_count(1).item(
-                                                        0,
-                                                        |leaf| {
-                                                            leaf.text_contains("Level four");
-                                                        },
-                                                    );
+            item.assert_list()
+                .item_count(2)
+                .item(0, |level_one| {
+                    level_one.text_contains("Level one A");
+                })
+                .item(1, |level_one| {
+                    level_one
+                        .text_contains("Level one B")
+                        .child_count(1)
+                        .child(0, |child| {
+                            child
+                                .assert_list()
+                                .item_count(2)
+                                .item(0, |level_two| {
+                                    level_two.text_contains("Level two A");
+                                })
+                                .item(1, |level_two| {
+                                    level_two.text_contains("Level two B").child_count(1).child(
+                                        0,
+                                        |grandchild| {
+                                            grandchild
+                                                .assert_list()
+                                                .item_count(2)
+                                                .item(0, |level_three| {
+                                                    level_three.text_contains("Level three A");
+                                                })
+                                                .item(1, |level_three| {
+                                                    level_three
+                                                        .text_contains("Level three B")
+                                                        .child_count(1)
+                                                        .child(0, |deep| {
+                                                            deep.assert_list()
+                                                                .item_count(2)
+                                                                .item(0, |level_four| {
+                                                                    level_four.text_contains(
+                                                                        "Level four A",
+                                                                    );
+                                                                })
+                                                                .item(1, |level_four| {
+                                                                    level_four.text_contains(
+                                                                        "Level four B",
+                                                                    );
+                                                                });
+                                                        });
                                                 });
-                                        });
-                                },
-                            );
+                                        },
+                                    );
+                                });
                         });
-                    });
-            });
+                });
         });
 }
 
 #[test]
-#[ignore] // See issue #253: Parser treats single-item lists as Paragraphs
 fn test_list_11_nested_balanced() {
+    // Balanced nesting with 2 items at each level
     let doc = Lexplore::list(11).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
@@ -357,7 +377,7 @@ fn test_list_11_nested_balanced() {
                     .text_contains("item 2")
                     .child_count(1)
                     .child(0, |child| {
-                        child.assert_list().item_count(1);
+                        child.assert_list().item_count(2);
                     });
             });
     });
@@ -374,6 +394,22 @@ fn test_list_12_nested_three_full_form() {
         })
         .item(1, |item| {
             item.assert_list().item_count(2);
+        });
+}
+
+#[test]
+fn test_list_13_single_item_is_paragraph() {
+    // Single dash-prefixed line is a paragraph, not a list (enforces 2+ item rule)
+    let doc = Lexplore::list(13).parse().unwrap();
+
+    assert_ast(&doc)
+        .item_count(2)
+        .item(0, |item| {
+            item.assert_paragraph().text("Single item test:");
+        })
+        .item(1, |item| {
+            item.assert_paragraph()
+                .text_contains("This looks like a list item but is actually a paragraph");
         });
 }
 
