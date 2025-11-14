@@ -8,8 +8,19 @@ cd "$PROJECT_ROOT"
 
 FORMAT="term"
 COMPARE_BRANCH=""
+WORKSPACES=()
+ALL_WORKSPACES=false
 TMPFILES=()
 ORIGINAL_BRANCH=""
+
+# Function to extract workspace members from Cargo.toml
+get_workspace_members() {
+    awk '/^members = \[/,/\]/' Cargo.toml |
+    grep '"' |
+    sed 's/.*"\(.*\)".*/\1/'
+}
+
+VALID_WORKSPACES=($(get_workspace_members))
 
 cleanup() {
   for tmp in "${TMPFILES[@]}"; do
@@ -29,7 +40,8 @@ cleanup() {
 trap cleanup EXIT
 
 usage() {
-  echo "Usage: $0 [--format term|json] [--compare-branch <branch>]" >&2
+  echo "Usage: $0 [--format term|json] [--compare-branch <branch>] [--all | <workspace>...]" >&2
+  echo "Available workspaces: ${VALID_WORKSPACES[*]}" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -50,14 +62,23 @@ while [[ $# -gt 0 ]]; do
       COMPARE_BRANCH="${1#*=}"
       shift
       ;;
+    --all)
+      ALL_WORKSPACES=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
       ;;
     *)
-      echo "Unknown argument: $1" >&2
-      usage
-      exit 1
+      if [[ "$1" == -* ]]; then
+        echo "Unknown argument: $1" >&2
+        usage
+        exit 1
+      else
+        WORKSPACES+=("$1")
+        shift
+      fi
       ;;
   esac
 done
@@ -66,6 +87,20 @@ if [[ "$FORMAT" != "term" && "$FORMAT" != "json" ]]; then
   echo "Invalid format: $FORMAT" >&2
   usage
   exit 1
+fi
+
+if ! $ALL_WORKSPACES; then
+  if [[ ${#WORKSPACES[@]} -eq 0 ]]; then
+    WORKSPACES=("lex-parser")
+  else
+    for ws in "${WORKSPACES[@]}"; do
+      if ! [[ " ${VALID_WORKSPACES[*]} " =~ " $ws " ]]; then
+        echo "Invalid workspace: $ws" >&2
+        usage
+        exit 1
+      fi
+    done
+  fi
 fi
 
 generate_tmpfile() {
@@ -78,16 +113,25 @@ generate_tmpfile() {
 
 render_report() {
   local tmpfile="$1"
+  local ws_args=()
+  if ! $ALL_WORKSPACES; then
+    ws_args+=("--workspaces" "${WORKSPACES[@]}")
+  fi
+
   if [[ "$FORMAT" == "term" ]]; then
-    python3 "$SCRIPT_DIR/_rust_loc.py" --format term "$tmpfile" | npx prettier --parser markdown
+    python3 "$SCRIPT_DIR/_rust_loc.py" --format term "$tmpfile" "${ws_args[@]}" | npx prettier --parser markdown
   else
-    python3 "$SCRIPT_DIR/_rust_loc.py" --format json "$tmpfile"
+    python3 "$SCRIPT_DIR/_rust_loc.py" --format json "$tmpfile" "${ws_args[@]}"
   fi
 }
 
 collect_summary() {
   local tmpfile="$1"
-  python3 "$SCRIPT_DIR/_rust_loc.py" --format json "$tmpfile"
+  local ws_args=()
+  if ! $ALL_WORKSPACES; then
+    ws_args+=("--workspaces" "${WORKSPACES[@]}")
+  fi
+  python3 "$SCRIPT_DIR/_rust_loc.py" --format json "$tmpfile" "${ws_args[@]}"
 }
 
 print_comparison() {
@@ -150,4 +194,3 @@ if [[ -n "$COMPARE_BRANCH" ]]; then
 
   print_comparison "$current_summary_json" "$compare_summary_json" "$base_branch_name" "$COMPARE_BRANCH"
 fi
-
