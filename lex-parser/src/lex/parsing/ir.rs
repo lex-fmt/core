@@ -22,6 +22,7 @@ pub enum NodeType {
     Definition,
     Annotation,
     VerbatimBlock,
+    BlankLineGroup,
 }
 
 /// Additional payload carried by specific parse nodes.

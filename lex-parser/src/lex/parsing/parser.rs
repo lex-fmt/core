@@ -19,7 +19,7 @@ use std::ops::Range;
 mod builder;
 mod grammar;
 
-use builder::{convert_pattern_to_node, PatternMatch};
+use builder::{blank_line_node_from_range, convert_pattern_to_node, PatternMatch};
 use grammar::{GRAMMAR_PATTERNS, LIST_ITEM_REGEX};
 
 /// Pattern matcher for declarative grammar using regex-based matching
@@ -88,7 +88,25 @@ impl GrammarMatcher {
                                 ));
                                 token_idx += if has_container { 2 } else { 1 };
                             }
-                            PatternMatch::List { items }
+
+                            let trailing_blank_count = caps
+                                .name("trailing_blank")
+                                .map(|m| Self::count_consumed_tokens(m.as_str()))
+                                .unwrap_or(0);
+                            let trailing_blank_range = if trailing_blank_count > 0 {
+                                Some(
+                                    start_idx + consumed_count - trailing_blank_count
+                                        ..start_idx + consumed_count,
+                                )
+                            } else {
+                                None
+                            };
+
+                            PatternMatch::List {
+                                items,
+                                preceding_blank_range: None,
+                                trailing_blank_range,
+                            }
                         }
                         "list" => {
                             let blank_count = caps
@@ -110,7 +128,29 @@ impl GrammarMatcher {
                                 ));
                                 token_idx += if has_container { 2 } else { 1 };
                             }
-                            PatternMatch::List { items }
+                            let trailing_blank_count = caps
+                                .name("trailing_blank")
+                                .map(|m| Self::count_consumed_tokens(m.as_str()))
+                                .unwrap_or(0);
+                            let preceding_blank_range = if blank_count > 0 {
+                                Some(start_idx..start_idx + blank_count)
+                            } else {
+                                None
+                            };
+                            let trailing_blank_range = if trailing_blank_count > 0 {
+                                Some(
+                                    start_idx + consumed_count - trailing_blank_count
+                                        ..start_idx + consumed_count,
+                                )
+                            } else {
+                                None
+                            };
+
+                            PatternMatch::List {
+                                items,
+                                preceding_blank_range,
+                                trailing_blank_range,
+                            }
                         }
                         "session" => {
                             let blank_str = caps.name("blank").unwrap().as_str();
@@ -329,18 +369,35 @@ pub fn parse_with_declarative_grammar(
 
     while idx < tokens.len() {
         if let Some((pattern, range)) = GrammarMatcher::try_match(&tokens, idx) {
-            // Skip blank line groups (they're structural, not content)
-            if !matches!(pattern, PatternMatch::BlankLineGroup) {
-                // Convert pattern to ParseNode
-                let item = convert_pattern_to_node(
-                    &tokens,
-                    &pattern,
-                    range.start,
-                    source,
-                    &|children, src| parse_with_declarative_grammar(children, src),
-                )?;
-                items.push(item);
+            let mut pending_nodes = Vec::new();
+
+            if let PatternMatch::List {
+                preceding_blank_range: Some(blank_range),
+                ..
+            } = &pattern
+            {
+                pending_nodes.push(blank_line_node_from_range(&tokens, blank_range.clone())?);
             }
+
+            // Convert pattern to ParseNode
+            let item = convert_pattern_to_node(
+                &tokens,
+                &pattern,
+                range.clone(),
+                source,
+                &|children, src| parse_with_declarative_grammar(children, src),
+            )?;
+            pending_nodes.push(item);
+
+            if let PatternMatch::List {
+                trailing_blank_range: Some(blank_range),
+                ..
+            } = &pattern
+            {
+                pending_nodes.push(blank_line_node_from_range(&tokens, blank_range.clone())?);
+            }
+
+            items.extend(pending_nodes);
             idx = range.end;
         } else {
             idx += 1;

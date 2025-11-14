@@ -1,6 +1,8 @@
 //! Definition assertions
 
-use super::{annotation::AnnotationAssertion, summarize_items, ChildrenAssertion};
+use super::{
+    annotation::AnnotationAssertion, summarize_items, visible_len, visible_nth, ChildrenAssertion,
+};
 use crate::lex::ast::traits::Container;
 use crate::lex::ast::Definition;
 use crate::lex::testing::ast_assertions::ContentItemAssertion;
@@ -28,7 +30,7 @@ impl<'a> DefinitionAssertion<'a> {
         self
     }
     pub fn child_count(self, expected: usize) -> Self {
-        let actual = self.definition.children().len();
+        let actual = visible_len(self.definition.children());
         assert_eq!(
             actual,
             expected,
@@ -45,14 +47,16 @@ impl<'a> DefinitionAssertion<'a> {
         F: FnOnce(ContentItemAssertion<'a>),
     {
         let children = self.definition.children();
+        let visible_children = visible_len(children);
         assert!(
-            index < children.len(),
+            index < visible_children,
             "{}: Child index {} out of bounds (definition has {} children)",
             self.context,
             index,
-            children.len()
+            visible_children
         );
-        let child = &children[index];
+        let child =
+            visible_nth(children, index).expect("visible child should exist at computed index");
         assertion(ContentItemAssertion {
             item: child,
             context: format!("{}:children[{}]", self.context, index),
