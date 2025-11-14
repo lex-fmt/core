@@ -64,11 +64,6 @@ impl Document {
         Self { annotations, root }
     }
 
-    #[deprecated(note = "use with_annotations_and_content")]
-    pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
-        Self::with_annotations_and_content(metadata, content)
-    }
-
     pub fn with_root_location(mut self, location: Range) -> Self {
         self.root.location = location;
         self
