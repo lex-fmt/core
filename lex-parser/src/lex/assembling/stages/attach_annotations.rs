@@ -50,6 +50,9 @@ impl Runnable<Document, Document> for AttachAnnotations {
     }
 }
 
+// Allow &mut Vec instead of &mut [ContentItem] because we need to recursively call
+// attach_annotations_in_container which requires Vec::retain() to remove annotation
+// items after attachment. Using a slice would require converting back to Vec.
 #[allow(clippy::ptr_arg)]
 fn process_children(children: &mut Vec<ContentItem>) {
     for item in children.iter_mut() {
@@ -108,6 +111,9 @@ fn process_children(children: &mut Vec<ContentItem>) {
     }
 }
 
+// Allow &mut Vec instead of &mut [ContentItem] because we need Vec::retain()
+// at line 184 to remove annotations from the content tree after attachment.
+// The retain() method is only available on Vec, not slices.
 #[allow(clippy::ptr_arg)]
 fn attach_annotations_in_container(
     children: &mut Vec<ContentItem>,
@@ -390,13 +396,32 @@ impl ContainerSpan {
     }
 }
 
+/// Calculate the number of blank lines between two AST entries.
+///
+/// For multi-line elements (paragraphs, annotations spanning multiple lines),
+/// we need to handle the case where elements might be adjacent or overlapping
+/// in line numbers. The calculation uses the end line of the left element and
+/// determines the effective start of the right element.
+///
+/// # Edge Cases
+/// - If right starts before left ends (overlapping/adjacent multi-line elements):
+///   Use right's end line as the effective start to ensure correct distance.
+/// - If elements are on consecutive lines with no blank lines between: returns 0.
+/// - Otherwise: counts the gap between left.end_line and right's effective start.
 fn blank_lines_between(left: &Entry, right: &Entry) -> usize {
+    // For multi-line elements, determine the effective starting line of the right element.
+    // If right starts at or before left ends (overlapping ranges), use right's end line
+    // as the effective start. This handles cases like multi-line annotations adjacent
+    // to multi-line paragraphs.
     let effective_start = if right.start_line <= left.end_line {
-        right.end_line
+        right.end_line // Overlapping/adjacent elements
     } else {
         right.start_line
     };
 
+    // Calculate blank lines: if effective_start is more than one line after left.end_line,
+    // there are blank lines in between. The formula is: gap - 1 to exclude the line
+    // boundaries themselves.
     if effective_start > left.end_line + 1 {
         effective_start - left.end_line - 1
     } else {
@@ -404,6 +429,17 @@ fn blank_lines_between(left: &Entry, right: &Entry) -> usize {
     }
 }
 
+/// Calculate the number of blank lines from an entry to the end of its container.
+///
+/// This is used for container-end attachment rules: when an annotation is the last
+/// element in a container, we measure its distance to the container's closing boundary.
+///
+/// # Arguments
+/// - `entry`: The AST entry (typically an annotation at container end)
+/// - `span`: The container's span information (contains end line)
+///
+/// # Returns
+/// The number of blank lines between the entry and container end, or 0 if adjacent.
 fn blank_lines_to_end(entry: &Entry, span: &ContainerSpan) -> usize {
     if span.end_line > entry.end_line + 1 {
         span.end_line - entry.end_line - 1
