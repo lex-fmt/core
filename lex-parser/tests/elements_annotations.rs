@@ -308,8 +308,6 @@ fn test_annotation_requires_label() {
 }
 
 #[test]
-#[ignore] // TODO: Complex document - line parser still has issues with session titles ending in colons
-          // This is tested more simply in test_session_09_flat_colon_title
 fn test_annotations_overview_document() {
     // annotations.lex: Specification overview document for annotations
     let doc = Lexplore::from_path(workspace_path(
@@ -337,10 +335,10 @@ fn test_annotations_overview_document() {
                     child.assert_paragraph().text("Core features:");
                 })
                 .child(3, |child| {
-                    child.assert_list().item_count(3);
+                    child.assert_list().item_count(4);
                 });
         })
         .item(2, |item| {
-            item.assert_paragraph().text("Syntax Forms:");
+            item.assert_session().label("Syntax Forms:");
         });
 }
