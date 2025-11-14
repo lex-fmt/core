@@ -136,7 +136,7 @@ mod tests {
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: session,
         };
 
@@ -150,7 +150,7 @@ mod tests {
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: session,
         };
 
@@ -163,7 +163,7 @@ mod tests {
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: session,
         };
 
@@ -177,7 +177,7 @@ mod tests {
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: session,
         };
 
@@ -190,7 +190,7 @@ mod tests {
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: session,
         };
 
@@ -204,7 +204,7 @@ mod tests {
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: session,
         };
 
@@ -217,7 +217,7 @@ mod tests {
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: session,
         };
 
@@ -231,7 +231,7 @@ mod tests {
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: session,
         };
 
@@ -244,7 +244,7 @@ mod tests {
         let mut session = Session::with_title(String::new());
         session.location = location;
         let doc = Document {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: session,
         };
 

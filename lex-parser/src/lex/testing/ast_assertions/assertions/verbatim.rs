@@ -1,5 +1,6 @@
 //! Verbatim block assertions
 
+use super::annotation::AnnotationAssertion;
 use crate::lex::ast::elements::container::VerbatimContainer;
 use crate::lex::ast::elements::verbatim::VerbatimBlockMode;
 use crate::lex::ast::{ContentItem, TextContent, Verbatim};
@@ -112,6 +113,35 @@ impl<'a> VerbatimBlockkAssertion<'a> {
             context: format!("{}::group[{}]", self.context, index),
         });
 
+        self
+    }
+
+    pub fn annotation_count(self, expected: usize) -> Self {
+        let actual = self.verbatim_block.annotations.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected {} annotations, found {} annotations",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    pub fn annotation<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(AnnotationAssertion<'a>),
+    {
+        assert!(
+            index < self.verbatim_block.annotations.len(),
+            "{}: Annotation index {} out of bounds (verbatim block has {} annotations)",
+            self.context,
+            index,
+            self.verbatim_block.annotations.len()
+        );
+        let annotation = &self.verbatim_block.annotations[index];
+        assertion(AnnotationAssertion {
+            annotation,
+            context: format!("{}:annotations[{}]", self.context, index),
+        });
         self
     }
 }

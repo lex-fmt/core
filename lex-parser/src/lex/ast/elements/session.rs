@@ -78,6 +78,7 @@ macro_rules! impl_find_method {
 pub struct Session {
     pub title: TextContent,
     pub children: SessionContainer,
+    pub annotations: Vec<Annotation>,
     pub location: Range,
 }
 
@@ -89,6 +90,7 @@ impl Session {
         Self {
             title,
             children: SessionContainer::from_typed(children),
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -96,6 +98,7 @@ impl Session {
         Self {
             title: TextContent::from_string(title, None),
             children: SessionContainer::empty(),
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -104,6 +107,28 @@ impl Session {
     pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
+    }
+
+    /// Annotations attached to this session header/content block.
+    pub fn annotations(&self) -> &[Annotation] {
+        &self.annotations
+    }
+
+    /// Mutable access to session annotations.
+    pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
+        &mut self.annotations
+    }
+
+    /// Iterate over annotation blocks in source order.
+    pub fn iter_annotations(&self) -> std::slice::Iter<'_, Annotation> {
+        self.annotations.iter()
+    }
+
+    /// Iterate over all content items nested inside attached annotations.
+    pub fn iter_annotation_contents(&self) -> impl Iterator<Item = &ContentItem> {
+        self.annotations
+            .iter()
+            .flat_map(|annotation| annotation.children())
     }
 
     pub fn iter_items(&self) -> impl Iterator<Item = &ContentItem> {

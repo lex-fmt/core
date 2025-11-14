@@ -2,7 +2,8 @@
 //!
 //! The document node serves two purposes:
 //! - Contains the document tree.
-//! - Contains document-level metadata , including non content related (like file name, parser version, etc)
+//! - Contains document-level annotations, including non-content metadata (like file name,
+//!   parser version, etc)
 //!
 //! This structure makes the entire AST homogeneous - the document's content
 //! is accessed through the standard Session interface, making traversal and
@@ -21,7 +22,7 @@
 //! - All body content accessible via document.root.children
 
 use super::super::range::Range;
-use super::super::traits::{AstNode, Visitor};
+use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
 use super::session::Session;
@@ -30,7 +31,7 @@ use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Document {
-    pub metadata: Vec<Annotation>,
+    pub annotations: Vec<Annotation>,
     // all content is attached to the root node
     pub root: Session,
 }
@@ -38,7 +39,7 @@ pub struct Document {
 impl Document {
     pub fn new() -> Self {
         Self {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root: Session::with_title(String::new()),
         }
     }
@@ -48,16 +49,24 @@ impl Document {
         let session_content = typed_content::into_session_contents(content);
         root.children = super::container::SessionContainer::from_typed(session_content);
         Self {
-            metadata: Vec::new(),
+            annotations: Vec::new(),
             root,
         }
     }
 
-    pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
+    pub fn with_annotations_and_content(
+        annotations: Vec<Annotation>,
+        content: Vec<ContentItem>,
+    ) -> Self {
         let mut root = Session::with_title(String::new());
         let session_content = typed_content::into_session_contents(content);
         root.children = super::container::SessionContainer::from_typed(session_content);
-        Self { metadata, root }
+        Self { annotations, root }
+    }
+
+    #[deprecated(note = "use with_annotations_and_content")]
+    pub fn with_metadata_and_content(metadata: Vec<Annotation>, content: Vec<ContentItem>) -> Self {
+        Self::with_annotations_and_content(metadata, content)
     }
 
     pub fn with_root_location(mut self, location: Range) -> Self {
@@ -76,6 +85,28 @@ impl Document {
     pub fn into_root(self) -> Session {
         self.root
     }
+
+    /// All annotations attached directly to the document (document-level metadata).
+    pub fn annotations(&self) -> &[Annotation] {
+        &self.annotations
+    }
+
+    /// Mutable access to document-level annotations.
+    pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
+        &mut self.annotations
+    }
+
+    /// Iterate over document-level annotation blocks in source order.
+    pub fn iter_annotations(&self) -> std::slice::Iter<'_, Annotation> {
+        self.annotations.iter()
+    }
+
+    /// Iterate over all content items nested inside document-level annotations.
+    pub fn iter_annotation_contents(&self) -> impl Iterator<Item = &ContentItem> {
+        self.annotations
+            .iter()
+            .flat_map(|annotation| annotation.children())
+    }
 }
 
 impl AstNode for Document {
@@ -85,8 +116,8 @@ impl AstNode for Document {
 
     fn display_label(&self) -> String {
         format!(
-            "Document ({} metadata, {} items)",
-            self.metadata.len(),
+            "Document ({} annotations, {} items)",
+            self.annotations.len(),
             self.root.children.len()
         )
     }
@@ -96,7 +127,7 @@ impl AstNode for Document {
     }
 
     fn accept(&self, visitor: &mut dyn Visitor) {
-        for annotation in &self.metadata {
+        for annotation in &self.annotations {
             annotation.accept(visitor);
         }
         self.root.accept(visitor);
@@ -113,8 +144,8 @@ impl fmt::Display for Document {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Document({} metadata, {} items)",
-            self.metadata.len(),
+            "Document({} annotations, {} items)",
+            self.annotations.len(),
             self.root.children.len()
         )
     }
@@ -135,7 +166,7 @@ mod tests {
             ContentItem::Paragraph(Paragraph::from_line("Para 1".to_string())),
             ContentItem::Session(Session::with_title("Section 1".to_string())),
         ]);
-        assert_eq!(doc.metadata.len(), 0);
+        assert_eq!(doc.annotations.len(), 0);
         assert_eq!(doc.root.children.len(), 2);
     }
 
@@ -174,7 +205,7 @@ mod tests {
         ))]);
 
         assert_eq!(doc.node_type(), "Document");
-        assert_eq!(doc.display_label(), "Document (0 metadata, 1 items)");
+        assert_eq!(doc.display_label(), "Document (0 annotations, 1 items)");
         assert_eq!(doc.root.children.len(), 1);
     }
 

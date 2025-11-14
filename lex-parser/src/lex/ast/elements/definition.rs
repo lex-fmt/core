@@ -24,6 +24,7 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
+use super::annotation::Annotation;
 use super::container::GeneralContainer;
 use super::content_item::ContentItem;
 use super::typed_content::ContentElement;
@@ -34,6 +35,7 @@ use std::fmt;
 pub struct Definition {
     pub subject: TextContent,
     pub children: GeneralContainer,
+    pub annotations: Vec<Annotation>,
     pub location: Range,
 }
 
@@ -45,6 +47,7 @@ impl Definition {
         Self {
             subject,
             children: GeneralContainer::from_typed(children),
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -52,6 +55,7 @@ impl Definition {
         Self {
             subject: TextContent::from_string(subject, None),
             children: GeneralContainer::empty(),
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -59,6 +63,28 @@ impl Definition {
     pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
+    }
+
+    /// Annotations attached to this definition.
+    pub fn annotations(&self) -> &[Annotation] {
+        &self.annotations
+    }
+
+    /// Mutable access to definition annotations.
+    pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
+        &mut self.annotations
+    }
+
+    /// Iterate over annotation blocks attached to this definition.
+    pub fn iter_annotations(&self) -> std::slice::Iter<'_, Annotation> {
+        self.annotations.iter()
+    }
+
+    /// Iterate over all content items nested inside attached annotations.
+    pub fn iter_annotation_contents(&self) -> impl Iterator<Item = &ContentItem> {
+        self.annotations
+            .iter()
+            .flat_map(|annotation| annotation.children())
     }
 }
 
