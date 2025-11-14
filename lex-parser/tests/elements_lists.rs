@@ -13,7 +13,7 @@ use lex_parser::lex::testing::workspace_path;
 #[test]
 fn test_list_01_flat_simple_dash() {
     // list-01-flat-simple-dash.lex: Paragraph "Test:" followed by dash list
-    let doc = Lexplore::list(1).parse();
+    let doc = Lexplore::list(1).parse().unwrap();
 
     // Document has: Paragraph + List
     assert_ast(&doc)
@@ -39,7 +39,7 @@ fn test_list_01_flat_simple_dash() {
 #[test]
 fn test_list_02_flat_numbered() {
     // list-02-flat-numbered.lex: Paragraph + numbered list
-    let doc = Lexplore::list(2).parse();
+    let doc = Lexplore::list(2).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -65,7 +65,7 @@ fn test_list_02_flat_numbered() {
 fn test_list_07_nested_simple() {
     // list-07-nested-simple.lex: Paragraph + two-level nested list
     // Tests nesting structure: outer list items with nested lists
-    let doc = Lexplore::list(7).parse();
+    let doc = Lexplore::list(7).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -109,7 +109,7 @@ fn test_list_07_nested_simple() {
 
 #[test]
 fn test_list_03_flat_alphabetical() {
-    let doc = Lexplore::list(3).parse();
+    let doc = Lexplore::list(3).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -133,7 +133,7 @@ fn test_list_03_flat_alphabetical() {
 
 #[test]
 fn test_list_04_flat_mixed_markers() {
-    let doc = Lexplore::list(4).parse();
+    let doc = Lexplore::list(4).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -158,7 +158,7 @@ fn test_list_04_flat_mixed_markers() {
 
 #[test]
 fn test_list_05_flat_parenthetical() {
-    let doc = Lexplore::list(5).parse();
+    let doc = Lexplore::list(5).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -182,7 +182,7 @@ fn test_list_05_flat_parenthetical() {
 
 #[test]
 fn test_list_06_flat_roman_numerals() {
-    let doc = Lexplore::list(6).parse();
+    let doc = Lexplore::list(6).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -206,7 +206,7 @@ fn test_list_06_flat_roman_numerals() {
 
 #[test]
 fn test_list_08_nested_with_paragraph() {
-    let doc = Lexplore::list(8).parse();
+    let doc = Lexplore::list(8).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -255,7 +255,7 @@ fn test_list_08_nested_with_paragraph() {
 
 #[test]
 fn test_list_09_nested_three_levels() {
-    let doc = Lexplore::list(9).parse();
+    let doc = Lexplore::list(9).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -295,7 +295,7 @@ fn test_list_09_nested_three_levels() {
 #[test]
 #[ignore]
 fn test_list_10_nested_deep_only() {
-    let doc = Lexplore::list(10).parse();
+    let doc = Lexplore::list(10).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -339,7 +339,7 @@ fn test_list_10_nested_deep_only() {
 #[test]
 #[ignore]
 fn test_list_11_nested_balanced() {
-    let doc = Lexplore::list(11).parse();
+    let doc = Lexplore::list(11).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_list()
@@ -366,7 +366,7 @@ fn test_list_11_nested_balanced() {
 #[test]
 #[ignore = "Line parser currently rejects nested sessions inside list items"]
 fn test_list_12_nested_three_full_form() {
-    let doc = Lexplore::list(12).parse();
+    let doc = Lexplore::list(12).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -380,7 +380,9 @@ fn test_list_12_nested_three_full_form() {
 
 #[test]
 fn test_lists_overview_document() {
-    let doc = Lexplore::from_path(workspace_path("docs/specs/v1/elements/list/lists.lex")).parse();
+    let doc = Lexplore::from_path(workspace_path("docs/specs/v1/elements/list/lists.lex"))
+        .parse()
+        .unwrap();
 
     assert_ast(&doc)
         .item(0, |item| {

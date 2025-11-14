@@ -13,7 +13,7 @@ use lex_parser::lex::testing::workspace_path;
 #[test]
 fn test_definition_01_flat_simple() {
     // definition-01-flat-simple.lex: Definition with single paragraph content
-    let doc = Lexplore::definition(1).parse();
+    let doc = Lexplore::definition(1).parse().unwrap();
 
     // Document: Definition + trailing paragraph "Something to finish the element"
     assert_ast(&doc)
@@ -37,7 +37,7 @@ fn test_definition_01_flat_simple() {
 #[test]
 fn test_definition_02_flat_multi_paragraph() {
     // definition-02-flat-multi-paragraph.lex: Definition with multiple paragraphs
-    let doc = Lexplore::definition(2).parse();
+    let doc = Lexplore::definition(2).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -67,7 +67,7 @@ fn test_definition_03_flat_with_list() {
     // definition-03-flat-with-list.lex: Due to blank line after "HTTP Methods:",
     // parser treats this as an unnumbered Session, not a Definition.
     // Definitions require content immediately after the colon (no blank line).
-    let doc = Lexplore::definition(3).parse();
+    let doc = Lexplore::definition(3).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(2)
@@ -103,7 +103,7 @@ fn test_definition_03_flat_with_list() {
 #[test]
 fn test_definition_05_nested_with_list() {
     // definition-05-nested-with-list.lex: Definition with paragraphs + list content
-    let doc = Lexplore::definition(5).parse();
+    let doc = Lexplore::definition(5).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -140,7 +140,7 @@ fn test_definition_05_nested_with_list() {
 #[ignore = "Line parser still drops nested definitions; verified via lex-to-treeviz"]
 fn test_definition_06_nested_definitions() {
     // definition-06-nested-definitions.lex: Nested definition hierarchy (Authentication -> OAuth -> OAuth 2.0)
-    let doc = Lexplore::definition(6).parse();
+    let doc = Lexplore::definition(6).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -177,7 +177,7 @@ fn test_definition_06_nested_definitions() {
 #[test]
 fn test_definition_07_nested_deep_only() {
     // definition-07-nested-deep-only.lex: Deeply nested definitions chain
-    let doc = Lexplore::definition(7).parse();
+    let doc = Lexplore::definition(7).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -219,7 +219,7 @@ fn test_definition_07_nested_deep_only() {
 
 #[test]
 fn test_definition_90_document_simple() {
-    let doc = Lexplore::definition(90).parse();
+    let doc = Lexplore::definition(90).parse().unwrap();
 
     assert!(!doc.root.children.is_empty(), "definition-90 should parse");
 }
@@ -231,7 +231,8 @@ fn test_definitions_overview_document() {
     let doc = Lexplore::from_path(workspace_path(
         "docs/specs/v1/elements/definition/definitions.lex",
     ))
-    .parse();
+    .parse()
+    .unwrap();
 
     assert_ast(&doc)
         .item_count(4)

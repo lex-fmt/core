@@ -13,7 +13,7 @@ use lex_parser::lex::testing::workspace_path;
 #[test]
 fn test_paragraph_01_flat_oneline() {
     // paragraph-01-flat-oneline.lex: "This is a simple paragraph with just one line."
-    let doc = Lexplore::paragraph(1).parse();
+    let doc = Lexplore::paragraph(1).parse().unwrap();
 
     // Verify the document contains exactly one paragraph with expected content
     assert_ast(&doc).item_count(1).item(0, |item| {
@@ -26,7 +26,7 @@ fn test_paragraph_01_flat_oneline() {
 #[test]
 fn test_paragraph_02_flat_multiline() {
     // paragraph-02-flat-multiline.lex: Three lines of text
-    let doc = Lexplore::paragraph(2).parse();
+    let doc = Lexplore::paragraph(2).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -40,7 +40,7 @@ fn test_paragraph_02_flat_multiline() {
 #[test]
 fn test_paragraph_03_flat_special_chars() {
     // paragraph-03-flat-special-chars.lex: Tests that special characters are preserved
-    let doc = Lexplore::paragraph(3).parse();
+    let doc = Lexplore::paragraph(3).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -52,7 +52,7 @@ fn test_paragraph_03_flat_special_chars() {
 
 #[test]
 fn test_paragraph_04_flat_numbers() {
-    let doc = Lexplore::paragraph(4).parse();
+    let doc = Lexplore::paragraph(4).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -64,7 +64,7 @@ fn test_paragraph_04_flat_numbers() {
 
 #[test]
 fn test_paragraph_05_flat_mixed_content() {
-    let doc = Lexplore::paragraph(5).parse();
+    let doc = Lexplore::paragraph(5).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -75,7 +75,7 @@ fn test_paragraph_05_flat_mixed_content() {
 
 #[test]
 fn test_paragraph_06_nested_in_session() {
-    let doc = Lexplore::paragraph(6).parse();
+    let doc = Lexplore::paragraph(6).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_session()
@@ -91,7 +91,7 @@ fn test_paragraph_06_nested_in_session() {
 
 #[test]
 fn test_paragraph_07_nested_in_definition() {
-    let doc = Lexplore::paragraph(7).parse();
+    let doc = Lexplore::paragraph(7).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition().subject("Cache").child(0, |child| {
@@ -104,7 +104,7 @@ fn test_paragraph_07_nested_in_definition() {
 
 #[test]
 fn test_paragraph_08_nested_deeply() {
-    let doc = Lexplore::paragraph(8).parse();
+    let doc = Lexplore::paragraph(8).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -138,7 +138,7 @@ fn test_paragraph_08_nested_deeply() {
 
 #[test]
 fn test_paragraph_09_dialog() {
-    let doc = Lexplore::paragraph(9).parse();
+    let doc = Lexplore::paragraph(9).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_paragraph()
@@ -153,7 +153,8 @@ fn test_paragraphs_overview_document() {
     let doc = Lexplore::from_path(workspace_path(
         "docs/specs/v1/elements/paragraph/paragraphs.lex",
     ))
-    .parse();
+    .parse()
+    .unwrap();
 
     assert_ast(&doc)
         .item(0, |item| {

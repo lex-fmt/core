@@ -14,7 +14,7 @@ use lex_parser::lex::testing::lexplore::Lexplore;
 #[test]
 fn test_verbatim_01_flat_simple_code() {
     // verbatim-01-flat-simple-code.lex: Verbatim block with simple code
-    let doc = Lexplore::verbatim(1).parse();
+    let doc = Lexplore::verbatim(1).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -27,7 +27,7 @@ fn test_verbatim_01_flat_simple_code() {
 #[test]
 fn test_verbatim_02_flat_with_caption() {
     // verbatim-02-flat-with-caption.lex: Verbatim block with caption stored as content before closing data
-    let doc = Lexplore::verbatim(2).parse();
+    let doc = Lexplore::verbatim(2).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -40,7 +40,7 @@ fn test_verbatim_02_flat_with_caption() {
 #[test]
 fn test_verbatim_03_flat_with_params() {
     // verbatim-03-flat-with-params.lex: Verbatim with parameters in closing data
-    let doc = Lexplore::verbatim(3).parse();
+    let doc = Lexplore::verbatim(3).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -54,7 +54,7 @@ fn test_verbatim_03_flat_with_params() {
 #[test]
 fn test_verbatim_04_flat_marker_form() {
     // verbatim-04-flat-marker-form.lex: Marker-style verbatim with descriptive content
-    let doc = Lexplore::verbatim(4).parse();
+    let doc = Lexplore::verbatim(4).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -70,7 +70,7 @@ fn test_verbatim_04_flat_marker_form() {
 fn test_verbatim_05_flat_special_chars() {
     // verbatim-05-flat-special-chars.lex: Verbatim with :: markers in content
     // Regression test: ensure :: markers inside content do not get misparsed as a paragraph.
-    let doc = Lexplore::verbatim(5).parse();
+    let doc = Lexplore::verbatim(5).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -84,7 +84,7 @@ fn test_verbatim_05_flat_special_chars() {
 #[test]
 fn test_verbatim_06_nested_in_definition() {
     // verbatim-06-nested-in-definition.lex: Verbatim nested inside a definition
-    let doc = Lexplore::verbatim(6).parse();
+    let doc = Lexplore::verbatim(6).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -126,7 +126,7 @@ fn test_verbatim_06_nested_in_definition() {
 #[test]
 fn test_verbatim_07_nested_in_list() {
     // verbatim-07-nested-in-list.lex: Verbatim blocks nested in list items
-    let doc = Lexplore::verbatim(7).parse();
+    let doc = Lexplore::verbatim(7).parse().unwrap();
 
     assert_ast(&doc).item_count(2); // para, list
 
@@ -179,7 +179,7 @@ fn test_verbatim_07_nested_in_list() {
 #[test]
 fn test_verbatim_08_nested_deep() {
     // verbatim-08-nested-deep.lex: Deeply nested verbatim (3 levels)
-    let doc = Lexplore::verbatim(8).parse();
+    let doc = Lexplore::verbatim(8).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_definition()
@@ -244,7 +244,7 @@ fn test_verbatim_08_nested_deep() {
 fn test_verbatim_09_flat_simple_beyond_wall() {
     // verbatim-09-flat-simple-beyong-wall.lex: Verbatim with content beyond indentation wall
     // Content beyond the wall gets its indentation normalized
-    let doc = Lexplore::verbatim(9).parse();
+    let doc = Lexplore::verbatim(9).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -260,7 +260,7 @@ fn test_verbatim_09_flat_simple_beyond_wall() {
 #[test]
 fn test_verbatim_10_flat_simple_empty() {
     // verbatim-10-flat-simple-empty.lex: Empty verbatim block
-    let doc = Lexplore::verbatim(10).parse();
+    let doc = Lexplore::verbatim(10).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -277,7 +277,7 @@ fn test_verbatim_10_flat_simple_empty() {
 fn test_verbatim_13_group_spades() {
     // verbatim-13-group-spades.lex: Verbatim group with multiple pairs and blank lines
     // Tests verbatim groups with blank lines between pairs and spaces after colons
-    let doc = Lexplore::verbatim(13).parse();
+    let doc = Lexplore::verbatim(13).parse().unwrap();
 
     assert_ast(&doc).item_count(2).item(0, |item| {
         item.assert_verbatim_block()
@@ -318,7 +318,7 @@ fn test_verbatim_13_group_spades() {
 #[test]
 fn test_verbatim_14_fullwidth_table() {
     // verbatim-14-fullwidth.lex: Fullwidth block starting near the left margin
-    let doc = Lexplore::verbatim(14).parse();
+    let doc = Lexplore::verbatim(14).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_verbatim_block()
@@ -335,7 +335,7 @@ fn test_verbatim_14_fullwidth_table() {
 fn test_verbatim_16_fullwidth_at_root() {
     // verbatim-16-fullwidth-nested.lex: Fullwidth verbatim at root level
     // Demonstrates fullwidth mode works correctly with other root-level elements
-    let doc = Lexplore::verbatim(16).parse();
+    let doc = Lexplore::verbatim(16).parse().unwrap();
 
     assert_ast(&doc).item_count(3); // para before, verbatim, para after
 
@@ -364,7 +364,7 @@ fn test_verbatim_16_fullwidth_at_root() {
 #[test]
 fn test_verbatim_11_group_sequences() {
     // verbatim-11-group-shell.lex: Multiple subject/content pairs sharing an annotation
-    let doc = Lexplore::verbatim(11).parse();
+    let doc = Lexplore::verbatim(11).parse().unwrap();
 
     assert_ast(&doc).item_count(4);
 
@@ -440,7 +440,7 @@ fn test_verbatim_11_group_visitor_sees_all_groups() {
         }
     }
 
-    let doc = Lexplore::verbatim(11).parse();
+    let doc = Lexplore::verbatim(11).parse().unwrap();
 
     let mut visitor = VerbatimLineCounter {
         count: 0,
@@ -494,7 +494,7 @@ fn test_verbatim_11_group_visitor_sees_all_groups() {
           // Remaining issues: verbatim blocks inside lists, complex grouping with mixed indentation
 fn test_verbatim_12_document_simple() {
     // verbatim-12-document-simple.lex: Document with mix of verbatim blocks, groups, and general content
-    let doc = Lexplore::verbatim(12).parse();
+    let doc = Lexplore::verbatim(12).parse().unwrap();
 
     // Verify first paragraph
     assert_ast(&doc).item(0, |item| {

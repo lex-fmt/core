@@ -10,7 +10,7 @@ use lex_parser::lex::testing::lexplore::Lexplore;
 #[test]
 fn _parser_kitchensink_snapshot() {
     // Use Lexplore to load the benchmark kitchensink document
-    let doc = Lexplore::benchmark(10).parse();
+    let doc = Lexplore::benchmark(10).parse().unwrap();
 
     // Create a readable representation of the AST for snapshot testing
     let snapshot = format_ast_snapshot(&doc.root.children);

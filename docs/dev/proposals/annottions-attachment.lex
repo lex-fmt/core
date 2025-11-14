@@ -16,48 +16,58 @@ Annotations And Metadata in Lex
 
 	Under this design, annotations will no longer be part of the content tree. Instead, they will be stored in an `annotations` field on the AST nodes they apply to. The following rules will govern their attachment.
 
-	3.1. Primary Rule: Prefix Attachment
+	3.1. Primary Rule: Closest Element Attachment
 
-		An annotation attaches to the content element it immediately precedes, with  blank lines being discoureged (hence not shown in documentation ) but allowed between them. This "prefix" model makes the author's intent explicit and removes ambiguity.
+		An annotation attaches to the closest content element to it, measured by the distance (including blank lines) to both the previous and next elements. If there is a tie (same distance to both previous and next elements), the next element wins.
 
-		Example: Attaching to a Paragraph
-			:: note author="John Doe" ::
-			This is the paragraph being annotated.
-		:: lex 
+		This rule applies uniformly at all levels of the document hierarchy: document, sessions, list items, and other containers.
 
-		Example: Attaching to a Session
-			:: session review_status="draft" ::
-			1. My Session Title
+		Example: Annotation between paragraphs
+			Some paragraph ends here.
 
-			    Content of the session.
-		:: lex 
+			:: note status="review" ::
 
-	3.2. Graceful Degradation: Orphaned Annotations
-
-		Lex is designed to be forgiving. If an annotation does not immediately precede a content element (e.g., it is the last item in a container), it is to be attached to the parent container.
-
-		Orphaned annotations are attached to the `annotations` field of their immediate parent container (e.g., a Session, List Item, or the root Document). This preserves the metadata and allows tooling to identify and potentially flag misplaced annotations without causing a parse failure.
-
-		Example: Orphaned annotation in a Session
-			1. A Session
-
-			    A paragraph inside the session.
-
-			    :: note status="misplaced" ::
-
-			    Another paragraph.
+			Another paragraph here.
 		:: lex ::
 
-		In this case, the `:: note status="misplaced" ::` annotation is separated by a blank line from the following paragraph. It will be attached as an "orphaned" annotation to the `Session` node itself.
+		In this case, the annotation is equidistant from both paragraphs, so it attaches to the next paragraph (the one that follows it).
 
-	3.3. Special Cases
+		Example: Annotation closer to following element
+			Some paragraph ends here.
 
-		Two special cases are handled explicitly:
+			:: note status="review" ::
+			Another paragraph here.
+		:: lex ::
 
-		1. Document-Level Annotations
-			Any annotation at the beginning of the file that does not immediately precede a content element is attached to the root `Document` node.
+		Here, the annotation is closer to the following paragraph (no blank line), so it attaches to that paragraph.
 
-		2. Verbatim Block Exception
+	3.2. Document-Level Annotations
+
+		When an annotation appears at the beginning of the document and is followed by a blank line, it attaches to the root `Document` node itself. This provides a mechanism for document-level metadata.
+
+		Example: Document-level annotation
+			:: foo ::
+
+			Any element here, the annotation attaches to the document itself.
+		:: lex ::
+
+		If the annotation at the document start is not followed by a blank line, the normal closest-element rule applies, and it will attach to the following content element.
+
+	3.3. Container-End Annotations
+
+		When an annotation is the last element in a container, the same closest-element rule applies, except that the "next" element is considered to be the container itself (the annotation's parent element). This ensures that annotations at the end of containers have a predictable attachment target.
+
+		Example: Annotation at document end
+			Some paragraph here.
+
+			:: foo ::
+		:: lex ::
+
+		In this case, the annotation is closest to the document end (the container), so it attaches to the `Document` node.
+
+	3.4. Special Cases
+
+		Verbatim Block Exception
 			The closing annotation of a `Verbatim` block is a required, integral part of its grammar. It is not treated as attachable metadata. The parser will continue to consume it as part of the `VerbatimBlock` element itself.
 
 4. Implementation Strategy
@@ -87,3 +97,131 @@ Annotations And Metadata in Lex
 		To simplify access, two API methods should be provided:
 		- An iterator over the raw `Annotation` blocks.
 		- A flattened iterator that yields all content items within all attached annotations, simplifying access for common use cases.
+
+6. Comprehensive Examples
+
+	The following examples illustrate the attachment rules in various scenarios. Each example shows the annotation's target element and explains why it attaches there.
+
+	Example A: Annotation between paragraphs, closest wins
+		Some paragraph ends here.
+
+		:: foo ::
+		Another paragraph here.
+	:: lex ::
+
+		The annotation attaches to "Another paragraph here." because it is closer to the following paragraph (no blank line) than to the previous one (blank line).
+
+	Example B: Annotation between paragraphs, tie goes to next
+		Some paragraph ends here.
+
+		:: foo ::
+
+		Another paragraph here.
+	:: lex ::
+
+		The annotation is equidistant from both paragraphs (one blank line each). The tie-breaker rule applies: the next element wins, so it attaches to "Another paragraph here."
+
+	Example C: Annotation between paragraphs, same distance, next wins
+		Some paragraph ends here.
+
+		:: foo ::
+
+		Another paragraph here.
+	:: lex ::
+
+		Same as Example B: equidistant paragraphs, annotation attaches to the following paragraph.
+
+	Example D: Annotation closer to previous element
+		Some paragraph ends here.
+		:: foo ::
+
+		Another paragraph here.
+	:: lex ::
+
+		The annotation is closer to "Some paragraph ends here." (no blank line before annotation), so it attaches to that paragraph.
+
+	Example E: Document start, annotation attaches to document
+		:: foo ::
+
+		Some paragraph here.
+	:: lex ::
+
+		The annotation is at the document start and followed by a blank line. It attaches to the `Document` node itself.
+
+	Example F: Document start, no blank line, normal rule applies
+		:: foo ::
+		This is some text.
+	:: lex ::
+
+		The annotation is at the document start but not followed by a blank line. The normal closest-element rule applies: it attaches to "This is some text." (closest element).
+
+	Example G: Document start with blank line, next wins
+		:: foo ::
+
+		This is some text.
+	:: lex ::
+
+		The annotation is equidistant from document start and the following paragraph. The tie-breaker applies: next element wins, so it attaches to "This is some text."
+
+	Example H: Document end, non-continuous
+		Some paragraph here.
+
+		:: foo ::
+	:: lex ::
+
+		The annotation is closest to the document end (the container). It attaches to the `Document` node.
+
+	Example I: Document end, same distance
+		Some paragraph here.
+
+		:: foo ::
+
+	:: lex ::
+
+		The annotation is equidistant from the previous paragraph and the document end. The tie-breaker applies: next element (the container) wins, so it attaches to the `Document` node.
+
+	Example J: Session level, closest wins
+		1. This is a Session Title
+
+		    This is the first paragraph of the inner session.
+		    :: foo ::
+
+		    This is the first paragraph of the outer session.
+		:: lex ::
+
+		The annotation is closer to "This is the first paragraph of the inner session." (no blank line before annotation), so it attaches to that paragraph.
+
+	Example K: Session level, annotation attaches to session
+		1. This is a Session Title
+
+		    This is the first paragraph of the inner session.
+
+		    :: foo ::
+
+		This is the first paragraph of the outer session.
+	:: lex ::
+
+		The annotation is closest to the session container (the end of the inner session), so it attaches to the `Session` node.
+
+	Example L: Multiple annotations, all attach to document
+		:: foo ::
+
+		:: bar ::
+
+		:: baz param=value ::
+
+		:: long form ::
+		    This is a long form annotation.
+
+		Some text here.
+
+		- Bread
+
+		- Milk
+
+		:: note :: This is not good.
+
+		There is something in the way she moves.
+	:: lex ::
+
+		All annotations at the document start (followed by blank lines) attach to the `Document` node. The annotation between list items attaches to the following paragraph "There is something in the way she moves." (closest element).
