@@ -12,7 +12,7 @@ Transform Pipeline Architecture
 
 	- No intermediate stage access: Cannot get tokens after core tokenization but before semantic indentation
 	- No transformation configurability: Cannot apply transformations selectively or in custom orders
-	- No custom pipeline composition: Cannot build custom pipelines like Markdown ’ Lex AST ’ Lex text
+	- No custom pipeline composition: Cannot build custom pipelines like Markdown ï¿½ Lex AST ï¿½ Lex text
 	- Testing inflexibility: Cannot inspect intermediate pipeline states
 
 	Example of what was impossible:
@@ -57,21 +57,21 @@ Transform Pipeline Architecture
 		Small transforms compose into larger ones:
 			// Build lexing transform
 			let lexing = Transform::new()
-			    .add(CoreTokenization)       // String ’ TokenStream
-			    .add(SemanticIndentation)    // TokenStream ’ TokenStream
-			    .add(LineTokenGrouping);     // TokenStream ’ TokenStream
+			    .add(CoreTokenization)       // String ï¿½ TokenStream
+			    .add(SemanticIndentation)    // TokenStream ï¿½ TokenStream
+			    .add(LineTokenGrouping);     // TokenStream ï¿½ TokenStream
 			// Result type: Transform<String, TokenStream>
 
 			// Build parsing transform
 			let parsing = Transform::new()
-			    .add(SemanticAnalysis)       // TokenStream ’ IR[]
-			    .add(AstBuilding);           // IR[] ’ Document
+			    .add(SemanticAnalysis)       // TokenStream ï¿½ IR[]
+			    .add(AstBuilding);           // IR[] ï¿½ Document
 			// Result type: Transform<TokenStream, Document>
 
 			// Compose into full pipeline
 			let to_ast = Transform::new()
-			    .add(lexing)                 // String ’ TokenStream
-			    .add(parsing);               // TokenStream ’ Document
+			    .add(lexing)                 // String ï¿½ TokenStream
+			    .add(parsing);               // TokenStream ï¿½ Document
 			// Result type: Transform<String, Document>
 
 			// Use it
@@ -86,12 +86,12 @@ Transform Pipeline Architecture
 
 			//  OK - types match
 			let valid = Transform::new()
-			    .add(lexing)    // String ’ TokenStream
-			    .add(parsing);  // TokenStream ’ Document
+			    .add(lexing)    // String ï¿½ TokenStream
+			    .add(parsing);  // TokenStream ï¿½ Document
 
 			// L Compile error - type mismatch
 			let invalid = Transform::new()
-			    .add(parsing)   // String ’ ??? (expected TokenStream)
+			    .add(parsing)   // String ï¿½ ??? (expected TokenStream)
 			    .add(lexing);
 		:: rust ::
 
@@ -274,9 +274,9 @@ Transform Pipeline Architecture
 
 			// Future: Markdown conversion
 			let md_to_lex = Transform::new()
-			    .add(MarkdownParser)      // String ’ MdAST
-			    .add(MdToLexConverter)    // MdAST ’ LexAST
-			    .add(LexSerializer);      // LexAST ’ String
+			    .add(MarkdownParser)      // String ï¿½ MdAST
+			    .add(MdToLexConverter)    // MdAST ï¿½ LexAST
+			    .add(LexSerializer);      // LexAST ï¿½ String
 
 			let lex_text = md_to_lex.run(markdown_source)?;
 		:: rust ::
@@ -302,12 +302,19 @@ Transform Pipeline Architecture
 	Phase 4: Testing Integration
 		- Update Lexplore to return DocumentLoader
 		- Update all tests to use new API
-		- Remove old pipeline code
 
 	Phase 5: CLI Integration
-		- Create CLI-specific transforms
+		- Create CLI-specific transforms with stage + format combinations
+		- Stages: token-core, token-line, ir, ast
+		- Formats: json, tag, treeviz (ast only)
+		- Remove --format flag, use combined names like "ast-tag", "token-core-json"
 		- Update CLI to use DocumentLoader + transforms
-		- Add format serialization transforms
+		- Clap should read transform names from const for validation
+
+	Phase 6: Old Pipeline Removal
+		- Remove old pipeline code (src/lex/pipeline/*)
+		- Remove old lexing/parsing pipeline files
+		- Clean up any remaining references
 
 8. Module Renaming
 

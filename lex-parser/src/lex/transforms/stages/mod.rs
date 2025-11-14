@@ -4,7 +4,9 @@
 //! Each stage implements the `Runnable` trait.
 
 pub mod indentation;
+pub mod parsing;
 pub mod tokenization;
 
 pub use indentation::SemanticIndentation;
+pub use parsing::Parsing;
 pub use tokenization::CoreTokenization;
