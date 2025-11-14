@@ -12,7 +12,6 @@
 pub mod api;
 pub mod ast_tree;
 pub mod location;
-pub mod pipeline;
 
 pub(super) mod ast_nodes;
 pub(super) mod extraction;

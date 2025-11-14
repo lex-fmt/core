@@ -7,7 +7,6 @@ pub mod formats;
 pub mod lexing;
 pub mod loader;
 pub mod parsing;
-pub mod pipeline;
 pub mod testing;
 pub mod token;
 pub mod transforms;
