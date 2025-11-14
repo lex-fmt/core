@@ -224,7 +224,7 @@ fn test_definition_90_document_simple() {
 }
 
 #[test]
-#[ignore]
+#[ignore] // See issue #252: Parser rejects Sessions inside Definitions (used as examples in docs)
 fn test_definitions_overview_document() {
     // definitions.lex: Specification overview covering syntax/disambiguation
     let doc = Lexplore::from_path(workspace_path(
@@ -264,5 +264,33 @@ fn test_definitions_overview_document() {
         })
         .item(3, |item| {
             item.assert_paragraph().text("Disambiguation from Sessions");
+        });
+}
+
+#[test]
+fn test_definition_10_session_nesting_issue() {
+    // Minimal reproduction for "Definition cannot contain Session" error
+    // Mimics structure from definitions.lex: Session containing multiple Definitions
+    let doc = Lexplore::definition(10).parse().unwrap();
+
+    // Expected structure:
+    // Item 0: Session("Syntax") containing:
+    //   - Definition("Subject") with content
+    //   - Paragraph("Key rule...")
+    //   - Definition("Subject line") with list
+    //   - Definition("Content") with list
+    // Item 1: Session("Disambiguation from Sessions") with paragraph
+    assert_ast(&doc)
+        .item_count(2)
+        .item(0, |item| {
+            item.assert_session().label("Syntax");
+        })
+        .item(1, |item| {
+            item.assert_session()
+                .label("Disambiguation from Sessions")
+                .child_count(1)
+                .child(0, |child| {
+                    child.assert_paragraph().text_contains("Some content here");
+                });
         });
 }

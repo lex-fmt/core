@@ -148,7 +148,7 @@ fn test_paragraph_09_dialog() {
 }
 
 #[test]
-#[ignore]
+#[ignore] // See issue #252: Parser rejects Sessions inside Definitions (used as examples in docs)
 fn test_paragraphs_overview_document() {
     let doc = Lexplore::from_path(workspace_path(
         "docs/specs/v1/elements/paragraph/paragraphs.lex",

@@ -4,6 +4,7 @@
 //! produced by the parser and constructs the final AST.
 
 use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
+use crate::lex::ast::error::{format_source_context, ParserError, ParserResult};
 use crate::lex::ast::{AstNode, ContentItem, Document, ListItem, Range};
 use crate::lex::building::api as ast_api;
 use crate::lex::building::location::compute_location_from_locations;
@@ -21,20 +22,20 @@ impl<'a> AstTreeBuilder<'a> {
     }
 
     /// Builds a `Document` from a root `ParseNode`.
-    pub fn build(&self, root_node: ParseNode) -> Document {
+    pub fn build(&self, root_node: ParseNode) -> ParserResult<Document> {
         if root_node.node_type != NodeType::Document {
             // Or handle this more gracefully
             panic!("Expected a Document node at the root");
         }
-        let content = self.build_content_items(root_node.children);
+        let content = self.build_content_items(root_node.children)?;
         let content_locations: Vec<Range> =
             content.iter().map(|item| item.range().clone()).collect();
         let root_location = compute_location_from_locations(&content_locations);
-        Document::with_content(content).with_root_location(root_location)
+        Ok(Document::with_content(content).with_root_location(root_location))
     }
 
     /// Builds a vector of `ContentItem`s from a vector of `ParseNode`s.
-    fn build_content_items(&self, nodes: Vec<ParseNode>) -> Vec<ContentItem> {
+    fn build_content_items(&self, nodes: Vec<ParseNode>) -> ParserResult<Vec<ContentItem>> {
         nodes
             .into_iter()
             .map(|node| self.build_content_item(node))
@@ -42,14 +43,14 @@ impl<'a> AstTreeBuilder<'a> {
     }
 
     /// Builds a single `ContentItem` from a `ParseNode`.
-    fn build_content_item(&self, node: ParseNode) -> ContentItem {
+    fn build_content_item(&self, node: ParseNode) -> ParserResult<ContentItem> {
         match node.node_type {
-            NodeType::Paragraph => self.build_paragraph(node),
+            NodeType::Paragraph => Ok(self.build_paragraph(node)),
             NodeType::Session => self.build_session(node),
             NodeType::List => self.build_list(node),
             NodeType::Definition => self.build_definition(node),
             NodeType::Annotation => self.build_annotation(node),
-            NodeType::VerbatimBlock => self.build_verbatim_block(node),
+            NodeType::VerbatimBlock => Ok(self.build_verbatim_block(node)),
             _ => panic!("Unexpected node type"),
         }
     }
@@ -59,37 +60,53 @@ impl<'a> AstTreeBuilder<'a> {
         ast_api::paragraph_from_token_lines(token_lines, self.source)
     }
 
-    fn build_session(&self, node: ParseNode) -> ContentItem {
+    fn build_session(&self, node: ParseNode) -> ParserResult<ContentItem> {
         let title_tokens = node.tokens;
-        let content = self.build_session_content(node.children);
-        ast_api::session_from_tokens(title_tokens, content, self.source)
+        let content = self.build_session_content(node.children)?;
+        Ok(ast_api::session_from_tokens(
+            title_tokens,
+            content,
+            self.source,
+        ))
     }
 
-    fn build_definition(&self, node: ParseNode) -> ContentItem {
+    fn build_definition(&self, node: ParseNode) -> ParserResult<ContentItem> {
         let subject_tokens = node.tokens;
-        let content = self.build_general_content(node.children, "Definition");
-        ast_api::definition_from_tokens(subject_tokens, content, self.source)
+        let content = self.build_general_content(node.children, "Definition")?;
+        Ok(ast_api::definition_from_tokens(
+            subject_tokens,
+            content,
+            self.source,
+        ))
     }
 
-    fn build_list(&self, node: ParseNode) -> ContentItem {
-        let list_items = node
+    fn build_list(&self, node: ParseNode) -> ParserResult<ContentItem> {
+        let list_items: Result<Vec<_>, _> = node
             .children
             .into_iter()
             .map(|child_node| self.build_list_item(child_node))
             .collect();
-        ast_api::list_from_items(list_items)
+        Ok(ast_api::list_from_items(list_items?))
     }
 
-    fn build_list_item(&self, node: ParseNode) -> ListItem {
+    fn build_list_item(&self, node: ParseNode) -> ParserResult<ListItem> {
         let marker_tokens = node.tokens;
-        let content = self.build_general_content(node.children, "ListItem");
-        ast_api::list_item_from_tokens(marker_tokens, content, self.source)
+        let content = self.build_general_content(node.children, "ListItem")?;
+        Ok(ast_api::list_item_from_tokens(
+            marker_tokens,
+            content,
+            self.source,
+        ))
     }
 
-    fn build_annotation(&self, node: ParseNode) -> ContentItem {
+    fn build_annotation(&self, node: ParseNode) -> ParserResult<ContentItem> {
         let header_tokens = node.tokens;
-        let content = self.build_general_content(node.children, "Annotation");
-        ast_api::annotation_from_tokens(header_tokens, content, self.source)
+        let content = self.build_general_content(node.children, "Annotation")?;
+        Ok(ast_api::annotation_from_tokens(
+            header_tokens,
+            content,
+            self.source,
+        ))
     }
 
     fn build_verbatim_block(&self, mut node: ParseNode) -> ContentItem {
@@ -108,24 +125,43 @@ impl<'a> AstTreeBuilder<'a> {
         ast_api::verbatim_block_from_lines(&subject, &content_lines, closing_data, self.source)
     }
 
-    fn build_session_content(&self, nodes: Vec<ParseNode>) -> Vec<SessionContent> {
+    fn build_session_content(&self, nodes: Vec<ParseNode>) -> ParserResult<Vec<SessionContent>> {
         nodes
             .into_iter()
-            .map(|node| self.build_content_item(node))
-            .map(SessionContent::from)
+            .map(|node| self.build_content_item(node).map(SessionContent::from))
             .collect()
     }
 
-    fn build_general_content(&self, nodes: Vec<ParseNode>, context: &str) -> Vec<ContentElement> {
+    fn build_general_content(
+        &self,
+        nodes: Vec<ParseNode>,
+        context: &str,
+    ) -> ParserResult<Vec<ContentElement>> {
         nodes
             .into_iter()
-            .map(|node| self.build_content_item(node))
-            .map(|item| {
-                ContentElement::try_from(item).unwrap_or_else(|_| {
-                    panic!(
-                        "{} cannot contain Session elements (parser produced invalid nesting)",
-                        context
-                    )
+            .map(|node| {
+                self.build_content_item(node).and_then(|item| {
+                    let location = item.range().clone();
+
+                    // Extract text snippet from source for the invalid item (Session title)
+                    // Get the line at the start of the error location
+                    let source_lines: Vec<&str> = self.source.lines().collect();
+                    let error_line_num = location.start.line;
+                    let session_title = if error_line_num < source_lines.len() {
+                        source_lines[error_line_num]
+                    } else {
+                        ""
+                    };
+
+                    ContentElement::try_from(item).map_err(|_| {
+                        Box::new(ParserError::InvalidNesting {
+                            container: context.to_string(),
+                            invalid_child: "Session".to_string(),
+                            invalid_child_text: session_title.to_string(),
+                            location: location.clone(),
+                            source_context: format_source_context(self.source, &location),
+                        })
+                    })
                 })
             })
             .collect()
