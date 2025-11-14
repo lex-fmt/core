@@ -293,7 +293,7 @@ fn test_list_09_nested_three_levels() {
 }
 
 #[test]
-#[ignore]
+#[ignore] // See issue #253: Parser treats single-item lists as Paragraphs
 fn test_list_10_nested_deep_only() {
     let doc = Lexplore::list(10).parse().unwrap();
 
@@ -337,7 +337,7 @@ fn test_list_10_nested_deep_only() {
 }
 
 #[test]
-#[ignore]
+#[ignore] // See issue #253: Parser treats single-item lists as Paragraphs
 fn test_list_11_nested_balanced() {
     let doc = Lexplore::list(11).parse().unwrap();
 
