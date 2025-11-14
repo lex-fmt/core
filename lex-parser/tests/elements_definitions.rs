@@ -137,7 +137,6 @@ fn test_definition_05_nested_with_list() {
 }
 
 #[test]
-#[ignore = "Line parser still drops nested definitions; verified via lex-to-treeviz"]
 fn test_definition_06_nested_definitions() {
     // definition-06-nested-definitions.lex: Nested definition hierarchy (Authentication -> OAuth -> OAuth 2.0)
     let doc = Lexplore::definition(6).parse().unwrap();
