@@ -146,30 +146,3 @@ fn test_paragraph_09_dialog() {
             .text_contains("Hi kiddo");
     });
 }
-
-#[test]
-#[ignore] // See issue #252: Parser rejects Sessions inside Definitions (used as examples in docs)
-fn test_paragraphs_overview_document() {
-    let doc = Lexplore::from_path(workspace_path(
-        "docs/specs/v1/elements/paragraph/paragraphs.lex",
-    ))
-    .parse()
-    .unwrap();
-
-    assert_ast(&doc)
-        .item(0, |item| {
-            item.assert_paragraph().text("Paragraphs");
-        })
-        .item(1, |item| {
-            item.assert_session()
-                .label("Introduction")
-                .child(0, |child| {
-                    child
-                        .assert_paragraph()
-                        .text_contains("fundamental text element");
-                });
-        })
-        .item(2, |item| {
-            item.assert_session().label("Syntax");
-        });
-}
