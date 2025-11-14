@@ -28,6 +28,7 @@ use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
 use super::super::traits::Visitor;
+use super::annotation::Annotation;
 use super::container::{GeneralContainer, ListContainer};
 use super::content_item::ContentItem;
 use super::typed_content::{ContentElement, ListContent};
@@ -37,6 +38,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
     pub items: ListContainer,
+    pub annotations: Vec<Annotation>,
     pub location: Range,
 }
 
@@ -45,6 +47,7 @@ pub struct List {
 pub struct ListItem {
     pub text: Vec<TextContent>,
     pub children: GeneralContainer,
+    pub annotations: Vec<Annotation>,
     pub location: Range,
 }
 
@@ -59,6 +62,7 @@ impl List {
             .collect::<Vec<_>>();
         Self {
             items: ListContainer::from_typed(typed_items),
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -67,6 +71,28 @@ impl List {
     pub fn at(mut self, location: Range) -> Self {
         self.location = location;
         self
+    }
+
+    /// Annotations attached to this list as a whole.
+    pub fn annotations(&self) -> &[Annotation] {
+        &self.annotations
+    }
+
+    /// Mutable access to list annotations.
+    pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
+        &mut self.annotations
+    }
+
+    /// Iterate over annotation blocks on the list element.
+    pub fn iter_annotations(&self) -> std::slice::Iter<'_, Annotation> {
+        self.annotations.iter()
+    }
+
+    /// Iterate over all content items nested inside list-level annotations.
+    pub fn iter_annotation_contents(&self) -> impl Iterator<Item = &ContentItem> {
+        self.annotations
+            .iter()
+            .flat_map(|annotation| annotation.children())
     }
 }
 
@@ -101,6 +127,7 @@ impl ListItem {
         Self {
             text: vec![TextContent::from_string(text, None)],
             children: GeneralContainer::empty(),
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -108,6 +135,7 @@ impl ListItem {
         Self {
             text: vec![TextContent::from_string(text, None)],
             children: GeneralContainer::from_typed(children),
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -116,6 +144,7 @@ impl ListItem {
         Self {
             text: vec![text_content],
             children: GeneralContainer::from_typed(children),
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -127,6 +156,28 @@ impl ListItem {
     }
     pub fn text(&self) -> &str {
         self.text[0].as_string()
+    }
+
+    /// Annotations attached to this list item.
+    pub fn annotations(&self) -> &[Annotation] {
+        &self.annotations
+    }
+
+    /// Mutable access to list-item annotations.
+    pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
+        &mut self.annotations
+    }
+
+    /// Iterate annotation blocks associated with this list item.
+    pub fn iter_annotations(&self) -> std::slice::Iter<'_, Annotation> {
+        self.annotations.iter()
+    }
+
+    /// Iterate all content items nested inside the list item's annotations.
+    pub fn iter_annotation_contents(&self) -> impl Iterator<Item = &ContentItem> {
+        self.annotations
+            .iter()
+            .flat_map(|annotation| annotation.children())
     }
 }
 

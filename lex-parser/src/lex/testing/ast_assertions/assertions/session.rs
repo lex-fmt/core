@@ -1,6 +1,6 @@
 //! Session assertions
 
-use super::{summarize_items, ChildrenAssertion};
+use super::{annotation::AnnotationAssertion, summarize_items, ChildrenAssertion};
 use crate::lex::ast::traits::Container;
 use crate::lex::ast::Session;
 use crate::lex::testing::ast_assertions::ContentItemAssertion;
@@ -81,6 +81,35 @@ impl<'a> SessionAssertion<'a> {
         assertion(ChildrenAssertion {
             children: self.session.children(),
             context: format!("{}:children", self.context),
+        });
+        self
+    }
+
+    pub fn annotation_count(self, expected: usize) -> Self {
+        let actual = self.session.annotations.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected {} annotations, found {} annotations",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    pub fn annotation<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(AnnotationAssertion<'a>),
+    {
+        assert!(
+            index < self.session.annotations.len(),
+            "{}: Annotation index {} out of bounds (session has {} annotations)",
+            self.context,
+            index,
+            self.session.annotations.len()
+        );
+        let annotation = &self.session.annotations[index];
+        assertion(AnnotationAssertion {
+            annotation,
+            context: format!("{}:annotations[{}]", self.context, index),
         });
         self
     }

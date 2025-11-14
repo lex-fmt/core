@@ -65,25 +65,10 @@ Annotations And Metadata in Lex
 
 		In this case, the annotation is closest to the document end (the container), so it attaches to the `Document` node.
 
-	3.4. Special Cases
-
-		Verbatim Block Exception
-			The closing annotation of a `Verbatim` block is a required, integral part of its grammar. It is not treated as attachable metadata. The parser will continue to consume it as part of the `VerbatimBlock` element itself.
 
 4. Implementation Strategy
 
-	The attachment logic will be integrated into the existing parsing and building pipeline, requiring no extra tree-walking passes.
-
-	1. Parsing Stage
-		The `linebased` parser will continue to identify annotations and emit them as distinct `NodeType::Annotation` nodes in the intermediate representation (IR) stream, alongside content nodes like paragraphs and sessions.
-
-	2. Building Stage
-		The `AstBuilder` will be responsible for the attachment logic. This can be encapsulated in a new module, such as `lex/building/metadata.rs`.
-
-		As the `AstBuilder` iterates through the `ParseNode` stream:
-		- It will maintain a temporary buffer for `NodeType::Annotation` nodes.
-		- When it encounters a content node (`Paragraph`, `Session`, etc.), it will build the corresponding AST node, attach all annotations from the buffer to its `annotations` field, and then clear the buffer.
-		- Any annotations remaining in the buffer at the end of a container will be treated as orphaned and attached to the parent container's AST node.
+	The attachment logic will be integrated into a new stage "assembling" to live under lex/assembling/ . For now the only step / stage we will have is the attach_annotations.rs which should be througoutly tested. Create tests documents in docs/specs/v1/elements/annotation, respeciting docs/dev/guides/on-lexplore.lex  as in documents, for example docs/specs/v1/elements/annotation/annotation-XX-document-attachment-caseA.lex (use the cases bellow for example.) Then using the Lexplore api, parse to ast, verify the annotation is there, then call the attach_annotations stage to attach the annotations to the ast. Then verify it has been attached correctly (and removed from the content ast!)
 
 5. Storage and API
 

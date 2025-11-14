@@ -1017,7 +1017,7 @@ fn test_benchmark_010_kitchensink() {
     assert_ast(&doc).item(5, |item| {
         item.assert_session()
             .label("1. Primary Session {{session}}")
-            .child_count(6); // para, list, annotation, nested session, para, verbatim
+            .child_count(5); // para, list, nested session, para, verbatim
     });
 
     // Verify first paragraph in primary session
@@ -1037,23 +1037,23 @@ fn test_benchmark_010_kitchensink() {
         });
     });
 
-    // Verify marker annotation in primary session
+    // Verify marker annotation attaches to the session list
     assert_ast(&doc).item(5, |item| {
-        item.assert_session().child(2, |annotation| {
-            annotation
-                .assert_annotation()
-                .label("warning")
-                .child_count(1)
-                .child(0, |para| {
-                    para.assert_paragraph()
-                        .text_contains("single-line annotation inside the session");
+        item.assert_session().child(1, |list| {
+            list.assert_list()
+                .annotation_count(1)
+                .annotation(0, |annotation| {
+                    annotation.label("warning").child_count(1).child(0, |para| {
+                        para.assert_paragraph()
+                            .text_contains("single-line annotation inside the session");
+                    });
                 });
         });
     });
 
     // Verify nested session (Level 2)
     assert_ast(&doc).item(5, |item| {
-        item.assert_session().child(3, |nested_session| {
+        item.assert_session().child(2, |nested_session| {
             nested_session
                 .assert_session()
                 .label("1.1. Nested Session (Level 2) {{session}}")
@@ -1063,7 +1063,7 @@ fn test_benchmark_010_kitchensink() {
 
     // Verify paragraph in nested session
     assert_ast(&doc).item(5, |item| {
-        item.assert_session().child(3, |nested_session| {
+        item.assert_session().child(2, |nested_session| {
             nested_session.assert_session().child(0, |para| {
                 para.assert_paragraph()
                     .text_contains("second-level session")
@@ -1075,7 +1075,7 @@ fn test_benchmark_010_kitchensink() {
 
     // Verify nested definition inside nested session
     assert_ast(&doc).item(5, |item| {
-        item.assert_session().child(3, |nested_session| {
+        item.assert_session().child(2, |nested_session| {
             nested_session.assert_session().child(1, |def| {
                 def.assert_definition()
                     .subject("Nested Definition")
@@ -1095,7 +1095,7 @@ fn test_benchmark_010_kitchensink() {
 
     // Verify nested list (Level 2) with deeply nested content (Level 3)
     assert_ast(&doc).item(5, |item| {
-        item.assert_session().child(3, |nested_session| {
+        item.assert_session().child(2, |nested_session| {
             nested_session.assert_session().child(2, |list| {
                 list.assert_list().item_count(2).item(0, |item| {
                     // First list item has nested paragraph + nested list (Level 3)
@@ -1116,7 +1116,7 @@ fn test_benchmark_010_kitchensink() {
 
     // Verify paragraph back at first level
     assert_ast(&doc).item(5, |item| {
-        item.assert_session().child(4, |para| {
+        item.assert_session().child(3, |para| {
             para.assert_paragraph()
                 .text_contains("paragraph back at the first level")
                 .text_contains("{{paragraph}}")
@@ -1126,7 +1126,7 @@ fn test_benchmark_010_kitchensink() {
 
     // Verify verbatim block with subject line
     assert_ast(&doc).item(5, |item| {
-        item.assert_session().child(5, |verbatim| {
+        item.assert_session().child(4, |verbatim| {
             verbatim
                 .assert_verbatim_block()
                 .subject("Code Example (Verbatim Block)")
@@ -1139,7 +1139,7 @@ fn test_benchmark_010_kitchensink() {
     assert_ast(&doc).item(6, |item| {
         item.assert_session()
             .label("2. Second Root Session {{session}}")
-            .child_count(3); // para, block annotation, marker verbatim
+            .child_count(2); // para, marker verbatim
     });
 
     // Verify paragraph in second session
@@ -1152,34 +1152,38 @@ fn test_benchmark_010_kitchensink() {
         });
     });
 
-    // Verify block annotation with parameters and mixed content
+    // Block annotation now attaches to the following verbatim block
     assert_ast(&doc).item(6, |item| {
-        item.assert_session().child(1, |annotation| {
-            annotation
-                .assert_annotation()
-                .label("todo")
-                .child_count(3) // 2 paras + list
-                .child(0, |para| {
-                    para.assert_paragraph()
-                        .text_contains("block annotation")
-                        .text_contains("{{paragraph}}")
-                        .line_count(1);
-                })
-                .child(1, |para| {
-                    para.assert_paragraph()
-                        .text_contains("contains a paragraph and a list")
-                        .text_contains("{{paragraph}}")
-                        .line_count(1);
-                })
-                .child(2, |list| {
-                    list.assert_list().item_count(2);
+        item.assert_session().child(1, |verbatim| {
+            verbatim
+                .assert_verbatim_block()
+                .annotation_count(1)
+                .annotation(0, |annotation| {
+                    annotation
+                        .label("todo")
+                        .child_count(3)
+                        .child(0, |para| {
+                            para.assert_paragraph()
+                                .text_contains("block annotation")
+                                .text_contains("{{paragraph}}")
+                                .line_count(1);
+                        })
+                        .child(1, |para| {
+                            para.assert_paragraph()
+                                .text_contains("contains a paragraph and a list")
+                                .text_contains("{{paragraph}}")
+                                .line_count(1);
+                        })
+                        .child(2, |list| {
+                            list.assert_list().item_count(2);
+                        });
                 });
         });
     });
 
     // Verify marker-style verbatim block
     assert_ast(&doc).item(6, |item| {
-        item.assert_session().child(2, |verbatim| {
+        item.assert_session().child(1, |verbatim| {
             verbatim
                 .assert_verbatim_block()
                 .subject("Image Reference (Marker Verbatim Block)")

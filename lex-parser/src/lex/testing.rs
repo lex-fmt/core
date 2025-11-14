@@ -186,3 +186,36 @@ pub fn workspace_path(relative_path: &str) -> std::path::PathBuf {
     let workspace_root = std::path::Path::new(manifest_dir).parent().unwrap();
     workspace_root.join(relative_path)
 }
+
+/// Parse a Lex document without running the annotation attachment stage.
+///
+/// This is useful for tests that need annotations to remain in the content tree
+/// rather than being attached as metadata. Common use cases:
+/// - Testing annotation parsing in isolation
+/// - Testing the attachment logic itself
+/// - Element tests that expect annotations as content items
+///
+/// # Example
+/// ```rust,ignore
+/// use crate::lex::testing::parse_without_annotation_attachment;
+///
+/// let source = ":: note ::\nSome paragraph\n";
+/// let doc = parse_without_annotation_attachment(source).unwrap();
+///
+/// // Annotation is still in content tree, not attached as metadata
+/// assert!(doc.root.children.iter().any(|item| matches!(item, ContentItem::Annotation(_))));
+/// ```
+pub fn parse_without_annotation_attachment(
+    source: &str,
+) -> Result<crate::lex::ast::Document, String> {
+    use crate::lex::parsing::engine::parse_from_flat_tokens;
+    use crate::lex::transforms::standard::LEXING;
+
+    let source = if !source.is_empty() && !source.ends_with('\n') {
+        format!("{}\n", source)
+    } else {
+        source.to_string()
+    };
+    let tokens = LEXING.run(source.clone()).map_err(|e| e.to_string())?;
+    parse_from_flat_tokens(tokens, &source).map_err(|e| e.to_string())
+}

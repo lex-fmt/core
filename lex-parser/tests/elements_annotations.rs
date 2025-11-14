@@ -6,15 +6,26 @@
 //! - Test isolated elements (one element per test)
 //! - Verify content and structure, not just counts
 
-use lex_parser::lex::parsing::{parse_document, ContentItem};
+use lex_parser::lex::parsing::{parse_document, ContentItem, Document};
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
+use lex_parser::lex::testing::parse_without_annotation_attachment;
 use lex_parser::lex::testing::workspace_path;
+
+/// Helper to parse annotation files by number without running annotation attachment
+/// (so annotations remain in content tree for testing)
+fn parse_annotation_without_attachment(
+    number: usize,
+) -> Result<Document, Box<dyn std::error::Error>> {
+    let source = Lexplore::annotation(number).source();
+    parse_without_annotation_attachment(&source)
+        .map_err(|e| Box::new(std::io::Error::other(e)) as Box<dyn std::error::Error>)
+}
 
 #[test]
 fn test_annotation_01_flat_marker_simple() {
     // annotation-01-flat-marker-simple.lex: Simple marker annotation ":: note ::"
-    let doc = Lexplore::annotation(1).parse().unwrap();
+    let doc = parse_annotation_without_attachment(1).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation().label("note");
@@ -24,7 +35,7 @@ fn test_annotation_01_flat_marker_simple() {
 #[test]
 fn test_annotation_02_flat_marker_with_params() {
     // annotation-02-flat-marker-with-params.lex: Marker with parameter "severity=high"
-    let doc = Lexplore::annotation(2).parse().unwrap();
+    let doc = parse_annotation_without_attachment(2).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation()
@@ -37,7 +48,7 @@ fn test_annotation_02_flat_marker_with_params() {
 #[test]
 fn test_annotation_03_flat_inline_text() {
     // annotation-03-flat-inline-text.lex: Single-line annotation with inline text
-    let doc = Lexplore::annotation(3).parse().unwrap();
+    let doc = parse_annotation_without_attachment(3).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation()
@@ -54,7 +65,7 @@ fn test_annotation_03_flat_inline_text() {
 #[test]
 fn test_annotation_04_flat_inline_with_params() {
     // annotation-04-flat-inline-with-params.lex: Single-line annotation with params and inline text
-    let doc = Lexplore::annotation(4).parse().unwrap();
+    let doc = parse_annotation_without_attachment(4).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation()
@@ -73,7 +84,7 @@ fn test_annotation_04_flat_inline_with_params() {
 #[test]
 fn test_annotation_05_flat_block_paragraph() {
     // annotation-05-flat-block-paragraph.lex: Block annotation with paragraph content
-    let doc = Lexplore::annotation(5).parse().unwrap();
+    let doc = parse_annotation_without_attachment(5).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation()
@@ -90,7 +101,7 @@ fn test_annotation_05_flat_block_paragraph() {
 #[test]
 fn test_annotation_06_flat_block_multi_paragraph() {
     // annotation-06-flat-block-multi-paragraph.lex: Block annotation spanning two paragraphs
-    let doc = Lexplore::annotation(6).parse().unwrap();
+    let doc = parse_annotation_without_attachment(6).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation()
@@ -114,7 +125,7 @@ fn test_annotation_06_flat_block_multi_paragraph() {
 #[test]
 fn test_annotation_07_flat_block_with_list() {
     // annotation-07-flat-block-with-list.lex: Block annotation mixing paragraph and list content
-    let doc = Lexplore::annotation(7).parse().unwrap();
+    let doc = parse_annotation_without_attachment(7).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation()
@@ -147,7 +158,7 @@ fn test_annotation_07_flat_block_with_list() {
 #[test]
 fn test_annotation_08_nested_with_list_and_paragraph() {
     // annotation-08-nested-with-list-and-paragraph.lex: Paragraph + list + paragraph inside annotation
-    let doc = Lexplore::annotation(8).parse().unwrap();
+    let doc = parse_annotation_without_attachment(8).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation()
@@ -185,7 +196,7 @@ fn test_annotation_08_nested_with_list_and_paragraph() {
 #[test]
 fn test_annotation_09_nested_definition_inside() {
     // annotation-09-nested-definition-inside.lex: Definition entries inside annotation block
-    let doc = Lexplore::annotation(9).parse().unwrap();
+    let doc = parse_annotation_without_attachment(9).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation()
@@ -225,7 +236,7 @@ fn test_annotation_09_nested_definition_inside() {
 #[test]
 fn test_annotation_10_nested_complex() {
     // annotation-10-nested-complex.lex: Mixed paragraphs, nested lists, and parameters
-    let doc = Lexplore::annotation(10).parse().unwrap();
+    let doc = parse_annotation_without_attachment(10).unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_annotation()
