@@ -9,11 +9,15 @@ Whitespace Handling in Lex
 
 	Semantically a  empty blankline (i.e. "\n") is equivalent to others "   	\n", in which it is considered and treated like a blank line. Of course tokenization presevers the whitespaces as these affect location tracking and round trip checks, but semantically the are the same.
 
-	Blank lines are parsing significant, that is they are required in some elements, like sessions and forbid in others, like definitions. However one or more blank lines have the same semantic as a single blank line. Hence one or more blank lines: 
+	Blank lines are parsing significant, that is are part of the grammar, as separators. Required for some elmements like sessions and forbid in others, like definitions. However one or more blank lines have the same semantic as a single blank line. Hence one or more blank lines: 
 	- Mean the same things
-    - None of it's characters matter ,should not be parsed.
+    - None of it's characters matter .
 
+    We group consecutive blank lines into a single blank line group, which is treated as a single blank line, just because it makes the grammar simpler, and provides the correct mental model for the parser. This however, do include the original (source_tokens) so that location tracking can be correct.
 
+	Note that blank lines, while used in the grammar, are not part of the elements themselves. that is any elememnt parsing can use it to verify the grammar, but not consume them. It's up to the engine to convert into an actual ast node. They have an IR and ast node represetation like all other elements. 
+
+	
 3. Indentation
 
 	Indentation is defined in spaces, the value for one level being 4. Tabs are converted to spaces by mutliplying tabs by tab width. So replace tabs , multiplying by 4. 
