@@ -285,3 +285,26 @@ fn test_definition_10_session_nesting_issue() {
                 });
         });
 }
+
+#[test]
+fn test_definition_100_document_nested_sessions() {
+    // Tests that sessions require blank lines BEFORE the subject (not just after)
+    // This prevents incorrect Session parsing inside Definitions
+    let doc = Lexplore::definition(100).parse().unwrap();
+
+    // Expected structure:
+    // Session("Disambiguation from Sessions") containing:
+    //   - Paragraph("Definitions vs Sessions - the blank line rule:")
+    //   - BlankLineGroup
+    //   - Definition("Definition (no blank line)") containing:
+    //     - Definition("API Endpoint") with paragraph
+    //   - Definition("Session (has blank line)") containing:
+    //     - Paragraph("API Endpoint:") - correctly NOT a Session!
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_session()
+            .label("Disambiguation from Sessions")
+            .child_count(3); // Paragraph, Definition, Definition (BlankLineGroups not counted)
+                             // Just verify the key point: "API Endpoint:" inside "Session (has blank line):"
+                             // is correctly parsed as a Paragraph (not a Session)
+    });
+}

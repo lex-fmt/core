@@ -36,6 +36,9 @@ impl GrammarMatcher {
     fn try_match(
         tokens: &[LineContainer],
         start_idx: usize,
+        allow_sessions: bool,
+        is_first_item: bool,
+        has_preceding_blank: bool,
     ) -> Option<(PatternMatch, Range<usize>)> {
         if start_idx >= tokens.len() {
             return None;
@@ -152,12 +155,42 @@ impl GrammarMatcher {
                                 trailing_blank_range,
                             }
                         }
-                        "session" => {
+                        "session_with_blank" => {
+                            let prefix_blank_count = caps
+                                .name("prefix_blank")
+                                .map(|m| Self::count_consumed_tokens(m.as_str()))
+                                .unwrap_or(0);
+                            let blank_str = caps.name("blank").unwrap().as_str();
+                            let blank_count = Self::count_consumed_tokens(blank_str);
+                            let preceding_blank_range = if prefix_blank_count > 0 {
+                                Some(start_idx..start_idx + prefix_blank_count)
+                            } else {
+                                None
+                            };
+                            PatternMatch::Session {
+                                subject_idx: prefix_blank_count,
+                                content_idx: prefix_blank_count + 1 + blank_count,
+                                preceding_blank_range,
+                            }
+                        }
+                        "session_no_blank" => {
+                            // Allow session_no_blank in these cases:
+                            // 1. At document start (is_first_item=true), OR
+                            // 2. At container start when sessions are allowed (start_idx=0 && allow_sessions=true), OR
+                            // 3. After a BlankLineGroup when sessions are allowed (has_preceding_blank && allow_sessions)
+                            // This prevents Sessions inside Definitions while allowing them at doc start and in Sessions
+                            if !allow_sessions {
+                                continue; // Definitions and other containers don't allow sessions
+                            }
+                            if !(is_first_item || start_idx == 0 || has_preceding_blank) {
+                                continue; // Sessions need to be first or preceded by blank
+                            }
                             let blank_str = caps.name("blank").unwrap().as_str();
                             let blank_count = Self::count_consumed_tokens(blank_str);
                             PatternMatch::Session {
                                 subject_idx: 0,
                                 content_idx: 1 + blank_count,
+                                preceding_blank_range: None,
                             }
                         }
                         "definition" => PatternMatch::Definition {
@@ -364,11 +397,47 @@ pub fn parse_with_declarative_grammar(
     tokens: Vec<LineContainer>,
     source: &str,
 ) -> Result<Vec<ParseNode>, String> {
-    let mut items = Vec::new();
+    parse_with_declarative_grammar_internal(tokens, source, true, true)
+}
+
+/// Internal parsing function with nesting level tracking
+fn parse_with_declarative_grammar_internal(
+    tokens: Vec<LineContainer>,
+    source: &str,
+    allow_sessions: bool,
+    is_doc_start: bool,
+) -> Result<Vec<ParseNode>, String> {
+    let mut items: Vec<ParseNode> = Vec::new();
     let mut idx = 0;
 
     while idx < tokens.len() {
-        if let Some((pattern, range)) = GrammarMatcher::try_match(&tokens, idx) {
+        // Check if there's effectively a blank line before the current position:
+        // 1. Last parsed item is a BlankLineGroup, OR
+        // 2. Last parsed item has trailing BlankLineGroup children (recursively check)
+        use crate::lex::parsing::ir::NodeType;
+        fn has_trailing_blank(node: &ParseNode) -> bool {
+            if let Some(last_child) = node.children.last() {
+                matches!(last_child.node_type, NodeType::BlankLineGroup)
+                    || has_trailing_blank(last_child)
+            } else {
+                false
+            }
+        }
+
+        let has_preceding_blank = if let Some(last_node) = items.last() {
+            matches!(last_node.node_type, NodeType::BlankLineGroup) || has_trailing_blank(last_node)
+        } else {
+            false
+        };
+
+        let is_first_item = idx == 0 && is_doc_start;
+        if let Some((pattern, range)) = GrammarMatcher::try_match(
+            &tokens,
+            idx,
+            allow_sessions,
+            is_first_item,
+            has_preceding_blank,
+        ) {
             let mut pending_nodes = Vec::new();
 
             if let PatternMatch::List {
@@ -379,13 +448,26 @@ pub fn parse_with_declarative_grammar(
                 pending_nodes.push(blank_line_node_from_range(&tokens, blank_range.clone())?);
             }
 
+            if let PatternMatch::Session {
+                preceding_blank_range: Some(blank_range),
+                ..
+            } = &pattern
+            {
+                pending_nodes.push(blank_line_node_from_range(&tokens, blank_range.clone())?);
+            }
+
             // Convert pattern to ParseNode
+            // Sessions parse their children with allow_sessions=true to allow nested sessions
+            // Other elements parse with allow_sessions=false to prevent sessions inside them
+            let is_session = matches!(&pattern, PatternMatch::Session { .. });
             let item = convert_pattern_to_node(
                 &tokens,
                 &pattern,
                 range.clone(),
                 source,
-                &|children, src| parse_with_declarative_grammar(children, src),
+                &move |children, src| {
+                    parse_with_declarative_grammar_internal(children, src, is_session, false)
+                },
             )?;
             pending_nodes.push(item);
 

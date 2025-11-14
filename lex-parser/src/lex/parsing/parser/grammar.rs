@@ -9,11 +9,13 @@
 //! 1. verbatim-block - requires closing annotation, tried first for disambiguation
 //! 2. annotation_block - block with container between start and end markers
 //! 3. annotation_single - single-line annotation only
-//! 4. list - requires preceding blank line + 2+ list items (or no blank inside containers)
-//! 5. definition - requires subject + immediate indent
-//! 6. session - requires subject + blank line + indent
-//! 7. paragraph - any content-line or sequence thereof
-//! 8. blank_line_group - one or more consecutive blank lines
+//! 4. list_no_blank - 2+ list items without preceding blank (inside containers)
+//! 5. list - requires preceding blank line + 2+ list items (at root level)
+//! 6. session_with_blank - requires preceding blank + subject + blank + indent
+//! 7. definition - requires subject + immediate indent
+//! 8. session_no_blank - requires subject + blank + indent (at container start)
+//! 9. paragraph - any content-line or sequence thereof
+//! 10. blank_line_group - one or more consecutive blank lines
 
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -59,15 +61,20 @@ pub(super) const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
         "list",
         r"^(?P<blank><blank-line>+)(?P<items>((<list-line>|<subject-or-list-item-line>)(<container>)?){2,})(?P<trailing_blank><blank-line>)?",
     ),
-    // Session: <content-line><blank-line><container>
+    // Session with preceding blank line (for sessions inside containers)
     (
-        "session",
-        r"^(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?P<content><container>)",
+        "session_with_blank",
+        r"^(?P<prefix_blank><blank-line>+)(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?P<content><container>)",
     ),
     // Definition: <subject-line>|<subject-or-list-item-line>|<paragraph-line><container>
     (
         "definition",
         r"^(?P<subject><subject-line>|<subject-or-list-item-line>|<paragraph-line>)(?P<content><container>)",
+    ),
+    // Session without preceding blank line (for sessions at container start)
+    (
+        "session_no_blank",
+        r"^(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?P<content><container>)",
     ),
     // Paragraph: <content-line>+
     (
