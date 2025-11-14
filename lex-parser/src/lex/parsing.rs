@@ -25,8 +25,6 @@ pub mod common;
 pub mod engine;
 pub mod ir;
 pub mod parser;
-// Temporary keepers for future analyzer experiments remain available via the
-// AnalyzerConfig infrastructure in crate::lex::parsing::pipeline.
 
 // Re-export common parser interfaces
 pub use common::{ParseError, ParserInput};
@@ -66,7 +64,10 @@ type ProcessResult = Result<Document, String>;
 /// let document = process_full(source)?;
 /// ```
 pub fn process_full(source: &str) -> ProcessResult {
-    crate::lex::pipeline::Pipeline::new().run(source)
+    use crate::lex::transforms::standard::STRING_TO_AST;
+    STRING_TO_AST
+        .run(source.to_string())
+        .map_err(|e| e.to_string())
 }
 
 /// Alias for `process_full` to maintain backward compatibility.
