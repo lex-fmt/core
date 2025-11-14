@@ -42,7 +42,7 @@ A paragraph at the root level. {{paragraph}}
 - With multiple items {{list-item}}
 
 This is an Image Verbatim Representation:
-:: image src=image.jpg
+:: image src="image.jpg"
 
 4. Another Session {{session-title}}
 

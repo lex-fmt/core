@@ -104,7 +104,7 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Docume
     let content = parser::parse_with_declarative_grammar(children, source)?;
     let root_node = ParseNode::new(NodeType::Document, vec![], content);
     let builder = AstTreeBuilder::new(source);
-    Ok(builder.build(root_node))
+    builder.build(root_node).map_err(|e| format!("{}", e))
 }
 
 #[cfg(test)]
