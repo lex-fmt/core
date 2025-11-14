@@ -1,47 +1,108 @@
 //! Transform pipeline infrastructure
 //!
-//! This module provides a composable transformation system where any transform
-//! can be chained with another if their types are compatible.
+//! This module provides a composable, type-safe transformation system that replaces
+//! the old rigid pipeline architecture. Any transform can be chained with another
+//! if their types are compatible, enabling modular and reusable processing stages.
 //!
-//! # Core Concept
+//! # Architecture Overview
 //!
-//! Everything is a `Transform<Input, Output>` - a typed transformation that:
-//! - Takes an input of type `Input`
-//! - Produces an output of type `Output`
-//! - Can fail with a `TransformError`
+//! The transform system consists of three core concepts:
 //!
-//! # Composition
+//! ## 1. The `Runnable` Trait
 //!
-//! Transforms can be composed in a type-safe way:
+//! The fundamental interface for all transformation stages. Any type implementing
+//! `Runnable<I, O>` can transform input of type `I` to output of type `O`:
+//!
+//! ```rust,ignore
+//! pub trait Runnable<I, O> {
+//!     fn run(&self, input: I) -> Result<O, TransformError>;
+//! }
+//! ```
+//!
+//! This trait is implemented by individual processing stages (tokenization, parsing, etc.).
+//!
+//! ## 2. The `Transform<I, O>` Type
+//!
+//! A wrapper that enables composition. Any `Runnable` can be converted to a `Transform`,
+//! which provides the `.then()` method for type-safe chaining:
+//!
+//! ```rust,ignore
+//! let pipeline = Transform::from_fn(|x| Ok(x))
+//!     .then(Tokenize)   // String → Vec<Token>
+//!     .then(Parse);     // Vec<Token> → Ast
+//! // Result: Transform<String, Ast>
+//! ```
+//!
+//! The compiler enforces that output types match input types at each stage.
+//!
+//! ## 3. Static Lazy Transforms
+//!
+//! Common pipelines are pre-built as static references using `once_cell::sync::Lazy`.
+//! This provides zero-cost abstractions for standard processing paths:
+//!
+//! ```rust,ignore
+//! pub static LEXING: Lazy<Transform<String, TokenStream>> = Lazy::new(|| {
+//!     Transform::from_fn(Ok)
+//!         .then(CoreTokenization::new())
+//!         .then(SemanticIndentation::new())
+//! });
+//! ```
+//!
+//! See the [`standard`] module for all pre-built transforms.
+//!
+//! # Usage Patterns
+//!
+//! ## Direct Transform Usage
+//!
+//! For programmatic access to specific stages:
 //!
 //! ```rust
-//! use lex_parser::lex::transforms::{Transform, Runnable};
+//! use lex_parser::lex::transforms::standard::LEXING;
 //!
-//! // Define individual stages
-//! struct Tokenize;
-//! impl Runnable<String, Vec<Token>> for Tokenize {
-//!     fn run(&self, input: String) -> Result<Vec<Token>, TransformError> {
-//!         // tokenization logic
-//!         Ok(vec![])
-//!     }
-//! }
-//!
-//! struct Parse;
-//! impl Runnable<Vec<Token>, Ast> for Parse {
-//!     fn run(&self, input: Vec<Token>) -> Result<Ast, TransformError> {
-//!         // parsing logic
-//!         Ok(Ast {})
-//!     }
-//! }
-//!
-//! // Compose them
-//! let pipeline = Transform::from_fn(|x| Ok(x))
-//!     .then(Tokenize)
-//!     .then(Parse);
-//! // Type: Transform<String, Ast>
-//!
-//! let ast = pipeline.run("source code".to_string())?;
+//! let tokens = LEXING.run("Session:\n    Content\n".to_string())?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
+//!
+//! ## With DocumentLoader
+//!
+//! For most use cases, use [`DocumentLoader`](crate::lex::loader::DocumentLoader)
+//! which provides convenient shortcuts:
+//!
+//! ```rust
+//! use lex_parser::lex::loader::DocumentLoader;
+//!
+//! let loader = DocumentLoader::from_string("Hello\n");
+//! let doc = loader.parse()?;          // Full AST
+//! let tokens = loader.tokenize()?;     // Lexed tokens
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! ## Custom Pipelines
+//!
+//! Build custom processing chains for specialized needs:
+//!
+//! ```rust,ignore
+//! use lex_parser::lex::transforms::{Transform, standard::CORE_TOKENIZATION};
+//!
+//! let custom = CORE_TOKENIZATION
+//!     .then(MyCustomStage::new())
+//!     .then(AnotherStage::new());
+//!
+//! let result = custom.run(source)?;
+//! ```
+//!
+//! # Module Organization
+//!
+//! - [`stages`]: Individual transformation stages (tokenization, indentation, parsing)
+//! - [`standard`]: Pre-built transform combinations for common use cases
+//!
+//! # Design Benefits
+//!
+//! - **Type Safety**: Compiler verifies pipeline stage compatibility
+//! - **Composability**: Mix and match stages to create custom pipelines
+//! - **Reusability**: Share transforms across CLI, tests, and library code
+//! - **Clarity**: Explicit stage boundaries with clear input/output types
+//! - **Testability**: Test individual stages in isolation
 
 pub mod stages;
 pub mod standard;
