@@ -1,25 +1,91 @@
-//! Document loading utilities
+//! Document loading and transform execution
 //!
-//! This module provides `DocumentLoader` - a utility for loading source text from files
-//! or strings and running transforms on it. This is used by both production code and tests.
+//! This module provides [`DocumentLoader`] - the universal API for loading and processing
+//! lex source text. It abstracts over input sources (file vs. string) and provides convenient
+//! shortcuts for common transform operations.
 //!
-//! # Example
+//! # Purpose
+//!
+//! `DocumentLoader` serves as the primary entry point for most lex processing tasks:
+//!
+//! - **Universal Input**: Load from files or strings with the same API
+//! - **Transform Shortcuts**: Common operations (`.parse()`, `.tokenize()`) built-in
+//! - **Custom Transforms**: Execute any transform via `.with()`
+//! - **Source Access**: Retrieve original source text via `.source()`
+//! - **Reusable**: Create once, run multiple transforms on the same source
+//!
+//! # Relationship to Transform System
+//!
+//! `DocumentLoader` is a convenience layer on top of the [transform system](crate::lex::transforms).
+//! It manages source text loading and delegates to the appropriate transform:
+//!
+//! - `.parse()` → Uses [`STRING_TO_AST`](crate::lex::transforms::standard::STRING_TO_AST)
+//! - `.tokenize()` → Uses [`LEXING`](crate::lex::transforms::standard::LEXING)
+//! - `.base_tokens()` → Uses [`CORE_TOKENIZATION`](crate::lex::transforms::standard::CORE_TOKENIZATION)
+//! - `.with(transform)` → Runs any custom transform
+//!
+//! # Common Usage Patterns
+//!
+//! ## Parse a Document
 //!
 //! ```rust
 //! use lex_parser::lex::loader::DocumentLoader;
-//! use lex_parser::lex::transforms::standard::STRING_TO_AST;
 //!
-//! // From file
-//! let loader = DocumentLoader::from_path("example.lex").unwrap();
-//! let doc = loader.parse().unwrap();
-//!
-//! // From string
-//! let loader = DocumentLoader::from_string("Hello world\n");
-//! let doc = loader.parse().unwrap();
-//!
-//! // Custom transform
-//! let tokens = loader.with(&*LEXING).unwrap();
+//! let loader = DocumentLoader::from_string("Session:\n    Content\n");
+//! let doc = loader.parse()?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
+//!
+//! ## Load from File
+//!
+//! ```rust,no_run
+//! use lex_parser::lex::loader::DocumentLoader;
+//!
+//! let loader = DocumentLoader::from_path("document.lex")?;
+//! let doc = loader.parse()?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! ## Get Tokens
+//!
+//! ```rust
+//! use lex_parser::lex::loader::DocumentLoader;
+//!
+//! let loader = DocumentLoader::from_string("Hello world\n");
+//! let tokens = loader.tokenize()?;  // With semantic indentation
+//! let base = loader.base_tokens()?; // Core tokens only
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! ## Custom Transform
+//!
+//! ```rust
+//! use lex_parser::lex::loader::DocumentLoader;
+//! use lex_parser::lex::transforms::standard::TO_IR;
+//!
+//! let loader = DocumentLoader::from_string("Hello\n");
+//! let ir = loader.with(&*TO_IR)?;  // Get intermediate representation
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! ## Multiple Operations on Same Source
+//!
+//! ```rust
+//! use lex_parser::lex::loader::DocumentLoader;
+//!
+//! let loader = DocumentLoader::from_string("Hello\n");
+//! let source = loader.source();      // Get original text
+//! let tokens = loader.tokenize()?;   // Get tokens
+//! let doc = loader.parse()?;         // Get AST
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! # Use Cases
+//!
+//! - **CLI Tools**: Load files and apply stage+format transforms
+//! - **Tests**: Load test fixtures and verify different processing stages
+//! - **Library Code**: Process lex documents programmatically
+//! - **REPL/Interactive**: Parse user input on-the-fly
 
 use crate::lex::parsing::Document;
 use crate::lex::transforms::standard::{TokenStream, CORE_TOKENIZATION, LEXING, STRING_TO_AST};

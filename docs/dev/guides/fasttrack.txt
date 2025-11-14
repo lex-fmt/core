@@ -5,50 +5,64 @@ This is a high level overview of how the Lex parser is designed.
 
 1. Processing Management
 
-	The lex/pipeline manages a pipeline composed of lexing, parsing and building stages.
+	The lex/transforms module provides a composable transform system for processing stages.
 
-	This system allows us to:
-		- keep different lexers and parser designs
-		- offer a common interface for running these stages
-		- easily access them by name, including in the lex binary
-		- tests can easily load processed Lex inputs into a specific stage (or specific transform step) easily
+	Key components:
+		- Transform<I, O>: Type-safe transformations that chain via .then()
+		- Runnable trait: Interface for individual processing stages
+		- Static lazy transforms: Pre-built pipelines (LEXING, STRING_TO_AST, etc.)
+		- DocumentLoader: Universal API for file/string loading and transform execution
+
+	This system enables:
+		- Type-safe stage composition with compiler verification
+		- Reusable transforms across CLI, tests, and library code
+		- Easy access to specific stages or full pipelines
+		- Custom transform chains for specialized needs
 
 
-2. Data Structures and General Design:
+2. Data Structures and Processing Stages:
 
-	1. Lexing
-		1. The core lexing is done through the logos crate. These are the core tokens in tokens_core.rs
-		2. Then a series of transformation steps are applied
-		3. The pipeline converts logos tokens to a TokenStream (an enum that can be Flat or Tree)
-		4. Most transformations output TokenStream::Flat, which can be unrolled to Vec<(Token, Range<usize>)>
-		5. The final lexer output is typically TokenStream::Flat
+	Processing flows through four main stages via the transform system:
 
-	2. Parsing: Semantic Analysis
-		1. The parsing stage differentiates between actual analysis and AST building
-		2. lex/parsing does semantic analysis and returns an intermediate representation (IR)
-		3. The IR is a tree where each node specifies which AST node to create and which tokens to use
-		4. Parsing takes a flat token vector and outputs IR Nodes
+	1. Core Tokenization (CORE_TOKENIZATION)
+		String → Vec<(Token, Range<usize>)>
+		- Uses logos crate for lexical analysis
+		- Produces flat token stream with byte ranges
 
-	3. Building
-		1. Final stage in the process
-		2. Receives the IR nodes and walks the tree, creating actual AST nodes with the tokens given
-		3. During this process, node span ranges are translated into AST Location objects
+	2. Semantic Indentation (part of LEXING)
+		Vec<(Token, Range)> → Vec<(Token, Range)>
+		- Adds Indent/Dedent tokens based on whitespace
+		- Groups tokens into logical line structures
+
+	3. Parsing to IR (TO_IR)
+		String → ParseNode
+		- Performs semantic analysis
+		- Returns intermediate representation (IR) tree
+		- IR nodes specify which AST nodes to create and which tokens to use
+
+	4. AST Building (STRING_TO_AST)
+		String → Document
+		- Complete pipeline: tokenization → lexing → parsing → building
+		- Walks IR tree creating final AST nodes
+		- Translates byte ranges to AST Location objects
+
+	These stages compose via Transform<I, O>.then() chains.
 
 
 3. Parser Design:
 
-	The project now runs exclusively on the linebased parser. The multi-parser plumbing (AnalyzerConfig, pipeline registry, etc.) remains so we can stand up alternative analyzers in the future, but the active implementation is the line-based grammar engine.
+	Line-based declarative grammar engine:
 
-	Linebased parser overview:
+		- Receives flat Vec<(Token, Range<usize>)> from lexing stage
+		- Groups tokens into logical lines and indentation scopes
+		- Classifies lines (SubjectLine, ListLine, etc.) as LineContainer nodes
+		- Uses declarative regex patterns to match container sequences
+		- Emits IR nodes for AST construction
 
-		- Receives the same flat Vec<(Token, Range<usize>)> produced by the lexing pipeline
-		- Groups tokens into logical lines and indentation scopes (tree_builder module)
-		- Classifies each line (SubjectLine, ListLine, etc.) and wraps them in LineContainer nodes
-		- Uses declarative regex patterns to match container sequences and emit IR nodes
-
-	The grammar at the container level is simple enough to be expressed as ordered regular expressions, which is what the declarative_grammar engine does. Tree building complexity is isolated inside the parser, not in the pipeline.
+	The grammar is simple enough for ordered regex expressions.
 
 	Key files:
-		- src/lex/parsing/linebased/tree_builder.rs (tree construction)
-		- src/lex/parsing/linebased/declarative_grammar.rs (pattern matching)
-		- src/lex/lexing/linebased/tokens_linebased.rs (LineToken/LineContainer types)
+		- src/lex/parsing/engine.rs (main parsing entry point)
+		- src/lex/parsing/ir.rs (IR node definitions)
+		- src/lex/transforms/stages/parsing.rs (parsing transform stage)
+		- src/lex/building/ (AST node construction from IR)
