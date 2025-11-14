@@ -489,9 +489,6 @@ fn test_verbatim_11_group_visitor_sees_all_groups() {
 }
 
 #[test]
-#[ignore] // TODO: Test file has complex nested structures that need additional parser work
-          // Original bug #208 (sessions after grouped verbatim parsing as paragraphs) is FIXED
-          // Remaining issues: verbatim blocks inside lists, complex grouping with mixed indentation
 fn test_verbatim_12_document_simple() {
     // verbatim-12-document-simple.lex: Document with mix of verbatim blocks, groups, and general content
     let doc = Lexplore::verbatim(12).parse().unwrap();
@@ -604,7 +601,7 @@ fn test_verbatim_12_document_simple() {
             .subject("This is an Image Verbatim Representation")
             .closing_label("image")
             .assert_marker_form()
-            .has_closing_parameter_with_value("src", "image.jpg");
+            .has_closing_parameter_with_value("src", "\"image.jpg\"");
     });
 
     // Verify fourth session "4. Another Session"
