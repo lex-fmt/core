@@ -46,6 +46,7 @@
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::{AstNode, Container, Visitor};
+use super::annotation::Annotation;
 use super::container::VerbatimContainer;
 use super::content_item::ContentItem;
 use super::data::Data;
@@ -71,6 +72,8 @@ pub struct Verbatim {
     pub children: VerbatimContainer,
     /// Closing data shared by all groups
     pub closing_data: Data,
+    /// Annotations attached to this verbatim block
+    pub annotations: Vec<Annotation>,
     /// Location spanning all groups and the closing data
     pub location: Range,
     /// The rendering mode of the verbatim block.
@@ -94,6 +97,7 @@ impl Verbatim {
             subject,
             children: VerbatimContainer::from_typed(children),
             closing_data,
+            annotations: Vec::new(),
             location: Self::default_location(),
             mode,
             additional_groups: Vec::new(),
@@ -105,6 +109,7 @@ impl Verbatim {
             subject: TextContent::from_string(subject, None),
             children: VerbatimContainer::empty(),
             closing_data,
+            annotations: Vec::new(),
             location: Self::default_location(),
             mode: VerbatimBlockMode::Inflow,
             additional_groups: Vec::new(),
@@ -116,6 +121,7 @@ impl Verbatim {
             subject: TextContent::from_string(subject, None),
             children: VerbatimContainer::empty(),
             closing_data,
+            annotations: Vec::new(),
             location: Self::default_location(),
             mode: VerbatimBlockMode::Inflow,
             additional_groups: Vec::new(),
@@ -132,6 +138,28 @@ impl Verbatim {
     pub fn with_additional_groups(mut self, groups: Vec<VerbatimGroupItem>) -> Self {
         self.additional_groups = groups;
         self
+    }
+
+    /// Annotations attached to this verbatim block.
+    pub fn annotations(&self) -> &[Annotation] {
+        &self.annotations
+    }
+
+    /// Mutable access to verbatim annotations.
+    pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
+        &mut self.annotations
+    }
+
+    /// Iterate annotation blocks attached to this verbatim block.
+    pub fn iter_annotations(&self) -> std::slice::Iter<'_, Annotation> {
+        self.annotations.iter()
+    }
+
+    /// Iterate all content items nested inside verbatim annotations.
+    pub fn iter_annotation_contents(&self) -> impl Iterator<Item = &ContentItem> {
+        self.annotations
+            .iter()
+            .flat_map(|annotation| annotation.children())
     }
 
     /// Returns an iterator over each subject/content pair in the group order.

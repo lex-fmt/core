@@ -15,7 +15,8 @@
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
-use super::super::traits::{AstNode, TextNode, Visitor};
+use super::super::traits::{AstNode, Container, TextNode, Visitor};
+use super::annotation::Annotation;
 use super::content_item::ContentItem;
 use std::fmt;
 
@@ -81,6 +82,7 @@ impl fmt::Display for TextLine {
 pub struct Paragraph {
     /// Lines stored as ContentItems (each a TextLine wrapping TextContent)
     pub lines: Vec<ContentItem>,
+    pub annotations: Vec<Annotation>,
     pub location: Range,
 }
 
@@ -97,6 +99,7 @@ impl Paragraph {
         );
         Self {
             lines,
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -105,6 +108,7 @@ impl Paragraph {
             lines: vec![ContentItem::TextLine(TextLine::new(
                 TextContent::from_string(line, None),
             ))],
+            annotations: Vec::new(),
             location: Self::default_location(),
         }
     }
@@ -114,6 +118,7 @@ impl Paragraph {
             lines: vec![ContentItem::TextLine(TextLine::new(
                 TextContent::from_string(line, None),
             ))],
+            annotations: Vec::new(),
             location: Self::default_location(),
         };
         para = para.at(location);
@@ -147,6 +152,28 @@ impl Paragraph {
             })
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// Annotations attached to this paragraph.
+    pub fn annotations(&self) -> &[Annotation] {
+        &self.annotations
+    }
+
+    /// Mutable access to paragraph annotations.
+    pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
+        &mut self.annotations
+    }
+
+    /// Iterate over annotation blocks in source order.
+    pub fn iter_annotations(&self) -> std::slice::Iter<'_, Annotation> {
+        self.annotations.iter()
+    }
+
+    /// Iterate over all content items nested inside attached annotations.
+    pub fn iter_annotation_contents(&self) -> impl Iterator<Item = &ContentItem> {
+        self.annotations
+            .iter()
+            .flat_map(|annotation| annotation.children())
     }
 }
 

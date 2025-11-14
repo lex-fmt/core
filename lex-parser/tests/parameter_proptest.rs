@@ -6,9 +6,21 @@
 //! - Parameters are separated by commas only (not whitespace)
 //! - Whitespace around parameters is ignored
 
-use lex_parser::lex::parsing::{parse_document, ContentItem};
+use lex_parser::lex::parsing::engine::parse_from_flat_tokens;
+use lex_parser::lex::parsing::{parse_document, ContentItem, Document};
 use lex_parser::lex::testing::assert_ast;
+use lex_parser::lex::transforms::standard::LEXING;
 use proptest::prelude::*;
+
+fn parse_annotation_without_attachment(source: &str) -> Result<Document, String> {
+    let source = if !source.is_empty() && !source.ends_with('\n') {
+        format!("{}\n", source)
+    } else {
+        source.to_string()
+    };
+    let tokens = LEXING.run(source.clone()).map_err(|e| e.to_string())?;
+    parse_from_flat_tokens(tokens, &source)
+}
 
 /// Generate valid parameter keys
 fn parameter_key_strategy() -> impl Strategy<Value = String> {
@@ -77,7 +89,7 @@ mod proptest_tests {
         #[test]
         fn test_single_parameter_parsing(param in parameter_strategy()) {
             let source = format!(":: note {} ::\n\nText. {{{{paragraph}}}}\n", param);
-            let result = parse_document(&source);
+            let result = parse_annotation_without_attachment(&source);
 
             // Should parse successfully
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
@@ -96,7 +108,7 @@ mod proptest_tests {
         #[test]
         fn test_multiple_parameters_parsing(params in parameter_list_strategy()) {
             let source = format!(":: note {} ::\n\nText. {{{{paragraph}}}}\n", params);
-            let result = parse_document(&source);
+            let result = parse_annotation_without_attachment(&source);
 
             // Should parse successfully
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
@@ -112,7 +124,7 @@ mod proptest_tests {
         #[test]
         fn test_parameter_key_preservation(key in parameter_key_strategy(), value in unquoted_value_strategy()) {
             let source = format!(":: note {}={} ::\n\nText. {{{{paragraph}}}}\n", key, value);
-            let result = parse_document(&source);
+            let result = parse_annotation_without_attachment(&source);
 
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
@@ -127,7 +139,7 @@ mod proptest_tests {
         #[test]
         fn test_quoted_value_preservation(key in parameter_key_strategy(), value in quoted_value_strategy()) {
             let source = format!(":: note {}=\"{}\" ::\n\nText. {{{{paragraph}}}}\n", key, value);
-            let result = parse_document(&source);
+            let result = parse_annotation_without_attachment(&source);
 
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
@@ -143,7 +155,7 @@ mod proptest_tests {
         #[test]
         fn test_parameter_order_preservation(params in parameter_list_strategy()) {
             let source = format!(":: note {} ::\n\nText. {{{{paragraph}}}}\n", params);
-            let result = parse_document(&source);
+            let result = parse_annotation_without_attachment(&source);
 
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
 
@@ -186,7 +198,7 @@ mod specific_tests {
     #[test]
     fn test_comma_only_separator() {
         let source = ":: note key1=val1,key2=val2,key3=val3 ::\n\nText. {{paragraph}}\n";
-        let result = parse_document(source);
+        let result = parse_annotation_without_attachment(source);
         assert!(result.is_ok());
 
         let doc = result.unwrap();
@@ -203,7 +215,7 @@ mod specific_tests {
     #[test]
     fn test_whitespace_around_commas_ignored() {
         let source = ":: note key1=val1 , key2=val2 , key3=val3 ::\n\nText. {{paragraph}}\n";
-        let result = parse_document(source);
+        let result = parse_annotation_without_attachment(source);
         assert!(result.is_ok());
 
         let doc = result.unwrap();
@@ -220,7 +232,7 @@ mod specific_tests {
     #[test]
     fn test_whitespace_around_equals_ignored() {
         let source = ":: note key1 = val1 , key2 = val2 ::\n\nText. {{paragraph}}\n";
-        let result = parse_document(source);
+        let result = parse_annotation_without_attachment(source);
         assert!(result.is_ok());
 
         let doc = result.unwrap();
@@ -236,10 +248,7 @@ mod specific_tests {
     #[test]
     fn test_quoted_values_with_spaces() {
         let source = ":: note message=\"Hello World\" ::\n\nText. {{paragraph}}\n";
-        let result = parse_document(source);
-        assert!(result.is_ok());
-
-        let doc = result.unwrap();
+        let doc = parse_annotation_without_attachment(source).unwrap();
         assert_ast(&doc).item(0, |item| {
             item.assert_annotation()
                 .label("note")
@@ -251,10 +260,7 @@ mod specific_tests {
     #[test]
     fn test_quoted_values_with_commas() {
         let source = ":: note message=\"value with, comma\" ::\n\nText. {{paragraph}}\n";
-        let result = parse_document(source);
-        assert!(result.is_ok());
-
-        let doc = result.unwrap();
+        let doc = parse_annotation_without_attachment(source).unwrap();
         assert_ast(&doc).item(0, |item| {
             item.assert_annotation()
                 .label("note")
@@ -266,10 +272,7 @@ mod specific_tests {
     #[test]
     fn test_empty_quoted_value() {
         let source = ":: note message=\"\" ::\n\nText. {{paragraph}}\n";
-        let result = parse_document(source);
-        assert!(result.is_ok());
-
-        let doc = result.unwrap();
+        let doc = parse_annotation_without_attachment(source).unwrap();
         assert_ast(&doc).item(0, |item| {
             item.assert_annotation()
                 .label("note")
@@ -281,10 +284,7 @@ mod specific_tests {
     #[test]
     fn test_version_number_values() {
         let source = ":: note version=3.11.2 ::\n\nText. {{paragraph}}\n";
-        let result = parse_document(source);
-        assert!(result.is_ok());
-
-        let doc = result.unwrap();
+        let doc = parse_annotation_without_attachment(source).unwrap();
         assert_ast(&doc).item(0, |item| {
             item.assert_annotation()
                 .label("note")
@@ -296,10 +296,7 @@ mod specific_tests {
     #[test]
     fn test_keys_with_dashes_and_underscores() {
         let source = ":: note ref-id=123,api_version=2 ::\n\nText. {{paragraph}}\n";
-        let result = parse_document(source);
-        assert!(result.is_ok());
-
-        let doc = result.unwrap();
+        let doc = parse_annotation_without_attachment(source).unwrap();
         assert_ast(&doc).item(0, |item| {
             item.assert_annotation()
                 .label("note")

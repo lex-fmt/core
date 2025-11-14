@@ -438,6 +438,7 @@ pub fn paragraph_from_text_segments(
 
     ContentItem::Paragraph(Paragraph {
         lines,
+        annotations: Vec::new(),
         location: overall_location,
     })
 }
