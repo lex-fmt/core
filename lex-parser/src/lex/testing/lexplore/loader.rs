@@ -86,16 +86,8 @@ fn load_isolated_element(element_type: ElementType, number: usize) -> Document {
 
     // For annotation elements, skip annotation attachment so they remain in content tree
     if matches!(element_type, ElementType::Annotation) {
-        use crate::lex::parsing::engine::parse_from_flat_tokens;
-        use crate::lex::transforms::standard::LEXING;
-
-        let source = if !source.is_empty() && !source.ends_with('\n') {
-            format!("{}\n", source)
-        } else {
-            source
-        };
-        let tokens = LEXING.run(source.clone()).unwrap();
-        parse_from_flat_tokens(tokens, &source).unwrap()
+        use crate::lex::testing::parse_without_annotation_attachment;
+        parse_without_annotation_attachment(&source).unwrap()
     } else {
         parse_document(&source).unwrap()
     }
