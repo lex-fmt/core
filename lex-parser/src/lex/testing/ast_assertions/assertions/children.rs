@@ -1,6 +1,6 @@
 //! Children assertions (bulk operations)
 
-use super::summarize_items;
+use super::{iter_visible, summarize_items, visible_len, visible_nth};
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::ContentItem;
 use crate::lex::testing::ast_assertions::ContentItemAssertion;
@@ -12,7 +12,7 @@ pub struct ChildrenAssertion<'a> {
 
 impl<'a> ChildrenAssertion<'a> {
     pub fn count(self, expected: usize) -> Self {
-        let actual = self.children.len();
+        let actual = visible_len(self.children);
         assert_eq!(
             actual,
             expected,
@@ -29,13 +29,14 @@ impl<'a> ChildrenAssertion<'a> {
         F: FnOnce(ContentItemAssertion<'a>),
     {
         assert!(
-            index < self.children.len(),
+            index < visible_len(self.children),
             "{}: Child index {} out of bounds ({} children)",
             self.context,
             index,
-            self.children.len()
+            visible_len(self.children)
         );
-        let child = &self.children[index];
+        let child = visible_nth(self.children, index)
+            .expect("visible child should exist at computed index");
         assertion(ContentItemAssertion {
             item: child,
             context: format!("{}[{}]", self.context, index),
@@ -43,7 +44,7 @@ impl<'a> ChildrenAssertion<'a> {
         self
     }
     pub fn all_paragraphs(self) -> Self {
-        for (i, child) in self.children.iter().enumerate() {
+        for (i, child) in iter_visible(self.children).enumerate() {
             assert!(
                 matches!(child, ContentItem::Paragraph(_)),
                 "{}[{}]: Expected Paragraph, found {}",
@@ -55,7 +56,7 @@ impl<'a> ChildrenAssertion<'a> {
         self
     }
     pub fn all_sessions(self) -> Self {
-        for (i, child) in self.children.iter().enumerate() {
+        for (i, child) in iter_visible(self.children).enumerate() {
             assert!(
                 matches!(child, ContentItem::Session(_)),
                 "{}[{}]: Expected Session, found {}",

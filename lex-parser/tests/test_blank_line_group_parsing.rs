@@ -21,15 +21,15 @@ fn test_blank_line_group_node_type_visitor() {
     let root = &doc.root;
 
     let all_nodes: Vec<_> = root.iter_all_nodes().collect();
-    if let Some(blg) = all_nodes
+    let blg = all_nodes
         .iter()
         .filter_map(|item| item.as_blank_line_group())
         .next()
-    {
-        // Test that node_type method works
-        let node_type = blg.node_type();
-        assert_eq!(node_type, "BlankLineGroup");
-    }
+        .expect("Expected BlankLineGroup node");
+
+    // Test that node_type method works
+    let node_type = blg.node_type();
+    assert_eq!(node_type, "BlankLineGroup");
 }
 
 #[test]
@@ -39,15 +39,18 @@ fn test_blank_line_group_display_label_visitor() {
     let root = &doc.root;
 
     let all_nodes: Vec<_> = root.iter_all_nodes().collect();
-    if let Some(blg) = all_nodes
+    let blg = all_nodes
         .iter()
         .filter_map(|item| item.as_blank_line_group())
         .next()
-    {
-        // Test that display_label method works
-        let label = blg.display_label();
-        assert!(label.contains("1"), "Label should mention blank line count");
-    }
+        .expect("Expected BlankLineGroup node");
+
+    // Test that display_label method works
+    let label = blg.display_label();
+    assert_eq!(
+        label, "blank line",
+        "Label should describe singular blank line"
+    );
 }
 
 #[test]
@@ -57,14 +60,14 @@ fn test_blank_line_group_structure_count() {
     let root = &doc.root;
 
     let all_nodes: Vec<_> = root.iter_all_nodes().collect();
-    if let Some(blg) = all_nodes
+    let blg = all_nodes
         .iter()
         .filter_map(|item| item.as_blank_line_group())
         .next()
-    {
-        // Verify count field exists and is accessible
-        assert!(blg.count > 0, "BlankLineGroup should have count > 0");
-    }
+        .expect("Expected BlankLineGroup node");
+
+    // Verify count field exists and is accessible
+    assert!(blg.count > 0, "BlankLineGroup should have count > 0");
 }
 
 #[test]
@@ -74,47 +77,46 @@ fn test_blank_line_group_structure_source_tokens() {
     let root = &doc.root;
 
     let all_nodes: Vec<_> = root.iter_all_nodes().collect();
-    if let Some(blg) = all_nodes
+    let blg = all_nodes
         .iter()
         .filter_map(|item| item.as_blank_line_group())
         .next()
-    {
-        // Verify source_tokens field exists and is accessible
-        assert!(
-            !blg.source_tokens.is_empty(),
-            "BlankLineGroup should have source tokens"
-        );
-        // Verify tokens contain BlankLine variant
-        let has_blank_line_token = blg
-            .source_tokens
-            .iter()
-            .any(|t| matches!(t, lex_parser::lex::lexing::Token::BlankLine(_)));
-        assert!(has_blank_line_token, "Should contain BlankLine token");
-    }
+        .expect("Expected BlankLineGroup node");
+
+    // Verify source_tokens field exists and is accessible
+    assert!(
+        !blg.source_tokens.is_empty(),
+        "BlankLineGroup should have source tokens"
+    );
+    // Verify tokens contain BlankLine variant
+    let has_blank_line_token = blg
+        .source_tokens
+        .iter()
+        .any(|t| matches!(t, lex_parser::lex::lexing::Token::BlankLine(_)));
+    assert!(has_blank_line_token, "Should contain BlankLine token");
 }
 
 #[test]
-fn test_blank_line_group_in_list_items() {
-    let source = "- Item\n\n    Content";
+fn test_blank_line_group_near_lists() {
+    let source =
+        "Intro paragraph\n\n- Item 1\n    Content A\n- Item 2\n    Content B\n\nClosing paragraph";
     let doc = parse_document(source);
     let root = &doc.root;
 
-    // Use new query API to find list items with blank line groups
-    let list_items: Vec<_> = root.iter_list_items_recursive().collect();
-    if let Some(list_item) = list_items.iter().find(|li| {
-        li.children
-            .iter()
-            .any(|child| matches!(child, ContentItem::BlankLineGroup(_)))
-    }) {
-        if let Some(blg) = list_item
-            .children
-            .iter()
-            .filter_map(|item| item.as_blank_line_group())
-            .next()
-        {
-            assert!(blg.count > 0);
-        }
-    }
+    let list_index = root
+        .children
+        .iter()
+        .position(|item| matches!(item, ContentItem::List(_)))
+        .expect("Expected list in document");
+
+    assert!(list_index > 0, "List should follow a blank line group");
+    assert!(
+        matches!(
+            root.children[list_index - 1],
+            ContentItem::BlankLineGroup(_)
+        ),
+        "Expected blank line group before list"
+    );
 }
 
 #[test]
@@ -130,16 +132,17 @@ fn test_blank_line_group_in_definitions() {
             .any(|child| matches!(child, ContentItem::BlankLineGroup(_)))
     });
 
-    if let Some(definition) = definitions.into_iter().next() {
-        if let Some(blg) = definition
-            .children
-            .iter()
-            .filter_map(|item| item.as_blank_line_group())
-            .next()
-        {
-            assert!(blg.count > 0, "Definition should have blank lines");
-        }
-    }
+    let definition = definitions
+        .into_iter()
+        .next()
+        .expect("Expected definition with blank lines");
+    let blg = definition
+        .children
+        .iter()
+        .filter_map(|item| item.as_blank_line_group())
+        .next()
+        .expect("Definition should contain blank line group");
+    assert!(blg.count > 0, "Definition should have blank lines");
 }
 
 #[test]
@@ -155,16 +158,17 @@ fn test_blank_line_group_in_sessions() {
             .any(|child| matches!(child, ContentItem::BlankLineGroup(_)))
     });
 
-    if let Some(session) = sessions.into_iter().next() {
-        if let Some(blg) = session
-            .children
-            .iter()
-            .filter_map(|item| item.as_blank_line_group())
-            .next()
-        {
-            assert!(blg.count > 0, "Session should have blank lines");
-        }
-    }
+    let session = sessions
+        .into_iter()
+        .next()
+        .expect("Expected session with blank lines");
+    let blg = session
+        .children
+        .iter()
+        .filter_map(|item| item.as_blank_line_group())
+        .next()
+        .expect("Session should contain blank line group");
+    assert!(blg.count > 0, "Session should have blank lines");
 }
 
 #[test]
@@ -175,10 +179,11 @@ fn test_blank_line_group_is_content_item_variant() {
 
     // This test verifies the variant exists in ContentItem enum
     // by successfully pattern matching it in the content
-    let _has_blank_variant = doc
-        .root
-        .children
-        .iter()
-        .any(|item| matches!(item, ContentItem::BlankLineGroup(_)));
-    // Test passes if compilation succeeds
+    assert!(
+        doc.root
+            .children
+            .iter()
+            .any(|item| matches!(item, ContentItem::BlankLineGroup(_))),
+        "Root content should expose BlankLineGroup variant"
+    );
 }

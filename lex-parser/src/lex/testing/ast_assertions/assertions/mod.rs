@@ -31,9 +31,22 @@ use crate::lex::ast::ContentItem;
 // ============================================================================
 
 pub(super) fn summarize_items(items: &[ContentItem]) -> String {
-    items
-        .iter()
+    iter_visible(items)
         .map(|item| item.node_type())
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+pub(super) fn visible_len(items: &[ContentItem]) -> usize {
+    iter_visible(items).count()
+}
+
+pub(super) fn visible_nth(items: &[ContentItem], index: usize) -> Option<&ContentItem> {
+    iter_visible(items).nth(index)
+}
+
+pub(super) fn iter_visible(items: &[ContentItem]) -> impl Iterator<Item = &ContentItem> {
+    items
+        .iter()
+        .filter(|item| !matches!(item, ContentItem::BlankLineGroup(_)))
 }

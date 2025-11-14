@@ -11,8 +11,8 @@ use std::ops::Range;
 mod builders;
 
 use builders::{
-    build_annotation_block, build_annotation_single, build_definition, build_list, build_paragraph,
-    build_session, build_verbatim_block,
+    build_annotation_block, build_annotation_single, build_blank_line_group, build_definition,
+    build_list, build_paragraph, build_session, build_verbatim_block,
 };
 
 /// Type alias for the recursive parser function callback
@@ -34,8 +34,12 @@ pub(super) enum PatternMatch {
     },
     /// Annotation single: just start line
     AnnotationSingle { start_idx: usize },
-    /// List: preceding blank line + 2+ consecutive list items
-    List { items: Vec<(usize, Option<usize>)> },
+    /// List: optional preceding/trailing blanks + 2+ consecutive list items
+    List {
+        items: Vec<(usize, Option<usize>)>,
+        preceding_blank_range: Option<Range<usize>>,
+        trailing_blank_range: Option<Range<usize>>,
+    },
     /// Definition: subject + immediate indent + content
     Definition {
         subject_idx: usize,
@@ -64,10 +68,11 @@ pub(super) enum PatternMatch {
 pub(super) fn convert_pattern_to_node(
     tokens: &[LineContainer],
     pattern: &PatternMatch,
-    pattern_offset: usize,
+    pattern_range: Range<usize>,
     source: &str,
     parse_children: &ParserFn,
 ) -> Result<ParseNode, String> {
+    let pattern_offset = pattern_range.start;
     match pattern {
         PatternMatch::VerbatimBlock {
             subject_idx,
@@ -87,7 +92,7 @@ pub(super) fn convert_pattern_to_node(
         PatternMatch::AnnotationSingle { start_idx } => {
             build_annotation_single(tokens, pattern_offset + start_idx)
         }
-        PatternMatch::List { items } => {
+        PatternMatch::List { items, .. } => {
             build_list(tokens, items, pattern_offset, source, parse_children)
         }
         PatternMatch::Definition {
@@ -113,8 +118,13 @@ pub(super) fn convert_pattern_to_node(
         PatternMatch::Paragraph { start_idx, end_idx } => {
             build_paragraph(tokens, pattern_offset + start_idx, pattern_offset + end_idx)
         }
-        PatternMatch::BlankLineGroup => {
-            Err("Internal error: BlankLineGroup reached convert_pattern_to_node".to_string())
-        }
+        PatternMatch::BlankLineGroup => build_blank_line_group(tokens, pattern_range.clone()),
     }
+}
+
+pub(super) fn blank_line_node_from_range(
+    tokens: &[LineContainer],
+    token_range: Range<usize>,
+) -> Result<ParseNode, String> {
+    build_blank_line_group(tokens, token_range)
 }

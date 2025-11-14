@@ -33,8 +33,9 @@ use super::extraction::{
     VerbatimGroupData,
 };
 use super::location::{
-    aggregate_locations, byte_range_to_ast_range, compute_location_from_locations,
+    aggregate_locations, byte_range_to_ast_range, compute_location_from_locations, default_location,
 };
+use crate::lex::ast::elements::blank_line_group::BlankLineGroup;
 use crate::lex::ast::elements::typed_content::{
     ContentElement, ListContent, SessionContent, VerbatimContent,
 };
@@ -44,6 +45,8 @@ use crate::lex::ast::{
     TextLine, Verbatim,
 };
 use crate::lex::parsing::ContentItem;
+use crate::lex::token::Token;
+use std::ops::Range as ByteRange;
 
 // ============================================================================
 // TYPE SAFETY STATUS
@@ -347,6 +350,35 @@ fn build_verbatim_group(
 
     // Children are all VerbatimLines by construction - no validation needed
     (subject, children, locations)
+}
+
+// ============================================================================
+// BLANK LINE GROUP CREATION
+// ============================================================================
+
+/// Create a BlankLineGroup AST node from normalized blank line tokens.
+pub(super) fn blank_line_group_node(
+    tokens: Vec<(Token, ByteRange<usize>)>,
+    source: &str,
+) -> ContentItem {
+    if tokens.is_empty() {
+        return ContentItem::BlankLineGroup(BlankLineGroup::new(0, vec![]).at(default_location()));
+    }
+
+    let count = tokens
+        .iter()
+        .filter(|(token, _)| matches!(token, Token::BlankLine(_)))
+        .count()
+        .max(1);
+
+    let ast_locations: Vec<Range> = tokens
+        .iter()
+        .map(|(_, span)| byte_range_to_ast_range(span.clone(), source))
+        .collect();
+    let location = compute_location_from_locations(&ast_locations);
+    let source_tokens = tokens.into_iter().map(|(token, _)| token).collect();
+
+    ContentItem::BlankLineGroup(BlankLineGroup::new(count, source_tokens).at(location))
 }
 
 #[cfg(test)]

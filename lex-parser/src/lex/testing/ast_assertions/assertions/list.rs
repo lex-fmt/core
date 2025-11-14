@@ -1,6 +1,8 @@
 //! List and ListItem assertions
 
-use super::{annotation::AnnotationAssertion, summarize_items, ChildrenAssertion};
+use super::{
+    annotation::AnnotationAssertion, summarize_items, visible_len, visible_nth, ChildrenAssertion,
+};
 use crate::lex::ast::traits::{AstNode, Container};
 use crate::lex::ast::{ContentItem, List, ListItem};
 use crate::lex::testing::ast_assertions::ContentItemAssertion;
@@ -13,7 +15,7 @@ pub struct ListAssertion<'a> {
 
 impl<'a> ListAssertion<'a> {
     pub fn item_count(self, expected: usize) -> Self {
-        let actual = self.list.items.len();
+        let actual = visible_len(&self.list.items);
         assert_eq!(
             actual, expected,
             "{}: Expected {} list items, found {} list items",
@@ -25,14 +27,16 @@ impl<'a> ListAssertion<'a> {
     where
         F: FnOnce(ListItemAssertion<'a>),
     {
+        let visible_items = visible_len(&self.list.items);
         assert!(
-            index < self.list.items.len(),
+            index < visible_items,
             "{}: Item index {} out of bounds (list has {} items)",
             self.context,
             index,
-            self.list.items.len()
+            visible_items
         );
-        let content_item = &self.list.items[index];
+        let content_item = visible_nth(&self.list.items, index)
+            .expect("visible list item should exist at computed index");
         let item = if let ContentItem::ListItem(li) = content_item {
             li
         } else {
@@ -99,7 +103,7 @@ impl<'a> ListItemAssertion<'a> {
         self
     }
     pub fn child_count(self, expected: usize) -> Self {
-        let actual = self.item.children().len();
+        let actual = visible_len(self.item.children());
         assert_eq!(
             actual,
             expected,
@@ -116,14 +120,16 @@ impl<'a> ListItemAssertion<'a> {
         F: FnOnce(ContentItemAssertion<'a>),
     {
         let children = self.item.children();
+        let visible_children = visible_len(children);
         assert!(
-            index < children.len(),
+            index < visible_children,
             "{}: Child index {} out of bounds (list item has {} children)",
             self.context,
             index,
-            children.len()
+            visible_children
         );
-        let child = &children[index];
+        let child =
+            visible_nth(children, index).expect("visible child should exist at computed index");
         assertion(ContentItemAssertion {
             item: child,
             context: format!("{}:children[{}]", self.context, index),
