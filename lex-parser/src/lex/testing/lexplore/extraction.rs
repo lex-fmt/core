@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_query_api_usage() {
-        let doc = Lexplore::paragraph(1).parse();
+        let doc = Lexplore::paragraph(1).parse().unwrap();
 
         // Use query API directly
         let paragraph = doc.root.iter_paragraphs_recursive().next();
@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn test_paragraph_assertions() {
-        let doc = Lexplore::paragraph(1).parse();
+        let doc = Lexplore::paragraph(1).parse().unwrap();
 
         // Use query API directly
         let paragraph = doc.root.iter_paragraphs_recursive().next().unwrap();

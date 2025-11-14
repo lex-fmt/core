@@ -12,7 +12,7 @@ use lex_parser::lex::testing::lexplore::Lexplore;
 #[test]
 fn test_session_01_flat_simple() {
     // session-01-flat-simple.lex: Session with title "Introduction" and one paragraph
-    let doc = Lexplore::session(1).parse();
+    let doc = Lexplore::session(1).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_session()
@@ -29,7 +29,7 @@ fn test_session_01_flat_simple() {
 #[test]
 fn test_session_02_flat_numbered_title() {
     // session-02-flat-numbered-title.lex: Session with numbered title "1. Introduction:"
-    let doc = Lexplore::session(2).parse();
+    let doc = Lexplore::session(2).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_session()
@@ -46,7 +46,7 @@ fn test_session_02_flat_numbered_title() {
 #[test]
 fn test_session_05_nested_simple() {
     // session-05-nested-simple.lex: Document with paragraphs and nested sessions
-    let doc = Lexplore::session(5).parse();
+    let doc = Lexplore::session(5).parse().unwrap();
 
     // Document structure: Para, Para, Session, Para, Session, Para
     assert_ast(&doc)
@@ -96,7 +96,7 @@ fn test_session_05_nested_simple() {
 
 #[test]
 fn test_session_03_flat_multiple_paragraphs() {
-    let doc = Lexplore::session(3).parse();
+    let doc = Lexplore::session(3).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_session()
@@ -120,7 +120,7 @@ fn test_session_03_flat_multiple_paragraphs() {
 
 #[test]
 fn test_session_04_flat_alphanumeric_title() {
-    let doc = Lexplore::session(4).parse();
+    let doc = Lexplore::session(4).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_session()
@@ -135,7 +135,7 @@ fn test_session_04_flat_alphanumeric_title() {
 
 #[test]
 fn test_session_07_paragraphs_sessions_flat_multiple() {
-    let doc = Lexplore::session(7).parse();
+    let doc = Lexplore::session(7).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(9)
@@ -179,7 +179,7 @@ fn test_session_07_paragraphs_sessions_flat_multiple() {
 
 #[test]
 fn test_session_08_paragraphs_sessions_nested_multiple() {
-    let doc = Lexplore::session(8).parse();
+    let doc = Lexplore::session(8).parse().unwrap();
 
     assert_ast(&doc)
         .item_count(5)
@@ -217,7 +217,7 @@ fn test_session_09_flat_colon_title() {
     // session-09-flat-colon-title.lex: Session title ending with colon (bug #212)
     // Tests that sessions can have colons in their titles, distinguished from definitions
     // by blank lines between title and content
-    let doc = Lexplore::session(9).parse();
+    let doc = Lexplore::session(9).parse().unwrap();
 
     assert_ast(&doc).item_count(1).item(0, |item| {
         item.assert_session()

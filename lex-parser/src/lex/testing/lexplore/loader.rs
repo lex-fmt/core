@@ -2,15 +2,17 @@
 //!
 //! This module provides the core loading infrastructure for the Lexplore test harness,
 //! handling file discovery, reading, parsing, and tokenization.
+//!
+//! The Lexplore API now returns `DocumentLoader` which provides a fluent interface
+//! for running transforms on test files.
 
 use crate::lex::ast::elements::{Annotation, Definition, List, Paragraph, Session, Verbatim};
 use crate::lex::ast::Document;
-use crate::lex::lexing::Token;
+use crate::lex::loader::DocumentLoader;
 use crate::lex::parsing::parse_document;
 use crate::lex::parsing::ParseError;
 use crate::lex::testing::lexplore::specfile_finder;
 use std::fs;
-use std::path::PathBuf;
 
 // Re-export types from specfile_finder for public API
 pub use specfile_finder::{DocumentType, ElementType};
@@ -65,56 +67,8 @@ impl From<specfile_finder::SpecFileError> for ElementSourceError {
     }
 }
 
-/// Fluent API builder for loading elements or documents
-pub struct ElementLoader {
-    source_type: SourceType,
-    number: usize,
-}
-
-/// Enum to represent either an element type, document type, or arbitrary file path
-#[derive(Debug)]
-enum SourceType {
-    Element(ElementType),
-    Document(DocumentType),
-    Path(PathBuf),
-}
-
-impl ElementLoader {
-    /// Get the file path for this loader
-    fn get_path(&self) -> PathBuf {
-        match &self.source_type {
-            SourceType::Element(element_type) => Lexplore::find_file(*element_type, self.number)
-                .unwrap_or_else(|e| {
-                    panic!("Failed to find {:?} #{}: {}", element_type, self.number, e)
-                }),
-            SourceType::Document(doc_type) => Lexplore::find_document_file(*doc_type, self.number)
-                .unwrap_or_else(|e| {
-                    panic!("Failed to find {:?} #{}: {}", doc_type, self.number, e)
-                }),
-            SourceType::Path(path) => path.clone(),
-        }
-    }
-
-    /// Get the raw source string
-    pub fn source(&self) -> String {
-        let path = self.get_path();
-        fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("Failed to read {}: {}", path.display(), e))
-    }
-
-    /// Parse with the parser (shorthand)
-    pub fn parse(self) -> Document {
-        let source = self.source();
-        parse_document(&source).unwrap()
-    }
-
-    /// Tokenize with the parser (shorthand)
-    pub fn tokenize(self) -> Vec<(Token, std::ops::Range<usize>)> {
-        let source = self.source();
-        let tokens = crate::lex::lexing::tokenize(&source);
-        crate::lex::lexing::lex(tokens)
-    }
-}
+// ElementLoader has been replaced by DocumentLoader from lex::loader
+// Lexplore methods now return DocumentLoader directly
 
 /// Helper function to load and parse an isolated element file
 ///
@@ -136,8 +90,8 @@ fn load_isolated_element(element_type: ElementType, number: usize) -> Document {
 macro_rules! element_shortcuts {
     ($($name:ident => $variant:ident, $label:literal);* $(;)?) => {
         $(
-            #[doc = concat!("Load a ", $label, " file (fluent API for tokenization/parsing)")]
-            pub fn $name(number: usize) -> ElementLoader {
+            #[doc = concat!("Load a ", $label, " file (returns DocumentLoader for transforms)")]
+            pub fn $name(number: usize) -> DocumentLoader {
                 Self::load(ElementType::$variant, number)
             }
         )*
@@ -148,8 +102,8 @@ macro_rules! element_shortcuts {
 macro_rules! document_shortcuts {
     ($($name:ident => $variant:ident, $label:literal);* $(;)?) => {
         $(
-            #[doc = concat!("Load a ", $label, " document (fluent API)")]
-            pub fn $name(number: usize) -> ElementLoader {
+            #[doc = concat!("Load a ", $label, " document (returns DocumentLoader for transforms)")]
+            pub fn $name(number: usize) -> DocumentLoader {
                 Self::load_document(DocumentType::$variant, number)
             }
         )*
@@ -164,30 +118,34 @@ macro_rules! document_shortcuts {
 pub struct Lexplore;
 
 impl Lexplore {
-    // ===== Fluent API - start a chain =====
+    // ===== Fluent API - returns DocumentLoader =====
 
-    /// Start a fluent chain for loading and parsing an element
-    pub fn load(element_type: ElementType, number: usize) -> ElementLoader {
-        ElementLoader {
-            source_type: SourceType::Element(element_type),
-            number,
-        }
+    /// Load an element file by type and number
+    ///
+    /// Returns a `DocumentLoader` which provides transform shortcuts.
+    pub fn load(element_type: ElementType, number: usize) -> DocumentLoader {
+        let path = specfile_finder::find_element_file(element_type, number)
+            .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", element_type, number, e));
+        DocumentLoader::from_path(path)
+            .unwrap_or_else(|e| panic!("Failed to load {:?} #{}: {}", element_type, number, e))
     }
 
-    /// Start a fluent chain for loading and parsing a document collection
-    pub fn load_document(doc_type: DocumentType, number: usize) -> ElementLoader {
-        ElementLoader {
-            source_type: SourceType::Document(doc_type),
-            number,
-        }
+    /// Load a document collection file by type and number
+    ///
+    /// Returns a `DocumentLoader` which provides transform shortcuts.
+    pub fn load_document(doc_type: DocumentType, number: usize) -> DocumentLoader {
+        let path = specfile_finder::find_document_file(doc_type, number)
+            .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", doc_type, number, e));
+        DocumentLoader::from_path(path)
+            .unwrap_or_else(|e| panic!("Failed to load {:?} #{}: {}", doc_type, number, e))
     }
 
-    /// Start a fluent chain for loading and parsing from an arbitrary file path
-    pub fn from_path<P: Into<PathBuf>>(path: P) -> ElementLoader {
-        ElementLoader {
-            source_type: SourceType::Path(path.into()),
-            number: 0, // Dummy value, not used for Path variant
-        }
+    /// Load from an arbitrary file path
+    ///
+    /// Returns a `DocumentLoader` which provides transform shortcuts.
+    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> DocumentLoader {
+        DocumentLoader::from_path(path)
+            .unwrap_or_else(|e| panic!("Failed to load from path: {}", e))
     }
 
     // ===== Isolated element loading (returns AST node directly) =====
@@ -267,20 +225,7 @@ impl Lexplore {
         trifecta => Trifecta, "trifecta";
     }
 
-    // ===== Core resolution wrappers - delegate to specfile_finder =====
-
-    /// Find the file for an element type and number
-    fn find_file(element_type: ElementType, number: usize) -> Result<PathBuf, ElementSourceError> {
-        Ok(specfile_finder::find_element_file(element_type, number)?)
-    }
-
-    /// Find the file for a document type and number
-    fn find_document_file(
-        doc_type: DocumentType,
-        number: usize,
-    ) -> Result<PathBuf, ElementSourceError> {
-        Ok(specfile_finder::find_document_file(doc_type, number)?)
-    }
+    // ===== Utility methods =====
 
     /// List all available numbers for a given element type
     pub fn list_numbers_for(element_type: ElementType) -> Result<Vec<usize>, ElementSourceError> {
@@ -342,14 +287,14 @@ mod tests {
 
     #[test]
     fn test_benchmark_fluent_api() {
-        let doc = Lexplore::benchmark(10).parse();
+        let doc = Lexplore::benchmark(10).parse().unwrap();
 
         assert!(!doc.root.children.is_empty());
     }
 
     #[test]
     fn test_trifecta_fluent_api() {
-        let doc = Lexplore::trifecta(0).parse();
+        let doc = Lexplore::trifecta(0).parse().unwrap();
 
         assert!(!doc.root.children.is_empty());
     }
@@ -378,14 +323,14 @@ mod tests {
 
     #[test]
     fn test_tokenize_paragraph() {
-        let tokens = Lexplore::paragraph(1).tokenize();
+        let tokens = Lexplore::paragraph(1).tokenize().unwrap();
 
         assert!(!tokens.is_empty());
     }
 
     #[test]
     fn test_tokenize_list() {
-        let tokens = Lexplore::list(1).tokenize();
+        let tokens = Lexplore::list(1).tokenize().unwrap();
 
         assert!(
             tokens.iter().any(|(t, _)| matches!(t, Token::Dash))
@@ -395,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_benchmark() {
-        let tokens = Lexplore::benchmark(10).tokenize();
+        let tokens = Lexplore::benchmark(10).tokenize().unwrap();
 
         assert!(!tokens.is_empty());
         assert!(tokens.len() > 10);
@@ -403,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_trifecta() {
-        let tokens = Lexplore::trifecta(0).tokenize();
+        let tokens = Lexplore::trifecta(0).tokenize().unwrap();
 
         assert!(!tokens.is_empty());
         assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
@@ -414,7 +359,7 @@ mod tests {
     #[test]
     fn test_from_path_parse() {
         let path = workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
-        let doc = Lexplore::from_path(path).parse();
+        let doc = Lexplore::from_path(path).parse().unwrap();
 
         let paragraph = doc.root.expect_paragraph();
         assert!(!paragraph.text().is_empty());
@@ -423,7 +368,7 @@ mod tests {
     #[test]
     fn test_from_path_tokenize() {
         let path = workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
-        let tokens = Lexplore::from_path(path).tokenize();
+        let tokens = Lexplore::from_path(path).tokenize().unwrap();
 
         assert!(!tokens.is_empty());
         assert!(tokens.iter().any(|(t, _)| matches!(t, Token::Text(_))));
@@ -451,7 +396,7 @@ mod tests {
     #[test]
     fn test_from_path_with_benchmark() {
         let path = workspace_path("docs/specs/v1/benchmark/010-kitchensink.lex");
-        let doc = Lexplore::from_path(path).parse();
+        let doc = Lexplore::from_path(path).parse().unwrap();
 
         assert!(!doc.root.children.is_empty());
     }
@@ -459,7 +404,7 @@ mod tests {
     #[test]
     fn test_from_path_with_trifecta() {
         let path = workspace_path("docs/specs/v1/trifecta/000-paragraphs.lex");
-        let doc = Lexplore::from_path(path).parse();
+        let doc = Lexplore::from_path(path).parse().unwrap();
 
         assert!(!doc.root.children.is_empty());
     }
@@ -469,7 +414,7 @@ mod tests {
     #[test]
     fn test_detokenize_paragraph() {
         let source = Lexplore::paragraph(1).source();
-        let tokens = Lexplore::paragraph(1).tokenize();
+        let tokens = Lexplore::paragraph(1).tokenize().unwrap();
         let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
         let detokenized = crate::lex::formats::detokenize(&token_only);
 
@@ -479,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_detokenize_benchmark() {
-        let tokens = Lexplore::benchmark(10).tokenize();
+        let tokens = Lexplore::benchmark(10).tokenize().unwrap();
         let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
         let detokenized = crate::lex::formats::detokenize(&token_only);
 
@@ -493,7 +438,7 @@ mod tests {
     #[test]
     fn test_detokenize_from_path() {
         let path = workspace_path("docs/specs/v1/benchmark/010-kitchensink.lex");
-        let tokens = Lexplore::from_path(path).tokenize();
+        let tokens = Lexplore::from_path(path).tokenize().unwrap();
         let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
         let detokenized = crate::lex::formats::detokenize(&token_only);
 
@@ -507,7 +452,7 @@ mod tests {
     #[test]
     fn test_detokenize_with_semantic_tokens() {
         let source = Lexplore::session(1).source();
-        let tokens = Lexplore::session(1).tokenize();
+        let tokens = Lexplore::session(1).tokenize().unwrap();
         let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
         let detokenized = crate::lex::formats::detokenize(&token_only);
 
@@ -518,7 +463,7 @@ mod tests {
     #[test]
     fn test_detokenize_trifecta() {
         let source = Lexplore::trifecta(0).source();
-        let tokens = Lexplore::trifecta(0).tokenize();
+        let tokens = Lexplore::trifecta(0).tokenize().unwrap();
         let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
         let detokenized = crate::lex::formats::detokenize(&token_only);
 
@@ -532,7 +477,8 @@ mod tests {
         let tokens = Lexplore::from_path(workspace_path(
             "docs/specs/v1/benchmark/010-kitchensink.lex",
         ))
-        .tokenize();
+        .tokenize()
+        .unwrap();
         let token_only: Vec<_> = tokens.iter().map(|(t, _)| t.clone()).collect();
         let detokenized = crate::lex::formats::detokenize(&token_only);
 
