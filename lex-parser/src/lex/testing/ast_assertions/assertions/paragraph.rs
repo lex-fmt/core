@@ -1,5 +1,6 @@
 //! Paragraph assertions
 
+use super::annotation::AnnotationAssertion;
 use crate::lex::ast::Paragraph;
 use crate::lex::testing::matchers::TextMatch;
 
@@ -28,6 +29,35 @@ impl<'a> ParagraphAssertion<'a> {
             "{}: Expected {} lines, found {} lines",
             self.context, expected, actual
         );
+        self
+    }
+
+    pub fn annotation_count(self, expected: usize) -> Self {
+        let actual = self.para.annotations.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected {} annotations, found {} annotations",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    pub fn annotation<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(AnnotationAssertion<'a>),
+    {
+        assert!(
+            index < self.para.annotations.len(),
+            "{}: Annotation index {} out of bounds (paragraph has {} annotations)",
+            self.context,
+            index,
+            self.para.annotations.len()
+        );
+        let annotation = &self.para.annotations[index];
+        assertion(AnnotationAssertion {
+            annotation,
+            context: format!("{}:annotations[{}]", self.context, index),
+        });
         self
     }
 }

@@ -113,15 +113,15 @@ pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
 
 /// Build a snapshot for the document root, flattening the root session
 ///
-/// Note: Document metadata (annotations) are not included in this snapshot.
-/// This reflects the document structure where metadata is separate from content.
+/// Note: Document-level annotations are not included in this snapshot.
+/// This reflects the document structure where annotations are separate from content.
 /// The root session is flattened so its children appear as direct children of the Document.
 pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new(
         "Document".to_string(),
         format!(
-            "Document ({} metadata, {} items)",
-            doc.metadata.len(),
+            "Document ({} annotations, {} items)",
+            doc.annotations.len(),
             doc.root.children.len()
         ),
     );
@@ -223,7 +223,7 @@ mod tests {
         let snapshot = snapshot_from_document(&doc);
 
         assert_eq!(snapshot.node_type, "Document");
-        assert_eq!(snapshot.label, "Document (0 metadata, 0 items)");
+        assert_eq!(snapshot.label, "Document (0 annotations, 0 items)");
         assert!(snapshot.children.is_empty());
     }
 
@@ -244,14 +244,14 @@ mod tests {
         let snapshot = snapshot_from_document(&doc);
 
         assert_eq!(snapshot.node_type, "Document");
-        assert_eq!(snapshot.label, "Document (0 metadata, 2 items)");
+        assert_eq!(snapshot.label, "Document (0 annotations, 2 items)");
         assert_eq!(snapshot.children.len(), 2);
         assert_eq!(snapshot.children[0].node_type, "Paragraph");
         assert_eq!(snapshot.children[1].node_type, "Session");
     }
 
     #[test]
-    fn test_snapshot_excludes_metadata() {
+    fn test_snapshot_excludes_annotations() {
         use crate::lex::ast::elements::label::Label;
 
         let annotation = Annotation::new(
@@ -259,7 +259,7 @@ mod tests {
             vec![],
             Vec::<ContentElement>::new(),
         );
-        let doc = Document::with_metadata_and_content(
+        let doc = Document::with_annotations_and_content(
             vec![annotation],
             vec![ContentItem::Paragraph(Paragraph::from_line(
                 "Test".to_string(),
@@ -268,7 +268,7 @@ mod tests {
 
         let snapshot = snapshot_from_document(&doc);
 
-        assert_eq!(snapshot.label, "Document (1 metadata, 1 items)");
+        assert_eq!(snapshot.label, "Document (1 annotations, 1 items)");
         // Metadata should not appear as children - they are kept separate
         assert_eq!(snapshot.children.len(), 1);
         assert_eq!(snapshot.children[0].node_type, "Paragraph");

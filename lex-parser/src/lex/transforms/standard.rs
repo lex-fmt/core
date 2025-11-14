@@ -3,11 +3,12 @@
 //! This module provides pre-built transforms for common use cases.
 //! All transforms are defined as static references using `once_cell::sync::Lazy`.
 
+use crate::lex::assembling::AttachAnnotations;
 use crate::lex::parsing::ir::ParseNode;
 use crate::lex::parsing::Document;
 use crate::lex::token::Token;
 use crate::lex::transforms::stages::{CoreTokenization, Parsing, SemanticIndentation};
-use crate::lex::transforms::Transform;
+use crate::lex::transforms::{Runnable, Transform};
 use once_cell::sync::Lazy;
 use std::ops::Range;
 
@@ -86,6 +87,7 @@ pub static TO_IR: Lazy<IrTransform> = Lazy::new(|| Transform::from_fn(Ok).then(P
 /// 3. Line token grouping
 /// 4. Parsing to IR
 /// 5. Building AST
+/// 6. Attaching annotations as metadata
 ///
 /// This is the standard transform for most use cases.
 ///
@@ -109,13 +111,17 @@ pub static STRING_TO_AST: Lazy<AstTransform> = Lazy::new(|| {
         // Run lexing
         let tokens = LEXING.run(source.clone())?;
 
-        // Parse
-        crate::lex::parsing::engine::parse_from_flat_tokens(tokens, &source).map_err(|e| {
-            crate::lex::transforms::TransformError::StageFailed {
+        // Parse to AST
+        let mut doc = crate::lex::parsing::engine::parse_from_flat_tokens(tokens, &source)
+            .map_err(|e| crate::lex::transforms::TransformError::StageFailed {
                 stage: "Parser".to_string(),
                 message: e.to_string(),
-            }
-        })
+            })?;
+
+        // Attach annotations as metadata
+        doc = AttachAnnotations::new().run(doc)?;
+
+        Ok(doc)
     })
 });
 

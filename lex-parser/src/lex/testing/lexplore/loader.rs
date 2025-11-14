@@ -74,7 +74,7 @@ impl From<specfile_finder::SpecFileError> for ElementSourceError {
 ///
 /// This function orchestrates:
 /// 1. Path resolution via specfile_finder
-/// 2. File parsing via DocumentLoader
+/// 2. File parsing via parsing engine (skipping annotation attachment for annotation elements)
 /// 3. Returns the parsed Document
 ///
 /// Used internally by the get_* convenience functions.
@@ -83,7 +83,14 @@ fn load_isolated_element(element_type: ElementType, number: usize) -> Document {
         .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", element_type, number, e));
     let source = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read {}: {}", path.display(), e));
-    parse_document(&source).unwrap()
+
+    // For annotation elements, skip annotation attachment so they remain in content tree
+    if matches!(element_type, ElementType::Annotation) {
+        use crate::lex::testing::parse_without_annotation_attachment;
+        parse_without_annotation_attachment(&source).unwrap()
+    } else {
+        parse_document(&source).unwrap()
+    }
 }
 
 /// Macro to generate element loader shortcuts

@@ -1,6 +1,6 @@
 //! Definition assertions
 
-use super::{summarize_items, ChildrenAssertion};
+use super::{annotation::AnnotationAssertion, summarize_items, ChildrenAssertion};
 use crate::lex::ast::traits::Container;
 use crate::lex::ast::Definition;
 use crate::lex::testing::ast_assertions::ContentItemAssertion;
@@ -66,6 +66,35 @@ impl<'a> DefinitionAssertion<'a> {
         assertion(ChildrenAssertion {
             children: self.definition.children(),
             context: format!("{}:children", self.context),
+        });
+        self
+    }
+
+    pub fn annotation_count(self, expected: usize) -> Self {
+        let actual = self.definition.annotations.len();
+        assert_eq!(
+            actual, expected,
+            "{}: Expected {} annotations, found {} annotations",
+            self.context, expected, actual
+        );
+        self
+    }
+
+    pub fn annotation<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(AnnotationAssertion<'a>),
+    {
+        assert!(
+            index < self.definition.annotations.len(),
+            "{}: Annotation index {} out of bounds (definition has {} annotations)",
+            self.context,
+            index,
+            self.definition.annotations.len()
+        );
+        let annotation = &self.definition.annotations[index];
+        assertion(AnnotationAssertion {
+            annotation,
+            context: format!("{}:annotations[{}]", self.context, index),
         });
         self
     }

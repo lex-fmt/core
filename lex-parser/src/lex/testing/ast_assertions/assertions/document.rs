@@ -1,6 +1,6 @@
 //! Document-level assertions
 
-use super::summarize_items;
+use super::{annotation::AnnotationAssertion, summarize_items};
 use crate::lex::ast::Document;
 use crate::lex::testing::ast_assertions::ContentItemAssertion;
 
@@ -108,6 +108,34 @@ impl<'a> DocumentAssertion<'a> {
             line,
             column
         );
+        self
+    }
+
+    pub fn annotation_count(self, expected: usize) -> Self {
+        let actual = self.doc.annotations.len();
+        assert_eq!(
+            actual, expected,
+            "Expected {} document annotations, found {}",
+            expected, actual
+        );
+        self
+    }
+
+    pub fn annotation<F>(self, index: usize, assertion: F) -> Self
+    where
+        F: FnOnce(AnnotationAssertion<'a>),
+    {
+        assert!(
+            index < self.doc.annotations.len(),
+            "Annotation index {} out of bounds (document has {} annotations)",
+            index,
+            self.doc.annotations.len()
+        );
+        let annotation = &self.doc.annotations[index];
+        assertion(AnnotationAssertion {
+            annotation,
+            context: format!("document:annotations[{}]", index),
+        });
         self
     }
 }
