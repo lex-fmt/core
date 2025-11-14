@@ -51,6 +51,7 @@ impl<'a> AstTreeBuilder<'a> {
             NodeType::Definition => self.build_definition(node),
             NodeType::Annotation => self.build_annotation(node),
             NodeType::VerbatimBlock => Ok(self.build_verbatim_block(node)),
+            NodeType::BlankLineGroup => Ok(self.build_blank_line_group(node)),
             _ => panic!("Unexpected node type"),
         }
     }
@@ -123,6 +124,10 @@ impl<'a> AstTreeBuilder<'a> {
         let closing_data = ast_api::data_from_tokens(closing_data_tokens, self.source);
 
         ast_api::verbatim_block_from_lines(&subject, &content_lines, closing_data, self.source)
+    }
+
+    fn build_blank_line_group(&self, node: ParseNode) -> ContentItem {
+        ast_api::blank_line_group_from_tokens(node.tokens, self.source)
     }
 
     fn build_session_content(&self, nodes: Vec<ParseNode>) -> ParserResult<Vec<SessionContent>> {

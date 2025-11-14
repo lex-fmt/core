@@ -1,6 +1,6 @@
 //! Document-level assertions
 
-use super::{annotation::AnnotationAssertion, summarize_items};
+use super::{annotation::AnnotationAssertion, summarize_items, visible_len, visible_nth};
 use crate::lex::ast::Document;
 use crate::lex::testing::ast_assertions::ContentItemAssertion;
 
@@ -11,7 +11,7 @@ pub struct DocumentAssertion<'a> {
 impl<'a> DocumentAssertion<'a> {
     /// Assert the number of items in the document
     pub fn item_count(self, expected: usize) -> Self {
-        let actual = self.doc.root.children.len();
+        let actual = visible_len(&self.doc.root.children);
         assert_eq!(
             actual,
             expected,
@@ -28,14 +28,16 @@ impl<'a> DocumentAssertion<'a> {
     where
         F: FnOnce(ContentItemAssertion<'a>),
     {
+        let visible_children = visible_len(&self.doc.root.children);
         assert!(
-            index < self.doc.root.children.len(),
+            index < visible_children,
             "Item index {} out of bounds (document has {} items)",
             index,
-            self.doc.root.children.len()
+            visible_children
         );
 
-        let item = &self.doc.root.children[index];
+        let item = visible_nth(&self.doc.root.children, index)
+            .expect("visible child should exist at computed index");
         assertion(ContentItemAssertion {
             item,
             context: format!("items[{}]", index),

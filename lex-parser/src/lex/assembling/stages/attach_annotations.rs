@@ -765,7 +765,8 @@ mod tests {
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
 
-        assert!(result.annotations.len() >= 4);
+        // Document-level annotations (marker form) should remain detached at the root.
+        assert!(result.annotations.len() >= 3);
         assert!(result
             .root
             .children
@@ -775,8 +776,9 @@ mod tests {
         let trailing_paragraph = result
             .root
             .children
-            .last()
-            .and_then(|item| item.as_paragraph())
+            .iter()
+            .rev()
+            .find_map(|item| item.as_paragraph())
             .expect("expected trailing paragraph");
         assert_eq!(trailing_paragraph.annotations.len(), 1);
     }
