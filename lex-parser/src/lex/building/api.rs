@@ -404,6 +404,14 @@ pub fn annotation_from_tokens(
     ast_nodes::annotation_node(data, content, source)
 }
 
+/// Build a BlankLineGroup from already-normalized blank line tokens.
+pub fn blank_line_group_from_tokens(
+    tokens: Vec<(Token, ByteRange<usize>)>,
+    source: &str,
+) -> ContentItem {
+    ast_nodes::blank_line_group_node(tokens, source)
+}
+
 // ============================================================================
 // TEXT-BASED API (for pre-extracted inputs)
 // ============================================================================
