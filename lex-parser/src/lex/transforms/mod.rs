@@ -43,6 +43,9 @@
 //! let ast = pipeline.run("source code".to_string())?;
 //! ```
 
+pub mod stages;
+pub mod standard;
+
 use std::fmt;
 
 /// Error that can occur during transformation
@@ -106,7 +109,7 @@ pub trait Runnable<I, O> {
 /// let bad = t1.add_transform(&t2);
 /// ```
 pub struct Transform<I, O> {
-    run_fn: Box<dyn Fn(I) -> Result<O, TransformError>>,
+    run_fn: Box<dyn Fn(I) -> Result<O, TransformError> + Send + Sync>,
 }
 
 impl<I, O> Transform<I, O> {
@@ -126,7 +129,7 @@ impl<I, O> Transform<I, O> {
     /// Create a transform from a function
     pub fn from_fn<F>(f: F) -> Self
     where
-        F: Fn(I) -> Result<O, TransformError> + 'static,
+        F: Fn(I) -> Result<O, TransformError> + Send + Sync + 'static,
     {
         Transform {
             run_fn: Box::new(f),
@@ -153,7 +156,7 @@ impl<I, O> Transform<I, O> {
     /// ```
     pub fn then<O2, S>(self, stage: S) -> Transform<I, O2>
     where
-        S: Runnable<O, O2> + 'static,
+        S: Runnable<O, O2> + Send + Sync + 'static,
         I: 'static,
         O: 'static,
         O2: 'static,
@@ -210,7 +213,7 @@ impl<I, O> Transform<I, O> {
     /// Create a new transform with no stages (useful as a starting point for composition)
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(I) -> Result<O, TransformError> + 'static,
+        F: Fn(I) -> Result<O, TransformError> + Send + Sync + 'static,
     {
         Transform::from_fn(f)
     }
