@@ -27,16 +27,18 @@ Disambiguation from Sessions
 
 	Definitions vs Sessions - the blank line rule:
 
-	Definition (no blank line):
-		API Endpoint:
-		    A URL that provides access...
-
-	Session (has blank line):
-		API Endpoint:
-
-		    A URL that provides access...
-
 	The presence/absence of blank line after subject determines which element type.
+
+	Definition syntax (no blank line):
+		API Endpoint:
+		    A URL that provides access...
+	:: code
+
+	Session syntax (has blank line):
+		API Endpoint:
+
+		    A URL that provides access...
+	:: code
 
 Content Structure
 
