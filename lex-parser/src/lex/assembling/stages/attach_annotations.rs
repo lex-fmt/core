@@ -468,19 +468,8 @@ fn attach_to_item_at_index(children: &mut [ContentItem], idx: usize, annotation:
 mod tests {
     use super::*;
     use crate::lex::ast::traits::Container;
-    use crate::lex::parsing::engine::parse_from_flat_tokens;
     use crate::lex::testing::lexplore::{ElementType, Lexplore};
-    use crate::lex::transforms::standard::LEXING;
-
-    fn parse_without_attachment(source: &str) -> Result<Document, String> {
-        let source = if !source.is_empty() && !source.ends_with('\n') {
-            format!("{}\n", source)
-        } else {
-            source.to_string()
-        };
-        let tokens = LEXING.run(source.clone()).map_err(|e| e.to_string())?;
-        parse_from_flat_tokens(tokens, &source)
-    }
+    use crate::lex::testing::parse_without_annotation_attachment;
 
     #[test]
     fn test_attach_annotations_passthrough() {
@@ -541,7 +530,7 @@ mod tests {
     #[test]
     fn test_example_a_closest_wins() {
         let source = Lexplore::load(ElementType::Annotation, 20).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -565,7 +554,7 @@ mod tests {
     #[test]
     fn test_example_b_tie_next_wins() {
         let source = Lexplore::load(ElementType::Annotation, 21).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -588,7 +577,7 @@ mod tests {
     #[test]
     fn test_example_d_closer_to_previous() {
         let source = Lexplore::load(ElementType::Annotation, 22).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -611,7 +600,7 @@ mod tests {
     #[test]
     fn test_example_e_document_start() {
         let source = Lexplore::load(ElementType::Annotation, 23).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -627,7 +616,7 @@ mod tests {
     #[test]
     fn test_example_f_document_start_no_blank() {
         let source = Lexplore::load(ElementType::Annotation, 24).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -642,7 +631,7 @@ mod tests {
     #[test]
     fn test_example_h_document_end() {
         let source = Lexplore::load(ElementType::Annotation, 25).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -654,7 +643,7 @@ mod tests {
     #[test]
     fn test_example_i_document_end_equidistant() {
         let source = Lexplore::load(ElementType::Annotation, 26).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -665,7 +654,7 @@ mod tests {
     #[test]
     fn test_example_j_session_inner_attachment() {
         let source = Lexplore::load(ElementType::Annotation, 28).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -693,7 +682,7 @@ mod tests {
     #[test]
     fn test_example_k_session_attaches_to_container() {
         let source = Lexplore::load(ElementType::Annotation, 29).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -753,7 +742,7 @@ mod tests {
     #[test]
     fn test_annotation_attaches_to_list() {
         let source = "Intro paragraph.\n\n:: note ::\n- Bread\n- Milk\n";
-        let doc = parse_without_attachment(source).unwrap();
+        let doc = parse_without_annotation_attachment(source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();
@@ -771,7 +760,7 @@ mod tests {
     #[test]
     fn test_example_l_multiple_document_level() {
         let source = Lexplore::load(ElementType::Annotation, 27).source();
-        let doc = parse_without_attachment(&source).unwrap();
+        let doc = parse_without_annotation_attachment(&source).unwrap();
 
         let stage = AttachAnnotations::new();
         let result = stage.run(doc).unwrap();

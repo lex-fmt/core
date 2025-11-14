@@ -9,24 +9,17 @@
 use lex_parser::lex::parsing::{parse_document, ContentItem, Document};
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
+use lex_parser::lex::testing::parse_without_annotation_attachment;
 use lex_parser::lex::testing::workspace_path;
 
-/// Helper to parse annotation files without running annotation attachment
+/// Helper to parse annotation files by number without running annotation attachment
 /// (so annotations remain in content tree for testing)
 fn parse_annotation_without_attachment(
     number: usize,
 ) -> Result<Document, Box<dyn std::error::Error>> {
-    use lex_parser::lex::parsing::engine::parse_from_flat_tokens;
-    use lex_parser::lex::transforms::standard::LEXING;
-
     let source = Lexplore::annotation(number).source();
-    let source = if !source.is_empty() && !source.ends_with('\n') {
-        format!("{}\n", source)
-    } else {
-        source
-    };
-    let tokens = LEXING.run(source.clone())?;
-    Ok(parse_from_flat_tokens(tokens, &source)?)
+    parse_without_annotation_attachment(&source)
+        .map_err(|e| Box::new(std::io::Error::other(e)) as Box<dyn std::error::Error>)
 }
 
 #[test]
