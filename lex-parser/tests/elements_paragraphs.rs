@@ -8,7 +8,6 @@
 
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::testing::lexplore::Lexplore;
-use lex_parser::lex::testing::workspace_path;
 
 #[test]
 fn test_paragraph_01_flat_oneline() {
