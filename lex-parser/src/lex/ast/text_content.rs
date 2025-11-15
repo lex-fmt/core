@@ -13,6 +13,7 @@
 //! internal representation.
 
 use super::range::Range;
+use crate::lex::inlines::{InlineContent, InlineNode};
 
 /// Represents user-provided text content with source position tracking.
 ///
@@ -37,8 +38,8 @@ enum TextRepresentation {
     /// May contain formatting markers like "**bold**" or "_italic_"
     /// that will be parsed in Phase 2.
     Text(String),
-    // Future variants (Phase 2):
-    // Inlines(Vec<InlineNode>),
+    /// Parsed inline nodes along with the original raw string.
+    Inlines { raw: String, nodes: InlineContent },
 }
 
 impl TextContent {
@@ -73,6 +74,7 @@ impl TextContent {
     pub fn as_string(&self) -> &str {
         match &self.inner {
             TextRepresentation::Text(s) => s,
+            TextRepresentation::Inlines { raw, .. } => raw,
         }
     }
 
@@ -86,6 +88,11 @@ impl TextContent {
     pub fn as_string_mut(&mut self) -> &mut String {
         match &mut self.inner {
             TextRepresentation::Text(s) => s,
+            TextRepresentation::Inlines { .. } => {
+                panic!(
+                    "TextContent::as_string_mut cannot be used after inline parsing has occurred"
+                )
+            }
         }
     }
 
@@ -97,6 +104,40 @@ impl TextContent {
     /// Get the length of the content in characters.
     pub fn len(&self) -> usize {
         self.as_string().len()
+    }
+
+    /// Parse inline items contained in this text.
+    pub fn inline_items(&self) -> InlineContent {
+        match &self.inner {
+            TextRepresentation::Text(s) => crate::lex::inlines::parse_inlines(s),
+            TextRepresentation::Inlines { nodes, .. } => nodes.clone(),
+        }
+    }
+
+    /// Returns a reference to parsed inline nodes when available.
+    pub fn inline_nodes(&self) -> Option<&[InlineNode]> {
+        match &self.inner {
+            TextRepresentation::Inlines { nodes, .. } => Some(nodes),
+            _ => None,
+        }
+    }
+
+    /// Parse inline nodes (if not already parsed) and store them in this TextContent.
+    pub fn ensure_inline_parsed(&mut self) {
+        if matches!(self.inner, TextRepresentation::Inlines { .. }) {
+            return;
+        }
+
+        let raw = match std::mem::replace(&mut self.inner, TextRepresentation::Text(String::new()))
+        {
+            TextRepresentation::Text(raw) => raw,
+            TextRepresentation::Inlines { raw, nodes } => {
+                self.inner = TextRepresentation::Inlines { raw, nodes };
+                return;
+            }
+        };
+        let nodes = crate::lex::inlines::parse_inlines(&raw);
+        self.inner = TextRepresentation::Inlines { raw, nodes };
     }
 
     // Future API (Phase 2 placeholders):
@@ -176,6 +217,45 @@ mod tests {
         let mut content = TextContent::from_string("Hello".to_string(), None);
         *content.as_string_mut() = "World".to_string();
         assert_eq!(content.as_string(), "World");
+    }
+
+    #[test]
+    fn parses_inline_items() {
+        use crate::lex::inlines::InlineNode;
+
+        let content = TextContent::from_string("Hello *world*".to_string(), None);
+        let nodes = content.inline_items();
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0], InlineNode::Plain("Hello ".into()));
+        match &nodes[1] {
+            InlineNode::Strong(children) => {
+                assert_eq!(children, &vec![InlineNode::Plain("world".into())]);
+            }
+            other => panic!("Unexpected inline node: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn persists_inline_nodes_after_parsing() {
+        use crate::lex::inlines::InlineNode;
+
+        let mut content = TextContent::from_string("Hello *world*".to_string(), None);
+        assert!(content.inline_nodes().is_none());
+
+        content.ensure_inline_parsed();
+        let nodes = content.inline_nodes().expect("expected inline nodes");
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0], InlineNode::Plain("Hello ".into()));
+        match &nodes[1] {
+            InlineNode::Strong(children) => {
+                assert_eq!(children, &vec![InlineNode::Plain("world".into())]);
+            }
+            other => panic!("Unexpected inline node: {:?}", other),
+        }
+
+        // inline_items should reuse the stored nodes rather than re-parse
+        assert_eq!(content.inline_items(), nodes.to_vec());
+        assert_eq!(content.as_string(), "Hello *world*");
     }
 
     use super::super::range::Position;

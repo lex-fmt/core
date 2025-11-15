@@ -3,8 +3,9 @@
 mod assertions;
 
 pub use assertions::{
-    AnnotationAssertion, ChildrenAssertion, DefinitionAssertion, DocumentAssertion, ListAssertion,
-    ListItemAssertion, ParagraphAssertion, SessionAssertion, VerbatimBlockkAssertion,
+    AnnotationAssertion, ChildrenAssertion, DefinitionAssertion, DocumentAssertion,
+    InlineAssertion, InlineExpectation, ListAssertion, ListItemAssertion, ParagraphAssertion,
+    ReferenceExpectation, SessionAssertion, VerbatimBlockkAssertion,
 };
 
 use crate::lex::ast::traits::AstNode;

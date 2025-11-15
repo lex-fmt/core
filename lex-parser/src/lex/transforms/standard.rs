@@ -7,7 +7,9 @@ use crate::lex::assembling::AttachAnnotations;
 use crate::lex::parsing::ir::ParseNode;
 use crate::lex::parsing::Document;
 use crate::lex::token::Token;
-use crate::lex::transforms::stages::{CoreTokenization, Parsing, SemanticIndentation};
+use crate::lex::transforms::stages::{
+    CoreTokenization, ParseInlines, Parsing, SemanticIndentation,
+};
 use crate::lex::transforms::{Runnable, Transform};
 use once_cell::sync::Lazy;
 use std::ops::Range;
@@ -120,6 +122,9 @@ pub static STRING_TO_AST: Lazy<AstTransform> = Lazy::new(|| {
 
         // Attach annotations as metadata
         doc = AttachAnnotations::new().run(doc)?;
+
+        // Parse inline elements across all TextContent nodes
+        doc = ParseInlines::new().run(doc)?;
 
         Ok(doc)
     })
