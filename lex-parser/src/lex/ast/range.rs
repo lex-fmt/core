@@ -82,6 +82,36 @@ impl Range {
             || other.contains(self.start)
             || other.contains(self.end)
     }
+
+    /// Build a bounding box that contains all provided ranges.
+    pub fn bounding_box<'a, I>(mut ranges: I) -> Option<Range>
+    where
+        I: Iterator<Item = &'a Range>,
+    {
+        let first = ranges.next()?.clone();
+        let mut span_start = first.span.start;
+        let mut span_end = first.span.end;
+        let mut start_pos = first.start;
+        let mut end_pos = first.end;
+
+        for range in ranges {
+            if range.start < start_pos {
+                start_pos = range.start;
+                span_start = range.span.start;
+            } else if range.start == start_pos {
+                span_start = span_start.min(range.span.start);
+            }
+
+            if range.end > end_pos {
+                end_pos = range.end;
+                span_end = range.span.end;
+            } else if range.end == end_pos {
+                span_end = span_end.max(range.span.end);
+            }
+        }
+
+        Some(Range::new(span_start..span_end, start_pos, end_pos))
+    }
 }
 
 impl fmt::Display for Range {
@@ -232,6 +262,25 @@ mod tests {
         assert!(location2.overlaps(&location1));
         assert!(!location1.overlaps(&location3));
         assert!(!location3.overlaps(&location1));
+    }
+
+    #[test]
+    fn test_bounding_box_ranges() {
+        let ranges = [
+            Range::new(2..5, Position::new(0, 2), Position::new(0, 5)),
+            Range::new(10..20, Position::new(3, 0), Position::new(4, 3)),
+        ];
+
+        let bbox = Range::bounding_box(ranges.iter()).unwrap();
+        assert_eq!(bbox.span, 2..20);
+        assert_eq!(bbox.start, Position::new(0, 2));
+        assert_eq!(bbox.end, Position::new(4, 3));
+    }
+
+    #[test]
+    fn test_bounding_box_empty_iter() {
+        let iter = std::iter::empty::<&Range>();
+        assert!(Range::bounding_box(iter).is_none());
     }
 
     // @audit: no_source

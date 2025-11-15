@@ -101,3 +101,36 @@ Source String Location / Range Tracking in lex
 		- Much simpler infrastructure
 
 	The Immutable Log principle remains unchanged and central. The simplification just removed unnecessary complexity while maintaining perfect location tracking.
+
+5. Verification In Practice
+
+	With location data acting as the ground truth for LSP and the viewer, we now treat validation as part of the contract.
+
+	5.1 Aggregation Boundaries
+
+		`compute_location_from_locations` no longer guesses start/end columns independently. It computes lexicographic minima/maxima and carries byte spans so document/session ranges can be mapped back to source slices. Regression tests cover overlapping and disjoint child spans.
+
+	5.2 SourceLocation Cache
+
+		`AstTreeBuilder` constructs a `SourceLocation` once per document and reuses it across all AST constructors. Every normalized token API now receives a shared reference so byte→line conversions are O(1) per node and cannot drift due to multiple reconstructions.
+
+	5.3 Fixture Sweeps
+
+		`tests/location_integrity.rs` parses representative fixtures (nested trifecta doc + paragraph with special characters) and walks the entire AST. Each node must satisfy:
+			:: bullet ::
+				* `range.span` strictly increases (start < end)
+				* slicing `source[span]` matches the stored text content when available
+				* no node retains the default `(0,0)..(0,0)` range
+
+	5.4 Cursor Hit Guarantees
+
+		The same test exercises `Session::element_at` end-to-end. For every child range we pick a position inside it and assert the lookup returns an ancestor whose range contains that cursor. This ensures IDE navigation (click in editor → highlight tree node) remains reliable.
+
+	5.5 Builder-Specific Tests
+
+		Targeted unit tests cover the tricky builders:
+			:: bullet ::
+				* Parameter/data nodes verify label and parameter byte spans become `Range` objects.
+				* Verbatim blocks with multiple subject/content groups assert we aggregate subject lines, content, and closing data into one enclosing range while preserving per-line spans.
+
+	The combination of immutable byte spans, a single conversion point, and automated fixture sweeps keeps us confident that any future regressions in location tracking are caught immediately.

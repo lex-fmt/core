@@ -94,6 +94,16 @@ impl List {
             .iter()
             .flat_map(|annotation| annotation.children())
     }
+
+    /// Lists currently have no standalone header; this always returns `None`.
+    pub fn header_location(&self) -> Option<&Range> {
+        None
+    }
+
+    /// Bounding range covering only the list items.
+    pub fn body_location(&self) -> Option<Range> {
+        Range::bounding_box(self.items.iter().map(|item| item.range()))
+    }
 }
 
 impl AstNode for List {
@@ -234,5 +244,21 @@ mod tests {
         );
         let list = List::new(vec![]).at(location.clone());
         assert_eq!(list.location, location);
+    }
+
+    #[test]
+    fn test_list_body_location() {
+        let item_range = Range::new(5..10, Position::new(1, 0), Position::new(1, 5));
+        let item = ListItem::with_text_content(
+            TextContent::from_string("Item".to_string(), Some(item_range.clone())),
+            Vec::new(),
+        )
+        .at(item_range.clone());
+
+        let list =
+            List::new(vec![item]).at(Range::new(0..15, Position::new(0, 0), Position::new(2, 0)));
+
+        assert!(list.header_location().is_none());
+        assert_eq!(list.body_location().unwrap().span, item_range.span);
     }
 }

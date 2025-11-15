@@ -40,6 +40,7 @@ use crate::lex::ast::elements::typed_content::{
     ContentElement, ListContent, SessionContent, VerbatimContent,
 };
 use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
+use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::{
     Annotation, Data, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
     TextLine, Verbatim,
@@ -87,13 +88,13 @@ use std::ops::Range as ByteRange;
 /// # Returns
 ///
 /// A Paragraph ContentItem with proper ast::Range locations
-pub(super) fn paragraph_node(data: ParagraphData, source: &str) -> ContentItem {
+pub(super) fn paragraph_node(data: ParagraphData, source_location: &SourceLocation) -> ContentItem {
     // Convert byte ranges to AST ranges and build TextLines
     let lines: Vec<ContentItem> = data
         .text_lines
         .into_iter()
         .map(|(text, byte_range)| {
-            let location = byte_range_to_ast_range(byte_range, source);
+            let location = byte_range_to_ast_range(byte_range, source_location);
             let text_content = TextContent::from_string(text, Some(location.clone()));
             let text_line = TextLine::new(text_content).at(location);
             ContentItem::TextLine(text_line)
@@ -101,7 +102,7 @@ pub(super) fn paragraph_node(data: ParagraphData, source: &str) -> ContentItem {
         .collect();
 
     // Convert overall byte range to AST range
-    let overall_location = byte_range_to_ast_range(data.overall_byte_range, source);
+    let overall_location = byte_range_to_ast_range(data.overall_byte_range, source_location);
 
     ContentItem::Paragraph(Paragraph {
         lines,
@@ -131,9 +132,9 @@ pub(super) fn paragraph_node(data: ParagraphData, source: &str) -> ContentItem {
 pub(super) fn session_node(
     data: SessionData,
     content: Vec<SessionContent>,
-    source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
-    let title_location = byte_range_to_ast_range(data.title_byte_range, source);
+    let title_location = byte_range_to_ast_range(data.title_byte_range, source_location);
     let title = TextContent::from_string(data.title_text, Some(title_location.clone()));
     let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
     let location = aggregate_locations(title_location, &child_items);
@@ -163,9 +164,9 @@ pub(super) fn session_node(
 pub(super) fn definition_node(
     data: DefinitionData,
     content: Vec<ContentElement>,
-    source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
-    let subject_location = byte_range_to_ast_range(data.subject_byte_range, source);
+    let subject_location = byte_range_to_ast_range(data.subject_byte_range, source_location);
     let subject = TextContent::from_string(data.subject_text, Some(subject_location.clone()));
     let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
     let location = aggregate_locations(subject_location, &child_items);
@@ -227,9 +228,9 @@ pub(super) fn list_node(items: Vec<ListItem>) -> ContentItem {
 pub(super) fn list_item_node(
     data: ListItemData,
     content: Vec<ContentElement>,
-    source: &str,
+    source_location: &SourceLocation,
 ) -> ListItem {
-    let marker_location = byte_range_to_ast_range(data.marker_byte_range, source);
+    let marker_location = byte_range_to_ast_range(data.marker_byte_range, source_location);
     let marker = TextContent::from_string(data.marker_text, Some(marker_location.clone()));
     let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
     let location = aggregate_locations(marker_location, &child_items);
@@ -242,10 +243,10 @@ pub(super) fn list_item_node(
 // ============================================================================
 
 /// Build a Data AST node from extracted information.
-pub(super) fn data_node(data: DataExtraction, source: &str) -> Data {
+pub(super) fn data_node(data: DataExtraction, source_location: &SourceLocation) -> Data {
     use crate::lex::ast::Parameter;
 
-    let label_location = byte_range_to_ast_range(data.label_byte_range, source);
+    let label_location = byte_range_to_ast_range(data.label_byte_range, source_location);
     let label = Label::new(data.label_text).at(label_location.clone());
 
     // Convert ParameterData to Parameter AST nodes
@@ -254,7 +255,7 @@ pub(super) fn data_node(data: DataExtraction, source: &str) -> Data {
         .parameters
         .into_iter()
         .map(|param_data| {
-            let location = byte_range_to_ast_range(param_data.overall_byte_range, source);
+            let location = byte_range_to_ast_range(param_data.overall_byte_range, source_location);
             parameter_ranges.push(location.clone());
             Parameter {
                 key: param_data.key_text,
@@ -270,11 +271,7 @@ pub(super) fn data_node(data: DataExtraction, source: &str) -> Data {
 }
 
 /// Create an Annotation AST node from a Data node and child content.
-pub(super) fn annotation_node(
-    data: Data,
-    content: Vec<ContentElement>,
-    _source: &str,
-) -> ContentItem {
+pub(super) fn annotation_node(data: Data, content: Vec<ContentElement>) -> ContentItem {
     let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
     let location = aggregate_locations(data.location.clone(), &child_items);
 
@@ -304,7 +301,7 @@ pub(super) fn annotation_node(
 pub(super) fn verbatim_block_node(
     data: VerbatimBlockData,
     closing_data: Data,
-    source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
     if data.groups.is_empty() {
         panic!("Verbatim blocks must contain at least one subject/content pair");
@@ -312,10 +309,11 @@ pub(super) fn verbatim_block_node(
     let mode = data.mode;
     let mut data_groups = data.groups.into_iter();
     let (first_subject, first_children, mut location_sources) =
-        build_verbatim_group(data_groups.next().unwrap(), source);
+        build_verbatim_group(data_groups.next().unwrap(), source_location);
     let mut additional_groups: Vec<VerbatimGroupItem> = Vec::new();
     for group_data in data_groups {
-        let (subject, children, mut group_locations) = build_verbatim_group(group_data, source);
+        let (subject, children, mut group_locations) =
+            build_verbatim_group(group_data, source_location);
         location_sources.append(&mut group_locations);
         additional_groups.push(VerbatimGroupItem::new(subject, children));
     }
@@ -329,18 +327,18 @@ pub(super) fn verbatim_block_node(
 
 fn build_verbatim_group(
     group_data: VerbatimGroupData,
-    source: &str,
+    source_location: &SourceLocation,
 ) -> (TextContent, Vec<VerbatimContent>, Vec<Range>) {
     use crate::lex::ast::elements::VerbatimLine;
 
-    let subject_location = byte_range_to_ast_range(group_data.subject_byte_range, source);
+    let subject_location = byte_range_to_ast_range(group_data.subject_byte_range, source_location);
     let subject = TextContent::from_string(group_data.subject_text, Some(subject_location.clone()));
 
     let mut children: Vec<VerbatimContent> = Vec::new();
     let mut locations: Vec<Range> = vec![subject_location];
 
     for (line_text, line_byte_range) in group_data.content_lines {
-        let line_location = byte_range_to_ast_range(line_byte_range, source);
+        let line_location = byte_range_to_ast_range(line_byte_range, source_location);
         locations.push(line_location.clone());
 
         let line_content = TextContent::from_string(line_text, Some(line_location.clone()));
@@ -359,7 +357,7 @@ fn build_verbatim_group(
 /// Create a BlankLineGroup AST node from normalized blank line tokens.
 pub(super) fn blank_line_group_node(
     tokens: Vec<(Token, ByteRange<usize>)>,
-    source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
     if tokens.is_empty() {
         return ContentItem::BlankLineGroup(BlankLineGroup::new(0, vec![]).at(default_location()));
@@ -373,7 +371,7 @@ pub(super) fn blank_line_group_node(
 
     let ast_locations: Vec<Range> = tokens
         .iter()
-        .map(|(_, span)| byte_range_to_ast_range(span.clone(), source))
+        .map(|(_, span)| byte_range_to_ast_range(span.clone(), source_location))
         .collect();
     let location = compute_location_from_locations(&ast_locations);
     let source_tokens = tokens.into_iter().map(|(token, _)| token).collect();
@@ -385,17 +383,22 @@ pub(super) fn blank_line_group_node(
 mod tests {
     use super::*;
     use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
+    use crate::lex::ast::elements::verbatim::VerbatimBlockMode;
+    use crate::lex::ast::range::SourceLocation;
+    use crate::lex::ast::traits::AstNode;
     use crate::lex::ast::Position;
+    use crate::lex::building::extraction;
 
     #[test]
     fn test_paragraph_node() {
         let source = "hello";
+        let source_location = SourceLocation::new(source);
         let data = ParagraphData {
             text_lines: vec![("hello".to_string(), 0..5)],
             overall_byte_range: 0..5,
         };
 
-        let result = paragraph_node(data, source);
+        let result = paragraph_node(data, &source_location);
 
         match result {
             ContentItem::Paragraph(para) => {
@@ -410,12 +413,13 @@ mod tests {
     #[test]
     fn test_session_node() {
         let source = "Session";
+        let source_location = SourceLocation::new(source);
         let data = SessionData {
             title_text: "Session".to_string(),
             title_byte_range: 0..7,
         };
 
-        let result = session_node(data, Vec::<SessionContent>::new(), source);
+        let result = session_node(data, Vec::<SessionContent>::new(), &source_location);
 
         match result {
             ContentItem::Session(session) => {
@@ -427,6 +431,105 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_data_node_assigns_parameter_locations() {
+        let source = "note severity=high";
+        let source_location = SourceLocation::new(source);
+        let extraction = extraction::extract_data(
+            vec![
+                (Token::Text("note".to_string()), 0..4),
+                (Token::Whitespace(1), 4..5),
+                (Token::Text("severity".to_string()), 5..13),
+                (Token::Equals, 13..14),
+                (Token::Text("high".to_string()), 14..18),
+            ],
+            source,
+        );
+
+        let data = data_node(extraction, &source_location);
+
+        assert_eq!(data.label.value, "note");
+        assert_eq!(data.label.location.span, 0..5);
+        assert_eq!(data.parameters.len(), 1);
+        assert_eq!(data.parameters[0].location.span, 5..18);
+        assert_eq!(data.location.span, 0..18);
+    }
+
+    #[test]
+    fn test_verbatim_block_node_aggregates_groups() {
+        let source = "Example:\n    code line\nOther:\n    more\n:: shell ::\n";
+        let source_location = SourceLocation::new(source);
+
+        fn span(haystack: &str, needle: &str) -> std::ops::Range<usize> {
+            let start = haystack.find(needle).expect("needle not found");
+            start..start + needle.len()
+        }
+
+        let data = VerbatimBlockData {
+            groups: vec![
+                VerbatimGroupData {
+                    subject_text: "Example:".to_string(),
+                    subject_byte_range: span(source, "Example:"),
+                    content_lines: vec![("code line".to_string(), span(source, "code line"))],
+                },
+                VerbatimGroupData {
+                    subject_text: "Other:".to_string(),
+                    subject_byte_range: span(source, "Other:"),
+                    content_lines: vec![("more".to_string(), span(source, "more"))],
+                },
+            ],
+            mode: VerbatimBlockMode::Inflow,
+        };
+
+        let closing_span = span(source, ":: shell ::");
+        let closing_label_span = span(source, "shell");
+        let closing_label = Label::new("shell".to_string()).at(byte_range_to_ast_range(
+            closing_label_span,
+            &source_location,
+        ));
+        let closing_data = Data::new(closing_label, Vec::new()).at(byte_range_to_ast_range(
+            closing_span.clone(),
+            &source_location,
+        ));
+
+        let block = match verbatim_block_node(data, closing_data, &source_location) {
+            ContentItem::VerbatimBlock(block) => block,
+            other => panic!("Expected verbatim block, got {:?}", other.node_type()),
+        };
+
+        assert_eq!(block.location.span, 0..closing_span.end);
+        assert_eq!(
+            block.subject.location.as_ref().unwrap().span,
+            span(source, "Example:")
+        );
+        assert_eq!(block.group_len(), 2);
+
+        let mut groups = block.group();
+        let first = groups.next().expect("first group missing");
+        assert_eq!(
+            first.subject.location.as_ref().unwrap().span,
+            span(source, "Example:")
+        );
+        if let Some(ContentItem::VerbatimLine(line)) = first.children.iter().next() {
+            assert_eq!(line.location.span, span(source, "code line"));
+        } else {
+            panic!("expected verbatim line in first group");
+        }
+
+        let second = groups.next().expect("second group missing");
+        assert_eq!(
+            second.subject.location.as_ref().unwrap().span,
+            span(source, "Other:")
+        );
+        if let Some(ContentItem::VerbatimLine(line)) = second.children.iter().next() {
+            assert_eq!(line.location.span, span(source, "more"));
+        } else {
+            panic!("expected verbatim line in second group");
+        }
+
+        assert_eq!(block.closing_data.location.span, closing_span);
+    }
+
     // ============================================================================
     // VALIDATION TESTS
     // ============================================================================
@@ -436,6 +539,7 @@ mod tests {
         use crate::lex::ast::elements::Session;
 
         let source = "Parent Session\n    Nested Session\n";
+        let source_location = SourceLocation::new(source);
         let nested_session = Session::with_title("Nested Session".to_string());
         let content = vec![SessionContent::Session(nested_session)];
 
@@ -445,7 +549,7 @@ mod tests {
         };
 
         // This should succeed - Sessions can contain Sessions
-        let result = session_node(data, content, source);
+        let result = session_node(data, content, &source_location);
 
         match result {
             ContentItem::Session(session) => {
@@ -461,6 +565,7 @@ mod tests {
         use crate::lex::ast::elements::Paragraph;
 
         let source = "Test Subject:\n    Some content\n";
+        let source_location = SourceLocation::new(source);
         let para = Paragraph::from_line("Some content".to_string());
         let content = vec![ContentElement::Paragraph(para)];
 
@@ -470,7 +575,7 @@ mod tests {
         };
 
         // This should succeed - Definitions can contain Paragraphs
-        let result = definition_node(data, content, source);
+        let result = definition_node(data, content, &source_location);
 
         match result {
             ContentItem::Definition(def) => {
@@ -486,6 +591,7 @@ mod tests {
         use crate::lex::ast::elements::Paragraph;
 
         let source = ":: note ::\n    Some content\n";
+        let source_location = SourceLocation::new(source);
         let para = Paragraph::from_line("Some content".to_string());
         let content = vec![ContentElement::Paragraph(para)];
 
@@ -496,8 +602,8 @@ mod tests {
         };
 
         // This should succeed - Annotations can contain Paragraphs
-        let data_node = data_node(data, source);
-        let result = annotation_node(data_node, content, source);
+        let data_node = data_node(data, &source_location);
+        let result = annotation_node(data_node, content);
 
         match result {
             ContentItem::Annotation(ann) => {
@@ -513,6 +619,7 @@ mod tests {
         use crate::lex::ast::elements::Paragraph;
 
         let source = "- Item\n    Some content\n";
+        let source_location = SourceLocation::new(source);
         let para = Paragraph::from_line("Item content".to_string());
         let content = vec![ContentElement::Paragraph(para)];
 
@@ -522,7 +629,7 @@ mod tests {
         };
 
         // This should succeed - ListItems can contain Paragraphs
-        let result = list_item_node(data, content, source);
+        let result = list_item_node(data, content, &source_location);
         assert_eq!(result.children.len(), 1);
         assert_eq!(result.text(), "- ");
     }
