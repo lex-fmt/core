@@ -239,7 +239,7 @@ pub fn data_from_tokens(label_tokens: Vec<(Token, ByteRange<usize>)>, source: &s
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```text,ignore
 /// // Top-level: "Code:\n    line1\n    line2\n:: js"
 /// // Nested:    "Session:\n    Code:\n        line1\n        line2\n    :: js"
 /// //
