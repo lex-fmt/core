@@ -106,6 +106,84 @@ impl FileViewer {
         }
     }
 
+    /// Move cursor to start of next word (w key)
+    fn move_to_next_word(&mut self) {
+        let lines: Vec<&str> = self.content.lines().collect();
+        if self.cursor_row >= lines.len() {
+            return;
+        }
+
+        let current_line = lines[self.cursor_row];
+        let chars: Vec<char> = current_line.chars().collect();
+
+        // Start from current position + 1
+        let mut pos = self.cursor_col;
+
+        // Skip current word (alphanumeric or punctuation)
+        while pos < chars.len() && !chars[pos].is_whitespace() {
+            pos += 1;
+        }
+
+        // Skip whitespace
+        while pos < chars.len() && chars[pos].is_whitespace() {
+            pos += 1;
+        }
+
+        // If we reached end of line, try moving to next line
+        if pos >= chars.len() && self.cursor_row + 1 < lines.len() {
+            self.cursor_row += 1;
+            self.cursor_col = 0;
+            self.intended_cursor_col = 0;
+        } else if pos < chars.len() {
+            self.cursor_col = pos;
+            self.intended_cursor_col = pos;
+        }
+    }
+
+    /// Move cursor to start of previous word (b key)
+    fn move_to_previous_word(&mut self) {
+        let lines: Vec<&str> = self.content.lines().collect();
+        if self.cursor_row >= lines.len() {
+            return;
+        }
+
+        let current_line = lines[self.cursor_row];
+        let chars: Vec<char> = current_line.chars().collect();
+
+        // If at start of line, move to end of previous line
+        if self.cursor_col == 0 {
+            if self.cursor_row > 0 {
+                self.cursor_row -= 1;
+                let prev_line = lines[self.cursor_row];
+                self.cursor_col = prev_line.len();
+                self.intended_cursor_col = self.cursor_col;
+                // Now find the start of the last word on this line
+                self.move_to_previous_word();
+            }
+            return;
+        }
+
+        let mut pos = self.cursor_col.saturating_sub(1);
+
+        // Skip whitespace backwards
+        while pos > 0 && chars[pos].is_whitespace() {
+            pos = pos.saturating_sub(1);
+        }
+
+        // Skip current word backwards
+        while pos > 0 && !chars[pos].is_whitespace() {
+            pos = pos.saturating_sub(1);
+        }
+
+        // If we stopped at whitespace, move one forward
+        if (pos > 0 || (pos == 0 && chars[0].is_whitespace())) && chars[pos].is_whitespace() {
+            pos += 1;
+        }
+
+        self.cursor_col = pos;
+        self.intended_cursor_col = pos;
+    }
+
     /// Clamp cursor column to valid range for current line
     /// Uses the intended cursor column to maintain horizontal position during vertical movement
     fn clamp_cursor_column(&mut self) {
@@ -190,6 +268,12 @@ impl Viewer for FileViewer {
             }
             KeyCode::Right | KeyCode::Char('l') => {
                 self.move_cursor_right();
+            }
+            KeyCode::Char('w') => {
+                self.move_to_next_word();
+            }
+            KeyCode::Char('b') => {
+                self.move_to_previous_word();
             }
             _ => return Some(ViewerEvent::NoChange),
         }
@@ -444,5 +528,137 @@ mod tests {
             &model,
         );
         assert_eq!(viewer.cursor_position(), (0, 2), "h should move left");
+    }
+
+    #[test]
+    fn test_vim_word_navigation_w() {
+        // Test 'w' (next word)
+        let content = "hello world foo bar".to_string();
+        let mut viewer = FileViewer::new(content);
+
+        let test_doc = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
+        let model = Model::new(doc);
+
+        // Start at (0, 0) - 'h' in "hello"
+        assert_eq!(viewer.cursor_position(), (0, 0));
+
+        // Press 'w' - should jump to 'w' in "world"
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(
+            viewer.cursor_position(),
+            (0, 6),
+            "w should move to next word"
+        );
+
+        // Press 'w' again - should jump to 'f' in "foo"
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(
+            viewer.cursor_position(),
+            (0, 12),
+            "w should move to next word again"
+        );
+
+        // Press 'w' again - should jump to 'b' in "bar"
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(
+            viewer.cursor_position(),
+            (0, 16),
+            "w should move to last word"
+        );
+    }
+
+    #[test]
+    fn test_vim_word_navigation_b() {
+        // Test 'b' (previous word)
+        let content = "hello world foo bar".to_string();
+        let mut viewer = FileViewer::new(content);
+
+        let test_doc = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
+        let model = Model::new(doc);
+
+        // Start at end - manually set position
+        viewer.sync_cursor_to_position(0, 16); // 'b' in "bar"
+        assert_eq!(viewer.cursor_position(), (0, 16));
+
+        // Press 'b' - should jump to 'f' in "foo"
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(
+            viewer.cursor_position(),
+            (0, 12),
+            "b should move to previous word"
+        );
+
+        // Press 'b' again - should jump to 'w' in "world"
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(
+            viewer.cursor_position(),
+            (0, 6),
+            "b should move to previous word again"
+        );
+
+        // Press 'b' again - should jump to 'h' in "hello"
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(
+            viewer.cursor_position(),
+            (0, 0),
+            "b should move to first word"
+        );
+    }
+
+    #[test]
+    fn test_vim_word_navigation_across_lines() {
+        // Test 'w' and 'b' across line boundaries
+        let content = "first line\nsecond line".to_string();
+        let mut viewer = FileViewer::new(content);
+
+        let test_doc = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
+        let model = Model::new(doc);
+
+        // Start at 'l' in "line" on first line
+        viewer.sync_cursor_to_position(0, 6);
+        assert_eq!(viewer.cursor_position(), (0, 6));
+
+        // Press 'w' - should move to start of next line
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(
+            viewer.cursor_position(),
+            (1, 0),
+            "w should move to next line when at end of line"
+        );
+
+        // Press 'b' - should move back to "line" on first line
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(
+            viewer.cursor_position(),
+            (0, 6),
+            "b should move to previous line"
+        );
     }
 }
