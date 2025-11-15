@@ -367,4 +367,38 @@ mod tests {
             "Sync should set intended column"
         );
     }
+
+    #[test]
+    fn test_intended_column_going_up_from_blank_line() {
+        // Test moving UP from a blank line back to a line with content
+        // The cursor should return to the intended column, not column 0
+        let content = "Hello World\n\nTest".to_string();
+        let mut viewer = FileViewer::new(content);
+
+        let test_doc = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
+        let model = Model::new(doc);
+
+        // Start at (0, 0) and move to column 8
+        for _ in 0..8 {
+            viewer.handle_key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), &model);
+        }
+        assert_eq!(viewer.cursor_position(), (0, 8));
+
+        // Move down to blank line
+        viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
+        assert_eq!(
+            viewer.cursor_position(),
+            (1, 0),
+            "Blank line should have cursor at 0"
+        );
+
+        // Move up back to first line - should go back to column 8
+        viewer.handle_key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE), &model);
+        assert_eq!(
+            viewer.cursor_position(),
+            (0, 8),
+            "Should return to intended column 8 when moving up from blank line"
+        );
+    }
 }
