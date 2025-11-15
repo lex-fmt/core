@@ -26,6 +26,9 @@ pub struct FileViewer {
     cursor_row: usize,
     /// Current cursor column (0-indexed)
     cursor_col: usize,
+    /// Intended cursor column for vertical navigation (0-indexed)
+    /// When moving up/down, the cursor tries to stay as close to this column as possible
+    intended_cursor_col: usize,
     /// How many lines are scrolled off the top of the viewport
     scroll_offset: usize,
 }
@@ -38,6 +41,7 @@ impl FileViewer {
             content,
             cursor_row: 0,
             cursor_col: 0,
+            intended_cursor_col: 0,
             scroll_offset: 0,
         }
     }
@@ -56,6 +60,7 @@ impl FileViewer {
     pub fn sync_cursor_to_position(&mut self, row: usize, col: usize) {
         self.cursor_row = row;
         self.cursor_col = col;
+        self.intended_cursor_col = col;
         self.clamp_cursor_column();
         self.ensure_cursor_visible();
     }
@@ -85,6 +90,7 @@ impl FileViewer {
     fn move_cursor_left(&mut self) {
         if self.cursor_col > 0 {
             self.cursor_col -= 1;
+            self.intended_cursor_col = self.cursor_col;
         }
     }
 
@@ -95,18 +101,19 @@ impl FileViewer {
             let line_len = lines[self.cursor_row].len();
             if self.cursor_col < line_len {
                 self.cursor_col += 1;
+                self.intended_cursor_col = self.cursor_col;
             }
         }
     }
 
     /// Clamp cursor column to valid range for current line
+    /// Uses the intended cursor column to maintain horizontal position during vertical movement
     fn clamp_cursor_column(&mut self) {
         let lines: Vec<&str> = self.content.lines().collect();
         if self.cursor_row < lines.len() {
             let line_len = lines[self.cursor_row].len();
-            if self.cursor_col > line_len {
-                self.cursor_col = line_len;
-            }
+            // Set cursor to intended column, but clamp to line length if shorter
+            self.cursor_col = self.intended_cursor_col.min(line_len);
         }
     }
 
@@ -205,11 +212,159 @@ impl Viewer for FileViewer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]
     fn test_file_viewer_creation() {
         let viewer = FileViewer::new("test content".to_string());
         assert_eq!(viewer.cursor_position(), (0, 0));
         assert_eq!(viewer.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_intended_column_tracking_through_empty_line() {
+        // Test the scenario from the requirements:
+        // Line 01: "Hello" (5 chars)
+        // Line 02: "" (empty)
+        // Line 03: "World" (5 chars)
+        //
+        // Start at line 01, col 4 (the 'o' in Hello)
+        // Move down to line 02 -> should go to col 0 (empty line)
+        // Move down to line 03 -> should go back to col 4 (the 'o' in World)
+
+        let content = "Hello\n\nWorld".to_string();
+        let mut viewer = FileViewer::new(content);
+
+        // Create a dummy model for handle_key
+        let test_doc = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
+        let model = Model::new(doc);
+
+        // Start at (0, 0)
+        assert_eq!(viewer.cursor_position(), (0, 0));
+
+        // Move right 4 times to get to column 4 (the 'o' in "Hello")
+        for _ in 0..4 {
+            viewer.handle_key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), &model);
+        }
+        assert_eq!(viewer.cursor_position(), (0, 4));
+
+        // Move down to line 1 (empty line) - should go to column 0 (empty line has no chars)
+        viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
+        assert_eq!(
+            viewer.cursor_position(),
+            (1, 0),
+            "Empty line should clamp to column 0"
+        );
+
+        // Move down to line 2 ("World") - should return to column 4
+        viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
+        assert_eq!(
+            viewer.cursor_position(),
+            (2, 4),
+            "Should return to intended column 4"
+        );
+    }
+
+    #[test]
+    fn test_intended_column_tracking_through_shorter_line() {
+        // Test with varying line lengths:
+        // Line 0: "1234567890" (10 chars)
+        // Line 1: "123" (3 chars)
+        // Line 2: "1234567890ABCDEF" (16 chars)
+        //
+        // Start at line 0, col 9 (last char)
+        // Move down to line 1 -> should go to col 3 (last char of shorter line)
+        // Move down to line 2 -> should return to col 9
+
+        let content = "1234567890\n123\n1234567890ABCDEF".to_string();
+        let mut viewer = FileViewer::new(content);
+
+        let test_doc = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
+        let model = Model::new(doc);
+
+        // Move to column 9 on line 0
+        for _ in 0..9 {
+            viewer.handle_key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), &model);
+        }
+        assert_eq!(viewer.cursor_position(), (0, 9));
+
+        // Move down to shorter line - should clamp to column 3
+        viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
+        assert_eq!(
+            viewer.cursor_position(),
+            (1, 3),
+            "Should clamp to shorter line length"
+        );
+
+        // Move down to longer line - should return to column 9
+        viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
+        assert_eq!(
+            viewer.cursor_position(),
+            (2, 9),
+            "Should return to intended column 9"
+        );
+    }
+
+    #[test]
+    fn test_horizontal_movement_updates_intended_column() {
+        // Test that moving left/right updates the intended column
+        let content = "Hello\nWorld\nTest".to_string();
+        let mut viewer = FileViewer::new(content);
+
+        let test_doc = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
+        let model = Model::new(doc);
+
+        // Move right to column 4
+        for _ in 0..4 {
+            viewer.handle_key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), &model);
+        }
+        assert_eq!(viewer.cursor_position(), (0, 4));
+
+        // Move down - should maintain column 4
+        viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
+        assert_eq!(viewer.cursor_position(), (1, 4));
+
+        // Move left to column 2
+        for _ in 0..2 {
+            viewer.handle_key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE), &model);
+        }
+        assert_eq!(viewer.cursor_position(), (1, 2));
+
+        // Move down - should maintain NEW intended column 2 (not old 4)
+        viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
+        assert_eq!(
+            viewer.cursor_position(),
+            (2, 2),
+            "Horizontal movement should update intended column"
+        );
+    }
+
+    #[test]
+    fn test_sync_cursor_updates_intended_column() {
+        // Test that sync_cursor_to_position updates the intended column
+        let content = "Hello\n\nWorld".to_string();
+        let mut viewer = FileViewer::new(content);
+
+        // Sync to position (0, 4)
+        viewer.sync_cursor_to_position(0, 4);
+        assert_eq!(viewer.cursor_position(), (0, 4));
+
+        let test_doc = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
+        let model = Model::new(doc);
+
+        // Move down through empty line to "World"
+        viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
+        viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
+
+        // Should be at (2, 4) - maintaining the intended column from sync
+        assert_eq!(
+            viewer.cursor_position(),
+            (2, 4),
+            "Sync should set intended column"
+        );
     }
 }
