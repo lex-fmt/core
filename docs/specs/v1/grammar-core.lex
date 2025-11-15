@@ -3,15 +3,9 @@ Grammar for lex
     This document describes the formal grammar for the lex language, outlining its syntax and structural rules.
 
     The grammar is defined using a combination of Backus-Naur Form (BNF) and descriptive text to provide clarity on the language constructs.
+	This document covers the core tokens, that is the lower level ones. For the higher level line tokens see [./grammar-line.lex]
 
-
-1. Notation
-
-    This section documents the notation systems used in lex specifications.
-
-    1.1. Grammar Notation
-
-        lex specs use a simplified BNF-like notation for describing syntax patterns:
+    1. Notation
 
         Occurrence Indicators:
         - `<element>?` - Optional (0 or 1 occurrence)
@@ -160,70 +154,11 @@ Grammar for lex
 
     2.3. Line Tokens
 
-        Line tokens are high-level classifications assigned to each logical line during lexer transformation.
-        These types are mutually exclusive and determined by the line's syntactic features.
-
-        2.3.1 Line Token Classification
-
-            Classification Order (priority-based - first match wins):
-
-            1. blank-line-group:
-                <blank-line-group> = (<whitespace>* <line-break>)+
-                A group of one or more consecutive blank lines (functionally identical to a single blank line).
-                Contains only whitespace and newlines.
-
-            2. annotation-end-line:
-                <annotation-end-line> = <indent>? <lex-marker> <whitespace>* <line-break>
-                A line containing ONLY the lex-marker (::) and optional whitespace.
-                Used to close annotation blocks and verbatim blocks.
-
-            3. annotation-start-line:
-                <annotation-start-line> = <indent>? <data> <whitespace> <lex-marker> <whitespace>* <line-break>
-                Follows annotation grammar: starts with :: data payload, ends with ::
-                Can have optional trailing content after closing marker.
-
-            4. data-line:
-                <data-line> = <indent>? <data> <whitespace>* <line-break>
-                Header-only lines (no closing ::). Classification must check for annotation-start-line first to avoid mislabeling.
-
-            5. subject-or-list-item-line:
-                <subject-or-list-item-line> = <indent>? <list-marker> <whitespace> <text-span>+ <colon> <line-break>
-                A line that starts with a list marker AND ends with a colon.
-                Example: "1. This is a list item or subject:"
-                Note: Classification prefers list-marker over colon when both are present.
-
-            6. list-item-line:
-                <list-item-line> = <indent>? <list-marker> <whitespace> <text-span>+ <line-break>
-                Starts with a list marker (dash, number with period/paren, letter, or Roman numeral) followed by whitespace.
-                Does NOT end with a colon.
-                <list-marker> = <dash> | (<number> | <letter> | <roman-numeral>) (<period> | <close-paren>)
-
-            7. subject-line:
-                <subject-line> = <indent>? <text-span>+ <colon> <line-break>
-                Any line ending with a colon, except those starting with a list marker.
-                Used for definitions, sessions, and subjects.
-
-            8. content-line (paragraph fallback):
-                <content-line> = <indent>? <text-span>+ <line-break>
-                Any non-blank line that doesn't match the above patterns.
-                Forms paragraphs when consecutive.
-
-        2.3.2 Line Family Names (semantic groupings, not token types):
-
-            <blank-line> = <blank-line-group>
-                Functional unit representing one or more consecutive blank lines.
-
-            <annotation-line> = <annotation-start-line> | <annotation-end-line>
-                Any line with lex-markers, used for semantic pattern matching in parser.
-
-            <any-line> = any non-blank line
-                Any line that is not blank.
-
-            <all-line> = any line
-                All line types including blank lines.
-
-            <content-line> = any-line that is not annotation-start-line nor annotation-end-line
-                Lines that carry document content (text, lists, subjects, etc.)
+        Line token classification moved to `docs/specs/v1/grammar-line.lex`.
+        The dedicated document stays in lockstep with `lex-parser/src/lex/token/line.rs`
+        and the classifiers under `lex-parser/src/lex/lexing/`, making it the
+        authoritative reference for how logical lines are identified prior to the
+        element grammar defined below.
 
 
 3. Element Grammar

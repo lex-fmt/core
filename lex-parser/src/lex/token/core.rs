@@ -171,6 +171,52 @@ impl fmt::Display for Token {
 }
 
 impl Token {
+    /// Get an uppercase identifier describing this token variant. Used by CLI simple output.
+    pub fn simple_name(&self) -> &'static str {
+        match self {
+            Token::LexMarker => "LEX_MARKER",
+            Token::Indentation => "INDENTATION",
+            Token::Indent(_) => "INDENT",
+            Token::Dedent(_) => "DEDENT",
+            Token::BlankLine(_) => "BLANK_LINE",
+            Token::Whitespace => "WHITESPACE",
+            Token::Dash => "DASH",
+            Token::Period => "PERIOD",
+            Token::OpenParen => "OPEN_PAREN",
+            Token::CloseParen => "CLOSE_PAREN",
+            Token::Colon => "COLON",
+            Token::ExclamationMark => "EXCLAMATION_MARK",
+            Token::QuestionMark => "QUESTION_MARK",
+            Token::Semicolon => "SEMICOLON",
+            Token::InvertedExclamationMark => "INVERTED_EXCLAMATION_MARK",
+            Token::InvertedQuestionMark => "INVERTED_QUESTION_MARK",
+            Token::Ellipsis => "ELLIPSIS",
+            Token::IdeographicFullStop => "IDEOGRAPHIC_FULL_STOP",
+            Token::FullwidthExclamationMark => "FULLWIDTH_EXCLAMATION_MARK",
+            Token::FullwidthQuestionMark => "FULLWIDTH_QUESTION_MARK",
+            Token::ExclamationQuestionMark => "EXCLAMATION_QUESTION_MARK",
+            Token::QuestionExclamationMark => "QUESTION_EXCLAMATION_MARK",
+            Token::ArabicQuestionMark => "ARABIC_QUESTION_MARK",
+            Token::ArabicFullStop => "ARABIC_FULL_STOP",
+            Token::ArabicTripleDot => "ARABIC_TRIPLE_DOT",
+            Token::ArabicComma => "ARABIC_COMMA",
+            Token::Danda => "DANDA",
+            Token::DoubleDanda => "DOUBLE_DANDA",
+            Token::BengaliCurrencyNumeratorFour => "BENGALI_CURRENCY_NUMERATOR_FOUR",
+            Token::EthiopianFullStop => "ETHIOPIAN_FULL_STOP",
+            Token::ArmenianFullStop => "ARMENIAN_FULL_STOP",
+            Token::TibetanShad => "TIBETAN_SHAD",
+            Token::ThaiFongman => "THAI_FONGMAN",
+            Token::MyanmarComma => "MYANMAR_COMMA",
+            Token::MyanmarFullStop => "MYANMAR_FULL_STOP",
+            Token::Comma => "COMMA",
+            Token::Quote => "QUOTE",
+            Token::Equals => "EQUALS",
+            Token::Number(_) => "NUMBER",
+            Token::Text(_) => "TEXT",
+        }
+    }
+
     /// Check if this token represents indentation
     pub fn is_indent(&self) -> bool {
         matches!(self, Token::Indentation)
