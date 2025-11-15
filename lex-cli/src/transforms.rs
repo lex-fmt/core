@@ -4,7 +4,10 @@
 //! Each transform is a stage + format combination (e.g., "ast-tag", "token-core-json").
 
 use lex_parser::lex::formats::{serialize_ast_tag, to_treeviz_str};
+use lex_parser::lex::lexing::transformations::line_token_grouping::GroupedTokens;
+use lex_parser::lex::lexing::transformations::LineTokenGroupingMapper;
 use lex_parser::lex::loader::DocumentLoader;
+use lex_parser::lex::token::LineToken;
 use lex_parser::lex::transforms::standard::{CORE_TOKENIZATION, LEXING, TO_IR};
 
 /// All available CLI transforms (stage + format combinations)
@@ -33,8 +36,16 @@ pub fn execute_transform(source: &str, transform_name: &str) -> Result<String, S
             let tokens = loader
                 .with(&LEXING)
                 .map_err(|e| format!("Transform failed: {}", e))?;
-            Ok(serde_json::to_string_pretty(&tokens_to_json(&tokens))
-                .map_err(|e| format!("JSON serialization failed: {}", e))?)
+            let mut mapper = LineTokenGroupingMapper::new();
+            let grouped = mapper.map(tokens);
+            let line_tokens: Vec<LineToken> = grouped
+                .into_iter()
+                .map(GroupedTokens::into_line_token)
+                .collect();
+            Ok(
+                serde_json::to_string_pretty(&line_tokens_to_json(&line_tokens))
+                    .map_err(|e| format!("JSON serialization failed: {}", e))?,
+            )
         }
         "ir-json" => {
             let ir = loader
@@ -82,6 +93,47 @@ fn tokens_to_json(
             })
         })
         .collect::<Vec<_>>())
+}
+
+/// Convert line tokens into a JSON-friendly structure
+fn line_tokens_to_json(line_tokens: &[LineToken]) -> serde_json::Value {
+    use serde_json::json;
+
+    json!(line_tokens
+        .iter()
+        .map(|line| {
+            json!({
+                "line_type": format!("{:?}", line.line_type),
+                "tokens": line
+                    .source_tokens
+                    .iter()
+                    .zip(line.token_spans.iter())
+                    .map(|(token, span)| {
+                        json!({
+                            "token": format!("{:?}", token),
+                            "start": span.start,
+                            "end": span.end,
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+            })
+        })
+        .collect::<Vec<_>>())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn token_line_transform_emits_line_tokens() {
+        let source = "Session:\n    Content\n";
+        let output = execute_transform(source, "token-line-json").expect("transform to run");
+
+        assert!(output.contains("\"line_type\""));
+        assert!(output.contains("SubjectLine"));
+        assert!(output.contains("ParagraphLine"));
+    }
 }
 
 /// Convert IR (ParseNode) to JSON-serializable format
