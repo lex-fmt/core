@@ -1,9 +1,9 @@
 //! Parsing module for the lex format
 //!
 //! This module provides the complete processing pipeline from source text to AST:
-//! 1. **Lexing**: Tokenization of source text
-//! 2. **Analysis**: Syntactic analysis to produce IR nodes
-//! 3. **Building**: Construction of AST from IR nodes
+//! 1. Lexing: Tokenization of source text
+//! 2. Analysis: Syntactic analysis to produce IR nodes
+//! 3. Building: Construction of AST from IR nodes
 //!
 //! The current analyzer is the line-based, declarative grammar engine.  It consumes
 //! grouped line tokens, matches them against the ordered grammar, and produces IR
@@ -11,9 +11,9 @@
 //!
 //! ## Terminology
 //!
-//! - **parse**: Colloquial term for the entire process (lexing + analysis + building)
-//! - **analyze/analysis**: The syntactic analysis phase specifically
-//! - **build**: The AST construction phase specifically
+//! - parse: Colloquial term for the entire process (lexing + analysis + building)
+//! - analyze/analysis: The syntactic analysis phase specifically
+//! - build: The AST construction phase specifically
 //!
 //! ## Testing
 //!
@@ -43,9 +43,9 @@ type ProcessResult = Result<Document, String>;
 /// Process source text through the complete pipeline: lex, analyze, and build.
 ///
 /// This is the primary entry point for processing lex documents. It performs:
-/// 1. **Lexing**: Tokenizes the source text
-/// 2. **Analysis**: Performs syntactic analysis to produce IR nodes
-/// 3. **Building**: Constructs the final AST from IR nodes
+/// 1. Lexing: Tokenizes the source text
+/// 2. Analysis: Performs syntactic analysis to produce IR nodes
+/// 3. Building: Constructs the final AST from IR nodes
 ///
 /// # Arguments
 ///

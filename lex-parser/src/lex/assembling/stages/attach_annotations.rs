@@ -5,11 +5,11 @@
 //!
 //! # Attachment Rules
 //!
-//! 1. **Closest Element**: An annotation attaches to the closest content element,
+//! 1. Closest Element: An annotation attaches to the closest content element,
 //!    measured by the number of blank lines separating them.
-//! 2. **Tie-breaker**: If equidistant, the next element wins.
-//! 3. **Document-level**: Annotations at document start followed by a blank line attach to Document.
-//! 4. **Container-end**: When an annotation is the last element in a container, the container
+//! 2. Tie-breaker: If equidistant, the next element wins.
+//! 3. Document-level: Annotations at document start followed by a blank line attach to Document.
+//! 4. Container-end: When an annotation is the last element in a container, the container
 //!    itself becomes the "next" element for distance comparisons.
 
 use std::cmp::Ordering;

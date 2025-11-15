@@ -21,11 +21,11 @@
 //! - Compute bounding boxes from token ranges
 //! - Implement smart token processing (e.g., indentation wall stripping)
 //! - Return primitive data structures (String, Range<usize>, etc.)
-//! - **NO** AST types (ast::Range is converted later in ast_creation)
+//! - NO AST types (ast::Range is converted later in ast_creation)
 //!
 //! # Key Design Principle
 //!
-//! This layer works with **primitives only**. Byte ranges stay as `Range<usize>`.
+//! This layer works with primitives only. Byte ranges stay as `Range<usize>`.
 //! The conversion to `ast::Range` happens later in the ast_creation layer.
 
 // Module declarations

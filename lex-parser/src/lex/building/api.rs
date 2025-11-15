@@ -17,7 +17,7 @@
 //!
 //! # Usage
 //!
-//! Parsers should **only** use functions from this module. They should never:
+//! Parsers should only use functions from this module. They should never:
 //! - Extract text manually
 //! - Call data_extraction functions directly
 //! - Call ast_creation functions directly

@@ -8,11 +8,11 @@
 //!
 //! `DocumentLoader` serves as the primary entry point for most lex processing tasks:
 //!
-//! - **Universal Input**: Load from files or strings with the same API
-//! - **Transform Shortcuts**: Common operations (`.parse()`, `.tokenize()`) built-in
-//! - **Custom Transforms**: Execute any transform via `.with()`
-//! - **Source Access**: Retrieve original source text via `.source()`
-//! - **Reusable**: Create once, run multiple transforms on the same source
+//! - Universal Input: Load from files or strings with the same API
+//! - Transform Shortcuts: Common operations (`.parse()`, `.tokenize()`) built-in
+//! - Custom Transforms: Execute any transform via `.with()`
+//! - Source Access: Retrieve original source text via `.source()`
+//! - Reusable: Create once, run multiple transforms on the same source
 //!
 //! # Relationship to Transform System
 //!
@@ -82,10 +82,10 @@
 //!
 //! # Use Cases
 //!
-//! - **CLI Tools**: Load files and apply stage+format transforms
-//! - **Tests**: Load test fixtures and verify different processing stages
-//! - **Library Code**: Process lex documents programmatically
-//! - **REPL/Interactive**: Parse user input on-the-fly
+//! - CLI Tools: Load files and apply stage+format transforms
+//! - Tests: Load test fixtures and verify different processing stages
+//! - Library Code: Process lex documents programmatically
+//! - REPL/Interactive: Parse user input on-the-fly
 
 use crate::lex::parsing::Document;
 use crate::lex::transforms::standard::{TokenStream, CORE_TOKENIZATION, LEXING, STRING_TO_AST};

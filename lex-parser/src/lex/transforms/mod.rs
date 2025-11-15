@@ -98,11 +98,11 @@
 //!
 //! # Design Benefits
 //!
-//! - **Type Safety**: Compiler verifies pipeline stage compatibility
-//! - **Composability**: Mix and match stages to create custom pipelines
-//! - **Reusability**: Share transforms across CLI, tests, and library code
-//! - **Clarity**: Explicit stage boundaries with clear input/output types
-//! - **Testability**: Test individual stages in isolation
+//! - Type Safety: Compiler verifies pipeline stage compatibility
+//! - Composability: Mix and match stages to create custom pipelines
+//! - Reusability: Share transforms across CLI, tests, and library code
+//! - Clarity: Explicit stage boundaries with clear input/output types
+//! - Testability: Test individual stages in isolation
 
 pub mod stages;
 pub mod standard;

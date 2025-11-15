@@ -15,20 +15,20 @@
 //!
 //! ## Container Types
 //!
-//! - **SessionContainer**: Can contain any ContentItem including Sessions
+//! - SessionContainer: Can contain any ContentItem including Sessions
 //!   - Used by: Document.root, Session.children
-//! - **GeneralContainer**: Can contain any ContentItem EXCEPT Sessions
+//! - GeneralContainer: Can contain any ContentItem EXCEPT Sessions
 //!   - Used by: Definition.children, Annotation.children, ListItem.children
-//! - **ListContainer**: Homogeneous container for ListItem variants only
+//! - ListContainer: Homogeneous container for ListItem variants only
 //!   - Used by: List.items
-//! - **VerbatimContainer**: Homogeneous container for VerbatimLine nodes only
+//! - VerbatimContainer: Homogeneous container for VerbatimLine nodes only
 //!   - Used by: VerbatimBlock.children
 //!
 //! ## Accessing Container Children
 //!
 //! The `.children` field is private. Use one of these access patterns:
 //!
-//! **Deref coercion** (preferred for Vec operations):
+//! Deref coercion (preferred for Vec operations):
 //! ```ignore
 //! let session = Session::new(...);
 //! for child in &session.children {  // Deref to &Vec<ContentItem>
@@ -37,7 +37,7 @@
 //! let count = session.children.len();  // Works via Deref
 //! ```
 //!
-//! **ContentItem polymorphic access**:
+//! ContentItem polymorphic access:
 //! ```ignore
 //! fn process(item: &ContentItem) {
 //!     if let Some(children) = item.children() {
@@ -46,7 +46,7 @@
 //! }
 //! ```
 //!
-//! **Container trait**:
+//! Container trait:
 //! ```ignore
 //! fn process<T: Container>(container: &T) {
 //!     let children = container.children();  // Returns &[ContentItem]

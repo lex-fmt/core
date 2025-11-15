@@ -4,8 +4,8 @@
 //! interface for user-provided text throughout the AST. The facade is designed
 //! to evolve over time:
 //!
-//! - **Phase 1 (current):** Plain text strings with source position tracking
-//! - **Phase 2 (future):** Parsed inline elements (bold, italic, links, etc.)
+//! - Phase 1 (current): Plain text strings with source position tracking
+//! - Phase 2 (future): Parsed inline elements (bold, italic, links, etc.)
 //!
 //! By using a facade, we can evolve from Phase 1 to Phase 2 without changing
 //! the AST node types. External code accesses text via stable API methods
@@ -35,7 +35,7 @@ pub struct TextContent {
 #[derive(Debug, Clone, PartialEq)]
 enum TextRepresentation {
     /// Plain text as a String.
-    /// May contain formatting markers like "**bold**" or "_italic_"
+    /// May contain formatting markers like "bold" or "_italic_"
     /// that will be parsed in Phase 2.
     Text(String),
     /// Parsed inline nodes along with the original raw string.
