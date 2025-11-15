@@ -179,16 +179,16 @@ impl Viewer for FileViewer {
         let old_node = model.get_node_at_position(self.cursor_row, self.cursor_col);
 
         match key.code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.move_cursor_up();
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 self.move_cursor_down();
             }
-            KeyCode::Left => {
+            KeyCode::Left | KeyCode::Char('h') => {
                 self.move_cursor_left();
             }
-            KeyCode::Right => {
+            KeyCode::Right | KeyCode::Char('l') => {
                 self.move_cursor_right();
             }
             _ => return Some(ViewerEvent::NoChange),
@@ -400,5 +400,49 @@ mod tests {
             (0, 8),
             "Should return to intended column 8 when moving up from blank line"
         );
+    }
+
+    #[test]
+    fn test_vim_jkhl_navigation() {
+        // Test that Vim j/k/h/l keys work the same as arrow keys
+        let content = "Line1\nLine2\nLine3".to_string();
+        let mut viewer = FileViewer::new(content);
+
+        let test_doc = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
+        let model = Model::new(doc);
+
+        // Start at (0, 0)
+        assert_eq!(viewer.cursor_position(), (0, 0));
+
+        // Test 'j' (down)
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(viewer.cursor_position(), (1, 0), "j should move down");
+
+        // Test 'k' (up)
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(viewer.cursor_position(), (0, 0), "k should move up");
+
+        // Test 'l' (right)
+        for _ in 0..3 {
+            viewer.handle_key(
+                KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE),
+                &model,
+            );
+        }
+        assert_eq!(viewer.cursor_position(), (0, 3), "l should move right");
+
+        // Test 'h' (left)
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE),
+            &model,
+        );
+        assert_eq!(viewer.cursor_position(), (0, 2), "h should move left");
     }
 }
