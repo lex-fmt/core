@@ -59,6 +59,22 @@
 //!     To support a format inbound, we write the format ast -> lex ast adapter. likewise, for outbound formats we wiill do the reverse, converting from the lex ast to the format's.
 //!
 //!     As much as possible, we will use rust crates, and avoid shelling out and having outside dependencies, but this can be innevitable as for pandoc.
+//!
+//! Format Selection
+//!
+//!     The choice for the formats is pretty sensible:
+//!
+//!     - HTML Output: should be self arguing, as it's the most common format for publishing and viewing.
+//!     - Markdown: both in and to, as Mardown is the universal format for plain text editing.
+//!     - XML: serializing Lex's is trivial and can be useful as a structured format for storage.
+//!
+//!     These are table stakes, that is a format that can't export to HTML, convert to markdown or lack a good semantic pure xml output is a non starter.
+//!
+//!
+//!     For everything else, there is good arguments for a variety of formats. The one that has the strongest fit and use case is Latex, as Lex can be very useful for scientifc writing. But latex is complicated, and having pandoc in the pipeline allows us to serve reasonably well pretty much any other format.
+//!
+//!     This entails to only tree implementations. The hardest part of the work is about the mapping of nested to flat structures, and this code can be reused for all formats.
+//!
 pub mod error;
 pub mod format;
 pub mod formats;
