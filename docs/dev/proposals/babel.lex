@@ -1,59 +1,8 @@
 
 
-6. Format Implementations
 
-	6.1. Lex Format
 
-		Implementation:
-			pub struct LexFormat;
 
-			impl Format for LexFormat {
-			    fn name(&self) -> &str { "lex" }
-			    fn supports_parsing(&self) -> bool { true }
-			    fn supports_serialization(&self) -> bool { true }
-
-			    fn parse(&self, source: &str) -> Result<Document, FormatError> {
-			        use lex_parser::transforms::STRING_TO_AST;
-			        STRING_TO_AST.run(source.to_string())
-			            .map_err(|e| FormatError::ParseError(e.to_string()))
-			    }
-
-			    fn serialize(&self, doc: &Document) -> Result<String, FormatError> {
-			        // TODO: Implement proper Lex serializer
-			        // Could use detokenizer if tokens are preserved
-			    }
-			}
-		:: rust ::
-
-		Rationale: Delegates to lex-parser for parsing, implements serialization for round-trip capability.
-
-	6.2. Markdown Format
-
-		Strategy:
-			-   Parse: comrak::parse_document() � comrak AST � Lex AST (via interop::markdown)
-			-   Serialize: Lex AST � comrak AST (via interop::markdown) � comrak::format_commonmark()
-
-		Implementation:
-			pub struct MarkdownFormat {
-			    options: MarkdownOptions,
-			}
-
-			impl Format for MarkdownFormat {
-			    fn name(&self) -> &str { "markdown" }
-			    fn supports_parsing(&self) -> bool { true }
-			    fn supports_serialization(&self) -> bool { true }
-
-			    fn parse(&self, source: &str) -> Result<Document, FormatError> {
-			        // 1. Parse markdown to comrak AST
-			        // 2. Convert comrak AST to Lex AST using interop::markdown
-			    }
-
-			    fn serialize(&self, doc: &Document) -> Result<String, FormatError> {
-			        // 1. Convert Lex AST to comrak AST using interop::markdown
-			        // 2. Serialize comrak AST to markdown string
-			    }
-			}
-		:: rust ::
 
 	6.3. HTML Format
 
@@ -135,18 +84,6 @@
 			-   VerbatimBlock � &lt;pre&gt;&lt;code class="language-X"&gt;
 			-   Annotation � &lt;aside&gt; or custom data attributes
 
-	7.4. Lossy Conversions
-
-		Accepted limitations (initially):
-			-   Annotations may not round-trip perfectly through markdown
-			-   Source location information is lost during conversion
-			-   Complex nesting may flatten in some formats
-			-   Lex-specific features (certain annotation styles) may degrade
-
-
-
-8. CLI Design
-ex-parser directly for internal inspection (tokens, AST, IR).
 
 9. Implementation Phases
 
