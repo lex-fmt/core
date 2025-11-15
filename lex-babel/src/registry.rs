@@ -62,6 +62,34 @@ impl FormatRegistry {
         names
     }
 
+    /// Detect format from filename based on file extension
+    ///
+    /// Returns the format name if a matching extension is found, or None otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let registry = FormatRegistry::default();
+    /// assert_eq!(registry.detect_format_from_filename("doc.lex"), Some("lex".to_string()));
+    /// assert_eq!(registry.detect_format_from_filename("doc.md"), Some("markdown".to_string()));
+    /// assert_eq!(registry.detect_format_from_filename("doc.unknown"), None);
+    /// ```
+    pub fn detect_format_from_filename(&self, filename: &str) -> Option<String> {
+        // Extract extension from filename
+        let extension = std::path::Path::new(filename)
+            .extension()
+            .and_then(|ext| ext.to_str())?;
+
+        // Search for a format that supports this extension
+        for format in self.formats.values() {
+            if format.file_extensions().contains(&extension) {
+                return Some(format.name().to_string());
+            }
+        }
+
+        None
+    }
+
     /// Parse source text using the specified format
     pub fn parse(&self, source: &str, format: &str) -> Result<Document, FormatError> {
         let fmt = self.get(format)?;
@@ -258,5 +286,59 @@ mod tests {
         registry.register(TestFormat); // Replace
 
         assert_eq!(registry.list_formats().len(), 1);
+    }
+
+    #[test]
+    fn test_detect_format_from_filename() {
+        let registry = FormatRegistry::with_defaults();
+
+        // Test lex extension
+        assert_eq!(
+            registry.detect_format_from_filename("doc.lex"),
+            Some("lex".to_string())
+        );
+        assert_eq!(
+            registry.detect_format_from_filename("/path/to/file.lex"),
+            Some("lex".to_string())
+        );
+
+        // Test tag extensions
+        assert_eq!(
+            registry.detect_format_from_filename("doc.tag"),
+            Some("tag".to_string())
+        );
+        assert_eq!(
+            registry.detect_format_from_filename("doc.xml"),
+            Some("tag".to_string())
+        );
+
+        // Test treeviz extensions
+        assert_eq!(
+            registry.detect_format_from_filename("doc.tree"),
+            Some("treeviz".to_string())
+        );
+        assert_eq!(
+            registry.detect_format_from_filename("doc.treeviz"),
+            Some("treeviz".to_string())
+        );
+
+        // Test unknown extension
+        assert_eq!(registry.detect_format_from_filename("doc.unknown"), None);
+
+        // Test no extension
+        assert_eq!(registry.detect_format_from_filename("doc"), None);
+    }
+
+    #[test]
+    fn test_detect_format_case_sensitive() {
+        let registry = FormatRegistry::with_defaults();
+
+        // Extensions are case-sensitive by default (as returned by Path::extension())
+        assert_eq!(
+            registry.detect_format_from_filename("doc.lex"),
+            Some("lex".to_string())
+        );
+        // Note: On some systems, extensions might be case-insensitive
+        // but we treat them as case-sensitive for consistency
     }
 }

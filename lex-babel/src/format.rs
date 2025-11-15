@@ -49,6 +49,14 @@ pub trait Format: Send + Sync {
         ""
     }
 
+    /// File extensions associated with this format (e.g., ["lex"], ["md", "markdown"])
+    ///
+    /// Returns a slice of file extensions without the leading dot.
+    /// Used for automatic format detection from filenames.
+    fn file_extensions(&self) -> &[&str] {
+        &[]
+    }
+
     /// Whether this format supports parsing (source → Document)
     fn supports_parsing(&self) -> bool {
         false
