@@ -1,10 +1,10 @@
-//! Command-line interface for lex
-//!
-//! This binary is used to view / convert / process lex files into different formats.
-//!
-//! Usage:
-//!   lex <path> <transform>     - Execute a transform (e.g., "ast-tag", "token-core-json")
-//!   lex --list-transforms       - List available transforms
+// Command-line interface for lex
+//
+// This binary is used to view / convert / process lex files into different formats.
+//
+// Usage:
+//  lex <path> <transform>     - Execute a transform (e.g., "ast-tag", "token-core-json")
+//   lex --list-transforms       - List available transforms
 
 mod transforms;
 

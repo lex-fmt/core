@@ -48,7 +48,7 @@ impl TextContent {
     /// * `text` - The raw text content
     /// * `location` - Optional source location of this text
     ///
-    /// ```
+    ///
     pub fn from_string(text: String, location: Option<Range>) -> Self {
         Self {
             location,
@@ -69,8 +69,7 @@ impl TextContent {
     /// Works regardless of internal representation. In Phase 1, returns the
     /// stored string directly. In Phase 2, would flatten inline nodes to text.
     ///
-    /// # Example
-    /// ```
+    ///
     pub fn as_string(&self) -> &str {
         match &self.inner {
             TextRepresentation::Text(s) => s,
