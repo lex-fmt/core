@@ -38,6 +38,7 @@ use crate::lex::token::{normalization, LineToken};
 
 use super::ast_nodes;
 use super::extraction;
+use crate::lex::ast::range::SourceLocation;
 
 // ============================================================================
 // PARAGRAPH BUILDING
@@ -62,7 +63,11 @@ use super::extraction;
 /// let line_tokens: Vec<LineToken> = /* ... from parser ... */;
 /// let paragraph = paragraph_from_line_tokens(&line_tokens, source);
 /// ```
-pub fn paragraph_from_line_tokens(line_tokens: &[LineToken], source: &str) -> ContentItem {
+pub fn paragraph_from_line_tokens(
+    line_tokens: &[LineToken],
+    source: &str,
+    source_location: &SourceLocation,
+) -> ContentItem {
     // 1. Normalize: LineTokens → Vec<Vec<(Token, Range<usize>)>>
     let token_lines = normalization::normalize_line_tokens(line_tokens);
 
@@ -70,7 +75,7 @@ pub fn paragraph_from_line_tokens(line_tokens: &[LineToken], source: &str) -> Co
     let data = extraction::extract_paragraph_data(token_lines, source);
 
     // 3. Create: ParagraphData → Paragraph AST node
-    ast_nodes::paragraph_node(data, source)
+    ast_nodes::paragraph_node(data, source_location)
 }
 
 // ============================================================================
@@ -92,6 +97,7 @@ pub fn session_from_title_token(
     title_token: &LineToken,
     content: Vec<SessionContent>,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
     // 1. Normalize
     let tokens = normalization::normalize_line_token(title_token);
@@ -100,7 +106,7 @@ pub fn session_from_title_token(
     let data = extraction::extract_session_data(tokens, source);
 
     // 3. Create
-    ast_nodes::session_node(data, content, source)
+    ast_nodes::session_node(data, content, source_location)
 }
 
 // ============================================================================
@@ -122,6 +128,7 @@ pub fn definition_from_subject_token(
     subject_token: &LineToken,
     content: Vec<ContentElement>,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
     // 1. Normalize
     let tokens = normalization::normalize_line_token(subject_token);
@@ -130,7 +137,7 @@ pub fn definition_from_subject_token(
     let data = extraction::extract_definition_data(tokens, source);
 
     // 3. Create
-    ast_nodes::definition_node(data, content, source)
+    ast_nodes::definition_node(data, content, source_location)
 }
 
 // ============================================================================
@@ -170,6 +177,7 @@ pub fn list_item_from_marker_token(
     marker_token: &LineToken,
     content: Vec<ContentElement>,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ListItem {
     // 1. Normalize
     let tokens = normalization::normalize_line_token(marker_token);
@@ -178,7 +186,7 @@ pub fn list_item_from_marker_token(
     let data = extraction::extract_list_item_data(tokens, source);
 
     // 3. Create
-    ast_nodes::list_item_node(data, content, source)
+    ast_nodes::list_item_node(data, content, source_location)
 }
 
 // ============================================================================
@@ -202,19 +210,24 @@ pub fn annotation_from_label_token(
     label_token: &LineToken,
     content: Vec<ContentElement>,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
     // 1. Normalize
     let tokens = normalization::normalize_line_token(label_token);
 
-    let data = data_from_tokens(tokens, source);
+    let data = data_from_tokens(tokens, source, source_location);
 
-    ast_nodes::annotation_node(data, content, source)
+    ast_nodes::annotation_node(data, content)
 }
 
 /// Build a Data node from already-normalized tokens (no closing :: marker).
-pub fn data_from_tokens(label_tokens: Vec<(Token, ByteRange<usize>)>, source: &str) -> Data {
+pub fn data_from_tokens(
+    label_tokens: Vec<(Token, ByteRange<usize>)>,
+    source: &str,
+    source_location: &SourceLocation,
+) -> Data {
     let data = extraction::extract_data(label_tokens, source);
-    ast_nodes::data_node(data, source)
+    ast_nodes::data_node(data, source_location)
 }
 
 // ============================================================================
@@ -251,12 +264,13 @@ pub fn verbatim_block_from_lines(
     content_tokens: &[LineToken],
     closing_data: Data,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
     // 1. Extract (includes mode detection and indentation wall stripping)
     let data = extraction::extract_verbatim_block_data(subject_token, content_tokens, source);
 
     // 2. Create
-    ast_nodes::verbatim_block_node(data, closing_data, source)
+    ast_nodes::verbatim_block_node(data, closing_data, source_location)
 }
 
 // ============================================================================
@@ -283,6 +297,7 @@ use std::ops::Range as ByteRange;
 pub fn paragraph_from_token_lines(
     mut token_lines: Vec<Vec<(Token, ByteRange<usize>)>>,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
     if token_lines.len() == 1 {
         let mut new_token_lines = vec![];
@@ -307,7 +322,7 @@ pub fn paragraph_from_token_lines(
     let data = extraction::extract_paragraph_data(token_lines, source);
 
     // 2. Create
-    ast_nodes::paragraph_node(data, source)
+    ast_nodes::paragraph_node(data, source_location)
 }
 
 /// Build a Session from already-normalized title tokens.
@@ -325,13 +340,14 @@ pub fn session_from_tokens(
     title_tokens: Vec<(Token, ByteRange<usize>)>,
     content: Vec<SessionContent>,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
     // 1. Extract
     let data = extraction::extract_session_data(title_tokens, source);
 
     // 2. Create
-    ast_nodes::session_node(data, content, source)
+    ast_nodes::session_node(data, content, source_location)
 }
 
 /// Build a Definition from already-normalized subject tokens.
@@ -349,13 +365,14 @@ pub fn definition_from_tokens(
     subject_tokens: Vec<(Token, ByteRange<usize>)>,
     content: Vec<ContentElement>,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
     // Skip normalization, tokens already normalized
     // 1. Extract
     let data = extraction::extract_definition_data(subject_tokens, source);
 
     // 2. Create
-    ast_nodes::definition_node(data, content, source)
+    ast_nodes::definition_node(data, content, source_location)
 }
 
 /// Build a ListItem from already-normalized marker tokens.
@@ -373,13 +390,14 @@ pub fn list_item_from_tokens(
     marker_tokens: Vec<(Token, ByteRange<usize>)>,
     content: Vec<ContentElement>,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ListItem {
     // Skip normalization, tokens already normalized
     // 1. Extract
     let data = extraction::extract_list_item_data(marker_tokens, source);
 
     // 2. Create
-    ast_nodes::list_item_node(data, content, source)
+    ast_nodes::list_item_node(data, content, source_location)
 }
 
 /// Build an Annotation from already-normalized label tokens.
@@ -399,17 +417,19 @@ pub fn annotation_from_tokens(
     label_tokens: Vec<(Token, ByteRange<usize>)>,
     content: Vec<ContentElement>,
     source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
-    let data = data_from_tokens(label_tokens, source);
-    ast_nodes::annotation_node(data, content, source)
+    let data = data_from_tokens(label_tokens, source, source_location);
+    ast_nodes::annotation_node(data, content)
 }
 
 /// Build a BlankLineGroup from already-normalized blank line tokens.
 pub fn blank_line_group_from_tokens(
     tokens: Vec<(Token, ByteRange<usize>)>,
-    source: &str,
+    _source: &str,
+    source_location: &SourceLocation,
 ) -> ContentItem {
-    ast_nodes::blank_line_group_node(tokens, source)
+    ast_nodes::blank_line_group_node(tokens, source_location)
 }
 
 // ============================================================================
@@ -458,6 +478,7 @@ pub fn paragraph_from_text_segments(
 mod tests {
     use super::*;
     use crate::lex::ast::elements::typed_content::SessionContent;
+    use crate::lex::ast::range::SourceLocation;
     use crate::lex::token::LineType;
     use crate::lex::token::Token;
 
@@ -472,6 +493,7 @@ mod tests {
     #[test]
     fn test_paragraph_from_line_tokens() {
         let source = "hello world";
+        let source_location = SourceLocation::new(source);
         let line_tokens = vec![make_line_token(
             vec![
                 Token::Text("hello".to_string()),
@@ -481,7 +503,7 @@ mod tests {
             vec![0..5, 5..6, 6..11],
         )];
 
-        let result = paragraph_from_line_tokens(&line_tokens, source);
+        let result = paragraph_from_line_tokens(&line_tokens, source, &source_location);
 
         match result {
             ContentItem::Paragraph(para) => {
@@ -494,12 +516,18 @@ mod tests {
     #[test]
     fn test_session_from_title_token() {
         let source = "Session:";
+        let source_location = SourceLocation::new(source);
         let title_token = make_line_token(
             vec![Token::Text("Session".to_string()), Token::Colon],
             vec![0..7, 7..8],
         );
 
-        let result = session_from_title_token(&title_token, Vec::<SessionContent>::new(), source);
+        let result = session_from_title_token(
+            &title_token,
+            Vec::<SessionContent>::new(),
+            source,
+            &source_location,
+        );
 
         match result {
             ContentItem::Session(session) => {
