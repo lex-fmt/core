@@ -51,7 +51,14 @@
 //!     to best represent the author's intent.
 //!
 //!     This means that full format interop round tripping is not possible.
-
+//!
+//!
+//! Implementation Principles
+//!
+//!     This, not being lex's core means that we will offload as much as possible to better, scpecialized creates for each format. the escope here is mainly to adapt the ast's from lex to the format or vice versa. For example we never write the serializer for , say markdown, but pass the AST to the mardown library.
+//!     To support a format inbound, we write the format ast -> lex ast adapter. likewise, for outbound formats we wiill do the reverse, converting from the lex ast to the format's.
+//!
+//!     As much as possible, we will use rust crates, and avoid shelling out and having outside dependencies, but this can be innevitable as for pandoc.
 pub mod error;
 pub mod format;
 pub mod formats;
