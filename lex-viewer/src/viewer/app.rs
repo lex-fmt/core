@@ -136,11 +136,11 @@ impl App {
                         .sync_cursor_to_position(location.start.line, location.start.column);
                 }
             }
-            Selection::TextSelection(row, col) => {
+            Selection::TextSelection(_row, _col) => {
                 // User moved cursor in text
                 // FileViewer's cursor is already at this position (it moved itself)
-                // Just ensure consistency
-                self.file_viewer.sync_cursor_to_position(row, col);
+                // No need to sync - the FileViewer maintains its own intended_cursor_col
+                // which would be reset if we called sync_cursor_to_position here
             }
         }
 
