@@ -13,7 +13,7 @@
 //!     should be written that supposes a shell environment, be it to std print, env vars etc.
 //!
 //!     Format specific capabilities are implemented with the Format trait. formats should have a
-//!     parse() and serialize() method, a name and file extensiosn. See the trait def [./format.rs ]
+//!     parse() and serialize() method, a name and file extensions. See the trait def [./format.rs ]
 //!
 //!     The file structure :
 //!     .
