@@ -2,9 +2,15 @@
 //
 // This binary provides commands for inspecting and converting lex files.
 //
+// The inspect command is an internal tool for aid in the development of the lex ecosystem, and is bound to be be extracted to it's own crate in the future.
+//
+// The main role for the lex program is to interface with lex content. Be it converting to and fro, linting or formatting it.
+// The core capabilities use the lex-babel crate. This crate being a interface for the lex-babel library, which is a collection of formats and transformers.
+//
 // Usage:
+//  lex <input> --from <format> --to <format> [--output <file>]  - Convert between formats (default)
+//  lex convert <input> --from <format> --to <format> [--output <file>]  - Same as above (explicit)
 //  lex inspect <path> <transform>        - Execute a transform (e.g., "ast-tag", "token-core-json")
-//  lex convert <input> --from <format> --to <format> [--output <file>]
 //  lex --list-transforms                 - List available transforms
 
 mod transforms;
@@ -18,6 +24,43 @@ fn main() {
         .version(env!("CARGO_PKG_VERSION"))
         .about("A tool for inspecting and converting lex files")
         .arg_required_else_help(true)
+        // Root-level convert arguments (for default command)
+        .arg(
+            Arg::new("input")
+                .help("Input file path")
+                .index(1)
+                .value_hint(ValueHint::FilePath)
+                .conflicts_with("list-transforms"),
+        )
+        .arg(
+            Arg::new("from")
+                .long("from")
+                .help("Source format")
+                .value_hint(ValueHint::Other)
+                .requires("input"),
+        )
+        .arg(
+            Arg::new("to")
+                .long("to")
+                .help("Target format")
+                .value_hint(ValueHint::Other)
+                .requires("input"),
+        )
+        .arg(
+            Arg::new("output")
+                .long("output")
+                .short('o')
+                .help("Output file path (defaults to stdout)")
+                .value_hint(ValueHint::FilePath)
+                .requires("input"),
+        )
+        .arg(
+            Arg::new("list-transforms")
+                .long("list-transforms")
+                .help("List available transforms")
+                .action(ArgAction::SetTrue)
+                .global(true),
+        )
         .subcommand(
             Command::new("inspect")
                 .about("Inspect internal representations of lex files")
@@ -43,7 +86,7 @@ fn main() {
         )
         .subcommand(
             Command::new("convert")
-                .about("Convert between document formats")
+                .about("Convert between document formats (default command)")
                 .arg(
                     Arg::new("input")
                         .help("Input file path")
@@ -73,13 +116,6 @@ fn main() {
                         .value_hint(ValueHint::FilePath),
                 ),
         )
-        .arg(
-            Arg::new("list-transforms")
-                .long("list-transforms")
-                .help("List available transforms")
-                .action(ArgAction::SetTrue)
-                .global(true),
-        )
         .get_matches();
 
     if matches.get_flag("list-transforms") {
@@ -108,8 +144,27 @@ fn main() {
             let output = sub_matches.get_one::<String>("output").map(|s| s.as_str());
             handle_convert_command(input, from, to, output);
         }
+        None => {
+            // No subcommand - treat as default convert command
+            if let Some(input) = matches.get_one::<String>("input") {
+                let from = matches.get_one::<String>("from");
+                let to = matches.get_one::<String>("to");
+
+                if from.is_none() || to.is_none() {
+                    eprintln!("Error: --from and --to are required for conversion");
+                    eprintln!("Usage: lex <input> --from <format> --to <format> [--output <file>]");
+                    std::process::exit(1);
+                }
+
+                let output = matches.get_one::<String>("output").map(|s| s.as_str());
+                handle_convert_command(input, from.unwrap(), to.unwrap(), output);
+            } else {
+                eprintln!("Error: No command specified. Use --help for usage information.");
+                std::process::exit(1);
+            }
+        }
         _ => {
-            eprintln!("No subcommand specified. Use --help for usage information.");
+            eprintln!("Unknown subcommand. Use --help for usage information.");
             std::process::exit(1);
         }
     }
