@@ -140,6 +140,11 @@ impl Verbatim {
         self
     }
 
+    /// Mutable access to the additional verbatim groups beyond the first.
+    pub fn additional_groups_mut(&mut self) -> std::slice::IterMut<'_, VerbatimGroupItem> {
+        self.additional_groups.iter_mut()
+    }
+
     /// Annotations attached to this verbatim block.
     pub fn annotations(&self) -> &[Annotation] {
         &self.annotations

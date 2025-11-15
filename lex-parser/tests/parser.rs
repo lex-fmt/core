@@ -1,9 +1,11 @@
 //! Integration tests for the parser.
 
-use lex_parser::lex::parsing::parse_document;
-use lex_parser::lex::testing::assert_ast;
+use lex_parser::lex::parsing::{parse_document, ContentItem};
 use lex_parser::lex::testing::lexplore::Lexplore;
 use lex_parser::lex::testing::workspace_path;
+use lex_parser::lex::testing::{
+    assert_ast, InlineAssertion, InlineExpectation, ReferenceExpectation, TextMatch,
+};
 
 #[test]
 fn test_real_content_extraction() {
@@ -977,7 +979,7 @@ fn test_benchmark_010_kitchensink() {
     // Item 1: Description paragraph
     assert_ast(&doc).item(1, |item| {
         item.assert_paragraph()
-            .text_contains("includes all major features")
+            .text_contains("*all major features*")
             .text_contains("{{paragraph}}")
             .line_count(1);
     });
@@ -986,7 +988,7 @@ fn test_benchmark_010_kitchensink() {
     assert_ast(&doc).item(2, |item| {
         item.assert_paragraph()
             .text_contains("two-lined paragraph")
-            .text_contains("simple definition at the root level")
+            .text_contains("_definition_ at the root level")
             .line_count(2);
     });
 
@@ -997,7 +999,7 @@ fn test_benchmark_010_kitchensink() {
             .child_count(2)
             .child(0, |para| {
                 para.assert_paragraph()
-                    .text_contains("contains a paragraph and a list")
+                    .text_contains("contains a paragraph and a `list`")
                     .text_contains("{{definition}}")
                     .line_count(1);
             })
@@ -1190,6 +1192,83 @@ fn test_benchmark_010_kitchensink() {
                 .line_count(0); // Marker style has no content lines
         });
     });
+
+    // Inline parsing checks: description paragraph and definition list items
+    let description = doc
+        .root
+        .children
+        .iter()
+        .find_map(|item| match item {
+            ContentItem::Paragraph(para) if para.text().contains("*all major features*") => {
+                Some(para)
+            }
+            _ => None,
+        })
+        .expect("expected description paragraph");
+    let description_line = match description.lines.first() {
+        Some(ContentItem::TextLine(line)) => line,
+        _ => panic!("expected text line in description paragraph"),
+    };
+    InlineAssertion::new(&description_line.content, "kitchensink:description[0]").starts_with(&[
+        InlineExpectation::plain_text("This document includes "),
+        InlineExpectation::strong_text("all major features"),
+        InlineExpectation::plain(TextMatch::StartsWith(
+            " of the lex language to serve as a comprehensive \"kitchensink\"".into(),
+        )),
+        InlineExpectation::reference(ReferenceExpectation::citation_with_locator(
+            vec![TextMatch::Exact("spec2025".into())],
+            Some(TextMatch::Exact("pp. 45-46".into())),
+        )),
+        InlineExpectation::plain_text(". {{paragraph}}"),
+    ]);
+
+    let root_definition = doc
+        .root
+        .children
+        .iter()
+        .find_map(|item| match item {
+            ContentItem::Definition(def) if def.subject.as_string().contains("Root Definition") => {
+                Some(def)
+            }
+            _ => None,
+        })
+        .expect("expected root definition");
+    let list = root_definition
+        .children
+        .iter()
+        .find_map(|child| match child {
+            ContentItem::List(list) => Some(list),
+            _ => None,
+        })
+        .expect("definition should contain a list");
+    let mut list_items = list.items.iter().filter_map(|item| match item {
+        ContentItem::ListItem(li) => Some(li),
+        _ => None,
+    });
+
+    let first_item = list_items.next().expect("missing first list item");
+    let first_text = first_item
+        .text
+        .first()
+        .expect("list item missing inline text content");
+    InlineAssertion::new(first_text, "kitchensink:definition:list[0]").starts_with(&[
+        InlineExpectation::plain_text("- Item 1 in definition referencing "),
+        InlineExpectation::reference(ReferenceExpectation::tk(Some(TextMatch::Exact(
+            "rootlist".into(),
+        )))),
+        InlineExpectation::plain(TextMatch::StartsWith(". {{list-item}}".into())),
+    ]);
+
+    let second_item = list_items.next().expect("missing second list item");
+    let second_text = second_item
+        .text
+        .first()
+        .expect("list item missing inline text content");
+    InlineAssertion::new(second_text, "kitchensink:definition:list[1]").starts_with(&[
+        InlineExpectation::plain_text("- Item 2 in definition with note "),
+        InlineExpectation::reference(ReferenceExpectation::footnote_number(42)),
+        InlineExpectation::plain(TextMatch::StartsWith(". {{list-item}}".into())),
+    ]);
 
     // Item 7: Final root paragraph
     assert_ast(&doc).item(7, |item| {
