@@ -4,10 +4,12 @@
 //! elements (formatting, code, math). Later stages layer references and
 //! citations on top of the same building blocks.
 
+mod citations;
 pub mod nodes;
 mod parser;
+mod references;
 
-pub use nodes::{InlineContent, InlineNode, ReferenceInline, ReferenceType};
+pub use nodes::{InlineContent, InlineNode, PageFormat, ReferenceInline, ReferenceType};
 pub use parser::{
     parse_inlines, parse_inlines_with_parser, InlineKind, InlineParser, InlinePostProcessor,
     InlineSpec,
