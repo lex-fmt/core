@@ -90,7 +90,8 @@ impl FormatRegistry {
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
 
-        // Register built-in formatters
+        // Register built-in formats
+        registry.register(crate::formats::lex::LexFormat);
         registry.register(crate::formats::tag::TagFormat);
         registry.register(crate::formats::treeviz::TreevizFormat);
 
@@ -237,6 +238,7 @@ mod tests {
     #[test]
     fn test_registry_with_defaults() {
         let registry = FormatRegistry::with_defaults();
+        assert!(registry.has("lex"));
         assert!(registry.has("tag"));
         assert!(registry.has("treeviz"));
     }
@@ -244,6 +246,7 @@ mod tests {
     #[test]
     fn test_registry_default_trait() {
         let registry = FormatRegistry::default();
+        assert!(registry.has("lex"));
         assert!(registry.has("tag"));
         assert!(registry.has("treeviz"));
     }
