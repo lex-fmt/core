@@ -229,3 +229,63 @@ fn test_session_09_flat_colon_title() {
             });
     });
 }
+
+#[test]
+fn test_session_10_sandwich_document() {
+    // Validates the session-list-session "sandwich" document exercises:
+    // - Consecutive sessions without blank separators
+    // - Lists at the document root between sessions
+    // - Sessions nesting lists as their content
+    let doc = Lexplore::session(10).parse().unwrap();
+
+    assert_ast(&doc)
+        // Blank line groups are filtered out by assert_ast, so only the structural
+        // elements remain: session, session, list, session.
+        .item_count(4)
+        .item(0, |item| {
+            item.assert_session()
+                .label("1. Session Title")
+                .child(0, |child| {
+                    child
+                        .assert_session()
+                        .label("1.1. Session Title")
+                        .child(0, |grandchild| {
+                            grandchild
+                                .assert_paragraph()
+                                .text_contains("1.1.1 Session Title");
+                        });
+                });
+        })
+        .item(1, |item| {
+            item.assert_session()
+                .label("2. Session Title")
+                .child(0, |child| {
+                    child.assert_paragraph().text_contains("2.1 Session Title");
+                });
+        })
+        .item(2, |item| {
+            item.assert_list()
+                .item_count(2)
+                .item(0, |list_item| {
+                    list_item.text_contains("And this is a list");
+                })
+                .item(1, |list_item| {
+                    list_item.text_contains("scond list item");
+                });
+        })
+        .item(3, |item| {
+            item.assert_session()
+                .label("3. Session title")
+                .child(0, |child| {
+                    child
+                        .assert_list()
+                        .item_count(2)
+                        .item(0, |list_item| {
+                            list_item.text_contains("list item, first");
+                        })
+                        .item(1, |list_item| {
+                            list_item.text_contains("second list item");
+                        });
+                });
+        });
+}
