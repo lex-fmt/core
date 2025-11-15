@@ -4,6 +4,8 @@
 //! Lex AST and various text representations.
 
 pub mod lex;
+pub mod markdown;
+pub mod pandoc;
 pub mod tag;
 pub mod treeviz;
 
