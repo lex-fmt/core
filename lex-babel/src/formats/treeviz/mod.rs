@@ -156,6 +156,10 @@ impl Format for TreevizFormat {
         "Visual tree representation with indentation and Unicode icons"
     }
 
+    fn file_extensions(&self) -> &[&str] {
+        &["tree", "treeviz"]
+    }
+
     fn supports_serialization(&self) -> bool {
         true
     }

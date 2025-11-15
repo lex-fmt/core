@@ -8,7 +8,7 @@
 // The core capabilities use the lex-babel crate. This crate being a interface for the lex-babel library, which is a collection of formats and transformers.
 //
 // Usage:
-//  lex <input> --from <format> --to <format> [--output <file>]  - Convert between formats (default)
+//  lex <input> --to <format> [--from <format>] [--output <file>]  - Convert between formats (default)
 //  lex convert <input> --from <format> --to <format> [--output <file>]  - Same as above (explicit)
 //  lex inspect <path> <transform>        - Execute a transform (e.g., "ast-tag", "token-core-json")
 //  lex --list-transforms                 - List available transforms
@@ -35,7 +35,7 @@ fn main() {
         .arg(
             Arg::new("from")
                 .long("from")
-                .help("Source format")
+                .help("Source format (auto-detected from file extension if not specified)")
                 .value_hint(ValueHint::Other)
                 .requires("input"),
         )
@@ -147,17 +147,34 @@ fn main() {
         None => {
             // No subcommand - treat as default convert command
             if let Some(input) = matches.get_one::<String>("input") {
-                let from = matches.get_one::<String>("from");
+                let from_arg = matches.get_one::<String>("from");
                 let to = matches.get_one::<String>("to");
 
-                if from.is_none() || to.is_none() {
-                    eprintln!("Error: --from and --to are required for conversion");
-                    eprintln!("Usage: lex <input> --from <format> --to <format> [--output <file>]");
+                // Auto-detect --from if not provided
+                let from = if let Some(f) = from_arg {
+                    f.to_string()
+                } else {
+                    let registry = FormatRegistry::default();
+                    match registry.detect_format_from_filename(input) {
+                        Some(detected) => detected,
+                        None => {
+                            eprintln!("Error: Could not detect format from filename '{}'", input);
+                            eprintln!("Please specify --from explicitly");
+                            std::process::exit(1);
+                        }
+                    }
+                };
+
+                if to.is_none() {
+                    eprintln!("Error: --to is required for conversion");
+                    eprintln!(
+                        "Usage: lex <input> [--from <format>] --to <format> [--output <file>]"
+                    );
                     std::process::exit(1);
                 }
 
                 let output = matches.get_one::<String>("output").map(|s| s.as_str());
-                handle_convert_command(input, from.unwrap(), to.unwrap(), output);
+                handle_convert_command(input, &from, to.unwrap(), output);
             } else {
                 eprintln!("Error: No command specified. Use --help for usage information.");
                 std::process::exit(1);

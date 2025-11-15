@@ -24,6 +24,10 @@ impl Format for LexFormat {
         "Lex document format"
     }
 
+    fn file_extensions(&self) -> &[&str] {
+        &["lex"]
+    }
+
     fn supports_parsing(&self) -> bool {
         true
     }

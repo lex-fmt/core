@@ -121,6 +121,10 @@ impl Format for TagFormat {
         "XML-like tag format with hierarchical structure"
     }
 
+    fn file_extensions(&self) -> &[&str] {
+        &["tag", "xml"]
+    }
+
     fn supports_serialization(&self) -> bool {
         true
     }
