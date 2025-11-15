@@ -81,7 +81,7 @@ mod tests {
         let line_tokens = vec![LineToken {
             source_tokens: vec![
                 Token::Text("Hello".to_string()),
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Text("world".to_string()),
                 Token::BlankLine(Some("\n".to_string())),
             ],

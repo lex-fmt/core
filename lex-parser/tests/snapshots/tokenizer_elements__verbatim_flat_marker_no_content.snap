@@ -47,7 +47,9 @@ expression: tokens
         20..26,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         26..27,
     ),
     (
@@ -82,7 +84,9 @@ expression: tokens
         37..43,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         43..44,
     ),
     (
@@ -142,7 +146,9 @@ expression: tokens
         55..57,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         57..58,
     ),
     (
@@ -152,7 +158,9 @@ expression: tokens
         58..63,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         63..64,
     ),
     (
