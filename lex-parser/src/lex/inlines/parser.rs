@@ -1,14 +1,140 @@
 use super::nodes::{InlineContent, InlineNode};
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
 
-/// Parse inline nodes from a raw string.
+static DEFAULT_INLINE_PARSER: Lazy<InlineParser> = Lazy::new(InlineParser::new);
+
+/// Parse inline nodes from a raw string using the default inline parser configuration.
 pub fn parse_inlines(text: &str) -> InlineContent {
+    DEFAULT_INLINE_PARSER.parse(text)
+}
+
+/// Parse inline nodes using a custom parser configuration.
+pub fn parse_inlines_with_parser(text: &str, parser: &InlineParser) -> InlineContent {
+    parser.parse(text)
+}
+
+/// Optional transformation applied to a parsed inline node.
+pub type InlinePostProcessor = fn(InlineNode) -> InlineNode;
+
+#[derive(Clone)]
+pub struct InlineSpec {
+    pub kind: InlineKind,
+    pub start_token: char,
+    pub end_token: char,
+    pub literal: bool,
+    pub post_process: Option<InlinePostProcessor>,
+}
+
+impl InlineSpec {
+    fn apply_post_process(&self, node: InlineNode) -> InlineNode {
+        if let Some(callback) = self.post_process {
+            callback(node)
+        } else {
+            node
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InlineKind {
+    Strong,
+    Emphasis,
+    Code,
+    Math,
+}
+
+#[derive(Clone)]
+pub struct InlineParser {
+    specs: Vec<InlineSpec>,
+    token_map: HashMap<char, usize>,
+}
+
+impl InlineParser {
+    pub fn new() -> Self {
+        Self::from_specs(default_specs())
+    }
+
+    /// Attach a post-processing callback to a specific inline kind.
+    pub fn with_post_processor(mut self, kind: InlineKind, processor: InlinePostProcessor) -> Self {
+        if let Some(spec) = self.specs.iter_mut().find(|spec| spec.kind == kind) {
+            spec.post_process = Some(processor);
+        }
+        self
+    }
+
+    pub fn parse(&self, text: &str) -> InlineContent {
+        parse_with(self, text)
+    }
+
+    fn from_specs(specs: Vec<InlineSpec>) -> Self {
+        let mut token_map = HashMap::new();
+        for (index, spec) in specs.iter().enumerate() {
+            token_map.insert(spec.start_token, index);
+        }
+        Self { specs, token_map }
+    }
+
+    fn spec(&self, index: usize) -> &InlineSpec {
+        &self.specs[index]
+    }
+
+    fn spec_index_for_start(&self, ch: char) -> Option<usize> {
+        self.token_map.get(&ch).copied()
+    }
+
+    fn spec_count(&self) -> usize {
+        self.specs.len()
+    }
+}
+
+impl Default for InlineParser {
+    fn default() -> Self {
+        InlineParser::new()
+    }
+}
+
+fn default_specs() -> Vec<InlineSpec> {
+    vec![
+        InlineSpec {
+            kind: InlineKind::Strong,
+            start_token: '*',
+            end_token: '*',
+            literal: false,
+            post_process: None,
+        },
+        InlineSpec {
+            kind: InlineKind::Emphasis,
+            start_token: '_',
+            end_token: '_',
+            literal: false,
+            post_process: None,
+        },
+        InlineSpec {
+            kind: InlineKind::Code,
+            start_token: '`',
+            end_token: '`',
+            literal: true,
+            post_process: None,
+        },
+        InlineSpec {
+            kind: InlineKind::Math,
+            start_token: '#',
+            end_token: '#',
+            literal: true,
+            post_process: None,
+        },
+    ]
+}
+
+fn parse_with(parser: &InlineParser, text: &str) -> InlineContent {
     let chars: Vec<char> = text.chars().collect();
     if chars.is_empty() {
         return Vec::new();
     }
 
-    let mut stack = vec![InlineFrame::new(FrameKind::Root)];
-    let mut blocked = BlockedClosings::default();
+    let mut stack = vec![InlineFrame::root()];
+    let mut blocked = BlockedClosings::new(parser.spec_count());
 
     let mut i = 0;
     while i < chars.len() {
@@ -20,7 +146,6 @@ pub fn parse_inlines(text: &str) -> InlineContent {
             None
         };
 
-        // Handle escapes first so escaped tokens never trigger parser state.
         if ch == '\\' {
             if let Some(next_char) = next {
                 stack.last_mut().unwrap().push_char(next_char);
@@ -33,42 +158,43 @@ pub fn parse_inlines(text: &str) -> InlineContent {
         }
 
         let mut consumed = false;
-        let top_kind = stack.last().unwrap().kind;
-
-        if let Some(token_kind) = FrameKind::from_char(ch) {
-            if token_kind == top_kind && token_kind != FrameKind::Root {
-                if blocked.consume(token_kind) {
+        if let Some(spec_index) = stack.last().unwrap().spec_index {
+            let spec = parser.spec(spec_index);
+            if ch == spec.end_token {
+                if blocked.consume(spec_index) {
                     // Literal closing paired to a disallowed nested start.
-                } else if is_valid_end(prev, next, token_kind) {
+                } else if is_valid_end(prev, next, spec) {
                     let mut frame = stack.pop().unwrap();
-                    let had_content = frame.has_content();
                     frame.flush_buffer();
+                    let had_content = frame.has_content();
                     if !had_content {
-                        // No content -> treat both delimiters as literal.
                         let parent = stack.last_mut().unwrap();
-                        parent.push_char(token_kind.token_char().unwrap());
-                        parent.push_char(ch);
+                        parent.push_char(spec.start_token);
+                        parent.push_char(spec.end_token);
                     } else {
-                        let node = frame.into_node();
+                        let node = frame.into_node(spec);
+                        let node = spec.apply_post_process(node);
                         stack.last_mut().unwrap().push_node(node);
                     }
                     consumed = true;
-                } else {
-                    // Invalid closing context -> literal character.
                 }
             }
+        }
 
-            if !consumed
-                && !top_kind.is_literal()
-                && token_kind != FrameKind::Root
-                && is_valid_start(prev, next)
-            {
-                if stack.iter().any(|frame| frame.kind == token_kind) {
-                    blocked.increment(token_kind);
-                } else {
-                    stack.last_mut().unwrap().flush_buffer();
-                    stack.push(InlineFrame::new(token_kind));
-                    consumed = true;
+        if !consumed && !stack.last().unwrap().is_literal(parser) {
+            if let Some(spec_index) = parser.spec_index_for_start(ch) {
+                let spec = parser.spec(spec_index);
+                if is_valid_start(prev, next, spec) {
+                    if stack
+                        .iter()
+                        .any(|frame| frame.spec_index == Some(spec_index))
+                    {
+                        blocked.increment(spec_index);
+                    } else {
+                        stack.last_mut().unwrap().flush_buffer();
+                        stack.push(InlineFrame::new(spec_index));
+                        consumed = true;
+                    }
                 }
             }
         }
@@ -80,7 +206,6 @@ pub fn parse_inlines(text: &str) -> InlineContent {
         i += 1;
     }
 
-    // Flush any remaining text in the top frame before unwinding.
     if let Some(frame) = stack.last_mut() {
         frame.flush_buffer();
     }
@@ -88,9 +213,12 @@ pub fn parse_inlines(text: &str) -> InlineContent {
     while stack.len() > 1 {
         let mut frame = stack.pop().unwrap();
         frame.flush_buffer();
-        let token_char = frame.kind.token_char().unwrap();
+        let spec_index = frame
+            .spec_index
+            .expect("non-root stack frame must have a spec");
+        let spec = parser.spec(spec_index);
         let parent = stack.last_mut().unwrap();
-        parent.push_char(token_char);
+        parent.push_char(spec.start_token);
         for child in frame.children {
             parent.push_node(child);
         }
@@ -101,51 +229,24 @@ pub fn parse_inlines(text: &str) -> InlineContent {
     root.children
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FrameKind {
-    Root,
-    Strong,
-    Emphasis,
-    Code,
-    Math,
-}
-
-impl FrameKind {
-    fn from_char(ch: char) -> Option<Self> {
-        match ch {
-            '*' => Some(FrameKind::Strong),
-            '_' => Some(FrameKind::Emphasis),
-            '`' => Some(FrameKind::Code),
-            '#' => Some(FrameKind::Math),
-            _ => None,
-        }
-    }
-
-    fn token_char(self) -> Option<char> {
-        match self {
-            FrameKind::Strong => Some('*'),
-            FrameKind::Emphasis => Some('_'),
-            FrameKind::Code => Some('`'),
-            FrameKind::Math => Some('#'),
-            FrameKind::Root => None,
-        }
-    }
-
-    fn is_literal(self) -> bool {
-        matches!(self, FrameKind::Code | FrameKind::Math)
-    }
-}
-
 struct InlineFrame {
-    kind: FrameKind,
+    spec_index: Option<usize>,
     buffer: String,
     children: InlineContent,
 }
 
 impl InlineFrame {
-    fn new(kind: FrameKind) -> Self {
+    fn root() -> Self {
         Self {
-            kind,
+            spec_index: None,
+            buffer: String::new(),
+            children: Vec::new(),
+        }
+    }
+
+    fn new(spec_index: usize) -> Self {
+        Self {
+            spec_index: Some(spec_index),
             buffer: String::new(),
             children: Vec::new(),
         }
@@ -188,14 +289,19 @@ impl InlineFrame {
         }
     }
 
-    fn into_node(self) -> InlineNode {
-        match self.kind {
-            FrameKind::Root => panic!("Cannot convert root frame into inline node"),
-            FrameKind::Strong => InlineNode::Strong(self.children),
-            FrameKind::Emphasis => InlineNode::Emphasis(self.children),
-            FrameKind::Code => InlineNode::Code(flatten_literal(self.children)),
-            FrameKind::Math => InlineNode::Math(flatten_literal(self.children)),
+    fn into_node(self, spec: &InlineSpec) -> InlineNode {
+        match spec.kind {
+            InlineKind::Strong => InlineNode::Strong(self.children),
+            InlineKind::Emphasis => InlineNode::Emphasis(self.children),
+            InlineKind::Code => InlineNode::Code(flatten_literal(self.children)),
+            InlineKind::Math => InlineNode::Math(flatten_literal(self.children)),
         }
+    }
+
+    fn is_literal(&self, parser: &InlineParser) -> bool {
+        self.spec_index
+            .map(|index| parser.spec(index).literal)
+            .unwrap_or(false)
     }
 }
 
@@ -214,52 +320,43 @@ fn fatal_literal_content() -> ! {
     panic!("Literal inline nodes must not contain nested nodes");
 }
 
-#[derive(Default)]
 struct BlockedClosings {
-    strong: usize,
-    emphasis: usize,
+    counts: Vec<usize>,
 }
 
 impl BlockedClosings {
-    fn increment(&mut self, kind: FrameKind) {
-        match kind {
-            FrameKind::Strong => self.strong += 1,
-            FrameKind::Emphasis => self.emphasis += 1,
-            _ => {}
+    fn new(spec_len: usize) -> Self {
+        Self {
+            counts: vec![0; spec_len],
         }
     }
 
-    fn consume(&mut self, kind: FrameKind) -> bool {
-        match kind {
-            FrameKind::Strong => {
-                if self.strong > 0 {
-                    self.strong -= 1;
-                    true
-                } else {
-                    false
-                }
-            }
-            FrameKind::Emphasis => {
-                if self.emphasis > 0 {
-                    self.emphasis -= 1;
-                    true
-                } else {
-                    false
-                }
-            }
-            _ => false,
+    fn increment(&mut self, spec_index: usize) {
+        if let Some(slot) = self.counts.get_mut(spec_index) {
+            *slot += 1;
         }
+    }
+
+    fn consume(&mut self, spec_index: usize) -> bool {
+        if let Some(slot) = self.counts.get_mut(spec_index) {
+            if *slot > 0 {
+                *slot -= 1;
+                return true;
+            }
+        }
+        false
     }
 }
 
-fn is_valid_start(prev: Option<char>, next: Option<char>) -> bool {
+fn is_valid_start(prev: Option<char>, next: Option<char>, _spec: &InlineSpec) -> bool {
     !is_word(prev) && is_word(next)
 }
 
-fn is_valid_end(prev: Option<char>, next: Option<char>, token: FrameKind) -> bool {
-    let inside_valid = match token {
-        FrameKind::Code | FrameKind::Math => prev.is_some(),
-        _ => matches!(prev, Some(ch) if !ch.is_whitespace()),
+fn is_valid_end(prev: Option<char>, next: Option<char>, spec: &InlineSpec) -> bool {
+    let inside_valid = if spec.literal {
+        prev.is_some()
+    } else {
+        matches!(prev, Some(ch) if !ch.is_whitespace())
     };
 
     inside_valid && !is_word(next)
@@ -272,6 +369,7 @@ fn is_word(ch: Option<char>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lex::inlines::InlineNode;
 
     #[test]
     fn parses_plain_text() {
@@ -364,6 +462,31 @@ mod tests {
                 );
             }
             other => panic!("Unexpected node: {:?}", other),
+        }
+    }
+
+    fn annotate_strong(node: InlineNode) -> InlineNode {
+        match node {
+            InlineNode::Strong(mut children) => {
+                let mut annotated = vec![InlineNode::Plain("[strong]".into())];
+                annotated.append(&mut children);
+                InlineNode::Strong(annotated)
+            }
+            other => other,
+        }
+    }
+
+    #[test]
+    fn post_process_callback_transforms_node() {
+        let parser = InlineParser::new().with_post_processor(InlineKind::Strong, annotate_strong);
+        let nodes = parser.parse("*bold*");
+        assert_eq!(nodes.len(), 1);
+        match &nodes[0] {
+            InlineNode::Strong(children) => {
+                assert_eq!(children[0], InlineNode::Plain("[strong]".into()));
+                assert_eq!(children[1], InlineNode::Plain("bold".into()));
+            }
+            other => panic!("Unexpected inline node: {:?}", other),
         }
     }
 
