@@ -430,6 +430,7 @@ name = "lex-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "clap_complete",
  "lex-parser",
  "serde_json",
 ]
