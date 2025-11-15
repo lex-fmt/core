@@ -47,7 +47,7 @@ fn parse_to_ir(
     tokens: Vec<(Token, Range<usize>)>,
     source: &str,
 ) -> Result<ParseNode, TransformError> {
-    use crate::lex::lexing::transformations::line_token_grouping::GroupType;
+    use crate::lex::lexing::transformations::line_token_grouping::GroupedTokens;
     use crate::lex::lexing::transformations::LineTokenGroupingMapper;
     use crate::lex::parsing::parser;
     use crate::lex::token::line::LineToken;
@@ -60,16 +60,7 @@ fn parse_to_ir(
     // Convert grouped tokens to line tokens
     let line_tokens: Vec<LineToken> = grouped_tokens
         .into_iter()
-        .map(|g| {
-            let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
-                g.source_tokens.into_iter().unzip();
-            let GroupType::Line(line_type) = g.group_type;
-            LineToken {
-                source_tokens,
-                token_spans,
-                line_type,
-            }
-        })
+        .map(GroupedTokens::into_line_token)
         .collect();
 
     // Build LineContainer tree

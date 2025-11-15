@@ -10,7 +10,7 @@
 //! Converts: TokenStream::Flat → TokenStream::Grouped
 
 use crate::lex::lexing::line_grouping::group_into_lines;
-use crate::lex::token::{LineType, Token};
+use crate::lex::token::{LineToken, LineType, Token};
 use std::ops::Range as ByteRange;
 
 /// Transformation that groups flat tokens into line-based groups.
@@ -54,6 +54,20 @@ impl LineTokenGroupingMapper {
             .collect();
 
         grouped_tokens
+    }
+}
+
+impl GroupedTokens {
+    /// Convert grouped tokens into the canonical [`LineToken`] representation.
+    pub fn into_line_token(self) -> LineToken {
+        let (source_tokens, token_spans): (Vec<_>, Vec<_>) = self.source_tokens.into_iter().unzip();
+        let GroupType::Line(line_type) = self.group_type;
+
+        LineToken {
+            source_tokens,
+            token_spans,
+            line_type,
+        }
     }
 }
 

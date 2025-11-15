@@ -14,7 +14,7 @@ use super::parser;
 use crate::lex::building::ast_tree::AstTreeBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::parsing::Document;
-use crate::lex::token::{to_line_container, LineContainer, LineToken, Token};
+use crate::lex::token::{to_line_container, LineContainer, Token};
 use std::ops::Range as ByteRange;
 
 /// Parse from grouped token stream (main entry point).
@@ -28,7 +28,7 @@ use std::ops::Range as ByteRange;
 ///
 /// # Returns
 /// A Document AST if successful
-use crate::lex::lexing::transformations::line_token_grouping::{GroupType, GroupedTokens};
+use crate::lex::lexing::transformations::line_token_grouping::GroupedTokens;
 
 pub fn parse_from_grouped_stream(
     grouped_tokens: Vec<GroupedTokens>,
@@ -37,16 +37,7 @@ pub fn parse_from_grouped_stream(
     // Convert grouped tokens to line tokens
     let line_tokens = grouped_tokens
         .into_iter()
-        .map(|g| {
-            let (source_tokens, token_spans): (Vec<_>, Vec<_>) =
-                g.source_tokens.into_iter().unzip();
-            let GroupType::Line(line_type) = g.group_type;
-            LineToken {
-                source_tokens,
-                token_spans,
-                line_type,
-            }
-        })
+        .map(GroupedTokens::into_line_token)
         .collect();
 
     // Build LineContainer tree from line tokens
