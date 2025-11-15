@@ -5,11 +5,12 @@
 //! citations on top of the same building blocks.
 
 mod citations;
-pub mod nodes;
 mod parser;
 mod references;
 
-pub use nodes::{InlineContent, InlineNode, PageFormat, ReferenceInline, ReferenceType};
+pub use crate::lex::ast::elements::nodes::{
+    InlineContent, InlineNode, PageFormat, ReferenceInline, ReferenceType,
+};
 pub use parser::{
     parse_inlines, parse_inlines_with_parser, InlineKind, InlineParser, InlinePostProcessor,
     InlineSpec,
