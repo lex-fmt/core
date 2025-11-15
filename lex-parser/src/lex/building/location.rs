@@ -57,20 +57,33 @@ pub(super) fn byte_range_to_ast_range(range: ByteRange<usize>, source: &str) -> 
 ///
 /// Note: This function is public for use by parser implementations.
 pub fn compute_location_from_locations(locations: &[Range]) -> Range {
-    use crate::lex::ast::range::Position;
-    let start_line = locations.iter().map(|sp| sp.start.line).min().unwrap_or(0);
-    let start_col = locations
-        .iter()
-        .map(|sp| sp.start.column)
-        .min()
-        .unwrap_or(0);
-    let end_line = locations.iter().map(|sp| sp.end.line).max().unwrap_or(0);
-    let end_col = locations.iter().map(|sp| sp.end.column).max().unwrap_or(0);
-    Range::new(
-        0..0, // This is an aggregated range, the original spans may not be contiguous
-        Position::new(start_line, start_col),
-        Position::new(end_line, end_col),
-    )
+    if locations.is_empty() {
+        return Range::default();
+    }
+
+    let first = &locations[0];
+    let mut start_pos = first.start;
+    let mut start_byte = first.span.start;
+    let mut end_pos = first.end;
+    let mut end_byte = first.span.end;
+
+    for loc in &locations[1..] {
+        if loc.start < start_pos {
+            start_pos = loc.start;
+            start_byte = loc.span.start;
+        } else if loc.start == start_pos {
+            start_byte = start_byte.min(loc.span.start);
+        }
+
+        if loc.end > end_pos {
+            end_pos = loc.end;
+            end_byte = loc.span.end;
+        } else if loc.end == end_pos {
+            end_byte = end_byte.max(loc.span.end);
+        }
+    }
+
+    Range::new(start_byte..end_byte, start_pos, end_pos)
 }
 
 /// Aggregate location from a primary location and child content items
@@ -97,5 +110,54 @@ pub fn default_location() -> Range {
         span: 0..0,
         start: crate::lex::ast::range::Position { line: 0, column: 0 },
         end: crate::lex::ast::range::Position { line: 0, column: 0 },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lex::ast::range::Position;
+
+    fn mk_range(span: std::ops::Range<usize>, start: (usize, usize), end: (usize, usize)) -> Range {
+        Range::new(
+            span,
+            Position::new(start.0, start.1),
+            Position::new(end.0, end.1),
+        )
+    }
+
+    #[test]
+    fn compute_location_respects_order() {
+        let locations = vec![
+            mk_range(5..10, (2, 3), (2, 7)),
+            mk_range(1..4, (1, 0), (1, 4)),
+            mk_range(10..15, (3, 0), (3, 2)),
+        ];
+
+        let result = compute_location_from_locations(&locations);
+
+        assert_eq!(result.start, Position::new(1, 0));
+        assert_eq!(result.end, Position::new(3, 2));
+        assert_eq!(result.span, 1..15);
+    }
+
+    #[test]
+    fn compute_location_handles_ties() {
+        let locations = vec![
+            mk_range(2..5, (0, 2), (0, 5)),
+            mk_range(1..3, (0, 2), (0, 3)),
+        ];
+
+        let result = compute_location_from_locations(&locations);
+        assert_eq!(result.start, Position::new(0, 2));
+        assert_eq!(result.span.start, 1);
+        assert_eq!(result.end, Position::new(0, 5));
+        assert_eq!(result.span.end, 5);
+    }
+
+    #[test]
+    fn compute_location_empty_returns_default() {
+        let result = compute_location_from_locations(&[]);
+        assert_eq!(result, Range::default());
     }
 }
