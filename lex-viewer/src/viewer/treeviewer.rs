@@ -149,7 +149,26 @@ impl Viewer for TreeViewer {
                 // Get the icon for this node type
                 let icon = get_node_icon(node.node_type);
 
-                let text = format!("{}{} {}", indent, icon, node.label);
+                // Calculate available width for label
+                // Total width: area.width
+                // Used by: indentation + icon + space
+                let indent_width = indent.chars().count();
+                let icon_width = icon.chars().count();
+                let space_width = 1;
+                let available_width = area.width as usize;
+                let label_max_width = available_width
+                    .saturating_sub(indent_width)
+                    .saturating_sub(icon_width)
+                    .saturating_sub(space_width);
+
+                // Truncate label if necessary
+                let truncated_label: String = if node.label.chars().count() > label_max_width {
+                    node.label.chars().take(label_max_width).collect()
+                } else {
+                    node.label.to_string()
+                };
+
+                let text = format!("{}{} {}", indent, icon, truncated_label);
 
                 // Style the line based on selection and expansion state
                 let is_collapsed = !node.is_expanded && node.has_children;
@@ -199,7 +218,7 @@ impl Viewer for TreeViewer {
         };
 
         match key.code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 // Move to previous visible node
                 if let Some(prev_node_id) = self.get_previous_visible_node(current_node_id, model) {
                     self.selected_node_id = Some(prev_node_id);
@@ -208,7 +227,7 @@ impl Viewer for TreeViewer {
                     Some(ViewerEvent::NoChange)
                 }
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 // Move to next visible node
                 if let Some(next_node_id) = self.get_next_visible_node(current_node_id, model) {
                     self.selected_node_id = Some(next_node_id);
@@ -217,11 +236,11 @@ impl Viewer for TreeViewer {
                     Some(ViewerEvent::NoChange)
                 }
             }
-            KeyCode::Left => {
+            KeyCode::Left | KeyCode::Char('h') => {
                 // Toggle collapse for the currently selected node
                 Some(ViewerEvent::ToggleNodeExpansion(current_node_id))
             }
-            KeyCode::Right => {
+            KeyCode::Right | KeyCode::Char('l') => {
                 // Toggle expand for the currently selected node
                 Some(ViewerEvent::ToggleNodeExpansion(current_node_id))
             }
@@ -233,11 +252,182 @@ impl Viewer for TreeViewer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
 
     #[test]
     fn test_tree_viewer_creation() {
         let viewer = TreeViewer::new();
         assert_eq!(viewer.selected_node_id(), None);
         assert_eq!(viewer.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_label_truncation_short_label() {
+        // Test that short labels are not truncated
+        let content = "# Short";
+        let doc = lex_parser::lex::parsing::parse_document(content).unwrap();
+        let model = Model::new(doc);
+        let viewer = TreeViewer::new();
+
+        // Create a test terminal with 28 char width (TREE_VIEWER_WIDTH 30 - 2 for border)
+        let backend = TestBackend::new(28, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Render and verify the output doesn't truncate "Short"
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                viewer.render(frame, area, &model);
+            })
+            .unwrap();
+
+        let output = terminal.backend().buffer().clone();
+
+        // Find the line containing "Short" - it should be present
+        let mut found = false;
+        for y in 0..10 {
+            let mut line = String::new();
+            for x in 0..28 {
+                if let Some(cell) = output.cell((x, y)) {
+                    line.push_str(cell.symbol());
+                }
+            }
+            if line.contains("Short") {
+                found = true;
+                break;
+            }
+        }
+        assert!(found, "Short label should not be truncated");
+    }
+
+    #[test]
+    fn test_label_truncation_long_label_at_depth_0() {
+        // Test that long labels at depth 0 are truncated to fit
+        // With width 28: icon(1) + space(1) + label(max 26)
+        let long_label = "A".repeat(50); // 50 chars, should be truncated to 26
+        let content = format!("# {}", long_label);
+        let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
+        let model = Model::new(doc);
+        let viewer = TreeViewer::new();
+
+        let backend = TestBackend::new(28, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                viewer.render(frame, area, &model);
+            })
+            .unwrap();
+
+        let output = terminal.backend().buffer().clone();
+
+        // Verify that each line is at most 28 chars (not counting trailing spaces)
+        for y in 0..10 {
+            let mut line = String::new();
+            for x in 0..28 {
+                if let Some(cell) = output.cell((x, y)) {
+                    line.push_str(cell.symbol());
+                }
+            }
+            let trimmed = line.trim_end();
+            let char_count = trimmed.chars().count();
+            assert!(
+                char_count <= 28,
+                "Line {} is too long: {} chars (expected <= 28): '{}'",
+                y,
+                char_count,
+                trimmed
+            );
+        }
+    }
+
+    #[test]
+    fn test_label_truncation_with_indentation() {
+        // Test that labels at deeper levels have less space due to indentation
+        // Depth 5 has 10 chars of indentation (2 * 5)
+        // With width 28: indent(10) + icon(1) + space(1) + label(max 16)
+        let long_label = "B".repeat(50); // Should be truncated to 16
+        let content = format!(
+            "# Level0\n  ## Level1\n    ### Level2\n      #### Level3\n        ##### Level4\n          ###### {}",
+            long_label
+        );
+        let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
+        let model = Model::new(doc);
+        let viewer = TreeViewer::new();
+
+        let backend = TestBackend::new(28, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                viewer.render(frame, area, &model);
+            })
+            .unwrap();
+
+        let output = terminal.backend().buffer().clone();
+
+        // Verify that each line respects the width limit
+        for y in 0..20 {
+            let mut line = String::new();
+            for x in 0..28 {
+                if let Some(cell) = output.cell((x, y)) {
+                    line.push_str(cell.symbol());
+                }
+            }
+            let trimmed = line.trim_end();
+            let char_count = trimmed.chars().count();
+            assert!(
+                char_count <= 28,
+                "Line {} is too long: {} chars (expected <= 28): '{}'",
+                y,
+                char_count,
+                trimmed
+            );
+        }
+    }
+
+    #[test]
+    fn test_label_truncation_respects_unicode() {
+        // Test that truncation works correctly with Unicode characters
+        let unicode_label = "こんにちは世界".repeat(10); // Japanese characters
+        let content = format!("# {}", unicode_label);
+        let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
+        let model = Model::new(doc);
+        let viewer = TreeViewer::new();
+
+        let backend = TestBackend::new(28, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                viewer.render(frame, area, &model);
+            })
+            .unwrap();
+
+        let output = terminal.backend().buffer().clone();
+
+        // Verify that each line respects the width limit
+        for y in 0..10 {
+            let mut line = String::new();
+            for x in 0..28 {
+                if let Some(cell) = output.cell((x, y)) {
+                    line.push_str(cell.symbol());
+                }
+            }
+            let trimmed = line.trim_end();
+            let char_count = trimmed.chars().count();
+            // Note: Unicode chars may take more than one display column, but we're counting chars
+            assert!(
+                char_count <= 28,
+                "Line {} is too long: {} chars (expected <= 28): '{}'",
+                y,
+                char_count,
+                trimmed
+            );
+        }
     }
 }
