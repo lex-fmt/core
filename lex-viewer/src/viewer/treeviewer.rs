@@ -270,8 +270,8 @@ mod tests {
         let model = Model::new(doc);
         let viewer = TreeViewer::new();
 
-        // Create a test terminal with 30 char width for tree viewer
-        let backend = TestBackend::new(30, 10);
+        // Create a test terminal with 28 char width (TREE_VIEWER_WIDTH 30 - 2 for border)
+        let backend = TestBackend::new(28, 10);
         let mut terminal = Terminal::new(backend).unwrap();
 
         // Render and verify the output doesn't truncate "Short"
@@ -288,7 +288,7 @@ mod tests {
         let mut found = false;
         for y in 0..10 {
             let mut line = String::new();
-            for x in 0..30 {
+            for x in 0..28 {
                 if let Some(cell) = output.cell((x, y)) {
                     line.push_str(cell.symbol());
                 }
@@ -304,14 +304,14 @@ mod tests {
     #[test]
     fn test_label_truncation_long_label_at_depth_0() {
         // Test that long labels at depth 0 are truncated to fit
-        // With width 30: icon(1) + space(1) + label(max 28)
-        let long_label = "A".repeat(50); // 50 chars, should be truncated to 28
+        // With width 28: icon(1) + space(1) + label(max 26)
+        let long_label = "A".repeat(50); // 50 chars, should be truncated to 26
         let content = format!("# {}", long_label);
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
         let model = Model::new(doc);
         let viewer = TreeViewer::new();
 
-        let backend = TestBackend::new(30, 10);
+        let backend = TestBackend::new(28, 10);
         let mut terminal = Terminal::new(backend).unwrap();
 
         terminal
@@ -323,10 +323,10 @@ mod tests {
 
         let output = terminal.backend().buffer().clone();
 
-        // Verify that each line is at most 30 chars (not counting trailing spaces)
+        // Verify that each line is at most 28 chars (not counting trailing spaces)
         for y in 0..10 {
             let mut line = String::new();
-            for x in 0..30 {
+            for x in 0..28 {
                 if let Some(cell) = output.cell((x, y)) {
                     line.push_str(cell.symbol());
                 }
@@ -334,8 +334,8 @@ mod tests {
             let trimmed = line.trim_end();
             let char_count = trimmed.chars().count();
             assert!(
-                char_count <= 30,
-                "Line {} is too long: {} chars (expected <= 30): '{}'",
+                char_count <= 28,
+                "Line {} is too long: {} chars (expected <= 28): '{}'",
                 y,
                 char_count,
                 trimmed
@@ -347,8 +347,8 @@ mod tests {
     fn test_label_truncation_with_indentation() {
         // Test that labels at deeper levels have less space due to indentation
         // Depth 5 has 10 chars of indentation (2 * 5)
-        // With width 30: indent(10) + icon(1) + space(1) + label(max 18)
-        let long_label = "B".repeat(50); // Should be truncated to 18
+        // With width 28: indent(10) + icon(1) + space(1) + label(max 16)
+        let long_label = "B".repeat(50); // Should be truncated to 16
         let content = format!(
             "# Level0\n  ## Level1\n    ### Level2\n      #### Level3\n        ##### Level4\n          ###### {}",
             long_label
@@ -357,7 +357,7 @@ mod tests {
         let model = Model::new(doc);
         let viewer = TreeViewer::new();
 
-        let backend = TestBackend::new(30, 20);
+        let backend = TestBackend::new(28, 20);
         let mut terminal = Terminal::new(backend).unwrap();
 
         terminal
@@ -372,7 +372,7 @@ mod tests {
         // Verify that each line respects the width limit
         for y in 0..20 {
             let mut line = String::new();
-            for x in 0..30 {
+            for x in 0..28 {
                 if let Some(cell) = output.cell((x, y)) {
                     line.push_str(cell.symbol());
                 }
@@ -380,8 +380,8 @@ mod tests {
             let trimmed = line.trim_end();
             let char_count = trimmed.chars().count();
             assert!(
-                char_count <= 30,
-                "Line {} is too long: {} chars (expected <= 30): '{}'",
+                char_count <= 28,
+                "Line {} is too long: {} chars (expected <= 28): '{}'",
                 y,
                 char_count,
                 trimmed
@@ -398,7 +398,7 @@ mod tests {
         let model = Model::new(doc);
         let viewer = TreeViewer::new();
 
-        let backend = TestBackend::new(30, 10);
+        let backend = TestBackend::new(28, 10);
         let mut terminal = Terminal::new(backend).unwrap();
 
         terminal
@@ -413,7 +413,7 @@ mod tests {
         // Verify that each line respects the width limit
         for y in 0..10 {
             let mut line = String::new();
-            for x in 0..30 {
+            for x in 0..28 {
                 if let Some(cell) = output.cell((x, y)) {
                     line.push_str(cell.symbol());
                 }
@@ -422,8 +422,8 @@ mod tests {
             let char_count = trimmed.chars().count();
             // Note: Unicode chars may take more than one display column, but we're counting chars
             assert!(
-                char_count <= 30,
-                "Line {} is too long: {} chars (expected <= 30): '{}'",
+                char_count <= 28,
+                "Line {} is too long: {} chars (expected <= 28): '{}'",
                 y,
                 char_count,
                 trimmed
