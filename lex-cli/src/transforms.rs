@@ -7,16 +7,19 @@ use lex_parser::lex::formats::{serialize_ast_tag, to_treeviz_str};
 use lex_parser::lex::lexing::transformations::line_token_grouping::GroupedTokens;
 use lex_parser::lex::lexing::transformations::LineTokenGroupingMapper;
 use lex_parser::lex::loader::DocumentLoader;
-use lex_parser::lex::token::LineToken;
+use lex_parser::lex::token::{to_line_container, LineContainer, LineToken};
 use lex_parser::lex::transforms::standard::{CORE_TOKENIZATION, LEXING, TO_IR};
 
 /// All available CLI transforms (stage + format combinations)
 pub const AVAILABLE_TRANSFORMS: &[&str] = &[
     "token-core-json",
     "token-core-simple",
+    "token-core-pprint",
     "token-simple", // alias for token-core-simple
+    "token-pprint", // alias for token-core-pprint
     "token-line-json",
     "token-line-simple",
+    "token-line-pprint",
     "ir-json",
     "ast-json",
     "ast-tag",
@@ -40,6 +43,12 @@ pub fn execute_transform(source: &str, transform_name: &str) -> Result<String, S
                 .with(&CORE_TOKENIZATION)
                 .map_err(|e| format!("Transform failed: {}", e))?;
             Ok(tokens_to_simple(&tokens))
+        }
+        "token-core-pprint" | "token-pprint" => {
+            let tokens = loader
+                .with(&CORE_TOKENIZATION)
+                .map_err(|e| format!("Transform failed: {}", e))?;
+            Ok(tokens_to_pprint(&tokens))
         }
         "token-line-json" => {
             let tokens = loader
@@ -67,6 +76,18 @@ pub fn execute_transform(source: &str, transform_name: &str) -> Result<String, S
                 .map(GroupedTokens::into_line_token)
                 .collect();
             Ok(line_tokens_to_simple(&line_tokens))
+        }
+        "token-line-pprint" => {
+            let tokens = loader
+                .with(&LEXING)
+                .map_err(|e| format!("Transform failed: {}", e))?;
+            let mut mapper = LineTokenGroupingMapper::new();
+            let grouped = mapper.map(tokens);
+            let line_tokens: Vec<LineToken> = grouped
+                .into_iter()
+                .map(GroupedTokens::into_line_token)
+                .collect();
+            Ok(line_tokens_to_pprint(&line_tokens))
         }
         "ir-json" => {
             let ir = loader
@@ -124,6 +145,20 @@ fn tokens_to_simple(tokens: &[(lex_parser::lex::token::Token, std::ops::Range<us
         .join("\n")
 }
 
+fn tokens_to_pprint(tokens: &[(lex_parser::lex::token::Token, std::ops::Range<usize>)]) -> String {
+    use lex_parser::lex::token::Token;
+
+    let mut output = String::new();
+    for (token, _) in tokens {
+        output.push_str(token.simple_name());
+        output.push('\n');
+        if matches!(token, Token::BlankLine(_)) {
+            output.push('\n');
+        }
+    }
+    output
+}
+
 /// Convert line tokens into a JSON-friendly structure
 fn line_tokens_to_json(line_tokens: &[LineToken]) -> serde_json::Value {
     use serde_json::json;
@@ -156,6 +191,30 @@ fn line_tokens_to_simple(line_tokens: &[LineToken]) -> String {
         .map(|line| line.line_type.to_string())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn line_tokens_to_pprint(line_tokens: &[LineToken]) -> String {
+    let container = to_line_container::build_line_container(line_tokens.to_vec());
+    let mut output = String::new();
+    render_line_tree(&container, 0, true, &mut output);
+    output
+}
+
+fn render_line_tree(node: &LineContainer, depth: usize, is_root: bool, output: &mut String) {
+    match node {
+        LineContainer::Token(line) => {
+            let indent = "  ".repeat(depth);
+            output.push_str(&indent);
+            output.push_str(&line.line_type.to_string());
+            output.push('\n');
+        }
+        LineContainer::Container { children } => {
+            let next_depth = if is_root { depth } else { depth + 1 };
+            for child in children {
+                render_line_tree(child, next_depth, false, output);
+            }
+        }
+    }
 }
 
 /// Convert IR (ParseNode) to JSON-serializable format
@@ -212,5 +271,22 @@ mod tests {
 
         assert!(output.contains("SUBJECT_LINE"));
         assert!(output.contains("PARAGRAPH_LINE"));
+    }
+
+    #[test]
+    fn token_pprint_inserts_blank_line() {
+        let source = "Hello\n\nWorld\n";
+        let output = execute_transform(source, "token-pprint").expect("transform to run");
+
+        assert!(output.contains("BLANK_LINE\n\n"));
+    }
+
+    #[test]
+    fn token_line_pprint_indents_children() {
+        let source = "Session:\n    Content\n";
+        let output = execute_transform(source, "token-line-pprint").expect("transform to run");
+
+        assert!(output.contains("SUBJECT_LINE"));
+        assert!(output.contains("  PARAGRAPH_LINE"));
     }
 }
