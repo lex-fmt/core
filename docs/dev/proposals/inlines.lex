@@ -24,13 +24,61 @@
 		- The `content` is the text to be affected.
 		- There must be no whitespace between the tokens and the content.
 
-		Example:
-			*strong text*
+		Multi-Character Delimiters:
+
+		Tokens can be composed of multiple characters of the same type. Different token lengths create distinct inline types with different semantics.
+
+		Examples:
+			*emphasis*        :: Single asterisk for emphasis ::
+			**strong**        :: Double asterisk for strong ::
+			***strong em***   :: Triple asterisk (parsed as strong containing emphasis) ::
+		:: lex ::
+
+		Delimiter Run Handling:
+
+		When multiple delimiter characters appear consecutively, they are parsed using a longest-match-first strategy within each inline category:
+
+		1. The parser identifies a run of delimiter characters (e.g., `***`)
+		2. It attempts to match the longest defined delimiter first (e.g., `**` before `*`)
+		3. If a matching closing delimiter is found, that inline is created
+		4. Remaining characters are processed recursively
+
+		This enables natural nesting patterns while maintaining parsing clarity:
+			***text***     :: Parsed as ** (strong) containing * (emphasis) ::
+			****text****   :: Parsed as ** (strong) containing ** (strong) - invalid due to same-type nesting rule ::
+			**a *b* c**    :: Parsed as strong containing emphasis ::
+		:: lex ::
+
+		Examples:
+			*emphasis text*
+			**strong text**
 			`code text`
 			[a reference]
 		:: lex ::
 
-	3.2. Delimiter Recognition Rule
+	3.2. Escape Sequences
+
+		To allow literal use of delimiter characters, Lex supports backslash escaping. A backslash (`\`) before any non-alphanumeric character treats that character as literal text rather than a delimiter.
+
+		Escape Rules:
+
+		- `\` followed by a non-alphanumeric character produces that literal character
+		- The backslash itself is not included in the output
+		- To produce a literal backslash, use `\\`
+		- Backslashes before alphanumeric characters are treated as literal backslashes (reserved for potential future use)
+		- Escaping works everywhere in text content, including within inline elements
+
+		Examples:
+			\*not emphasis\*         :: Renders as: *not emphasis* ::
+			7 \* 8 = 56             :: Renders as: 7 * 8 = 56 ::
+			Use \[brackets\]        :: Renders as: Use [brackets] ::
+			Path: C:\\Users\\name   :: Renders as: Path: C:\Users\name ::
+			**strong with \*asterisk\***  :: Renders strong text containing a literal asterisk ::
+		:: lex ::
+
+		This mechanism ensures that any text can be represented, even text that would otherwise conflict with inline syntax.
+
+	3.3. Delimiter Recognition Rule
 
 		To distinguish inline delimiters from literal punctuation (e.g., `7 * 8`), a precise recognition rule is required. A token is only treated as a delimiter if it is adjacent to a "word character" (alphanumeric) on the inside and "non-word" context on the outside.
 
@@ -44,21 +92,21 @@
 			word*s*           :: Invalid - start token is preceded by a word char ::
 		:: lex ::
 
-	3.3. Element Categories & Nesting
+	3.4. Element Categories & Nesting
 
 		Inline elements are grouped into categories that also define their nesting behavior.
 
-		1.  Formatting: For visual and semantic emphasis (e.g., `*strong*`, `_emphasis_`). These elements can contain other inline elements, enabling multi-level formatting.
+		1.  Formatting: For visual and semantic emphasis (e.g., `**strong**`, `*emphasis*`). These elements can contain other inline elements, enabling multi-level formatting.
 		2.  Literal: For content that should not be parsed further (e.g., `` `code` ``, `#math#`). These elements cannot contain other inlines.
 		3.  References: For links, citations, and footnotes (e.g., `[target]`, `[@key]`). Their content has a specialized, non-recursive grammar.
 
 		The ability for formatting elements to contain others is the foundation of multi-level inlines. The parser will recursively process the content of an inline, allowing for rich combinations.
 
 		Example of valid nesting:
-			*strong and _emphasized_ text*
+			**strong with *emphasis* inside**
 		:: lex ::
 
-	3.4. Universal Rules
+	3.5. Universal Rules
 
 		All inline elements adhere to the following rules:
 		- No Empty Content: `` is invalid.
@@ -66,15 +114,16 @@
 		- No Crossing Inlines: `*a _b* c_` is invalid.
 		- No Same-Type Nesting: `*outer *inner* text*` is invalid.
 
-	3.5. Parsing Priority
+	3.6. Parsing Priority
 
 		To resolve ambiguity, inline elements are parsed in a specific order of precedence:
-		1.  `Literal` elements (`Code`, `Math`)
-		2.  `References`
-		3.  `Formatting` elements (`Strong`, `Emphasis`, etc.)
-		4.  `Plain Text` (the fallback)
+		1.  `Escape sequences` (processed first, before any delimiter recognition)
+		2.  `Literal` elements (`Code`, `Math`)
+		3.  `References`
+		4.  `Formatting` elements (`Strong`, `Emphasis`, etc.)
+		5.  `Plain Text` (the fallback)
 
-	3.6. Graceful Degradation
+	3.7. Graceful Degradation
 
 		In keeping with Lex's philosophy, malformed inline syntax does not produce an error. If a start token is found but a valid end token is not, the start token is treated as a literal character.
 
@@ -148,11 +197,11 @@
 	5.1 Flat Inlines
 
 		The initial implementation will focus on the foundational formatting elements:
-  
-		- Strong (`*content*`)
-		- Emphasis (`_content_`)
+
+		- Emphasis (`*content*` or `_content_`)
+		- Strong (`**content**` or `__content__`)
 		- Code (`` `content` ``)
-		- Math (#math#)
+		- Math (`#content#`)
 
 		In this release we will write specific ast assertions for the inlines, as in lex-parser/src/lex/testing/ast_assertions/assertions . 
         The goal here would be to assert quickie . Say this string "Welcome to **the** party" when taking the ast node you should beb able to say assert_inlines({"plain": "Welcome "}, {"strong":"the"}, {"plain": " party"}). that is that , in order you will break the text into these nodes, (the assertion should only match if the string starts with, no need to full match.)
