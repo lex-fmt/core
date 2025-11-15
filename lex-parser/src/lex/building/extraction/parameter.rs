@@ -37,7 +37,7 @@ pub(super) fn parse_parameter(
     let mut i = start_idx;
 
     // Skip leading whitespace and commas
-    while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace | Token::Comma) {
+    while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace(_) | Token::Comma) {
         i += 1;
     }
 
@@ -62,7 +62,7 @@ pub(super) fn parse_parameter(
     }
 
     // Skip whitespace after key
-    while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
+    while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace(_)) {
         i += 1;
     }
 
@@ -71,7 +71,7 @@ pub(super) fn parse_parameter(
         i += 1; // Skip '='
 
         // Skip whitespace after '='
-        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace) {
+        while i < tokens.len() && matches!(tokens[i].0, Token::Whitespace(_)) {
             i += 1;
         }
 
@@ -98,10 +98,11 @@ pub(super) fn parse_parameter(
             while i < tokens.len() {
                 match &tokens[i].0 {
                     Token::Comma | Token::LexMarker | Token::BlankLine(_) => break,
-                    Token::Whitespace => {
+                    Token::Whitespace(_) => {
                         // Check if there's a comma, LexMarker, or BlankLine after whitespace
                         let mut peek = i + 1;
-                        while peek < tokens.len() && matches!(tokens[peek].0, Token::Whitespace) {
+                        while peek < tokens.len() && matches!(tokens[peek].0, Token::Whitespace(_))
+                        {
                             peek += 1;
                         }
                         if peek < tokens.len()

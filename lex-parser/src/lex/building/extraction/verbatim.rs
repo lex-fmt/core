@@ -419,7 +419,7 @@ mod tests {
         let mut parts = Vec::new();
         for _ in 0..indent_spaces {
             let range = builder.push(" ");
-            parts.push((Token::Whitespace, range));
+            parts.push((Token::Whitespace(1), range));
         }
         if !text.is_empty() {
             let range = builder.push(text);
@@ -543,7 +543,7 @@ mod tests {
         // A single space (column 1) followed by text should trigger fullwidth
         let mut parts = Vec::new();
         let range = builder.push(" "); // Single space at column 1
-        parts.push((Token::Whitespace, range));
+        parts.push((Token::Whitespace(1), range));
         let range = builder.push("Content\twith\ttabs");
         parts.push((Token::Text("Content\twith\ttabs".to_string()), range));
         let range = builder.push("\n");

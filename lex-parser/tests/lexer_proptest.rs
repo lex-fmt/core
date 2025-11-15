@@ -107,7 +107,7 @@ proptest! {
         for (token, _) in tokens {
             match token {
                 Token::LexMarker | Token::Indentation | Token::Indent(_) | Token::Dedent(_) |
-                Token::BlankLine(_) | Token::Whitespace | Token::Dash | Token::Period |
+                Token::BlankLine(_) | Token::Whitespace(_) | Token::Dash | Token::Period |
                 Token::OpenParen | Token::CloseParen | Token::Colon | Token::ExclamationMark |
                 Token::QuestionMark | Token::Semicolon | Token::InvertedExclamationMark |
                 Token::InvertedQuestionMark | Token::Ellipsis | Token::IdeographicFullStop |

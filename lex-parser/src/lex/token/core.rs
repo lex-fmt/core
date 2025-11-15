@@ -28,8 +28,9 @@ pub enum Token {
     BlankLine(Option<String>),
 
     // Whitespace (excluding newlines and indentation)
-    #[regex(r" {1,3}", priority = 1)] // 1-3 spaces only, lower priority than indentation
-    Whitespace,
+    #[regex(r" {1,3}", |lex| Some(lex.slice().len()), priority = 1)]
+    // 1-3 spaces only, lower priority than indentation
+    Whitespace(usize),
 
     // Sequence markers
     #[token("-")]
@@ -130,7 +131,7 @@ impl fmt::Display for Token {
             Token::Indent(_) => "indent",
             Token::Dedent(_) => "dedent",
             Token::BlankLine(_) => "blank-line",
-            Token::Whitespace => "whitespace",
+            Token::Whitespace(_) => "whitespace",
             Token::Dash => "dash",
             Token::Period => "period",
             Token::OpenParen => "open-paren",
@@ -179,7 +180,7 @@ impl Token {
             Token::Indent(_) => "INDENT",
             Token::Dedent(_) => "DEDENT",
             Token::BlankLine(_) => "BLANK_LINE",
-            Token::Whitespace => "WHITESPACE",
+            Token::Whitespace(_) => "WHITESPACE",
             Token::Dash => "DASH",
             Token::Period => "PERIOD",
             Token::OpenParen => "OPEN_PAREN",
@@ -240,7 +241,7 @@ impl Token {
                 | Token::Indent(_)
                 | Token::Dedent(_)
                 | Token::BlankLine(_)
-                | Token::Whitespace
+                | Token::Whitespace(_)
         )
     }
 
@@ -328,13 +329,13 @@ mod tests {
             tokens,
             vec![
                 Token::Dash,
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Period,
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::OpenParen,
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::CloseParen,
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Colon
             ]
         );
@@ -350,7 +351,7 @@ mod tests {
             tokens,
             vec![
                 Token::Text("hello".to_string()),
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Text("world".to_string())
             ]
         );
@@ -367,16 +368,16 @@ mod tests {
             vec![
                 Token::Number("1".to_string()),
                 Token::Period,
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Text("Hello".to_string()),
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Text("world".to_string()),
                 Token::BlankLine(Some("\n".to_string())),
                 Token::Indentation,
                 Token::Dash,
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Text("Item".to_string()),
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Number("1".to_string()),
             ]
         );
@@ -389,7 +390,7 @@ mod tests {
             tokens,
             vec![
                 Token::Number("123".to_string()),
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Number("456".to_string())
             ]
         );
@@ -406,7 +407,7 @@ mod tests {
         assert!(Token::Indent(vec![]).is_whitespace());
         assert!(Token::Dedent(vec![]).is_whitespace());
         assert!(Token::BlankLine(Some("".to_string())).is_whitespace());
-        assert!(Token::Whitespace.is_whitespace());
+        assert!(Token::Whitespace(1).is_whitespace());
         assert!(!Token::Text("".to_string()).is_whitespace());
 
         assert!(Token::Dash.is_sequence_marker());

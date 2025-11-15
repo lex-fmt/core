@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn test_normalize_line_token() {
         let token = make_line_token(
-            vec![Token::Text("hello".to_string()), Token::Whitespace],
+            vec![Token::Text("hello".to_string()), Token::Whitespace(1)],
             vec![0..5, 5..6],
         );
 
@@ -183,7 +183,7 @@ mod tests {
         assert_eq!(normalized.len(), 2);
         assert!(matches!(normalized[0].0, Token::Text(_)));
         assert_eq!(normalized[0].1, 0..5);
-        assert!(matches!(normalized[1].0, Token::Whitespace));
+        assert!(matches!(normalized[1].0, Token::Whitespace(_)));
         assert_eq!(normalized[1].1, 5..6);
     }
 
@@ -209,7 +209,7 @@ mod tests {
         let token_lines = vec![
             vec![
                 (Token::Text("hello".to_string()), 0..5),
-                (Token::Whitespace, 5..6),
+                (Token::Whitespace(1), 5..6),
             ],
             vec![
                 (Token::Text("world".to_string()), 6..11),
@@ -230,7 +230,7 @@ mod tests {
     fn test_normalize_token_pairs() {
         let tokens = vec![
             (Token::Text("test".to_string()), 0..4),
-            (Token::Whitespace, 4..5),
+            (Token::Whitespace(1), 4..5),
         ];
 
         let normalized = normalize_token_pairs(&tokens);

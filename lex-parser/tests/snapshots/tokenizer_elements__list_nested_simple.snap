@@ -1,5 +1,5 @@
 ---
-source: tests/tokenizer_elements.rs
+source: lex-parser/tests/tokenizer_elements.rs
 expression: tokens
 ---
 [
@@ -40,7 +40,9 @@ expression: tokens
         8..9,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         9..10,
     ),
     (
@@ -50,7 +52,9 @@ expression: tokens
         10..15,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         15..16,
     ),
     (
@@ -60,7 +64,9 @@ expression: tokens
         16..21,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         21..22,
     ),
     (
@@ -88,7 +94,9 @@ expression: tokens
         29..30,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         30..31,
     ),
     (
@@ -98,7 +106,9 @@ expression: tokens
         31..37,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         37..38,
     ),
     (
@@ -108,7 +118,9 @@ expression: tokens
         38..43,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         43..44,
     ),
     (
@@ -136,7 +148,9 @@ expression: tokens
         52..53,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         53..54,
     ),
     (
@@ -146,7 +160,9 @@ expression: tokens
         54..59,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         59..60,
     ),
     (
@@ -156,7 +172,9 @@ expression: tokens
         60..65,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         65..66,
     ),
     (
