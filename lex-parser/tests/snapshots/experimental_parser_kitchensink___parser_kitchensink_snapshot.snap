@@ -1,20 +1,19 @@
 ---
 source: lex-parser/tests/experimental_parser_kitchensink.rs
-assertion_line: 17
 expression: snapshot
 ---
 Document with 16 root items:
 
 [0] Paragraph with 1 line(s):   [0] TextLine: Kitchensink Test Document {{paragraph}}
 [1] BlankLineGroup with 1 line(s)
-[2] Paragraph with 1 line(s):   [0] TextLine: This document includes all major features of the lex language to serve as a comprehensive "kitchensink" regression test for the parser. {{paragraph}}
+[2] Paragraph with 1 line(s):   [0] TextLine: This document includes *all major features* of the lex language to serve as a comprehensive "kitchensink" regression test for the parser, as noted in [@spec2025, pp. 45-46]. {{paragraph}}
 [3] BlankLineGroup with 1 line(s)
 [4] Paragraph with 2 line(s): 
   [0] TextLine: This is a two-lined paragraph.
-  [1] TextLine: First, a simple definition at the root level. {{paragraph}}
+  [1] TextLine: First, a simple _definition_ at the root level. {{paragraph}}
 [5] BlankLineGroup with 1 line(s)
 [6] Definition with 3 item(s):
-  [0] Paragraph with 1 line(s):     [0] TextLine: This definition contains a paragraph and a list to test mixed content at the top level. {{definition}}
+  [0] Paragraph with 1 line(s):     [0] TextLine: This definition contains a paragraph and a `list` to test mixed content at the top level. {{definition}}
   [1] BlankLineGroup with 1 line(s)
   [2] List with 2 item(s):
     [0] List item with 0 content item(s):

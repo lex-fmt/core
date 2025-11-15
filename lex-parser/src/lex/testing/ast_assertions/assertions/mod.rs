@@ -20,7 +20,7 @@ pub use data::DataAssertion;
 pub use definition::DefinitionAssertion;
 pub use document::DocumentAssertion;
 #[allow(unused_imports)]
-pub use inlines::{InlineAssertion, InlineExpectation};
+pub use inlines::{InlineAssertion, InlineExpectation, ReferenceExpectation};
 pub use list::{ListAssertion, ListItemAssertion};
 pub use paragraph::ParagraphAssertion;
 pub use session::SessionAssertion;

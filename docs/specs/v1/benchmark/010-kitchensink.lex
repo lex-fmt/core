@@ -1,15 +1,15 @@
 Kitchensink Test Document {{paragraph}}
 
-This document includes all major features of the lex language to serve as a comprehensive "kitchensink" regression test for the parser. {{paragraph}}
+This document includes *all major features* of the lex language to serve as a comprehensive "kitchensink" regression test for the parser, as noted in [@spec2025, pp. 45-46]. {{paragraph}}
 
 This is a two-lined paragraph.
-First, a simple definition at the root level. {{paragraph}}
+First, a simple _definition_ at the root level. {{paragraph}}
 
 Root Definition:
-    This definition contains a paragraph and a list to test mixed content at the top level. {{definition}}
+    This definition contains a paragraph and a `list` to test mixed content at the top level. {{definition}}
 
-    - Item 1 in definition {{list-item}}
-    - Item 2 in definition {{list-item}}
+    - Item 1 in definition referencing [TK-rootlist]. {{list-item}}
+    - Item 2 in definition with note [42]. {{list-item}}
 
 
 This is a marker annotation at the root level, attached to the definition above.
