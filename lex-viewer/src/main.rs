@@ -4,7 +4,7 @@
 
 mod viewer;
 
-use clap::{Arg, Command};
+use clap::{Arg, Command, ValueHint};
 use std::path::PathBuf;
 
 fn main() {
@@ -15,7 +15,8 @@ fn main() {
             Arg::new("path")
                 .help("Path to the lex document to open")
                 .required(true)
-                .index(1),
+                .index(1)
+                .value_hint(ValueHint::FilePath),
         )
         .get_matches();
 
