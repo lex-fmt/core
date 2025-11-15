@@ -81,7 +81,8 @@ fn handle_list_transforms_command() {
     println!("Formats:");
     println!("  json        - JSON output (all stages)");
     println!("  tag         - XML-like tag format (AST only)");
-    println!("  treeviz     - Tree visualization (AST only)\n");
+    println!("  treeviz     - Tree visualization (AST only)");
+    println!("  simple      - Plain text token names\n");
 
     println!("Available transform combinations:");
     for transform_name in transforms::AVAILABLE_TRANSFORMS {
