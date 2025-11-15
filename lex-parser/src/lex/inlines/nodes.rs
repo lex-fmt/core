@@ -19,6 +19,8 @@ pub enum InlineNode {
     Code(String),
     /// Simple math span delimited by `#`.
     Math(String),
+    /// Reference enclosed by square brackets.
+    Reference(ReferenceInline),
 }
 
 impl InlineNode {
@@ -44,4 +46,43 @@ impl InlineNode {
     pub fn is_plain(&self) -> bool {
         matches!(self, InlineNode::Plain(_))
     }
+}
+
+/// Reference inline node with raw content and classified type.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReferenceInline {
+    pub raw: String,
+    pub reference_type: ReferenceType,
+}
+
+impl ReferenceInline {
+    pub fn new(raw: String) -> Self {
+        Self {
+            raw,
+            reference_type: ReferenceType::NotSure,
+        }
+    }
+}
+
+/// Reference type classification derived from its content.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReferenceType {
+    /// `[TK]` or `[TK-identifier]`
+    ToCome { identifier: Option<String> },
+    /// `[@citation]` (parsed flat for now)
+    Citation { target: String },
+    /// `[^note]`
+    FootnoteLabeled { label: String },
+    /// `[12]`
+    FootnoteNumber { number: u32 },
+    /// `[#42]`
+    Session { target: String },
+    /// `[https://example.com]`
+    Url { target: String },
+    /// `[./file.txt]`
+    File { target: String },
+    /// `[Introduction]` or other document references.
+    General { target: String },
+    /// Unable to classify.
+    NotSure,
 }

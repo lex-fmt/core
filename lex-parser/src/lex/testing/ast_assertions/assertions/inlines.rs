@@ -1,7 +1,7 @@
 //! Inline content assertions used by parser tests.
 
 use crate::lex::ast::TextContent;
-use crate::lex::inlines::{InlineContent, InlineNode};
+use crate::lex::inlines::{InlineContent, InlineNode, ReferenceInline, ReferenceType};
 use crate::lex::testing::matchers::TextMatch;
 
 #[allow(dead_code)]
@@ -71,6 +71,7 @@ enum InlineExpectationKind {
     Emphasis(Vec<InlineExpectation>),
     Code(TextMatch),
     Math(TextMatch),
+    Reference(ReferenceExpectation),
 }
 
 #[allow(dead_code)]
@@ -119,6 +120,12 @@ impl InlineExpectation {
         }
     }
 
+    pub fn reference(expectation: ReferenceExpectation) -> Self {
+        Self {
+            kind: InlineExpectationKind::Reference(expectation),
+        }
+    }
+
     fn assert(&self, actual: &InlineNode, context: &str) {
         match (&self.kind, actual) {
             (InlineExpectationKind::Plain(matcher), InlineNode::Plain(text)) => {
@@ -135,6 +142,9 @@ impl InlineExpectation {
             }
             (InlineExpectationKind::Math(matcher), InlineNode::Math(text)) => {
                 matcher.assert(text, context);
+            }
+            (InlineExpectationKind::Reference(expectation), InlineNode::Reference(reference)) => {
+                expectation.assert(reference, context);
             }
             (expected, got) => panic!("{}: Expected inline {:?}, got {:?}", context, expected, got),
         }
@@ -153,6 +163,125 @@ fn assert_inline_children(actual: &InlineContent, expected: &[InlineExpectation]
     for (idx, expectation) in expected.iter().enumerate() {
         let child_context = format!("{}:child[{}]", context, idx);
         expectation.assert(&actual[idx], &child_context);
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct ReferenceExpectation {
+    expected: ReferenceTypeExpectation,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub enum ReferenceTypeExpectation {
+    Url(TextMatch),
+    File(TextMatch),
+    Citation(TextMatch),
+    Tk(Option<TextMatch>),
+    FootnoteLabeled(TextMatch),
+    FootnoteNumber(u32),
+    Session(TextMatch),
+    General(TextMatch),
+    NotSure,
+}
+
+#[allow(dead_code)]
+impl ReferenceExpectation {
+    pub fn url(target: TextMatch) -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::Url(target),
+        }
+    }
+
+    pub fn file(target: TextMatch) -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::File(target),
+        }
+    }
+
+    pub fn citation(target: TextMatch) -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::Citation(target),
+        }
+    }
+
+    pub fn tk(identifier: Option<TextMatch>) -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::Tk(identifier),
+        }
+    }
+
+    pub fn footnote_labeled(label: TextMatch) -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::FootnoteLabeled(label),
+        }
+    }
+
+    pub fn footnote_number(number: u32) -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::FootnoteNumber(number),
+        }
+    }
+
+    pub fn session(target: TextMatch) -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::Session(target),
+        }
+    }
+
+    pub fn general(target: TextMatch) -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::General(target),
+        }
+    }
+
+    pub fn not_sure() -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::NotSure,
+        }
+    }
+
+    fn assert(&self, actual: &ReferenceInline, context: &str) {
+        match (&self.expected, &actual.reference_type) {
+            (ReferenceTypeExpectation::Url(expected), ReferenceType::Url { target })
+            | (ReferenceTypeExpectation::File(expected), ReferenceType::File { target })
+            | (ReferenceTypeExpectation::Citation(expected), ReferenceType::Citation { target })
+            | (ReferenceTypeExpectation::Session(expected), ReferenceType::Session { target })
+            | (ReferenceTypeExpectation::General(expected), ReferenceType::General { target }) => {
+                expected.assert(target, context);
+            }
+            (
+                ReferenceTypeExpectation::Tk(expected_identifier),
+                ReferenceType::ToCome { identifier },
+            ) => match (expected_identifier, identifier) {
+                (None, None) => {}
+                (Some(matcher), Some(value)) => matcher.assert(value, context),
+                (None, Some(value)) => {
+                    panic!("{}: Expected TK without identifier, got {}", context, value)
+                }
+                (Some(_), None) => {
+                    panic!("{}: Expected TK with identifier, but none present", context)
+                }
+            },
+            (
+                ReferenceTypeExpectation::FootnoteLabeled(expected),
+                ReferenceType::FootnoteLabeled { label },
+            ) => expected.assert(label, context),
+            (
+                ReferenceTypeExpectation::FootnoteNumber(expected_number),
+                ReferenceType::FootnoteNumber { number },
+            ) => assert_eq!(
+                expected_number, number,
+                "{}: Expected footnote number {}, got {}",
+                context, expected_number, number
+            ),
+            (ReferenceTypeExpectation::NotSure, ReferenceType::NotSure) => {}
+            (expected, got) => panic!(
+                "{}: Expected reference {:?}, got {:?}",
+                context, expected, got
+            ),
+        }
     }
 }
 
@@ -178,5 +307,16 @@ mod tests {
         let content = TextContent::from_string("*value*".into(), None);
         InlineAssertion::new(&content, "paragraph.lines[0]")
             .starts_with(&[InlineExpectation::plain_text("value")]);
+    }
+
+    #[test]
+    fn matches_reference_inline() {
+        let content = TextContent::from_string("See [https://example.com]".into(), None);
+        InlineAssertion::new(&content, "paragraph.lines[0]").starts_with(&[
+            InlineExpectation::plain_text("See "),
+            InlineExpectation::reference(ReferenceExpectation::url(TextMatch::Exact(
+                "https://example.com".into(),
+            ))),
+        ]);
     }
 }
