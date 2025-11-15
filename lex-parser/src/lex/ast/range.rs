@@ -11,11 +11,11 @@
 //!
 //! ## Key Design
 //!
-//! - **Mandatory locations**: All AST nodes have required `location: Range` fields
-//! - **No null locations**: Default position is (0, 0) to (0, 0), never None
-//! - **Byte ranges preserved**: Stores both byte spans and line:column positions
-//! - **Unicode-aware**: Handles multi-byte UTF-8 characters correctly via `char_indices()`
-//! - **Efficient conversion**: O(log n) binary search for byte-to-position conversion
+//! - Mandatory locations: All AST nodes have required `location: Range` fields
+//! - No null locations: Default position is (0, 0) to (0, 0), never None
+//! - Byte ranges preserved: Stores both byte spans and line:column positions
+//! - Unicode-aware: Handles multi-byte UTF-8 characters correctly via `char_indices()`
+//! - Efficient conversion: O(log n) binary search for byte-to-position conversion
 //!
 //! ## Usage
 //!

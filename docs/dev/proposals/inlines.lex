@@ -20,41 +20,17 @@
 
 		All inline elements follow a consistent pattern: `<token>content<token>`.
 
-		- The `token` is one or more non-alphanumeric characters that mark the boundaries.
+		- The `token` is a single non-alphanumeric character that marks the boundaries.
 		- The `content` is the text to be affected.
 		- There must be no whitespace between the tokens and the content.
 
-		Multi-Character Delimiters:
-
-		Tokens can be composed of multiple characters of the same type. Different token lengths create distinct inline types with different semantics.
-
 		Examples:
-			*emphasis*        :: Single asterisk for emphasis ::
-			**strong**        :: Double asterisk for strong ::
-			***strong em***   :: Triple asterisk (parsed as strong containing emphasis) ::
-		:: lex ::
-
-		Delimiter Run Handling:
-
-		When multiple delimiter characters appear consecutively, they are parsed using a longest-match-first strategy within each inline category:
-
-		1. The parser identifies a run of delimiter characters (e.g., `***`)
-		2. It attempts to match the longest defined delimiter first (e.g., `**` before `*`)
-		3. If a matching closing delimiter is found, that inline is created
-		4. Remaining characters are processed recursively
-
-		This enables natural nesting patterns while maintaining parsing clarity:
-			***text***     :: Parsed as ** (strong) containing * (emphasis) ::
-			****text****   :: Parsed as ** (strong) containing ** (strong) - invalid due to same-type nesting rule ::
-			**a *b* c**    :: Parsed as strong containing emphasis ::
-		:: lex ::
-
-		Examples:
-			*emphasis text*
-			**strong text**
+			*strong text*
+			_emphasis text_
 			`code text`
 			[a reference]
 		:: lex ::
+
 
 	3.2. Escape Sequences
 
@@ -69,11 +45,11 @@
 		- Escaping works everywhere in text content, including within inline elements
 
 		Examples:
-			\*not emphasis\*         :: Renders as: *not emphasis* ::
-			7 \* 8 = 56             :: Renders as: 7 * 8 = 56 ::
-			Use \[brackets\]        :: Renders as: Use [brackets] ::
-			Path: C:\\Users\\name   :: Renders as: Path: C:\Users\name ::
-			**strong with \*asterisk\***  :: Renders strong text containing a literal asterisk ::
+			\*not strong\*           :: Renders as: *not strong* ::
+			7 \* 8 = 56              :: Renders as: 7 * 8 = 56 ::
+			Use \[brackets\]         :: Renders as: Use [brackets] ::
+			Path: C:\\Users\\name    :: Renders as: Path: C:\Users\name ::
+			*strong with \*asterisk\**  :: Renders strong text containing a literal asterisk ::
 		:: lex ::
 
 		This mechanism ensures that any text can be represented, even text that would otherwise conflict with inline syntax.
@@ -96,14 +72,14 @@
 
 		Inline elements are grouped into categories that also define their nesting behavior.
 
-		1.  Formatting: For visual and semantic emphasis (e.g., `**strong**`, `*emphasis*`). These elements can contain other inline elements, enabling multi-level formatting.
+		1.  Formatting: For visual and semantic emphasis (e.g., `*strong*`, `_emphasis_`). These elements can contain other inline elements, enabling multi-level formatting.
 		2.  Literal: For content that should not be parsed further (e.g., `` `code` ``, `#math#`). These elements cannot contain other inlines.
 		3.  References: For links, citations, and footnotes (e.g., `[target]`, `[@key]`). Their content has a specialized, non-recursive grammar.
 
 		The ability for formatting elements to contain others is the foundation of multi-level inlines. The parser will recursively process the content of an inline, allowing for rich combinations.
 
 		Example of valid nesting:
-			**strong with *emphasis* inside**
+			*strong with _emphasis_ inside*
 		:: lex ::
 
 	3.5. Universal Rules
@@ -111,8 +87,8 @@
 		All inline elements adhere to the following rules:
 		- No Empty Content: `` is invalid.
 		- No Crossing Lines: An inline element cannot start on one line and end on another.
-		- No Crossing Inlines: `*a _b* c_` is invalid.
-		- No Same-Type Nesting: `*outer *inner* text*` is invalid.
+		- No Crossing Inlines: `a _b c_` is invalid.
+		- No Same-Type Nesting: `outer inner text` is invalid.
 
 	3.6. Parsing Priority
 
@@ -143,7 +119,7 @@
 
 		This `TextContent` node acts as a container for a sequence of `InlineItem`s (e.g., `Text`, `Strong`, `Code`). For multi-level inlines, the content of a formatting element like `Strong` is itself another `TextContent` node, enabling the recursive structure.
 
-		Example AST Structure for `*a _b_*`:
+		Example AST Structure for `a _b_`:
 			├── Strong
 			│   └── TextContent
 			│       ├── Text("a ")
@@ -158,7 +134,7 @@
 
 		This can be represented as a collection of structs or an enum that defines each inline type's properties.
 
-		Some inlines, like `*bold*`, are straightforward: they simply extract the text span between the delimiters and wrap it in the appropriate node. Others, like references (`[target]`), require further processing of the extracted span—parsing the content into sub-components, validating structure, or transforming it into a more complex node hierarchy.
+		Some inlines, like `bold`, are straightforward: they simply extract the text span between the delimiters and wrap it in the appropriate node. Others, like references (`[target]`), require further processing of the extracted span—parsing the content into sub-components, validating structure, or transforming it into a more complex node hierarchy.
 
 		Example Declaration:
 			struct InlineSpec {
@@ -173,8 +149,8 @@
 			const INLINE_SPECS: &[InlineSpec] = &[
 			    InlineSpec { 
 			        name: "Strong", 
-			        start_token: "*", 
-			        end_token: "*", 
+			        start_token: "", 
+			        end_token: "", 
 			        post_process: None,  // Simple span extraction
 			        ... 
 			    },
@@ -198,13 +174,13 @@
 
 		The initial implementation will focus on the foundational formatting elements:
 
-		- Emphasis (`*content*` or `_content_`)
-		- Strong (`**content**` or `__content__`)
+		- Strong (`*content*`)
+		- Emphasis (`_content_`)
 		- Code (`` `content` ``)
 		- Math (`#content#`)
 
-		In this release we will write specific ast assertions for the inlines, as in lex-parser/src/lex/testing/ast_assertions/assertions . 
-        The goal here would be to assert quickie . Say this string "Welcome to **the** party" when taking the ast node you should beb able to say assert_inlines({"plain": "Welcome "}, {"strong":"the"}, {"plain": " party"}). that is that , in order you will break the text into these nodes, (the assertion should only match if the string starts with, no need to full match.)
+		In this release we will write specific ast assertions for the inlines, as in lex-parser/src/lex/testing/ast_assertions/assertions .
+        The goal here would be to assert quickie . Say this string "Welcome to *the* party" when taking the ast node you should beb able to say assert_inlines({"plain": "Welcome "}, {"strong":"the"}, {"plain": " party"}). that is that , in order you will break the text into these nodes, (the assertion should only match if the string starts with, no need to full match.)
 
 		This is key, because tests should be written with the ast assertion. First, because this results in much deeper testing, and also, because this means that if we change the ast implementation, we only need to change the ast assertion, and not every test.
 
@@ -219,7 +195,7 @@
 		4.  The callback can then parse the content, validate structure, break it into sub-nodes, or transform it into a more complex node hierarchy.
 		5.  The resulting node (either the original span node or the transformed result) is inserted into the AST.
 
-		This design allows simple formatting elements like `*bold*` to work with zero configuration (no callback), while complex elements like references can implement sophisticated parsing logic without cluttering the core inline parser. The callback receives the first-layer span node, ensuring it has access to the raw extracted content and can perform any necessary transformations before the node is integrated into the document structure.
+		This design allows simple formatting elements like `bold` to work with zero configuration (no callback), while complex elements like references can implement sophisticated parsing logic without cluttering the core inline parser. The callback receives the first-layer span node, ensuring it has access to the raw extracted content and can perform any necessary transformations before the node is integrated into the document structure.
 
 	5.3 Refrences
 

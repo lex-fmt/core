@@ -25,7 +25,7 @@
 //!
 //! # Key Design Principle
 //!
-//! This layer receives **primitives** and produces **AST types**. The byte→line/column
+//! This layer receives primitives and produces AST types. The byte→line/column
 //! conversion happens here using `byte_range_to_ast_range()`.
 
 use super::extraction::{

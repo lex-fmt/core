@@ -10,7 +10,7 @@
 //!
 //! ### 1. Tokenization (Lexer)
 //!
-//! The lexer produces tokens paired with **byte-offset ranges** into the source:
+//! The lexer produces tokens paired with byte-offset ranges into the source:
 //!
 //! ```text
 //! Source: "Hello\nWorld"

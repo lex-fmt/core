@@ -29,7 +29,7 @@ pub(super) static LIST_ITEM_REGEX: Lazy<Regex> =
 
 /// Grammar patterns as regex rules with names and patterns.
 ///
-/// **Order matters**: patterns are tried in declaration order for correct disambiguation.
+/// Order matters: patterns are tried in declaration order for correct disambiguation.
 /// Each pattern is a tuple of (pattern_name, regex_pattern_string).
 ///
 /// # Pattern Structure

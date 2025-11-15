@@ -3,21 +3,21 @@
 //! # Parser Testing Guidelines
 //!
 //! Testing the parser must follow strict rules to ensure reliability and maintainability.
-//! This module provides two essential tools that **must** be used together:
+//! This module provides two essential tools that must be used together:
 //!
-//! 1. **[Lexplore](crate::lex::testing::lexplore::Lexplore)** - For verified lex content
-//! 2. **[assert_ast](fn@assert_ast)** - For comprehensive AST verification
+//! 1. [Lexplore](crate::lex::testing::lexplore::Lexplore) - For verified lex content
+//! 2. [assert_ast](fn@assert_ast) - For comprehensive AST verification
 //!
 //! ## Rule 1: Always Use Lexplore for Test Content
 //!
-//! **Why this matters:**
+//! Why this matters:
 //!
 //! lex is a novel format that's still evolving. People regularly get small details wrong,
 //! leading to false positives in tests. When lex changes, we need to verify and update
 //! all source files. If lex content is scattered across many test files, this becomes
 //! a maintenance nightmare.
 //!
-//! **The solution:**
+//! The solution:
 //!
 //! Use the `Lexplore` library to access verified, curated lex sample files.
 //! This ensures only vetted sources are used and makes writing tests much easier.
@@ -37,7 +37,7 @@
 //! let doc = parse_document("Some paragraph\n\nAnother paragraph\n\n")?;
 //! ```
 //!
-//! **Available sources:**
+//! Available sources:
 //! - Elements: `Lexplore::get_source_for(ElementType::Paragraph, 1)` - Individual elements
 //! - Documents: `Lexplore::get_document_source_for(DocumentType::Trifecta, 0)` - Full documents
 //! - Fluent API: `Lexplore::paragraph(1)`, `Lexplore::list(1)`, etc.
@@ -46,7 +46,7 @@
 //!
 //! ## Rule 2: Always Use assert_ast for AST Verification
 //!
-//! **Why this matters:**
+//! Why this matters:
 //!
 //! What we want for every document test is to ensure that the AST shape is correct
 //! per the grammar, that all attributes are correct (children, content, etc.).
@@ -56,7 +56,7 @@
 //! This is also very hard to write, time-consuming, and when the lex spec changes,
 //! very hard to update.
 //!
-//! **The solution:**
+//! The solution:
 //!
 //! Use the `assert_ast` library with its fluent API. It allows testing entire
 //! hierarchies of nodes at once with 10-20x less code.
@@ -125,7 +125,7 @@
 
 //! To add support for a new container node type:
 //!
-//! 1. **Implement the traits** in `ast.rs`:
+//! 1. Implement the traits in `ast.rs`:
 //!    ```rust-example
 //!    use crate::lex::ast::{Container, ContentItem};
 //!
@@ -138,9 +138,9 @@
 //!    }
 //!    ```
 //!
-//! 2. **Add to ContentItem enum** and implement helper methods
+//! 2. Add to ContentItem enum and implement helper methods
 //!
-//! 3. **Add assertion type** in `testing_assertions.rs`:
+//! 3. Add assertion type in `testing_assertions.rs`:
 //!    ```rust-example
 //!    pub struct NewNodeAssertion<'a> { /* ... */ }
 //!
@@ -150,7 +150,7 @@
 //!    }
 //!    ```
 //!
-//! 4. **Add to ContentItemAssertion** and export in `testing.rs`:
+//! 4. Add to ContentItemAssertion and export in `testing.rs`:
 //!    ```rust-example
 //!    pub fn assert_new_node(self) -> NewNodeAssertion<'a> { /* ... */ }
 //!    ```

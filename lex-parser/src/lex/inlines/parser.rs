@@ -159,9 +159,17 @@ fn parse_with(parser: &InlineParser, text: &str) -> InlineContent {
 
         if ch == '\\' {
             if let Some(next_char) = next {
-                stack.last_mut().unwrap().push_char(next_char);
-                i += 2;
-                continue;
+                if !next_char.is_alphanumeric() {
+                    // Escape non-alphanumeric characters
+                    stack.last_mut().unwrap().push_char(next_char);
+                    i += 2;
+                    continue;
+                } else {
+                    // Preserve backslash before alphanumeric
+                    stack.last_mut().unwrap().push_char('\\');
+                    i += 1;
+                    continue;
+                }
             } else {
                 stack.last_mut().unwrap().push_char('\\');
                 break;
@@ -877,5 +885,41 @@ mod tests {
     fn escaped_tokens_are_literal() {
         let nodes = parse_inlines("\\*literal\\*");
         assert_eq!(nodes, vec![InlineNode::Plain("*literal*".into())]);
+    }
+
+    #[test]
+    fn backslash_before_alphanumeric_preserved() {
+        let nodes = parse_inlines("C:\\Users\\name");
+        assert_eq!(nodes, vec![InlineNode::Plain("C:\\Users\\name".into())]);
+    }
+
+    #[test]
+    fn escape_works_in_paths() {
+        let nodes = parse_inlines("Path: C:\\\\Users\\\\name");
+        assert_eq!(
+            nodes,
+            vec![InlineNode::Plain("Path: C:\\Users\\name".into())]
+        );
+    }
+
+    #[test]
+    fn arithmetic_not_parsed_as_inline() {
+        let nodes = parse_inlines("7 * 8");
+        assert_eq!(nodes, vec![InlineNode::Plain("7 * 8".into())]);
+    }
+
+    #[test]
+    fn word_boundary_start_invalid() {
+        let nodes = parse_inlines("word*s*");
+        assert_eq!(nodes, vec![InlineNode::Plain("word*s*".into())]);
+    }
+
+    #[test]
+    fn multiple_arithmetic_expressions() {
+        let nodes = parse_inlines("Calculate 7 * 8 + 3 * 4");
+        assert_eq!(
+            nodes,
+            vec![InlineNode::Plain("Calculate 7 * 8 + 3 * 4".into())]
+        );
     }
 }
