@@ -11,16 +11,25 @@
 //! 3. Document-level: Annotations at document start followed by a blank line attach to Document.
 //! 4. Container-end: When an annotation is the last element in a container, the container
 //!    itself becomes the "next" element for distance comparisons.
+//!
+//! # Module Organization
+//!
+//! - `types`: Shared data structures
+//! - `distance`: Distance calculation and attachment decision logic
+//! - Main module: Orchestration and tree traversal
 
-use std::cmp::Ordering;
+mod distance;
+mod types;
+
 use std::collections::{HashMap, HashSet};
 
 use crate::lex::ast::elements::annotation::Annotation;
 use crate::lex::ast::elements::content_item::ContentItem;
-use crate::lex::ast::range::Range;
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::Document;
 use crate::lex::transforms::{Runnable, TransformError};
+
+pub use types::{AttachmentTarget, ContainerKind, ContainerSpan, Entry, EntryKind, PendingAttachment};
 
 /// Annotation attachment stage
 pub struct AttachAnnotations;
@@ -143,11 +152,11 @@ fn attach_annotations_in_container(
             continue;
         };
 
-        let previous = find_previous_content(&entries, entry_idx);
-        let next = find_next_content(&entries, entry_idx, &container_span);
-        let blank_after = blank_gap_after(&entries, entry_idx, &container_span);
+        let previous = distance::find_previous_content(&entries, entry_idx);
+        let next = distance::find_next_content(&entries, entry_idx, &container_span);
+        let blank_after = distance::blank_gap_after(&entries, entry_idx, &container_span);
 
-        if let Some(target) = decide_attachment(
+        if let Some(target) = distance::decide_attachment(
             previous,
             next.next,
             next.distance_to_end,
@@ -197,46 +206,6 @@ fn attach_annotations_in_container(
     });
 }
 
-#[derive(Clone, Copy)]
-struct Entry {
-    kind: EntryKind,
-    start_line: usize,
-    end_line: usize,
-}
-
-#[derive(Clone, Copy)]
-enum EntryKind {
-    Content(usize),
-    Annotation(usize),
-}
-
-struct PendingAttachment {
-    annotation_index: usize,
-    target: AttachmentTarget,
-}
-
-enum AttachmentTarget {
-    Content(usize),
-    Container,
-}
-
-struct NextSearchResult {
-    next: Option<(usize, usize)>,
-    distance_to_end: usize,
-}
-
-enum ContainerKind {
-    DocumentRoot,
-    Regular,
-    Detached,
-}
-
-impl ContainerKind {
-    fn is_document(&self) -> bool {
-        matches!(self, ContainerKind::DocumentRoot)
-    }
-}
-
 enum AnnotationSink<'a> {
     Enabled(&'a mut Vec<Annotation>),
     Disabled,
@@ -276,176 +245,6 @@ fn build_entries(children: &[ContentItem]) -> Vec<Entry> {
     }
 
     entries
-}
-
-fn find_previous_content(entries: &[Entry], entry_index: usize) -> Option<(usize, usize)> {
-    if entry_index == 0 {
-        return None;
-    }
-
-    let mut distance = 0;
-    let mut cursor = entry_index;
-
-    while cursor > 0 {
-        let prev_idx = cursor - 1;
-        distance += blank_lines_between(&entries[prev_idx], &entries[cursor]);
-        cursor = prev_idx;
-
-        match entries[cursor].kind {
-            EntryKind::Content(idx) => return Some((distance, idx)),
-            EntryKind::Annotation(_) => continue,
-        }
-    }
-
-    None
-}
-
-fn find_next_content(
-    entries: &[Entry],
-    entry_index: usize,
-    container_span: &ContainerSpan,
-) -> NextSearchResult {
-    let mut distance = 0;
-    let mut cursor = entry_index;
-
-    while cursor + 1 < entries.len() {
-        let next_idx = cursor + 1;
-        distance += blank_lines_between(&entries[cursor], &entries[next_idx]);
-        cursor = next_idx;
-
-        match entries[cursor].kind {
-            EntryKind::Content(idx) => {
-                return NextSearchResult {
-                    next: Some((distance, idx)),
-                    distance_to_end: distance,
-                }
-            }
-            EntryKind::Annotation(_) => continue,
-        }
-    }
-
-    NextSearchResult {
-        next: None,
-        distance_to_end: blank_lines_to_end(&entries[cursor], container_span),
-    }
-}
-
-fn blank_gap_after(entries: &[Entry], entry_index: usize, container_span: &ContainerSpan) -> usize {
-    if entry_index + 1 < entries.len() {
-        blank_lines_between(&entries[entry_index], &entries[entry_index + 1])
-    } else {
-        blank_lines_to_end(&entries[entry_index], container_span)
-    }
-}
-
-fn decide_attachment(
-    previous: Option<(usize, usize)>,
-    next: Option<(usize, usize)>,
-    distance_to_end: usize,
-    blank_after: usize,
-    kind: &ContainerKind,
-    container_allowed: bool,
-) -> Option<AttachmentTarget> {
-    if kind.is_document() && previous.is_none() && blank_after > 0 {
-        return Some(AttachmentTarget::Container);
-    }
-
-    let prev_candidate = previous.map(|(distance, idx)| Candidate {
-        distance,
-        target: AttachmentTarget::Content(idx),
-    });
-
-    let next_candidate = match next {
-        Some((distance, idx)) => Some(Candidate {
-            distance,
-            target: AttachmentTarget::Content(idx),
-        }),
-        None if container_allowed => Some(Candidate {
-            distance: distance_to_end,
-            target: AttachmentTarget::Container,
-        }),
-        None => None,
-    };
-
-    match (prev_candidate, next_candidate) {
-        (Some(prev), Some(next)) => match prev.distance.cmp(&next.distance) {
-            Ordering::Less => Some(prev.target),
-            Ordering::Greater | Ordering::Equal => Some(next.target),
-        },
-        (Some(prev), None) => Some(prev.target),
-        (None, Some(next)) => Some(next.target),
-        (None, None) => None,
-    }
-}
-
-struct Candidate {
-    distance: usize,
-    target: AttachmentTarget,
-}
-
-#[derive(Clone, Copy)]
-struct ContainerSpan {
-    end_line: usize,
-}
-
-impl ContainerSpan {
-    fn from_range(range: &Range) -> Self {
-        ContainerSpan {
-            end_line: range.end.line,
-        }
-    }
-}
-
-/// Calculate the number of blank lines between two AST entries.
-///
-/// For multi-line elements (paragraphs, annotations spanning multiple lines),
-/// we need to handle the case where elements might be adjacent or overlapping
-/// in line numbers. The calculation uses the end line of the left element and
-/// determines the effective start of the right element.
-///
-/// # Edge Cases
-/// - If right starts before left ends (overlapping/adjacent multi-line elements):
-///   Use right's end line as the effective start to ensure correct distance.
-/// - If elements are on consecutive lines with no blank lines between: returns 0.
-/// - Otherwise: counts the gap between left.end_line and right's effective start.
-fn blank_lines_between(left: &Entry, right: &Entry) -> usize {
-    // For multi-line elements, determine the effective starting line of the right element.
-    // If right starts at or before left ends (overlapping ranges), use right's end line
-    // as the effective start. This handles cases like multi-line annotations adjacent
-    // to multi-line paragraphs.
-    let effective_start = if right.start_line <= left.end_line {
-        right.end_line // Overlapping/adjacent elements
-    } else {
-        right.start_line
-    };
-
-    // Calculate blank lines: if effective_start is more than one line after left.end_line,
-    // there are blank lines in between. The formula is: gap - 1 to exclude the line
-    // boundaries themselves.
-    if effective_start > left.end_line + 1 {
-        effective_start - left.end_line - 1
-    } else {
-        0
-    }
-}
-
-/// Calculate the number of blank lines from an entry to the end of its container.
-///
-/// This is used for container-end attachment rules: when an annotation is the last
-/// element in a container, we measure its distance to the container's closing boundary.
-///
-/// # Arguments
-/// - `entry`: The AST entry (typically an annotation at container end)
-/// - `span`: The container's span information (contains end line)
-///
-/// # Returns
-/// The number of blank lines between the entry and container end, or 0 if adjacent.
-fn blank_lines_to_end(entry: &Entry, span: &ContainerSpan) -> usize {
-    if span.end_line > entry.end_line + 1 {
-        span.end_line - entry.end_line - 1
-    } else {
-        0
-    }
 }
 
 fn attach_to_item_at_index(children: &mut [ContentItem], idx: usize, annotation: Annotation) {
