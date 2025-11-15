@@ -8,7 +8,7 @@ mod citations;
 mod parser;
 mod references;
 
-pub use crate::lex::ast::elements::nodes::{
+pub use crate::lex::ast::elements::inlines::{
     InlineContent, InlineNode, PageFormat, ReferenceInline, ReferenceType,
 };
 pub use parser::{

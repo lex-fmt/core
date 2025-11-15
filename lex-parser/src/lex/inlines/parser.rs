@@ -1,5 +1,5 @@
 use super::references::classify_reference_node;
-use crate::lex::ast::elements::nodes::{InlineContent, InlineNode, ReferenceInline};
+use crate::lex::ast::elements::inlines::{InlineContent, InlineNode, ReferenceInline};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
