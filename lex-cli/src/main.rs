@@ -9,7 +9,7 @@
 //
 // Usage:
 //  lex <input> --to <format> [--from <format>] [--output <file>]  - Convert between formats (default)
-//  lex convert <input> --from <format> --to <format> [--output <file>]  - Same as above (explicit)
+//  lex convert <input> --to <format> [--from <format>] [--output <file>]  - Same as above (explicit)
 //  lex inspect <path> <transform>        - Execute a transform (e.g., "ast-tag", "token-core-json")
 //  lex --list-transforms                 - List available transforms
 
@@ -19,41 +19,12 @@ use clap::{Arg, ArgAction, Command, ValueHint};
 use lex_babel::FormatRegistry;
 use std::fs;
 
-fn main() {
-    let matches = Command::new("lex")
+fn build_cli() -> Command {
+    Command::new("lex")
         .version(env!("CARGO_PKG_VERSION"))
         .about("A tool for inspecting and converting lex files")
         .arg_required_else_help(true)
-        // Root-level convert arguments (for default command)
-        .arg(
-            Arg::new("input")
-                .help("Input file path")
-                .index(1)
-                .value_hint(ValueHint::FilePath)
-                .conflicts_with("list-transforms"),
-        )
-        .arg(
-            Arg::new("from")
-                .long("from")
-                .help("Source format (auto-detected from file extension if not specified)")
-                .value_hint(ValueHint::Other)
-                .requires("input"),
-        )
-        .arg(
-            Arg::new("to")
-                .long("to")
-                .help("Target format")
-                .value_hint(ValueHint::Other)
-                .requires("input"),
-        )
-        .arg(
-            Arg::new("output")
-                .long("output")
-                .short('o')
-                .help("Output file path (defaults to stdout)")
-                .value_hint(ValueHint::FilePath)
-                .requires("input"),
-        )
+        .subcommand_required(false)
         .arg(
             Arg::new("list-transforms")
                 .long("list-transforms")
@@ -97,8 +68,7 @@ fn main() {
                 .arg(
                     Arg::new("from")
                         .long("from")
-                        .help("Source format")
-                        .required(true)
+                        .help("Source format (auto-detected from file extension if not specified)")
                         .value_hint(ValueHint::Other),
                 )
                 .arg(
@@ -116,7 +86,39 @@ fn main() {
                         .value_hint(ValueHint::FilePath),
                 ),
         )
-        .get_matches();
+}
+
+fn main() {
+    // Try to parse args. If no subcommand is provided, inject "convert"
+    let args: Vec<String> = std::env::args().collect();
+
+    // First, try normal parsing
+    let cli = build_cli();
+    let matches = match cli.clone().try_get_matches_from(&args) {
+        Ok(m) => m,
+        Err(e) => {
+            // Check if this is a "missing subcommand" error by seeing if the first arg looks like a file
+            if args.len() > 1
+                && !args[1].starts_with('-')
+                && args[1] != "inspect"
+                && args[1] != "convert"
+                && args[1] != "help"
+            {
+                // Inject "convert" as the subcommand
+                let mut new_args = vec![args[0].clone(), "convert".to_string()];
+                new_args.extend_from_slice(&args[1..]);
+
+                // Try parsing again with "convert" injected
+                match cli.try_get_matches_from(&new_args) {
+                    Ok(m) => m,
+                    Err(e2) => e2.exit(),
+                }
+            } else {
+                // Not a case where we should inject convert, show original error
+                e.exit();
+            }
+        }
+    };
 
     if matches.get_flag("list-transforms") {
         handle_list_transforms_command();
@@ -137,48 +139,26 @@ fn main() {
             let input = sub_matches
                 .get_one::<String>("input")
                 .expect("input is required");
-            let from = sub_matches
-                .get_one::<String>("from")
-                .expect("from is required");
+            let from_arg = sub_matches.get_one::<String>("from");
             let to = sub_matches.get_one::<String>("to").expect("to is required");
-            let output = sub_matches.get_one::<String>("output").map(|s| s.as_str());
-            handle_convert_command(input, from, to, output);
-        }
-        None => {
-            // No subcommand - treat as default convert command
-            if let Some(input) = matches.get_one::<String>("input") {
-                let from_arg = matches.get_one::<String>("from");
-                let to = matches.get_one::<String>("to");
 
-                // Auto-detect --from if not provided
-                let from = if let Some(f) = from_arg {
-                    f.to_string()
-                } else {
-                    let registry = FormatRegistry::default();
-                    match registry.detect_format_from_filename(input) {
-                        Some(detected) => detected,
-                        None => {
-                            eprintln!("Error: Could not detect format from filename '{}'", input);
-                            eprintln!("Please specify --from explicitly");
-                            std::process::exit(1);
-                        }
-                    }
-                };
-
-                if to.is_none() {
-                    eprintln!("Error: --to is required for conversion");
-                    eprintln!(
-                        "Usage: lex <input> [--from <format>] --to <format> [--output <file>]"
-                    );
-                    std::process::exit(1);
-                }
-
-                let output = matches.get_one::<String>("output").map(|s| s.as_str());
-                handle_convert_command(input, &from, to.unwrap(), output);
+            // Auto-detect --from if not provided
+            let from = if let Some(f) = from_arg {
+                f.to_string()
             } else {
-                eprintln!("Error: No command specified. Use --help for usage information.");
-                std::process::exit(1);
-            }
+                let registry = FormatRegistry::default();
+                match registry.detect_format_from_filename(input) {
+                    Some(detected) => detected,
+                    None => {
+                        eprintln!("Error: Could not detect format from filename '{}'", input);
+                        eprintln!("Please specify --from explicitly");
+                        std::process::exit(1);
+                    }
+                }
+            };
+
+            let output = sub_matches.get_one::<String>("output").map(|s| s.as_str());
+            handle_convert_command(input, &from, to, output);
         }
         _ => {
             eprintln!("Unknown subcommand. Use --help for usage information.");
