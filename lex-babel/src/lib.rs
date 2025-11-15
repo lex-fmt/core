@@ -81,6 +81,7 @@ pub mod formats;
 pub mod registry;
 
 pub mod ir;
+pub mod mappings;
 
 pub use error::FormatError;
 pub use format::Format;
@@ -99,20 +100,4 @@ pub use registry::FormatRegistry;
 /// For lossless Lex representation, use the AST directly.
 pub fn to_ir(doc: &lex_parser::lex::ast::elements::Document) -> ir::nodes::Document {
     ir::from_lex::from_lex_document(doc)
-}
-
-/// Converts an IR document back to a Lex document.
-///
-/// # Information Loss
-///
-/// This conversion attempts to recreate valid Lex AST from the IR,
-/// but cannot restore information that was lost during Lex → IR conversion:
-/// - Original blank line positioning
-/// - Exact source formatting
-/// - Inline formatting is converted to string markers (*, _, `, etc.)
-///
-/// The result is valid Lex that represents the same semantic content,
-/// but may not match the original formatting.
-pub fn from_ir(doc: &ir::nodes::Document) -> lex_parser::lex::ast::Document {
-    ir::to_lex::to_lex_document(doc)
 }
