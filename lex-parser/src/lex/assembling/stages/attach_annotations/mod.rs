@@ -29,7 +29,9 @@ use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::Document;
 use crate::lex::transforms::{Runnable, TransformError};
 
-pub use types::{AttachmentTarget, ContainerKind, ContainerSpan, Entry, EntryKind, PendingAttachment};
+pub use types::{
+    AttachmentTarget, ContainerKind, ContainerSpan, Entry, EntryKind, PendingAttachment,
+};
 
 /// Annotation attachment stage
 pub struct AttachAnnotations;
