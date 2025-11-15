@@ -86,6 +86,16 @@ impl Annotation {
         self.location = location;
         self
     }
+
+    /// Range covering only the annotation header (label + parameters).
+    pub fn header_location(&self) -> &Range {
+        &self.data.location
+    }
+
+    /// Bounding range covering only the annotation's children.
+    pub fn body_location(&self) -> Option<Range> {
+        Range::bounding_box(self.children.iter().map(|item| item.range()))
+    }
 }
 
 impl AstNode for Annotation {
@@ -134,5 +144,32 @@ impl fmt::Display for Annotation {
             self.data.parameters.len(),
             self.children.len()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lex::ast::elements::paragraph::Paragraph;
+    use crate::lex::ast::elements::typed_content::ContentElement;
+
+    #[test]
+    fn test_annotation_header_and_body_locations() {
+        let header_range = Range::new(0..4, Position::new(0, 0), Position::new(0, 4));
+        let child_range = Range::new(10..20, Position::new(1, 0), Position::new(2, 0));
+        let label = Label::new("note".to_string()).at(header_range.clone());
+        let data = Data::new(label, Vec::new()).at(header_range.clone());
+        let child = ContentElement::Paragraph(
+            Paragraph::from_line("body".to_string()).at(child_range.clone()),
+        );
+
+        let annotation = Annotation::from_data(data, vec![child]).at(Range::new(
+            0..25,
+            Position::new(0, 0),
+            Position::new(2, 0),
+        ));
+
+        assert_eq!(annotation.header_location().span, header_range.span);
+        assert_eq!(annotation.body_location().unwrap().span, child_range.span);
     }
 }

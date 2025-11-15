@@ -114,6 +114,16 @@ impl Session {
         &self.annotations
     }
 
+    /// Range covering only the session title line, if available.
+    pub fn header_location(&self) -> Option<&Range> {
+        self.title.location.as_ref()
+    }
+
+    /// Bounding range covering only the session's children.
+    pub fn body_location(&self) -> Option<Range> {
+        Range::bounding_box(self.children.iter().map(|item| item.range()))
+    }
+
     /// Mutable access to session annotations.
     pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
         &mut self.annotations
@@ -798,5 +808,22 @@ mod tests {
         assert_eq!(all_paragraphs.len(), 2);
         let all_sessions: Vec<_> = root.iter_sessions_recursive().collect();
         assert_eq!(all_sessions.len(), 2);
+    }
+
+    #[test]
+    fn test_session_header_and_body_locations() {
+        let title_range = Range::new(0..5, Position::new(0, 0), Position::new(0, 5));
+        let child_range = Range::new(10..20, Position::new(1, 0), Position::new(2, 0));
+        let title = TextContent::from_string("Title".to_string(), Some(title_range.clone()));
+        let child = Paragraph::from_line("Child".to_string()).at(child_range.clone());
+        let child_item = ContentItem::Paragraph(child);
+        let session = Session::new(title, vec![SessionContent::from(child_item)]).at(Range::new(
+            0..25,
+            Position::new(0, 0),
+            Position::new(2, 0),
+        ));
+
+        assert_eq!(session.header_location(), Some(&title_range));
+        assert_eq!(session.body_location().unwrap().span, child_range.span);
     }
 }

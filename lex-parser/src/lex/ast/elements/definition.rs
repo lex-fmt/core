@@ -86,6 +86,16 @@ impl Definition {
             .iter()
             .flat_map(|annotation| annotation.children())
     }
+
+    /// Range covering only the subject line.
+    pub fn header_location(&self) -> Option<&Range> {
+        self.subject.location.as_ref()
+    }
+
+    /// Bounding range covering only the definition's children.
+    pub fn body_location(&self) -> Option<Range> {
+        Range::bounding_box(self.children.iter().map(|item| item.range()))
+    }
 }
 
 impl AstNode for Definition {
@@ -136,6 +146,7 @@ impl fmt::Display for Definition {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lex::ast::elements::paragraph::Paragraph;
 
     #[test]
     fn test_definition() {
@@ -146,5 +157,24 @@ mod tests {
         );
         let definition = Definition::with_subject("Subject".to_string()).at(location.clone());
         assert_eq!(definition.location, location);
+    }
+
+    #[test]
+    fn test_definition_header_and_body_locations() {
+        let subject_range = Range::new(0..7, Position::new(0, 0), Position::new(0, 7));
+        let child_range = Range::new(10..15, Position::new(1, 0), Position::new(1, 5));
+        let subject = TextContent::from_string("Subject".to_string(), Some(subject_range.clone()));
+        let child = ContentElement::Paragraph(
+            Paragraph::from_line("Body".to_string()).at(child_range.clone()),
+        );
+
+        let definition = Definition::new(subject, vec![child]).at(Range::new(
+            0..20,
+            Position::new(0, 0),
+            Position::new(1, 5),
+        ));
+
+        assert_eq!(definition.header_location(), Some(&subject_range));
+        assert_eq!(definition.body_location().unwrap().span, child_range.span);
     }
 }
