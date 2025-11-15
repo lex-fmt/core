@@ -3,7 +3,7 @@
 //! Handles parsing of academic citations with the format `[@key1; @key2, pp. 45-46]`.
 //! Supports multiple citation keys and page locators.
 
-use crate::lex::ast::elements::nodes::{CitationData, CitationLocator, PageFormat, PageRange};
+use crate::lex::ast::elements::inlines::{CitationData, CitationLocator, PageFormat, PageRange};
 
 /// Parse citation data from the content inside `[@...]` brackets.
 pub(super) fn parse_citation_data(content: &str) -> Option<CitationData> {

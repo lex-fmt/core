@@ -10,7 +10,7 @@
 //! - General references (`[Section Title]`)
 
 use super::citations::parse_citation_data;
-use crate::lex::ast::elements::nodes::{InlineNode, ReferenceType};
+use crate::lex::ast::elements::inlines::{InlineNode, ReferenceType};
 
 /// Post-processor callback for reference nodes that classifies their type.
 pub(super) fn classify_reference_node(node: InlineNode) -> InlineNode {
