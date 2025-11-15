@@ -38,8 +38,10 @@ use crate::lex::ast::{ContentItem, Range};
 /// # Returns
 ///
 /// An AST Range with line/column positions
-pub(super) fn byte_range_to_ast_range(range: ByteRange<usize>, source: &str) -> Range {
-    let source_location = SourceLocation::new(source);
+pub(super) fn byte_range_to_ast_range(
+    range: ByteRange<usize>,
+    source_location: &SourceLocation,
+) -> Range {
     source_location.byte_range_to_ast_range(&range)
 }
 

@@ -5,6 +5,7 @@
 
 use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
 use crate::lex::ast::error::{format_source_context, ParserError, ParserResult};
+use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::{AstNode, ContentItem, Document, ListItem, Range};
 use crate::lex::building::api as ast_api;
 use crate::lex::building::location::compute_location_from_locations;
@@ -13,12 +14,16 @@ use crate::lex::parsing::ir::{NodeType, ParseNode, ParseNodePayload, TokenLocati
 /// A builder that constructs an AST from a `ParseNode` tree.
 pub struct AstTreeBuilder<'a> {
     source: &'a str,
+    source_location: SourceLocation,
 }
 
 impl<'a> AstTreeBuilder<'a> {
     /// Creates a new `AstTreeBuilder`.
     pub fn new(source: &'a str) -> Self {
-        Self { source }
+        Self {
+            source,
+            source_location: SourceLocation::new(source),
+        }
     }
 
     /// Builds a `Document` from a root `ParseNode`.
@@ -58,7 +63,7 @@ impl<'a> AstTreeBuilder<'a> {
 
     fn build_paragraph(&self, node: ParseNode) -> ContentItem {
         let token_lines = group_tokens_by_line(node.tokens);
-        ast_api::paragraph_from_token_lines(token_lines, self.source)
+        ast_api::paragraph_from_token_lines(token_lines, self.source, &self.source_location)
     }
 
     fn build_session(&self, node: ParseNode) -> ParserResult<ContentItem> {
@@ -68,6 +73,7 @@ impl<'a> AstTreeBuilder<'a> {
             title_tokens,
             content,
             self.source,
+            &self.source_location,
         ))
     }
 
@@ -78,6 +84,7 @@ impl<'a> AstTreeBuilder<'a> {
             subject_tokens,
             content,
             self.source,
+            &self.source_location,
         ))
     }
 
@@ -97,6 +104,7 @@ impl<'a> AstTreeBuilder<'a> {
             marker_tokens,
             content,
             self.source,
+            &self.source_location,
         ))
     }
 
@@ -107,6 +115,7 @@ impl<'a> AstTreeBuilder<'a> {
             header_tokens,
             content,
             self.source,
+            &self.source_location,
         ))
     }
 
@@ -121,13 +130,20 @@ impl<'a> AstTreeBuilder<'a> {
             closing_data_tokens,
         } = payload;
 
-        let closing_data = ast_api::data_from_tokens(closing_data_tokens, self.source);
+        let closing_data =
+            ast_api::data_from_tokens(closing_data_tokens, self.source, &self.source_location);
 
-        ast_api::verbatim_block_from_lines(&subject, &content_lines, closing_data, self.source)
+        ast_api::verbatim_block_from_lines(
+            &subject,
+            &content_lines,
+            closing_data,
+            self.source,
+            &self.source_location,
+        )
     }
 
     fn build_blank_line_group(&self, node: ParseNode) -> ContentItem {
-        ast_api::blank_line_group_from_tokens(node.tokens, self.source)
+        ast_api::blank_line_group_from_tokens(node.tokens, self.source, &self.source_location)
     }
 
     fn build_session_content(&self, nodes: Vec<ParseNode>) -> ParserResult<Vec<SessionContent>> {
