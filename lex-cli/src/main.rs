@@ -8,7 +8,7 @@
 
 mod transforms;
 
-use clap::{Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, Command, ValueHint};
 use std::fs;
 
 fn main() {
@@ -20,7 +20,8 @@ fn main() {
             Arg::new("path")
                 .help("Path to the lex file")
                 .required_unless_present("list-transforms")
-                .index(1),
+                .index(1)
+                .value_hint(ValueHint::FilePath),
         )
         .arg(
             Arg::new("transform")
@@ -29,7 +30,8 @@ fn main() {
                 .value_parser(clap::builder::PossibleValuesParser::new(
                     transforms::AVAILABLE_TRANSFORMS,
                 ))
-                .index(2),
+                .index(2)
+                .value_hint(ValueHint::Other),
         )
         .arg(
             Arg::new("list-transforms")
