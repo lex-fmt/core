@@ -49,6 +49,7 @@ pub(super) enum PatternMatch {
     Session {
         subject_idx: usize,
         content_idx: usize,
+        preceding_blank_range: Option<Range<usize>>,
     },
     /// Paragraph: one or more consecutive non-blank, non-special lines
     Paragraph { start_idx: usize, end_idx: usize },
@@ -108,6 +109,7 @@ pub(super) fn convert_pattern_to_node(
         PatternMatch::Session {
             subject_idx,
             content_idx,
+            ..
         } => build_session(
             tokens,
             pattern_offset + subject_idx,

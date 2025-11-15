@@ -11,7 +11,7 @@
 //! - `grammar.rs` - Pattern definitions and matching order
 //! - `builder.rs` - AST node construction from matched patterns
 
-use crate::lex::parsing::ir::ParseNode;
+use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::token::{LineContainer, LineType};
 use regex::Regex;
 use std::ops::Range;
@@ -36,6 +36,10 @@ impl GrammarMatcher {
     fn try_match(
         tokens: &[LineContainer],
         start_idx: usize,
+        allow_sessions: bool,
+        is_first_item: bool,
+        has_preceding_blank: bool,
+        prev_was_session: bool,
     ) -> Option<(PatternMatch, Range<usize>)> {
         if start_idx >= tokens.len() {
             return None;
@@ -152,12 +156,47 @@ impl GrammarMatcher {
                                 trailing_blank_range,
                             }
                         }
-                        "session" => {
+                        "session_with_blank" => {
+                            let prefix_blank_count = caps
+                                .name("prefix_blank")
+                                .map(|m| Self::count_consumed_tokens(m.as_str()))
+                                .unwrap_or(0);
+                            let blank_str = caps.name("blank").unwrap().as_str();
+                            let blank_count = Self::count_consumed_tokens(blank_str);
+                            let preceding_blank_range = if prefix_blank_count > 0 {
+                                Some(start_idx..start_idx + prefix_blank_count)
+                            } else {
+                                None
+                            };
+                            PatternMatch::Session {
+                                subject_idx: prefix_blank_count,
+                                content_idx: prefix_blank_count + 1 + blank_count,
+                                preceding_blank_range,
+                            }
+                        }
+                        "session_no_blank" => {
+                            // Allow session_no_blank in these cases:
+                            // 1. At document start (is_first_item=true), OR
+                            // 2. At container start when sessions are allowed (start_idx=0 && allow_sessions=true), OR
+                            // 3. After a BlankLineGroup when sessions are allowed (has_preceding_blank && allow_sessions)
+                            // 4. Immediately after another session (prev_was_session && allow_sessions)
+                            // This prevents Sessions inside Definitions while allowing legitimate session sequences.
+                            if !allow_sessions {
+                                continue; // Definitions and other containers don't allow sessions
+                            }
+                            if !(is_first_item
+                                || start_idx == 0
+                                || has_preceding_blank
+                                || prev_was_session)
+                            {
+                                continue; // Sessions need a separator or another session before them
+                            }
                             let blank_str = caps.name("blank").unwrap().as_str();
                             let blank_count = Self::count_consumed_tokens(blank_str);
                             PatternMatch::Session {
                                 subject_idx: 0,
                                 content_idx: 1 + blank_count,
+                                preceding_blank_range: None,
                             }
                         }
                         "definition" => PatternMatch::Definition {
@@ -364,11 +403,38 @@ pub fn parse_with_declarative_grammar(
     tokens: Vec<LineContainer>,
     source: &str,
 ) -> Result<Vec<ParseNode>, String> {
-    let mut items = Vec::new();
+    parse_with_declarative_grammar_internal(tokens, source, true, true)
+}
+
+/// Internal parsing function with nesting level tracking
+fn parse_with_declarative_grammar_internal(
+    tokens: Vec<LineContainer>,
+    source: &str,
+    allow_sessions: bool,
+    is_doc_start: bool,
+) -> Result<Vec<ParseNode>, String> {
+    let mut items: Vec<ParseNode> = Vec::new();
     let mut idx = 0;
 
     while idx < tokens.len() {
-        if let Some((pattern, range)) = GrammarMatcher::try_match(&tokens, idx) {
+        let (has_preceding_blank, prev_was_session) = if let Some(last_node) = items.last() {
+            (
+                matches!(last_node.node_type, NodeType::BlankLineGroup),
+                matches!(last_node.node_type, NodeType::Session),
+            )
+        } else {
+            (false, false)
+        };
+
+        let is_first_item = idx == 0 && is_doc_start;
+        if let Some((pattern, range)) = GrammarMatcher::try_match(
+            &tokens,
+            idx,
+            allow_sessions,
+            is_first_item,
+            has_preceding_blank,
+            prev_was_session,
+        ) {
             let mut pending_nodes = Vec::new();
 
             if let PatternMatch::List {
@@ -379,15 +445,30 @@ pub fn parse_with_declarative_grammar(
                 pending_nodes.push(blank_line_node_from_range(&tokens, blank_range.clone())?);
             }
 
+            if let PatternMatch::Session {
+                preceding_blank_range: Some(blank_range),
+                ..
+            } = &pattern
+            {
+                pending_nodes.push(blank_line_node_from_range(&tokens, blank_range.clone())?);
+            }
+
             // Convert pattern to ParseNode
+            // Sessions parse their children with allow_sessions=true to allow nested sessions
+            // Other elements parse with allow_sessions=false to prevent sessions inside them
+            let is_session = matches!(&pattern, PatternMatch::Session { .. });
             let item = convert_pattern_to_node(
                 &tokens,
                 &pattern,
                 range.clone(),
                 source,
-                &|children, src| parse_with_declarative_grammar(children, src),
+                &move |children, src| {
+                    parse_with_declarative_grammar_internal(children, src, is_session, false)
+                },
             )?;
+            let (item, mut trailing_blanks) = split_trailing_blank_groups(item);
             pending_nodes.push(item);
+            pending_nodes.append(&mut trailing_blanks);
 
             if let PatternMatch::List {
                 trailing_blank_range: Some(blank_range),
@@ -405,4 +486,25 @@ pub fn parse_with_declarative_grammar(
     }
 
     Ok(items)
+}
+
+/// Detach trailing blank-line groups from a node so separators bubble up to the parent level.
+fn split_trailing_blank_groups(mut node: ParseNode) -> (ParseNode, Vec<ParseNode>) {
+    if matches!(node.node_type, NodeType::BlankLineGroup) {
+        return (node, Vec::new());
+    }
+
+    let mut trailing = Vec::new();
+    while node
+        .children
+        .last()
+        .map(|child| matches!(child.node_type, NodeType::BlankLineGroup))
+        .unwrap_or(false)
+    {
+        if let Some(blank) = node.children.pop() {
+            trailing.push(blank);
+        }
+    }
+    trailing.reverse();
+    (node, trailing)
 }
