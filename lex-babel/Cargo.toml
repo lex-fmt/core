@@ -1,0 +1,10 @@
+[package]
+name = "lex-babel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lex-parser = { path = "../lex-parser" }
+
+[dev-dependencies]
+insta = { workspace = true }
