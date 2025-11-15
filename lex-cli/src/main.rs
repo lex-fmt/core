@@ -7,6 +7,9 @@
 // The main role for the lex program is to interface with lex content. Be it converting to and fro, linting or formatting it.
 // The core capabilities use the lex-babel crate. This crate being a interface for the lex-babel library, which is a collection of formats and transformers.
 //
+// Converting:
+//
+// The conversion needs a to and from pair. The to can be auto-detected from the file extension, while being overwrittable by an explicit --from flag.
 // Usage:
 //  lex <input> --to <format> [--from <format>] [--output <file>]  - Convert between formats (default)
 //  lex convert <input> --to <format> [--from <format>] [--output <file>]  - Same as above (explicit)
