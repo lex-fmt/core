@@ -1205,7 +1205,7 @@ fn test_benchmark_010_kitchensink() {
             _ => None,
         })
         .expect("expected description paragraph");
-    let description_line = match description.lines.get(0) {
+    let description_line = match description.lines.first() {
         Some(ContentItem::TextLine(line)) => line,
         _ => panic!("expected text line in description paragraph"),
     };
