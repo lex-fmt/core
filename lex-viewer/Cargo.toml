@@ -20,3 +20,7 @@ lex-parser = { path = "../lex-parser" }
 clap = { workspace = true }
 ratatui = { workspace = true }
 crossterm = { workspace = true }
+
+[build-dependencies]
+clap = { workspace = true }
+clap_complete = "4.4"

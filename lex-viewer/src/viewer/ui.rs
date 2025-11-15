@@ -4,7 +4,7 @@
 //! Layout structure:
 //! - Title bar (1 line, fixed)
 //! - Middle section (responsive height):
-//!   - Tree viewer (30 chars, fixed width)
+//!   - Tree viewer (30 chars total, 28 chars inner content after 2-char border)
 //!   - File viewer (remaining space)
 //! - Status line (1 line, fixed)
 
@@ -18,7 +18,7 @@ use ratatui::Frame;
 
 /// Minimum terminal width required for the UI
 const MIN_TERMINAL_WIDTH: u16 = 50;
-/// Width allocated to the tree viewer
+/// Width allocated to the tree viewer (includes 2-char border, inner content = 28)
 const TREE_VIEWER_WIDTH: u16 = 30;
 /// Height of the status line
 const STATUS_LINE_HEIGHT: u16 = 1;
