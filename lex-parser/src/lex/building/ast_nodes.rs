@@ -383,8 +383,11 @@ pub(super) fn blank_line_group_node(
 mod tests {
     use super::*;
     use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
+    use crate::lex::ast::elements::verbatim::VerbatimBlockMode;
     use crate::lex::ast::range::SourceLocation;
+    use crate::lex::ast::traits::AstNode;
     use crate::lex::ast::Position;
+    use crate::lex::building::extraction;
 
     #[test]
     fn test_paragraph_node() {
@@ -426,6 +429,105 @@ mod tests {
             }
             _ => panic!("Expected Session"),
         }
+    }
+
+    #[test]
+    fn test_data_node_assigns_parameter_locations() {
+        let source = "note severity=high";
+        let source_location = SourceLocation::new(source);
+        let extraction = extraction::extract_data(
+            vec![
+                (Token::Text("note".to_string()), 0..4),
+                (Token::Whitespace(1), 4..5),
+                (Token::Text("severity".to_string()), 5..13),
+                (Token::Equals, 13..14),
+                (Token::Text("high".to_string()), 14..18),
+            ],
+            source,
+        );
+
+        let data = data_node(extraction, &source_location);
+
+        assert_eq!(data.label.value, "note");
+        assert_eq!(data.label.location.span, 0..5);
+        assert_eq!(data.parameters.len(), 1);
+        assert_eq!(data.parameters[0].location.span, 5..18);
+        assert_eq!(data.location.span, 0..18);
+    }
+
+    #[test]
+    fn test_verbatim_block_node_aggregates_groups() {
+        let source = "Example:\n    code line\nOther:\n    more\n:: shell ::\n";
+        let source_location = SourceLocation::new(source);
+
+        fn span(haystack: &str, needle: &str) -> std::ops::Range<usize> {
+            let start = haystack.find(needle).expect("needle not found");
+            start..start + needle.len()
+        }
+
+        let data = VerbatimBlockData {
+            groups: vec![
+                VerbatimGroupData {
+                    subject_text: "Example:".to_string(),
+                    subject_byte_range: span(source, "Example:"),
+                    content_lines: vec![("code line".to_string(), span(source, "code line"))],
+                },
+                VerbatimGroupData {
+                    subject_text: "Other:".to_string(),
+                    subject_byte_range: span(source, "Other:"),
+                    content_lines: vec![("more".to_string(), span(source, "more"))],
+                },
+            ],
+            mode: VerbatimBlockMode::Inflow,
+        };
+
+        let closing_span = span(source, ":: shell ::");
+        let closing_label_span = span(source, "shell");
+        let closing_label = Label::new("shell".to_string()).at(byte_range_to_ast_range(
+            closing_label_span,
+            &source_location,
+        ));
+        let closing_data = Data::new(closing_label, Vec::new()).at(byte_range_to_ast_range(
+            closing_span.clone(),
+            &source_location,
+        ));
+
+        let block = match verbatim_block_node(data, closing_data, &source_location) {
+            ContentItem::VerbatimBlock(block) => block,
+            other => panic!("Expected verbatim block, got {:?}", other.node_type()),
+        };
+
+        assert_eq!(block.location.span, 0..closing_span.end);
+        assert_eq!(
+            block.subject.location.as_ref().unwrap().span,
+            span(source, "Example:")
+        );
+        assert_eq!(block.group_len(), 2);
+
+        let mut groups = block.group();
+        let first = groups.next().expect("first group missing");
+        assert_eq!(
+            first.subject.location.as_ref().unwrap().span,
+            span(source, "Example:")
+        );
+        if let Some(ContentItem::VerbatimLine(line)) = first.children.iter().next() {
+            assert_eq!(line.location.span, span(source, "code line"));
+        } else {
+            panic!("expected verbatim line in first group");
+        }
+
+        let second = groups.next().expect("second group missing");
+        assert_eq!(
+            second.subject.location.as_ref().unwrap().span,
+            span(source, "Other:")
+        );
+        if let Some(ContentItem::VerbatimLine(line)) = second.children.iter().next() {
+            assert_eq!(line.location.span, span(source, "more"));
+        } else {
+            panic!("expected verbatim line in second group");
+        }
+
+        assert_eq!(block.closing_data.location.span, closing_span);
     }
 
     // ============================================================================

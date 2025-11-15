@@ -1,5 +1,5 @@
 use lex_parser::lex::ast::elements::{Annotation, Session};
-use lex_parser::lex::ast::{AstNode, ContentItem, Range, TextContent};
+use lex_parser::lex::ast::{AstNode, ContentItem, Position, Range, TextContent};
 use lex_parser::lex::parsing::parse_document;
 use lex_parser::lex::testing::workspace_path;
 
@@ -120,7 +120,7 @@ fn validate_item(item: &ContentItem, source: &str) {
 fn all_fixture_nodes_have_valid_locations() {
     let fixtures = [
         "docs/specs/v1/trifecta/060-trifecta-nesting.lex",
-        "docs/specs/v1/elements/paragraph/paragraph-08-unicode.lex",
+        "docs/specs/v1/elements/paragraph/paragraph-03-flat-special-chars.lex",
     ];
 
     for relative in fixtures {
@@ -130,4 +130,39 @@ fn all_fixture_nodes_have_valid_locations() {
 
         validate_session(document.root_session(), &source);
     }
+}
+
+fn verify_lookup(session: &Session) {
+    for child in session.children.iter() {
+        let pos = position_inside(child.range());
+        let found = session
+            .element_at(pos)
+            .unwrap_or_else(|| panic!("expected element at {pos:?}"));
+        assert!(found.range().contains(pos));
+
+        if let ContentItem::Session(nested) = child {
+            verify_lookup(nested);
+        }
+    }
+}
+
+fn position_inside(range: &Range) -> Position {
+    if range.start.line == range.end.line {
+        let mut column = range.start.column;
+        if range.end.column > range.start.column {
+            column += 1;
+        }
+        Position::new(range.start.line, column)
+    } else {
+        Position::new(range.start.line + 1, 0)
+    }
+}
+
+#[test]
+fn cursor_positions_find_nested_nodes() {
+    let path = workspace_path("docs/specs/v1/trifecta/070-trifecta-flat-simple.lex");
+    let source = std::fs::read_to_string(&path).expect("failed to read fixture");
+    let document = parse_document(&source).expect("failed to parse fixture");
+
+    verify_lookup(document.root_session());
 }
