@@ -81,7 +81,7 @@ fn is_label_component(token: &Token) -> bool {
 }
 
 fn is_header_whitespace(token: &Token) -> bool {
-    matches!(token, Token::Whitespace | Token::Indentation)
+    matches!(token, Token::Whitespace(_) | Token::Indentation)
 }
 
 /// Collect the tokens that compose the label segment (including leading

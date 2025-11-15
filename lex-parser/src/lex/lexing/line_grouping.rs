@@ -202,13 +202,13 @@ mod tests {
     fn test_dialog_detection() {
         let tokens = vec![
             (Token::Dash, 0..1),
-            (Token::Whitespace, 1..2),
+            (Token::Whitespace(1), 1..2),
             (Token::Text("Hello".to_string()), 2..7),
             (Token::Period, 7..8),
             (Token::Period, 8..9),
             (Token::BlankLine(Some("\n".to_string())), 9..10),
             (Token::Dash, 10..11),
-            (Token::Whitespace, 11..12),
+            (Token::Whitespace(1), 11..12),
             (Token::Text("World".to_string()), 12..17),
             (Token::BlankLine(Some("\n".to_string())), 17..18),
         ];
@@ -224,7 +224,7 @@ mod tests {
     fn test_preserves_ranges() {
         let tokens = vec![
             (Token::Text("Hello".to_string()), 0..5),
-            (Token::Whitespace, 5..6),
+            (Token::Whitespace(1), 5..6),
             (Token::Text("world".to_string()), 6..11),
             (Token::BlankLine(Some("\n".to_string())), 11..12),
         ];

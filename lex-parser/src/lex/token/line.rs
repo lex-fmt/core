@@ -265,7 +265,7 @@ mod tests {
         let line_token = LineToken {
             source_tokens: vec![
                 Token::Text("hello".to_string()),
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Text("world".to_string()),
             ],
             token_spans: vec![0..5, 5..6, 6..11],
