@@ -177,7 +177,10 @@ pub struct ReferenceExpectation {
 pub enum ReferenceTypeExpectation {
     Url(TextMatch),
     File(TextMatch),
-    Citation(TextMatch),
+    Citation {
+        keys: Vec<TextMatch>,
+        locator: Option<TextMatch>,
+    },
     Tk(Option<TextMatch>),
     FootnoteLabeled(TextMatch),
     FootnoteNumber(u32),
@@ -202,7 +205,16 @@ impl ReferenceExpectation {
 
     pub fn citation(target: TextMatch) -> Self {
         Self {
-            expected: ReferenceTypeExpectation::Citation(target),
+            expected: ReferenceTypeExpectation::Citation {
+                keys: vec![target],
+                locator: None,
+            },
+        }
+    }
+
+    pub fn citation_with_locator(keys: Vec<TextMatch>, locator: Option<TextMatch>) -> Self {
+        Self {
+            expected: ReferenceTypeExpectation::Citation { keys, locator },
         }
     }
 
@@ -246,10 +258,35 @@ impl ReferenceExpectation {
         match (&self.expected, &actual.reference_type) {
             (ReferenceTypeExpectation::Url(expected), ReferenceType::Url { target })
             | (ReferenceTypeExpectation::File(expected), ReferenceType::File { target })
-            | (ReferenceTypeExpectation::Citation(expected), ReferenceType::Citation { target })
             | (ReferenceTypeExpectation::Session(expected), ReferenceType::Session { target })
             | (ReferenceTypeExpectation::General(expected), ReferenceType::General { target }) => {
                 expected.assert(target, context);
+            }
+            (
+                ReferenceTypeExpectation::Citation { keys, locator },
+                ReferenceType::Citation(data),
+            ) => {
+                assert_eq!(
+                    keys.len(),
+                    data.keys.len(),
+                    "{}: Expected {} citation keys, got {}",
+                    context,
+                    keys.len(),
+                    data.keys.len()
+                );
+                for (idx, matcher) in keys.iter().enumerate() {
+                    matcher.assert(&data.keys[idx], &format!("{}:key[{}]", context, idx));
+                }
+                match (locator, &data.locator) {
+                    (None, None) => {}
+                    (Some(expected_locator), Some(actual_locator)) => {
+                        expected_locator.assert(&actual_locator.raw, context);
+                    }
+                    (None, Some(_)) => {}
+                    (Some(_), None) => {
+                        panic!("{}: Expected citation locator, but none present", context)
+                    }
+                }
             }
             (
                 ReferenceTypeExpectation::Tk(expected_identifier),
@@ -317,6 +354,18 @@ mod tests {
             InlineExpectation::reference(ReferenceExpectation::url(TextMatch::Exact(
                 "https://example.com".into(),
             ))),
+        ]);
+    }
+
+    #[test]
+    fn matches_citation_inline() {
+        let content = TextContent::from_string("See [@doe2024, p.45-46]".into(), None);
+        InlineAssertion::new(&content, "paragraph.lines[0]").starts_with(&[
+            InlineExpectation::plain_text("See "),
+            InlineExpectation::reference(ReferenceExpectation::citation_with_locator(
+                vec![TextMatch::Exact("doe2024".into())],
+                Some(TextMatch::Exact("p.45-46".into())),
+            )),
         ]);
     }
 }

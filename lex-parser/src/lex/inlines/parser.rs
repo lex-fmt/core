@@ -1,4 +1,7 @@
-use super::nodes::{InlineContent, InlineNode, ReferenceInline, ReferenceType};
+use super::nodes::{
+    CitationData, CitationLocator, InlineContent, InlineNode, PageFormat, PageRange,
+    ReferenceInline, ReferenceType,
+};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
@@ -402,10 +405,8 @@ fn determine_reference_type(raw: &str) -> ReferenceType {
     }
 
     if let Some(rest) = trimmed.strip_prefix('@') {
-        if !rest.is_empty() {
-            return ReferenceType::Citation {
-                target: rest.to_string(),
-            };
+        if let Some(citation) = parse_citation_data(rest) {
+            return ReferenceType::Citation(citation);
         }
     }
 
@@ -494,6 +495,157 @@ fn parse_footnote_number(trimmed: &str) -> Option<u32> {
     } else {
         None
     }
+}
+
+fn parse_citation_data(content: &str) -> Option<CitationData> {
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let (keys_segment, locator_segment) = split_locator_segment(trimmed);
+    let keys = parse_citation_keys(keys_segment)?;
+    let locator = locator_segment.and_then(parse_citation_locator);
+
+    Some(CitationData { keys, locator })
+}
+
+fn split_locator_segment(content: &str) -> (&str, Option<&str>) {
+    let mut locator_index = None;
+    let mut search_start = 0;
+    while let Some(pos) = content[search_start..].find(',') {
+        let idx = search_start + pos;
+        let tail = content[idx + 1..].trim_start();
+        if looks_like_locator_start(tail) {
+            locator_index = Some(idx);
+        }
+        search_start = idx + 1;
+    }
+
+    if let Some(idx) = locator_index {
+        let keys = content[..idx].trim_end();
+        let locator = content[idx + 1..].trim_start();
+        if locator.is_empty() {
+            (keys, None)
+        } else {
+            (keys, Some(locator))
+        }
+    } else {
+        (content, None)
+    }
+}
+
+fn looks_like_locator_start(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    if lower.starts_with("pp") {
+        lower
+            .chars()
+            .nth(2)
+            .is_some_and(|ch| ch == '.' || ch.is_whitespace() || ch.is_ascii_digit())
+    } else if lower.starts_with('p') {
+        lower
+            .chars()
+            .nth(1)
+            .is_some_and(|ch| ch == '.' || ch.is_whitespace() || ch.is_ascii_digit())
+    } else {
+        false
+    }
+}
+
+fn parse_citation_keys(segment: &str) -> Option<Vec<String>> {
+    let trimmed = segment.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let delimiter = if trimmed.contains(';') { ';' } else { ',' };
+    let mut keys = Vec::new();
+    for chunk in trimmed.split(delimiter) {
+        let mut key = chunk.trim();
+        if key.is_empty() {
+            continue;
+        }
+        if let Some(stripped) = key.strip_prefix('@') {
+            key = stripped.trim();
+        }
+        if key.is_empty() {
+            continue;
+        }
+        keys.push(key.to_string());
+    }
+
+    if keys.is_empty() {
+        None
+    } else {
+        Some(keys)
+    }
+}
+
+fn parse_citation_locator(text: &str) -> Option<CitationLocator> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    let (format, rest) = if lower.starts_with("pp") {
+        (PageFormat::Pp, trimmed[2..].trim_start())
+    } else if lower.starts_with('p') {
+        (PageFormat::P, trimmed[1..].trim_start())
+    } else {
+        return None;
+    };
+
+    let rest = rest
+        .strip_prefix('.')
+        .map(|r| r.trim_start())
+        .unwrap_or(rest);
+    if rest.is_empty() {
+        return None;
+    }
+    let ranges = parse_page_ranges(rest);
+    if ranges.is_empty() {
+        return None;
+    }
+
+    Some(CitationLocator {
+        format,
+        ranges,
+        raw: trimmed.to_string(),
+    })
+}
+
+fn parse_page_ranges(text: &str) -> Vec<PageRange> {
+    let mut ranges = Vec::new();
+    for part in text.split(',') {
+        let segment = part.trim();
+        if segment.is_empty() {
+            continue;
+        }
+        if let Some(idx) = segment.find('-') {
+            let start = segment[..idx].trim();
+            let end = segment[idx + 1..].trim();
+            if let Ok(start_num) = start.parse::<u32>() {
+                let end_num = if end.is_empty() {
+                    None
+                } else {
+                    match end.parse::<u32>().ok() {
+                        Some(value) => Some(value),
+                        None => continue,
+                    }
+                };
+                ranges.push(PageRange {
+                    start: start_num,
+                    end: end_num,
+                });
+            }
+        } else if let Ok(number) = segment.parse::<u32>() {
+            ranges.push(PageRange {
+                start: number,
+                end: None,
+            });
+        }
+    }
+    ranges
 }
 
 #[cfg(test)]
@@ -629,7 +781,10 @@ mod tests {
 
         match &citation[0] {
             InlineNode::Reference(reference) => match &reference.reference_type {
-                ReferenceType::Citation { target } => assert_eq!(target, "doe2024"),
+                ReferenceType::Citation(data) => {
+                    assert_eq!(data.keys, vec!["doe2024".to_string()]);
+                    assert!(data.locator.is_none());
+                }
                 other => panic!("Expected citation, got {:?}", other),
             },
             _ => panic!("Expected reference"),
@@ -645,6 +800,30 @@ mod tests {
             InlineNode::Reference(reference) => match &reference.reference_type {
                 ReferenceType::FootnoteNumber { number } => assert_eq!(*number, 42),
                 other => panic!("Expected numeric footnote, got {:?}", other),
+            },
+            _ => panic!("Expected reference"),
+        }
+    }
+
+    #[test]
+    fn reference_parses_citation_locator() {
+        let nodes = parse_inlines("[@doe2024; @smith2023, pp. 45-46,47]");
+        match &nodes[0] {
+            InlineNode::Reference(reference) => match &reference.reference_type {
+                ReferenceType::Citation(data) => {
+                    assert_eq!(
+                        data.keys,
+                        vec!["doe2024".to_string(), "smith2023".to_string()]
+                    );
+                    let locator = data.locator.as_ref().expect("expected locator");
+                    assert!(matches!(locator.format, PageFormat::Pp));
+                    assert_eq!(locator.ranges.len(), 2);
+                    assert_eq!(locator.ranges[0].start, 45);
+                    assert_eq!(locator.ranges[0].end, Some(46));
+                    assert_eq!(locator.ranges[1].start, 47);
+                    assert!(locator.ranges[1].end.is_none());
+                }
+                other => panic!("Expected citation, got {:?}", other),
             },
             _ => panic!("Expected reference"),
         }
