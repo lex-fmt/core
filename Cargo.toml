@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "lex-parser",
+    "lex-babel",
     "lex-cli",
     "lex-viewer",
 ]
