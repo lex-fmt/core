@@ -184,6 +184,72 @@ impl FileViewer {
         self.intended_cursor_col = pos;
     }
 
+    /// Move cursor to start of next element/paragraph (} key)
+    fn move_to_next_element(&mut self, model: &Model) {
+        // Get current node
+        let current_node = model.get_node_at_position(self.cursor_row, self.cursor_col);
+
+        // Get flattened tree
+        let flattened = model.flattened_tree();
+
+        // Find next node in flattened tree
+        let next_node = if let Some(current) = current_node {
+            // Find current node index
+            flattened
+                .iter()
+                .position(|n| n.node_id == current)
+                .and_then(|idx| flattened.get(idx + 1))
+        } else {
+            // No current node, just get first
+            flattened.first()
+        };
+
+        // Move to start of next node's location
+        if let Some(node) = next_node {
+            if let Some(range) = model.get_location_for_node(node.node_id) {
+                self.cursor_row = range.start.line;
+                self.cursor_col = range.start.column;
+                self.intended_cursor_col = self.cursor_col;
+            }
+        }
+    }
+
+    /// Move cursor to start of previous element/paragraph ({ key)
+    fn move_to_previous_element(&mut self, model: &Model) {
+        // Get current node
+        let current_node = model.get_node_at_position(self.cursor_row, self.cursor_col);
+
+        // Get flattened tree
+        let flattened = model.flattened_tree();
+
+        // Find previous node in flattened tree
+        let prev_node = if let Some(current) = current_node {
+            // Find current node index
+            flattened
+                .iter()
+                .position(|n| n.node_id == current)
+                .and_then(|idx| {
+                    if idx > 0 {
+                        flattened.get(idx - 1)
+                    } else {
+                        None
+                    }
+                })
+        } else {
+            // No current node, just get last
+            flattened.last()
+        };
+
+        // Move to start of previous node's location
+        if let Some(node) = prev_node {
+            if let Some(range) = model.get_location_for_node(node.node_id) {
+                self.cursor_row = range.start.line;
+                self.cursor_col = range.start.column;
+                self.intended_cursor_col = self.cursor_col;
+            }
+        }
+    }
+
     /// Clamp cursor column to valid range for current line
     /// Uses the intended cursor column to maintain horizontal position during vertical movement
     fn clamp_cursor_column(&mut self) {
@@ -274,6 +340,12 @@ impl Viewer for FileViewer {
             }
             KeyCode::Char('b') => {
                 self.move_to_previous_word();
+            }
+            KeyCode::Char('}') => {
+                self.move_to_next_element(model);
+            }
+            KeyCode::Char('{') => {
+                self.move_to_previous_element(model);
             }
             _ => return Some(ViewerEvent::NoChange),
         }
@@ -659,6 +731,94 @@ mod tests {
             viewer.cursor_position(),
             (0, 6),
             "b should move to previous line"
+        );
+    }
+
+    #[test]
+    fn test_vim_element_navigation_forward() {
+        // Test '}' (next element)
+        let content = "# Heading\n\nParagraph one.\n\n## Subheading\n\nParagraph two.".to_string();
+        let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
+        let model = Model::new(doc);
+        let mut viewer = FileViewer::new(content);
+
+        // Start at (0, 0) - on "# Heading"
+        assert_eq!(viewer.cursor_position(), (0, 0));
+
+        // Press '}' - should move to next element
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('}'), KeyModifiers::NONE),
+            &model,
+        );
+
+        // Should have moved to a different element
+        let (row, col) = viewer.cursor_position();
+        assert!(
+            row > 0 || col > 0,
+            "Should have moved to next element from (0,0)"
+        );
+    }
+
+    #[test]
+    fn test_vim_element_navigation_backward() {
+        // Test '{' (previous element)
+        let content = "# Heading\n\nParagraph one.\n\n## Subheading\n\nParagraph two.".to_string();
+        let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
+        let model = Model::new(doc);
+        let mut viewer = FileViewer::new(content);
+
+        // Start somewhere in the middle
+        viewer.sync_cursor_to_position(4, 0); // "## Subheading"
+        assert_eq!(viewer.cursor_position(), (4, 0));
+
+        // Press '{' - should move to previous element
+        viewer.handle_key(
+            KeyEvent::new(KeyCode::Char('{'), KeyModifiers::NONE),
+            &model,
+        );
+
+        // Should have moved to a different element
+        let (row, _col) = viewer.cursor_position();
+        assert!(row < 4, "Should have moved to previous element from (4,0)");
+    }
+
+    #[test]
+    fn test_vim_element_navigation_round_trip() {
+        // Test that we can navigate forward and backward through elements
+        let content = "# H1\n\nPara 1\n\n## H2\n\nPara 2".to_string();
+        let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
+        let model = Model::new(doc);
+        let mut viewer = FileViewer::new(content);
+
+        // Start at beginning
+        let start_pos = viewer.cursor_position();
+        assert_eq!(start_pos, (0, 0));
+
+        // Navigate forward a few times
+        for _ in 0..3 {
+            viewer.handle_key(
+                KeyEvent::new(KeyCode::Char('}'), KeyModifiers::NONE),
+                &model,
+            );
+        }
+
+        // Should be at a different position
+        let middle_pos = viewer.cursor_position();
+        assert_ne!(middle_pos, start_pos, "Should have moved forward");
+
+        // Navigate backward the same number of times
+        for _ in 0..3 {
+            viewer.handle_key(
+                KeyEvent::new(KeyCode::Char('{'), KeyModifiers::NONE),
+                &model,
+            );
+        }
+
+        // Should be back at or near the start
+        let end_pos = viewer.cursor_position();
+        assert_eq!(
+            end_pos, start_pos,
+            "Should return to start after navigating back"
         );
     }
 }
