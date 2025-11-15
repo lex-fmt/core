@@ -13,6 +13,7 @@
 //! internal representation.
 
 use super::range::Range;
+use crate::lex::inlines::InlineContent;
 
 /// Represents user-provided text content with source position tracking.
 ///
@@ -99,6 +100,11 @@ impl TextContent {
         self.as_string().len()
     }
 
+    /// Parse inline items contained in this text.
+    pub fn inline_items(&self) -> InlineContent {
+        crate::lex::inlines::parse_inlines(self.as_string())
+    }
+
     // Future API (Phase 2 placeholders):
     // pub fn as_inlines(&self) -> Option<&[InlineNode]> { ... }
     // pub fn parse_inlines(&mut self) -> Result<()> { ... }
@@ -176,6 +182,22 @@ mod tests {
         let mut content = TextContent::from_string("Hello".to_string(), None);
         *content.as_string_mut() = "World".to_string();
         assert_eq!(content.as_string(), "World");
+    }
+
+    #[test]
+    fn parses_inline_items() {
+        use crate::lex::inlines::InlineNode;
+
+        let content = TextContent::from_string("Hello *world*".to_string(), None);
+        let nodes = content.inline_items();
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0], InlineNode::Plain("Hello ".into()));
+        match &nodes[1] {
+            InlineNode::Strong(children) => {
+                assert_eq!(children, &vec![InlineNode::Plain("world".into())]);
+            }
+            other => panic!("Unexpected inline node: {:?}", other),
+        }
     }
 
     use super::super::range::Position;

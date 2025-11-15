@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_bounding_box_ranges() {
-        let ranges = vec![
+        let ranges = [
             Range::new(2..5, Position::new(0, 2), Position::new(0, 5)),
             Range::new(10..20, Position::new(3, 0), Position::new(4, 3)),
         ];

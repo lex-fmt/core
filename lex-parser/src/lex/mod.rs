@@ -5,6 +5,7 @@ pub mod assembling;
 pub mod ast;
 pub mod building;
 pub mod formats;
+pub mod inlines;
 pub mod lexing;
 pub mod loader;
 pub mod parsing;
