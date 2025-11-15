@@ -11,7 +11,7 @@
 //! - `grammar.rs` - Pattern definitions and matching order
 //! - `builder.rs` - AST node construction from matched patterns
 
-use crate::lex::parsing::ir::ParseNode;
+use crate::lex::parsing::ir::{NodeType, ParseNode};
 use crate::lex::token::{LineContainer, LineType};
 use regex::Regex;
 use std::ops::Range;
@@ -39,6 +39,7 @@ impl GrammarMatcher {
         allow_sessions: bool,
         is_first_item: bool,
         has_preceding_blank: bool,
+        prev_was_session: bool,
     ) -> Option<(PatternMatch, Range<usize>)> {
         if start_idx >= tokens.len() {
             return None;
@@ -178,12 +179,17 @@ impl GrammarMatcher {
                             // 1. At document start (is_first_item=true), OR
                             // 2. At container start when sessions are allowed (start_idx=0 && allow_sessions=true), OR
                             // 3. After a BlankLineGroup when sessions are allowed (has_preceding_blank && allow_sessions)
-                            // This prevents Sessions inside Definitions while allowing them at doc start and in Sessions
+                            // 4. Immediately after another session (prev_was_session && allow_sessions)
+                            // This prevents Sessions inside Definitions while allowing legitimate session sequences.
                             if !allow_sessions {
                                 continue; // Definitions and other containers don't allow sessions
                             }
-                            if !(is_first_item || start_idx == 0 || has_preceding_blank) {
-                                continue; // Sessions need to be first or preceded by blank
+                            if !(is_first_item
+                                || start_idx == 0
+                                || has_preceding_blank
+                                || prev_was_session)
+                            {
+                                continue; // Sessions need a separator or another session before them
                             }
                             let blank_str = caps.name("blank").unwrap().as_str();
                             let blank_count = Self::count_consumed_tokens(blank_str);
@@ -411,23 +417,13 @@ fn parse_with_declarative_grammar_internal(
     let mut idx = 0;
 
     while idx < tokens.len() {
-        // Check if there's effectively a blank line before the current position:
-        // 1. Last parsed item is a BlankLineGroup, OR
-        // 2. Last parsed item has trailing BlankLineGroup children (recursively check)
-        use crate::lex::parsing::ir::NodeType;
-        fn has_trailing_blank(node: &ParseNode) -> bool {
-            if let Some(last_child) = node.children.last() {
-                matches!(last_child.node_type, NodeType::BlankLineGroup)
-                    || has_trailing_blank(last_child)
-            } else {
-                false
-            }
-        }
-
-        let has_preceding_blank = if let Some(last_node) = items.last() {
-            matches!(last_node.node_type, NodeType::BlankLineGroup) || has_trailing_blank(last_node)
+        let (has_preceding_blank, prev_was_session) = if let Some(last_node) = items.last() {
+            (
+                matches!(last_node.node_type, NodeType::BlankLineGroup),
+                matches!(last_node.node_type, NodeType::Session),
+            )
         } else {
-            false
+            (false, false)
         };
 
         let is_first_item = idx == 0 && is_doc_start;
@@ -437,6 +433,7 @@ fn parse_with_declarative_grammar_internal(
             allow_sessions,
             is_first_item,
             has_preceding_blank,
+            prev_was_session,
         ) {
             let mut pending_nodes = Vec::new();
 
@@ -469,7 +466,9 @@ fn parse_with_declarative_grammar_internal(
                     parse_with_declarative_grammar_internal(children, src, is_session, false)
                 },
             )?;
+            let (item, mut trailing_blanks) = split_trailing_blank_groups(item);
             pending_nodes.push(item);
+            pending_nodes.append(&mut trailing_blanks);
 
             if let PatternMatch::List {
                 trailing_blank_range: Some(blank_range),
@@ -487,4 +486,25 @@ fn parse_with_declarative_grammar_internal(
     }
 
     Ok(items)
+}
+
+/// Detach trailing blank-line groups from a node so separators bubble up to the parent level.
+fn split_trailing_blank_groups(mut node: ParseNode) -> (ParseNode, Vec<ParseNode>) {
+    if matches!(node.node_type, NodeType::BlankLineGroup) {
+        return (node, Vec::new());
+    }
+
+    let mut trailing = Vec::new();
+    while node
+        .children
+        .last()
+        .map(|child| matches!(child.node_type, NodeType::BlankLineGroup))
+        .unwrap_or(false)
+    {
+        if let Some(blank) = node.children.pop() {
+            trailing.push(blank);
+        }
+    }
+    trailing.reverse();
+    (node, trailing)
 }
