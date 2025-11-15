@@ -218,7 +218,7 @@ impl Viewer for TreeViewer {
         };
 
         match key.code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 // Move to previous visible node
                 if let Some(prev_node_id) = self.get_previous_visible_node(current_node_id, model) {
                     self.selected_node_id = Some(prev_node_id);
@@ -227,7 +227,7 @@ impl Viewer for TreeViewer {
                     Some(ViewerEvent::NoChange)
                 }
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 // Move to next visible node
                 if let Some(next_node_id) = self.get_next_visible_node(current_node_id, model) {
                     self.selected_node_id = Some(next_node_id);
@@ -236,11 +236,11 @@ impl Viewer for TreeViewer {
                     Some(ViewerEvent::NoChange)
                 }
             }
-            KeyCode::Left => {
+            KeyCode::Left | KeyCode::Char('h') => {
                 // Toggle collapse for the currently selected node
                 Some(ViewerEvent::ToggleNodeExpansion(current_node_id))
             }
-            KeyCode::Right => {
+            KeyCode::Right | KeyCode::Char('l') => {
                 // Toggle expand for the currently selected node
                 Some(ViewerEvent::ToggleNodeExpansion(current_node_id))
             }
