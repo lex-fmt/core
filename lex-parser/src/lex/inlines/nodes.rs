@@ -69,8 +69,8 @@ impl ReferenceInline {
 pub enum ReferenceType {
     /// `[TK]` or `[TK-identifier]`
     ToCome { identifier: Option<String> },
-    /// `[@citation]` (parsed flat for now)
-    Citation { target: String },
+    /// `[@citation]` with structured citation data.
+    Citation(CitationData),
     /// `[^note]`
     FootnoteLabeled { label: String },
     /// `[12]`
@@ -85,4 +85,32 @@ pub enum ReferenceType {
     General { target: String },
     /// Unable to classify.
     NotSure,
+}
+
+/// Structured citation payload capturing parsed information.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CitationData {
+    pub keys: Vec<String>,
+    pub locator: Option<CitationLocator>,
+}
+
+/// Citation locator derived from the `p.` / `pp.` segment.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CitationLocator {
+    pub format: PageFormat,
+    pub ranges: Vec<PageRange>,
+    /// Raw locator string as authored (e.g. `p.45-46`).
+    pub raw: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PageFormat {
+    P,
+    Pp,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PageRange {
+    pub start: u32,
+    pub end: Option<u32>,
 }
