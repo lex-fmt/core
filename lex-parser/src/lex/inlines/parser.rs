@@ -1,4 +1,4 @@
-use super::nodes::{InlineContent, InlineNode};
+use super::nodes::{InlineContent, InlineNode, ReferenceInline, ReferenceType};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
@@ -42,6 +42,7 @@ pub enum InlineKind {
     Emphasis,
     Code,
     Math,
+    Reference,
 }
 
 #[derive(Clone)]
@@ -123,6 +124,13 @@ fn default_specs() -> Vec<InlineSpec> {
             end_token: '#',
             literal: true,
             post_process: None,
+        },
+        InlineSpec {
+            kind: InlineKind::Reference,
+            start_token: '[',
+            end_token: ']',
+            literal: true,
+            post_process: Some(classify_reference_node),
         },
     ]
 }
@@ -295,6 +303,9 @@ impl InlineFrame {
             InlineKind::Emphasis => InlineNode::Emphasis(self.children),
             InlineKind::Code => InlineNode::Code(flatten_literal(self.children)),
             InlineKind::Math => InlineNode::Math(flatten_literal(self.children)),
+            InlineKind::Reference => {
+                InlineNode::Reference(ReferenceInline::new(flatten_literal(self.children)))
+            }
         }
     }
 
@@ -348,8 +359,12 @@ impl BlockedClosings {
     }
 }
 
-fn is_valid_start(prev: Option<char>, next: Option<char>, _spec: &InlineSpec) -> bool {
-    !is_word(prev) && is_word(next)
+fn is_valid_start(prev: Option<char>, next: Option<char>, spec: &InlineSpec) -> bool {
+    if spec.kind == InlineKind::Reference {
+        !is_word(prev) && next.is_some()
+    } else {
+        !is_word(prev) && is_word(next)
+    }
 }
 
 fn is_valid_end(prev: Option<char>, next: Option<char>, spec: &InlineSpec) -> bool {
@@ -366,10 +381,125 @@ fn is_word(ch: Option<char>) -> bool {
     ch.map(|c| c.is_alphanumeric()).unwrap_or(false)
 }
 
+fn classify_reference_node(node: InlineNode) -> InlineNode {
+    match node {
+        InlineNode::Reference(mut reference) => {
+            reference.reference_type = determine_reference_type(&reference.raw);
+            InlineNode::Reference(reference)
+        }
+        other => other,
+    }
+}
+
+fn determine_reference_type(raw: &str) -> ReferenceType {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || !trimmed.chars().any(|ch| ch.is_alphanumeric()) {
+        return ReferenceType::NotSure;
+    }
+
+    if let Some(identifier) = detect_tk_reference(trimmed) {
+        return ReferenceType::ToCome { identifier };
+    }
+
+    if let Some(rest) = trimmed.strip_prefix('@') {
+        if !rest.is_empty() {
+            return ReferenceType::Citation {
+                target: rest.to_string(),
+            };
+        }
+    }
+
+    if let Some(rest) = trimmed.strip_prefix('^') {
+        if !rest.is_empty() {
+            return ReferenceType::FootnoteLabeled {
+                label: rest.to_string(),
+            };
+        }
+    }
+
+    if let Some(session_target) = parse_session_reference(trimmed) {
+        return ReferenceType::Session {
+            target: session_target,
+        };
+    }
+
+    if is_url_reference(trimmed) {
+        return ReferenceType::Url {
+            target: trimmed.to_string(),
+        };
+    }
+
+    if is_file_reference(trimmed) {
+        return ReferenceType::File {
+            target: trimmed.to_string(),
+        };
+    }
+
+    if let Some(number) = parse_footnote_number(trimmed) {
+        return ReferenceType::FootnoteNumber { number };
+    }
+
+    ReferenceType::General {
+        target: trimmed.to_string(),
+    }
+}
+
+fn detect_tk_reference(trimmed: &str) -> Option<Option<String>> {
+    if trimmed.eq_ignore_ascii_case("TK") {
+        return Some(None);
+    }
+
+    if trimmed.len() > 3 && trimmed[0..3].eq_ignore_ascii_case("TK-") {
+        let identifier = &trimmed[3..];
+        if !identifier.is_empty()
+            && identifier.len() <= 20
+            && identifier
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        {
+            return Some(Some(identifier.to_string()));
+        }
+    }
+    None
+}
+
+fn parse_session_reference(trimmed: &str) -> Option<String> {
+    let rest = trimmed.strip_prefix('#')?;
+    if rest.is_empty() {
+        return None;
+    }
+    if rest
+        .chars()
+        .all(|c| c.is_ascii_digit() || c == '.' || c == '-')
+    {
+        Some(rest.to_string())
+    } else {
+        None
+    }
+}
+
+fn is_url_reference(trimmed: &str) -> bool {
+    trimmed.starts_with("http://")
+        || trimmed.starts_with("https://")
+        || trimmed.starts_with("mailto:")
+}
+
+fn is_file_reference(trimmed: &str) -> bool {
+    trimmed.starts_with('.') || trimmed.starts_with('/')
+}
+
+fn parse_footnote_number(trimmed: &str) -> Option<u32> {
+    if trimmed.chars().all(|c| c.is_ascii_digit()) {
+        trimmed.parse::<u32>().ok()
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex::inlines::InlineNode;
+    use crate::lex::inlines::{InlineNode, ReferenceType};
 
     #[test]
     fn parses_plain_text() {
@@ -462,6 +592,80 @@ mod tests {
                 );
             }
             other => panic!("Unexpected node: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn reference_detects_url() {
+        let nodes = parse_inlines("[https://example.com]");
+        match &nodes[0] {
+            InlineNode::Reference(reference) => match &reference.reference_type {
+                ReferenceType::Url { target } => assert_eq!(target, "https://example.com"),
+                other => panic!("Expected URL reference, got {:?}", other),
+            },
+            other => panic!("Unexpected node: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn reference_detects_tk_identifier() {
+        let nodes = parse_inlines("[TK-feature]");
+        match &nodes[0] {
+            InlineNode::Reference(reference) => match &reference.reference_type {
+                ReferenceType::ToCome { identifier } => {
+                    assert_eq!(identifier.as_deref(), Some("feature"));
+                }
+                other => panic!("Expected TK reference, got {:?}", other),
+            },
+            other => panic!("Unexpected node: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn reference_detects_citation_and_footnotes() {
+        let citation = parse_inlines("[@doe2024]");
+        let labeled = parse_inlines("[^note1]");
+        let numbered = parse_inlines("[42]");
+
+        match &citation[0] {
+            InlineNode::Reference(reference) => match &reference.reference_type {
+                ReferenceType::Citation { target } => assert_eq!(target, "doe2024"),
+                other => panic!("Expected citation, got {:?}", other),
+            },
+            _ => panic!("Expected reference"),
+        }
+        match &labeled[0] {
+            InlineNode::Reference(reference) => match &reference.reference_type {
+                ReferenceType::FootnoteLabeled { label } => assert_eq!(label, "note1"),
+                other => panic!("Expected labeled footnote, got {:?}", other),
+            },
+            _ => panic!("Expected reference"),
+        }
+        match &numbered[0] {
+            InlineNode::Reference(reference) => match &reference.reference_type {
+                ReferenceType::FootnoteNumber { number } => assert_eq!(*number, 42),
+                other => panic!("Expected numeric footnote, got {:?}", other),
+            },
+            _ => panic!("Expected reference"),
+        }
+    }
+
+    #[test]
+    fn reference_detects_general_and_not_sure() {
+        let general = parse_inlines("[Section Title]");
+        let unsure = parse_inlines("[!!!]");
+        match &general[0] {
+            InlineNode::Reference(reference) => match &reference.reference_type {
+                ReferenceType::General { target } => assert_eq!(target, "Section Title"),
+                other => panic!("Expected general reference, got {:?}", other),
+            },
+            _ => panic!("Expected reference"),
+        }
+        match &unsure[0] {
+            InlineNode::Reference(reference) => {
+                assert!(matches!(reference.reference_type, ReferenceType::NotSure));
+            }
+            _ => panic!("Expected reference"),
         }
     }
 

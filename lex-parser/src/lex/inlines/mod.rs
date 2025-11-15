@@ -7,7 +7,7 @@
 pub mod nodes;
 mod parser;
 
-pub use nodes::{InlineContent, InlineNode};
+pub use nodes::{InlineContent, InlineNode, ReferenceInline, ReferenceType};
 pub use parser::{
     parse_inlines, parse_inlines_with_parser, InlineKind, InlineParser, InlinePostProcessor,
     InlineSpec,
