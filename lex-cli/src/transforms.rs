@@ -13,7 +13,10 @@ use lex_parser::lex::transforms::standard::{CORE_TOKENIZATION, LEXING, TO_IR};
 /// All available CLI transforms (stage + format combinations)
 pub const AVAILABLE_TRANSFORMS: &[&str] = &[
     "token-core-json",
+    "token-core-simple",
+    "token-simple", // alias for token-core-simple
     "token-line-json",
+    "token-line-simple",
     "ir-json",
     "ast-json",
     "ast-tag",
@@ -32,6 +35,12 @@ pub fn execute_transform(source: &str, transform_name: &str) -> Result<String, S
             Ok(serde_json::to_string_pretty(&tokens_to_json(&tokens))
                 .map_err(|e| format!("JSON serialization failed: {}", e))?)
         }
+        "token-core-simple" | "token-simple" => {
+            let tokens = loader
+                .with(&CORE_TOKENIZATION)
+                .map_err(|e| format!("Transform failed: {}", e))?;
+            Ok(tokens_to_simple(&tokens))
+        }
         "token-line-json" => {
             let tokens = loader
                 .with(&LEXING)
@@ -46,6 +55,18 @@ pub fn execute_transform(source: &str, transform_name: &str) -> Result<String, S
                 serde_json::to_string_pretty(&line_tokens_to_json(&line_tokens))
                     .map_err(|e| format!("JSON serialization failed: {}", e))?,
             )
+        }
+        "token-line-simple" => {
+            let tokens = loader
+                .with(&LEXING)
+                .map_err(|e| format!("Transform failed: {}", e))?;
+            let mut mapper = LineTokenGroupingMapper::new();
+            let grouped = mapper.map(tokens);
+            let line_tokens: Vec<LineToken> = grouped
+                .into_iter()
+                .map(GroupedTokens::into_line_token)
+                .collect();
+            Ok(line_tokens_to_simple(&line_tokens))
         }
         "ir-json" => {
             let ir = loader
@@ -95,6 +116,14 @@ fn tokens_to_json(
         .collect::<Vec<_>>())
 }
 
+fn tokens_to_simple(tokens: &[(lex_parser::lex::token::Token, std::ops::Range<usize>)]) -> String {
+    tokens
+        .iter()
+        .map(|(token, _)| token.simple_name())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// Convert line tokens into a JSON-friendly structure
 fn line_tokens_to_json(line_tokens: &[LineToken]) -> serde_json::Value {
     use serde_json::json;
@@ -121,19 +150,12 @@ fn line_tokens_to_json(line_tokens: &[LineToken]) -> serde_json::Value {
         .collect::<Vec<_>>())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn token_line_transform_emits_line_tokens() {
-        let source = "Session:\n    Content\n";
-        let output = execute_transform(source, "token-line-json").expect("transform to run");
-
-        assert!(output.contains("\"line_type\""));
-        assert!(output.contains("SubjectLine"));
-        assert!(output.contains("ParagraphLine"));
-    }
+fn line_tokens_to_simple(line_tokens: &[LineToken]) -> String {
+    line_tokens
+        .iter()
+        .map(|line| line.line_type.to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Convert IR (ParseNode) to JSON-serializable format
@@ -158,4 +180,37 @@ fn ast_to_json(doc: &lex_parser::lex::parsing::Document) -> serde_json::Value {
         // For now, just a basic representation
         // Can be expanded to include full AST details
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn token_line_transform_emits_line_tokens() {
+        let source = "Session:\n    Content\n";
+        let output = execute_transform(source, "token-line-json").expect("transform to run");
+
+        assert!(output.contains("\"line_type\""));
+        assert!(output.contains("SubjectLine"));
+        assert!(output.contains("ParagraphLine"));
+    }
+
+    #[test]
+    fn token_simple_outputs_names() {
+        let source = "Session:\n    Content\n";
+        let output = execute_transform(source, "token-simple").expect("transform to run");
+
+        assert!(output.contains("TEXT"));
+        assert!(output.contains("BLANK_LINE"));
+    }
+
+    #[test]
+    fn token_line_simple_outputs_names() {
+        let source = "Session:\n    Content\n";
+        let output = execute_transform(source, "token-line-simple").expect("transform to run");
+
+        assert!(output.contains("SUBJECT_LINE"));
+        assert!(output.contains("PARAGRAPH_LINE"));
+    }
 }
