@@ -20,6 +20,7 @@ pub mod definition;
 pub mod document;
 pub mod label;
 pub mod list;
+pub mod nodes;
 pub mod paragraph;
 pub mod parameter;
 pub mod session;
