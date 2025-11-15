@@ -1,5 +1,5 @@
 ---
-source: tests/tokenizer_documents.rs
+source: lex-parser/tests/tokenizer_documents.rs
 expression: tokens
 ---
 [
@@ -10,7 +10,9 @@ expression: tokens
         0..5,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         5..6,
     ),
     (
@@ -20,7 +22,9 @@ expression: tokens
         6..10,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         10..11,
     ),
     (
@@ -30,7 +34,9 @@ expression: tokens
         11..15,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         15..16,
     ),
     (
@@ -62,7 +68,9 @@ expression: tokens
         31..35,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         35..36,
     ),
     (
@@ -72,7 +80,9 @@ expression: tokens
         36..44,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         44..45,
     ),
     (
@@ -82,7 +92,9 @@ expression: tokens
         45..50,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         50..51,
     ),
     (
@@ -92,7 +104,9 @@ expression: tokens
         51..58,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         58..59,
     ),
     (
@@ -102,7 +116,9 @@ expression: tokens
         59..63,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         63..64,
     ),
     (
@@ -112,7 +128,9 @@ expression: tokens
         64..71,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         71..72,
     ),
     (
@@ -122,7 +140,9 @@ expression: tokens
         72..75,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         75..76,
     ),
     (
@@ -136,7 +156,9 @@ expression: tokens
         87..88,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         88..89,
     ),
     (
@@ -168,7 +190,9 @@ expression: tokens
         104..109,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         109..110,
     ),
     (
@@ -178,7 +202,9 @@ expression: tokens
         110..114,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         114..115,
     ),
     (
@@ -192,7 +218,9 @@ expression: tokens
         120..121,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         121..122,
     ),
     (
@@ -222,7 +250,9 @@ expression: tokens
         137..138,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         138..139,
     ),
     (
@@ -232,7 +262,9 @@ expression: tokens
         139..144,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         144..145,
     ),
     (
@@ -242,7 +274,9 @@ expression: tokens
         145..149,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         149..150,
     ),
     (
@@ -274,7 +308,9 @@ expression: tokens
         164..165,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         165..166,
     ),
     (
@@ -284,7 +320,9 @@ expression: tokens
         166..172,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         172..173,
     ),
     (
@@ -294,7 +332,9 @@ expression: tokens
         173..177,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         177..178,
     ),
     (
@@ -326,7 +366,9 @@ expression: tokens
         192..193,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         193..194,
     ),
     (
@@ -336,7 +378,9 @@ expression: tokens
         194..199,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         199..200,
     ),
     (
@@ -346,7 +390,9 @@ expression: tokens
         200..204,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         204..205,
     ),
     (
@@ -388,7 +434,9 @@ expression: tokens
         220..229,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         229..230,
     ),
     (
@@ -402,7 +450,9 @@ expression: tokens
         235..236,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         236..237,
     ),
     (
@@ -438,7 +488,9 @@ expression: tokens
         253..254,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         254..255,
     ),
     (
@@ -448,7 +500,9 @@ expression: tokens
         255..260,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         260..261,
     ),
     (
@@ -458,7 +512,9 @@ expression: tokens
         261..269,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         269..270,
     ),
     (
@@ -468,7 +524,9 @@ expression: tokens
         270..274,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         274..275,
     ),
     (
@@ -506,7 +564,9 @@ expression: tokens
         290..291,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         291..292,
     ),
     (
@@ -516,7 +576,9 @@ expression: tokens
         292..298,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         298..299,
     ),
     (
@@ -526,7 +588,9 @@ expression: tokens
         299..307,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         307..308,
     ),
     (
@@ -536,7 +600,9 @@ expression: tokens
         308..312,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         312..313,
     ),
     (
@@ -574,7 +640,9 @@ expression: tokens
         328..329,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         329..330,
     ),
     (
@@ -584,7 +652,9 @@ expression: tokens
         330..335,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         335..336,
     ),
     (
@@ -594,7 +664,9 @@ expression: tokens
         336..344,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         344..345,
     ),
     (
@@ -604,7 +676,9 @@ expression: tokens
         345..349,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         349..350,
     ),
     (
@@ -646,7 +720,9 @@ expression: tokens
         365..377,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         377..378,
     ),
     (
@@ -660,7 +736,9 @@ expression: tokens
         383..384,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         384..385,
     ),
     (
@@ -696,7 +774,9 @@ expression: tokens
         401..402,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         402..403,
     ),
     (
@@ -706,7 +786,9 @@ expression: tokens
         403..408,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         408..409,
     ),
     (
@@ -716,7 +798,9 @@ expression: tokens
         409..415,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         415..416,
     ),
     (
@@ -726,7 +810,9 @@ expression: tokens
         416..420,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         420..421,
     ),
     (
@@ -764,7 +850,9 @@ expression: tokens
         436..437,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         437..438,
     ),
     (
@@ -774,7 +862,9 @@ expression: tokens
         438..444,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         444..445,
     ),
     (
@@ -784,7 +874,9 @@ expression: tokens
         445..451,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         451..452,
     ),
     (
@@ -794,7 +886,9 @@ expression: tokens
         452..456,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         456..457,
     ),
     (
@@ -832,7 +926,9 @@ expression: tokens
         472..473,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         473..474,
     ),
     (
@@ -842,7 +938,9 @@ expression: tokens
         474..479,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         479..480,
     ),
     (
@@ -852,7 +950,9 @@ expression: tokens
         480..486,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         486..487,
     ),
     (
@@ -862,7 +962,9 @@ expression: tokens
         487..491,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         491..492,
     ),
     (
@@ -904,7 +1006,9 @@ expression: tokens
         507..512,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         512..513,
     ),
     (
@@ -914,7 +1018,9 @@ expression: tokens
         513..523,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         523..524,
     ),
     (
@@ -924,7 +1030,9 @@ expression: tokens
         524..529,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         529..530,
     ),
     (
@@ -938,7 +1046,9 @@ expression: tokens
         531..536,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         536..537,
     ),
     (
@@ -948,7 +1058,9 @@ expression: tokens
         537..544,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         544..545,
     ),
     (
@@ -958,7 +1070,9 @@ expression: tokens
         545..547,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         547..548,
     ),
     (
@@ -968,7 +1082,9 @@ expression: tokens
         548..553,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         553..554,
     ),
     (
@@ -986,7 +1102,9 @@ expression: tokens
         559..560,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         560..561,
     ),
     (
@@ -1022,7 +1140,9 @@ expression: tokens
         577..578,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         578..579,
     ),
     (
@@ -1032,7 +1152,9 @@ expression: tokens
         579..584,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         584..585,
     ),
     (
@@ -1042,7 +1164,9 @@ expression: tokens
         585..589,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         589..590,
     ),
     (
@@ -1074,7 +1198,9 @@ expression: tokens
         604..605,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         605..606,
     ),
     (
@@ -1084,7 +1210,9 @@ expression: tokens
         606..612,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         612..613,
     ),
     (
@@ -1094,7 +1222,9 @@ expression: tokens
         613..617,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         617..618,
     ),
     (
@@ -1132,7 +1262,9 @@ expression: tokens
         633..634,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         634..635,
     ),
     (
@@ -1142,7 +1274,9 @@ expression: tokens
         635..640,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         640..641,
     ),
     (
@@ -1152,7 +1286,9 @@ expression: tokens
         641..645,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         645..646,
     ),
     (
@@ -1194,7 +1330,9 @@ expression: tokens
         661..674,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         674..675,
     ),
     (
@@ -1208,7 +1346,9 @@ expression: tokens
         684..685,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         685..686,
     ),
     (
@@ -1248,7 +1388,9 @@ expression: tokens
         703..704,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         704..705,
     ),
     (
@@ -1258,7 +1400,9 @@ expression: tokens
         705..710,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         710..711,
     ),
     (
@@ -1268,7 +1412,9 @@ expression: tokens
         711..724,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         724..725,
     ),
     (
@@ -1278,7 +1424,9 @@ expression: tokens
         725..729,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         729..730,
     ),
     (
@@ -1320,7 +1468,9 @@ expression: tokens
         746..747,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         747..748,
     ),
     (
@@ -1330,7 +1480,9 @@ expression: tokens
         748..754,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         754..755,
     ),
     (
@@ -1340,7 +1492,9 @@ expression: tokens
         755..768,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         768..769,
     ),
     (
@@ -1350,7 +1504,9 @@ expression: tokens
         769..773,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         773..774,
     ),
     (
@@ -1392,7 +1548,9 @@ expression: tokens
         790..791,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         791..792,
     ),
     (
@@ -1402,7 +1560,9 @@ expression: tokens
         792..797,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         797..798,
     ),
     (
@@ -1412,7 +1572,9 @@ expression: tokens
         798..811,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         811..812,
     ),
     (
@@ -1422,7 +1584,9 @@ expression: tokens
         812..816,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         816..817,
     ),
     (
@@ -1464,7 +1628,9 @@ expression: tokens
         832..837,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         837..838,
     ),
     (
@@ -1478,7 +1644,9 @@ expression: tokens
         846..847,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         847..848,
     ),
     (
@@ -1514,7 +1682,9 @@ expression: tokens
         864..865,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         865..866,
     ),
     (
@@ -1524,7 +1694,9 @@ expression: tokens
         866..871,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         871..872,
     ),
     (
@@ -1534,7 +1706,9 @@ expression: tokens
         872..877,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         877..878,
     ),
     (
@@ -1544,7 +1718,9 @@ expression: tokens
         878..882,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         882..883,
     ),
     (
@@ -1582,7 +1758,9 @@ expression: tokens
         899..900,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         900..901,
     ),
     (
@@ -1592,7 +1770,9 @@ expression: tokens
         901..907,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         907..908,
     ),
     (
@@ -1602,7 +1782,9 @@ expression: tokens
         908..913,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         913..914,
     ),
     (
@@ -1612,7 +1794,9 @@ expression: tokens
         914..918,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         918..919,
     ),
     (
@@ -1650,7 +1834,9 @@ expression: tokens
         936..937,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         937..938,
     ),
     (
@@ -1660,7 +1846,9 @@ expression: tokens
         938..943,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         943..944,
     ),
     (
@@ -1670,7 +1858,9 @@ expression: tokens
         944..949,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         949..950,
     ),
     (
@@ -1680,7 +1870,9 @@ expression: tokens
         950..954,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         954..955,
     ),
     (
@@ -1722,7 +1914,9 @@ expression: tokens
         970..975,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         975..976,
     ),
     (
@@ -1732,7 +1926,9 @@ expression: tokens
         976..980,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         980..981,
     ),
     (
@@ -1742,7 +1938,9 @@ expression: tokens
         981..987,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         987..988,
     ),
     (
@@ -1756,7 +1954,9 @@ expression: tokens
         995..996,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         996..997,
     ),
     (
@@ -1786,7 +1986,9 @@ expression: tokens
         1012..1013,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1013..1014,
     ),
     (
@@ -1796,7 +1998,9 @@ expression: tokens
         1014..1018,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1018..1019,
     ),
     (
@@ -1806,7 +2010,9 @@ expression: tokens
         1019..1021,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1021..1022,
     ),
     (
@@ -1816,7 +2022,9 @@ expression: tokens
         1022..1023,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1023..1024,
     ),
     (
@@ -1826,7 +2034,9 @@ expression: tokens
         1024..1030,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1030..1031,
     ),
     (
@@ -1836,7 +2046,9 @@ expression: tokens
         1031..1035,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1035..1036,
     ),
     (
@@ -1846,7 +2058,9 @@ expression: tokens
         1036..1040,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1040..1041,
     ),
     (
@@ -1856,7 +2070,9 @@ expression: tokens
         1041..1045,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1045..1046,
     ),
     (
@@ -1866,7 +2082,9 @@ expression: tokens
         1046..1051,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1051..1052,
     ),
     (
@@ -1876,7 +2094,9 @@ expression: tokens
         1052..1060,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1060..1061,
     ),
     (
@@ -1886,7 +2106,9 @@ expression: tokens
         1061..1066,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1066..1067,
     ),
     (
@@ -1896,7 +2118,9 @@ expression: tokens
         1067..1069,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1069..1070,
     ),
     (
@@ -1906,7 +2130,9 @@ expression: tokens
         1070..1074,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1074..1075,
     ),
     (
@@ -1916,7 +2142,9 @@ expression: tokens
         1075..1077,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1077..1078,
     ),
     (
@@ -1926,7 +2154,9 @@ expression: tokens
         1078..1082,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1082..1083,
     ),
     (
@@ -1936,7 +2166,9 @@ expression: tokens
         1083..1086,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1086..1087,
     ),
     (
@@ -1946,7 +2178,9 @@ expression: tokens
         1087..1090,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1090..1091,
     ),
     (
@@ -1956,7 +2190,9 @@ expression: tokens
         1091..1097,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1097..1098,
     ),
     (
@@ -1966,7 +2202,9 @@ expression: tokens
         1098..1105,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1105..1106,
     ),
     (
@@ -1976,7 +2214,9 @@ expression: tokens
         1106..1114,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1114..1115,
     ),
     (
@@ -1986,7 +2226,9 @@ expression: tokens
         1115..1122,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1122..1123,
     ),
     (
@@ -1996,7 +2238,9 @@ expression: tokens
         1123..1129,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1129..1130,
     ),
     (
@@ -2006,7 +2250,9 @@ expression: tokens
         1130..1134,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1134..1135,
     ),
     (
@@ -2020,7 +2266,9 @@ expression: tokens
         1140..1141,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1141..1142,
     ),
     (
@@ -2052,7 +2300,9 @@ expression: tokens
         1156..1157,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1157..1158,
     ),
     (
@@ -2062,7 +2312,9 @@ expression: tokens
         1158..1165,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1165..1166,
     ),
     (
@@ -2072,7 +2324,9 @@ expression: tokens
         1166..1172,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1172..1173,
     ),
     (
@@ -2082,7 +2336,9 @@ expression: tokens
         1173..1177,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1177..1178,
     ),
     (
@@ -2092,7 +2348,9 @@ expression: tokens
         1178..1182,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1182..1183,
     ),
     (
@@ -2102,7 +2360,9 @@ expression: tokens
         1183..1187,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1187..1188,
     ),
     (
@@ -2112,7 +2372,9 @@ expression: tokens
         1188..1196,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1196..1197,
     ),
     (
@@ -2122,7 +2384,9 @@ expression: tokens
         1197..1208,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1208..1209,
     ),
     (
@@ -2132,7 +2396,9 @@ expression: tokens
         1209..1213,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1213..1214,
     ),
     (
@@ -2142,7 +2408,9 @@ expression: tokens
         1214..1226,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1226..1227,
     ),
     (
@@ -2152,7 +2420,9 @@ expression: tokens
         1227..1230,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1230..1231,
     ),
     (
@@ -2162,7 +2432,9 @@ expression: tokens
         1231..1242,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1242..1243,
     ),
     (
@@ -2172,7 +2444,9 @@ expression: tokens
         1243..1245,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1245..1246,
     ),
     (
@@ -2182,7 +2456,9 @@ expression: tokens
         1246..1249,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1249..1250,
     ),
     (
@@ -2192,7 +2468,9 @@ expression: tokens
         1250..1254,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1254..1255,
     ),
     (
@@ -2206,7 +2484,9 @@ expression: tokens
         1261..1262,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1262..1263,
     ),
     (
@@ -2238,7 +2518,9 @@ expression: tokens
         1277..1278,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1278..1279,
     ),
     (
@@ -2248,7 +2530,9 @@ expression: tokens
         1279..1280,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1280..1281,
     ),
     (
@@ -2258,7 +2542,9 @@ expression: tokens
         1281..1286,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1286..1287,
     ),
     (
@@ -2268,7 +2554,9 @@ expression: tokens
         1287..1291,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1291..1292,
     ),
     (
@@ -2278,7 +2566,9 @@ expression: tokens
         1292..1296,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1296..1297,
     ),
     (
@@ -2288,7 +2578,9 @@ expression: tokens
         1297..1306,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1306..1307,
     ),
     (
@@ -2298,7 +2590,9 @@ expression: tokens
         1307..1311,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1311..1312,
     ),
     (
@@ -2308,7 +2602,9 @@ expression: tokens
         1312..1316,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1316..1317,
     ),
     (
@@ -2318,7 +2614,9 @@ expression: tokens
         1317..1319,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1319..1320,
     ),
     (
@@ -2328,7 +2626,9 @@ expression: tokens
         1320..1326,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1326..1327,
     ),
     (
@@ -2338,7 +2638,9 @@ expression: tokens
         1327..1331,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1331..1332,
     ),
     (
@@ -2352,7 +2654,9 @@ expression: tokens
         1339..1340,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         1340..1341,
     ),
     (

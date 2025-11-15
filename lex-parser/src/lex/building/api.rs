@@ -475,7 +475,7 @@ mod tests {
         let line_tokens = vec![make_line_token(
             vec![
                 Token::Text("hello".to_string()),
-                Token::Whitespace,
+                Token::Whitespace(1),
                 Token::Text("world".to_string()),
             ],
             vec![0..5, 5..6, 6..11],

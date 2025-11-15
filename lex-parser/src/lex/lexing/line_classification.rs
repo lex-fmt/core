@@ -68,7 +68,7 @@ fn is_blank_line(tokens: &[Token]) -> bool {
     tokens.iter().all(|t| {
         matches!(
             t,
-            Token::Whitespace | Token::Indentation | Token::BlankLine(_)
+            Token::Whitespace(_) | Token::Indentation | Token::BlankLine(_)
         )
     })
 }
@@ -81,7 +81,7 @@ fn is_annotation_end_line(tokens: &[Token]) -> bool {
         .filter(|t| {
             !matches!(
                 t,
-                Token::Whitespace | Token::BlankLine(_) | Token::Indentation
+                Token::Whitespace(_) | Token::BlankLine(_) | Token::Indentation
             )
         })
         .collect();
@@ -110,7 +110,7 @@ fn is_annotation_start_line(tokens: &[Token]) -> bool {
     let mut first_marker_idx = None;
     for (i, token) in tokens.iter().enumerate() {
         match token {
-            Token::Indentation | Token::Whitespace => continue,
+            Token::Indentation | Token::Whitespace(_) => continue,
             Token::LexMarker => {
                 first_marker_idx = Some(i);
                 break;
@@ -126,7 +126,7 @@ fn is_annotation_start_line(tokens: &[Token]) -> bool {
 
     // After first marker, must have whitespace (or be end of line)
     if first_marker_idx + 1 < tokens.len()
-        && !matches!(tokens[first_marker_idx + 1], Token::Whitespace)
+        && !matches!(tokens[first_marker_idx + 1], Token::Whitespace(_))
     {
         return false;
     }
@@ -159,7 +159,7 @@ fn is_data_line(tokens: &[Token]) -> bool {
     let mut first_marker_idx = None;
     for (i, token) in tokens.iter().enumerate() {
         match token {
-            Token::Indentation | Token::Whitespace => continue,
+            Token::Indentation | Token::Whitespace(_) => continue,
             Token::LexMarker => {
                 first_marker_idx = Some(i);
                 break;
@@ -174,7 +174,7 @@ fn is_data_line(tokens: &[Token]) -> bool {
 
     // After first marker we expect whitespace
     if first_marker_idx + 1 >= tokens.len()
-        || !matches!(tokens[first_marker_idx + 1], Token::Whitespace)
+        || !matches!(tokens[first_marker_idx + 1], Token::Whitespace(_))
     {
         return false;
     }
@@ -208,14 +208,14 @@ pub fn has_list_marker(tokens: &[Token]) -> bool {
     let mut i = 0;
 
     // Skip leading indentation and whitespace
-    while i < tokens.len() && matches!(tokens[i], Token::Indentation | Token::Whitespace) {
+    while i < tokens.len() && matches!(tokens[i], Token::Indentation | Token::Whitespace(_)) {
         i += 1;
     }
 
     // Check for plain list marker: Dash Whitespace
     if i + 1 < tokens.len()
         && matches!(tokens[i], Token::Dash)
-        && matches!(tokens[i + 1], Token::Whitespace)
+        && matches!(tokens[i + 1], Token::Whitespace(_))
     {
         return true;
     }
@@ -223,7 +223,7 @@ pub fn has_list_marker(tokens: &[Token]) -> bool {
     // Check for parenthetical list marker: OpenParen (Number | Letter | RomanNumeral) CloseParen Whitespace
     if i + 3 < tokens.len()
         && matches!(tokens[i], Token::OpenParen)
-        && matches!(tokens[i + 3], Token::Whitespace)
+        && matches!(tokens[i + 3], Token::Whitespace(_))
         && matches!(tokens[i + 2], Token::CloseParen)
     {
         let has_number = matches!(tokens[i + 1], Token::Number(_));
@@ -241,7 +241,7 @@ pub fn has_list_marker(tokens: &[Token]) -> bool {
         let has_letter = matches!(tokens[i], Token::Text(ref s) if is_single_letter(s));
         let has_roman = matches!(tokens[i], Token::Text(ref s) if is_roman_numeral(s));
         let has_separator = matches!(tokens[i + 1], Token::Period | Token::CloseParen);
-        let has_space = matches!(tokens[i + 2], Token::Whitespace);
+        let has_space = matches!(tokens[i + 2], Token::Whitespace(_));
 
         if (has_number || has_letter || has_roman) && has_separator && has_space {
             return true;
@@ -275,7 +275,7 @@ pub fn ends_with_colon(tokens: &[Token]) -> bool {
     while i >= 0 {
         let token = &tokens[i as usize];
         match token {
-            Token::BlankLine(_) | Token::Whitespace => {
+            Token::BlankLine(_) | Token::Whitespace(_) => {
                 i -= 1;
             }
             Token::Colon => return true,
@@ -294,7 +294,7 @@ mod tests {
     fn test_classify_paragraph_line() {
         let tokens = vec![
             Token::Text("Hello".to_string()),
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("world".to_string()),
             Token::BlankLine(Some("\n".to_string())),
         ];
@@ -315,7 +315,7 @@ mod tests {
     fn test_classify_list_line() {
         let tokens = vec![
             Token::Dash,
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("Item".to_string()),
             Token::BlankLine(Some("\n".to_string())),
         ];
@@ -324,7 +324,10 @@ mod tests {
 
     #[test]
     fn test_classify_blank_line() {
-        let tokens = vec![Token::Whitespace, Token::BlankLine(Some("\n".to_string()))];
+        let tokens = vec![
+            Token::Whitespace(1),
+            Token::BlankLine(Some("\n".to_string())),
+        ];
         assert_eq!(classify_line_tokens(&tokens), LineType::BlankLine);
     }
 
@@ -332,9 +335,9 @@ mod tests {
     fn test_classify_annotation_start_line() {
         let tokens = vec![
             Token::LexMarker,
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("label".to_string()),
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::LexMarker,
             Token::BlankLine(Some("\n".to_string())),
         ];
@@ -345,7 +348,7 @@ mod tests {
     fn test_classify_data_line() {
         let tokens = vec![
             Token::LexMarker,
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("label".to_string()),
             Token::BlankLine(Some("\n".to_string())),
         ];
@@ -356,11 +359,11 @@ mod tests {
     fn test_annotation_line_without_label_falls_back_to_paragraph() {
         let tokens = vec![
             Token::LexMarker,
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("version".to_string()),
             Token::Equals,
             Token::Number("3.11".to_string()),
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::LexMarker,
             Token::BlankLine(Some("\n".to_string())),
         ];
@@ -378,7 +381,7 @@ mod tests {
     fn test_classify_subject_or_list_item_line() {
         let tokens = vec![
             Token::Dash,
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("Item".to_string()),
             Token::Colon,
             Token::BlankLine(Some("\n".to_string())),
@@ -395,7 +398,7 @@ mod tests {
         let tokens = vec![
             Token::Number("1".to_string()),
             Token::Period,
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("Item".to_string()),
         ];
         assert!(has_list_marker(&tokens));
@@ -404,7 +407,7 @@ mod tests {
         let tokens = vec![
             Token::Text("a".to_string()),
             Token::Period,
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("Item".to_string()),
         ];
         assert!(has_list_marker(&tokens));
@@ -413,7 +416,7 @@ mod tests {
         let tokens = vec![
             Token::Text("I".to_string()),
             Token::Period,
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("Item".to_string()),
         ];
         assert!(has_list_marker(&tokens));
@@ -422,7 +425,7 @@ mod tests {
         let tokens = vec![
             Token::Number("1".to_string()),
             Token::CloseParen,
-            Token::Whitespace,
+            Token::Whitespace(1),
             Token::Text("Item".to_string()),
         ];
         assert!(has_list_marker(&tokens));

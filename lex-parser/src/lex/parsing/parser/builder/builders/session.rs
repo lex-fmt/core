@@ -35,7 +35,7 @@ pub(in crate::lex::parsing::parser::builder) fn build_session(
         .filter(|(token, _)| {
             !matches!(
                 token,
-                crate::lex::lexing::Token::Whitespace | crate::lex::lexing::Token::BlankLine(_)
+                crate::lex::lexing::Token::Whitespace(_) | crate::lex::lexing::Token::BlankLine(_)
             )
         })
         .collect();

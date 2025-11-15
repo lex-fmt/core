@@ -85,7 +85,7 @@ pub fn flatten_token_vecs(
 /// ```rust,ignore
 /// let tokens = vec![
 ///     (Token::Text("hello".into()), 0..5),
-///     (Token::Whitespace, 5..6),
+///     (Token::Whitespace(1), 5..6),
 ///     (Token::Text("world".into()), 6..11),
 /// ];
 /// let bbox = compute_bounding_box(&tokens);
@@ -197,7 +197,7 @@ mod tests {
                 Token::Text("hello".to_string()),
                 ByteRange { start: 0, end: 5 },
             ),
-            (Token::Whitespace, ByteRange { start: 5, end: 6 }),
+            (Token::Whitespace(1), ByteRange { start: 5, end: 6 }),
             (
                 Token::Text("world".to_string()),
                 ByteRange { start: 6, end: 11 },
@@ -288,7 +288,7 @@ mod tests {
         };
         let mock2 = MockToken {
             tokens: vec![
-                (Token::Whitespace, ByteRange { start: 5, end: 6 }),
+                (Token::Whitespace(1), ByteRange { start: 5, end: 6 }),
                 (
                     Token::Text("world".to_string()),
                     ByteRange { start: 6, end: 11 },
@@ -310,7 +310,7 @@ mod tests {
                 Token::Text("hello".to_string()),
                 ByteRange { start: 0, end: 5 },
             ),
-            (Token::Whitespace, ByteRange { start: 5, end: 6 }),
+            (Token::Whitespace(1), ByteRange { start: 5, end: 6 }),
         ];
         let text = tokens_to_text(&tokens, source);
         assert_eq!(text, "hello ");
@@ -330,7 +330,7 @@ mod tests {
                 Token::Text("hello".to_string()),
                 ByteRange { start: 0, end: 5 },
             ),
-            (Token::Whitespace, ByteRange { start: 5, end: 6 }),
+            (Token::Whitespace(1), ByteRange { start: 5, end: 6 }),
         ]];
         let flattened = flatten_token_vecs(&vecs);
         assert_eq!(flattened.len(), 2);
@@ -346,7 +346,7 @@ mod tests {
                 ByteRange { start: 0, end: 5 },
             )],
             vec![
-                (Token::Whitespace, ByteRange { start: 5, end: 6 }),
+                (Token::Whitespace(1), ByteRange { start: 5, end: 6 }),
                 (
                     Token::Text("world".to_string()),
                     ByteRange { start: 6, end: 11 },

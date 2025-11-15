@@ -1,5 +1,5 @@
 ---
-source: tests/tokenizer_elements.rs
+source: lex-parser/tests/tokenizer_elements.rs
 expression: tokens
 ---
 [
@@ -39,7 +39,9 @@ expression: tokens
         18..20,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         20..21,
     ),
     (
@@ -49,7 +51,9 @@ expression: tokens
         21..34,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         34..35,
     ),
     (
@@ -59,7 +63,9 @@ expression: tokens
         35..40,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         40..41,
     ),
     (
@@ -69,7 +75,9 @@ expression: tokens
         41..45,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         45..46,
     ),
     (
@@ -79,7 +87,9 @@ expression: tokens
         46..56,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         56..57,
     ),
     (
@@ -89,7 +99,9 @@ expression: tokens
         57..69,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         69..70,
     ),
     (
@@ -99,7 +111,9 @@ expression: tokens
         70..72,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         72..73,
     ),
     (
@@ -109,7 +123,9 @@ expression: tokens
         73..80,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         80..81,
     ),
     (
@@ -119,7 +135,9 @@ expression: tokens
         81..88,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         88..89,
     ),
     (
@@ -155,7 +173,9 @@ expression: tokens
         104..108,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         108..109,
     ),
     (
@@ -165,7 +185,9 @@ expression: tokens
         109..116,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         116..117,
     ),
     (
@@ -175,7 +197,9 @@ expression: tokens
         117..119,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         119..120,
     ),
     (
@@ -185,7 +209,9 @@ expression: tokens
         120..133,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         133..134,
     ),
     (
@@ -195,7 +221,9 @@ expression: tokens
         134..144,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         144..145,
     ),
     (
@@ -205,7 +233,9 @@ expression: tokens
         145..148,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         148..149,
     ),
     (
@@ -247,7 +277,9 @@ expression: tokens
         160..169,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         169..170,
     ),
     (
@@ -257,7 +289,9 @@ expression: tokens
         170..172,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         172..173,
     ),
     (
@@ -267,7 +301,9 @@ expression: tokens
         173..179,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         179..180,
     ),
     (
@@ -277,7 +313,9 @@ expression: tokens
         180..183,
     ),
     (
-        Whitespace,
+        Whitespace(
+            1,
+        ),
         183..184,
     ),
     (

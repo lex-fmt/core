@@ -36,7 +36,7 @@ pub(in crate::lex::parsing::parser::builder) fn build_definition(
             !matches!(
                 token,
                 crate::lex::lexing::Token::Colon
-                    | crate::lex::lexing::Token::Whitespace
+                    | crate::lex::lexing::Token::Whitespace(_)
                     | crate::lex::lexing::Token::BlankLine(_)
             )
         })
