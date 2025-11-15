@@ -979,7 +979,7 @@ fn test_benchmark_010_kitchensink() {
     // Item 1: Description paragraph
     assert_ast(&doc).item(1, |item| {
         item.assert_paragraph()
-            .text_contains("includes all major features")
+            .text_contains("*all major features*")
             .text_contains("{{paragraph}}")
             .line_count(1);
     });
@@ -988,7 +988,7 @@ fn test_benchmark_010_kitchensink() {
     assert_ast(&doc).item(2, |item| {
         item.assert_paragraph()
             .text_contains("two-lined paragraph")
-            .text_contains("simple definition at the root level")
+            .text_contains("_definition_ at the root level")
             .line_count(2);
     });
 
@@ -999,7 +999,7 @@ fn test_benchmark_010_kitchensink() {
             .child_count(2)
             .child(0, |para| {
                 para.assert_paragraph()
-                    .text_contains("contains a paragraph and a list")
+                    .text_contains("contains a paragraph and a `list`")
                     .text_contains("{{definition}}")
                     .line_count(1);
             })

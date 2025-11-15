@@ -161,8 +161,8 @@ mod matchers;
 
 pub use ast_assertions::{
     assert_ast, AnnotationAssertion, ChildrenAssertion, ContentItemAssertion, DefinitionAssertion,
-    DocumentAssertion, ListAssertion, ListItemAssertion, ParagraphAssertion, SessionAssertion,
-    VerbatimBlockkAssertion,
+    DocumentAssertion, InlineAssertion, InlineExpectation, ListAssertion, ListItemAssertion,
+    ParagraphAssertion, ReferenceExpectation, SessionAssertion, VerbatimBlockkAssertion,
 };
 pub use matchers::TextMatch;
 
