@@ -257,6 +257,30 @@ impl StackNode {
     }
 }
 
+fn finalize_container<F>(
+    stack: &mut Vec<StackNode>,
+    event_name: &str,
+    parent_label: &str,
+    validate: F,
+) -> Result<(), ConversionError>
+where
+    F: FnOnce(StackNode) -> Result<StackNode, ConversionError>,
+{
+    let node = stack.pop().ok_or_else(|| {
+        ConversionError::UnexpectedEnd(format!("{} with empty stack", event_name))
+    })?;
+
+    let node = validate(node)?;
+
+    let doc_node = node.into_doc_node();
+    let parent = stack
+        .last_mut()
+        .ok_or_else(|| ConversionError::UnexpectedEnd(format!("No parent for {}", parent_label)))?;
+    parent.add_child(doc_node)?;
+
+    Ok(())
+}
+
 /// Converts a flat event stream back to a nested IR tree.
 ///
 /// # Arguments
@@ -347,32 +371,21 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndHeading(level) => {
-                let node = stack.pop().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("EndHeading with empty stack".to_string())
-                })?;
-
-                if let StackNode::Heading {
-                    level: node_level, ..
-                } = &node
-                {
-                    if node_level != level {
-                        return Err(ConversionError::MismatchedEvents {
-                            expected: format!("EndHeading({})", node_level),
-                            found: format!("EndHeading({})", level),
-                        });
-                    }
-                } else {
-                    return Err(ConversionError::MismatchedEvents {
+                finalize_container(&mut stack, "EndHeading", "heading", |node| match node {
+                    StackNode::Heading {
+                        level: node_level, ..
+                    } if node_level == *level => Ok(node),
+                    StackNode::Heading {
+                        level: node_level, ..
+                    } => Err(ConversionError::MismatchedEvents {
+                        expected: format!("EndHeading({})", node_level),
+                        found: format!("EndHeading({})", level),
+                    }),
+                    other => Err(ConversionError::MismatchedEvents {
                         expected: "Heading".to_string(),
-                        found: node.type_name().to_string(),
-                    });
-                }
-
-                let doc_node = node.into_doc_node();
-                let parent = stack.last_mut().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("No parent for heading".to_string())
+                        found: other.type_name().to_string(),
+                    }),
                 })?;
-                parent.add_child(doc_node)?;
             }
 
             Event::StartParagraph => {
@@ -380,22 +393,13 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndParagraph => {
-                let node = stack.pop().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("EndParagraph with empty stack".to_string())
-                })?;
-
-                if !matches!(node, StackNode::Paragraph { .. }) {
-                    return Err(ConversionError::MismatchedEvents {
+                finalize_container(&mut stack, "EndParagraph", "paragraph", |node| match node {
+                    StackNode::Paragraph { .. } => Ok(node),
+                    other => Err(ConversionError::MismatchedEvents {
                         expected: "Paragraph".to_string(),
-                        found: node.type_name().to_string(),
-                    });
-                }
-
-                let doc_node = node.into_doc_node();
-                let parent = stack.last_mut().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("No parent for paragraph".to_string())
+                        found: other.type_name().to_string(),
+                    }),
                 })?;
-                parent.add_child(doc_node)?;
             }
 
             Event::StartList => {
@@ -403,22 +407,13 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndList => {
-                let node = stack.pop().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("EndList with empty stack".to_string())
-                })?;
-
-                if !matches!(node, StackNode::List { .. }) {
-                    return Err(ConversionError::MismatchedEvents {
+                finalize_container(&mut stack, "EndList", "list", |node| match node {
+                    StackNode::List { .. } => Ok(node),
+                    other => Err(ConversionError::MismatchedEvents {
                         expected: "List".to_string(),
-                        found: node.type_name().to_string(),
-                    });
-                }
-
-                let doc_node = node.into_doc_node();
-                let parent = stack.last_mut().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("No parent for list".to_string())
+                        found: other.type_name().to_string(),
+                    }),
                 })?;
-                parent.add_child(doc_node)?;
             }
 
             Event::StartListItem => {
@@ -429,22 +424,13 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndListItem => {
-                let node = stack.pop().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("EndListItem with empty stack".to_string())
-                })?;
-
-                if !matches!(node, StackNode::ListItem { .. }) {
-                    return Err(ConversionError::MismatchedEvents {
+                finalize_container(&mut stack, "EndListItem", "list item", |node| match node {
+                    StackNode::ListItem { .. } => Ok(node),
+                    other => Err(ConversionError::MismatchedEvents {
                         expected: "ListItem".to_string(),
-                        found: node.type_name().to_string(),
-                    });
-                }
-
-                let doc_node = node.into_doc_node();
-                let parent = stack.last_mut().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("No parent for list item".to_string())
+                        found: other.type_name().to_string(),
+                    }),
                 })?;
-                parent.add_child(doc_node)?;
             }
 
             Event::StartDefinition => {
@@ -456,22 +442,18 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndDefinition => {
-                let node = stack.pop().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("EndDefinition with empty stack".to_string())
-                })?;
-
-                if !matches!(node, StackNode::Definition { .. }) {
-                    return Err(ConversionError::MismatchedEvents {
-                        expected: "Definition".to_string(),
-                        found: node.type_name().to_string(),
-                    });
-                }
-
-                let doc_node = node.into_doc_node();
-                let parent = stack.last_mut().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("No parent for definition".to_string())
-                })?;
-                parent.add_child(doc_node)?;
+                finalize_container(
+                    &mut stack,
+                    "EndDefinition",
+                    "definition",
+                    |node| match node {
+                        StackNode::Definition { .. } => Ok(node),
+                        other => Err(ConversionError::MismatchedEvents {
+                            expected: "Definition".to_string(),
+                            found: other.type_name().to_string(),
+                        }),
+                    },
+                )?;
             }
 
             Event::StartDefinitionTerm => {
@@ -512,22 +494,13 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndVerbatim => {
-                let node = stack.pop().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("EndVerbatim with empty stack".to_string())
-                })?;
-
-                if !matches!(node, StackNode::Verbatim { .. }) {
-                    return Err(ConversionError::MismatchedEvents {
+                finalize_container(&mut stack, "EndVerbatim", "verbatim", |node| match node {
+                    StackNode::Verbatim { .. } => Ok(node),
+                    other => Err(ConversionError::MismatchedEvents {
                         expected: "Verbatim".to_string(),
-                        found: node.type_name().to_string(),
-                    });
-                }
-
-                let doc_node = node.into_doc_node();
-                let parent = stack.last_mut().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("No parent for verbatim".to_string())
+                        found: other.type_name().to_string(),
+                    }),
                 })?;
-                parent.add_child(doc_node)?;
             }
 
             Event::StartAnnotation { label, parameters } => {
@@ -539,22 +512,18 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndAnnotation => {
-                let node = stack.pop().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("EndAnnotation with empty stack".to_string())
-                })?;
-
-                if !matches!(node, StackNode::Annotation { .. }) {
-                    return Err(ConversionError::MismatchedEvents {
-                        expected: "Annotation".to_string(),
-                        found: node.type_name().to_string(),
-                    });
-                }
-
-                let doc_node = node.into_doc_node();
-                let parent = stack.last_mut().ok_or_else(|| {
-                    ConversionError::UnexpectedEnd("No parent for annotation".to_string())
-                })?;
-                parent.add_child(doc_node)?;
+                finalize_container(
+                    &mut stack,
+                    "EndAnnotation",
+                    "annotation",
+                    |node| match node {
+                        StackNode::Annotation { .. } => Ok(node),
+                        other => Err(ConversionError::MismatchedEvents {
+                            expected: "Annotation".to_string(),
+                            found: other.type_name().to_string(),
+                        }),
+                    },
+                )?;
             }
 
             Event::Inline(inline) => {
