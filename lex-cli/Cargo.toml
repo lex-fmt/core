@@ -17,6 +17,7 @@ doctest = false
 
 [dependencies]
 lex-parser = { path = "../lex-parser" }
+lex-babel = { path = "../lex-babel" }
 clap = { workspace = true }
 serde_json = { workspace = true }
 
