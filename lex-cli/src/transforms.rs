@@ -3,7 +3,7 @@
 //! This module defines all the transform combinations available in the CLI.
 //! Each transform is a stage + format combination (e.g., "ast-tag", "token-core-json").
 
-use lex_parser::lex::formats::{serialize_ast_tag, to_treeviz_str};
+use lex_babel::formats::{tag::serialize_document as serialize_ast_tag, treeviz::to_treeviz_str};
 use lex_parser::lex::lexing::transformations::line_token_grouping::GroupedTokens;
 use lex_parser::lex::lexing::transformations::LineTokenGroupingMapper;
 use lex_parser::lex::loader::DocumentLoader;
