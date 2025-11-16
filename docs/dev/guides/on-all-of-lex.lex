@@ -126,7 +126,7 @@ Design Principles:
 
 		Being lined based, all the grammar needs is the to have line tokens in order to parse any level of elements. Only annotations and end of verbatim blocks use data nodes, that means that pretty much all of Lex needs to be parsed from naturally occurring text lines, indentation and blank lines. 
 		Since this still is happening in the lexing stage, each line must be tokenized into one category. In the real world, a line might be more than one possible category. For example a line might have a sequence marker and a subject marker (for example "1. Recap:")
-		For this reason, line tokens can be OR tokens at times, and at other the order of line categorization is crucial to getting the right result. While there are only a few consequential marks in lines (blank, data, subject, list ) having them denormalized is required to have parsing simpler, hence we have 9 line tokes instead of 4. Mainly when data show up by itself or part of an annotation and whether sequence markers and subjcts are mixed.
+		For this reason, line tokens can be OR tokens at times, and at other the order of line categorization is crucial to getting the right result.[3] While there are only a few consequential marks in lines (blank, data, subject, list ) having them denormalized is required to have parsing simpler, hence we have 9 line tokes instead of 4. Mainly when data show up by itself or part of an annotation and whether sequence markers and subjcts are mixed.
 
 		These are the line tokens: 
 			- BlankLine (empty or whitespace only)
@@ -155,7 +155,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 		1. Semantic Indentation: we convert indent tokens into semantic events as indent and dedent.
 		2. We group tokens into lines.
-        3. We build a tree of line groups reflecting the nesting structure.
+        3. We build a tree of line groups reflecting the nesting structure.[4]
         4. We inject context information into each group allowing parsing to only read each level's lines.
 
     On their own, each step is fairly simple, their total sum being some 500 lines of code. Additionally they are easy to test and verify.
@@ -174,29 +174,73 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 	5.1 Lexing
 
-		5.1.1 Base Tokenization
-
-		We leverage the logos lexer to tokenize the source text's into core tokens. This is done declaratively with no custom logic, and could not be simpler. 
-
 		We now run transformations over the tokens. First we store the core tokens as a TokenStream for easier handling, then run transformations one by one. Each receiving a TokenStream and returning a TokenStream.
 
 		In common, all of these processes store the source tokens in the groupped token under  `source_tokens` field, which preserves information entirely and allows for easy unrolling at the final stages.
 
-		5.1.2 Semantic Indentation
+			5.1.1 Base Tokenization
 
-			The logos lexer will produce indentation tokens, that is groupping several spaeces or tabs into a single token. However, indentation tokes per se, are not useful. We don't want to know how many speaces per line there are, but we want to know about indentation levels and what's inside each one. For this, we want to track indent and dedent events, which lets us neatly tell levels and their content.
-			This transformation is a stateful machine that tracks changes in indentation levels and emits indent and dedent events. In itself, this is trivial, and how most indentation handling is done. At this point, indent/dedent could be replaced for open/close braces in more c-style languages with to the same effect.
-			Like any other token transformation, the indent/dedent tokens store their constituent  source tokens for location tracking and information preservation.
+					We leverage the logos lexer to tokenize the source text's into core tokens. This is done declaratively with no custom logic, and could not be simpler.[5]
+
+			5.1.2 Semantic Indentation
+
+				The logos lexer will produce indentation tokens, that is groupping several spaces or tabs into a single token. However, indentation tokens per se, are not useful. We don't want to know how many spaces per line there are, but we want to know about indentation levels and what's inside each one. For this, we want to track indent and dedent events, which lets us neatly tell levels and their content.
+				This transformation is a stateful machine that tracks changes in indentation levels and emits indent and dedent events. In itself, this is trivial, and how most indentation handling is done. At this point, indent/dedent could be replaced for open/close braces in more c-style languages with to the same effect.
+				Like any other token transformation, the indent/dedent tokens store their constituent  source tokens for location tracking and information preservation.[6]
 
 
-		5.1.3 Line Grouping
+			5.1.3 Line Grouping
 
-			Here we split tokens by line breaks into groups of tokens. Each group is a Line token and which category is determined by the tokens inside [#3.2]. This is also a fairly simple transformation. 
-			Each line group is faily simple and only contains the source tokens it uses. It does not process their information , and hence we consider this a lexing step as well
+					Here we split tokens by line breaks into groups of tokens. Each group is a Line token and which category is determined by the tokens inside [#3.2]. This is also a fairly simple transformation. 
+					Each line group is fairly simple and only contains the source tokens it uses. It does not process their information , and hence we consider this a lexing step as well.[7]
 
+		At this point, lexing is complete. We have a TokenStream of Line tokens + indent/dedent tokens.
+
+
+	5.2   Parsing (Semantic Analysis)
+
+		At the very begging of parsing we will group line tokens into a tree of LineContainers. What this gives us is the ability to parse each level in isolation. Because we don't need to know what a LineContent has , but only that it is a line content, we can parse each level with a regular regex. We simply print token names and match the grammar patterns agains them.[8]
+
+		When tokens are matched, we create intermediate representation node, which carry only two bits of information: the node matched and which tokens it uses. 
+
+		This allows us to separate the semantic analysis from the ast building. This is a good thing overall, but was instrumental during development, as we ran multiple parsers in parallel and the ast building had to be unified (correct parsing would result in the same node types + tokens )
+
+	5.3 AST Building
+
+		From the IR nodes, we build tha actual AST nodes.[9] During this step, two important things happen: 
+
+			1. We unroll source tokens so that ast nodes have acccess to token values .
+            2. The location is transformed from  byte range to a dual byte range + line:column position..
+
+        At this stage we create the Document node, it's root session node and the ast will be attached to it. 
+
+	5.4 Document assembly
+
+		We do have a document ast node, but it's not yet complete. Annotations, which are metadata, are always attached to AST nodes, so they can be very targeted.  Only with the full document in place we can attach annotations to their correct target nodes.[10]
+		This is harder than it seems. Keeping Lex ethos of not enforcing structure, this needs to deal with several ambiguous cases, including some complex logic for calculating "human understanding" distance between elements[12].
+
+	5.5 Inline Parsing
+
+		Finally, with the full and correctly annotated document, we will parse the TextContent nodes for inline elements. This parsing is much simpler, as it has formal start/end tokens as has no structural elements.
+
+		Inline parsing is done by a declarative engine that will process each element declaration.[11] For some , this is a flat transformation (i.e. it only wraps up the text into a node, as in bold or italic). Others are more involved, as in references, in which the engine will execute a callback with the text content and return a node. 
+		This solves elegantly the fact that most inlines are simple and very much the same structure, while allowing for more complex ones to handle their specific needs. 
+
+
+6. AST Structure, Children Elements and Containers
 
 
 Notes:
 
-1. docs/specs/v1/grammar-core.lex
-2. docs/specs/v1/grammar-line.lex
+	1. docs/specs/v1/grammar-core.lex
+	2. docs/specs/v1/grammar-line.lex
+	3. lex-parser/src/lex/lexing/line_classification.rs
+	4. lex-parser/src/lex/token/to_line_container.rs
+	5. lex-parser/src/lex/lexing/base_tokenization.rs
+	6. lex-parser/src/lex/lexing/transformations/semantic_indentation.rs
+	7. lex-parser/src/lex/lexing/line_grouping.rs
+	8. lex-parser/src/lex/parsing/engine.rs
+	9. lex-parser/src/lex/building/ast_tree.rs
+	10. lex-parser/src/lex/assembling/stages/attach_annotations.rs
+	11. lex-parser/src/lex/inlines/parser.rs
+	12. lex-parser/src/lex/assembling/stages/attach_annotations/distance.rs
