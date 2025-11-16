@@ -1,0 +1,81 @@
+//! Core data structures for the Intermediate Representation (IR).
+
+/// A universal, semantic representation of a document node.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DocNode {
+    Document(Document),
+    Heading(Heading),
+    Paragraph(Paragraph),
+    List(List),
+    ListItem(ListItem),
+    Definition(Definition),
+    Verbatim(Verbatim),
+    Annotation(Annotation),
+    Inline(InlineContent),
+}
+
+/// Represents the root of a document.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Document {
+    pub children: Vec<DocNode>,
+}
+
+/// Represents a heading with a specific level.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Heading {
+    pub level: usize,
+    pub content: Vec<InlineContent>,
+    pub children: Vec<DocNode>,
+}
+
+/// Represents a paragraph of text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Paragraph {
+    pub content: Vec<InlineContent>,
+}
+
+/// Represents a list of items.
+#[derive(Debug, Clone, PartialEq)]
+pub struct List {
+    pub items: Vec<ListItem>,
+}
+
+/// Represents an item in a list.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ListItem {
+    pub content: Vec<InlineContent>,
+    pub children: Vec<DocNode>,
+}
+
+/// Represents a definition of a term.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Definition {
+    pub term: Vec<InlineContent>,
+    pub description: Vec<DocNode>,
+}
+
+/// Represents a block of verbatim text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Verbatim {
+    pub language: Option<String>,
+    pub content: String,
+}
+
+/// Represents an annotation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Annotation {
+    pub label: String,
+    pub parameters: Vec<(String, String)>,
+    pub content: Vec<DocNode>,
+}
+
+/// Represents inline content, such as text, bold, italics, etc.
+#[derive(Debug, Clone, PartialEq)]
+pub enum InlineContent {
+    Text(String),
+    Bold(Vec<InlineContent>),
+    Italic(Vec<InlineContent>),
+    Code(String),
+    Math(String),
+    Reference(String),
+}
