@@ -79,6 +79,9 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
         }
         DocNode::ListItem(_) => {
             // List items are emitted by the surrounding list handler.
+            if cfg!(debug_assertions) {
+                unreachable!("ListItem should only be emitted by List");
+            }
         }
         DocNode::Definition(Definition { term, description }) => {
             events.push(Event::StartDefinition);
