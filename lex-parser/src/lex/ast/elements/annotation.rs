@@ -7,7 +7,7 @@
 //!
 //! As such they provide : -
 //! - labels: a way to identify the annotation
-//! - parameters[optional]:  a way to provide structured data
+//! - parameters (optional): a way to provide structured data
 //! - Optional content, like all other elements:
 //!     - Nestable containter that can host any element but sessions
 //!     - Shorthand for for single or no content annotations.
