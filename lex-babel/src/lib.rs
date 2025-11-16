@@ -38,8 +38,8 @@
 //!         ├── kitchensink.lex
 //!         └── kitchensink.md
 //!
-//! note that rust does not by default discover tests in subdirectories, so we need to include these
-//! in the mod.
+//!     note that rust does not by default discover tests in subdirectories, so we need to include these
+//!     in the mod.
 //!
 //! The Lex Format
 //!
@@ -53,12 +53,12 @@
 //!     This means that full format interop round tripping is not possible.
 //!
 //!
-//! Implementation Principles
+//! Library Choices
 //!
-//!     This, not being lex's core means that we will offload as much as possible to better, scpecialized creates for each format. the escope here is mainly to adapt the ast's from lex to the format or vice versa. For example we never write the serializer for , say markdown, but pass the AST to the mardown library.
-//!     To support a format inbound, we write the format ast -> lex ast adapter. likewise, for outbound formats we wiill do the reverse, converting from the lex ast to the format's.
+//!     This, not being lex's core means that we will offload as much as possible to better, specialized creates for each format. the escope here is mainly to adapt the ast's from lex to the format or vice versa. For example we never write the serializer for , say markdown, but pass the AST to the mardown library.
+//!     To support a format inbound, we write the format ast -> lex ast adapter. likewise, for outbound formats we will do the reverse, converting from the lex ast to the format's.
 //!
-//!     As much as possible, we will use rust crates, and avoid shelling out and having outside dependencies, but this can be innevitable as for pandoc.
+//!     As much as possible, we will use rust crates, and avoid shelling out and having outside dependencies.
 //!
 //! Format Selection
 //!
@@ -71,9 +71,13 @@
 //!     These are table stakes, that is a format that can't export to HTML, convert to markdown or lack a good semantic pure xml output is a non starter.
 //!
 //!
-//!     For everything else, there is good arguments for a variety of formats. The one that has the strongest fit and use case is Latex, as Lex can be very useful for scientifc writing. But latex is complicated, and having pandoc in the pipeline allows us to serve reasonably well pretty much any other format.
+//!     For everything else, there is good arguments for a variety of formats. The one that has the strongest fit and use case is Latex, as Lex can be very useful for scientific writing. But latex is complicated, and having pandoc in the pipeline allows us to serve reasonably well pretty much any other format.
 //!
-//!     This entails to only tree implementations. The hardest part of the work is about the mapping of nested to flat structures, and this code can be reused for all formats.
+//! Core Algorithms
+//!
+//!     The most complex part of the work is reconstructing a nested representation from a flat document, followed by the reverse operations.  For this reason we have a common IR (./ir/mod.rs) that is used for all formats.
+//!     Over this representation we implement both algorithms (see ./mappings/flat_to_nested.rs).
+//!     This means that all the heavy lifting is done by a core, well tested and maintained module, freeing format adaptations to be focused on the simpler data format transformations.
 //!
 pub mod error;
 pub mod format;
