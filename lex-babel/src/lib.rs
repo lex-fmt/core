@@ -78,7 +78,6 @@
 //!     The most complex part of the work is reconstructing a nested representation from a flat document, followed by the reverse operations.  For this reason we have a common IR (./ir/mod.rs) that is used for all formats.
 //!     Over this representation we implement both algorithms (see ./mappings/flat_to_nested.rs and ./mappings/nested_to_flat.rs).
 //!     This means that all the heavy lifting is done by a core, well tested and maintained module, freeing format adaptations to be focused on the simpler data format transformations.
-//!
 pub mod error;
 pub mod format;
 pub mod formats;
