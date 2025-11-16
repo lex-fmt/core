@@ -19,9 +19,9 @@
 //! `DocumentLoader` is a convenience layer on top of the [transform system](crate::lex::transforms).
 //! It manages source text loading and delegates to the appropriate transform:
 //!
-//! - `.parse()` → Uses [`STRING_TO_AST`](crate::lex::transforms::standard::STRING_TO_AST)
-//! - `.tokenize()` → Uses [`LEXING`](crate::lex::transforms::standard::LEXING)
-//! - `.base_tokens()` → Uses [`CORE_TOKENIZATION`](crate::lex::transforms::standard::CORE_TOKENIZATION)
+//! - `.parse()` → Uses [`STRING_TO_AST`]
+//! - `.tokenize()` → Uses [`LEXING`]
+//! - `.base_tokens()` → Uses [`CORE_TOKENIZATION`]
 //! - `.with(transform)` → Runs any custom transform
 //!
 //! # Common Usage Patterns
