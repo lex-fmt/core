@@ -166,11 +166,19 @@ if ! cargo nextest --version >/dev/null 2>&1; then
 fi
 
 # Use nextest (required)
-if ! cargo nextest run --no-fail-fast; then
+NEXTEST_STDOUT=$(mktemp)
+if cargo nextest run --no-fail-fast >"$NEXTEST_STDOUT"; then
+    # Show only the summary line from stdout on success; stderr wasn't suppressed.
+    tail -n 1 "$NEXTEST_STDOUT"
+    echo "✅ All tests passed"
+else
+    # On failure, replay captured stdout so failures are visible (stderr already shown).
+    cat "$NEXTEST_STDOUT"
+    rm -f "$NEXTEST_STDOUT"
     echo "❌ Tests failed!"
     exit 1
 fi
-echo "✅ All tests passed"
+rm -f "$NEXTEST_STDOUT"
 
 # 5. CRITICAL: Check formatting (matches CI exactly)
 echo ""
