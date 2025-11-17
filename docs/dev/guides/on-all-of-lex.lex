@@ -427,4 +427,5 @@ Notes:
 	10. lex-parser/src/lex/assembling/stages/attach_annotations.rs
 	11. lex-parser/src/lex/inlines/parser.rs
 	12. lex-parser/src/lex/assembling/stages/attach_annotations/distance.rs
-    13. lex-parser/src/lex/testing
+	13. lex-parser/src/lex/testing/lexplore.rs
+	14. lex-parser/src/lex/testing/ast_assertions.rs
