@@ -213,3 +213,112 @@ fn group_tokens_by_line(tokens: Vec<TokenLocation>) -> Vec<Vec<TokenLocation>> {
 
     lines
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lex::token::{LineToken, LineType, Token};
+
+    fn parse_node(
+        node_type: NodeType,
+        tokens: Vec<TokenLocation>,
+        children: Vec<ParseNode>,
+    ) -> ParseNode {
+        ParseNode {
+            node_type,
+            tokens,
+            children,
+            payload: None,
+        }
+    }
+
+    #[test]
+    fn build_general_content_rejects_nested_session() {
+        let source = "Term\nchild\n";
+        let builder = AstTreeBuilder::new(source);
+
+        let nested_session = parse_node(
+            NodeType::Session,
+            vec![(Token::Text("child".into()), 5..10)],
+            vec![],
+        );
+
+        let err = builder
+            .build_general_content(vec![nested_session], "Definition")
+            .expect_err("sessions should not be allowed in general content");
+
+        match *err {
+            ParserError::InvalidNesting {
+                ref container,
+                ref invalid_child,
+                ref invalid_child_text,
+                ref location,
+                ..
+            } => {
+                assert_eq!(container, "Definition");
+                assert_eq!(invalid_child, "Session");
+                assert_eq!(invalid_child_text.trim(), "child");
+                assert_eq!(location.start.line, 1);
+            }
+        }
+    }
+
+    #[test]
+    fn group_tokens_by_line_handles_blank_boundaries() {
+        let tokens = vec![
+            (Token::Text("a".into()), 0..1),
+            (Token::BlankLine(Some("\n".into())), 1..2),
+            (Token::BlankLine(Some("\n".into())), 2..3),
+            (Token::Text("b".into()), 3..4),
+        ];
+
+        let lines = group_tokens_by_line(tokens);
+
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].len(), 1); // before blank line
+        assert!(lines[1].is_empty()); // consecutive blank line produces empty bucket
+        assert_eq!(lines[2].len(), 1); // after blanks
+    }
+
+    #[test]
+    #[allow(clippy::single_range_in_vec_init)]
+    fn build_verbatim_block_preserves_payload_data() {
+        let source = "subject\ncontent\nclose\n";
+        let builder = AstTreeBuilder::new(source);
+
+        let subject_token = LineToken {
+            source_tokens: vec![Token::Text("subject".into())],
+            token_spans: vec![0..7],
+            line_type: LineType::SubjectLine,
+        };
+
+        let content_line = LineToken {
+            source_tokens: vec![Token::Text("content".into())],
+            token_spans: vec![8..15],
+            line_type: LineType::ParagraphLine,
+        };
+
+        let payload = ParseNodePayload::VerbatimBlock {
+            subject: subject_token,
+            content_lines: vec![content_line],
+            closing_data_tokens: vec![(Token::Text("close".into()), 16..21)],
+        };
+
+        let node = ParseNode {
+            node_type: NodeType::VerbatimBlock,
+            tokens: vec![],
+            children: vec![],
+            payload: Some(payload),
+        };
+
+        let item = builder.build_verbatim_block(node);
+
+        if let ContentItem::VerbatimBlock(verbatim) = item {
+            assert_eq!(verbatim.subject.as_string(), "subject");
+            assert_eq!(verbatim.children.len(), 1);
+            assert_eq!(verbatim.closing_data.label.value, "close");
+        } else {
+            panic!("expected verbatim block");
+        }
+    }
+}
