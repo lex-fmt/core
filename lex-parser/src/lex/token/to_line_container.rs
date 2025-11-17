@@ -26,7 +26,11 @@ use std::iter::Peekable;
 /// A LineContainer tree ready for the line-based parser
 pub fn build_line_container(line_tokens: Vec<LineToken>) -> LineContainer {
     let mut tokens_iter = line_tokens.into_iter().peekable();
-    let children = build_recursive(&mut tokens_iter);
+    let mut children = build_recursive(&mut tokens_iter, None);
+
+    // Inject parent blank marker at document start if first element is not blank/indent
+    inject_parent_blank_marker_at_start(&mut children);
+
     LineContainer::Container { children }
 }
 
@@ -36,17 +40,32 @@ pub fn build_line_container(line_tokens: Vec<LineToken>) -> LineContainer {
 /// an `Indent`, it recursively calls itself to build a nested `Container`. It stops
 /// processing the current level when it sees a `Dedent` (which belongs to the parent
 /// level) or when the token stream is exhausted.
-fn build_recursive<I>(tokens: &mut Peekable<I>) -> Vec<LineContainer>
+///
+/// # Parameters
+///
+/// * `tokens` - The iterator of line tokens
+/// * `parent_last_blank` - The last BlankLineGroup token from the parent level (if any)
+fn build_recursive<I>(
+    tokens: &mut Peekable<I>,
+    parent_last_blank: Option<LineToken>,
+) -> Vec<LineContainer>
 where
     I: Iterator<Item = LineToken>,
 {
     let mut children = Vec::new();
+    let mut last_blank: Option<LineToken> = parent_last_blank;
 
     while let Some(token) = tokens.peek() {
         match token.line_type {
             LineType::Indent => {
                 tokens.next(); // Consume Indent token
-                let indented_children = build_recursive(tokens);
+                let mut indented_children = build_recursive(tokens, last_blank.clone());
+
+                // Inject parent blank marker if we have a last blank from this level
+                if last_blank.is_some() {
+                    inject_parent_blank_marker_at_start(&mut indented_children);
+                }
+
                 children.push(LineContainer::Container {
                     children: indented_children,
                 });
@@ -56,6 +75,13 @@ where
                 // Consume it and return to the parent level.
                 tokens.next();
                 return children;
+            }
+            LineType::BlankLine => {
+                // Track the last blank line token for potential injection into nested containers
+                last_blank = Some(token.clone());
+                if let Some(t) = tokens.next() {
+                    children.push(LineContainer::Token(t));
+                }
             }
             _ => {
                 // Regular token, consume and add to the current level's children.
@@ -67,6 +93,34 @@ where
     }
 
     children
+}
+
+/// Inject a parent blank marker at the start of a container's children.
+///
+/// This function checks if the first token is not already a blank line or indent,
+/// and if so, injects a ParentBlankMarker at the beginning.
+fn inject_parent_blank_marker_at_start(children: &mut Vec<LineContainer>) {
+    if children.is_empty() {
+        return;
+    }
+
+    // Check if first child is a token and not already a blank/indent/parent-blank-marker
+    let should_inject = match &children[0] {
+        LineContainer::Token(t) => !matches!(
+            t.line_type,
+            LineType::BlankLine | LineType::Indent | LineType::ParentBlankMarker
+        ),
+        LineContainer::Container { .. } => false, // Don't inject before containers
+    };
+
+    if should_inject {
+        let marker = LineToken {
+            source_tokens: vec![],
+            token_spans: vec![],
+            line_type: LineType::ParentBlankMarker,
+        };
+        children.insert(0, LineContainer::Token(marker));
+    }
 }
 
 #[cfg(test)]
@@ -93,8 +147,22 @@ mod tests {
 
         match container {
             LineContainer::Container { children } => {
-                assert_eq!(children.len(), 1);
+                assert_eq!(
+                    children.len(),
+                    2,
+                    "Should have ParentBlankMarker + ParagraphLine"
+                );
+
+                // First child should be ParentBlankMarker (injected at document start)
                 match &children[0] {
+                    LineContainer::Token(line_token) => {
+                        assert_eq!(line_token.line_type, LineType::ParentBlankMarker);
+                    }
+                    _ => panic!("Expected ParentBlankMarker"),
+                }
+
+                // Second child should be the paragraph
+                match &children[1] {
                     LineContainer::Token(line_token) => {
                         assert_eq!(line_token.line_type, LineType::ParagraphLine);
                         assert_eq!(line_token.source_tokens.len(), 4);
@@ -142,32 +210,41 @@ mod tests {
 
         let container = build_line_container(line_tokens);
 
-        // Expected structure: [Token(Title), Container([Token(Content)])]
+        // Expected structure: [ParentBlankMarker, Token(Title), Container([Token(Content)])]
+        // ParentBlankMarker at document start, no ParentBlankMarker in nested container (no preceding blank)
         match container {
             LineContainer::Container { children } => {
                 assert_eq!(
                     children.len(),
-                    2,
-                    "Should have two items at the root: the title token and the content container"
+                    3,
+                    "Should have three items at the root: ParentBlankMarker, title token, and content container"
                 );
 
-                // First child should be the title token
+                // First child should be ParentBlankMarker (injected at document start)
                 match &children[0] {
+                    LineContainer::Token(line_token) => {
+                        assert_eq!(line_token.line_type, LineType::ParentBlankMarker);
+                    }
+                    _ => panic!("Expected ParentBlankMarker"),
+                }
+
+                // Second child should be the title token
+                match &children[1] {
                     LineContainer::Token(line_token) => {
                         assert_eq!(line_token.line_type, LineType::SubjectLine);
                     }
                     _ => panic!("Expected Token for title"),
                 }
 
-                // Second child should be the container for indented content
-                match &children[1] {
+                // Third child should be the container for indented content
+                match &children[2] {
                     LineContainer::Container {
                         children: nested_children,
                     } => {
                         assert_eq!(
                             nested_children.len(),
                             1,
-                            "Nested container should have one item"
+                            "Nested container should have one item (no ParentBlankMarker because no preceding blank)"
                         );
                         match &nested_children[0] {
                             LineContainer::Token(line_token) => {

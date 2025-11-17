@@ -172,8 +172,8 @@ impl GrammarMatcher {
                             }
                         }
                         "session_no_blank" => {
-                            // Session without preceding blank now uses a synthetic blank marker
-                            // Synth-blanks are injected at document/container starts and after blank lines
+                            // Session without preceding blank now uses a parent blank marker
+                            // Parent blank markers are injected during LineContainer creation from parent's last blank
                             // We still need allow_sessions to prevent sessions inside definitions
                             if !allow_sessions {
                                 continue;
@@ -181,7 +181,7 @@ impl GrammarMatcher {
                             let blank_str = caps.name("blank").unwrap().as_str();
                             let blank_count = Self::count_consumed_tokens(blank_str);
                             PatternMatch::Session {
-                                subject_idx: 1,               // Skip the synth-blank at index 0
+                                subject_idx: 1,               // Skip the parent-blank-marker at index 0
                                 content_idx: 2 + blank_count, // subject at 1, blank starts at 2
                                 preceding_blank_range: None,
                             }
@@ -265,7 +265,7 @@ impl GrammarMatcher {
         let mut idx = start_idx;
         while idx < len {
             if let LineContainer::Token(line) = &tokens[idx] {
-                if line.line_type == BlankLine || line.line_type == LineType::SynthBlank {
+                if line.line_type == BlankLine || line.line_type == LineType::ParentBlankMarker {
                     idx += 1;
                     continue;
                 }
@@ -295,7 +295,8 @@ impl GrammarMatcher {
             // Skip blank lines and synthetic blanks
             while cursor < len {
                 if let LineContainer::Token(line) = &tokens[cursor] {
-                    if line.line_type == BlankLine || line.line_type == LineType::SynthBlank {
+                    if line.line_type == BlankLine || line.line_type == LineType::ParentBlankMarker
+                    {
                         cursor += 1;
                         continue;
                     }
@@ -319,7 +320,8 @@ impl GrammarMatcher {
                     // Skip blank lines and synthetic blanks after container
                     while cursor < len {
                         if let LineContainer::Token(line) = &tokens[cursor] {
-                            if line.line_type == BlankLine || line.line_type == LineType::SynthBlank
+                            if line.line_type == BlankLine
+                                || line.line_type == LineType::ParentBlankMarker
                             {
                                 cursor += 1;
                                 continue;

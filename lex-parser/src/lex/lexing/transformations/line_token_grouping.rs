@@ -86,16 +86,11 @@ mod tests {
         let mut mapper = LineTokenGroupingMapper::new();
         let groups = mapper.map(tokens);
 
-        // Should have: SynthBlank (doc start), SubjectLine
-        assert_eq!(groups.len(), 2);
-        match groups[0].group_type {
-            GroupType::Line(LineType::SynthBlank) => {}
-            _ => panic!("Expected SynthBlank at document start"),
-        }
-        assert_eq!(groups[0].source_tokens.len(), 0); // SynthBlank has no source tokens
+        // Should have: SubjectLine only (ParentBlankMarker is now injected during tree building)
+        assert_eq!(groups.len(), 1);
 
-        assert_eq!(groups[1].source_tokens.len(), 3);
-        match groups[1].group_type {
+        assert_eq!(groups[0].source_tokens.len(), 3);
+        match groups[0].group_type {
             GroupType::Line(LineType::SubjectLine) => {}
             _ => panic!("Expected SubjectLine"),
         }

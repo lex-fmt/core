@@ -90,9 +90,10 @@ pub enum LineType {
     /// Dedentation marker (pass-through from prior transformation)
     Dedent,
 
-    /// Synthetic blank marker injected at document/container starts and after blank-line groups
-    /// Used to allow declarative session-without-preceding-blank parsing
-    SynthBlank,
+    /// Parent blank marker: synthetic token injected during LineContainer creation
+    /// Cloned from parent's last BlankLineGroup token (if present) to allow declarative
+    /// session-without-preceding-blank parsing. Only relevant for tree structures.
+    ParentBlankMarker,
 }
 
 impl fmt::Display for LineType {
@@ -109,7 +110,7 @@ impl fmt::Display for LineType {
             LineType::DialogLine => "DIALOG_LINE",
             LineType::Indent => "INDENT",
             LineType::Dedent => "DEDENT",
-            LineType::SynthBlank => "SYNTH_BLANK",
+            LineType::ParentBlankMarker => "PARENT_BLANK_MARKER",
         };
         write!(f, "{}", name)
     }
@@ -137,7 +138,7 @@ impl LineType {
             LineType::DialogLine => "dialog-line",
             LineType::Indent => "indent",
             LineType::Dedent => "dedent",
-            LineType::SynthBlank => "synth-blank",
+            LineType::ParentBlankMarker => "parent-blank-marker",
         };
         format!("<{}>", name)
     }
