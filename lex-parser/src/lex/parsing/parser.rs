@@ -37,9 +37,6 @@ impl GrammarMatcher {
         tokens: &[LineContainer],
         start_idx: usize,
         allow_sessions: bool,
-        is_first_item: bool,
-        has_preceding_blank: bool,
-        prev_was_session: bool,
     ) -> Option<(PatternMatch, Range<usize>)> {
         if start_idx >= tokens.len() {
             return None;
@@ -175,27 +172,17 @@ impl GrammarMatcher {
                             }
                         }
                         "session_no_blank" => {
-                            // Allow session_no_blank in these cases:
-                            // 1. At document start (is_first_item=true), OR
-                            // 2. At container start when sessions are allowed (start_idx=0 && allow_sessions=true), OR
-                            // 3. After a BlankLineGroup when sessions are allowed (has_preceding_blank && allow_sessions)
-                            // 4. Immediately after another session (prev_was_session && allow_sessions)
-                            // This prevents Sessions inside Definitions while allowing legitimate session sequences.
+                            // Session without preceding blank now uses a synthetic blank marker
+                            // Synth-blanks are injected at document/container starts and after blank lines
+                            // We still need allow_sessions to prevent sessions inside definitions
                             if !allow_sessions {
-                                continue; // Definitions and other containers don't allow sessions
-                            }
-                            if !(is_first_item
-                                || start_idx == 0
-                                || has_preceding_blank
-                                || prev_was_session)
-                            {
-                                continue; // Sessions need a separator or another session before them
+                                continue;
                             }
                             let blank_str = caps.name("blank").unwrap().as_str();
                             let blank_count = Self::count_consumed_tokens(blank_str);
                             PatternMatch::Session {
-                                subject_idx: 0,
-                                content_idx: 1 + blank_count,
+                                subject_idx: 1,               // Skip the synth-blank at index 0
+                                content_idx: 2 + blank_count, // subject at 1, blank starts at 2
                                 preceding_blank_range: None,
                             }
                         }
@@ -274,11 +261,11 @@ impl GrammarMatcher {
             return None;
         }
 
-        // Allow blank lines before the subject to be consumed as part of this match
+        // Allow blank lines and synthetic blanks before the subject to be consumed as part of this match
         let mut idx = start_idx;
         while idx < len {
             if let LineContainer::Token(line) = &tokens[idx] {
-                if line.line_type == BlankLine {
+                if line.line_type == BlankLine || line.line_type == LineType::SynthBlank {
                     idx += 1;
                     continue;
                 }
@@ -305,10 +292,10 @@ impl GrammarMatcher {
         // Try to match one or more subject+content pairs followed by closing annotation
         // This loop handles verbatim groups: multiple subjects sharing one closing annotation
         loop {
-            // Skip blank lines
+            // Skip blank lines and synthetic blanks
             while cursor < len {
                 if let LineContainer::Token(line) = &tokens[cursor] {
-                    if line.line_type == BlankLine {
+                    if line.line_type == BlankLine || line.line_type == LineType::SynthBlank {
                         cursor += 1;
                         continue;
                     }
@@ -329,10 +316,11 @@ impl GrammarMatcher {
                     // - Session: subject + container + (other content)
                     cursor += 1;
 
-                    // Skip blank lines after container
+                    // Skip blank lines and synthetic blanks after container
                     while cursor < len {
                         if let LineContainer::Token(line) = &tokens[cursor] {
-                            if line.line_type == BlankLine {
+                            if line.line_type == BlankLine || line.line_type == LineType::SynthBlank
+                            {
                                 cursor += 1;
                                 continue;
                             }
@@ -403,7 +391,7 @@ pub fn parse_with_declarative_grammar(
     tokens: Vec<LineContainer>,
     source: &str,
 ) -> Result<Vec<ParseNode>, String> {
-    parse_with_declarative_grammar_internal(tokens, source, true, true)
+    parse_with_declarative_grammar_internal(tokens, source, true)
 }
 
 /// Internal parsing function with nesting level tracking
@@ -411,30 +399,12 @@ fn parse_with_declarative_grammar_internal(
     tokens: Vec<LineContainer>,
     source: &str,
     allow_sessions: bool,
-    is_doc_start: bool,
 ) -> Result<Vec<ParseNode>, String> {
     let mut items: Vec<ParseNode> = Vec::new();
     let mut idx = 0;
 
     while idx < tokens.len() {
-        let (has_preceding_blank, prev_was_session) = if let Some(last_node) = items.last() {
-            (
-                matches!(last_node.node_type, NodeType::BlankLineGroup),
-                matches!(last_node.node_type, NodeType::Session),
-            )
-        } else {
-            (false, false)
-        };
-
-        let is_first_item = idx == 0 && is_doc_start;
-        if let Some((pattern, range)) = GrammarMatcher::try_match(
-            &tokens,
-            idx,
-            allow_sessions,
-            is_first_item,
-            has_preceding_blank,
-            prev_was_session,
-        ) {
+        if let Some((pattern, range)) = GrammarMatcher::try_match(&tokens, idx, allow_sessions) {
             let mut pending_nodes = Vec::new();
 
             if let PatternMatch::List {
@@ -463,7 +433,7 @@ fn parse_with_declarative_grammar_internal(
                 range.clone(),
                 source,
                 &move |children, src| {
-                    parse_with_declarative_grammar_internal(children, src, is_session, false)
+                    parse_with_declarative_grammar_internal(children, src, is_session)
                 },
             )?;
             let (item, mut trailing_blanks) = split_trailing_blank_groups(item);

@@ -72,9 +72,10 @@ pub(super) const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
         r"^(?P<subject><subject-line>|<subject-or-list-item-line>|<paragraph-line>)(?P<content><container>)",
     ),
     // Session without preceding blank line (for sessions at container start)
+    // Now requires a synthetic blank marker which is injected at document/container starts and after blank lines
     (
         "session_no_blank",
-        r"^(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?P<content><container>)",
+        r"^<synth-blank>(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?P<content><container>)",
     ),
     // Paragraph: <content-line>+
     (

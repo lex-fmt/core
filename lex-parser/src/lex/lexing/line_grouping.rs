@@ -64,7 +64,10 @@ pub fn group_into_lines(tokens: Vec<(Token, ByteRange<usize>)>) -> Vec<LineToken
     }
 
     // Apply dialog line detection
-    apply_dialog_detection(line_tokens)
+    let line_tokens = apply_dialog_detection(line_tokens);
+
+    // Inject synthetic blank markers for declarative session parsing
+    inject_synth_blanks(line_tokens)
 }
 
 /// Classify tokens and create a LineToken with the appropriate LineType.
@@ -77,6 +80,61 @@ fn classify_and_create_line_token(token_tuples: Vec<(Token, ByteRange<usize>)>) 
         token_spans,
         line_type,
     }
+}
+
+/// Inject synthetic blank markers into the token stream.
+///
+/// This preprocessing step inserts synthetic blank markers at:
+/// 1. Document start (before first token if not already a blank line or indent)
+/// 2. After Indent tokens (container starts)
+/// 3. After blank line groups
+///
+/// These markers allow the parser to declaratively match session-without-blank patterns
+/// without needing imperative context flags.
+pub fn inject_synth_blanks(line_tokens: Vec<LineToken>) -> Vec<LineToken> {
+    let mut result = Vec::new();
+    let mut i = 0;
+
+    while i < line_tokens.len() {
+        let current = &line_tokens[i];
+
+        // Inject SynthBlank at document start (before first non-blank/non-indent token)
+        if i == 0
+            && current.line_type != LineType::BlankLine
+            && current.line_type != LineType::Indent
+        {
+            result.push(LineToken {
+                source_tokens: vec![],
+                token_spans: vec![],
+                line_type: LineType::SynthBlank,
+            });
+        }
+
+        // Add the current token
+        result.push(current.clone());
+
+        // Inject SynthBlank after Indent (container start) or BlankLine
+        if current.line_type == LineType::Indent || current.line_type == LineType::BlankLine {
+            // Look ahead to see if there's a non-blank, non-dedent token coming
+            if i + 1 < line_tokens.len() {
+                let next = &line_tokens[i + 1];
+                if next.line_type != LineType::BlankLine
+                    && next.line_type != LineType::Dedent
+                    && next.line_type != LineType::Indent
+                {
+                    result.push(LineToken {
+                        source_tokens: vec![],
+                        token_spans: vec![],
+                        line_type: LineType::SynthBlank,
+                    });
+                }
+            }
+        }
+
+        i += 1;
+    }
+
+    result
 }
 
 /// Apply dialog line detection logic.
@@ -137,10 +195,12 @@ mod tests {
 
         let line_tokens = group_into_lines(tokens);
 
-        assert_eq!(line_tokens.len(), 1);
-        assert_eq!(line_tokens[0].line_type, LineType::ParagraphLine);
-        assert_eq!(line_tokens[0].source_tokens.len(), 2);
-        assert_eq!(line_tokens[0].token_spans.len(), 2);
+        // Should have SynthBlank at document start, then the line
+        assert_eq!(line_tokens.len(), 2);
+        assert_eq!(line_tokens[0].line_type, LineType::SynthBlank);
+        assert_eq!(line_tokens[1].line_type, LineType::ParagraphLine);
+        assert_eq!(line_tokens[1].source_tokens.len(), 2);
+        assert_eq!(line_tokens[1].token_spans.len(), 2);
     }
 
     #[test]
@@ -154,9 +214,12 @@ mod tests {
 
         let line_tokens = group_into_lines(tokens);
 
-        assert_eq!(line_tokens.len(), 2);
-        assert_eq!(line_tokens[0].line_type, LineType::ParagraphLine);
+        // Should have: SynthBlank (doc start), Line1, SynthBlank (after blank), Line2
+        // Note: No SynthBlank after Line1's blank because Line2 comes next
+        assert_eq!(line_tokens.len(), 3);
+        assert_eq!(line_tokens[0].line_type, LineType::SynthBlank);
         assert_eq!(line_tokens[1].line_type, LineType::ParagraphLine);
+        assert_eq!(line_tokens[2].line_type, LineType::ParagraphLine);
     }
 
     #[test]
@@ -173,11 +236,14 @@ mod tests {
 
         let line_tokens = group_into_lines(tokens);
 
-        assert_eq!(line_tokens.len(), 4);
-        assert_eq!(line_tokens[0].line_type, LineType::SubjectLine);
-        assert_eq!(line_tokens[1].line_type, LineType::Indent);
-        assert_eq!(line_tokens[2].line_type, LineType::ParagraphLine);
-        assert_eq!(line_tokens[3].line_type, LineType::Dedent);
+        // Should have: SynthBlank (doc start), SubjectLine, Indent, SynthBlank (after indent), ParagraphLine, Dedent
+        assert_eq!(line_tokens.len(), 6);
+        assert_eq!(line_tokens[0].line_type, LineType::SynthBlank);
+        assert_eq!(line_tokens[1].line_type, LineType::SubjectLine);
+        assert_eq!(line_tokens[2].line_type, LineType::Indent);
+        assert_eq!(line_tokens[3].line_type, LineType::SynthBlank);
+        assert_eq!(line_tokens[4].line_type, LineType::ParagraphLine);
+        assert_eq!(line_tokens[5].line_type, LineType::Dedent);
     }
 
     #[test]
@@ -192,10 +258,13 @@ mod tests {
 
         let line_tokens = group_into_lines(tokens);
 
-        assert_eq!(line_tokens.len(), 3);
-        assert_eq!(line_tokens[0].line_type, LineType::ParagraphLine);
-        assert_eq!(line_tokens[1].line_type, LineType::BlankLine);
-        assert_eq!(line_tokens[2].line_type, LineType::ParagraphLine);
+        // Should have: SynthBlank (doc start), ParagraphLine (Line1), BlankLine, SynthBlank (after blank), ParagraphLine (Line2)
+        assert_eq!(line_tokens.len(), 5);
+        assert_eq!(line_tokens[0].line_type, LineType::SynthBlank);
+        assert_eq!(line_tokens[1].line_type, LineType::ParagraphLine);
+        assert_eq!(line_tokens[2].line_type, LineType::BlankLine);
+        assert_eq!(line_tokens[3].line_type, LineType::SynthBlank);
+        assert_eq!(line_tokens[4].line_type, LineType::ParagraphLine);
     }
 
     #[test]
@@ -215,9 +284,11 @@ mod tests {
 
         let line_tokens = group_into_lines(tokens);
 
-        assert_eq!(line_tokens.len(), 2);
-        assert_eq!(line_tokens[0].line_type, LineType::DialogLine);
+        // Should have: SynthBlank (doc start), DialogLine, DialogLine
+        assert_eq!(line_tokens.len(), 3);
+        assert_eq!(line_tokens[0].line_type, LineType::SynthBlank);
         assert_eq!(line_tokens[1].line_type, LineType::DialogLine);
+        assert_eq!(line_tokens[2].line_type, LineType::DialogLine);
     }
 
     #[test]
@@ -231,9 +302,140 @@ mod tests {
 
         let line_tokens = group_into_lines(tokens);
 
-        assert_eq!(line_tokens[0].token_spans[0], 0..5);
-        assert_eq!(line_tokens[0].token_spans[1], 5..6);
-        assert_eq!(line_tokens[0].token_spans[2], 6..11);
-        assert_eq!(line_tokens[0].token_spans[3], 11..12);
+        // First token is SynthBlank (injected at document start)
+        assert_eq!(line_tokens[0].line_type, LineType::SynthBlank);
+        // Second token is the actual line
+        assert_eq!(line_tokens[1].token_spans[0], 0..5);
+        assert_eq!(line_tokens[1].token_spans[1], 5..6);
+        assert_eq!(line_tokens[1].token_spans[2], 6..11);
+        assert_eq!(line_tokens[1].token_spans[3], 11..12);
+    }
+
+    #[test]
+    #[allow(clippy::single_range_in_vec_init)]
+    fn test_inject_synth_blank_at_document_start() {
+        let line_tokens = vec![LineToken {
+            source_tokens: vec![Token::Text("Hello".to_string())],
+            token_spans: vec![0..5],
+            line_type: LineType::ParagraphLine,
+        }];
+
+        let result = inject_synth_blanks(line_tokens);
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].line_type, LineType::SynthBlank);
+        assert_eq!(result[1].line_type, LineType::ParagraphLine);
+    }
+
+    #[test]
+    #[allow(clippy::single_range_in_vec_init)]
+    fn test_inject_synth_blank_after_blank_line() {
+        let line_tokens = vec![
+            LineToken {
+                source_tokens: vec![Token::BlankLine(Some("\n".to_string()))],
+                token_spans: vec![0..1],
+                line_type: LineType::BlankLine,
+            },
+            LineToken {
+                source_tokens: vec![Token::Text("Hello".to_string())],
+                token_spans: vec![1..6],
+                line_type: LineType::ParagraphLine,
+            },
+        ];
+
+        let result = inject_synth_blanks(line_tokens);
+
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].line_type, LineType::BlankLine);
+        assert_eq!(result[1].line_type, LineType::SynthBlank);
+        assert_eq!(result[2].line_type, LineType::ParagraphLine);
+    }
+
+    #[test]
+    #[allow(clippy::single_range_in_vec_init)]
+    fn test_inject_synth_blank_after_indent() {
+        let line_tokens = vec![
+            LineToken {
+                source_tokens: vec![Token::Text("Title".to_string()), Token::Colon],
+                token_spans: vec![0..5, 5..6],
+                line_type: LineType::SubjectLine,
+            },
+            LineToken {
+                source_tokens: vec![Token::Indentation],
+                token_spans: vec![7..11],
+                line_type: LineType::Indent,
+            },
+            LineToken {
+                source_tokens: vec![Token::Text("Content".to_string())],
+                token_spans: vec![11..18],
+                line_type: LineType::ParagraphLine,
+            },
+        ];
+
+        let result = inject_synth_blanks(line_tokens);
+
+        // Should have: SynthBlank (doc start), SubjectLine, Indent, SynthBlank (after indent), ParagraphLine
+        assert_eq!(result.len(), 5);
+        assert_eq!(result[0].line_type, LineType::SynthBlank);
+        assert_eq!(result[1].line_type, LineType::SubjectLine);
+        assert_eq!(result[2].line_type, LineType::Indent);
+        assert_eq!(result[3].line_type, LineType::SynthBlank);
+        assert_eq!(result[4].line_type, LineType::ParagraphLine);
+    }
+
+    #[test]
+    #[allow(clippy::single_range_in_vec_init)]
+    fn test_no_synth_blank_after_blank_line_at_end() {
+        let line_tokens = vec![
+            LineToken {
+                source_tokens: vec![Token::Text("Hello".to_string())],
+                token_spans: vec![0..5],
+                line_type: LineType::ParagraphLine,
+            },
+            LineToken {
+                source_tokens: vec![Token::BlankLine(Some("\n".to_string()))],
+                token_spans: vec![5..6],
+                line_type: LineType::BlankLine,
+            },
+        ];
+
+        let result = inject_synth_blanks(line_tokens);
+
+        // Should have: SynthBlank (doc start), ParagraphLine, BlankLine (no synth blank after because it's at end)
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].line_type, LineType::SynthBlank);
+        assert_eq!(result[1].line_type, LineType::ParagraphLine);
+        assert_eq!(result[2].line_type, LineType::BlankLine);
+    }
+
+    #[test]
+    #[allow(clippy::single_range_in_vec_init)]
+    fn test_no_synth_blank_between_consecutive_blank_lines() {
+        let line_tokens = vec![
+            LineToken {
+                source_tokens: vec![Token::BlankLine(Some("\n".to_string()))],
+                token_spans: vec![0..1],
+                line_type: LineType::BlankLine,
+            },
+            LineToken {
+                source_tokens: vec![Token::BlankLine(Some("\n".to_string()))],
+                token_spans: vec![1..2],
+                line_type: LineType::BlankLine,
+            },
+            LineToken {
+                source_tokens: vec![Token::Text("Hello".to_string())],
+                token_spans: vec![2..7],
+                line_type: LineType::ParagraphLine,
+            },
+        ];
+
+        let result = inject_synth_blanks(line_tokens);
+
+        // Should have: BlankLine, BlankLine, SynthBlank (after second blank), ParagraphLine
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0].line_type, LineType::BlankLine);
+        assert_eq!(result[1].line_type, LineType::BlankLine);
+        assert_eq!(result[2].line_type, LineType::SynthBlank);
+        assert_eq!(result[3].line_type, LineType::ParagraphLine);
     }
 }

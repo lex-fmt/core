@@ -52,9 +52,6 @@ Document with 16 root items:
   [7] Paragraph with 1 line(s):     [0] TextLine: A paragraph back at the first level of nesting. {{paragraph}}
   [8] VerbatimBlock with 72 content char(s)
 [12] BlankLineGroup with 1 line(s)
-[13] Session with 3 item(s):
-  [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}
-  [1] BlankLineGroup with 1 line(s)
-  [2] VerbatimBlock with 0 content char(s)
+[13] Paragraph with 1 line(s):   [0] TextLine: 2. Second Root Session {{session}}
 [14] BlankLineGroup with 1 line(s)
 [15] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}
