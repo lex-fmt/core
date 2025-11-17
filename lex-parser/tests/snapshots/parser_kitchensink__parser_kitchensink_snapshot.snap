@@ -1,5 +1,5 @@
 ---
-source: lex-parser/tests/experimental_parser_kitchensink.rs
+source: lex-parser/tests/parser_kitchensink.rs
 expression: snapshot
 ---
 Document with 16 root items:
