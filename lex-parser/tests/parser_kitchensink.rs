@@ -1,14 +1,13 @@
-//! Integration test for the parser using the kitchensink test file.
+//! Snapshot regression test for the current parser using the kitchensink fixture.
 //!
-//! This test uses insta snapshot testing to ensure the parser
-//! produces the correct AST structure for a complex, comprehensive test file.
-//! Any regression in parsing will be caught automatically.
+//! This uses `insta` to capture a readable AST outline for a comprehensive
+//! document. Any regression in parsing will show up as a snapshot diff.
 
 use lex_parser::lex::parsing::ContentItem;
 use lex_parser::lex::testing::lexplore::Lexplore;
 
 #[test]
-fn _parser_kitchensink_snapshot() {
+fn parser_kitchensink_snapshot() {
     // Use Lexplore to load the benchmark kitchensink document
     let doc = Lexplore::benchmark(10).parse().unwrap();
 
