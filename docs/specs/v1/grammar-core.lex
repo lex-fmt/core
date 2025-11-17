@@ -203,6 +203,11 @@ Grammar for lex
     <session> = <session-title-line> <blank-line> <indent> <session-content>
     <session-content> = (<paragraph> | <list> | <session>)+
 
+    Notes on separators and ownership:
+    - A blank line between the title and the indented content is REQUIRED (disambiguates from definitions).
+    - A session may start at document/container start, after a blank-line group, or immediately after a just-closed child (a boundary). Blank lines stay in the container where they appear; dedent boundaries also act as separators for starting the next session sibling.
+    - Content can include nested sessions, definitions, lists, and paragraphs.
+
     <verbatim-block> = <subject-line> <blank-line>? <verbatim-content>? <closing-annotation>
     <subject-line> = <text-span>+ <colon> <line-break>
     <verbatim-content> = <indent> <raw-text-line>+ <dedent>
