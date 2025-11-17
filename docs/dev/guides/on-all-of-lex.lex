@@ -292,7 +292,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 		| Definition  | Optional    | SubjectLine         | No        | Yes      | dedent        	|
 		| Verbatim    | Optional    | SubjectLine         | Optional  | Optional | dedent+ DataLine |
 		| Annotation  | Optional    | AnnotationStartLine | Yes       | Yes      | AnnotationEnd 	|
-		| List        | Optional         | ListLine | No       | Yes       | No       | dedent      	 	| 
+		| List        | Optional    | ListLine            | No        | Yes      | No               | 
 		|-------------------------------------------------------------------------------------------|
 
     Table: Flat Elements Structure and Parsing:	
