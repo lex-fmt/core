@@ -77,8 +77,8 @@ Design Principles:
 
 		Lex opts for handling more complexity in the lexing stage in order to keep the parsing stage very simple. This implies in greater token complexity, and this is the origin of several token types. See Lexing for more details.
 
-		Even though the grammar operates mostly over lines, we have two layers of tokens: 
-        - Structural Tokens: indent, dendent, EOF.
+			Even though the grammar operates mostly over lines, we have two layers of tokens: 
+        - Structural Tokens: indent, dedent.
 		- Core Tokens: character/word level tokens. They are produced by the logos lexer [1].
         - Line Tokens: a group of core tokens in a single line, and used in the actual parsing.[2]
         - Line Container Token: a vector of line tokens or other line container tokens. This ia a tree representation of each level's lines. This is created and used by the parser.
@@ -101,7 +101,7 @@ Design Principles:
 			3.1.1 Data Nodes
 
 				Accordingly, it's only used in metadata, there is in Data nodes. Data nodes group a label (an identifier) and optional parameters. It's syntax is: 
-					<data> = $<lex-marker> <whitespace> <label> (<whitespace> <parameters>)?
+				<data> = <lex-marker> <whitespace> <label> (<whitespace> <parameters>)?
 				Example: 
 					:: note 
 					:: note severity=high ::
@@ -126,20 +126,20 @@ Design Principles:
 
 		Being lined based, all the grammar needs is the to have line tokens in order to parse any level of elements. Only annotations and end of verbatim blocks use data nodes, that means that pretty much all of Lex needs to be parsed from naturally occurring text lines, indentation and blank lines. 
 		Since this still is happening in the lexing stage, each line must be tokenized into one category. In the real world, a line might be more than one possible category. For example a line might have a sequence marker and a subject marker (for example "1. Recap:")
-		For this reason, line tokens can be OR tokens at times, and at other the order of line categorization is crucial to getting the right result.[3] While there are only a few consequential marks in lines (blank, data, subject, list ) having them denormalized is required to have parsing simpler, hence we have 9 line tokes instead of 4. Mainly when data show up by itself or part of an annotation and whether sequence markers and subjcts are mixed.
+			For this reason, line tokens can be OR tokens at times, and at other the order of line categorization is crucial to getting the right result.[3] While there are only a few consequential marks in lines (blank, data, subject, list ) having them denormalized is required to have parsing simpler. The definitive set is the LineType enum (blank, annotation start/end, data, subject, list, subject-or-list-item, paragraph, dialog, indent, dedent), and containers are a separate structural node, not a line token.
 
-		These are the line tokens: 
-			- BlankLine (empty or whitespace only)
-			- AnnotationEndLine: a line starting with :: marker and having no further content
-			- AnnotationStartLine: a data node + lex marker 
-			- DataLine: Data line: :: label params? (no closing :: marker)
-			- SubjectLine:Line ending with colon (could be subject/definition/session title)
-			- ListLineLine starting with list marker (-, 1., a., I., etc.)
-			- SubjectOrListItemLine: Line starting with list marker and ending with colon ()
-			- PargraphLine: Any other line (paragraph text)
-			- DialogLine: a line that starts with a dash, but is marked not to be a list item.
-            - LineContainer: a group of lines / line containers representing a single nesting level.
-		And to represent a group of lines at the same live, there is a Line
+			These are the line tokens: 
+				- BlankLine (empty or whitespace only)
+				- AnnotationEndLine: a line starting with :: marker and having no further content
+				- AnnotationStartLine: a data node + lex marker 
+				- DataLine: :: label params? (no closing :: marker)
+				- SubjectLine: Line ending with colon (could be subject/definition/session title)
+				- ListLine: Line starting with list marker (-, 1., a., I., etc.)
+				- SubjectOrListItemLine: Line starting with list marker and ending with colon ()
+				- ParagraphLine: Any other line (paragraph text)
+				- DialogLine: a line that starts with a dash, but is marked not to be a list item.
+				- Indent / Dedent: structural markers passed through from indentation handling.
+			And to represent a group of lines at the same live, there is a LineContainer
 	
 These conclude the description of the grammar and syntax. With that in mind, we will now dive into the various parsing stages.			
 
@@ -164,7 +164,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 	Whether passes 2-4 are indeed lexing or actual parsing is left as a bike shedding exercise. The criteria for calling these lexing has been that each tranformation is simply a groupping of tokens, there is no semantics.
 
-	In addition the transformations over tokens, the codebase separates the semantic analysis (in lex/parsing) from the ast building (in lex/building) and finally the final document assembly step (in lex/assembly). These are done with the same intention: keeping complexity localized and shallow at every one of these layers and making the system more testable. 
+			In addition the transformations over tokens, the codebase separates the semantic analysis (in lex/parsing) from the ast building (in lex/building) and finally the final document assembly step (in lex/assembly). These are done with the same intention: keeping complexity localized and shallow at every one of these layers and making the system more testable. Line grouping and tree building happen at the parsing stage, after lexing has already produced indent/dedent-aware flat tokens.
 
 
 5. Parsing End To End
@@ -188,7 +188,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 				The logos lexer will produce indentation tokens, that is groupping several spaces or tabs into a single token. However, indentation tokens per se, are not useful. We don't want to know how many spaces per line there are, but we want to know about indentation levels and what's inside each one. For this, we want to track indent and dedent events, which lets us neatly tell levels and their content.
 				This transformation is a stateful machine that tracks changes in indentation levels and emits indent and dedent events. In itself, this is trivial, and how most indentation handling is done. At this point, indent/dedent could be replaced for open/close braces in more c-style languages with to the same effect.
-				Like any other token transformation, the indent/dedent tokens store their constituent  source tokens for location tracking and information preservation.[6]
+					Indent tokens store the original indentation token, while dedent tokens are synthetic and have no source tokens of their own.[6]
 
 
 			5.1.3 Line Grouping
@@ -344,7 +344,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 		This has two consequences: that verbatim parsing must come first, lest it's content create havoc on the structure and also that identifying it's end marker has to be very easy. That's the reason why it ends in a data node, which is the only form that is not common on regular text. 
 
-		The verbatim parsing is the only stateful parsing in the pipeline. When we think we are in a verbatim block we ignore any lines but enough dedent backing off the initial subject line (in which case it's not a verbatim block) or just a dedent preceding the data node.
+			The verbatim parsing is the only stateful parsing in the pipeline. It matches a subject line, then either an indented container (in-flow) or flat lines (full-width/groups), and requires the closing annotation at the same indentation as the subject.
 
 	7.2 Content and the Indentation Wall
 
@@ -369,7 +369,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 		7.2.2. Full-Width Mode
 
 			At times, verbatim content is very wide, as in tables. In these cases, the various indentation levels in the Lex document can consume valuable space which would throw off the content making it either hard to read or truncated by some tools.
-			For this cases, the full-width mode allows the content to take (almost) all columns. In this mode, the wall is at column 3 (it's 1 indexed), that is , in the second third column available.
+				For this cases, the full-width mode allows the content to take (almost) all columns. In this mode, the wall is at user-facing column 2 (zero-based column 1), so content can hug the left margin without looking like a closing annotation.
 
 			This is an example: 
 
@@ -378,8 +378,8 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
             :: lex
 
-			The block's mode is determined by the position of the first non-whitespace character of the first content line. If it's at column 3, it's a full-width mode block, else it's an in-flow block.
-			The reason for column 3: it cannot be a regular column. Were it to be column 1 and you could not tell it appart from it's parent. Likewise it cannot be a full indentation. Hence it had to be between 1 and 3 spaces from the subject line. The choice of 2 is arbitrary but it comes from being the one that the least looks like an error. When it's just 1 column, we tend to see it as an error, which happens less for larger numbers.
+				The block's mode is determined by the position of the first non-whitespace character of the first content line. If it's at user-facing column 2, it's a full-width mode block; otherwise it's in-flow.
+				The reason for column 2: column 1 would be indistinguishable from the subject's indentation, while a full indent would lose horizontal space. Column 2 preserves visual separation without looking like an error.
 
 8. Testing
 
