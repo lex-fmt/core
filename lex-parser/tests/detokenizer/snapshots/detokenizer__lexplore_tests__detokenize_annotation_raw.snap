@@ -1,0 +1,5 @@
+---
+source: lex-parser/tests/detokenizer/main.rs
+expression: detokenized
+---
+:: note ::
