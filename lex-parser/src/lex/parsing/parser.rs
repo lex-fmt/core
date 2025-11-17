@@ -157,7 +157,7 @@ impl GrammarMatcher {
                                 trailing_blank_range,
                             }
                         }
-                        "session_no_blank" => {
+                        "session" => {
                             // Allow session_no_blank in these cases:
                             // 1. At document start (is_first_item=true), OR
                             // 2. At container start when sessions are allowed (start_idx=0 && allow_sessions=true), OR
