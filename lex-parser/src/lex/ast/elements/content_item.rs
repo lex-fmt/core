@@ -511,4 +511,65 @@ mod tests {
         let paragraphs: Vec<_> = item.descendants().filter(|d| d.is_paragraph()).collect();
         assert_eq!(paragraphs.len(), 2);
     }
+
+    #[test]
+    fn element_at_prefers_child_even_if_parent_range_is_tight() {
+        // Session range stops before the child paragraph range, but we should still find the child.
+        let paragraph = Paragraph::from_line("Child".to_string()).at(Range::new(
+            10..15,
+            Position::new(1, 0),
+            Position::new(1, 5),
+        ));
+
+        let mut session = Session::with_title("Header".to_string()).at(Range::new(
+            0..6,
+            Position::new(0, 0),
+            Position::new(0, 6),
+        ));
+        session.children.push(ContentItem::Paragraph(paragraph));
+
+        let pos = Position::new(1, 3);
+        let item = ContentItem::Session(session);
+        let result = item
+            .element_at(pos)
+            .expect("child paragraph should be discoverable");
+
+        assert!(result.is_text_line());
+    }
+
+    #[test]
+    fn descendants_with_depth_tracks_depths() {
+        let paragraph =
+            ContentItem::Paragraph(Paragraph::from_line("Para".to_string()).at(Range::new(
+                0..4,
+                Position::new(0, 0),
+                Position::new(0, 4),
+            )));
+
+        let list_item = ListItem::with_content("Item".to_string(), vec![]).at(Range::new(
+            5..9,
+            Position::new(1, 0),
+            Position::new(1, 4),
+        ));
+        let list = ContentItem::List(List::new(vec![list_item]));
+
+        let mut session = Session::with_title("Root".to_string());
+        session.children.push(paragraph.clone());
+        session.children.push(list.clone());
+
+        let depths: Vec<(&str, usize)> = ContentItem::Session(session)
+            .descendants_with_depth(0)
+            .map(|(item, depth)| (item.node_type(), depth))
+            .collect();
+
+        assert_eq!(
+            depths,
+            vec![
+                ("Paragraph", 0),
+                ("TextLine", 1),
+                ("List", 0),
+                ("ListItem", 1),
+            ]
+        );
+    }
 }
