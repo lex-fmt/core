@@ -1,5 +1,5 @@
 ---
-source: lex-parser/src/lex/formats/detokenizer/detokenizer.rs
+source: lex-parser/tests/detokenizer/main.rs
 expression: detokenized
 ---
 Kitchensink Test Document {{paragraph}}
