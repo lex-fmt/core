@@ -259,4 +259,48 @@ Final paragraph.
         assert!(has_paragraphs, "Should contain paragraphs");
         assert!(has_sessions, "Should contain sessions");
     }
+
+    #[test]
+    fn test_parse_empty_input() {
+        let source = "";
+        let tokens = lex_helper(source).expect("Failed to tokenize");
+        let result = parse_from_flat_tokens(tokens, source);
+
+        assert!(result.is_ok(), "Empty input should parse successfully");
+        let doc = result.unwrap();
+        assert_eq!(
+            doc.root.children.len(),
+            0,
+            "Empty document should have no children"
+        );
+    }
+
+    #[test]
+    fn test_parse_only_whitespace() {
+        let source = "   \n\n   \n";
+        let tokens = lex_helper(source).expect("Failed to tokenize");
+        let result = parse_from_flat_tokens(tokens, source);
+
+        assert!(
+            result.is_ok(),
+            "Whitespace-only input should parse successfully"
+        );
+    }
+
+    #[test]
+    fn test_parse_incomplete_annotation_block() {
+        let source = r#"
+:: warning ::
+    This is content
+
+No closing marker
+"#;
+        let tokens = lex_helper(source).expect("Failed to tokenize");
+        let result = parse_from_flat_tokens(tokens, source);
+
+        assert!(
+            result.is_ok(),
+            "Parser should handle incomplete annotations gracefully"
+        );
+    }
 }
