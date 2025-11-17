@@ -12,7 +12,7 @@
 //! 4. list_no_blank - 2+ list items without preceding blank (inside containers)
 //! 5. list - requires preceding blank line + 2+ list items (at root level)
 //! 6. definition - requires subject + immediate indent
-//! 7. session_no_blank - requires subject + blank + indent (at container start or after separator)
+//! 7. session - requires subject + blank + indent (at container start or after separator)
 //! 8. paragraph - any content-line or sequence thereof
 //! 9. blank_line_group - one or more consecutive blank lines
 
@@ -65,9 +65,9 @@ pub(super) const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
         "definition",
         r"^(?P<subject><subject-line>|<subject-or-list-item-line>|<paragraph-line>)(?P<content><container>)",
     ),
-    // Session without preceding blank line (for sessions at container start)
+    // Session (requires subject + blank + indented content, allowed at start or after separator)
     (
-        "session_no_blank",
+        "session",
         r"^(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?P<content><container>)",
     ),
     // Paragraph: <content-line>+
