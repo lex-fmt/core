@@ -1160,4 +1160,50 @@ mod tests {
         assert_eq!(lists, 0);
         assert_eq!(verbatim, 0);
     }
+
+    // ========================================================================
+    // ELEMENT_AT ERROR PATHS
+    // ========================================================================
+
+    #[test]
+    fn test_element_at_position_outside_document() {
+        use crate::lex::ast::range::Position;
+
+        let mut container = SessionContainer::empty();
+        container.push(ContentItem::Paragraph(Paragraph::from_line(
+            "Test".to_string(),
+        )));
+
+        let far_position = Position::new(1000, 1000);
+        assert!(container.element_at(far_position).is_none());
+    }
+
+    #[test]
+    fn test_element_at_empty_container() {
+        use crate::lex::ast::range::Position;
+
+        let container = SessionContainer::empty();
+        let position = Position::new(1, 1);
+        assert!(container.element_at(position).is_none());
+    }
+
+    #[test]
+    fn test_find_nodes_at_position_no_results() {
+        use crate::lex::ast::range::Position;
+
+        let container = SessionContainer::empty();
+        let position = Position::new(1, 1);
+        let nodes = container.find_nodes_at_position(position);
+        assert!(nodes.is_empty());
+    }
+
+    #[test]
+    fn test_format_at_position_no_nodes() {
+        use crate::lex::ast::range::Position;
+
+        let container = SessionContainer::empty();
+        let position = Position::new(1, 1);
+        let output = container.format_at_position(position);
+        assert_eq!(output, "No AST nodes at this position");
+    }
 }
