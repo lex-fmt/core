@@ -178,6 +178,8 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 		In common, all of these processes store the source tokens in the groupped token under  `source_tokens` field, which preserves information entirely and allows for easy unrolling at the final stages.
 
+		Logo's tokens carry the byte range of their source text. This information will not be used in the parsing pipeline at wall, but has to be perfectly preserved for location tracking on the tooling that will use the AST. It is critical that this be left as it. The ast building stage will handle this information, but it's key that no other code changes it, and at every step it's integrity is preserved.
+
 			5.1.1 Base Tokenization
 
 					We leverage the logos lexer to tokenize the source text's into core tokens. This is done declaratively with no custom logic, and could not be simpler.[5]
@@ -210,8 +212,8 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 		From the IR nodes, we build tha actual AST nodes.[9] During this step, two important things happen: 
 
 			1. We unroll source tokens so that ast nodes have acccess to token values .
-            2. The location is transformed from  byte range to a dual byte range + line:column position..
-
+			2. The location from tokens is used to calculate the location for the the ast node.
+            3. The location is transformed from  byte range to a dual byte range + line:column position.
         At this stage we create the Document node, it's root session node and the ast will be attached to it. 
 
 	5.4 Document assembly
@@ -227,7 +229,188 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 		This solves elegantly the fact that most inlines are simple and very much the same structure, while allowing for more complex ones to handle their specific needs. 
 
 
-6. AST Structure, Children Elements and Containers
+6. Structure, Children, Indentation and the AST
+
+	They design for children node and the AST has a point that is too easy to miss, and missing causes a whole lot of problems.
+
+	The first key aspect is: indentation is the manifestation of a container node, that is, where  elements holds their children. This is a subtle point, but one worth making. 
+
+	For example, why in sessions is the title on the same indentation as it's sibling nodes, when it's content is indented? Answer: because the title is a child of the session node, and a sessions content is a child of session.content, a container. 
+
+	Likewise lists elements do not ident, that's why they are shown in the same indentation as their items and siblings. On nested lists, a list's items content container holds the nested list, which is why it's indented. Let's look at a complete example. 
+
+	1. Packing
+	2. Groceries
+		2.1 Milk
+		2.2 Eggs
+
+	This is what the ast looks like: 
+
+		<list>
+			<item>Packing</item>
+			<item> Groceries
+				<content> <- this is container, this causes indentation
+					<list>
+						<item>Milk</item>
+						<item>Eggs</item>
+					</list>
+				</content>
+			</item>
+		</list>
+
+	That is why the outer list is not indented, while the inner list is.
+
+    This is true for sessions (titles are outside it's children), annotations (data is note it's content), definitions (subject is not it's content) and verbatim blocks (subject is not it's content).
+
+	One can see a patter here: most elements in Lex have a form: 
+
+		<preceding-blank-line>?
+		<head>
+	    <blank-line>?
+		<indent> 
+			<content>
+			</content>
+        <dedent>
+		<tail>?
+	
+	Seen in this way, it's now clear how one can parse a full level without peeking into the children, because the container / content is enough to know what to do.
+
+	This is to say that save for pargraph, flat lists, and short annotation, all elements use a combination of head, presence of blank lines, and dedent and the tail to determine what it's parsing.
+
+	Once you factor in the lack of formal syntax, that heads can be regular, list or subject lines and tails can be data lines or regular lines, and it's clear how this is a delicate balancing act. All it takes to parse is:
+	1. Does the head line has list markers, colon, both or neither?
+	2. Is there a blank line between the head and the content?
+	3. Is there a indented content? 
+	4. Does the tail ends with a lex marker? 
+	In short what form is the head and tail lines, and between is there a blank line and or content? 
+
+	Table: Nested Elements Structure and Parsing:
+
+		| Element     | Prec. Blank | Head                | Blank     | Content  | Tail          	|
+		|-------------|-------------|---------------------|-----------|----------|------------------|
+		| Session     | Yes         | ParagraphLine       | Yes       | Yes      | dedent        	|
+		| Definition  | Optional    | SubjectLine         | No        | Yes      | dedent        	|
+		| Verbatim    | Optional    | SubjectLine         | Optional  | Optional | dedent+ DataLine |
+		| Annotation  | Optional    | AnnotationStartLine | Yes       | Yes      | AnnotationEnd 	|
+		| List        | Optional         | ListLine | No       | Yes       | No       | dedent      	 	| 
+		|-------------------------------------------------------------------------------------------|
+
+    Table: Flat Elements Structure and Parsing:	
+
+		| Element     | Prec. Blank | Head                |  Tail       		 					|
+		|-------------|-------------|---------------------|-----------------------------------------|
+		| Paragraph   | Optional    | Any Line 	          | BlankLine or Dedent                     | 
+        | List        | Yes         | ListLine | No       | BlankLine or Dedent                     |
+		|-------------------------------------------------------------------------------------------|
+
+	Table Special Casing Rules: 
+
+		| Element    | Rule             | About 													| 
+		|------------|------------------|-----------------------------------------------------------|
+		| Paragraph  | Dialog           | A formal way to specify that - lines are dialogs (parag.) |
+        | List       | Two Item Minimum | A list must have 2+ items, otherwise it's a paragraph     |
+        | Annotation | Short            | The short form of annotations are one liners              | 
+        | Verbatim   | Full Width Form  | Verbatim content can break indentation rules              |
+        | Verb.Group | Multiple Groups  | Multiple subject + content and only 1 closing.            |
+		|-------------------------------------------------------------------------------------------|
+
+	:: table
+	
+
+	There are a couple of interesting things to note here. The first is that all container elements, salvo for Verbatim blocks are terminated by a dedent. That it, you don't know where they ended, you just know that something else started.
+	Sessions are unique in that the head must be enclosed by blank lines. The reason this is significant is that it makes for a lot of complication in specific scenarios. Conside this:
+
+	1. I'm the outter session.
+
+		1.1 I'm the middle session.
+
+			I'm just a pargraph.
+    :: lex
+
+	Consider the parsing of the middle session. As it's the very first element of the session, the preceding blank line is part of it's parent session. It can see the following blank line before the pargraph just fine, as it belongs to it. But the first blank line is out of it's reach.
+
+	The obvious solultion is to imperatively walk the tree up and check if the parent session has a preceding blank line. This works but this makes the grammar context sensitive, and now things are way more complicated, good by simple regular langauge parser.
+
+	The way this is handled is that we inject a synthetic token that represents the preceding blank line. This token is not produced by the logos lexer, but is created by the lexing pipeline to capture context information from parent to children elements so that parsing can be done in a regular single pass. As expected, this tokens is not consumed nor becomes a blank line node, but it's only used to decide on the parsing of the child elements.
+
+
+7. Verbatim Elements
+
+	Verbatim elements represent non Lex content. This can be any binary encoded data, such as images or videos or text in another formal language, most commonly programming language's code. Since the whole point of the element is to say: hands off, do not parse this, just preserve it, you'd think that it would be a simple element, but in reality this is by far the most complex element in Lex, and it warrants some explanation. 
+
+	7.1 Parsing Verbatim Blocks
+
+		The first point is that, since it can hold non Lex content, it's content can't be parsed. It can be lexed without prejudice, but not parsed. No only it would be gibberish, but worse, in case it would trigger indent and dedent events, it would throw off the parsing and break the document.
+
+		This has two consequences: that verbatim parsing must come first, lest it's content create havoc on the structure and also that identifying it's end marker has to be very easy. That's the reason why it ends in a data node, which is the only form that is not common on regular text. 
+
+		The verbatim parsing is the only stateful parsing in the pipeline. When we think we are in a verbatim block we ignore any lines but enough dedent backing off the initial subject line (in which case it's not a verbatim block) or just a dedent preceding the data node.
+
+	7.2 Content and the Indentation Wall
+
+		7.2.1 In-Flow Mode
+
+			Verbatim content can be pretty much anything, and that includes any space characters, which we must not interpret as indentation, nor discard, as it's content.
+			The way to think about this is through the indentation wall:
+
+				I'm A verbatim Block Subject:
+					|<- this is the indentation wall, that is the subject's + 1 level up
+					I'm the first content line
+					But content can be indented whoever I please
+		error ->| as long as it's past the wall
+				:: text 
+
+			Verbatim content starts at the wall, until the end of line.  Whitespace characters should be preserved as content. 
+				Content cannot, start, however before the wall, lest we had no way to determine the of the block.
+			This logic allows for a neat trick: that verbatim blocks do not need to quote any content. Even if a line looks like a data node, the fact that it's not in the same level as the subject means it's not the block's end marker.
+
+			In this mode, called In-flow Mode, the verbatim content is indented just like any other children content in Lex, +1 from their parent.
+			
+		7.2.2. Full-Width Mode
+
+			At times, verbatim content is very wide, as in tables. In these cases, the various indentation levels in the Lex document can consume valuable space which would throw off the content making it either hard to read or truncated by some tools.
+			For this cases, the full-width mode allows the content to take (almost) all columns. In this mode, the wall is at column 3 (it's 1 indexed), that is , in the second third column available.
+
+			This is an example: 
+
+  Here is the content.
+  |<- this is the wall
+
+            :: lex
+
+			The block's mode is determined by the position of the first non-whitespace character of the first content line. If it's at column 3, it's a full-width mode block, else it's an in-flow block.
+			The reason for column 3: it cannot be a regular column. Were it to be column 1 and you could not tell it appart from it's parent. Likewise it cannot be a full indentation. Hence it had to be between 1 and 3 spaces from the subject line. The choice of 2 is arbitrary but it comes from being the one that the least looks like an error. When it's just 1 column, we tend to see it as an error, which happens less for larger numbers.
+
+8. Testing
+
+	Lex is a novel format, for which there is no establish body of source text nor a reference parser to compare against. Adding insult to injury, the format is still evolving, so specs change, and in some ways it looks like markdown just enough to create confusion.
+
+	The corollary here being that getting correct Lex source text is not trivial, and if you make one up, the odds of it being slightly off are high. If one tests the parser agains an illegal source string, all goes to waste: we will have a parser tuned to the wrong thing. Worst off, as each test might produce it's slight variation, we will have an unpredictable, complex and wrong parser. If that was not enough, come a change in the spec, and now we must hunt down and review hundreds of ad-hoc strings in test files.
+
+	8.1. The Spec Sample Files
+
+		For this reason, all testing must use the official sample files, which are vettoed, curated and reviewed during spec changes. Of course this does not apply to the string form only, but for tokens and any intermediary processed formats. If we can't reliably come up with the string form, nevermind with that string after tokenization and processed. 	
+
+		Here is where Lexplore comes in [13]. It includes a loader that will load from the official sample files and can return the data in various formats: string, tokens, line container, ir nodes and ast nodes.
+
+		The sample files are organized: 
+
+		- By elements: 
+			- Isolated elements (only the element itself):
+			- In Document: mixed with other elements
+		- Benchmark: full documents that are used to test the parser.
+		- Trifecta: a mix of sessions, paragraphs and lists, the structural elements..
+
+		These come with handy functions to load them, get the isolated element ast node and more.
+
+	8.2. The AST assertions
+
+		As mentioned, the spec is in flux. This means that the lower level AST nodes are subject to change. If a tests walks through the node directly, on spec changes, it will break. 
+
+		Additionally, low level ast tests tend to be very superficial, doing things like element counts (which is bound to be wrong) and other minor checks.
+
+		For this reason, all AST testing is done by this powerful library [14]. It will conveniently let you verify your choice of information from any element, including children and other nested nodes. Not only it's much faster and easier to write, but on spec changes, only one change might be needed. 
+
 
 
 Notes:
@@ -244,3 +427,4 @@ Notes:
 	10. lex-parser/src/lex/assembling/stages/attach_annotations.rs
 	11. lex-parser/src/lex/inlines/parser.rs
 	12. lex-parser/src/lex/assembling/stages/attach_annotations/distance.rs
+    13. lex-parser/src/lex/testing
