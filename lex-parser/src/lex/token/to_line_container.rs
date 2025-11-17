@@ -6,7 +6,61 @@
 //! # Responsibilities
 //!
 //! 1. Build hierarchical tree based on Indent/Dedent markers
-//! 2. Convert to LineContainer structure expected by parser
+//! 2. Inject synthetic parent blank markers to enable declarative parsing
+//! 3. Convert to LineContainer structure expected by parser
+//!
+//! # Synthetic Parent Blank Markers
+//!
+//! A key feature of this module is the injection of **ParentBlankMarker** synthetic tokens.
+//! These tokens solve a fundamental problem in Lex parsing: sessions require blank lines
+//! before their subject, but when a session is the first element in a container, that
+//! preceding blank line belongs to the parent level, making it invisible to the parser
+//! at the child level.
+//!
+//! ## The Problem
+//!
+//! Consider this nested structure:
+//!
+//! ```lex
+//! Outer Session
+//!
+//!     Inner Session
+//!
+//!         Content paragraph
+//! ```
+//!
+//! When parsing "Inner Session", the parser needs to know there's a blank line before it
+//! to recognize it as a session (sessions require blank-line enclosure). However, that
+//! blank line is part of the outer session's content, not visible at the inner level.
+//!
+//! ## The Solution
+//!
+//! During tree building, when we create a nested container (via Indent token), we check
+//! if the parent level has a preceding blank line. If it does, we inject a ParentBlankMarker
+//! at the start of the child container. This marker acts as a synthetic "preceding blank"
+//! for the first element in that container.
+//!
+//! The grammar pattern `session_no_blank` then matches:
+//! ```regex
+//! <parent-blank-marker> <subject-line> <blank-line>+ <container>
+//! ```
+//!
+//! This allows the parser to declaratively recognize sessions at container starts without
+//! needing imperative context flags or tree traversal.
+//!
+//! ## Injection Points
+//!
+//! ParentBlankMarker tokens are injected in two places:
+//!
+//! 1. **Document start**: Before the first non-blank/indent token at document root
+//! 2. **Nested containers**: At the start of containers whose parent level has a preceding blank
+//!
+//! ## Key Properties
+//!
+//! - Synthetic tokens have empty `source_tokens` and `token_spans`
+//! - They are consumed by grammar patterns and never become AST nodes
+//! - They enable declarative parsing without context-sensitive rules
+//! - They maintain the single-pass property of the parser
 
 use crate::lex::token::{LineContainer, LineToken, LineType};
 use std::iter::Peekable;
@@ -41,10 +95,18 @@ pub fn build_line_container(line_tokens: Vec<LineToken>) -> LineContainer {
 /// processing the current level when it sees a `Dedent` (which belongs to the parent
 /// level) or when the token stream is exhausted.
 ///
+/// # Parent Context Tracking
+///
+/// The function tracks the last blank line token seen at each level via `parent_last_blank`.
+/// This context is passed down to nested containers and used to determine whether to inject
+/// a ParentBlankMarker. When a container is created after a blank line, its children receive
+/// this information, enabling them to recognize they follow a blank in the parent context.
+///
 /// # Parameters
 ///
 /// * `tokens` - The iterator of line tokens
-/// * `parent_last_blank` - The last BlankLineGroup token from the parent level (if any)
+/// * `parent_last_blank` - The last BlankLineGroup token from the parent level (if any).
+///   Used to inject ParentBlankMarker in nested containers.
 fn build_recursive<I>(
     tokens: &mut Peekable<I>,
     parent_last_blank: Option<LineToken>,
@@ -97,8 +159,20 @@ where
 
 /// Inject a parent blank marker at the start of a container's children.
 ///
-/// This function checks if the first token is not already a blank line or indent,
-/// and if so, injects a ParentBlankMarker at the beginning.
+/// This function checks if injection is appropriate by verifying:
+/// 1. The container is not empty
+/// 2. The first token is not already a blank/indent/parent-blank-marker
+/// 3. The first token is not a container (injection before containers would be meaningless)
+///
+/// If conditions are met, a ParentBlankMarker with empty source tokens is inserted at
+/// position 0. This marker signals to the parser that this container's content follows
+/// a blank line in the parent context, enabling declarative session recognition.
+///
+/// # Why Empty Source Tokens?
+///
+/// ParentBlankMarker is purely synthetic - it represents parent context, not actual
+/// source text. Empty source_tokens and token_spans ensure it has no location in the
+/// source file and will never appear in error messages or location tracking.
 fn inject_parent_blank_marker_at_start(children: &mut Vec<LineContainer>) {
     if children.is_empty() {
         return;

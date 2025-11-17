@@ -77,12 +77,12 @@ Design Principles:
 
 		Lex opts for handling more complexity in the lexing stage in order to keep the parsing stage very simple. This implies in greater token complexity, and this is the origin of several token types. See Lexing for more details.
 
-			Even though the grammar operates mostly over lines, we have two layers of tokens: 
+			Even though the grammar operates mostly over lines, we have two layers of tokens:
         - Structural Tokens: indent, dedent.
 		- Core Tokens: character/word level tokens. They are produced by the logos lexer [1].
         - Line Tokens: a group of core tokens in a single line, and used in the actual parsing.[2]
         - Line Container Token: a vector of line tokens or other line container tokens. This ia a tree representation of each level's lines. This is created and used by the parser.
-        - Synthetic Tokens: tokens that are not produced by the logos lexer, but are created by the lexing pipeline to capture context information from parent to children elements so that parsing can be done in a regular single pass.
+        - Synthetic Tokens: tokens that are not produced by the logos lexer, but are created during tree building to capture parent context information. These allow parsing to be done in a regular single pass without imperative context flags.
 
 
 3. Syntax
@@ -331,7 +331,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 	The obvious solultion is to imperatively walk the tree up and check if the parent session has a preceding blank line. This works but this makes the grammar context sensitive, and now things are way more complicated, good by simple regular langauge parser.
 
-	The way this is handled is that we inject a synthetic token that represents the preceding blank line. This token is not produced by the logos lexer, but is created by the lexing pipeline to capture context information from parent to children elements so that parsing can be done in a regular single pass. As expected, this tokens is not consumed nor becomes a blank line node, but it's only used to decide on the parsing of the child elements.
+	The way this is handled is that we inject a synthetic parent blank marker during tree building. When creating a nested container whose parent level has a preceding blank line, we inject a ParentBlankMarker token at the container's start. This token is not produced by the lexer, but is created during LineContainer tree construction to capture parent context. The grammar pattern can then declaratively match this marker, and parsing remains a regular single pass. As expected, this marker is consumed by the pattern and never becomes an AST node.
 
 
 7. Verbatim Elements
