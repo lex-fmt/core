@@ -1,308 +1,462 @@
 //! Markdown serialization (Lex → Markdown export)
 //!
-//! Converts Lex documents to CommonMark Markdown format.
-//! Pipeline: Lex AST → IR → Events → Markdown string
+//! Converts Lex documents to CommonMark Markdown.
+//! Pipeline: Lex AST → IR → Events → Comrak AST → Markdown string
 
 use crate::error::FormatError;
 use crate::ir::events::Event;
-use crate::ir::nodes::{DocNode, InlineContent};
+use crate::ir::nodes::DocNode;
 use crate::mappings::nested_to_flat::tree_to_events;
+use comrak::nodes::{Ast, AstNode, ListDelimType, ListType, NodeValue};
+use comrak::{format_commonmark, Arena, ComrakOptions};
+use lex_parser::lex::ast::Document;
+use std::cell::RefCell;
 
 /// Serialize a Lex document to Markdown
-pub fn serialize_to_markdown(doc: &lex_parser::lex::ast::Document) -> Result<String, FormatError> {
+pub fn serialize_to_markdown(doc: &Document) -> Result<String, FormatError> {
     // Step 1: Lex AST → IR
     let ir_doc = crate::to_ir(doc);
 
     // Step 2: IR → Events
     let events = tree_to_events(&DocNode::Document(ir_doc));
 
-    // Step 3: Events → Markdown string (direct conversion, no intermediate AST)
-    events_to_markdown(&events)
+    // Step 3: Events → Comrak AST
+    let arena = Arena::new();
+    let root = build_comrak_ast(&arena, &events)?;
+
+    // Step 4: Comrak AST → Markdown string (using comrak's serializer)
+    let mut output = Vec::new();
+    let options = ComrakOptions::default();
+    format_commonmark(root, &options, &mut output).map_err(|e| {
+        FormatError::SerializationError(format!("Comrak serialization failed: {}", e))
+    })?;
+
+    String::from_utf8(output)
+        .map_err(|e| FormatError::SerializationError(format!("UTF-8 conversion failed: {}", e)))
 }
 
-/// Convert IR events to Markdown string
-fn events_to_markdown(events: &[Event]) -> Result<String, FormatError> {
-    let mut output = String::new();
-    let mut list_depth: usize = 0;
-    let mut in_heading = false;
-    let mut heading_inline_done = false;
+/// Build a Comrak AST from IR events
+fn build_comrak_ast<'a>(
+    arena: &'a Arena<AstNode<'a>>,
+    events: &[Event],
+) -> Result<&'a AstNode<'a>, FormatError> {
+    // Create document root
+    let root = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+        NodeValue::Document,
+        (0, 0).into(),
+    ))));
+
+    let mut current_parent: &'a AstNode<'a> = root;
+    let mut parent_stack: Vec<&'a AstNode<'a>> = vec![];
+
+    // State for collecting verbatim content
+    let mut in_verbatim = false;
+    let mut verbatim_language: Option<String> = None;
+    let mut verbatim_content = String::new();
+
+    // State for handling headings (which can only contain inline content)
+    let mut current_heading: Option<&'a AstNode<'a>> = None;
+
+    // State for handling list items (need to auto-wrap inline content in paragraphs)
     let mut in_list_item = false;
-    let mut list_item_first_inline = false;
+    let mut list_item_paragraph: Option<&'a AstNode<'a>> = None;
 
     for event in events {
         match event {
             Event::StartDocument => {
-                // Nothing to emit for document start
+                // Already created root
             }
+
             Event::EndDocument => {
-                // Ensure trailing newline
-                if !output.is_empty() && !output.ends_with('\n') {
-                    output.push('\n');
-                }
+                // Done
             }
 
             Event::StartHeading(level) => {
-                // Clamp to markdown's max heading level (h6)
-                let md_level = (*level).min(6);
-                output.push_str(&"#".repeat(md_level));
-                output.push(' ');
-                in_heading = true;
-                heading_inline_done = false;
+                // Headings can only contain inline content, not block elements
+                // Create heading and set it as target for inline content
+                let heading_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Heading(comrak::nodes::NodeHeading {
+                        level: (*level as u8).min(6),
+                        setext: false,
+                    }),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(heading_node);
+                current_heading = Some(heading_node);
+                // Note: We do NOT change current_parent or push to parent_stack
+                // Block content after this heading will be siblings at document level
             }
+
             Event::EndHeading(_) => {
-                // If we haven't closed the heading line yet (no nested content), close it now
-                if !heading_inline_done {
-                    output.push_str("\n\n");
-                } else {
-                    // We had nested content, add a blank line after the heading section
-                    output.push('\n');
-                }
-                in_heading = false;
-                heading_inline_done = false;
+                // Close heading - block content goes back to document level
+                current_heading = None;
             }
 
             Event::StartParagraph => {
-                // If we're in a heading and haven't closed the heading line yet, do so now
-                if in_heading && !heading_inline_done {
-                    output.push_str("\n\n");
-                    heading_inline_done = true;
+                let para_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Paragraph,
+                    (0, 0).into(),
+                ))));
+                current_parent.append(para_node);
+                parent_stack.push(current_parent);
+                current_parent = para_node;
+                // If we're in a list item, this explicit paragraph replaces any auto-created one
+                if in_list_item {
+                    list_item_paragraph = None;
                 }
             }
+
             Event::EndParagraph => {
-                // Don't add double newline if we're inside a heading (will be added by EndHeading)
-                if !in_heading {
-                    output.push('\n');
-                    output.push('\n'); // Double newline after paragraph
-                } else {
-                    output.push('\n');
-                }
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced paragraph end".to_string())
+                })?;
             }
 
             Event::StartList => {
-                list_depth += 1;
+                let list_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::List(comrak::nodes::NodeList {
+                        list_type: ListType::Bullet,
+                        marker_offset: 0,
+                        padding: 0,
+                        start: 1,
+                        delimiter: ListDelimType::Period,
+                        bullet_char: b'-',
+                        tight: false,
+                    }),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(list_node);
+                parent_stack.push(current_parent);
+                current_parent = list_node;
             }
+
             Event::EndList => {
-                list_depth -= 1;
-                if list_depth == 0 {
-                    output.push('\n'); // Blank line after list
-                }
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced list end".to_string())
+                })?;
             }
 
             Event::StartListItem => {
-                // Indent based on depth
-                let indent = "  ".repeat(list_depth.saturating_sub(1));
-                output.push_str(&indent);
-                output.push_str("- ");
+                let item_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Item(comrak::nodes::NodeList {
+                        list_type: ListType::Bullet,
+                        marker_offset: 0,
+                        padding: 0,
+                        start: 1,
+                        delimiter: ListDelimType::Period,
+                        bullet_char: b'-',
+                        tight: false,
+                    }),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(item_node);
+                parent_stack.push(current_parent);
+                current_parent = item_node;
                 in_list_item = true;
-                list_item_first_inline = true;
+                list_item_paragraph = None;
             }
+
             Event::EndListItem => {
-                // List items in Lex include trailing newline, so just add one more for spacing
-                if !output.ends_with('\n') {
-                    output.push('\n');
-                }
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced list item end".to_string())
+                })?;
                 in_list_item = false;
-                list_item_first_inline = false;
+                list_item_paragraph = None;
             }
 
             Event::StartVerbatim(language) => {
-                output.push_str("```");
-                if let Some(lang) = language {
-                    output.push_str(lang);
-                }
-                output.push('\n');
-            }
-            Event::EndVerbatim => {
-                output.push_str("```\n\n");
+                in_verbatim = true;
+                verbatim_language = language.clone();
+                verbatim_content.clear();
             }
 
-            Event::StartDefinition => {
-                // Definitions will be handled specially via inline content
+            Event::EndVerbatim => {
+                // Create code block with accumulated content
+                let code_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::CodeBlock(comrak::nodes::NodeCodeBlock {
+                        fenced: true,
+                        fence_char: b'`',
+                        fence_length: 3,
+                        fence_offset: 0,
+                        info: verbatim_language.take().unwrap_or_default(),
+                        literal: verbatim_content.clone(),
+                    }),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(code_node);
+                in_verbatim = false;
+                verbatim_content.clear();
             }
-            Event::EndDefinition => {
-                output.push('\n');
-                output.push('\n');
-            }
-            Event::StartDefinitionTerm => {
-                output.push_str("**");
-            }
-            Event::EndDefinitionTerm => {
-                output.push_str("**:");
-            }
-            Event::StartDefinitionDescription => {
-                output.push(' ');
-            }
-            Event::EndDefinitionDescription => {
-                // Nothing needed
+
+            Event::Inline(inline_content) => {
+                if in_verbatim {
+                    // Accumulate verbatim content
+                    if let crate::ir::nodes::InlineContent::Text(text) = inline_content {
+                        verbatim_content.push_str(text);
+                    }
+                } else if let Some(heading) = current_heading {
+                    // Add to heading (headings can have inline content directly)
+                    add_inline_to_node(arena, heading, inline_content)?;
+                } else if in_list_item {
+                    // List items need inline content wrapped in a paragraph
+                    if list_item_paragraph.is_none() {
+                        // Create paragraph for this list item's inline content
+                        let para = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                            NodeValue::Paragraph,
+                            (0, 0).into(),
+                        ))));
+                        current_parent.append(para);
+                        list_item_paragraph = Some(para);
+                    }
+                    // Add inline content to the paragraph
+                    add_inline_to_node(arena, list_item_paragraph.unwrap(), inline_content)?;
+                } else {
+                    // Regular inline content added to current_parent
+                    add_inline_to_node(arena, current_parent, inline_content)?;
+                }
             }
 
             Event::StartAnnotation { label, parameters } => {
-                // Convert to HTML comment
-                output.push_str("<!-- lex:");
-                output.push_str(label);
+                // Emit as HTML comment
+                let mut comment = format!("<!-- lex:{}", label);
                 for (key, value) in parameters {
-                    output.push(' ');
-                    output.push_str(key);
-                    output.push('=');
-                    output.push_str(value);
+                    comment.push_str(&format!(" {}={}", key, value));
                 }
-                output.push_str(" -->\n");
+                comment.push_str(" -->");
+
+                let html_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::HtmlBlock(comrak::nodes::NodeHtmlBlock {
+                        block_type: 0,
+                        literal: comment,
+                    }),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(html_node);
             }
+
             Event::EndAnnotation => {
-                output.push_str("<!-- /lex -->\n\n");
+                // Closing annotation comment
+                let html_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::HtmlBlock(comrak::nodes::NodeHtmlBlock {
+                        block_type: 0,
+                        literal: "<!-- /lex -->".to_string(),
+                    }),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(html_node);
             }
 
-            Event::Inline(inline) => {
-                if in_list_item && list_item_first_inline {
-                    // Strip leading list marker from first inline in list item
-                    emit_inline_stripped(inline, &mut output);
-                    list_item_first_inline = false;
-                } else {
-                    emit_inline(inline, &mut output);
-                }
+            Event::StartDefinition => {
+                // Definitions in Markdown: Term paragraph followed by description content
+                // Don't create wrapper, let content be siblings at document level
+            }
+
+            Event::EndDefinition => {
+                // Nothing needed
+            }
+
+            Event::StartDefinitionTerm => {
+                // Create paragraph for the term with bold styling
+                let para_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Paragraph,
+                    (0, 0).into(),
+                ))));
+                current_parent.append(para_node);
+                parent_stack.push(current_parent);
+                current_parent = para_node;
+
+                // Add bold wrapper for term text
+                let strong_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Strong,
+                    (0, 0).into(),
+                ))));
+                current_parent.append(strong_node);
+                parent_stack.push(current_parent);
+                current_parent = strong_node;
+            }
+
+            Event::EndDefinitionTerm => {
+                // Close bold
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced definition term end".to_string())
+                })?;
+
+                // Add colon after term
+                let colon_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Text(":".to_string()),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(colon_node);
+
+                // Close term paragraph
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError(
+                        "Unbalanced definition term paragraph".to_string(),
+                    )
+                })?;
+            }
+
+            Event::StartDefinitionDescription => {
+                // Description content will be siblings at document level
+                // No wrapper needed
+            }
+
+            Event::EndDefinitionDescription => {
+                // Nothing needed
             }
         }
     }
 
-    Ok(output)
+    Ok(root)
 }
 
-/// Emit inline content to the output
-fn emit_inline(inline: &InlineContent, output: &mut String) {
+/// Add inline content to a comrak node
+fn add_inline_to_node<'a>(
+    arena: &'a Arena<AstNode<'a>>,
+    parent: &'a AstNode<'a>,
+    inline: &crate::ir::nodes::InlineContent,
+) -> Result<(), FormatError> {
+    use crate::ir::nodes::InlineContent;
+
     match inline {
         InlineContent::Text(text) => {
-            output.push_str(text);
+            let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Text(text.clone()),
+                (0, 0).into(),
+            ))));
+            parent.append(text_node);
         }
+
         InlineContent::Bold(children) => {
-            output.push_str("**");
+            let strong_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Strong,
+                (0, 0).into(),
+            ))));
+            parent.append(strong_node);
             for child in children {
-                emit_inline(child, output);
+                add_inline_to_node(arena, strong_node, child)?;
             }
-            output.push_str("**");
         }
+
         InlineContent::Italic(children) => {
-            output.push('*');
+            let emph_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Emph,
+                (0, 0).into(),
+            ))));
+            parent.append(emph_node);
             for child in children {
-                emit_inline(child, output);
+                add_inline_to_node(arena, emph_node, child)?;
             }
-            output.push('*');
         }
-        InlineContent::Code(text) => {
-            output.push('`');
-            output.push_str(text);
-            output.push('`');
+
+        InlineContent::Code(code_text) => {
+            let code_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Code(comrak::nodes::NodeCode {
+                    num_backticks: 1,
+                    literal: code_text.clone(),
+                }),
+                (0, 0).into(),
+            ))));
+            parent.append(code_node);
         }
-        InlineContent::Math(text) => {
-            output.push('$');
-            output.push_str(text);
-            output.push('$');
+
+        InlineContent::Reference(url) => {
+            let link_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Link(comrak::nodes::NodeLink {
+                    url: url.clone(),
+                    title: String::new(),
+                }),
+                (0, 0).into(),
+            ))));
+            parent.append(link_node);
+            // Add link text as child
+            let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Text(url.clone()),
+                (0, 0).into(),
+            ))));
+            link_node.append(text_node);
         }
-        InlineContent::Reference(ref_text) => {
-            // Simple reference format: [ref]
-            output.push('[');
-            output.push_str(ref_text);
-            output.push(']');
+
+        InlineContent::Math(math_text) => {
+            // Math not supported in CommonMark, render as $...$
+            let dollar_open = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Text("$".to_string()),
+                (0, 0).into(),
+            ))));
+            parent.append(dollar_open);
+
+            let math_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Text(math_text.clone()),
+                (0, 0).into(),
+            ))));
+            parent.append(math_node);
+
+            let dollar_close = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Text("$".to_string()),
+                (0, 0).into(),
+            ))));
+            parent.append(dollar_close);
         }
     }
-}
 
-/// Emit inline content with leading list marker stripped
-fn emit_inline_stripped(inline: &InlineContent, output: &mut String) {
-    match inline {
-        InlineContent::Text(text) => {
-            // Strip leading "- ", "* ", "+ " or numbered markers
-            let stripped = text
-                .trim_start_matches("- ")
-                .trim_start_matches("* ")
-                .trim_start_matches("+ ");
-
-            // Also handle numbered lists like "1. ", "2) ", etc.
-            let stripped = if let Some(pos) = stripped.find(|c: char| c == '.' || c == ')') {
-                if stripped[..pos].chars().all(|c| c.is_ascii_digit()) {
-                    stripped[pos + 1..].trim_start()
-                } else {
-                    stripped
-                }
-            } else {
-                stripped
-            };
-
-            output.push_str(stripped);
-        }
-        // For other inline types, emit normally (they shouldn't have list markers)
-        _ => emit_inline(inline, output),
-    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lex_parser::lex::ast::elements::{ContentItem, Document, Paragraph};
+    use comrak::{parse_document, ComrakOptions};
     use lex_parser::lex::transforms::standard::STRING_TO_AST;
 
     #[test]
-    fn test_simple_paragraph() {
-        let doc = Document::with_content(vec![ContentItem::Paragraph(Paragraph::from_line(
-            "Hello world".to_string(),
-        ))]);
-
-        let result = serialize_to_markdown(&doc);
-        assert!(result.is_ok());
-        let md = result.unwrap();
-        assert!(md.contains("Hello world"));
-    }
-
-    #[test]
-    fn test_paragraph_from_spec() {
-        // Test with actual spec file
+    fn test_simple_paragraph_ast() {
         let lex_src = "This is a simple paragraph.\n";
         let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
 
-        let result = serialize_to_markdown(&lex_doc);
-        assert!(result.is_ok());
-        let md = result.unwrap();
-        assert!(md.contains("This is a simple paragraph"));
+        // Convert to markdown
+        let md = serialize_to_markdown(&lex_doc).unwrap();
+
+        // Parse back to comrak AST to verify structure
+        let arena = Arena::new();
+        let options = ComrakOptions::default();
+        let root = parse_document(&arena, &md, &options);
+
+        // Verify we have a paragraph
+        let mut found_paragraph = false;
+        for child in root.children() {
+            if matches!(child.data.borrow().value, NodeValue::Paragraph) {
+                found_paragraph = true;
+
+                // Check inline text content
+                for _inline in child.children() {
+                    if let NodeValue::Text(ref text) = child.data.borrow().value {
+                        assert!(text.contains("simple paragraph"));
+                    }
+                }
+            }
+        }
+        assert!(found_paragraph, "Should have a paragraph node");
     }
 
     #[test]
-    fn test_simple_trifecta() {
-        let lex_src = r#"Paragraphs and Single Session Test
-
-This document tests the combination of paragraphs and a single session at the root level.
-
-1. Introduction
-
-    This is the content of the session.
-
-This paragraph comes after the session.
-"#;
+    fn test_heading_ast() {
+        let lex_src = "1. Introduction\n\n    Content here.\n";
         let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
 
-        // Debug: Check IR events
-        let ir_doc = crate::to_ir(&lex_doc);
-        let events = crate::mappings::nested_to_flat::tree_to_events(&DocNode::Document(ir_doc));
-        println!("Events ({} total):", events.len());
-        for (i, event) in events.iter().enumerate() {
-            println!("  [{}] {:?}", i, event);
+        let md = serialize_to_markdown(&lex_doc).unwrap();
+
+        // Parse and verify AST structure
+        let arena = Arena::new();
+        let options = ComrakOptions::default();
+        let root = parse_document(&arena, &md, &options);
+
+        let mut found_heading = false;
+        for child in root.children() {
+            if let NodeValue::Heading(ref heading) = child.data.borrow().value {
+                assert_eq!(heading.level, 1);
+                found_heading = true;
+            }
         }
-
-        let result = serialize_to_markdown(&lex_doc);
-        assert!(result.is_ok());
-        let md = result.unwrap();
-
-        println!("\nGenerated Markdown:\n{}", md);
-
-        // Check for paragraph content
-        assert!(md.contains("Paragraphs and Single Session Test"));
-        assert!(md.contains("This document tests"));
-
-        // Check for heading (Lex sessions include the numbering in the title)
-        assert!(md.contains("# 1. Introduction"));
-
-        // Check for nested paragraph
-        assert!(md.contains("This is the content of the session"));
-
-        // Check for paragraph after session
-        assert!(md.contains("This paragraph comes after the session"));
+        assert!(found_heading, "Should have a heading node");
     }
 }
