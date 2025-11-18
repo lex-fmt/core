@@ -5,6 +5,7 @@
 
 use comrak::nodes::NodeValue;
 use comrak::{parse_document, Arena, ComrakOptions};
+use insta::assert_snapshot;
 use lex_babel::format::Format;
 use lex_babel::formats::markdown::MarkdownFormat;
 use lex_parser::lex::transforms::standard::STRING_TO_AST;
@@ -35,6 +36,41 @@ fn test_paragraph_simple() {
         }
     }
     assert!(found_paragraph, "Should have a paragraph node");
+}
+
+#[test]
+fn test_heading_and_paragraph_separation() {
+    // Session title followed by paragraph content should not be merged into the heading
+    let lex_src = "1. Title\n\n    Body text.\n";
+
+    let arena = Arena::new();
+    let root = lex_to_comrak_ast(lex_src, &arena);
+
+    let mut heading_text = String::new();
+    let mut paragraph_text = String::new();
+
+    for child in root.children() {
+        match &child.data.borrow().value {
+            NodeValue::Heading(_) => {
+                for inline in child.children() {
+                    if let NodeValue::Text(t) = &inline.data.borrow().value {
+                        heading_text.push_str(t);
+                    }
+                }
+            }
+            NodeValue::Paragraph => {
+                for inline in child.children() {
+                    if let NodeValue::Text(t) = &inline.data.borrow().value {
+                        paragraph_text.push_str(t);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    assert_eq!(heading_text.trim(), "1. Title");
+    assert!(paragraph_text.contains("Body text."));
 }
 
 // ============================================================================
@@ -246,4 +282,15 @@ fn test_kitchensink() {
     );
 
     println!("Kitchensink node types: {:?}", node_types);
+}
+
+#[test]
+fn test_kitchensink_snapshot() {
+    let lex_src = std::fs::read_to_string("../docs/specs/v1/benchmark/010-kitchensink.lex")
+        .expect("kitchensink file should exist");
+
+    let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    assert_snapshot!("kitchensink_markdown", md);
 }

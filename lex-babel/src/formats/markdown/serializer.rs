@@ -5,7 +5,7 @@
 
 use crate::error::FormatError;
 use crate::ir::events::Event;
-use crate::ir::nodes::DocNode;
+use crate::ir::nodes::{DocNode, InlineContent};
 use crate::mappings::nested_to_flat::tree_to_events;
 use comrak::nodes::{Ast, AstNode, ListDelimType, ListType, NodeValue};
 use comrak::{format_commonmark, Arena, ComrakOptions};
@@ -26,13 +26,23 @@ pub fn serialize_to_markdown(doc: &Document) -> Result<String, FormatError> {
 
     // Step 4: Comrak AST → Markdown string (using comrak's serializer)
     let mut output = Vec::new();
-    let options = ComrakOptions::default();
+    let options = default_comrak_options();
     format_commonmark(root, &options, &mut output).map_err(|e| {
         FormatError::SerializationError(format!("Comrak serialization failed: {}", e))
     })?;
 
     String::from_utf8(output)
         .map_err(|e| FormatError::SerializationError(format!("UTF-8 conversion failed: {}", e)))
+}
+
+fn default_comrak_options() -> ComrakOptions<'static> {
+    let mut options = ComrakOptions::default();
+    options.extension.table = true;
+    options.extension.strikethrough = true;
+    options.extension.autolink = true;
+    options.extension.tasklist = true;
+    options.extension.superscript = true;
+    options
 }
 
 /// Build a Comrak AST from IR events
@@ -54,7 +64,9 @@ fn build_comrak_ast<'a>(
     let mut verbatim_language: Option<String> = None;
     let mut verbatim_content = String::new();
 
-    // State for handling headings (which can only contain inline content)
+    // State for handling headings (which can only contain inline content).
+    // Once we start a block after the heading, we clear this so later inline
+    // events do not get appended to the heading text (a prior bug).
     let mut current_heading: Option<&'a AstNode<'a>> = None;
 
     // State for handling list items (need to auto-wrap inline content in paragraphs)
@@ -93,6 +105,10 @@ fn build_comrak_ast<'a>(
             }
 
             Event::StartParagraph => {
+                // Block after a heading – inline content should no longer
+                // target the heading title.
+                current_heading = None;
+
                 let para_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
                     NodeValue::Paragraph,
                     (0, 0).into(),
@@ -113,6 +129,8 @@ fn build_comrak_ast<'a>(
             }
 
             Event::StartList => {
+                current_heading = None;
+
                 let list_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
                     NodeValue::List(comrak::nodes::NodeList {
                         list_type: ListType::Bullet,
@@ -137,6 +155,8 @@ fn build_comrak_ast<'a>(
             }
 
             Event::StartListItem => {
+                current_heading = None;
+
                 let item_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
                     NodeValue::Item(comrak::nodes::NodeList {
                         list_type: ListType::Bullet,
@@ -165,6 +185,7 @@ fn build_comrak_ast<'a>(
             }
 
             Event::StartVerbatim(language) => {
+                current_heading = None;
                 in_verbatim = true;
                 verbatim_language = language.clone();
                 verbatim_content.clear();
@@ -189,34 +210,50 @@ fn build_comrak_ast<'a>(
             }
 
             Event::Inline(inline_content) => {
+                // Clean up inline text before inserting. In particular, drop any
+                // leading list markers that may come through in the text of a
+                // list item (to avoid doubling bullets like "- - Item").
+                let mut inline_to_emit = inline_content.clone();
+                if in_list_item {
+                    if let InlineContent::Text(text) = inline_content {
+                        if let Some(stripped) = text.strip_prefix("- ") {
+                            inline_to_emit = InlineContent::Text(stripped.to_string());
+                        }
+                    }
+                }
+
                 if in_verbatim {
                     // Accumulate verbatim content
-                    if let crate::ir::nodes::InlineContent::Text(text) = inline_content {
+                    if let InlineContent::Text(text) = &inline_to_emit {
                         verbatim_content.push_str(text);
                     }
                 } else if let Some(heading) = current_heading {
                     // Add to heading (headings can have inline content directly)
-                    add_inline_to_node(arena, heading, inline_content)?;
+                    add_inline_to_node(arena, heading, &inline_to_emit)?;
                 } else if in_list_item {
-                    // List items need inline content wrapped in a paragraph
-                    if list_item_paragraph.is_none() {
-                        // Create paragraph for this list item's inline content
-                        let para = arena.alloc(AstNode::new(RefCell::new(Ast::new(
-                            NodeValue::Paragraph,
-                            (0, 0).into(),
-                        ))));
-                        current_parent.append(para);
-                        list_item_paragraph = Some(para);
+                    // If we're already inside an explicit paragraph, write directly to it.
+                    if matches!(current_parent.data.borrow().value, NodeValue::Paragraph) {
+                        add_inline_to_node(arena, current_parent, &inline_to_emit)?;
+                    } else {
+                        // Otherwise, auto-wrap inline content in a paragraph
+                        if list_item_paragraph.is_none() {
+                            let para = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                                NodeValue::Paragraph,
+                                (0, 0).into(),
+                            ))));
+                            current_parent.append(para);
+                            list_item_paragraph = Some(para);
+                        }
+                        add_inline_to_node(arena, list_item_paragraph.unwrap(), &inline_to_emit)?;
                     }
-                    // Add inline content to the paragraph
-                    add_inline_to_node(arena, list_item_paragraph.unwrap(), inline_content)?;
                 } else {
                     // Regular inline content added to current_parent
-                    add_inline_to_node(arena, current_parent, inline_content)?;
+                    add_inline_to_node(arena, current_parent, &inline_to_emit)?;
                 }
             }
 
             Event::StartAnnotation { label, parameters } => {
+                current_heading = None;
                 // Emit as HTML comment
                 let mut comment = format!("<!-- lex:{}", label);
                 for (key, value) in parameters {
@@ -247,6 +284,7 @@ fn build_comrak_ast<'a>(
             }
 
             Event::StartDefinition => {
+                current_heading = None;
                 // Definitions in Markdown: Term paragraph followed by description content
                 // Don't create wrapper, let content be siblings at document level
             }
@@ -256,6 +294,7 @@ fn build_comrak_ast<'a>(
             }
 
             Event::StartDefinitionTerm => {
+                current_heading = None;
                 // Create paragraph for the term with bold styling
                 let para_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
                     NodeValue::Paragraph,
@@ -320,8 +359,9 @@ fn add_inline_to_node<'a>(
 
     match inline {
         InlineContent::Text(text) => {
+            let sanitized = text.replace('\n', " ");
             let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
-                NodeValue::Text(text.clone()),
+                NodeValue::Text(sanitized),
                 (0, 0).into(),
             ))));
             parent.append(text_node);
