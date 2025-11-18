@@ -10,5 +10,6 @@ pub mod tag;
 pub mod treeviz;
 
 pub use lex::LexFormat;
+pub use markdown::MarkdownFormat;
 pub use tag::TagFormat;
 pub use treeviz::TreevizFormat;

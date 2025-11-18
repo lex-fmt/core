@@ -2,3 +2,6 @@
 
 #[cfg(test)]
 mod mappings;
+
+#[cfg(test)]
+mod markdown;

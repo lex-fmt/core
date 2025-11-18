@@ -1,32 +1,108 @@
 //! Markdown format implementation
 //!
-//! Data Model:
+//! This module implements bidirectional conversion between Lex and CommonMark Markdown.
 //!
-//!     Note that, Lex being more expressive that markdown, a few mappings are needed.
-//!     | Markdown  | Lex | Notes |
-//!     | Table ] Verbatim | with mardown.table as lex_babel
-//!     | Header | Session \ the heading level is the session level |
-//!     | Links |  URL Reference | The anchor is the word preceding the link \
+//! # Library Choice
 //!
-//!     There is a fundamental mismatch between markdown's flat model and lex's hierarchical.
-//!     This means that the parsing code must assemble a session's content from the flat markdown
-//!  tokens infering the 2d structure from the 1d nodes is not possible, so we will use heuristics
-//!  to guess, but keeping a stack with session levels and infering a tree from that.
+//! We use the `comrak` crate for Markdown parsing and serialization. This choice is based on:
+//! - Single crate for both parsing and serialization
+//! - Feature-rich with CommonMark compliance
+//! - Robust and well-maintained
+//! - Supports extensions (tables, strikethrough, etc.)
 //!
+//! # Element Mapping Table
 //!
-//!     Lists are the only markdown element that are truly nested, so they should be handled easily.
+//! Complete Lex ↔ Markdown Mapping:
 //!
+//! | Lex Element      | Markdown Equivalent     | Export Notes                           | Import Notes                          |
+//! |------------------|-------------------------|----------------------------------------|---------------------------------------|
+//! | Session          | Heading (# ## ###)      | Session level → heading level (1-6)    | Heading level → session nesting       |
+//! | Paragraph        | Paragraph               | Direct mapping                         | Direct mapping                        |
+//! | List             | Unordered list (- *)    | Direct mapping                         | Both ordered/unordered → Lex list    |
+//! | ListItem         | List item (- item)      | Direct mapping with nesting            | Direct mapping with nesting           |
+//! | Definition       | **Term**: Description   | Bold term + colon + content            | Parse bold + colon pattern            |
+//! | Verbatim         | Code block (```)        | Language → info string                 | Info string → language                |
+//! | Annotation       | HTML comment            | `<!-- lex:label key=val -->` format    | Parse lex: prefixed HTML comments     |
+//! | InlineContent:   |                         |                                        |                                       |
+//! |   Text           | Plain text              | Direct                                 | Direct                                |
+//! |   Bold           | **bold** or __bold__    | Use **                                 | Parse both                            |
+//! |   Italic         | *italic* or _italic_    | Use *                                  | Parse both                            |
+//! |   Code           | `code`                  | Direct                                 | Direct                                |
+//! |   Math           | $math$ or $$math$$      | Use $...$                              | Parse if extension enabled            |
+//! |   Reference      | [text](url)             | Convert to markdown link               | Parse link/reference syntax           |
 //!
-//! Library
+//! # Lossy Conversions
 //!
-//!     We will use the comrak crate to handle parsing and serialization. IT's choice comes from
-//!  being a single create for both purposes, that is feature-rich, robust and well maintained.
+//! The following conversions lose information on round-trip:
+//! - Lex sessions beyond level 6 → h6 with nested content (Markdown max is h6)
+//! - Lex annotations → HTML comments (may be stripped by some parsers)
+//! - Lex definition structure → bold text pattern (not native Markdown)
+//! - Multiple blank lines → single blank line (Markdown normalization)
 //!
+//! # Architecture Notes
 //!
-//! Testing
+//! There is a fundamental mismatch between Markdown's flat model and Lex's hierarchical structure.
+//! We leverage the IR event system (lex-babel/src/mappings/) to handle the nested-to-flat and
+//! flat-to-nested conversions. This keeps format-specific code focused on Markdown AST transformations.
 //!
-//!     While we will have e2e string tests, the core logic for the mapping (which gets complicated)
-//!  should bw unit tested on the AsTs alone.
-//!     Note that the lex-parser crate has a robust testing toolset, including ast assertions that
-//!  can verify a number of ast nodes and their data in a fluent way, use it. This also shields us
-//!  from ast changes breaking every test.
+//! Lists are the only Markdown element that are truly nested, making them straightforward to map.
+//!
+//! # Testing
+//!
+//! Export tests use Lex spec files from docs/specs/v1/elements/ for isolated element testing.
+//! Integration tests use the kitchensink benchmark and a CommonMark reference document.
+//! See the testing guide in docs/local/tasks/86-babel-markdown.lex for details.
+//!
+//! # Implementation Status
+//!
+//! - [ ] Export (Lex → Markdown)
+//!   - [ ] Paragraph
+//!   - [ ] Heading (Session)
+//!   - [ ] Bold, Italic, Code inlines
+//!   - [ ] Lists
+//!   - [ ] Code blocks (Verbatim)
+//!   - [ ] Definitions
+//!   - [ ] Annotations
+//! - [ ] Import (Markdown → Lex)
+//!   - [ ] Paragraph
+//!   - [ ] Heading → Session
+//!   - [ ] Bold, Italic, Code inlines
+//!   - [ ] Lists
+//!   - [ ] Code blocks → Verbatim
+//!   - [ ] Definitions (pattern matching)
+//!   - [ ] Annotations (HTML comment parsing)
+
+mod serializer;
+
+use crate::error::FormatError;
+use crate::format::Format;
+use lex_parser::lex::ast::Document;
+
+/// Format implementation for Markdown
+pub struct MarkdownFormat;
+
+impl Format for MarkdownFormat {
+    fn name(&self) -> &str {
+        "markdown"
+    }
+
+    fn description(&self) -> &str {
+        "CommonMark Markdown format"
+    }
+
+    fn file_extensions(&self) -> &[&str] {
+        &["md", "markdown"]
+    }
+
+    fn supports_parsing(&self) -> bool {
+        false // TODO: Implement import
+    }
+
+    fn supports_serialization(&self) -> bool {
+        true
+    }
+
+    fn serialize(&self, doc: &Document) -> Result<String, FormatError> {
+        serializer::serialize_to_markdown(doc)
+    }
+}
