@@ -72,7 +72,7 @@
 //!   - [x] Lists
 //!   - [x] Code blocks → Verbatim
 //!   - [x] Annotations (HTML comment parsing)
-//!   - [ ] Definitions (pattern matching) - Not implemented
+//!   - [x] Definitions (pattern matching)
 
 mod parser;
 mod serializer;

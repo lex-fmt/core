@@ -15,7 +15,7 @@ use lex_parser::lex::ast::Document;
 pub fn parse_from_markdown(source: &str) -> Result<Document, FormatError> {
     // Step 1: Parse Markdown string to Comrak AST
     let arena = Arena::new();
-    let options = ComrakOptions::default();
+    let options = default_comrak_options();
     let root = parse_document(&arena, source, &options);
 
     // Step 2: Convert Comrak AST to IR events
@@ -31,6 +31,18 @@ pub fn parse_from_markdown(source: &str) -> Result<Document, FormatError> {
     Ok(lex_doc)
 }
 
+fn default_comrak_options() -> ComrakOptions<'static> {
+    let mut options = ComrakOptions::default();
+    options.extension.table = true;
+    options.extension.strikethrough = true;
+    options.extension.autolink = true;
+    options.extension.tasklist = true;
+    options.extension.superscript = true;
+    options
+}
+
+type DefinitionPieces = Option<(Vec<InlineContent>, Vec<InlineContent>)>;
+
 /// Convert Comrak AST to IR events
 fn comrak_ast_to_events<'a>(root: &'a AstNode<'a>) -> Result<Vec<Event>, FormatError> {
     let mut events = vec![Event::StartDocument];
@@ -38,9 +50,7 @@ fn comrak_ast_to_events<'a>(root: &'a AstNode<'a>) -> Result<Vec<Event>, FormatE
     // Track heading levels to build session hierarchy
     let mut heading_stack: Vec<usize> = vec![];
 
-    for child in root.children() {
-        collect_events_from_node(child, &mut events, &mut heading_stack)?;
-    }
+    collect_children_with_definitions(root.children(), &mut events, &mut heading_stack)?;
 
     // Close any remaining open headings
     while let Some(level) = heading_stack.pop() {
@@ -62,9 +72,7 @@ fn collect_events_from_node<'a>(
     match &node_data.value {
         NodeValue::Document => {
             // Skip document wrapper, process children
-            for child in node.children() {
-                collect_events_from_node(child, events, heading_stack)?;
-            }
+            collect_children_with_definitions(node.children(), events, heading_stack)?;
         }
 
         NodeValue::Heading(heading) => {
@@ -119,9 +127,7 @@ fn collect_events_from_node<'a>(
             events.push(Event::StartListItem);
 
             // Process list item content
-            for child in node.children() {
-                collect_events_from_node(child, events, heading_stack)?;
-            }
+            collect_children_with_definitions(node.children(), events, heading_stack)?;
 
             events.push(Event::EndListItem);
         }
@@ -262,6 +268,144 @@ fn collect_inline_content<'a>(
         }
 
         _ => {}
+    }
+
+    Ok(())
+}
+
+/// Determine if a node is a heading (used to know when to stop collecting
+/// definition description siblings).
+fn is_heading_node(node: &AstNode<'_>) -> bool {
+    matches!(node.data.borrow().value, NodeValue::Heading(_))
+}
+
+/// Attempt to parse a paragraph as a definition term of the form
+/// `**Term**: Description...` returning the term inline content and any
+/// inline description that appears in the same paragraph after the colon.
+fn try_parse_definition_term<'a>(node: &'a AstNode<'a>) -> Result<DefinitionPieces, FormatError> {
+    if !matches!(node.data.borrow().value, NodeValue::Paragraph) {
+        return Ok(None);
+    }
+
+    let mut children = node.children();
+    let first = match children.next() {
+        Some(child) => child,
+        None => return Ok(None),
+    };
+
+    if !matches!(first.data.borrow().value, NodeValue::Strong) {
+        return Ok(None);
+    }
+
+    // Gather the term content from the strong node
+    let mut term_inlines = Vec::new();
+    for child in first.children() {
+        collect_inline_content(child, &mut term_inlines)?;
+    }
+
+    let mut description_inlines = Vec::new();
+    let mut saw_colon = false;
+
+    for child in children {
+        let child_data = child.data.borrow();
+        match &child_data.value {
+            NodeValue::Text(text) => {
+                if !saw_colon {
+                    let trimmed = text.trim_start();
+                    if let Some(rest) = trimmed.strip_prefix(':') {
+                        saw_colon = true;
+                        let rest = rest.trim_start();
+                        if !rest.is_empty() {
+                            description_inlines.push(InlineContent::Text(rest.to_string()));
+                        }
+                    } else {
+                        // Text before a colon means this is not a definition pattern
+                        return Ok(None);
+                    }
+                } else if !text.is_empty() {
+                    description_inlines.push(InlineContent::Text(text.clone()));
+                }
+            }
+            // Only collect additional inline nodes after we have seen the colon
+            NodeValue::Strong
+            | NodeValue::Emph
+            | NodeValue::Code(_)
+            | NodeValue::Link(_)
+            | NodeValue::SoftBreak
+            | NodeValue::LineBreak => {
+                if !saw_colon {
+                    return Ok(None);
+                }
+                collect_inline_content(child, &mut description_inlines)?;
+            }
+            _ => {
+                if !saw_colon {
+                    return Ok(None);
+                }
+            }
+        }
+    }
+
+    if !saw_colon {
+        return Ok(None);
+    }
+
+    Ok(Some((term_inlines, description_inlines)))
+}
+
+/// Collect sibling nodes, treating definition term patterns as Definition IR
+/// and consuming subsequent siblings as the description until a heading or
+/// another definition term is encountered.
+fn collect_children_with_definitions<'a, I>(
+    children: I,
+    events: &mut Vec<Event>,
+    heading_stack: &mut Vec<usize>,
+) -> Result<(), FormatError>
+where
+    I: Iterator<Item = &'a AstNode<'a>>,
+{
+    let mut iter = children.peekable();
+
+    while let Some(node) = iter.next() {
+        if let Some((term_inlines, inline_description)) = try_parse_definition_term(node)? {
+            events.push(Event::StartDefinition);
+            events.push(Event::StartDefinitionTerm);
+            for inline in term_inlines {
+                events.push(Event::Inline(inline));
+            }
+            events.push(Event::EndDefinitionTerm);
+
+            events.push(Event::StartDefinitionDescription);
+            if !inline_description.is_empty() {
+                events.push(Event::StartParagraph);
+                for inline in inline_description {
+                    events.push(Event::Inline(inline));
+                }
+                events.push(Event::EndParagraph);
+            }
+
+            // Consume subsequent siblings as the description body until we hit
+            // a heading or another definition term.
+            while let Some(peek) = iter.peek() {
+                if is_heading_node(peek) {
+                    break;
+                }
+
+                // Stop if the next paragraph is another definition term
+                let should_stop = try_parse_definition_term(peek)?.is_some();
+                if should_stop {
+                    break;
+                }
+
+                let next = iter.next().expect("peek yielded a node");
+                collect_events_from_node(next, events, heading_stack)?;
+            }
+
+            events.push(Event::EndDefinitionDescription);
+            events.push(Event::EndDefinition);
+        } else {
+            collect_events_from_node(node, events, heading_stack)?;
+        }
     }
 
     Ok(())

@@ -121,6 +121,26 @@ fn test_inline_formatting() {
     }
 }
 
+#[test]
+fn test_definition_imports() {
+    let md = "**Term**: Description line one.\n\nAdditional paragraph.\n";
+    let doc = md_to_lex(md);
+
+    match &doc.root.children[0] {
+        ContentItem::Definition(def) => {
+            assert!(
+                def.subject.as_string().contains("Term"),
+                "Definition subject should capture term text"
+            );
+            assert!(
+                !def.children.is_empty(),
+                "Definition should have description content"
+            );
+        }
+        other => panic!("Expected definition, found {:?}", other),
+    }
+}
+
 // ============================================================================
 // TRIFECTA TESTS - Document Structure
 // ============================================================================
