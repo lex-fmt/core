@@ -8,6 +8,22 @@
 //!
 //! Lists must have a minimum of 2 items.  And it's not ilegal to have mixed decorations in a list, as the parser will consider the first item's decoration to set the list type. The ordering doesn't have to be correct, as lists itself are ordered, they are just a marker, but tooling will order them under demand.
 //!
+//! Parsing Structure:
+//!
+//! Nested List (with content):
+//! | Element | Prec. Blank | Head     | Blank | Content | Tail   |
+//! |---------|-------------|----------|-------|---------|--------|
+//! | List    | Optional    | ListLine | No    | Yes     | dedent |
+//!
+//! Flat List (no nested content):
+//! | Element | Prec. Blank | Head     | Tail                |
+//! |---------|-------------|----------|---------------------|
+//! | List    | Yes         | ListLine | BlankLine or Dedent |
+//!
+//! Special Cases:
+//! - Two Item Minimum: A list must have 2+ items, otherwise it's a paragraph
+//! - Dialog Rule: Lines starting with "-" can be marked as dialog (paragraphs) rather than list items
+//!
 //! Examples:
 //!    A flat list with the plain decoration:
 //!         - Bread

@@ -1,21 +1,32 @@
 //! Semantic indentation mapper for TokenStream pipeline
 //!
-//! This mapper transforms raw Indentation tokens into semantic Indent and Dedent
-//! token pairs based on indentation level changes between lines.
+//!     This mapper transforms raw Indentation tokens into semantic Indent and Dedent token
+//!     pairs based on indentation level changes between lines.
 //!
-//! # Algorithm
+//!     The logos lexer will produce indentation tokens, that is grouping several spaces or
+//!     tabs into a single token. However, indentation tokens per se are not useful. We don't
+//!     want to know how many spaces per line there are, but we want to know about indentation
+//!     levels and what's inside each one. For this, we want to track indent and dedent events,
+//!     which lets us neatly tell levels and their content.
 //!
-//! 1. Track the current indentation level (number of Indentation tokens)
-//! 2. For each line, count the Indentation tokens at the beginning
-//! 3. Compare with the previous line's indentation level:
-//!    - If greater: emit Indent tokens for each additional level
-//!    - If less: emit Dedent tokens for each reduced level
-//!    - If equal: no indentation tokens needed
-//! 4. Replace Indentation tokens with the appropriate semantic tokens
-//! 5. Always add final Dedent tokens to close the document structure
+//!     This transformation is a stateful machine that tracks changes in indentation levels and
+//!     emits indent and dedent events. In itself, this is trivial, and how most indentation
+//!     handling is done. At this point, indent/dedent could be replaced for open/close braces
+//!     in more c-style languages with the same effect.
 //!
-//! This is a pure adaptation of the existing sem_indentation transformation
-//! to the TokenStream architecture.
+//!     Indent tokens store the original indentation token, while dedent tokens are synthetic
+//!     and have no source tokens of their own.
+//!
+//! Algorithm
+//!
+//!     1. Track the current indentation level (number of Indentation tokens)
+//!     2. For each line, count the Indentation tokens at the beginning
+//!     3. Compare with the previous line's indentation level:
+//!        - If greater: emit Indent tokens for each additional level
+//!        - If less: emit Dedent tokens for each reduced level
+//!        - If equal: no indentation tokens needed
+//!     4. Replace Indentation tokens with the appropriate semantic tokens
+//!     5. Always add final Dedent tokens to close the document structure
 use crate::lex::token::Token;
 use std::ops::Range as ByteRange;
 #[derive(Debug, Clone, PartialEq)]

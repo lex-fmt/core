@@ -1,22 +1,31 @@
 //! Annotation attachment stage
 //!
-//! Converts annotations from being content items to metadata attached to AST nodes.
-//! Implements the attachment rules specified in docs/dev/proposals/annottions-attachment.lex.
+//!     Converts annotations from being content items to metadata attached to AST nodes.
+//!     Implements the attachment rules specified in docs/dev/proposals/annottions-attachment.lex.
 //!
-//! # Attachment Rules
+//!     We do have a document ast node, but it's not yet complete. Annotations, which are
+//!     metadata, are always attached to AST nodes, so they can be very targeted. Only with
+//!     the full document in place we can attach annotations to their correct target nodes.
 //!
-//! 1. Closest Element: An annotation attaches to the closest content element,
-//!    measured by the number of blank lines separating them.
-//! 2. Tie-breaker: If equidistant, the next element wins.
-//! 3. Document-level: Annotations at document start followed by a blank line attach to Document.
-//! 4. Container-end: When an annotation is the last element in a container, the container
-//!    itself becomes the "next" element for distance comparisons.
+//!     This is harder than it seems. Keeping Lex ethos of not enforcing structure, this needs
+//!     to deal with several ambiguous cases, including some complex logic for calculating
+//!     "human understanding" distance between elements.
 //!
-//! # Module Organization
+//! Attachment Rules
 //!
-//! - `types`: Shared data structures
-//! - `distance`: Distance calculation and attachment decision logic
-//! - Main module: Orchestration and tree traversal
+//!     1. Closest Element: An annotation attaches to the closest content element, measured
+//!        by the number of blank lines separating them.
+//!     2. Tie-breaker: If equidistant, the next element wins.
+//!     3. Document-level: Annotations at document start followed by a blank line attach to
+//!        Document.
+//!     4. Container-end: When an annotation is the last element in a container, the container
+//!        itself becomes the "next" element for distance comparisons.
+//!
+//! Module Organization
+//!
+//!     - `types`: Shared data structures
+//!     - `distance`: Distance calculation and attachment decision logic. See [distance](distance).
+//!     - Main module: Orchestration and tree traversal
 
 mod distance;
 mod types;

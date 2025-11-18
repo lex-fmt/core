@@ -6,6 +6,15 @@
 //! The above is an example of a single line paragraph.
 //! Whereas this is an example of a multi-line paragraph:
 //!
+//! Parsing Structure:
+//!
+//! | Element   | Prec. Blank | Head     | Tail                |
+//! |-----------|-------------|----------|---------------------|
+//! | Paragraph | Optional    | Any Line | BlankLine or Dedent |
+//!
+//! Special Case: Dialog - Lines starting with "-" can be formally specified as dialog
+//! (paragraphs) rather than list items.
+//!
 //! Learn More:
 //! - Paragraphs spec: docs/specs/v1/elements/paragraphs.lex
 //!

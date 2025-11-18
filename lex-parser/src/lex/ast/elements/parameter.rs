@@ -1,18 +1,28 @@
 //! Parameter element
 //!
-//! A parameter is  a pair of key and value.
-//! annotations and verbatim blocks to convey structured metadata.
+//!     A parameter is a pair of key and value. Parameters are components that carry a bit
+//!     of information inside an element, only used in metadata. They can be used in
+//!     annotations and verbatim blocks to convey structured metadata.
 //!
-//! They can be used in annotations and, together with labels allow for structured metadata.
+//!     Together with labels, parameters allow for structured metadata. They are used in
+//!     data nodes, which have the syntax:
+//!         :: label params?
 //!
-//! Syntax:
-//! <key> "=" <value>
+//! Syntax
 //!
-//! Examples:
-//! - `priority=high`
+//!     <key> "=" <value>
 //!
-//! Learn More:
-//! - Parameters spec: docs/specs/v1/elements/parameters.lex
+//!     Examples:
+//!         priority=high
+//!         severity=high
+//!
+//!     Parameters are optional in data nodes. Multiple parameters can be specified
+//!     separated by whitespace.
+//!
+//!     See [Data](super::data::Data) for how parameters are used in data nodes.
+//!
+//!     Learn More:
+//!         - Parameters spec: docs/specs/v1/elements/parameters.lex
 
 use super::super::range::{Position, Range};
 use std::fmt;

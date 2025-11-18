@@ -1,8 +1,43 @@
 //! AST definitions and utilities for the lex format
 //!
-//! This module provides the core Abstract Syntax Tree (AST) definitions,
-//! along with utilities for working with AST nodes, tracking source positions,
-//! and performing position-based lookups.
+//!     This module provides the core Abstract Syntax Tree (AST) definitions,
+//!     along with utilities for working with AST nodes, tracking source positions,
+//!     and performing position-based lookups.
+//!
+//! Document and Sessions
+//!
+//!     Lex documents are plain text, utf-8 encoded files with the file extension .lex. Line width
+//!     is not limited, and is considered a presentation detail. Best practice dictates only
+//!     limiting line length when publishing, not while authoring.
+//!
+//!     The document node holds the document metadata and the content's root node, which is a
+//!     session node. The structure of the document then is a tree of sessions, which can be nested
+//!     arbitrarily. This creates powerful addressing capabilities as one can target any sub-session
+//!     from an index.
+//!
+//!     See [Document](elements::Document) for the document node definition, and [Session](elements::Session)
+//!     for session nodes.
+//!
+//! Nesting
+//!
+//!     The ability to make deep structures is core to Lex, and this is reflected throughout the
+//!     grammar. In fact the only element that does not contain children is the paragraph and the
+//!     verbatim block (by definition content that is not parsed).
+//!
+//!     Nesting is pretty unrestricted with the following logical exceptions:
+//!
+//!         - Only sessions can contain other sessions: you don't want a session popping up in the
+//!           middle of a list item.
+//!         - Annotations (metadata) cannot host inner annotations, that is you can't have metadata
+//!           on metadata (pretty reasonable, no?).
+//!
+//!     This nesting structure is enforced at compile time through type-safe containers. Containers
+//!     such as Session, Definition, and Annotation take typed vectors (SessionContent,
+//!     ContentElement, etc.) so invalid nesting is ruled out at compile time. See the
+//!     [container](elements::container) module for details.
+//!
+//!     For more details on element types, how they structure content, and the relationship between
+//!     indentation and the AST, see the [elements](elements) module.
 //!
 //! ## How Location Tracking Works in lex
 //!

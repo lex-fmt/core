@@ -1,21 +1,69 @@
 //! Grammar Pattern Definitions
 //!
-//! This module defines the declarative grammar patterns used by the parser.
-//! Patterns are defined as regex rules and are tried in declaration order
-//! for correct disambiguation according to the grammar specification.
+//!     This module defines the declarative grammar patterns used by the parser. Patterns
+//!     are defined as regex rules and are tried in declaration order for correct
+//!     disambiguation according to the grammar specification.
 //!
-//! # Grammar Parse Order (from grammar.lex §4.7)
+//! Markers
 //!
-//! 1. verbatim-block - requires closing annotation, tried first for disambiguation
-//! 2. annotation_block - block with container between start and end markers
-//! 3. annotation_single - single-line annotation only
-//! 4. list_no_blank - 2+ list items without preceding blank (inside containers)
-//! 5. list - requires preceding blank line + 2+ list items (at root level)
-//! 6. session_with_blank - requires preceding blank + subject + blank + indent
-//! 7. definition - requires subject + immediate indent
-//! 8. session_no_blank - requires subject + blank + indent (at container start)
-//! 9. paragraph - any content-line or sequence thereof
-//! 10. blank_line_group - one or more consecutive blank lines
+//!     Markers are characters or small character sequences that have meaning in the grammar.
+//!     There is only one syntax marker, that is a marker that is Lex introduced. All others
+//!     are naturally occurring in ordinary text, and with the meaning they already convey.
+//!
+//!     The Lex marker (::):
+//!         In keeping with Lex's ethos of putting content first there is only one formal
+//!         syntax element: the lex-marker, a double colon (::). This is used only in
+//!         metadata, in Data nodes. See [Data](crate::lex::ast::elements::data::Data).
+//!
+//!     Sequence Markers (Natural):
+//!         Serial elements in Lex like lists and sessions can be decorated by sequence markers.
+//!         These vary from plain formatting (dash) to explicit sequencing as in numbers,
+//!         letters and roman numerals. These can be separated by periods or parenthesis and
+//!         come in short and extended forms:
+//!             <sequence-marker> = <plain-marker> | (<ordered-marker><separator>)+
+//!         Examples are -, 1., a., a), 1.b.II. and so on.
+//!
+//!     Subject Markers (Natural):
+//!         Some elements take the form of subject and content, as in definitions and verbatim
+//!         blocks. The subject is marked by an ending colon (:).
+//!
+//! Lines
+//!
+//!     Being line based, all the grammar needs is to have line tokens in order to parse any
+//!     level of elements. Only annotations and end of verbatim blocks use data nodes, that
+//!     means that pretty much all of Lex needs to be parsed from naturally occurring text
+//!     lines, indentation and blank lines.
+//!
+//!     Since this still is happening in the lexing stage, each line must be tokenized into
+//!     one category. In the real world, a line might be more than one possible category.
+//!     For example a line might have a sequence marker and a subject marker (for example
+//!     "1. Recap:").
+//!
+//!     For this reason, line tokens can be OR tokens at times, and at other times the order
+//!     of line categorization is crucial to getting the right result. While there are only
+//!     a few consequential marks in lines (blank, data, subject, list) having them
+//!     denormalized is required to have parsing simpler.
+//!
+//!     The definitive set is the LineType enum (blank, annotation start/end, data, subject,
+//!     list, subject-or-list-item, paragraph, dialog, indent, dedent), and containers are
+//!     a separate structural node, not a line token.
+//!
+//! Grammar Parse Order
+//!
+//!     Patterns are matched in declaration order for correct disambiguation:
+//!         1. verbatim-block - requires closing annotation, tried first for disambiguation
+//!         2. annotation_block - block with container between start and end markers
+//!         3. annotation_single - single-line annotation only
+//!         4. list_no_blank - 2+ list items without preceding blank (inside containers)
+//!         5. list - requires preceding blank line + 2+ list items (at root level)
+//!         6. session_with_blank - requires preceding blank + subject + blank + indent
+//!         7. definition - requires subject + immediate indent
+//!         8. session_no_blank - requires subject + blank + indent (at container start)
+//!         9. paragraph - any content-line or sequence thereof
+//!         10. blank_line_group - one or more consecutive blank lines
+//!
+//!     This ordering ensures that more specific patterns (like verbatim blocks) are matched
+//!     before more general ones (like paragraphs).
 
 use once_cell::sync::Lazy;
 use regex::Regex;

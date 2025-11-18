@@ -1,12 +1,26 @@
 //! Tree Builder - Builds hierarchical LineContainer tree from LineTokens
 //!
-//! This module builds a hierarchical tree structure from a flat list of classified
-//! LineTokens. It uses a recursive descent approach to handle indentation.
+//!     This module builds a hierarchical tree structure from a flat list of classified LineTokens.
+//!     It uses a recursive descent approach to handle indentation.
 //!
-//! # Responsibilities
+//!     This is a key step in the parser design. After lexing has produced line tokens with indent
+//!     and dedent markers, we group line tokens into a tree of LineContainers. What this gives us
+//!     is the ability to parse each level in isolation. Because we don't need to know what a
+//!     LineContainer has, but only that it is a line container, we can parse each level with a
+//!     regular regex. We simply print token names and match the grammar patterns against them.
 //!
-//! 1. Build hierarchical tree based on Indent/Dedent markers
-//! 2. Convert to LineContainer structure expected by parser
+//!     This transformation is part of the lexing pipeline (steps 2-4 in the parser design), where
+//!     we group tokens into lines, build a tree of line groups reflecting the nesting structure,
+//!     and inject context information into each group allowing parsing to only read each level's
+//!     lines.
+//!
+//!     The key insight is that parsing only needs to read each level's lines, which can include a
+//!     LineContainer (that is, there is child content there), with no tree traversal needed.
+//!     Parsing is done declaratively by processing the grammar patterns (regular strings) through
+//!     rust's regex engine. Put another way, once tokens are grouped into a tree of lines, parsing
+//!     can be done in a regular single pass.
+//!
+//!     See the [parser design](crate::lex) module for the complete architecture overview.
 
 use crate::lex::token::{LineContainer, LineToken, LineType};
 use std::iter::Peekable;

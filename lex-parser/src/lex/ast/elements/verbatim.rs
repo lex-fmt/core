@@ -1,46 +1,124 @@
 //! Verbatim block element
 //!
-//! A verbatim block embeds content that is not lex formatted.
-//! Typically this can either be binary data, such as images, or text in some formal language
-//! like a programming language excerpt in Python.
+//!     A verbatim block embeds content that is not lex formatted. This can be any binary
+//!     encoded data, such as images or videos or text in another formal language, most
+//!     commonly programming language's code. Since the whole point of the element is to say:
+//!     hands off, do not parse this, just preserve it, you'd think that it would be a simple
+//!     element, but in reality this is by far the most complex element in Lex, and it warrants
+//!     some explanation.
 //!
-//! Note that a verbatim block can forgo content all together (i.e. binaries won't encode content).
+//!     Note that a verbatim block can forgo content all together (i.e. binaries won't encode
+//!     content).
 //!
-//! Structure:
-//! - subject: The lead item identifying what the verbatim block contains
-//! - children: VerbatimLine nodes containing the actual content (can be empty)
-//! - closing_data: The closing marker (format: `:: label params?`)
+//! Structure
 //!
-//! The subject introduces what the content is, and the closing data terminates the block.
-//! The data node carries the label/parameters describing the payload. As a convention
-//! though, if the content is to be interpreted by a tool, the label should be the name of the tool/language.
-//! While the lex software will not parse the content, it will preserve it exactly as it is, and can be used
-//! to format the content in editors and other tools.
+//!     - subject: The lead item identifying what the verbatim block contains
+//!     - children: VerbatimLine nodes containing the actual content (can be empty)
+//!     - closing_data: The closing marker (format: `:: label params?`)
 //!
-//! Syntax:
-//! <subject-line>
-//! <indent> <content> ... any number of content elements
-//! <dedent>  <data>
+//!     The subject introduces what the content is, and the closing data terminates the block.
+//!     The data node carries the label/parameters describing the payload. As a convention
+//!     though, if the content is to be interpreted by a tool, the label should be the name
+//!     of the tool/language. While the lex software will not parse the content, it will
+//!     preserve it exactly as it is, and can be used to format the content in editors and
+//!     other tools.
 //!
-//! Examples:
-//!     Images:
-//!         Sunset Photo:
-//!             As the sun sets over the ocean.
-//!         :: image type=jpg, src=sunset.jpg
-//!     Code:
-//!         JavaScript Example:
-//!             function hello() {
-//!                 return "world";
-//!             }
-//!      :: javascript
+//! Syntax
 //!
-//! # Verbatim Groups
+//!     <subject-line>
+//!     <indent> <content> ... any number of content elements
+//!     <dedent>  <data>
 //!
-//! Verbatim blocks support multiple subject/content pairs sharing a single closing annotation.
-//! Use the `group()` iterator to access all pairs. See the spec for syntax and examples.
+//! Parsing Structure:
+//!
+//! | Element  | Prec. Blank | Head        | Blank    | Content  | Tail            |
+//! |----------|-------------|-------------|----------|----------|-----------------|
+//! | Verbatim | Optional    | SubjectLine | Optional | Optional | dedent+DataLine |
+//!
+//! Parsing Verbatim Blocks
+//!
+//!     The first point is that, since it can hold non Lex content, its content can't be
+//!     parsed. It can be lexed without prejudice, but not parsed. Not only would it be
+//!     gibberish, but worse, in case it would trigger indent and dedent events, it would
+//!     throw off the parsing and break the document.
+//!
+//!     This has two consequences: that verbatim parsing must come first, lest its content
+//!     create havoc on the structure and also that identifying its end marker has to be very
+//!     easy. That's the reason why it ends in a data node, which is the only form that is
+//!     not common on regular text.
+//!
+//!     The verbatim parsing is the only stateful parsing in the pipeline. It matches a
+//!     subject line, then either an indented container (in-flow) or flat lines
+//!     (full-width/groups), and requires the closing annotation at the same indentation as
+//!     the subject.
+//!
+//!     Verbatim blocks are tried first in the grammar pattern matching order, before any
+//!     other elements. This ensures that their non-lex content doesn't interfere with the
+//!     parsing of the rest of the document.
+//!
+//! Content and the Indentation Wall
+//!
+//!     Verbatim content can be pretty much anything, and that includes any space characters,
+//!     which we must not interpret as indentation, nor discard, as it's content. The way to
+//!     think about this is through the indentation wall.
+//!
+//! In-Flow Mode
+//!
+//!     In this mode, called In-flow Mode, the verbatim content is indented just like any
+//!     other children content in Lex, +1 from their parent.
+//!
+//!     Verbatim content starts at the wall (the subject's indentation + 1 level), until the
+//!     end of line. Whitespace characters should be preserved as content. Content cannot,
+//!     however, start before the wall, lest we had no way to determine the end of the block.
+//!
+//!     This logic allows for a neat trick: that verbatim blocks do not need to quote any
+//!     content. Even if a line looks like a data node, the fact that it's not in the same
+//!     level as the subject means it's not the block's end marker.
+//!
+//!     Example:
+//!         I'm A verbatim Block Subject:
+//!             |<- this is the indentation wall, that is the subject's + 1 level up
+//!             I'm the first content line
+//!             But content can be indented however I please
+//!     error ->| as long as it's past the wall
+//!             :: text
+//!
+//! Full-Width Mode
+//!
+//!     At times, verbatim content is very wide, as in tables. In these cases, the various
+//!     indentation levels in the Lex document can consume valuable space which would throw
+//!     off the content making it either hard to read or truncated by some tools.
+//!
+//!     For these cases, the full-width mode allows the content to take (almost) all columns.
+//!     In this mode, the wall is at user-facing column 2 (zero-based column 1), so content
+//!     can hug the left margin without looking like a closing annotation.
+//!
+//!     Example:
+//!   Here is the content.
+//!   |<- this is the wall
+//!
+//!             :: lex
+//!
+//!     The block's mode is determined by the position of the first non-whitespace character
+//!     of the first content line. If it's at user-facing column 2, it's a full-width mode
+//!     block; otherwise it's in-flow.
+//!
+//!     The reason for column 2: column 1 would be indistinguishable from the subject's
+//!     indentation, while a full indent would lose horizontal space. Column 2 preserves
+//!     visual separation without looking like an error.
+//!
+//! Verbatim Groups
+//!
+//!     Verbatim blocks support multiple subject/content pairs sharing a single closing
+//!     annotation. Use the `group()` iterator to access all pairs. See the spec for syntax
+//!     and examples.
+//!
+//!     This special casing rule allows multiple subject + content groups with only 1 closing
+//!     annotation marker.
 //!
 //! Learn More:
-//! - Verbatim blocks spec: docs/specs/v1/elements/verbatim/verbatim.lex
+//!
+//!     - Verbatim blocks spec: docs/specs/v1/elements/verbatim/verbatim.lex
 //!
 
 use super::super::range::{Position, Range};

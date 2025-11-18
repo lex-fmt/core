@@ -21,6 +21,14 @@
 //!     <indent> <content> ... any number of content elements
 //!     <dedent> <lex-marker>
 //!
+//! Parsing Structure:
+//!
+//! | Element    | Prec. Blank | Head                | Blank | Content | Tail          |
+//! |------------|-------------|---------------------|-------|---------|---------------|
+//! | Annotation | Optional    | AnnotationStartLine | Yes   | Yes     | AnnotationEnd |
+//!
+//! Special Case: Short form annotations are one-liners without content or dedent.
+//!
 //!  Examples:
 //!      Label only:
 //!         :: image ::  
