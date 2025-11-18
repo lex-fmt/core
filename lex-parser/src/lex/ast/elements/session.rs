@@ -1,17 +1,51 @@
 //! Session element
 //!
-//! A session is the main structural element of lex documents. Sessions can be arbitrarily nested
-//! and contain required titles and content.
+//!     A session is the main structural element of lex documents. Sessions can be arbitrarily nested
+//!     and contain required titles and content.
 //!
-//! Sessions establish hierarchy within a document via their title e and nested content, like all
-//! major elements in lex.
+//!     Sessions establish hierarchy within a document via their title and nested content, like all
+//!     major elements in lex. The structure of the document is a tree of sessions, which can be
+//!     nested arbitrarily. This creates powerful addressing capabilities as one can target any
+//!     sub-session from an index.
 //!
 //! Structure:
-//! - Title: short text identifying the session
-//! - Content: any elements allowed in the body
 //!
-//! The title can be any text content, and is often decorated with an ordering indicator, just like lists,
-//! and in lex all the numerical, alphabetical, and roman numeral indicators are supported.
+//!         - Title: short text identifying the session
+//!         - Content: any elements allowed in the body (including other sessions for unlimited nesting)
+//!
+//!     The title can be any text content, and is often decorated with an ordering indicator, just
+//!     like lists, and in lex all the numerical, alphabetical, and roman numeral indicators are
+//!     supported.
+//!
+//! Parsing Rules
+//!
+//! Sessions follow this parsing pattern:
+//!
+//! | Element | Prec. Blank | Head          | Blank | Content | Tail   |
+//! |---------|-------------|---------------|-------|---------|--------|
+//! | Session | Yes         | ParagraphLine | Yes   | Yes     | dedent |
+//!
+//!     Sessions are unique in that the head must be enclosed by blank lines (both preceding and
+//!     following). The reason this is significant is that it makes for a lot of complication in
+//!     specific scenarios.
+//!
+//!     Consider the parsing of a session that is the very first element of its parent session. As
+//!     it's the very first element, the preceding blank line is part of its parent session. It can
+//!     see the following blank line before the paragraph just fine, as it belongs to it. But the
+//!     first blank line is out of its reach.
+//!
+//!     The obvious solution would be to imperatively walk the tree up and check if the parent
+//!     session has a preceding blank line. This works but this makes the grammar context sensitive,
+//!     and now things are way more complicated, goodbye simple regular language parser.
+//!
+//!     The way this is handled is that we inject a synthetic token that represents the preceding
+//!     blank line. This token is not produced by the logos lexer, but is created by the lexing
+//!     pipeline to capture context information from parent to children elements so that parsing can
+//!     be done in a regular single pass. As expected, this token is not consumed nor becomes a
+//!     blank line node, but it's only used to decide on the parsing of the child elements.
+//!
+//!     For more details on how sessions fit into the AST structure and indentation model, see
+//!     the [elements](crate::lex::ast::elements) module.
 //!
 //! Examples:
 //!

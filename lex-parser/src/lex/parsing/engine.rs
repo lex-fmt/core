@@ -1,15 +1,27 @@
 //! Parser Engine - Tree Walker and Orchestrator
 //!
-//! This module implements the main parsing orchestrator that:
-//! 1. Walks the semantic line token tree (from the lexer)
-//! 2. Groups tokens at each level into flat sequences
-//! 3. Applies pattern matching to recognize grammar elements
-//! 4. Recursively processes indented blocks
-//! 5. Delegates to unwrapper for pattern-to-AST conversion
-//! 6. Returns final Document AST
+//!     This module implements the main parsing orchestrator that performs semantic analysis
+//!     on line tokens to produce IR nodes.
 //!
-//! The tree walking is completely decoupled from grammar/pattern matching,
-//! making it testable and maintainable independently.
+//!     At the very beginning of parsing we will group line tokens into a tree of LineContainers.
+//!     What this gives us is the ability to parse each level in isolation. Because we don't
+//!     need to know what a LineContainer has, but only that it is a line container, we can
+//!     parse each level with a regular regex. We simply print token names and match the grammar
+//!     patterns against them.
+//!
+//!     When tokens are matched, we create intermediate representation nodes, which carry only
+//!     two bits of information: the node matched and which tokens it uses.
+//!
+//!     This allows us to separate the semantic analysis from the ast building. This is a good
+//!     thing overall, but was instrumental during development, as we ran multiple parsers in
+//!     parallel and the ast building had to be unified (correct parsing would result in the
+//!     same node types + tokens).
+//!
+//!     The tree walking is completely decoupled from grammar/pattern matching, making it testable
+//!     and maintainable independently.
+//!
+//!     See [grammar](crate::lex::parsing::parser::grammar) for the grammar pattern definitions
+//!     used for matching.
 use super::parser;
 use crate::lex::building::ast_tree::AstTreeBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
@@ -258,5 +270,49 @@ Final paragraph.
         assert!(has_annotations, "Should contain annotations");
         assert!(has_paragraphs, "Should contain paragraphs");
         assert!(has_sessions, "Should contain sessions");
+    }
+
+    #[test]
+    fn test_parse_empty_input() {
+        let source = "";
+        let tokens = lex_helper(source).expect("Failed to tokenize");
+        let result = parse_from_flat_tokens(tokens, source);
+
+        assert!(result.is_ok(), "Empty input should parse successfully");
+        let doc = result.unwrap();
+        assert_eq!(
+            doc.root.children.len(),
+            0,
+            "Empty document should have no children"
+        );
+    }
+
+    #[test]
+    fn test_parse_only_whitespace() {
+        let source = "   \n\n   \n";
+        let tokens = lex_helper(source).expect("Failed to tokenize");
+        let result = parse_from_flat_tokens(tokens, source);
+
+        assert!(
+            result.is_ok(),
+            "Whitespace-only input should parse successfully"
+        );
+    }
+
+    #[test]
+    fn test_parse_incomplete_annotation_block() {
+        let source = r#"
+:: warning ::
+    This is content
+
+No closing marker
+"#;
+        let tokens = lex_helper(source).expect("Failed to tokenize");
+        let result = parse_from_flat_tokens(tokens, source);
+
+        assert!(
+            result.is_ok(),
+            "Parser should handle incomplete annotations gracefully"
+        );
     }
 }

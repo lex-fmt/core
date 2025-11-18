@@ -1,13 +1,24 @@
 //! Document element
 //!
-//! The document node serves two purposes:
-//! - Contains the document tree.
-//! - Contains document-level annotations, including non-content metadata (like file name,
-//!   parser version, etc)
+//!     The document node serves two purposes:
+//!         - Contains the document tree.
+//!         - Contains document-level annotations, including non-content metadata (like file name,
+//!           parser version, etc).
 //!
-//! This structure makes the entire AST homogeneous - the document's content
-//! is accessed through the standard Session interface, making traversal and
-//! transformation logic consistent throughout the tree.
+//!     Lex documents are plain text, utf-8 encoded files with the file extension .lex. Line width
+//!     is not limited, and is considered a presentation detail. Best practice dictates only
+//!     limiting line length when publishing, not while authoring.
+//!
+//!     The document node holds the document metadata and the content's root node, which is a
+//!     session node. The structure of the document then is a tree of sessions, which can be nested
+//!     arbitrarily. This creates powerful addressing capabilities as one can target any sub-session
+//!     from an index.
+//!
+//!     This structure makes the entire AST homogeneous - the document's content is accessed through
+//!     the standard Session interface, making traversal and transformation logic consistent
+//!     throughout the tree.
+//!
+//!     For more details on document structure and sessions, see the [ast](crate::lex::ast) module.
 //!
 //! Learn More:
 //! - Paragraphs: docs/specs/v1/elements/paragraphs.lex

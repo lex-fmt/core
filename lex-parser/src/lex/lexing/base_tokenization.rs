@@ -1,10 +1,19 @@
 //! Base tokenization implementation for the lex lexer
 //!
-//! This module provides the raw tokenization using the logos lexer library.
-//! This is the entry point where source strings become token streams.
+//!     This module provides the raw tokenization using the logos lexer library.
+//!     This is the entry point where source strings become token streams.
 //!
-//! This is NOT a transformation - transformations operate on token streams.
-//! This is the source that creates the initial token stream from a string.
+//!     We leverage the logos lexer to tokenize the source text into core tokens. This is done
+//!     declaratively with no custom logic, and could not be simpler. The logos lexer produces
+//!     tokens based on the grammar specification defined in the Token enum.
+//!
+//!     This is NOT a transformation - transformations operate on token streams. This is the
+//!     source that creates the initial token stream from a string.
+//!
+//!     The tokens produced by this stage carry byte ranges into the source text. These byte
+//!     ranges are preserved through all transformations and are used at the AST building stage
+//!     for location tracking. It is critical that these ranges are not modified by any
+//!     transformation step.
 
 use crate::lex::token::Token;
 use logos::Logos;

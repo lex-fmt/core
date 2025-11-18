@@ -1,7 +1,16 @@
 //! Distance calculation and attachment decision logic
 //!
-//! This module handles the core logic for determining where annotations should attach
-//! based on proximity (blank line distance) to surrounding content elements.
+//!     This module handles the core logic for determining where annotations should attach
+//!     based on proximity (blank line distance) to surrounding content elements.
+//!
+//!     Annotations attach to AST nodes based on "human understanding" distance between
+//!     elements. This is harder than it seems. Keeping Lex ethos of not enforcing structure,
+//!     this needs to deal with several ambiguous cases, including some complex logic for
+//!     calculating this distance.
+//!
+//!     The distance is measured by the number of blank lines separating an annotation from
+//!     content elements. The closest element (fewest blank lines) wins. If equidistant, the
+//!     next element wins. Special rules apply for document-level and container-end cases.
 
 use std::cmp::Ordering;
 

@@ -8,6 +8,12 @@
 //!     <indent> <content> ... any number of content elements
 //!     <dedent>
 //!
+//! Parsing Structure:
+//!
+//! | Element    | Prec. Blank | Head        | Blank | Content | Tail   |
+//! |------------|-------------|-------------|-------|---------|--------|
+//! | Definition | Optional    | SubjectLine | No    | Yes     | dedent |
+//!
 //! Examples:
 //!     Cache:
 //!         Temporary storage for frequently accessed data.

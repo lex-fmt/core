@@ -8,6 +8,22 @@
 //!
 //! Lists must have a minimum of 2 items.  And it's not ilegal to have mixed decorations in a list, as the parser will consider the first item's decoration to set the list type. The ordering doesn't have to be correct, as lists itself are ordered, they are just a marker, but tooling will order them under demand.
 //!
+//! Parsing Structure:
+//!
+//! Nested List (with content):
+//! | Element | Prec. Blank | Head     | Blank | Content | Tail   |
+//! |---------|-------------|----------|-------|---------|--------|
+//! | List    | Optional    | ListLine | No    | Yes     | dedent |
+//!
+//! Flat List (no nested content):
+//! | Element | Prec. Blank | Head     | Tail                |
+//! |---------|-------------|----------|---------------------|
+//! | List    | Yes         | ListLine | BlankLine or Dedent |
+//!
+//! Special Cases:
+//! - Two Item Minimum: A list must have 2+ items, otherwise it's a paragraph
+//! - Dialog Rule: Lines starting with "-" can be marked as dialog (paragraphs) rather than list items
+//!
 //! Examples:
 //!    A flat list with the plain decoration:
 //!         - Bread
@@ -234,6 +250,10 @@ impl fmt::Display for ListItem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lex::ast::elements::label::Label;
+    use crate::lex::ast::elements::paragraph::Paragraph;
+    use crate::lex::ast::elements::typed_content::ContentElement;
+    use crate::lex::ast::Data;
 
     #[test]
     fn test_list() {
@@ -260,5 +280,66 @@ mod tests {
 
         assert!(list.header_location().is_none());
         assert_eq!(list.body_location().unwrap().span, item_range.span);
+    }
+
+    #[test]
+    fn list_body_location_spans_multiple_items_and_empty_list() {
+        let item1_range = Range::new(0..5, Position::new(0, 0), Position::new(0, 5));
+        let item2_range = Range::new(10..14, Position::new(1, 0), Position::new(1, 4));
+
+        let item1 = ListItem::with_text_content(
+            TextContent::from_string("One".to_string(), Some(item1_range.clone())),
+            Vec::new(),
+        )
+        .at(item1_range.clone());
+        let item2 = ListItem::with_text_content(
+            TextContent::from_string("Two".to_string(), Some(item2_range.clone())),
+            Vec::new(),
+        )
+        .at(item2_range.clone());
+
+        let list = List::new(vec![item1.clone(), item2.clone()]);
+        let body = list
+            .body_location()
+            .expect("expected bounding box for items");
+
+        assert_eq!(body.span.start, item1_range.span.start);
+        assert_eq!(body.span.end, item2_range.span.end);
+
+        let empty_list = List::new(vec![]);
+        assert!(empty_list.body_location().is_none());
+    }
+
+    #[test]
+    fn list_annotation_iteration_exposes_children() {
+        let child = ContentItem::Paragraph(Paragraph::from_line("note".to_string()));
+        let annotation = Annotation::from_data(
+            Data::new(Label::new("meta".into()), Vec::new()),
+            vec![ContentElement::try_from(child).unwrap()],
+        );
+
+        let mut list = List::new(vec![ListItem::new("Item".into())]);
+        list.annotations.push(annotation.clone());
+
+        let contents: Vec<&ContentItem> = list.iter_annotation_contents().collect();
+        assert_eq!(contents.len(), 1);
+
+        let mut item = ListItem::new("Item".into());
+        item.annotations.push(annotation);
+        let item_contents: Vec<&ContentItem> = item.iter_annotation_contents().collect();
+        assert_eq!(item_contents.len(), 1);
+    }
+
+    #[test]
+    fn display_label_truncates_long_text() {
+        let long_text = "x".repeat(60);
+        let item = ListItem::new(long_text.clone());
+
+        let label = item.display_label();
+        assert!(label.ends_with("..."));
+        assert!(label.len() < long_text.len());
+
+        let short = ListItem::new("short".into());
+        assert_eq!(short.display_label(), "short");
     }
 }

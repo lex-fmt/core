@@ -1,6 +1,29 @@
 //! Verbatim block builder
 //!
-//! Handles construction of verbatim block nodes from matched patterns.
+//!     Handles construction of verbatim block nodes from matched patterns.
+//!
+//!     The verbatim parsing is the only stateful parsing in the pipeline. It matches a
+//!     subject line, then either an indented container (in-flow) or flat lines
+//!     (full-width/groups), and requires the closing annotation at the same indentation as
+//!     the subject.
+//!
+//!     Since verbatim content can hold non Lex content, its content can't be parsed. It can
+//!     be lexed without prejudice, but not parsed. Not only would it be gibberish, but worse,
+//!     in case it would trigger indent and dedent events, it would throw off the parsing and
+//!     break the document. This is why verbatim parsing must come first in the grammar pattern
+//!     matching order.
+//!
+//!     The end marker identification has to be very easy. That's the reason why it ends in a
+//!     data node, which is the only form that is not common on regular text. The closing data
+//!     node must be at the same indentation level as the subject line.
+//!
+//!     This builder extracts the subject line, collects all content lines (which may be in a
+//!     container for in-flow mode, or flat lines for full-width mode), and the closing data
+//!     line to construct the verbatim block IR node.
+//!
+//!     See [grammar matcher](crate::lex::parsing::parser::GrammarMatcher::match_verbatim_block)
+//!     for the imperative matching logic that identifies verbatim blocks before other patterns
+//!     are tried.
 
 use super::helpers::{collect_line_tokens, extract_annotation_header_tokens, extract_line_token};
 use crate::lex::parsing::ir::{NodeType, ParseNode, ParseNodePayload};

@@ -1,20 +1,28 @@
 //! Label element
 //!
-//! A label is a short identifier used by annotations and other
-//! elements. Labels server similar roles but have relevant differences from:
-//! - Tags: An annotation can only have one label, while tags are typically multiple.
-//! - IDS: labels are not unique, even in the the same element
+//!     A label is a short identifier used by annotations and other elements. Labels are
+//!     components that carry a bit of information inside an element, only used in metadata.
 //!
-//! Labels support dot notation for namespaces:
-//! Namespaced: lex.internal, plugin.myapp.custom
-//! Namespaces are user defined, with the exception of the doc and lex namespaces which are reserved.
+//!     Labels serve similar roles but have relevant differences from:
+//!         - Tags: An annotation can only have one label, while tags are typically multiple.
+//!         - IDs: labels are not unique, even in the same element
 //!
-//! Syntax:
-//! <letter> (<letter> | <digit> | "_" | "-" | ".")*
+//!     Labels support dot notation for namespaces:
+//!         Namespaced: lex.internal, plugin.myapp.custom
+//!         Namespaces are user defined, with the exception of the doc and lex namespaces
+//!         which are reserved.
 //!
+//! Syntax
 //!
-//! Learn More:
-//! - Labels spec: docs/specs/v1/elements/labels.lex
+//!     <letter> (<letter> | <digit> | "_" | "-" | ".")*
+//!
+//!     Labels are used in data nodes, which have the syntax:
+//!         :: label params?
+//!
+//!     See [Data](super::data::Data) for how labels are used in data nodes.
+//!
+//!     Learn More:
+//!         - Labels spec: docs/specs/v1/elements/labels.lex
 
 use super::super::range::{Position, Range};
 use std::fmt;
