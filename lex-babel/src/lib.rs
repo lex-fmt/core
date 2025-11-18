@@ -124,3 +124,10 @@ pub use registry::FormatRegistry;
 pub fn to_ir(doc: &lex_parser::lex::ast::elements::Document) -> ir::nodes::Document {
     ir::from_lex::from_lex_document(doc)
 }
+
+/// Converts an IR document back to Lex AST.
+///
+/// This is useful for round-trip conversions: Format → IR → Lex.
+pub fn from_ir(doc: &ir::nodes::Document) -> lex_parser::lex::ast::elements::Document {
+    ir::to_lex::to_lex_document(doc)
+}
