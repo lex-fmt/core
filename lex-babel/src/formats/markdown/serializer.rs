@@ -42,6 +42,8 @@ fn default_comrak_options() -> ComrakOptions<'static> {
     options.extension.autolink = true;
     options.extension.tasklist = true;
     options.extension.superscript = true;
+    // Allow HTML output for annotations (rendered as HTML comments)
+    options.render.unsafe_ = true;
     options
 }
 
@@ -69,7 +71,7 @@ fn build_comrak_ast<'a>(
     // events do not get appended to the heading text (a prior bug).
     let mut current_heading: Option<&'a AstNode<'a>> = None;
 
-    // State for handling list items (need to auto-wrap inline content in paragraphs)
+    // State for handling list items
     let mut in_list_item = false;
     let mut list_item_paragraph: Option<&'a AstNode<'a>> = None;
 
@@ -139,7 +141,7 @@ fn build_comrak_ast<'a>(
                         start: 1,
                         delimiter: ListDelimType::Period,
                         bullet_char: b'-',
-                        tight: false,
+                        tight: true, // Use tight lists to avoid blank lines between items
                     }),
                     (0, 0).into(),
                 ))));
@@ -165,7 +167,7 @@ fn build_comrak_ast<'a>(
                         start: 1,
                         delimiter: ListDelimType::Period,
                         bullet_char: b'-',
-                        tight: false,
+                        tight: true, // Tight items don't add extra spacing
                     }),
                     (0, 0).into(),
                 ))));
@@ -235,7 +237,8 @@ fn build_comrak_ast<'a>(
                     if matches!(current_parent.data.borrow().value, NodeValue::Paragraph) {
                         add_inline_to_node(arena, current_parent, &inline_to_emit)?;
                     } else {
-                        // Otherwise, auto-wrap inline content in a paragraph
+                        // Auto-wrap inline content in a paragraph. List items need block content.
+                        // Using tight lists prevents extra blank lines.
                         if list_item_paragraph.is_none() {
                             let para = arena.alloc(AstNode::new(RefCell::new(Ast::new(
                                 NodeValue::Paragraph,
