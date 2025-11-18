@@ -292,14 +292,14 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 	Table: Nested Elements Structure and Parsing:
 
-		| Element     | Prec. Blank | Head                | Blank     | Content  | Tail          	|
-		|-------------|-------------|---------------------|-----------|----------|------------------|
-		| Session     | Yes         | ParagraphLine       | Yes       | Yes      | dedent        	|
-		| Definition  | Optional    | SubjectLine         | No        | Yes      | dedent        	|
-		| Verbatim    | Optional    | SubjectLine         | Optional  | Optional | dedent+ DataLine |
-		| Annotation  | Optional    | AnnotationStartLine | Yes       | Yes      | AnnotationEnd 	|
-		| List        | Optional    | ListLine            | No        | Yes      | No               | 
-		|-------------------------------------------------------------------------------------------|
+		| Element     | Separator Before Head | Head                | Blank (head→content) | Content  | Tail          	|
+		|-------------|-----------------------|---------------------|----------------------|----------|------------------|
+		| Session     | Blank or boundary     | ParagraphLine       | Yes                  | Yes      | dedent        	|
+		| Definition  | Optional blank        | SubjectLine         | No                   | Yes      | dedent        	|
+		| Verbatim    | Optional blank        | SubjectLine         | Optional             | Optional | dedent+ DataLine |
+		| Annotation  | Optional blank        | AnnotationStartLine | Yes                  | Yes      | AnnotationEnd 	|
+		| List        | Optional blank        | ListLine            | No                   | Yes      | No               | 
+		|-------------------------------------------------------------------------------------------------------------|
 
     Table: Flat Elements Structure and Parsing:	
 
@@ -324,7 +324,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 	
 
 	There are a couple of interesting things to note here. The first is that all container elements, salvo for Verbatim blocks are terminated by a dedent. That it, you don't know where they ended, you just know that something else started.
-	Sessions are unique in that the head must be enclosed by blank lines. The reason this is significant is that it makes for a lot of complication in specific scenarios. Conside this:
+	Sessions remain special because the title must be followed by a blank line before content, but the separator *before* the title can be either a blank-line in the current container or simply the boundary after a previous child. Blank lines stay with the container where they appear; they are not hoisted out of children. A boundary (dedent) therefore also counts as a separator when starting a new session sibling. Consider:
 
 	1. I'm the outter session.
 
@@ -333,7 +333,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 			I'm just a pargraph.
     :: lex
 
-	Consider the parsing of the middle session. As it's the very first element of the session, the preceding blank line is part of it's parent session. It can see the following blank line before the pargraph just fine, as it belongs to it. But the first blank line is out of it's reach.
+	Consider the parsing of the middle session. As it's the very first element of the session, the preceding blank line is part of it's parent session. It can see the following blank line before the pargraph just fine, as it belongs to it. But the first blank line is out of it's reach. The parser therefore treats either a visible blank line *or* the boundary after the previous child as a valid separator before a new session, keeping blank-line ownership intact while still parsing correctly across container edges.
 
 	The obvious solultion is to imperatively walk the tree up and check if the parent session has a preceding blank line. This works but this makes the grammar context sensitive, and now things are way more complicated, good by simple regular langauge parser.
 

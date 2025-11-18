@@ -39,6 +39,7 @@ impl GrammarMatcher {
         allow_sessions: bool,
         is_first_item: bool,
         has_preceding_blank: bool,
+        has_preceding_boundary: bool,
         prev_was_session: bool,
     ) -> Option<(PatternMatch, Range<usize>)> {
         if start_idx >= tokens.len() {
@@ -156,30 +157,13 @@ impl GrammarMatcher {
                                 trailing_blank_range,
                             }
                         }
-                        "session_with_blank" => {
-                            let prefix_blank_count = caps
-                                .name("prefix_blank")
-                                .map(|m| Self::count_consumed_tokens(m.as_str()))
-                                .unwrap_or(0);
-                            let blank_str = caps.name("blank").unwrap().as_str();
-                            let blank_count = Self::count_consumed_tokens(blank_str);
-                            let preceding_blank_range = if prefix_blank_count > 0 {
-                                Some(start_idx..start_idx + prefix_blank_count)
-                            } else {
-                                None
-                            };
-                            PatternMatch::Session {
-                                subject_idx: prefix_blank_count,
-                                content_idx: prefix_blank_count + 1 + blank_count,
-                                preceding_blank_range,
-                            }
-                        }
-                        "session_no_blank" => {
+                        "session" => {
                             // Allow session_no_blank in these cases:
                             // 1. At document start (is_first_item=true), OR
                             // 2. At container start when sessions are allowed (start_idx=0 && allow_sessions=true), OR
                             // 3. After a BlankLineGroup when sessions are allowed (has_preceding_blank && allow_sessions)
                             // 4. Immediately after another session (prev_was_session && allow_sessions)
+                            // 5. Immediately after a container that just closed (has_preceding_boundary && allow_sessions)
                             // This prevents Sessions inside Definitions while allowing legitimate session sequences.
                             if !allow_sessions {
                                 continue; // Definitions and other containers don't allow sessions
@@ -187,6 +171,7 @@ impl GrammarMatcher {
                             if !(is_first_item
                                 || start_idx == 0
                                 || has_preceding_blank
+                                || has_preceding_boundary
                                 || prev_was_session)
                             {
                                 continue; // Sessions need a separator or another session before them
@@ -417,14 +402,17 @@ fn parse_with_declarative_grammar_internal(
     let mut idx = 0;
 
     while idx < tokens.len() {
-        let (has_preceding_blank, prev_was_session) = if let Some(last_node) = items.last() {
-            (
-                matches!(last_node.node_type, NodeType::BlankLineGroup),
-                matches!(last_node.node_type, NodeType::Session),
-            )
-        } else {
-            (false, false)
-        };
+        let (has_preceding_blank, has_preceding_boundary, prev_was_session) =
+            if let Some(last_node) = items.last() {
+                (
+                    matches!(last_node.node_type, NodeType::BlankLineGroup),
+                    // A node with children indicates we just closed a container; this counts as a boundary.
+                    !last_node.children.is_empty(),
+                    matches!(last_node.node_type, NodeType::Session),
+                )
+            } else {
+                (false, false, false)
+            };
 
         let is_first_item = idx == 0 && is_doc_start;
         if let Some((pattern, range)) = GrammarMatcher::try_match(
@@ -433,6 +421,7 @@ fn parse_with_declarative_grammar_internal(
             allow_sessions,
             is_first_item,
             has_preceding_blank,
+            has_preceding_boundary,
             prev_was_session,
         ) {
             let mut pending_nodes = Vec::new();
@@ -466,9 +455,7 @@ fn parse_with_declarative_grammar_internal(
                     parse_with_declarative_grammar_internal(children, src, is_session, false)
                 },
             )?;
-            let (item, mut trailing_blanks) = split_trailing_blank_groups(item);
             pending_nodes.push(item);
-            pending_nodes.append(&mut trailing_blanks);
 
             if let PatternMatch::List {
                 trailing_blank_range: Some(blank_range),
@@ -486,25 +473,4 @@ fn parse_with_declarative_grammar_internal(
     }
 
     Ok(items)
-}
-
-/// Detach trailing blank-line groups from a node so separators bubble up to the parent level.
-fn split_trailing_blank_groups(mut node: ParseNode) -> (ParseNode, Vec<ParseNode>) {
-    if matches!(node.node_type, NodeType::BlankLineGroup) {
-        return (node, Vec::new());
-    }
-
-    let mut trailing = Vec::new();
-    while node
-        .children
-        .last()
-        .map(|child| matches!(child.node_type, NodeType::BlankLineGroup))
-        .unwrap_or(false)
-    {
-        if let Some(blank) = node.children.pop() {
-            trailing.push(blank);
-        }
-    }
-    trailing.reverse();
-    (node, trailing)
 }
