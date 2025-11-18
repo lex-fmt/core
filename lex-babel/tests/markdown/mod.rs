@@ -1,5 +1,6 @@
 //! Markdown format tests
 //!
-//! Tests for Markdown export (Lex → Markdown) functionality.
+//! Tests for bidirectional Markdown ↔ Lex conversion.
 
 mod export;
+mod import;

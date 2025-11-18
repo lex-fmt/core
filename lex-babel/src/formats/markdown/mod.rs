@@ -65,17 +65,17 @@
 //!   - [x] Annotations - as HTML comments
 //!   - [x] Math - rendered as $...$ text
 //!   - [x] References - rendered as links
-//! - [ ] Import (Markdown → Lex) - TODO
-//!   - [ ] Paragraph
-//!   - [ ] Heading → Session
-//!   - [ ] Bold, Italic, Code inlines
-//!   - [ ] Lists
-//!   - [ ] Code blocks → Verbatim
-//!   - [ ] Definitions (pattern matching)
-//!   - [ ] Annotations (HTML comment parsing)
+//! - [x] Import (Markdown → Lex)
+//!   - [x] Paragraph
+//!   - [x] Heading → Session (flat heading hierarchy → nested sessions)
+//!   - [x] Bold, Italic, Code inlines
+//!   - [x] Lists
+//!   - [x] Code blocks → Verbatim
+//!   - [x] Annotations (HTML comment parsing)
+//!   - [ ] Definitions (pattern matching) - Not implemented
 
+mod parser;
 mod serializer;
-// parser module will be implemented after export is fully tested
 
 use crate::error::FormatError;
 use crate::format::Format;
@@ -98,18 +98,15 @@ impl Format for MarkdownFormat {
     }
 
     fn supports_parsing(&self) -> bool {
-        false // TODO: Implement parser
+        true
     }
 
     fn supports_serialization(&self) -> bool {
         true
     }
 
-    fn parse(&self, _source: &str) -> Result<Document, FormatError> {
-        Err(FormatError::ParseError(
-            "Parser not yet implemented".to_string(),
-        ))
-        //parser::parse_from_markdown(source)
+    fn parse(&self, source: &str) -> Result<Document, FormatError> {
+        parser::parse_from_markdown(source)
     }
 
     fn serialize(&self, doc: &Document) -> Result<String, FormatError> {
