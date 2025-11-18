@@ -1,9 +1,19 @@
 //! Token definitions for the lex format
 //!
-//! This module defines all the tokens that can be produced by the lex lexer.
-//! The tokens are defined using the logos derive macro for efficient tokenization.
+//!     This module defines all the core tokens that can be produced by the lex lexer.
+//!     The tokens are defined using the logos derive macro for efficient tokenization.
 //!
-//! See docs/specs/`<version>`/grammar.lex for the grammar of the lex format.
+//!     These are character/word level tokens produced directly by the logos lexer. They represent
+//!     the fundamental building blocks of lex source code: text, whitespace, markers, punctuation,
+//!     and indentation.
+//!
+//!     The logos lexer produces these tokens declaratively with no custom logic. This is a pure
+//!     tokenization step that converts source text into a stream of typed tokens with byte ranges.
+//!
+//!     For the complete grammar specification, see docs/specs/v1/grammar-core.lex.
+//!
+//!     Note: These core tokens are transformed into semantic tokens (like Indent/Dedent) in later
+//!     stages of the lexing pipeline. See the [token](super) module for the complete token system.
 use logos::Logos;
 use std::fmt;
 

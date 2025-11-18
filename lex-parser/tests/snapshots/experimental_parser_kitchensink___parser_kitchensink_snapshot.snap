@@ -1,0 +1,54 @@
+---
+source: lex-parser/tests/experimental_parser_kitchensink.rs
+expression: snapshot
+---
+Document with 16 root items:
+
+[0] Paragraph with 1 line(s):   [0] TextLine: Kitchensink Test Document {{paragraph}}
+[1] BlankLineGroup with 1 line(s)
+[2] Paragraph with 1 line(s):   [0] TextLine: This document includes *all major features* of the lex language to serve as a comprehensive "kitchensink" regression test for the parser, as noted in [@spec2025, pp. 45-46]. {{paragraph}}
+[3] BlankLineGroup with 1 line(s)
+[4] Paragraph with 2 line(s): 
+  [0] TextLine: This is a two-lined paragraph.
+  [1] TextLine: First, a simple _definition_ at the root level. {{paragraph}}
+[5] BlankLineGroup with 1 line(s)
+[6] Definition with 3 item(s):
+  [0] Paragraph with 1 line(s):     [0] TextLine: This definition contains a paragraph and a `list` to test mixed content at the top level. {{definition}}
+  [1] BlankLineGroup with 1 line(s)
+  [2] List with 2 item(s):
+    [0] List item with 0 content item(s):
+    [1] List item with 0 content item(s):
+[7] BlankLineGroup with 1 line(s)
+[8] BlankLineGroup with 1 line(s)
+[9] Paragraph with 1 line(s):   [0] TextLine: This is a marker annotation at the root level, attached to the definition above.
+[10] BlankLineGroup with 1 line(s)
+[11] Session with 9 item(s):
+  [0] Paragraph with 1 line(s):     [0] TextLine: This session acts as the main container for testing nested structures. It starts with a simple paragraph. {{paragraph}}
+  [1] BlankLineGroup with 1 line(s)
+  [2] List with 2 item(s):
+    [0] List item with 0 content item(s):
+    [1] List item with 0 content item(s):
+  [3] BlankLineGroup with 1 line(s)
+  [4] BlankLineGroup with 1 line(s)
+  [5] Session with 6 item(s):
+    [0] Paragraph with 1 line(s):       [0] TextLine: This is a second-level session containing a definition and a list with nested content. {{paragraph}}
+    [1] BlankLineGroup with 1 line(s)
+    [2] Definition with 3 item(s):
+      [0] Paragraph with 1 line(s):         [0] TextLine: This definition is inside a nested session and contains a list. {{definition}}
+      [1] BlankLineGroup with 1 line(s)
+      [2] List with 2 item(s):
+        [0] List item with 0 content item(s):
+        [1] List item with 0 content item(s):
+    [3] BlankLineGroup with 1 line(s)
+    [4] Paragraph with 1 line(s):       [0] TextLine: - A list item at level 2. {{list-item}}
+    [5] Paragraph with 1 line(s):       [0] TextLine: - Another list item at level 2. {{list-item}}
+  [6] BlankLineGroup with 1 line(s)
+  [7] Paragraph with 1 line(s):     [0] TextLine: A paragraph back at the first level of nesting. {{paragraph}}
+  [8] VerbatimBlock with 72 content char(s)
+[12] BlankLineGroup with 1 line(s)
+[13] Session with 3 item(s):
+  [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}
+  [1] BlankLineGroup with 1 line(s)
+  [2] VerbatimBlock with 0 content char(s)
+[14] BlankLineGroup with 1 line(s)
+[15] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}

@@ -1,21 +1,39 @@
 //! Lexer
 //!
-//! This module orchestrates the complete tokenization pipeline for the lex format.
+//!     This module orchestrates the complete tokenization pipeline for the lex format.
+//!     Lexing runs transformations over tokens. First we store the core tokens as a TokenStream
+//!     for easier handling, then run transformations one by one. Each receiving a TokenStream
+//!     and returning a TokenStream.
 //!
-//! Structure:
-//!     The tokenization is done through the logos lexer library, based on the grammar.lex file
-//! Currently we are still running two parser designs side by side and the the newer parser requires
-//! more preprocessing of the cst.
+//! Source Token Preservation
 //!
-//! The pipeline consists of:
-//! 1. Core tokenization using logos lexer
-//!    - Each newline (\n) is tokenized as a BlankLine token directly by logos
-//!    - Indentation tokens (4 spaces or tab) are emitted for each indentation level
-//! 2. Common Transformation pipeline:
-//!    - Indentation transformation (Indent -> Indent/Dedent) ./transformations/semantic_indentation.rs
-//! 3. Line-based pipeline:
-//!    - Flatten tokens into line tokens
-//!    - Transform line tokens into a hierarchical tree
+//!     In common, all of these processes store the source tokens in the grouped token under
+//!     `source_tokens` field, which preserves information entirely and allows for easy unrolling
+//!     at the final stages.
+//!
+//!     Logo's tokens carry the byte range of their source text. This information will not be
+//!     used in the parsing pipeline at all, but has to be perfectly preserved for location
+//!     tracking on the tooling that will use the AST. It is critical that this be left as it.
+//!     The ast building stage will handle this information, but it's key that no other code
+//!     changes it, and at every step its integrity is preserved.
+//!
+//! The Lexing Pipeline
+//!
+//!     The pipeline consists of:
+//!         1. Core tokenization using logos lexer. See [base_tokenization](base_tokenization).
+//!            Each newline (\n) is tokenized as a BlankLine token directly by logos.
+//!            Indentation tokens (4 spaces or tab) are emitted for each indentation level.
+//!
+//!         2. Semantic Indentation transformation. See
+//!            [semantic_indentation](transformations::semantic_indentation).
+//!            This converts indent tokens into semantic events as indent and dedent.
+//!
+//!         3. Line Grouping. See [line_grouping](line_grouping).
+//!            Here we split tokens by line breaks into groups of tokens. Each group is a
+//!            Line token and which category is determined by the tokens inside.
+//!
+//!     At this point, lexing is complete. We have a TokenStream of Line tokens + indent/dedent
+//!     tokens.
 //!
 //! Indentation Handling
 //!
@@ -27,13 +45,14 @@
 //!     two indent tokens.
 //!
 //!     The rationale for this approach is:
-//!     - This allows us to use a vanilla logos lexer, no custom code.
-//!     - This isolates the logic for semantic indent and dedent tokens to a later
-//!     transformation step, separate from all other tokenization, which helps a lot.
-//!     - At some point in the spec, we will handle blocks much like markdown's fenced blocks,that
-//! display non-lex strings. In these cases, while we may parse (for indentation)the lines, we never
-//! want to emit the indent and dedent tokens. Having this happen two stages gives us more
-//! flexibility on how to handle these cases.
+//!         - This allows us to use a vanilla logos lexer, no custom code.
+//!         - This isolates the logic for semantic indent and dedent tokens to a later
+//!           transformation step, separate from all other tokenization, which helps a lot.
+//!         - At some point in the spec, we will handle blocks much like markdown's fenced
+//!           blocks that display non-lex strings. In these cases, while we may parse (for
+//!           indentation) the lines, we never want to emit the indent and dedent tokens.
+//!           Having this happen in two stages gives us more flexibility on how to handle
+//!           these cases.
 
 pub mod base_tokenization;
 pub mod common;

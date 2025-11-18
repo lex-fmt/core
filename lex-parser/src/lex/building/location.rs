@@ -1,18 +1,26 @@
 //! Location utilities for AST node building
 //!
-//! Provides shared location handling utilities used by the parser/AST builder.
-//! These utilities handle the conversion from byte ranges to line/column positions and
-//! compute bounding boxes for container nodes (sessions, lists, definitions, etc.).
+//!     Provides shared location handling utilities used by the parser/AST builder. These
+//!     utilities handle the conversion from byte ranges to line/column positions and compute
+//!     bounding boxes for container nodes (sessions, lists, definitions, etc.).
 //!
-//! ## Relationship to `ast/range.rs`
+//!     During AST building, the location from tokens is used to calculate the location for
+//!     the ast node. The location is transformed from byte range to a dual byte range +
+//!     line:column position.
 //!
-//! This module builds on top of `ast/range.rs`:
-//! - `ast/range.rs` provides the foundation types (`Position`, `Range`, `SourceLocation`)
-//! - This module provides high-level helpers for AST construction
+//!     Byte ranges from tokens are converted to line:column positions using SourceLocation
+//!     (one-time setup, O(log n) per conversion). Location aggregation from child nodes is
+//!     done via compute_location_from_locations(), which creates a bounding box that
+//!     encompasses all child locations.
 //!
-//! The separation maintains clean architecture:
-//! - `ast/range.rs` = Pure types with no AST dependencies
-//! - `building/location.rs` = Builder utilities that work with AST nodes
+//!     Relationship to `ast/range.rs`:
+//!         This module builds on top of `ast/range.rs`:
+//!             - `ast/range.rs` provides the foundation types (`Position`, `Range`, `SourceLocation`)
+//!             - This module provides high-level helpers for AST construction
+//!
+//!         The separation maintains clean architecture:
+//!             - `ast/range.rs` = Pure types with no AST dependencies
+//!             - `building/location.rs` = Builder utilities that work with AST nodes
 
 use std::ops::Range as ByteRange;
 

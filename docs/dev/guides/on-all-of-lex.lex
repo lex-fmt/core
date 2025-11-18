@@ -60,6 +60,7 @@ Design Principles:
 
 	Lex's grammar is line based, that is each element is defined by a sequence of lines. Seen this way, the grammer is actually quite simple, to the point that it can be parsed by a simple regex engine (which it indeed does).
 
+ 
 	2.1 Whitespace
 
 		Whitespace is indeed significant. Trailing whitespace (that is whitespace after the last non-whitespace character) is ignored. It's not discarded in order to keep location tracking correct, but it's not grammatical significant
@@ -143,6 +144,7 @@ Design Principles:
 	
 These conclude the description of the grammar and syntax. With that in mind, we will now dive into the various parsing stages.			
 
+
 4. The Parser Design
 
 	Now it's easier to understand the claim that Lex is a simple format, and yet quite hard to parse. Tactically it is stateful, recursive, line based and indentation significant. The combination of these makes it a parsing nightmare. 
@@ -180,9 +182,11 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 		Logo's tokens carry the byte range of their source text. This information will not be used in the parsing pipeline at wall, but has to be perfectly preserved for location tracking on the tooling that will use the AST. It is critical that this be left as it. The ast building stage will handle this information, but it's key that no other code changes it, and at every step it's integrity is preserved.
 
+
 			5.1.1 Base Tokenization
 
 					We leverage the logos lexer to tokenize the source text's into core tokens. This is done declaratively with no custom logic, and could not be simpler.[5]
+
 
 			5.1.2 Semantic Indentation
 
@@ -207,6 +211,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 		This allows us to separate the semantic analysis from the ast building. This is a good thing overall, but was instrumental during development, as we ran multiple parsers in parallel and the ast building had to be unified (correct parsing would result in the same node types + tokens )
 
+
 	5.3 AST Building
 
 		From the IR nodes, we build tha actual AST nodes.[9] During this step, two important things happen: 
@@ -215,6 +220,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 			2. The location from tokens is used to calculate the location for the the ast node.
             3. The location is transformed from  byte range to a dual byte range + line:column position.
         At this stage we create the Document node, it's root session node and the ast will be attached to it. 
+
 
 	5.4 Document assembly
 
@@ -338,6 +344,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 	Verbatim elements represent non Lex content. This can be any binary encoded data, such as images or videos or text in another formal language, most commonly programming language's code. Since the whole point of the element is to say: hands off, do not parse this, just preserve it, you'd think that it would be a simple element, but in reality this is by far the most complex element in Lex, and it warrants some explanation. 
 
+
 	7.1 Parsing Verbatim Blocks
 
 		The first point is that, since it can hold non Lex content, it's content can't be parsed. It can be lexed without prejudice, but not parsed. No only it would be gibberish, but worse, in case it would trigger indent and dedent events, it would throw off the parsing and break the document.
@@ -346,7 +353,9 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 			The verbatim parsing is the only stateful parsing in the pipeline. It matches a subject line, then either an indented container (in-flow) or flat lines (full-width/groups), and requires the closing annotation at the same indentation as the subject.
 
+
 	7.2 Content and the Indentation Wall
+
 
 		7.2.1 In-Flow Mode
 
@@ -366,6 +375,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 			In this mode, called In-flow Mode, the verbatim content is indented just like any other children content in Lex, +1 from their parent.
 			
+
 		7.2.2. Full-Width Mode
 
 			At times, verbatim content is very wide, as in tables. In these cases, the various indentation levels in the Lex document can consume valuable space which would throw off the content making it either hard to read or truncated by some tools.
@@ -381,11 +391,13 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 				The block's mode is determined by the position of the first non-whitespace character of the first content line. If it's at user-facing column 2, it's a full-width mode block; otherwise it's in-flow.
 				The reason for column 2: column 1 would be indistinguishable from the subject's indentation, while a full indent would lose horizontal space. Column 2 preserves visual separation without looking like an error.
 
+
 8. Testing
 
 	Lex is a novel format, for which there is no establish body of source text nor a reference parser to compare against. Adding insult to injury, the format is still evolving, so specs change, and in some ways it looks like markdown just enough to create confusion.
 
 	The corollary here being that getting correct Lex source text is not trivial, and if you make one up, the odds of it being slightly off are high. If one tests the parser agains an illegal source string, all goes to waste: we will have a parser tuned to the wrong thing. Worst off, as each test might produce it's slight variation, we will have an unpredictable, complex and wrong parser. If that was not enough, come a change in the spec, and now we must hunt down and review hundreds of ad-hoc strings in test files.
+
 
 	8.1. The Spec Sample Files
 
@@ -402,6 +414,7 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 		- Trifecta: a mix of sessions, paragraphs and lists, the structural elements..
 
 		These come with handy functions to load them, get the isolated element ast node and more.
+
 
 	8.2. The AST assertions
 

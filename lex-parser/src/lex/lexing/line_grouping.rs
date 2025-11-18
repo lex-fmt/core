@@ -1,8 +1,17 @@
 //! Line Grouping
 //!
-//! Groups flat tokens into classified LineTokens.
-//! This module contains the core grouping logic that calls classifiers
-//! and creates LineToken structures.
+//!     Groups flat tokens into classified LineTokens. This module contains the core grouping
+//!     logic that calls classifiers and creates LineToken structures.
+//!
+//!     Here we split tokens by line breaks into groups of tokens. Each group is a Line token
+//!     and which category is determined by the tokens inside. This is also a fairly simple
+//!     transformation.
+//!
+//!     Each line group is fairly simple and only contains the source tokens it uses. It does
+//!     not process their information, and hence we consider this a lexing step as well.
+//!
+//!     The classification of each line is done by [classify_line_tokens](crate::lex::lexing::line_classification::classify_line_tokens),
+//!     which determines the LineType based on the tokens in the line.
 
 use crate::lex::lexing::line_classification::classify_line_tokens;
 use crate::lex::token::{LineToken, LineType, Token};

@@ -1,22 +1,31 @@
 //! Annotation attachment stage
 //!
-//! Converts annotations from being content items to metadata attached to AST nodes.
-//! Implements the attachment rules specified in docs/dev/proposals/annottions-attachment.lex.
+//!     Converts annotations from being content items to metadata attached to AST nodes.
+//!     Implements the attachment rules specified in docs/dev/proposals/annottions-attachment.lex.
 //!
-//! # Attachment Rules
+//!     We do have a document ast node, but it's not yet complete. Annotations, which are
+//!     metadata, are always attached to AST nodes, so they can be very targeted. Only with
+//!     the full document in place we can attach annotations to their correct target nodes.
 //!
-//! 1. Closest Element: An annotation attaches to the closest content element,
-//!    measured by the number of blank lines separating them.
-//! 2. Tie-breaker: If equidistant, the next element wins.
-//! 3. Document-level: Annotations at document start followed by a blank line attach to Document.
-//! 4. Container-end: When an annotation is the last element in a container, the container
-//!    itself becomes the "next" element for distance comparisons.
+//!     This is harder than it seems. Keeping Lex ethos of not enforcing structure, this needs
+//!     to deal with several ambiguous cases, including some complex logic for calculating
+//!     "human understanding" distance between elements.
 //!
-//! # Module Organization
+//! Attachment Rules
 //!
-//! - `types`: Shared data structures
-//! - `distance`: Distance calculation and attachment decision logic
-//! - Main module: Orchestration and tree traversal
+//!     1. Closest Element: An annotation attaches to the closest content element, measured
+//!        by the number of blank lines separating them.
+//!     2. Tie-breaker: If equidistant, the next element wins.
+//!     3. Document-level: Annotations at document start followed by a blank line attach to
+//!        Document.
+//!     4. Container-end: When an annotation is the last element in a container, the container
+//!        itself becomes the "next" element for distance comparisons.
+//!
+//! Module Organization
+//!
+//!     - `types`: Shared data structures
+//!     - `distance`: Distance calculation and attachment decision logic. See [distance](distance).
+//!     - Main module: Orchestration and tree traversal
 
 mod distance;
 mod types;
@@ -582,5 +591,119 @@ mod tests {
             .find_map(|item| item.as_paragraph())
             .expect("expected trailing paragraph");
         assert_eq!(trailing_paragraph.annotations.len(), 1);
+    }
+
+    #[test]
+    fn test_annotation_only_previous_element() {
+        use crate::lex::ast::elements::blank_line_group::BlankLineGroup;
+        use crate::lex::ast::elements::label::Label;
+        use crate::lex::ast::elements::paragraph::Paragraph;
+
+        let mut doc = Document::new();
+        doc.root
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "First paragraph".to_string(),
+            )));
+        doc.root
+            .children
+            .push(ContentItem::BlankLineGroup(BlankLineGroup::new(1, vec![])));
+
+        let annotation = Annotation::new(Label::from_string("test"), vec![], vec![]);
+        doc.root.children.push(ContentItem::Annotation(annotation));
+
+        let stage = AttachAnnotations::new();
+        let result = stage.run(doc).unwrap();
+
+        // Annotation at document end with only previous element could either:
+        // 1. Attach to previous element
+        // 2. Become a document-level annotation
+        // Check that it's handled (not lost)
+        let paragraph_annotations: usize = result
+            .root
+            .children
+            .iter()
+            .filter_map(|item| match item {
+                ContentItem::Paragraph(p) => Some(p.annotations.len()),
+                _ => None,
+            })
+            .sum();
+
+        let total_annotations = paragraph_annotations + result.annotations.len();
+        assert_eq!(
+            total_annotations, 1,
+            "Annotation should be attached somewhere"
+        );
+    }
+
+    #[test]
+    fn test_annotation_no_valid_attachment_target() {
+        use crate::lex::ast::elements::blank_line_group::BlankLineGroup;
+        use crate::lex::ast::elements::label::Label;
+
+        let mut doc = Document::new();
+        doc.root
+            .children
+            .push(ContentItem::BlankLineGroup(BlankLineGroup::new(2, vec![])));
+
+        let annotation = Annotation::new(Label::from_string("orphaned"), vec![], vec![]);
+        doc.root.children.push(ContentItem::Annotation(annotation));
+
+        doc.root
+            .children
+            .push(ContentItem::BlankLineGroup(BlankLineGroup::new(2, vec![])));
+
+        let stage = AttachAnnotations::new();
+        let result = stage.run(doc).unwrap();
+
+        assert_eq!(result.annotations.len(), 1);
+        assert_eq!(result.annotations[0].data.label.value, "orphaned");
+    }
+
+    #[test]
+    fn test_annotation_distance_tie_next_wins() {
+        use crate::lex::ast::elements::blank_line_group::BlankLineGroup;
+        use crate::lex::ast::elements::label::Label;
+        use crate::lex::ast::elements::paragraph::Paragraph;
+
+        let mut doc = Document::new();
+        doc.root
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Before".to_string(),
+            )));
+        doc.root
+            .children
+            .push(ContentItem::BlankLineGroup(BlankLineGroup::new(1, vec![])));
+
+        let annotation = Annotation::new(Label::from_string("test"), vec![], vec![]);
+        doc.root.children.push(ContentItem::Annotation(annotation));
+
+        doc.root
+            .children
+            .push(ContentItem::BlankLineGroup(BlankLineGroup::new(1, vec![])));
+        doc.root
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "After".to_string(),
+            )));
+
+        let stage = AttachAnnotations::new();
+        let result = stage.run(doc).unwrap();
+
+        let paragraphs: Vec<_> = result
+            .root
+            .children
+            .iter()
+            .filter_map(|item| match item {
+                ContentItem::Paragraph(p) => Some(p),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(paragraphs.len(), 2);
+        assert!(paragraphs[0].annotations.is_empty());
+        assert_eq!(paragraphs[1].annotations.len(), 1);
+        assert_eq!(paragraphs[1].annotations[0].data.label.value, "test");
     }
 }

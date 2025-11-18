@@ -1,7 +1,35 @@
 //! Line Classification
 //!
-//! Core classification logic for determining line types based on token patterns.
-//! This module contains the classifiers used by the lexer to categorize lines.
+//!     Core classification logic for determining line types based on token patterns. This module
+//!     contains the classifiers used by the lexer to categorize lines.
+//!
+//!     Since the grammar operates mostly over lines, and each line must be tokenized into one
+//!     category during the lexing stage, classification is crucial. In the real world, a line might
+//!     be more than one possible category. For example a line might have a sequence marker and a
+//!     subject marker (for example "1. Recap:").
+//!
+//!     For this reason, line tokens can be OR tokens at times (like SubjectOrListItemLine), and at
+//!     other times the order of line categorization is crucial to getting the right result. While
+//!     there are only a few consequential marks in lines (blank, data, subject, list) having them
+//!     denormalized is required to have parsing simpler.
+//!
+//!     The definitive set is the LineType enum. See the [line](crate::lex::token::line) module for
+//!     the complete list of line types.
+//!
+//! Classification Order
+//!
+//!     Classification follows this specific order (important for correctness):
+//!         1. Blank lines
+//!         2. Annotation end lines (only :: marker, no other content)
+//!         3. Annotation start lines (follows annotation grammar)
+//!         4. Data lines (:: label params? without closing ::)
+//!         5. List lines starting with list marker AND ending with colon -> SubjectOrListItemLine
+//!         6. List lines (starting with list marker)
+//!         7. Subject lines (ending with colon)
+//!         8. Default to paragraph
+//!
+//!     This ordering ensures that more specific patterns (like annotation lines) are matched before
+//!     more general ones (like subject lines).
 
 use crate::lex::annotation::analyze_annotation_header_tokens;
 use crate::lex::token::{LineType, Token};
@@ -64,6 +92,9 @@ pub fn classify_line_tokens(tokens: &[Token]) -> LineType {
 }
 
 /// Check if line is blank (only whitespace and newline)
+///
+/// Blank lines are semantically significant in Lex (they separate paragraphs and are required
+/// before/after session titles), but only their existence matters, not the exact whitespace content.
 fn is_blank_line(tokens: &[Token]) -> bool {
     tokens.iter().all(|t| {
         matches!(
@@ -74,6 +105,9 @@ fn is_blank_line(tokens: &[Token]) -> bool {
 }
 
 /// Check if line is an annotation end line: only :: marker (and optional whitespace/newline)
+///
+/// This must be checked before annotation start lines to avoid misclassifying end markers
+/// as start markers. Annotation end lines have only a single :: marker with no other content.
 fn is_annotation_end_line(tokens: &[Token]) -> bool {
     // Find all non-whitespace/non-newline tokens
     let content_tokens: Vec<_> = tokens
@@ -204,6 +238,16 @@ fn is_data_line(tokens: &[Token]) -> bool {
 }
 
 /// Check if line starts with a list marker (after optional indentation)
+///
+/// List markers can be:
+/// - Plain: "-" followed by whitespace
+/// - Numbered: "1." or "1)" followed by whitespace
+/// - Alphabetic: "a." or "a)" followed by whitespace
+/// - Roman numerals: "I.", "II.", etc. followed by whitespace
+/// - Parenthetical: "(1)", "(a)", "(I)" followed by whitespace
+///
+/// The marker must be at the start of the line (after optional indentation) and must be
+/// followed by whitespace to distinguish from other uses (e.g., arithmetic expressions like "7 * 8").
 pub fn has_list_marker(tokens: &[Token]) -> bool {
     let mut i = 0;
 
@@ -268,6 +312,9 @@ fn is_roman_numeral(s: &str) -> bool {
 }
 
 /// Check if line ends with colon (ignoring trailing whitespace and newline)
+///
+/// Subject lines (for definitions, verbatim blocks, and sessions) end with a colon.
+/// Trailing whitespace and newlines are ignored when checking for the colon.
 pub fn ends_with_colon(tokens: &[Token]) -> bool {
     // Find last non-whitespace token before newline
     let mut i = tokens.len() as i32 - 1;
