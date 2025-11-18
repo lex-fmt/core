@@ -109,19 +109,14 @@ pub(super) const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
         "list",
         r"^(?P<blank><blank-line>+)(?P<items>((<list-line>|<subject-or-list-item-line>)(<container>)?){2,})(?P<trailing_blank><blank-line>)?",
     ),
-    // Session with preceding blank line (for sessions inside containers)
-    (
-        "session_with_blank",
-        r"^(?P<prefix_blank><blank-line>+)(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?P<content><container>)",
-    ),
     // Definition: <subject-line>|<subject-or-list-item-line>|<paragraph-line><container>
     (
         "definition",
         r"^(?P<subject><subject-line>|<subject-or-list-item-line>|<paragraph-line>)(?P<content><container>)",
     ),
-    // Session without preceding blank line (for sessions at container start)
+    // Session (requires subject + blank + indented content, allowed at start or after separator)
     (
-        "session_no_blank",
+        "session",
         r"^(?P<subject><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?P<content><container>)",
     ),
     // Paragraph: <content-line>+

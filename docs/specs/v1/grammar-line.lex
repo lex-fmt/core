@@ -28,7 +28,9 @@ Line Token Grammar for lex
 
         <blank-line> = (<whitespace> | <indentation>)+ <line-break>
         Only whitespace (spaces, tabs, indentation tokens) plus the terminating
-        newline. Resets dialog detection state.
+        newline. Resets dialog detection state. Blank lines remain in the
+        container where they appear; they are not hoisted across indentation
+        boundaries.
 
     3.2. <annotation-end-line>
 
