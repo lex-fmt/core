@@ -13,7 +13,6 @@ This is a two-lined paragraph. First, a simple *definition* at the root level. {
 This definition contains a paragraph and a `list` to test mixed content at the top level. {{definition}}
 
 - Item 1 in definition referencing [TK-rootlist](TK-rootlist). {{list-item}} 
-
 - Item 2 in definition with note [42](42). {{list-item}} 
 
 This is a marker annotation at the root level, attached to the definition above.
@@ -23,7 +22,6 @@ This is a marker annotation at the root level, attached to the definition above.
 This session acts as the main container for testing nested structures. It starts with a simple paragraph. {{paragraph}}
 
 - Followed by a simple list. {{list-item}} 
-
 - This list has two items. {{list-item}} 
 
 ## 1.1. Nested Session (Level 2) {{session}}
@@ -35,19 +33,14 @@ This is a second-level session containing a definition and a list with nested co
 This definition is inside a nested session and contains a list. {{definition}}
 
 - List inside a nested definition. {{list-item}} 
-
 - Second item. {{list-item}} 
 
 <!-- end list -->
 
 - A list item at level 2. {{list-item}} 
-  
   This list item contains a nested paragraph. {{paragraph}}
-  
   - And a nested list (Level 3). {{list-item}} 
-  
   - With its own items. {{list-item}} 
-
 - Another list item at level 2. {{list-item}} 
 
 A paragraph back at the first level of nesting. {{paragraph}}
