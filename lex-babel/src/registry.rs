@@ -120,6 +120,7 @@ impl FormatRegistry {
 
         // Register built-in formats
         registry.register(crate::formats::lex::LexFormat);
+        registry.register(crate::formats::markdown::MarkdownFormat);
         registry.register(crate::formats::tag::TagFormat);
         registry.register(crate::formats::treeviz::TreevizFormat);
 
@@ -267,6 +268,7 @@ mod tests {
     fn test_registry_with_defaults() {
         let registry = FormatRegistry::with_defaults();
         assert!(registry.has("lex"));
+        assert!(registry.has("markdown"));
         assert!(registry.has("tag"));
         assert!(registry.has("treeviz"));
     }
@@ -275,6 +277,7 @@ mod tests {
     fn test_registry_default_trait() {
         let registry = FormatRegistry::default();
         assert!(registry.has("lex"));
+        assert!(registry.has("markdown"));
         assert!(registry.has("tag"));
         assert!(registry.has("treeviz"));
     }

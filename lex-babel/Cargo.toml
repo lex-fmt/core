@@ -8,6 +8,7 @@ doctest = false
 
 [dependencies]
 lex-parser = { path = "../lex-parser" }
+comrak = "0.29"
 
 [dev-dependencies]
 insta = { workspace = true }
