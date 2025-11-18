@@ -1,3 +1,66 @@
+//! Inline parser implementation
+//!
+//!     Inline parsing is done by a declarative engine that will process each element declaration.
+//!     For some, this is a flat transformation (i.e. it only wraps up the text into a node, as
+//!     in bold or italic). Others are more involved, as in references, in which the engine will
+//!     execute a callback with the text content and return a node.
+//!
+//!     This solves elegantly the fact that most inlines are simple and very much the same
+//!     structure, while allowing for more complex ones to handle their specific needs.
+//!
+//!     The parser processes inline elements in order, matching start tokens and finding
+//!     corresponding end tokens. Simple elements like bold and italic are flat transformations,
+//!     while complex elements like references use post-processing callbacks.
+//!
+//! Simple (Flat) Inline Elements
+//!
+//!     Most inline elements are simple transformations that just wrap text content:
+//!
+//!     - **Strong** (*text*): Wraps content in `InlineNode::Strong(children)`
+//!     - **Emphasis** (_text_): Wraps content in `InlineNode::Emphasis(children)`
+//!     - **Code** (`text`): Wraps literal text in `InlineNode::Code(string)` - no nested parsing
+//!     - **Math** (#formula#): Wraps literal text in `InlineNode::Math(string)` - no nested parsing
+//!
+//!     These are defined in the `default_specs()` function with just start/end tokens and whether
+//!     they're literal (no nested inline parsing inside).
+//!
+//! Complex Inline Elements (with Post-Processing)
+//!
+//!     Some inline elements need additional logic after parsing:
+//!
+//!     - **References** ([target]): After wrapping content, the `classify_reference_node` callback
+//!       analyzes the target text to determine the reference type (URL, citation, footnote, etc.)
+//!       and creates the appropriate `ReferenceType` variant.
+//!
+//!     Example: `[https://example.com]` is classified as a URL reference, while `[@doe2024]` becomes
+//!     a citation reference.
+//!
+//! Adding New Inline Types
+//!
+//!     To add a new inline element type:
+//!
+//!     1. Add a variant to `InlineKind` enum
+//!     2. Add a variant to `InlineNode` in the ast module
+//!     3. Add an `InlineSpec` to `default_specs()` with start/end tokens
+//!     4. If complex logic is needed, implement a post-processor callback:
+//!        ```
+//!        fn my_post_processor(node: InlineNode) -> InlineNode {
+//!            // Transform the node based on its content
+//!            node
+//!        }
+//!        ```
+//!     5. Attach the callback via `.with_post_processor(InlineKind::MyType, my_post_processor)`
+//!
+//! Extension Pattern
+//!
+//!     The parser can be customized by creating an `InlineParser` instance and attaching
+//!     post-processors for specific inline types:
+//!     ```
+//!     let parser = InlineParser::new()
+//!         .with_post_processor(InlineKind::Strong, my_custom_processor);
+//!     let result = parser.parse("*text*");
+//!     ```
+
 use super::references::classify_reference_node;
 use crate::lex::ast::elements::inlines::{InlineContent, InlineNode, ReferenceInline};
 use once_cell::sync::Lazy;

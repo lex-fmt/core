@@ -1,8 +1,32 @@
 //! Data Node
 //!
-//! Data nodes encapsulate the reusable :: label parameters? header shared by
-//! annotations and future elements. They carry the label plus optional parameters
-//! but no closing :: marker or content.
+//!     Data nodes encapsulate the reusable :: label parameters? header shared by
+//!     annotations and future elements. They carry the label plus optional parameters
+//!     but no closing :: marker or content.
+//!
+//!     In keeping with Lex's ethos of putting content first there is only one formal
+//!     syntax element: the lex-marker, a double colon (::). Accordingly, it's only used
+//!     in metadata, there is in Data nodes. Data nodes group a label (an identifier) and
+//!     optional parameters.
+//!
+//! Syntax
+//!
+//!     <data> = <lex-marker> <whitespace> <label> (<whitespace> <parameters>)?
+//!
+//!     Examples:
+//!         :: note
+//!         :: note severity=high
+//!         :: syntax
+//!
+//!     Data nodes always appear at the start of a line (after whitespace), so they are
+//!     very easy to identify.
+//!
+//!     The lex-marker (::) is the only formal syntax element introduced by Lex. All other
+//!     markers are naturally occurring in ordinary text, and with the meaning they already
+//!     convey.
+//!
+//!     See [Label](super::label::Label) and [Parameter](super::parameter::Parameter) for
+//!     the component elements that make up data nodes.
 
 use super::super::range::{Position, Range};
 use super::label::Label;

@@ -1,9 +1,42 @@
 //! Line-based token types for the lexer pipeline
 //!
-//! This module contains token types specific to the line-based lexer pipeline:
-//! - LineToken: Represents a logical line created from grouped raw tokens
-//! - LineTokenType: Classification of line types
-//! - LineContainerToken: Hierarchical tree structure where nodes are either line tokens or nested containers
+//!     This module contains token types specific to the line-based lexer pipeline. Being line
+//!     based, all the grammar needs is to have line tokens in order to parse any level of elements.
+//!     Only annotations and end of verbatim blocks use data nodes, that means that pretty much all
+//!     of Lex needs to be parsed from naturally occurring text lines, indentation and blank lines.
+//!
+//!     Since this still is happening in the lexing stage, each line must be tokenized into one
+//!     category. In the real world, a line might be more than one possible category. For example a
+//!     line might have a sequence marker and a subject marker (for example "1. Recap:").
+//!
+//!     For this reason, line tokens can be OR tokens at times, and at other times the order of
+//!     line categorization is crucial to getting the right result. While there are only a few
+//!     consequential marks in lines (blank, data, subject, list) having them denormalized is
+//!     required to have parsing simpler.
+//!
+//!     The LineType enum is the definitive set: blank, annotation start/end, data, subject, list,
+//!     subject-or-list-item, paragraph, dialog, indent, dedent. Containers are a separate
+//!     structural node, not a line token.
+//!
+//! Line Types
+//!
+//!     These are the line tokens:
+//!
+//!         - BlankLine: empty or whitespace only
+//!         - AnnotationEndLine: a line starting with :: marker and having no further content
+//!         - AnnotationStartLine: a data node + lex marker
+//!         - DataLine: :: label params? (no closing :: marker)
+//!         - SubjectLine: Line ending with colon (could be subject/definition/session title)
+//!         - ListLine: Line starting with list marker (-, 1., a., I., etc.)
+//!         - SubjectOrListItemLine: Line starting with list marker and ending with colon
+//!         - ParagraphLine: Any other line (paragraph text)
+//!         - DialogLine: a line that starts with a dash, but is marked not to be a list item.
+//!         - Indent / Dedent: structural markers passed through from indentation handling.
+//!
+//!     And to represent a group of lines at the same level, there is a LineContainer.
+//!
+//!     See [classify_line_tokens](crate::lex::lexing::line_classification::classify_line_tokens)
+//!     for the classification logic and ordering.
 
 use std::fmt;
 

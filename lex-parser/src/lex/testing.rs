@@ -1,50 +1,89 @@
 //! Testing utilities for AST assertions
 //!
-//! # Parser Testing Guidelines
+//!     This module provides comprehensive testing tools and guidelines for the lex parser.
+//!     Testing the parser must follow strict rules to ensure reliability and maintainability.
 //!
-//! Testing the parser must follow strict rules to ensure reliability and maintainability.
-//! This module provides two essential tools that must be used together:
+//! Why Testing is Different
 //!
-//! 1. [Lexplore](crate::lex::testing::lexplore::Lexplore) - For verified lex content
-//! 2. [assert_ast](fn@assert_ast) - For comprehensive AST verification
+//!     Lex is a novel format, for which there is no established body of source text nor a
+//!     reference parser to compare against. Adding insult to injury, the format is still
+//!     evolving, so specs change, and in some ways it looks like markdown just enough to
+//!     create confusion.
 //!
-//! ## Rule 1: Always Use Lexplore for Test Content
+//!     The corollary here being that getting correct Lex source text is not trivial, and if
+//!     you make one up, the odds of it being slightly off are high. If one tests the parser
+//!     against an illegal source string, all goes to waste: we will have a parser tuned to
+//!     the wrong thing. Worst of all, as each test might produce its slight variation, we
+//!     will have an unpredictable, complex and wrong parser. If that was not enough, come a
+//!     change in the spec, and now we must hunt down and review hundreds of ad-hoc strings
+//!     in test files.
 //!
-//! Why this matters:
+//!     This is why all testing must follow two strict rules:
 //!
-//! lex is a novel format that's still evolving. People regularly get small details wrong,
-//! leading to false positives in tests. When lex changes, we need to verify and update
-//! all source files. If lex content is scattered across many test files, this becomes
-//! a maintenance nightmare.
+//!         1. Always use verified sample files from the spec (via [Lexplore](lexplore))
+//!         2. Always use comprehensive AST assertions (via [assert_ast](fn@assert_ast))
 //!
-//! The solution:
+//! Rule 1: Always Use Lexplore for Test Content
 //!
-//! Use the `Lexplore` library to access verified, curated lex sample files.
-//! This ensures only vetted sources are used and makes writing tests much easier.
+//!     Why this matters:
 //!
-//! ```rust-example
-//! use crate::lex::testing::lexplore::{Lexplore, ElementType, DocumentType};
+//!         lex is a novel format that's still evolving. People regularly get small details
+//!         wrong, leading to false positives in tests. When lex changes, we need to verify
+//!         and update all source files. If lex content is scattered across many test files,
+//!         this becomes a maintenance nightmare.
 //!
-//! // CORRECT: Use verified sample files
-//! let source = Lexplore::get_source_for(ElementType::Paragraph, 1)?;
-//! let doc = parse_document(&source)?;
+//!     The solution:
 //!
-//! // OR use the fluent API
-//! let parsed = Lexplore::paragraph(1).parse();
-//! let paragraph = parsed.root.expect_paragraph();
+//!         Use the `Lexplore` library to access verified, curated lex sample files. This
+//!         ensures only vetted sources are used and makes writing tests much easier.
 //!
-//! // WRONG: Don't write lex content directly in tests
-//! let doc = parse_document("Some paragraph\n\nAnother paragraph\n\n")?;
-//! ```
+//!     Examples:
 //!
-//! Available sources:
-//! - Elements: `Lexplore::get_source_for(ElementType::Paragraph, 1)` - Individual elements
-//! - Documents: `Lexplore::get_document_source_for(DocumentType::Trifecta, 0)` - Full documents
-//! - Fluent API: `Lexplore::paragraph(1)`, `Lexplore::list(1)`, etc.
+//!     ```rust,ignore
+//!     use crate::lex::testing::lexplore::Lexplore;
+//!     use crate::lex::parsing::parse_document;
 //!
-//! See the [Lexplore documentation](crate::lex::testing::lexplore) for more details.
+//!     // CORRECT: Use verified sample files
+//!     let doc = Lexplore::paragraph(1).parse().unwrap();
+//!     let paragraph = doc.root.expect_paragraph();
 //!
-//! ## Rule 2: Always Use assert_ast for AST Verification
+//!     // OR load source and parse separately
+//!     let source = Lexplore::paragraph(1).source();
+//!     let doc = parse_document(&source).unwrap();
+//!
+//!     // OR use tokenization
+//!     let tokens = Lexplore::list(1).tokenize().unwrap();
+//!
+//!     // OR load documents (benchmark, trifecta)
+//!     let doc = Lexplore::benchmark(10).parse().unwrap();
+//!     let doc = Lexplore::trifecta(0).parse().unwrap();
+//!
+//!     // OR get the AST node directly
+//!     let paragraph = Lexplore::get_paragraph(1);
+//!     let list = Lexplore::get_list(1);
+//!     let session = Lexplore::get_session(1);
+//!
+//!     // WRONG: Don't write lex content directly in tests
+//!     let doc = parse_document("Some paragraph\n\nAnother paragraph\n\n").unwrap();
+//!     ```
+//!
+//!     Available sources:
+//!
+//!         - Elements: `Lexplore::paragraph(1)`, `Lexplore::list(1)`, etc. - Individual elements
+//!         - Documents: `Lexplore::benchmark(0)`, `Lexplore::trifecta(0)` - Full documents
+//!         - Direct access: `Lexplore::get_paragraph(1)` - Returns the AST node directly
+//!
+//!     The sample files are organized:
+//!
+//!         - By elements:
+//!             - Isolated elements (only the element itself): Individual test cases
+//!             - In Document: mixed with other elements: Integration test cases
+//!         - Benchmark: full documents that are used to test the parser
+//!         - Trifecta: a mix of sessions, paragraphs and lists, the structural elements
+//!
+//!     See the [Lexplore documentation](lexplore) for complete API details.
+//!
+//! Rule 2: Always Use assert_ast for AST Verification
 //!
 //! Why this matters:
 //!

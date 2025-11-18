@@ -1,7 +1,18 @@
 //! AST Builder from ParseNode IR
 //!
-//! This module contains the `AstTreeBuilder`, which walks the `ParseNode` tree
-//! produced by the parser and constructs the final AST.
+//!     This module contains the `AstTreeBuilder`, which walks the `ParseNode` tree produced
+//!     by the parser and constructs the final AST.
+//!
+//!     From the IR nodes, we build the actual AST nodes. During this step:
+//!         1. We unroll source tokens so that ast nodes have access to token values.
+//!         2. The location from tokens is used to calculate the location for the ast node.
+//!         3. The location is transformed from byte range to a dual byte range + line:column
+//!            position.
+//!
+//!     At this stage we create the Document node, its root session node and the ast will be
+//!     attached to it.
+//!
+//!     See [location](super::location) for location calculation utilities.
 
 use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
 use crate::lex::ast::error::{format_source_context, ParserError, ParserResult};

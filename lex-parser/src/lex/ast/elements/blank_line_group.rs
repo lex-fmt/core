@@ -1,10 +1,18 @@
 //! BlankLineGroup element
 //!
-//! A BlankLineGroup represents one or more consecutive blank lines in the source.
+//!     A BlankLineGroup represents one or more consecutive blank lines in the source.
 //!
-//! Why a group instead of individual blank lines?
-//! In lex, blank lines are meaningful as separators between elements, but any additional
-//! blank lines beyond the first are not semantically significant. That is:
+//! Blank Line Semantics
+//!
+//!     Blank lines are lines of text where only whitespace characters appear before the new line.
+//!     They are semantically significant, but only that they exist, the exact whitespace content
+//!     is not taken into account.
+//!
+//!     How many consecutive blank lines is not taken into account, only that there is at least
+//!     one. Again, multiple blank lines are not discarded, but treated as a blank line group.
+//!
+//!     In lex, blank lines are meaningful as separators between elements, but any additional
+//!     blank lines beyond the first are not semantically significant. That is:
 //!
 //! ```text
 //! content
