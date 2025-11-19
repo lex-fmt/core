@@ -110,7 +110,9 @@ fn test_verbatim_06_nested_in_definition() {
                 .content_contains("function counter()")
                 .content_contains("let count = 0;")
                 .content_contains("return () => ++count;")
-                .line_count(5); // function counter() {, let count = 0;, return, }, and blank line
+                .line_count(6) // blank line before content, function counter() {, let count = 0;, return, }, and trailing blank line
+                .line_eq(0, "")
+                .line_eq(5, "");
         });
     });
 
@@ -153,7 +155,9 @@ fn test_verbatim_07_nested_in_list() {
                         .closing_label("python")
                         .content_contains("def hello():")
                         .content_contains("return \"world\"")
-                        .line_count(3); // def hello():, return "world", and blank line
+                        .line_count(4) // blank line before content, def hello():, return "world", and trailing blank line
+                        .line_eq(0, "")
+                        .line_eq(3, "");
                 });
         });
     });
@@ -170,7 +174,9 @@ fn test_verbatim_07_nested_in_list() {
                         .subject("Another function")
                         .closing_label("javascript")
                         .content_contains("const greet")
-                        .line_count(2); // const greet = () => "hello"; and blank line
+                        .line_count(3) // blank line before content, const greet = () => "hello";, and trailing blank line
+                        .line_eq(0, "")
+                        .line_eq(2, "");
                 });
         });
     });
@@ -253,7 +259,9 @@ fn test_verbatim_09_flat_simple_beyond_wall() {
             .content_contains("function hello() {")
             .content_contains("return \"world\";")
             .content_contains("}")
-            .line_count(4); // function hello(), return, closing brace, and blank line
+            .line_count(5) // blank line before content, function hello(), return, closing brace, and trailing blank line
+            .line_eq(0, "")
+            .line_eq(4, "");
     });
 }
 
@@ -332,6 +340,23 @@ fn test_verbatim_14_fullwidth_table() {
 }
 
 #[test]
+fn test_verbatim_15_inflow_preserves_leading_blank_line() {
+    // verbatim-15-inflow-leading-blank.lex: Keeps leading blank lines inside verbatim content
+    let doc = Lexplore::verbatim(15).parse().unwrap();
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_verbatim_block()
+            .subject("Inflow Leading Blank")
+            .closing_label("shell")
+            .mode(VerbatimBlockMode::Inflow)
+            .line_count(3)
+            .line_eq(0, "")
+            .line_eq(1, "echo \"first\"")
+            .line_eq(2, "echo \"second\"");
+    });
+}
+
+#[test]
 fn test_verbatim_16_fullwidth_at_root() {
     // verbatim-16-fullwidth-nested.lex: Fullwidth verbatim at root level
     // Demonstrates fullwidth mode works correctly with other root-level elements
@@ -358,6 +383,23 @@ fn test_verbatim_16_fullwidth_at_root() {
     // Third: paragraph after verbatim
     assert_ast(&doc).item(2, |item| {
         item.assert_paragraph().text_contains("comes after");
+    });
+}
+
+#[test]
+fn test_verbatim_17_fullwidth_preserves_leading_blank_line() {
+    // verbatim-17-fullwidth-leading-blank.lex: Keeps left-margin blank lines in fullwidth mode
+    let doc = Lexplore::verbatim(17).parse().unwrap();
+
+    assert_ast(&doc).item_count(1).item(0, |item| {
+        item.assert_verbatim_block()
+            .subject("Fullwidth Leading Blank")
+            .closing_label("table")
+            .mode(VerbatimBlockMode::Fullwidth)
+            .line_count(3)
+            .line_eq(0, "")
+            .line_eq(1, "Header | Value")
+            .line_eq(2, "Data   | More");
     });
 }
 
@@ -448,12 +490,12 @@ fn test_verbatim_11_group_visitor_sees_all_groups() {
     };
     doc.accept(&mut visitor);
 
-    // First verbatim block has 3 groups with 1 line each = 3 lines
-    // Second verbatim block has 2 groups with 1 line each = 2 lines
-    // Third verbatim block has 1 group with 1 line = 1 line
-    // Total: 6 verbatim lines
+    // First verbatim block has 3 groups with 2 lines each (blank + content) = 6 lines
+    // Second verbatim block has 2 groups with 2 lines each = 4 lines
+    // Third verbatim block has 1 group with 2 lines = 2 lines
+    // Total: 12 verbatim lines
     assert_eq!(
-        visitor.count, 6,
+        visitor.count, 12,
         "Visitor should see all lines from all groups, got {} lines",
         visitor.count
     );

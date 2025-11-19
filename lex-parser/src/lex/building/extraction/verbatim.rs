@@ -135,8 +135,6 @@ fn detect_mode(content_lines: &[LineToken], source: &str) -> VerbatimBlockMode {
 ///
 /// 1. Start with the first subject and empty content accumulator
 /// 2. For each content line:
-///    - Skip leading blank lines before any content is accumulated (these belong
-///      to the previous group or are inter-group spacing)
 ///    - If the line is a subject at `base_subject_column`, it starts a new group:
 ///      push the accumulated (subject, content) pair and start fresh
 ///    - Otherwise, add the line to the current group's content
@@ -145,8 +143,8 @@ fn detect_mode(content_lines: &[LineToken], source: &str) -> VerbatimBlockMode {
 /// # Invariants
 ///
 /// - All group subjects must be at the same indentation level (`base_subject_column`)
-/// - Blank lines between groups (before any content) are skipped
-/// - Blank lines within a group's content are preserved
+/// - Blank lines between groups stay attached to the previous group's content
+/// - Leading blank lines after a subject are preserved as part of that group's content
 /// - Returns at least one group (the first subject with possibly empty content)
 ///
 /// # Arguments
@@ -170,15 +168,6 @@ fn split_groups(
     let mut current_content: Vec<LineToken> = Vec::new();
 
     for line in content_lines {
-        // Skip blank lines that appear before any content is accumulated.
-        // These are inter-group spacing and don't belong to the current group.
-        if line.line_type == LineType::BlankLine
-            && is_effectively_blank(line)
-            && current_content.is_empty()
-        {
-            continue;
-        }
-
         // Check if this line starts a new group (subject at base indentation).
         if is_new_group_subject(line, base_subject_column, source) {
             // Save the current group and start a new one
