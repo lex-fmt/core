@@ -21,6 +21,32 @@ fn lex_to_comrak_ast<'a>(
     parse_document(arena, &md, &options)
 }
 
+/// Helper to recursively collect node types from a Comrak AST
+fn collect_node_types<'a>(
+    node: &'a comrak::nodes::AstNode<'a>,
+    types: &mut std::collections::HashSet<String>,
+) {
+    let value = &node.data.borrow().value;
+    let type_name = match value {
+        NodeValue::Document => "Document",
+        NodeValue::Paragraph => "Paragraph",
+        NodeValue::Heading(_) => "Heading",
+        NodeValue::List(_) => "List",
+        NodeValue::Item(_) => "Item",
+        NodeValue::CodeBlock(_) => "CodeBlock",
+        NodeValue::Strong => "Strong",
+        NodeValue::Emph => "Emph",
+        NodeValue::Code(_) => "Code",
+        NodeValue::Link(_) => "Link",
+        _ => "Other",
+    };
+    types.insert(type_name.to_string());
+
+    for child in node.children() {
+        collect_node_types(child, types);
+    }
+}
+
 #[test]
 fn test_paragraph_simple() {
     let lex_src = "This is a simple paragraph.\n";
@@ -246,32 +272,6 @@ fn test_kitchensink() {
 
     // Kitchensink should have variety of nodes
     let mut node_types = std::collections::HashSet::new();
-
-    fn collect_node_types<'a>(
-        node: &'a comrak::nodes::AstNode<'a>,
-        types: &mut std::collections::HashSet<String>,
-    ) {
-        let value = &node.data.borrow().value;
-        let type_name = match value {
-            NodeValue::Document => "Document",
-            NodeValue::Paragraph => "Paragraph",
-            NodeValue::Heading(_) => "Heading",
-            NodeValue::List(_) => "List",
-            NodeValue::Item(_) => "Item",
-            NodeValue::CodeBlock(_) => "CodeBlock",
-            NodeValue::Strong => "Strong",
-            NodeValue::Emph => "Emph",
-            NodeValue::Code(_) => "Code",
-            NodeValue::Link(_) => "Link",
-            _ => "Other",
-        };
-        types.insert(type_name.to_string());
-
-        for child in node.children() {
-            collect_node_types(child, types);
-        }
-    }
-
     collect_node_types(root, &mut node_types);
 
     // Kitchensink should exercise multiple element types
