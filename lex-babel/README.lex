@@ -67,6 +67,40 @@ the export implementation for testing.
     Document lossy conversions explicitly.
     See src/formats/markdown/mod.rs for a complete example.
 
+  0.6.1. Special Case: Links and Anchors
+
+    Lex does not have link anchors (clickable text). It only has references like [url].
+    When converting to/from formats that DO support links with anchors (HTML, Markdown, etc.),
+    follow this standard behavior:
+
+    EXPORT (Lex → Format with links):
+      - The word BEFORE the reference becomes the link anchor
+      - If the reference is the first word in an element, use the word AFTER it
+      - The reference itself becomes the link href/target
+
+      Example:
+        Lex:      "welcome to the bahamas [bahamas.gov]"
+        Markdown: "welcome to the [bahamas](bahamas.gov)"
+        HTML:     "welcome to the <a href=\"bahamas.gov\">bahamas</a>"
+
+      Example (reference at start):
+        Lex:      "[wikipedia.org] Wikipedia is useful"
+        Markdown: "[Wikipedia](wikipedia.org) is useful"
+
+    IMPORT (Format with links → Lex):
+      - The anchor text becomes plain text in the content
+      - The reference follows it in Lex format
+
+      Example:
+        HTML:     "<a href=\"bahamas.gov\">bahamas</a>"
+        Lex:      "bahamas [bahamas.gov]"
+
+    IMPLEMENTATION:
+      - Generic helpers are provided in src/common/links.rs
+      - Use extract_anchor_for_reference() during export
+      - Use insert_reference_with_anchor() during import
+      - These work at the IR InlineContent level, so they're format-agnostic
+
   0.7. Reference Documents for Testing:
 
     Identify a canonical reference document for the format:
