@@ -118,7 +118,7 @@
 //!
 //! Learn More:
 //!
-//!     - Verbatim blocks spec: specs/v1/elements/verbatim/verbatim.lex
+//!     - Verbatim blocks spec: specs/v1/elements/verbatim.lex
 //!
 
 use super::super::range::{Position, Range};

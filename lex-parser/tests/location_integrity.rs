@@ -120,7 +120,7 @@ fn validate_item(item: &ContentItem, source: &str) {
 fn all_fixture_nodes_have_valid_locations() {
     let fixtures = [
         "specs/v1/trifecta/060-trifecta-nesting.lex",
-        "specs/v1/elements/paragraph/paragraph-03-flat-special-chars.lex",
+        "specs/v1/elements/paragraph.docs/paragraph-03-flat-special-chars.lex",
     ];
 
     for relative in fixtures {

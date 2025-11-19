@@ -6,7 +6,7 @@ use lex_parser::lex::testing::workspace_path;
 
 #[test]
 fn test_labels_spec_document() {
-    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/label/labels.lex"))
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/label.lex"))
         .parse()
         .unwrap();
 
@@ -27,7 +27,7 @@ fn test_labels_spec_document() {
 
 #[test]
 fn test_parameters_spec_document() {
-    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/parameter/parameters.lex"))
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/parameter.lex"))
         .parse()
         .unwrap();
 
@@ -42,7 +42,7 @@ fn test_parameters_spec_document() {
 
 #[test]
 fn test_verbatim_spec_document() {
-    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/verbatim/verbatim.lex"))
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/verbatim.lex"))
         .parse()
         .unwrap();
 

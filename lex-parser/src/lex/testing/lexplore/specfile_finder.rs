@@ -8,8 +8,9 @@
 //! There is a spec file root, which is $PROJECT_ROOT/specs/<version>/ (currently v1)
 //!
 //! From there one finds several categories of files: benchmarks, trifectas, elements, etc.
-//! Some of these categories have further subcategories, as in elements, there are directories for
-//! each element type.
+//! Some of these categories have further subcategories. Elements use per-element directories
+//! named `<element>.docs` that contain numbered samples, while the canonical spec lives one
+//! level up as `<element>.lex`.
 //!
 //! For example: get_doc_root(category, subcategory) -> path
 //! - spec_file_root/category/subcategory?
@@ -104,7 +105,7 @@ impl From<std::io::Error> for SpecFileError {
 ///
 /// # Examples
 /// ```ignore
-/// get_doc_root("elements", Some("paragraph")) -> "specs/v1/elements/paragraph"
+/// get_doc_root("elements", Some("paragraph")) -> "specs/v1/elements/paragraph.docs"
 /// get_doc_root("benchmark", None) -> "specs/v1/benchmark"
 /// ```
 pub fn get_doc_root(category: &str, subcategory: Option<&str>) -> PathBuf {
@@ -116,7 +117,11 @@ pub fn get_doc_root(category: &str, subcategory: Option<&str>) -> PathBuf {
     path.push(SPEC_VERSION);
     path.push(category);
     if let Some(subcat) = subcategory {
-        path.push(subcat);
+        if category == "elements" {
+            path.push(format!("{}.docs", subcat));
+        } else {
+            path.push(subcat);
+        }
     }
     path
 }

@@ -226,11 +226,9 @@ fn test_definition_90_document_simple() {
 #[test]
 fn test_definitions_overview_document() {
     // definitions.lex: Specification overview covering syntax/disambiguation
-    let doc = Lexplore::from_path(workspace_path(
-        "specs/v1/elements/definition/definitions.lex",
-    ))
-    .parse()
-    .unwrap();
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/definition.lex"))
+        .parse()
+        .unwrap();
 
     // Verify the document parses successfully with expected structure
     assert_ast(&doc)
