@@ -71,7 +71,7 @@ The `building` stage is the ideal place for the feature-specific logic of mode d
 
 ### Phase 4: Testing
 
--   Add new `.lex` sample files to `docs/specs/v1/elements/verbatim/` to test the fullwidth feature at various nesting levels.
+-   Add new `.lex` sample files to `specs/v1/elements/verbatim/` to test the fullwidth feature at various nesting levels.
 -   Add unit tests for the mode detection and wall calculation logic in the extraction layer to test it in isolation.
 -   Ensure existing verbatim block tests continue to pass.
 

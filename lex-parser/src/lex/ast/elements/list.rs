@@ -35,9 +35,9 @@
 //!
 //!
 //! Learn More:
-//! - Lists spec: docs/specs/v1/elements/lists.lex
-//! - Labels (used by annotations in lists): docs/specs/v1/elements/labels.lex
-//! - Parameters (used by annotations in lists): docs/specs/v1/elements/parameters.lex
+//! - Lists spec: specs/v1/elements/lists.lex
+//! - Labels (used by annotations in lists): specs/v1/elements/labels.lex
+//! - Parameters (used by annotations in lists): specs/v1/elements/parameters.lex
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;

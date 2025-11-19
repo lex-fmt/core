@@ -105,10 +105,9 @@ fn test_heading_and_paragraph_separation() {
 
 #[test]
 fn test_trifecta_010_paragraphs_sessions_flat_single() {
-    let lex_src = std::fs::read_to_string(
-        "../docs/specs/v1/trifecta/010-paragraphs-sessions-flat-single.lex",
-    )
-    .expect("trifecta 010 file should exist");
+    let lex_src =
+        std::fs::read_to_string("../specs/v1/trifecta/010-paragraphs-sessions-flat-single.lex")
+            .expect("trifecta 010 file should exist");
 
     let arena = Arena::new();
     let root = lex_to_comrak_ast(&lex_src, &arena);
@@ -159,10 +158,9 @@ fn test_trifecta_010_paragraphs_sessions_flat_single() {
 
 #[test]
 fn test_trifecta_020_paragraphs_sessions_flat_multiple() {
-    let lex_src = std::fs::read_to_string(
-        "../docs/specs/v1/trifecta/020-paragraphs-sessions-flat-multiple.lex",
-    )
-    .expect("trifecta 020 file should exist");
+    let lex_src =
+        std::fs::read_to_string("../specs/v1/trifecta/020-paragraphs-sessions-flat-multiple.lex")
+            .expect("trifecta 020 file should exist");
 
     let arena = Arena::new();
     let root = lex_to_comrak_ast(&lex_src, &arena);
@@ -202,7 +200,7 @@ fn test_trifecta_020_paragraphs_sessions_flat_multiple() {
 
 #[test]
 fn test_trifecta_060_nesting() {
-    let lex_src = std::fs::read_to_string("../docs/specs/v1/trifecta/060-trifecta-nesting.lex")
+    let lex_src = std::fs::read_to_string("../specs/v1/trifecta/060-trifecta-nesting.lex")
         .expect("trifecta 060 file should exist");
 
     let arena = Arena::new();
@@ -264,7 +262,7 @@ fn test_trifecta_060_nesting() {
 
 #[test]
 fn test_kitchensink() {
-    let lex_src = std::fs::read_to_string("../docs/specs/v1/benchmark/010-kitchensink.lex")
+    let lex_src = std::fs::read_to_string("../specs/v1/benchmark/010-kitchensink.lex")
         .expect("kitchensink file should exist");
 
     let arena = Arena::new();
@@ -286,7 +284,7 @@ fn test_kitchensink() {
 
 #[test]
 fn test_kitchensink_snapshot() {
-    let lex_src = std::fs::read_to_string("../docs/specs/v1/benchmark/010-kitchensink.lex")
+    let lex_src = std::fs::read_to_string("../specs/v1/benchmark/010-kitchensink.lex")
         .expect("kitchensink file should exist");
 
     let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();

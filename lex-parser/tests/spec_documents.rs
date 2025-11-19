@@ -6,7 +6,7 @@ use lex_parser::lex::testing::workspace_path;
 
 #[test]
 fn test_labels_spec_document() {
-    let doc = Lexplore::from_path(workspace_path("docs/specs/v1/elements/label/labels.lex"))
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/label/labels.lex"))
         .parse()
         .unwrap();
 
@@ -27,11 +27,9 @@ fn test_labels_spec_document() {
 
 #[test]
 fn test_parameters_spec_document() {
-    let doc = Lexplore::from_path(workspace_path(
-        "docs/specs/v1/elements/parameter/parameters.lex",
-    ))
-    .parse()
-    .unwrap();
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/parameter/parameters.lex"))
+        .parse()
+        .unwrap();
 
     assert_ast(&doc)
         .item(0, |item| {
@@ -44,11 +42,9 @@ fn test_parameters_spec_document() {
 
 #[test]
 fn test_verbatim_spec_document() {
-    let doc = Lexplore::from_path(workspace_path(
-        "docs/specs/v1/elements/verbatim/verbatim.lex",
-    ))
-    .parse()
-    .unwrap();
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/verbatim/verbatim.lex"))
+        .parse()
+        .unwrap();
 
     assert_ast(&doc)
         .item(0, |item| {
@@ -64,11 +60,9 @@ fn test_verbatim_spec_document() {
 
 #[test]
 fn test_template_document_simple() {
-    let doc = Lexplore::from_path(workspace_path(
-        "docs/specs/v1/elements/XXX-document-simple.lex",
-    ))
-    .parse()
-    .unwrap();
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/XXX-document-simple.lex"))
+        .parse()
+        .unwrap();
 
     assert_ast(&doc)
         .item(0, |item| {
@@ -86,11 +80,9 @@ fn test_template_document_simple() {
 
 #[test]
 fn test_template_document_tricky() {
-    let doc = Lexplore::from_path(workspace_path(
-        "docs/specs/v1/elements/XXX-document-tricky.lex",
-    ))
-    .parse()
-    .unwrap();
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/XXX-document-tricky.lex"))
+        .parse()
+        .unwrap();
 
     assert_ast(&doc)
         .item(0, |item| {

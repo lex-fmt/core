@@ -227,7 +227,7 @@ fn test_definition_90_document_simple() {
 fn test_definitions_overview_document() {
     // definitions.lex: Specification overview covering syntax/disambiguation
     let doc = Lexplore::from_path(workspace_path(
-        "docs/specs/v1/elements/definition/definitions.lex",
+        "specs/v1/elements/definition/definitions.lex",
     ))
     .parse()
     .unwrap();

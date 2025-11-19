@@ -17,18 +17,18 @@
 //!
 //!     Core Tokens:
 //!         Character/word level tokens. They are produced by the logos lexer. See [core](core) module
-//!         for the complete list of core tokens. Grammar: [docs/specs/v1/grammar-core.lex].
+//!         for the complete list of core tokens. Grammar: [specs/v1/grammar-core.lex].
 //!
 //!     Line Tokens:
 //!         A group of core tokens in a single line, and used in the actual parsing. See
 //!         [line](line) module. The LineType enum is the definitive set of line classifications
 //!         (blank, annotation start/end, data, subject, list, subject-or-list-item, paragraph,
-//!         dialog, indent, dedent). Grammar: [docs/specs/v1/grammar-line.lex].
+//!         dialog, indent, dedent). Grammar: [specs/v1/grammar-line.lex].
 //!
 //!     Inline Tokens:
 //!         Span-based tokens that operate at the character level within text content. Unlike
 //!         line-based tokens, inline tokens can start and end at arbitrary positions and can be
-//!         nested within each other. See [inline](inline) module. Grammar: [docs/specs/v1/grammar-inline.lex].
+//!         nested within each other. See [inline](inline) module. Grammar: [specs/v1/grammar-inline.lex].
 //!
 //!     Line Container Tokens:
 //!         A vector of line tokens or other line container tokens. This is a tree representation

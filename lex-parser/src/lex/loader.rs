@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     fn test_from_path() {
-        let path = workspace_path("docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
+        let path = workspace_path("specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
         let loader = DocumentLoader::from_path(path).unwrap();
         assert!(!loader.source().is_empty());
     }
@@ -367,7 +367,7 @@ mod tests {
 
     #[test]
     fn test_from_path_integration() {
-        let path = workspace_path("docs/specs/v1/benchmark/010-kitchensink.lex");
+        let path = workspace_path("specs/v1/benchmark/010-kitchensink.lex");
         let loader = DocumentLoader::from_path(path).unwrap();
 
         let doc = loader.parse().unwrap();

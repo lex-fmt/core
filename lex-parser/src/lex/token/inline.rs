@@ -5,7 +5,7 @@
 //!     line-based tokens (core and line), inline tokens operate at the character level and can
 //!     be nested within each other.
 //!
-//!     For the complete inline grammar specification, see docs/specs/v1/grammar-inline.lex.
+//!     For the complete inline grammar specification, see specs/v1/grammar-inline.lex.
 //!
 //!     Related token modules:
 //!     - [core](super::core) - Character and word-level tokens from the logos lexer

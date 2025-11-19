@@ -51,7 +51,7 @@
 //!
 //! # Testing
 //!
-//! Export tests use Lex spec files from docs/specs/v1/elements/ for isolated element testing.
+//! Export tests use Lex spec files from specs/v1/elements/ for isolated element testing.
 //! Integration tests use the kitchensink benchmark and a CommonMark reference document.
 //! See the testing guide in docs/local/tasks/86-babel-markdown.lex for details.
 //!

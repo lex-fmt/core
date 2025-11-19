@@ -9,7 +9,7 @@ You will see mentions of things ,like the lex-marker, on the grammar that sees u
 
 Documentation Structure.
 
-    docs/specs/<verions>: each language verions is stored in it's own directory, as we will be building up on final language by incrementaly building the specs in versions. Having versions side by side is useful  as many of the tasks will be about adding support for language additions and, doing so is much easier comparig the new verions. 
+    specs/<verions>: each language verions is stored in it's own directory, as we will be building up on final language by incrementaly building the specs in versions. Having versions side by side is useful  as many of the tasks will be about adding support for language additions and, doing so is much easier comparig the new verions. 
 
     Inside each version: 
         1. general.lex -> A introduction to the format, which includes general points,like character encoding a description of each major element type.

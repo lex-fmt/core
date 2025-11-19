@@ -156,7 +156,7 @@ Grammar for lex
 
     2.3. Line Tokens
 
-        Line token classification moved to `docs/specs/v1/grammar-line.lex`.
+        Line token classification moved to `specs/v1/grammar-line.lex`.
         The dedicated document stays in lockstep with `lex-parser/src/lex/token/line.rs`
         and the classifiers under `lex-parser/src/lex/lexing/`, making it the
         authoritative reference for how logical lines are identified prior to the

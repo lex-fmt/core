@@ -1,7 +1,7 @@
 //! Test harness for per-element testing
 //!
 //!     This module provides utilities for testing individual element variations using the
-//!     per-element library in `docs/specs/v1/elements/`.
+//!     per-element library in `specs/v1/elements/`.
 //!
 //! The Spec Sample Files
 //!

@@ -2,7 +2,7 @@
 #
 # Generate AST files for all lex specification files
 #
-# This script processes all .lex files in docs/specs/v1 and generates
+# This script processes all .lex files in specs/v1 and generates
 # corresponding AST output files based on the specified format.
 #
 # Usage:
@@ -65,7 +65,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SPECS_DIR="$PROJECT_ROOT/docs/specs/v1"
+SPECS_DIR="$PROJECT_ROOT/specs/v1"
 
 # Temporary files for tracking
 ERROR_FILE="/tmp/lex_ast_errors_$$.txt"
@@ -87,7 +87,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "🔍 Finding all .lex files in docs/specs/v1..."
+echo "🔍 Finding all .lex files in specs/v1..."
 echo "📋 Format: $FORMAT"
 echo ""
 

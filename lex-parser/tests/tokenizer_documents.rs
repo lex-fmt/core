@@ -14,7 +14,7 @@ use lex_parser::lex::testing::lexplore::Lexplore;
 // Trifecta tests focus on the core structural elements (sessions, paragraphs, lists)
 // and their interactions, which are the most complex tokenization scenarios.
 //
-// Files in docs/specs/v1/trifecta/:
+// Files in specs/v1/trifecta/:
 // - 000-paragraphs.lex
 // - 010-paragraphs-sessions-flat-single.lex
 // - 020-paragraphs-sessions-flat-multiple.lex

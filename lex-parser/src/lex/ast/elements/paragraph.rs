@@ -16,7 +16,7 @@
 //! (paragraphs) rather than list items.
 //!
 //! Learn More:
-//! - Paragraphs spec: docs/specs/v1/elements/paragraphs.lex
+//! - Paragraphs spec: specs/v1/elements/paragraphs.lex
 //!
 //! Examples:
 //! - A single paragraph spans multiple lines until a blank line

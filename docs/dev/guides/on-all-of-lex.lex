@@ -428,8 +428,8 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 
 Notes:
 
-	1. docs/specs/v1/grammar-core.lex
-	2. docs/specs/v1/grammar-line.lex
+	1. specs/v1/grammar-core.lex
+	2. specs/v1/grammar-line.lex
 	3. lex-parser/src/lex/lexing/line_classification.rs
 	4. lex-parser/src/lex/token/to_line_container.rs
 	5. lex-parser/src/lex/lexing/base_tokenization.rs
