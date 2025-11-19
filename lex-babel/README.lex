@@ -9,7 +9,7 @@ Read for reference:
     lex-babel/src/format.rs           # Format trait definition
     lex-babel/src/lib.rs              # Architecture overview
     lex-babel/src/ir/                 # Intermediate Representation
-    lex-babel/src/mappings/           # Nested ↔ Flat conversion algorithms
+    lex-babel/src/common/           # Nested ↔ Flat conversion algorithms
 
 The rationale is to start with export (Lex → Format), since we start with a well-understood AST
 (lex-parser's), making the first task easier. Import (Format → Lex) comes second, leveraging
@@ -108,7 +108,7 @@ the export implementation for testing.
       - See lex-babel/src/ir/from_lex.rs:extract_attached_annotations() for extraction example
 
     Step 2: Convert IR to flat event stream
-      - Use `mappings::nested_to_flat::tree_to_events(&ir_doc_node)`
+      - Use `common::nested_to_flat::tree_to_events(&ir_doc_node)`
       - This flattens the hierarchical structure into start/end events
 
     Step 3: Convert events to Format AST (format-specific library)
@@ -132,7 +132,7 @@ the export implementation for testing.
           let ir_doc = crate::to_ir(doc);
 
           // Step 2: IR → Events
-          let events = crate::mappings::nested_to_flat::tree_to_events(&ir_doc);
+          let events = crate::common::nested_to_flat::tree_to_events(&ir_doc);
 
           // Step 3: Events → Format AST (format-specific)
           let format_ast = events_to_<format>_ast(&events)?;
@@ -154,7 +154,7 @@ the export implementation for testing.
       - Maintain proper nesting with start/end pairs
 
     Step 3: Convert events to IR tree
-      - Use `mappings::flat_to_nested::events_to_tree(&events)`
+      - Use `common::flat_to_nested::events_to_tree(&events)`
       - This reconstructs the hierarchical structure
       - Validates proper nesting
 
@@ -184,7 +184,7 @@ the export implementation for testing.
       - Format parsers just emit StartHeading(level) - no EndHeading needed
       - When flat_to_nested sees a new heading, it auto-closes any at same or deeper level
       - At document end, it auto-closes all remaining open headings
-      - This is built into src/mappings/flat_to_nested.rs - all formats get it for free
+      - This is built into src/common/flat_to_nested.rs - all formats get it for free
       - Example: src/formats/markdown/parser.rs just emits StartHeading
 
     2.3.3. Content Accumulation (for multi-event elements)
@@ -193,7 +193,7 @@ the export implementation for testing.
       - Use temporary buffers: in_verbatim flag + verbatim_content string
       - Example: src/formats/markdown/serializer.rs:70-72, 199-221
 
-    2.3.4. Multi-Element Pattern Detection (for complex mappings)
+    2.3.4. Multi-Element Pattern Detection (for complex common)
       - Some Lex elements map to patterns across multiple format elements
       - Example: Lex Definition → Markdown "**Term**: description" + siblings
       - Requires lookahead/peekable iterators to consume sibling nodes
@@ -326,8 +326,8 @@ the export implementation for testing.
   1. While format specific transformations exist, there is an entire class of mapping challenges that
      will be true across formats. The classic and most complex one is the mapping from nested documents
      (Lex) to flat documents (Markdown, HTML, Pandoc, LaTeX). This is why we have
-     lex-babel/src/mappings/mod.rs, that is base source code that handles these. If you find new
-     mappings that affect multiple formats, add to the mappings library for reuse.
+     lex-babel/src/common/mod.rs, that is base source code that handles these. If you find new
+     common that affect multiple formats, add to the common library for reuse.
 
   2. Keep as cargo document, in the formats module file (i.e. lex-babel/src/formats/<format>/mod.rs)
      a table of ported elements on import and export columns.

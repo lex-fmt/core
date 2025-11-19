@@ -136,7 +136,7 @@ fn emit_inlines(inlines: &[InlineContent], events: &mut Vec<Event>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mappings::flat_to_nested::events_to_tree;
+    use crate::common::flat_to_nested::events_to_tree;
 
     fn sample_tree() -> DocNode {
         DocNode::Document(Document {

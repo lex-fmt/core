@@ -44,7 +44,7 @@
 //! # Architecture Notes
 //!
 //! There is a fundamental mismatch between Markdown's flat model and Lex's hierarchical structure.
-//! We leverage the IR event system (lex-babel/src/mappings/) to handle the nested-to-flat and
+//! We leverage the IR event system (lex-babel/src/common/) to handle the nested-to-flat and
 //! flat-to-nested conversions. This keeps format-specific code focused on Markdown AST transformations.
 //!
 //! Lists are the only Markdown element that are truly nested, making them straightforward to map.

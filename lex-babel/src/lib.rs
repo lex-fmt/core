@@ -3,11 +3,15 @@
 //!     This crate provides a uniform interface for converting between Lex AST and various document
 //!     formats (Markdown, HTML, Pandoc JSON, etc.).
 //!
+//!     TLDR: For format authors:
+//!         - Babel never parses or serializes any format, but instead relies on the format's libraries
+//!         - The convertion should be by converting to the IR, running the common code in common if releveant (it usually is), then to the ast of the target format.
+//!
 //! Architecture
 //!
 //!     The goal here is to, as much as possible, split what is the common logic for multiple formats
 //!     conversions into a format agnoistic layer. This is done by the using the IR representation (./ir/mod.rs),
-//!     and having the common code in ./mappings/mod.rs. This allows for the format specific code to be focused on the data format transformations, while having a strong, focused core that can be well tested in isolation.
+//!     and having the common code in ./common/mod.rs. This allows for the format specific code to be focused on the data format transformations, while having a strong, focused core that can be well tested in isolation.
 //!
 //!     This is a pure lib, that is , it powers the lex-cli but is shell agnostic, that is no code
 //!     should be written that supposes a shell environment, be it to std print, env vars etc.
@@ -26,7 +30,7 @@
 //!     |   ├─  interop             # Shared conversion utilities
 //!     ├── lib.rs
 //!     ├── ir                      # Intermediate Representation
-//!     ├── mappings                # Common mapping code
+//!     ├── common                # Common mapping code
 //!
 //! Testing   
 //!     tests
@@ -45,7 +49,7 @@
 //! Core Algorithms
 //!
 //!     The most complex part of the work is reconstructing a nested representation from a flat document, followed by the reverse operations.  For this reason we have a common IR (./ir/mod.rs) that is used for all formats.
-//!     Over this representation we implement both algorithms (see ./mappings/flat_to_nested.rs and ./mappings/nested_to_flat.rs).
+//!     Over this representation we implement both algorithms (see ./common/flat_to_nested.rs and ./common/nested_to_flat.rs).
 //!     This means that all the heavy lifting is done by a core, well tested and maintained module,
 //! freeing format adaptations to be focused on the simpler data format transformations.
 //!
@@ -103,8 +107,8 @@ pub mod format;
 pub mod formats;
 pub mod registry;
 
+pub mod common;
 pub mod ir;
-pub mod mappings;
 
 pub use error::FormatError;
 pub use format::Format;

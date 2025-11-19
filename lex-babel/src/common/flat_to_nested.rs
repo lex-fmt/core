@@ -398,7 +398,7 @@ fn auto_close_all_headings(stack: &mut Vec<StackNode>) -> Result<(), ConversionE
 ///
 /// ```ignore
 /// use lex_babel::ir::events::Event;
-/// use lex_babel::mappings::flat_to_nested::events_to_tree;
+/// use lex_babel::common::flat_to_nested::events_to_tree;
 ///
 /// let events = vec![
 ///     Event::StartDocument,
