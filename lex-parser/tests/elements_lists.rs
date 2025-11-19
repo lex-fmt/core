@@ -424,7 +424,7 @@ fn test_list_13_single_item_is_paragraph() {
 
 #[test]
 fn test_lists_overview_document() {
-    let doc = Lexplore::from_path(workspace_path("docs/specs/v1/elements/list/lists.lex"))
+    let doc = Lexplore::from_path(workspace_path("specs/v1/elements/list/lists.lex"))
         .parse()
         .unwrap();
 

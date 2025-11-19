@@ -4,7 +4,7 @@ Introduction
 
 	Annotations are a core element in lex, but a metadata one. They provide , not only a way for authors and colaborators to register non content related information, but the right hooks for tooling to build on top of lex, such as a commenting system before publishing.
 
-	As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling). Labels live inside a reusable data node (docs/specs/v1/elements/data/data.lex), which begins with ::, contains the label plus optional parameters, and is then consumed by the annotation element. Labels are mandatory; parameters extend the label but never replace it.
+	As such they provide labels (a way to identify the annotation) and parameters (a way to provide structured metadata for tooling). Labels live inside a reusable data node (specs/v1/elements/data/data.lex), which begins with ::, contains the label plus optional parameters, and is then consumed by the annotation element. Labels are mandatory; parameters extend the label but never replace it.
 
 
 	Core features:

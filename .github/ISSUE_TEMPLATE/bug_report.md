@@ -24,7 +24,7 @@ The parser produces separate sessions/definitions instead of a single verbatim g
 
 ## Example
 
-### File: `docs/specs/v1/elements/verbatim/verbatim-13-group-spades.lex`
+### File: `specs/v1/elements/verbatim/verbatim-13-group-spades.lex`
 
 ```
 This is a groupped Verbatim Block, this is the first Group:
@@ -50,7 +50,7 @@ Note that verbatim blocks conetents can have any number of blank lines, includin
 
 ## What Works
 
-### File: `docs/specs/v1/elements/verbatim/verbatim-11-group-shell.lex`
+### File: `specs/v1/elements/verbatim/verbatim-11-group-shell.lex`
 
 This works correctly because each subject is immediately followed by a blank line:
 

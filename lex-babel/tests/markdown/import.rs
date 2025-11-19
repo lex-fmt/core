@@ -194,10 +194,9 @@ fn test_annotation_round_trip() {
 #[test]
 fn test_trifecta_010_round_trip() {
     // Start with Lex, export to Markdown, import back to Lex
-    let lex_src = std::fs::read_to_string(
-        "../docs/specs/v1/trifecta/010-paragraphs-sessions-flat-single.lex",
-    )
-    .expect("trifecta 010 file should exist");
+    let lex_src =
+        std::fs::read_to_string("../specs/v1/trifecta/010-paragraphs-sessions-flat-single.lex")
+            .expect("trifecta 010 file should exist");
 
     let lex_doc = lex_parser::lex::transforms::standard::STRING_TO_AST
         .run(lex_src.to_string())
@@ -220,10 +219,9 @@ fn test_trifecta_010_round_trip() {
 
 #[test]
 fn test_trifecta_020_round_trip() {
-    let lex_src = std::fs::read_to_string(
-        "../docs/specs/v1/trifecta/020-paragraphs-sessions-flat-multiple.lex",
-    )
-    .expect("trifecta 020 file should exist");
+    let lex_src =
+        std::fs::read_to_string("../specs/v1/trifecta/020-paragraphs-sessions-flat-multiple.lex")
+            .expect("trifecta 020 file should exist");
 
     let lex_doc = lex_parser::lex::transforms::standard::STRING_TO_AST
         .run(lex_src.to_string())
@@ -252,7 +250,7 @@ fn test_trifecta_020_round_trip() {
 
 #[test]
 fn test_trifecta_060_nesting_round_trip() {
-    let lex_src = std::fs::read_to_string("../docs/specs/v1/trifecta/060-trifecta-nesting.lex")
+    let lex_src = std::fs::read_to_string("../specs/v1/trifecta/060-trifecta-nesting.lex")
         .expect("trifecta 060 file should exist");
 
     let lex_doc = lex_parser::lex::transforms::standard::STRING_TO_AST
@@ -316,7 +314,7 @@ fn test_trifecta_060_nesting_round_trip() {
 
 #[test]
 fn test_kitchensink_round_trip() {
-    let lex_src = std::fs::read_to_string("../docs/specs/v1/benchmark/010-kitchensink.lex")
+    let lex_src = std::fs::read_to_string("../specs/v1/benchmark/010-kitchensink.lex")
         .expect("kitchensink file should exist");
 
     let lex_doc = lex_parser::lex::transforms::standard::STRING_TO_AST

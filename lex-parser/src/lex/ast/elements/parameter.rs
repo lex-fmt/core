@@ -22,7 +22,7 @@
 //!     See [Data](super::data::Data) for how parameters are used in data nodes.
 //!
 //!     Learn More:
-//!         - Parameters spec: docs/specs/v1/elements/parameters.lex
+//!         - Parameters spec: specs/v1/elements/parameters.lex
 
 use super::super::range::{Position, Range};
 use std::fmt;

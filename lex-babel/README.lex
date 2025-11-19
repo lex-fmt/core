@@ -3,7 +3,7 @@ Lex-Babel Format Implementation Guide
 This document provides the standard workflow for implementing format interoperability in lex-babel.
 It covers project setup, implementation approach, testing strategy, and best practices.
 
-For brevity, we list spec files from the root spec directory (docs/specs/v1).
+For brevity, we list spec files from the root spec directory (specs/v1).
 
 Read for reference:
     lex-babel/src/format.rs           # Format trait definition
@@ -118,7 +118,7 @@ the export implementation for testing.
   1.1. Isolated unitests , one per element (in some cases 2 or 3 might be useful). These serve as a simplified way to get to know the other ast and verify correctness.
   1.2 Test the trickiest bit: the document structure, being Lex hierarchical while most formats are flat. For this, we will use the trifecta documents (./docs/spec/v1/trifecta), starting rom the simplest case, then an intermediate (files 010, 020, and 060). 
   1.3 Ensambles: documents that mix many elemenents. We always test:
-    1.3.1 Kitchensink: docs/specs/v1/benchmark/010-kitchensink.lex botn as import and export since it's a reasonable concide document that covers all Lex format featus.
+    1.3.1 Kitchensink: specs/v1/benchmark/010-kitchensink.lex botn as import and export since it's a reasonable concide document that covers all Lex format featus.
     1.3.3 Other format reference document: most format's tooling / library we will use have a reference file  , we must find such a file and use it for each format.
 
   That is: 1-3 files per elment (according to complexity), 3 trifecta structure files, the full kitchensink document and a reference file for that format itself.
@@ -255,7 +255,7 @@ the export implementation for testing.
       #[test]
       fn test_paragraph_export() {
           // Load Lex source from spec file
-          let lex_src = std::fs::read_to_string("../../docs/specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex").unwrap();
+          let lex_src = std::fs::read_to_string("../../specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex").unwrap();
           let lex_doc = STRING_TO_AST.run(lex_src).unwrap();
 
           // Optionally test IR conversion
@@ -338,7 +338,7 @@ the export implementation for testing.
   3. Do the trifecta documents, one by one. It's key to get each right in order (start from smaller file numbers).
      Trying to get the high number files working first won't work, you need to walk up the complexity ladder.
 
-     Trifecta test files (in /docs/specs/v1/trifecta/):
+     Trifecta test files (in /specs/v1/trifecta/):
      - 010-paragraphs-sessions-flat-single.lex (simplest)
      - 020-paragraphs-sessions-flat-multiple.lex
      - 060-trifecta-nesting.lex (most complex nesting)
@@ -346,7 +346,7 @@ the export implementation for testing.
   4. Do the benchmark files, again, one by one, starting with the kitchensink.
 
      Benchmark files:
-     - docs/specs/v1/benchmark/010-kitchensink.lex (export)
+     - specs/v1/benchmark/010-kitchensink.lex (export)
      - tests/fixtures/<format>-reference.<ext> (import)
 
   5. Additional cases that are relevant for that format, be it in isolated element form or full ensembles.

@@ -119,8 +119,8 @@ fn validate_item(item: &ContentItem, source: &str) {
 #[test]
 fn all_fixture_nodes_have_valid_locations() {
     let fixtures = [
-        "docs/specs/v1/trifecta/060-trifecta-nesting.lex",
-        "docs/specs/v1/elements/paragraph/paragraph-03-flat-special-chars.lex",
+        "specs/v1/trifecta/060-trifecta-nesting.lex",
+        "specs/v1/elements/paragraph/paragraph-03-flat-special-chars.lex",
     ];
 
     for relative in fixtures {
@@ -160,7 +160,7 @@ fn position_inside(range: &Range) -> Position {
 
 #[test]
 fn cursor_positions_find_nested_nodes() {
-    let path = workspace_path("docs/specs/v1/trifecta/070-trifecta-flat-simple.lex");
+    let path = workspace_path("specs/v1/trifecta/070-trifecta-flat-simple.lex");
     let source = std::fs::read_to_string(&path).expect("failed to read fixture");
     let document = parse_document(&source).expect("failed to parse fixture");
 

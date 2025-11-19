@@ -21,12 +21,12 @@
 //!     For more details on document structure and sessions, see the [ast](crate::lex::ast) module.
 //!
 //! Learn More:
-//! - Paragraphs: docs/specs/v1/elements/paragraphs.lex
-//! - Lists: docs/specs/v1/elements/lists.lex
-//! - Sessions: docs/specs/v1/elements/sessions.lex
-//! - Annotations: docs/specs/v1/elements/annotations.lex
-//! - Definitions: docs/specs/v1/elements/definitions.lex
-//! - Verbatim blocks: docs/specs/v1/elements/verbatim.lex
+//! - Paragraphs: specs/v1/elements/paragraphs.lex
+//! - Lists: specs/v1/elements/lists.lex
+//! - Sessions: specs/v1/elements/sessions.lex
+//! - Annotations: specs/v1/elements/annotations.lex
+//! - Definitions: specs/v1/elements/definitions.lex
+//! - Verbatim blocks: specs/v1/elements/verbatim.lex
 //!
 //! Examples:
 //! - Document-level metadata via annotations

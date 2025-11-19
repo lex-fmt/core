@@ -10,7 +10,7 @@
 //!     The logos lexer produces these tokens declaratively with no custom logic. This is a pure
 //!     tokenization step that converts source text into a stream of typed tokens with byte ranges.
 //!
-//!     For the complete grammar specification, see docs/specs/v1/grammar-core.lex.
+//!     For the complete grammar specification, see specs/v1/grammar-core.lex.
 //!
 //!     Note: These core tokens are transformed into semantic tokens (like Indent/Dedent) in later
 //!     stages of the lexing pipeline. See the [token](super) module for the complete token system.

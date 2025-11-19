@@ -22,7 +22,7 @@
 //!     See [Data](super::data::Data) for how labels are used in data nodes.
 //!
 //!     Learn More:
-//!         - Labels spec: docs/specs/v1/elements/labels.lex
+//!         - Labels spec: specs/v1/elements/labels.lex
 
 use super::super::range::{Position, Range};
 use std::fmt;

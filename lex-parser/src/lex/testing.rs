@@ -217,7 +217,7 @@ pub mod factories {
 ///
 /// # Example
 /// ```rust,ignore
-/// let path = workspace_path("docs/specs/v1/elements/paragraph/01-simple.lex");
+/// let path = workspace_path("specs/v1/elements/paragraph/01-simple.lex");
 /// let content = std::fs::read_to_string(path).unwrap();
 /// ```
 pub fn workspace_path(relative_path: &str) -> std::path::PathBuf {

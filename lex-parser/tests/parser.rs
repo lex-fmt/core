@@ -697,7 +697,7 @@ fn test_trifecta_flat_simple() {
     // Test flat structure with all three elements
     // Renamed from 050 to 070 to avoid duplicate numbers
     let source = Lexplore::from_path(workspace_path(
-        "docs/specs/v1/trifecta/070-trifecta-flat-simple.lex",
+        "specs/v1/trifecta/070-trifecta-flat-simple.lex",
     ))
     .source();
     let doc = parse_document(&source).unwrap();

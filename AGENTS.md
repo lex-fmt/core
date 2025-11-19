@@ -6,7 +6,7 @@
     
 ## Project Structure & Module Organization
 
-The Rust library entrypoint is `src/lib.rs`, with parsing, tokenizing, and UI modules under `src/lex/**`. The CLI lives in `src/bin/lex.rs` and should remain a thin wrapper over the library so features stay testable. Specifications live beside code in `docs/specs/<version>/{general,grammar}.lex`; update both when the language evolves. Fixtures and regression tests sit in `tests/`, exploratory parsers in `debug_parse/`, and reusable assets/themes in `assets/` and `themes/`.
+The Rust library entrypoint is `src/lib.rs`, with parsing, tokenizing, and UI modules under `src/lex/**`. The CLI lives in `src/bin/lex.rs` and should remain a thin wrapper over the library so features stay testable. Specifications live beside code in `specs/<version>/{general,grammar}.lex`; update both when the language evolves. Fixtures and regression tests sit in `tests/`, exploratory parsers in `debug_parse/`, and reusable assets/themes in `assets/` and `themes/`.
 
 ## Build, Test, and Development Commands
 
@@ -31,4 +31,4 @@ Unit coverage lives close to the code, while integration suites such as `tests/t
 
 ## Commit & Pull Request Guidelines
 
-The history favors Conventional Commit prefixes (e.g., `fix(tests): adjust verbatim expectations`), so stick to `<type>(scope): imperative summary`. Reference impacted spec files (`docs/specs/vX.Y`) or grammar rules in the body and describe any snapshot updates. Every PR should explain motivation, list verification commands run, and include relevant screenshots or CLI snippets when UX changes. Link GitHub issues or spec tasks, request review from a domain owner, and keep diffs focused—open follow-ups for unrelated cleanups instead of mixing them here.
+The history favors Conventional Commit prefixes (e.g., `fix(tests): adjust verbatim expectations`), so stick to `<type>(scope): imperative summary`. Reference impacted spec files (`specs/vX.Y`) or grammar rules in the body and describe any snapshot updates. Every PR should explain motivation, list verification commands run, and include relevant screenshots or CLI snippets when UX changes. Link GitHub issues or spec tasks, request review from a domain owner, and keep diffs focused—open follow-ups for unrelated cleanups instead of mixing them here.

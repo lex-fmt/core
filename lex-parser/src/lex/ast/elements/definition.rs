@@ -24,8 +24,8 @@
 //!         Each service is independently deployable and scalable.
 //!
 //! Learn More:
-//! - The definition spec: docs/specs/v1/elements/definitions.lex
-//! - The definition sample: docs/specs/v1/samples/element-based/definitions/definitions.simple.lex
+//! - The definition spec: specs/v1/elements/definitions.lex
+//! - The definition sample: specs/v1/samples/element-based/definitions/definitions.simple.lex
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
