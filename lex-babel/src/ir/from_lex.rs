@@ -18,11 +18,35 @@ pub fn from_lex_document(doc: &LexDocument) -> Document {
 }
 
 /// Helper: Converts a list of content items, filtering out blank lines
+/// Also extracts annotations attached to each element
 fn convert_children(items: &[LexContentItem], level: usize) -> Vec<DocNode> {
     items
         .iter()
         .filter(|item| !matches!(item, LexContentItem::BlankLineGroup(_)))
-        .map(|item| from_lex_content_item_with_level(item, level))
+        .flat_map(|item| {
+            let mut nodes = vec![from_lex_content_item_with_level(item, level)];
+            // Add any annotations attached to this element
+            nodes.extend(extract_attached_annotations(item, level));
+            nodes
+        })
+        .collect()
+}
+
+/// Extracts annotations attached to a content item and converts them to IR nodes
+fn extract_attached_annotations(item: &LexContentItem, level: usize) -> Vec<DocNode> {
+    let annotations = match item {
+        LexContentItem::Session(session) => session.annotations(),
+        LexContentItem::Paragraph(paragraph) => paragraph.annotations(),
+        LexContentItem::List(list) => list.annotations(),
+        LexContentItem::ListItem(list_item) => list_item.annotations(),
+        LexContentItem::Definition(definition) => definition.annotations(),
+        LexContentItem::VerbatimBlock(verbatim) => verbatim.annotations(),
+        _ => &[],
+    };
+
+    annotations
+        .iter()
+        .map(|anno| from_lex_annotation(anno, level))
         .collect()
 }
 

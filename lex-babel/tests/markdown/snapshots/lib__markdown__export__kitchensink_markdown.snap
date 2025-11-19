@@ -24,6 +24,12 @@ This session acts as the main container for testing nested structures. It starts
 - Followed by a simple list. {{list-item}} 
 - This list has two items. {{list-item}} 
 
+<!-- lex:warning severity=high -->
+
+ This is a single-line annotation inside the session.
+
+<!-- /lex -->
+
 ## 1.1. Nested Session (Level 2) {{session}}
 
 This is a second-level session containing a definition and a list with nested content. {{paragraph}}
@@ -56,5 +62,16 @@ This session tests annotations with block content and marker-style verbatim bloc
 
 ``` image
 ```
+
+<!-- lex:todo status="open" assignee="team" -->
+
+This is a block annotation. {{paragraph}}
+
+It contains a paragraph and a list. {{paragraph}}
+
+- Task 1 to complete. {{list-item}} 
+- Task 2 to complete. {{list-item}} 
+
+<!-- /lex -->
 
 Final paragraph at the end of the document. {{paragraph}}
