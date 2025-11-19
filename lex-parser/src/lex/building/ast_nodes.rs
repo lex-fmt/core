@@ -41,6 +41,7 @@ use crate::lex::ast::elements::typed_content::{
 };
 use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
 use crate::lex::ast::range::SourceLocation;
+use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{
     Annotation, Data, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
     TextLine, Verbatim,
@@ -232,10 +233,16 @@ pub(super) fn list_item_node(
 ) -> ListItem {
     let marker_location = byte_range_to_ast_range(data.marker_byte_range, source_location);
     let marker = TextContent::from_string(data.marker_text, Some(marker_location.clone()));
-    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
-    let location = aggregate_locations(marker_location, &child_items);
 
-    ListItem::with_text_content(marker, content).at(location)
+    let body_location = byte_range_to_ast_range(data.body_byte_range, source_location);
+    let body = TextContent::from_string(data.body_text, Some(body_location.clone()));
+
+    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
+    let mut location_sources = vec![marker_location, body_location];
+    location_sources.extend(child_items.iter().map(|item| item.range().clone()));
+    let location = compute_location_from_locations(&location_sources);
+
+    ListItem::with_text_content(marker, body, content).at(location)
 }
 
 // ============================================================================
@@ -624,13 +631,16 @@ mod tests {
         let content = vec![ContentElement::Paragraph(para)];
 
         let data = ListItemData {
-            marker_text: "- ".to_string(),
-            marker_byte_range: 0..2,
+            marker_text: "-".to_string(),
+            marker_byte_range: 0..1,
+            body_text: "Item".to_string(),
+            body_byte_range: 2..6,
         };
 
         // This should succeed - ListItems can contain Paragraphs
         let result = list_item_node(data, content, &source_location);
         assert_eq!(result.children.len(), 1);
-        assert_eq!(result.text(), "- ");
+        assert_eq!(result.marker(), "-");
+        assert_eq!(result.text(), "Item");
     }
 }

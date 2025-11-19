@@ -221,14 +221,14 @@ mod tests {
         use lex_parser::lex::ast::{List, ListItem};
 
         let doc = Document::with_content(vec![ContentItem::List(List::new(vec![
-            ListItem::new("- First item".to_string()),
-            ListItem::new("- Second item".to_string()),
+            ListItem::new("-".to_string(), "First item".to_string()),
+            ListItem::new("-".to_string(), "Second item".to_string()),
         ]))]);
 
         let result = serialize_document(&doc);
         assert!(result.contains("<list>"));
-        assert!(result.contains("<list-item>- First item</list-item>"));
-        assert!(result.contains("<list-item>- Second item</list-item>"));
+        assert!(result.contains("<list-item>First item</list-item>"));
+        assert!(result.contains("<list-item>Second item</list-item>"));
         assert!(result.contains("</list>"));
     }
 

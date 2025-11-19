@@ -1252,7 +1252,7 @@ fn test_benchmark_010_kitchensink() {
         .first()
         .expect("list item missing inline text content");
     InlineAssertion::new(first_text, "kitchensink:definition:list[0]").starts_with(&[
-        InlineExpectation::plain_text("- Item 1 in definition referencing "),
+        InlineExpectation::plain_text("Item 1 in definition referencing "),
         InlineExpectation::reference(ReferenceExpectation::tk(Some(TextMatch::Exact(
             "rootlist".into(),
         )))),
@@ -1265,7 +1265,7 @@ fn test_benchmark_010_kitchensink() {
         .first()
         .expect("list item missing inline text content");
     InlineAssertion::new(second_text, "kitchensink:definition:list[1]").starts_with(&[
-        InlineExpectation::plain_text("- Item 2 in definition with note "),
+        InlineExpectation::plain_text("Item 2 in definition with note "),
         InlineExpectation::reference(ReferenceExpectation::footnote_number(42)),
         InlineExpectation::plain(TextMatch::StartsWith(". {{list-item}}".into())),
     ]);

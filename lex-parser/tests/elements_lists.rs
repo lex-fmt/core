@@ -145,13 +145,22 @@ fn test_list_04_flat_mixed_markers() {
                 .item_count(3)
                 .item(0, |list_item| {
                     // First item establishes the decoration style for the whole list.
-                    list_item.text_starts_with("1. First item").child_count(0);
+                    list_item
+                        .marker("1.")
+                        .text_starts_with("First item")
+                        .child_count(0);
                 })
                 .item(1, |list_item| {
-                    list_item.text_starts_with("- Second item").child_count(0);
+                    list_item
+                        .marker("-")
+                        .text_starts_with("Second item")
+                        .child_count(0);
                 })
                 .item(2, |list_item| {
-                    list_item.text_starts_with("a. Third item").child_count(0);
+                    list_item
+                        .marker("a.")
+                        .text_starts_with("Third item")
+                        .child_count(0);
                 });
         });
 }
