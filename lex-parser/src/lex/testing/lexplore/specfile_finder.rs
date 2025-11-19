@@ -5,7 +5,7 @@
 //!
 //! ## How Does it Work?
 //!
-//! There is a spec file root, which is $PROJECT_ROOT/docs/specs/<version>/ (currently v1)
+//! There is a spec file root, which is $PROJECT_ROOT/specs/<version>/ (currently v1)
 //!
 //! From there one finds several categories of files: benchmarks, trifectas, elements, etc.
 //! Some of these categories have further subcategories, as in elements, there are directories for
@@ -30,7 +30,7 @@ use std::fs;
 use std::path::PathBuf;
 
 const SPEC_VERSION: &str = "v1";
-const DOCS_ROOT: &str = "docs/specs";
+const SPECS_ROOT: &str = "specs";
 
 /// Element types that can be loaded from the per-element library
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,15 +104,15 @@ impl From<std::io::Error> for SpecFileError {
 ///
 /// # Examples
 /// ```ignore
-/// get_doc_root("elements", Some("paragraph")) -> "docs/specs/v1/elements/paragraph"
-/// get_doc_root("benchmark", None) -> "docs/specs/v1/benchmark"
+/// get_doc_root("elements", Some("paragraph")) -> "specs/v1/elements/paragraph"
+/// get_doc_root("benchmark", None) -> "specs/v1/benchmark"
 /// ```
 pub fn get_doc_root(category: &str, subcategory: Option<&str>) -> PathBuf {
     // In a workspace, CARGO_MANIFEST_DIR points to lex-parser/, so we need to go up one level
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let workspace_root = std::path::Path::new(manifest_dir).parent().unwrap();
 
-    let mut path = workspace_root.join(DOCS_ROOT);
+    let mut path = workspace_root.join(SPECS_ROOT);
     path.push(SPEC_VERSION);
     path.push(category);
     if let Some(subcat) = subcategory {
