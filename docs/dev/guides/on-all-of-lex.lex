@@ -222,17 +222,17 @@ These conclude the description of the grammar and syntax. With that in mind, we 
         At this stage we create the root Session tree; the Document wrapper will be attached during the assembling stage. 
 
 
-	5.4 Document assembly
+	5.4 Inline Parsing
 
-		We start with the root session tree from the builder and wrap it in the Document node. With the full document in place, annotations—which are metadata—are attached to AST nodes so they can be very targeted.  Only with the document assembled can we attach annotations to their correct target nodes.[10]
-		This is harder than it seems. Keeping Lex ethos of not enforcing structure, this needs to deal with several ambiguous cases, including some complex logic for calculating "human understanding" distance between elements[12].
-
-	5.5 Inline Parsing
-
-		Finally, with the full and correctly annotated document, we will parse the TextContent nodes for inline elements. This parsing is much simpler, as it has formal start/end tokens as has no structural elements.
+		With the root session in place—but before annotations are attached—we parse the TextContent nodes for inline elements. This parsing is much simpler, as it has formal start/end tokens and has no structural elements.
 
 		Inline parsing is done by a declarative engine that will process each element declaration.[11] For some , this is a flat transformation (i.e. it only wraps up the text into a node, as in bold or italic). Others are more involved, as in references, in which the engine will execute a callback with the text content and return a node. 
 		This solves elegantly the fact that most inlines are simple and very much the same structure, while allowing for more complex ones to handle their specific needs. 
+
+	5.5 Document assembly
+
+		We start with the inline-parsed session tree from the builder and wrap it in the Document node. With the full document in place, annotations—which are metadata—are attached to AST nodes so they can be very targeted.  Only with the document assembled can we attach annotations to their correct target nodes.[10]
+		This is harder than it seems. Keeping Lex ethos of not enforcing structure, this needs to deal with several ambiguous cases, including some complex logic for calculating "human understanding" distance between elements[12].
 
 
 6. Structure, Children, Indentation and the AST

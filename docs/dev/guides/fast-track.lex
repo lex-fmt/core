@@ -49,19 +49,19 @@ This is a high level overview of how the Lex parser is designed.
 	- Produces the root Session tree that represents document content
 
 
-	4. Document Assembly (part of STRING_TO_AST)
+	4. Inline Parsing (ParseInlines stage)
+		Session → Session
+	- Runs immediately after building while annotations are still content items
+	- Parses TextContent nodes for inline elements (bold, italic, references, etc.)
+	- Uses declarative engine with formal start/end tokens
+
+
+	5. Document Assembly (part of STRING_TO_AST)
 		Session → Document → Document
 	- Wraps the built Session tree in a Document node
 	- Attaches annotations from content to AST nodes as metadata
 	- Calculates "human understanding" distance for ambiguous cases
 	- Post-parsing transformations on the complete AST
-
-
-	5. Inline Parsing (ParseInlines stage)
-		Document → Document
-	- Parses TextContent nodes for inline elements (bold, italic, references, etc.)
-	- Uses declarative engine with formal start/end tokens
-	- Much simpler than block parsing (no structural elements)
 
 
 	Standard pipelines:

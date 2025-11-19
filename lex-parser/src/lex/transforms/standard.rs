@@ -122,14 +122,14 @@ pub static STRING_TO_AST: Lazy<AstTransform> =
                     message: e.to_string(),
                 })?;
 
+            // Parse inline elements before assembly
+            let root = ParseInlines::new().run(root)?;
+
             // Attach root session to a document
             let mut doc = AttachRoot::new().run(root)?;
 
             // Attach annotations as metadata
             doc = AttachAnnotations::new().run(doc)?;
-
-            // Parse inline elements across all TextContent nodes
-            doc = ParseInlines::new().run(doc)?;
 
             Ok(doc)
         })
