@@ -8,7 +8,7 @@ use crate::error::FormatError;
 use crate::formats::html::HtmlTheme;
 use crate::ir::events::Event;
 use crate::ir::nodes::{DocNode, InlineContent};
-use html5ever::{ns, serialize, Attribute, LocalName, QualName};
+use html5ever::{ns, serialize, Attribute, LocalName, QualName, serialize::SerializeOpts, serialize::TraversalScope};
 use lex_parser::lex::ast::Document;
 use markup5ever_rcdom::{Handle, Node, NodeData, RcDom, SerializableHandle};
 use std::cell::{Cell, RefCell};
@@ -357,10 +357,15 @@ fn serialize_dom(dom: &RcDom) -> Result<String, FormatError> {
         .clone();
 
     // Serialize each child of the doc_container
-    // Note: html5ever's serialize() outputs the element's children, not the element itself
+    // Use TraversalScope::IncludeNode to serialize the element AND its children
+    let opts = SerializeOpts {
+        traversal_scope: TraversalScope::IncludeNode,
+        ..Default::default()
+    };
+
     for child in doc_container.children.borrow().iter() {
         let serializable = SerializableHandle::from(child.clone());
-        serialize(&mut output, &serializable, Default::default()).map_err(|e| {
+        serialize(&mut output, &serializable, opts.clone()).map_err(|e| {
             FormatError::SerializationError(format!("HTML serialization failed: {}", e))
         })?;
     }
