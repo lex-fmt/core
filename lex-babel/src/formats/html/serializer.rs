@@ -8,7 +8,10 @@ use crate::error::FormatError;
 use crate::formats::html::HtmlTheme;
 use crate::ir::events::Event;
 use crate::ir::nodes::{DocNode, InlineContent};
-use html5ever::{ns, serialize, Attribute, LocalName, QualName, serialize::SerializeOpts, serialize::TraversalScope};
+use html5ever::{
+    ns, serialize, serialize::SerializeOpts, serialize::TraversalScope, Attribute, LocalName,
+    QualName,
+};
 use lex_parser::lex::ast::Document;
 use markup5ever_rcdom::{Handle, Node, NodeData, RcDom, SerializableHandle};
 use std::cell::{Cell, RefCell};
