@@ -179,12 +179,13 @@ the export implementation for testing.
       - Current parent is always stack.last_mut()
       - Example: src/formats/markdown/serializer.rs:66-68
 
-    2.3.2. Heading Hierarchy Stack (for flat→nested heading conversion)
-      - Track open heading levels to properly close parent headings
-      - When encountering new heading, close all headings at same or deeper level
-      - At document end, close all remaining open headings
-      - This pattern is reusable across formats - see src/mappings/heading_hierarchy.rs
-      - Example: src/formats/markdown/parser.rs:51-58, 82-93
+    2.3.2. Heading Hierarchy (handled automatically by flat_to_nested)
+      - The generic flat_to_nested converter automatically closes parent headings
+      - Format parsers just emit StartHeading(level) - no EndHeading needed
+      - When flat_to_nested sees a new heading, it auto-closes any at same or deeper level
+      - At document end, it auto-closes all remaining open headings
+      - This is built into src/mappings/flat_to_nested.rs - all formats get it for free
+      - Example: src/formats/markdown/parser.rs just emits StartHeading
 
     2.3.3. Content Accumulation (for multi-event elements)
       - Collect content across multiple inline events before finalizing

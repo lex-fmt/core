@@ -8,6 +8,25 @@
 //! heading or list), we push it onto the stack, making it the new "current" container. When
 //! we see its corresponding `End` event, we pop it off, returning to the parent container.
 //!
+//! # Auto-Closing Headings (For Flat Formats)
+//!
+//! This converter includes special logic for headings to support flat document formats
+//! (Markdown, HTML, LaTeX) where headings don't have explicit close markers. When a new
+//! `StartHeading(level)` event is encountered, the converter automatically closes any
+//! currently open headings at the same or deeper level before opening the new heading.
+//!
+//! This means format parsers can simply emit `StartHeading` events without worrying about
+//! emitting matching `EndHeading` events - the generic converter handles the hierarchy.
+//!
+//! Example event stream from Markdown parser:
+//! ```text
+//! StartDocument
+//! StartHeading(1)         <- Opens h1
+//! StartHeading(2)         <- Auto-closes nothing, opens h2 nested in h1
+//! StartHeading(1)         <- Auto-closes h2 and previous h1, opens new h1
+//! EndDocument             <- Auto-closes remaining h1
+//! ```
+//!
 //! # The Algorithm
 //!
 //! 1. **Initialization:**
@@ -282,6 +301,88 @@ where
     Ok(())
 }
 
+/// Auto-close any open headings at the same or deeper level
+///
+/// This implements the common pattern for flat document formats (Markdown, HTML, LaTeX)
+/// where headings don't have explicit close markers. When we encounter a new heading,
+/// we need to close any currently open headings at the same or deeper level.
+///
+/// Example:
+/// ```text
+/// # Chapter 1        <- Opens h1
+/// ## Section 1.1     <- Opens h2 (nested in h1)
+/// # Chapter 2        <- Closes h2, closes h1, opens new h1
+/// ```
+fn auto_close_headings_at_or_deeper(
+    stack: &mut Vec<StackNode>,
+    new_level: usize,
+) -> Result<(), ConversionError> {
+    // Find all headings to close (from top of stack backwards)
+    let mut headings_to_close = Vec::new();
+
+    for (i, node) in stack.iter().enumerate().rev() {
+        if let StackNode::Heading { level, .. } = node {
+            if *level >= new_level {
+                headings_to_close.push(i);
+            } else {
+                // Found a parent heading at lower level, stop
+                break;
+            }
+        } else {
+            // Hit a non-heading container, stop looking
+            break;
+        }
+    }
+
+    // Close headings in reverse order (deepest first)
+    for _ in 0..headings_to_close.len() {
+        finalize_container(stack, "auto-close heading", "heading", |node| match node {
+            StackNode::Heading { .. } => Ok(node),
+            other => Err(ConversionError::MismatchedEvents {
+                expected: "Heading".to_string(),
+                found: other.type_name().to_string(),
+            }),
+        })?;
+    }
+
+    Ok(())
+}
+
+/// Auto-close all open headings at document end
+///
+/// This ensures all headings are properly closed when we reach EndDocument,
+/// which is necessary for flat formats that don't have explicit heading close markers.
+fn auto_close_all_headings(stack: &mut Vec<StackNode>) -> Result<(), ConversionError> {
+    // Count how many headings are open
+    let mut heading_count = 0;
+    for node in stack.iter().rev() {
+        if matches!(node, StackNode::Heading { .. }) {
+            heading_count += 1;
+        } else {
+            // Stop at first non-heading
+            break;
+        }
+    }
+
+    // Close all headings
+    for _ in 0..heading_count {
+        finalize_container(
+            stack,
+            "auto-close heading at end",
+            "heading",
+            |node| match node {
+                StackNode::Heading { .. } => Ok(node),
+                other => Err(ConversionError::MismatchedEvents {
+                    expected: "Heading".to_string(),
+                    found: other.type_name().to_string(),
+                }),
+            },
+        )?;
+    }
+
+    Ok(())
+}
+
 /// Converts a flat event stream back to a nested IR tree.
 ///
 /// # Arguments
@@ -343,6 +444,10 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndDocument => {
+                // Auto-close any remaining open headings before closing document
+                // This handles flat formats where headings may not have explicit EndHeading events
+                auto_close_all_headings(&mut stack)?;
+
                 // Pop the document from stack
                 if stack.len() != 1 {
                     return Err(ConversionError::UnclosedContainers(stack.len() - 1));
@@ -363,6 +468,11 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::StartHeading(level) => {
+                // Auto-close any open headings at same or deeper level
+                // This handles flat formats (Markdown, HTML) where headings don't have explicit close markers
+                auto_close_headings_at_or_deeper(&mut stack, *level)?;
+
+                // Push new heading
                 let node = StackNode::Heading {
                     level: *level,
                     content: vec![],
@@ -372,6 +482,8 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndHeading(level) => {
+                // Explicit EndHeading is optional - used by nested_to_flat for export
+                // Validate that the top of stack is a heading at this level
                 finalize_container(&mut stack, "EndHeading", "heading", |node| match node {
                     StackNode::Heading {
                         level: node_level, ..
