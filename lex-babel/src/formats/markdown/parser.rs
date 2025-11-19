@@ -3,10 +3,10 @@
 //! Converts CommonMark Markdown to Lex documents.
 //! Pipeline: Markdown string → Comrak AST → Events → IR → Lex AST
 
+use crate::common::flat_to_nested::events_to_tree;
 use crate::error::FormatError;
 use crate::ir::events::Event;
 use crate::ir::nodes::InlineContent;
-use crate::mappings::flat_to_nested::events_to_tree;
 use comrak::nodes::{AstNode, NodeValue};
 use comrak::{parse_document, Arena, ComrakOptions};
 use lex_parser::lex::ast::Document;
