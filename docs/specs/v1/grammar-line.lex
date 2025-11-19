@@ -1,6 +1,8 @@
 Line Token Grammar for lex
 
-	This document covers the line tokens, for  the lower level ones see the core[./grammar-core.lex] grammar docs.
+	This document covers the line tokens. For related token types see:
+	- Core tokens (lower level): [./grammar-core.lex]
+	- Inline tokens (span-based): [./grammar-inline.lex]
 
     This document defines the logical line tokens emitted by the lexer transformation stage. It mirrors the LineType enum in the line[1] code
 

@@ -39,7 +39,7 @@
 //!
 //!     To add a new inline element type:
 //!
-//!     1. Add a variant to `InlineKind` enum
+//!     1. Add a variant to `InlineKind` enum in [crate::lex::token::inline]
 //!     2. Add a variant to `InlineNode` in the ast module
 //!     3. Add an `InlineSpec` to `default_specs()` with start/end tokens
 //!     4. If complex logic is needed, implement a post-processor callback:
@@ -63,6 +63,7 @@
 
 use super::references::classify_reference_node;
 use crate::lex::ast::elements::inlines::{InlineContent, InlineNode, ReferenceInline};
+use crate::lex::token::InlineKind;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
@@ -81,6 +82,13 @@ pub fn parse_inlines_with_parser(text: &str, parser: &InlineParser) -> InlineCon
 /// Optional transformation applied to a parsed inline node.
 pub type InlinePostProcessor = fn(InlineNode) -> InlineNode;
 
+/// Specification for an inline element type
+///
+/// Defines how to parse and process a specific inline element. Each spec includes:
+/// - The kind of inline element (from [InlineKind])
+/// - Start and end tokens (single characters)
+/// - Whether content is literal (no nested inline parsing)
+/// - Optional post-processing callback for complex transformations
 #[derive(Clone)]
 pub struct InlineSpec {
     pub kind: InlineKind,
@@ -98,15 +106,6 @@ impl InlineSpec {
             node
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum InlineKind {
-    Strong,
-    Emphasis,
-    Code,
-    Math,
-    Reference,
 }
 
 #[derive(Clone)]
