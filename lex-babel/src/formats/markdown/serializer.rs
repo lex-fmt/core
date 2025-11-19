@@ -130,12 +130,16 @@ fn build_comrak_ast<'a>(
                 })?;
             }
 
-            Event::StartList => {
+            Event::StartList { ordered } => {
                 current_heading = None;
 
                 let list_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
                     NodeValue::List(comrak::nodes::NodeList {
-                        list_type: ListType::Bullet,
+                        list_type: if *ordered {
+                            ListType::Ordered
+                        } else {
+                            ListType::Bullet
+                        },
                         marker_offset: 0,
                         padding: 0,
                         start: 1,
