@@ -14,9 +14,10 @@
 //!
 //! Current stages:
 //!
+//!     - `attach_root`: Wraps the built session tree in a [`Document`].
 //!     - `attach_annotations`: Attaches annotations from content to AST nodes as metadata.
 //!       See [attach_annotations](stages::attach_annotations) for details.
 
 pub mod stages;
 
-pub use stages::AttachAnnotations;
+pub use stages::{AttachAnnotations, AttachRoot};
