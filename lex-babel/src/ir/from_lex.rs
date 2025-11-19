@@ -234,8 +234,8 @@ mod tests {
 
     #[test]
     fn test_list_conversion() {
-        let item1 = LexListItem::new("Item 1".to_string());
-        let item2 = LexListItem::new("Item 2".to_string());
+        let item1 = LexListItem::new("-".to_string(), "Item 1".to_string());
+        let item2 = LexListItem::new("-".to_string(), "Item 2".to_string());
         let list = LexList::new(vec![item1, item2]);
 
         let ir_node = from_lex_list(&list, 1);

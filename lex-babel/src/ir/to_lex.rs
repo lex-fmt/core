@@ -95,7 +95,7 @@ fn to_lex_list_item_struct(item: &ListItem) -> LexListItem {
     }
 
     let children = to_content_elements(child_items);
-    LexListItem::with_content(text, children)
+    LexListItem::with_content("-".to_string(), text, children)
 }
 
 /// Converts an IR Definition to a Lex Definition.

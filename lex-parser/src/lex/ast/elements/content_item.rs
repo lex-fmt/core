@@ -546,11 +546,8 @@ mod tests {
                 Position::new(0, 4),
             )));
 
-        let list_item = ListItem::with_content("Item".to_string(), vec![]).at(Range::new(
-            5..9,
-            Position::new(1, 0),
-            Position::new(1, 4),
-        ));
+        let list_item = ListItem::with_content("-".to_string(), "Item".to_string(), vec![])
+            .at(Range::new(5..9, Position::new(1, 0), Position::new(1, 4)));
         let list = ContentItem::List(List::new(vec![list_item]));
 
         let mut session = Session::with_title("Root".to_string());

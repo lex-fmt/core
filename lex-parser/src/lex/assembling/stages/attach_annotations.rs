@@ -518,7 +518,7 @@ mod tests {
         use crate::lex::ast::elements::paragraph::Paragraph;
         use crate::lex::ast::{List, ListItem};
 
-        let mut list_item = ListItem::new("- Task".to_string());
+        let mut list_item = ListItem::new("-".to_string(), "Task".to_string());
         list_item
             .children
             .push(ContentItem::Paragraph(Paragraph::from_line(

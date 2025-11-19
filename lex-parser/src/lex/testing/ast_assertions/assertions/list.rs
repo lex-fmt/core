@@ -94,6 +94,10 @@ impl<'a> ListItemAssertion<'a> {
         TextMatch::Exact(expected.to_string()).assert(self.item.text(), &self.context);
         self
     }
+    pub fn marker(self, expected: &str) -> Self {
+        TextMatch::Exact(expected.to_string()).assert(self.item.marker(), &self.context);
+        self
+    }
     pub fn text_starts_with(self, prefix: &str) -> Self {
         TextMatch::StartsWith(prefix.to_string()).assert(self.item.text(), &self.context);
         self
