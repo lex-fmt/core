@@ -247,8 +247,10 @@ pub fn workspace_path(relative_path: &str) -> std::path::PathBuf {
 pub fn parse_without_annotation_attachment(
     source: &str,
 ) -> Result<crate::lex::ast::Document, String> {
+    use crate::lex::assembling::AttachRoot;
     use crate::lex::parsing::engine::parse_from_flat_tokens;
     use crate::lex::transforms::standard::LEXING;
+    use crate::lex::transforms::Runnable;
 
     let source = if !source.is_empty() && !source.ends_with('\n') {
         format!("{}\n", source)
@@ -256,5 +258,7 @@ pub fn parse_without_annotation_attachment(
         source.to_string()
     };
     let tokens = LEXING.run(source.clone()).map_err(|e| e.to_string())?;
-    parse_from_flat_tokens(tokens, &source).map_err(|e| e.to_string())
+    let root = parse_from_flat_tokens(tokens, &source).map_err(|e| e.to_string())?;
+    // Assemble the root session into a Document but skip metadata attachment
+    AttachRoot::new().run(root).map_err(|e| e.to_string())
 }

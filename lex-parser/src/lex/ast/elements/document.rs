@@ -65,6 +65,14 @@ impl Document {
         }
     }
 
+    /// Construct a document from an existing root session.
+    pub fn from_root(root: Session) -> Self {
+        Self {
+            annotations: Vec::new(),
+            root,
+        }
+    }
+
     pub fn with_annotations_and_content(
         annotations: Vec<Annotation>,
         content: Vec<ContentItem>,

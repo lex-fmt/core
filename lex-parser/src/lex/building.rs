@@ -8,8 +8,8 @@
 //!         3. The location is transformed from byte range to a dual byte range + line:column
 //!            position.
 //!
-//!     At this stage we create the Document node, its root session node and the ast will be
-//!     attached to it.
+//!     At this stage we create the root session tree, which will later be attached to the
+//!     [`Document`](crate::lex::ast::Document) during assembling.
 //!
 //! Three-Layer Architecture
 //!
