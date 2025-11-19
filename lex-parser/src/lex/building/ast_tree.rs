@@ -9,15 +9,16 @@
 //!         3. The location is transformed from byte range to a dual byte range + line:column
 //!            position.
 //!
-//!     At this stage we create the Document node, its root session node and the ast will be
-//!     attached to it.
+//!     At this stage we create the root session tree that will later be attached to the
+//!     `Document` node during assembling.
 //!
 //!     See [location](super::location) for location calculation utilities.
 
-use crate::lex::ast::elements::typed_content::{ContentElement, SessionContent};
+use crate::lex::ast::elements::container::SessionContainer;
+use crate::lex::ast::elements::typed_content::{self, ContentElement, SessionContent};
 use crate::lex::ast::error::{format_source_context, ParserError, ParserResult};
 use crate::lex::ast::range::SourceLocation;
-use crate::lex::ast::{AstNode, ContentItem, Document, ListItem, Range};
+use crate::lex::ast::{AstNode, ContentItem, ListItem, Range, Session};
 use crate::lex::building::api as ast_api;
 use crate::lex::building::location::compute_location_from_locations;
 use crate::lex::parsing::ir::{NodeType, ParseNode, ParseNodePayload, TokenLocation};
@@ -37,8 +38,8 @@ impl<'a> AstTreeBuilder<'a> {
         }
     }
 
-    /// Builds a `Document` from a root `ParseNode`.
-    pub fn build(&self, root_node: ParseNode) -> ParserResult<Document> {
+    /// Builds the document's root Session from a root `ParseNode`.
+    pub fn build(&self, root_node: ParseNode) -> ParserResult<Session> {
         if root_node.node_type != NodeType::Document {
             // Or handle this more gracefully
             panic!("Expected a Document node at the root");
@@ -47,7 +48,10 @@ impl<'a> AstTreeBuilder<'a> {
         let content_locations: Vec<Range> =
             content.iter().map(|item| item.range().clone()).collect();
         let root_location = compute_location_from_locations(&content_locations);
-        Ok(Document::with_content(content).with_root_location(root_location))
+        let session_content = typed_content::into_session_contents(content);
+        let mut root = Session::with_title(String::new());
+        root.children = SessionContainer::from_typed(session_content);
+        Ok(root.at(root_location))
     }
 
     /// Builds a vector of `ContentItem`s from a vector of `ParseNode`s.

@@ -25,7 +25,7 @@
 use super::parser;
 use crate::lex::building::ast_tree::AstTreeBuilder;
 use crate::lex::parsing::ir::{NodeType, ParseNode};
-use crate::lex::parsing::Document;
+use crate::lex::parsing::Session;
 use crate::lex::token::{to_line_container, LineContainer, Token};
 use std::ops::Range as ByteRange;
 
@@ -39,13 +39,13 @@ use std::ops::Range as ByteRange;
 /// * `source` - The original source text (for location tracking)
 ///
 /// # Returns
-/// A Document AST if successful
+/// The root session tree if successful
 use crate::lex::lexing::transformations::line_token_grouping::GroupedTokens;
 
 pub fn parse_from_grouped_stream(
     grouped_tokens: Vec<GroupedTokens>,
     source: &str,
-) -> Result<Document, String> {
+) -> Result<Session, String> {
     // Convert grouped tokens to line tokens
     let line_tokens = grouped_tokens
         .into_iter()
@@ -69,11 +69,11 @@ pub fn parse_from_grouped_stream(
 /// * `source` - The original source text (for location tracking)
 ///
 /// # Returns
-/// A Document AST if successful
+/// The root session tree if successful
 pub fn parse_from_flat_tokens(
     tokens: Vec<(Token, ByteRange<usize>)>,
     source: &str,
-) -> Result<Document, String> {
+) -> Result<Session, String> {
     // Apply grouping transformation inline for tests/legacy code
     use crate::lex::lexing::transformations::LineTokenGroupingMapper;
 
@@ -93,8 +93,8 @@ pub fn parse_from_flat_tokens(
 /// * `source` - The original source text (for location tracking)
 ///
 /// # Returns
-/// A Document AST if successful
-pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Document, String> {
+/// The root session tree if successful
+pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Session, String> {
     // Extract children from root container
     let children = match tree {
         LineContainer::Container { children, .. } => children,
@@ -132,10 +132,10 @@ mod tests {
         let result = parse_from_flat_tokens(tokens, source);
         assert!(result.is_ok(), "Parser should succeed");
 
-        let doc = result.unwrap();
+        let root = result.unwrap();
         // Should have 1 paragraph with 1 line
-        assert!(!doc.root.children.is_empty(), "Should have content");
-        assert!(matches!(doc.root.children[0], ContentItem::Paragraph(_)));
+        assert!(!root.children.is_empty(), "Should have content");
+        assert!(matches!(root.children[0], ContentItem::Paragraph(_)));
     }
 
     #[test]
@@ -147,10 +147,9 @@ mod tests {
         let result = parse_from_flat_tokens(tokens, source);
         assert!(result.is_ok(), "Parser should succeed");
 
-        let doc = result.unwrap();
+        let root = result.unwrap();
         // Should have Definition at root level
-        let has_definition = doc
-            .root
+        let has_definition = root
             .children
             .iter()
             .any(|item| matches!(item, ContentItem::Definition(_)));
@@ -166,10 +165,9 @@ mod tests {
         let result = parse_from_flat_tokens(tokens, source);
         assert!(result.is_ok(), "Parser should succeed");
 
-        let doc = result.unwrap();
+        let root = result.unwrap();
         // Should have Session at root level (with blank line before content)
-        let has_session = doc
-            .root
+        let has_session = root
             .children
             .iter()
             .any(|item| matches!(item, ContentItem::Session(_)));
@@ -185,10 +183,9 @@ mod tests {
         let result = parse_from_flat_tokens(tokens, source);
         assert!(result.is_ok(), "Parser should succeed");
 
-        let doc = result.unwrap();
+        let root = result.unwrap();
         // Should have Annotation at root level
-        let has_annotation = doc
-            .root
+        let has_annotation = root
             .children
             .iter()
             .any(|item| matches!(item, ContentItem::Annotation(_)));
@@ -225,11 +222,11 @@ Final paragraph.
 
         let tokens = lex_helper(source).expect("Failed to tokenize");
 
-        let doc = parse_from_flat_tokens(tokens, source).expect("Parser failed");
+        let root = parse_from_flat_tokens(tokens, source).expect("Parser failed");
 
         eprintln!("\n=== ANNOTATIONS + TRIFECTA COMBINED ===");
-        eprintln!("Root items count: {}", doc.root.children.len());
-        for (i, item) in doc.root.children.iter().enumerate() {
+        eprintln!("Root items count: {}", root.children.len());
+        for (i, item) in root.children.iter().enumerate() {
             match item {
                 ContentItem::Paragraph(p) => {
                     eprintln!("  [{}] Paragraph: {} lines", i, p.lines.len())
@@ -251,18 +248,15 @@ Final paragraph.
         }
 
         // Verify mixed content
-        let has_annotations = doc
-            .root
+        let has_annotations = root
             .children
             .iter()
             .any(|item| matches!(item, ContentItem::Annotation(_)));
-        let has_paragraphs = doc
-            .root
+        let has_paragraphs = root
             .children
             .iter()
             .any(|item| matches!(item, ContentItem::Paragraph(_)));
-        let has_sessions = doc
-            .root
+        let has_sessions = root
             .children
             .iter()
             .any(|item| matches!(item, ContentItem::Session(_)));
@@ -279,9 +273,9 @@ Final paragraph.
         let result = parse_from_flat_tokens(tokens, source);
 
         assert!(result.is_ok(), "Empty input should parse successfully");
-        let doc = result.unwrap();
+        let root = result.unwrap();
         assert_eq!(
-            doc.root.children.len(),
+            root.children.len(),
             0,
             "Empty document should have no children"
         );
