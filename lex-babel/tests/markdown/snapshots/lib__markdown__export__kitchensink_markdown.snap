@@ -28,7 +28,7 @@ This session acts as the main container for testing nested structures. It starts
 
  This is a single-line annotation inside the session.
 
-<!-- /lex -->
+<!-- /lex:warning -->
 
 ## 1.1. Nested Session (Level 2) {{session}}
 
@@ -72,6 +72,6 @@ It contains a paragraph and a list. {{paragraph}}
 - Task 1 to complete. {{list-item}} 
 - Task 2 to complete. {{list-item}} 
 
-<!-- /lex -->
+<!-- /lex:todo -->
 
 Final paragraph at the end of the document. {{paragraph}}

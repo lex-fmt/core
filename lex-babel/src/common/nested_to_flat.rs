@@ -112,7 +112,9 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
             for child in content {
                 walk_node(child, events);
             }
-            events.push(Event::EndAnnotation);
+            events.push(Event::EndAnnotation {
+                label: label.clone(),
+            });
         }
         DocNode::Inline(inline) => events.push(Event::Inline(inline.clone())),
     }
@@ -212,7 +214,9 @@ mod tests {
             Event::StartParagraph,
             Event::Inline(InlineContent::Text("Body".to_string())),
             Event::EndParagraph,
-            Event::EndAnnotation,
+            Event::EndAnnotation {
+                label: "note".to_string(),
+            },
             Event::EndDocument,
         ];
 

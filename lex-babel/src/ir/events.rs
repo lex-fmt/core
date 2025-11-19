@@ -32,6 +32,8 @@ pub enum Event {
         label: String,
         parameters: Vec<(String, String)>,
     },
-    EndAnnotation,
+    EndAnnotation {
+        label: String,
+    },
     Inline(InlineContent),
 }
