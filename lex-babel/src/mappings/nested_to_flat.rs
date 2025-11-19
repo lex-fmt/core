@@ -70,8 +70,8 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
             emit_inlines(content, events);
             events.push(Event::EndParagraph);
         }
-        DocNode::List(List { items }) => {
-            events.push(Event::StartList);
+        DocNode::List(List { items, ordered }) => {
+            events.push(Event::StartList { ordered: *ordered });
             for item in items {
                 walk_list_item(item, events);
             }
@@ -156,6 +156,7 @@ mod tests {
                             content: "fn main() {}".to_string(),
                         })],
                     }],
+                    ordered: false,
                 }),
                 DocNode::Definition(Definition {
                     term: vec![InlineContent::Text("Term".to_string())],
@@ -186,7 +187,7 @@ mod tests {
             Event::Inline(InlineContent::Text("Welcome".to_string())),
             Event::EndParagraph,
             Event::EndHeading(2),
-            Event::StartList,
+            Event::StartList { ordered: false },
             Event::StartListItem,
             Event::Inline(InlineContent::Text("Item".to_string())),
             Event::StartVerbatim(Some("rust".to_string())),
