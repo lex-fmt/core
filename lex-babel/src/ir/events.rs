@@ -14,7 +14,9 @@ pub enum Event {
     EndHeading(usize),
     StartParagraph,
     EndParagraph,
-    StartList,
+    StartList {
+        ordered: bool,
+    },
     EndList,
     StartListItem,
     EndListItem,

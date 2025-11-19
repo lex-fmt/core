@@ -112,8 +112,9 @@ fn collect_events_from_node<'a>(
             events.push(Event::EndParagraph);
         }
 
-        NodeValue::List(_) => {
-            events.push(Event::StartList);
+        NodeValue::List(list) => {
+            let ordered = matches!(list.list_type, comrak::nodes::ListType::Ordered);
+            events.push(Event::StartList { ordered });
 
             // Process list items
             for child in node.children() {

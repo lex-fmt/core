@@ -103,7 +103,7 @@ fn from_lex_paragraph(paragraph: &LexParagraph) -> DocNode {
 
 /// Converts a lex list to an IR list.
 fn from_lex_list(list: &LexList, level: usize) -> DocNode {
-    let items = list
+    let items: Vec<ListItem> = list
         .items
         .iter()
         .filter_map(|item| {
@@ -114,7 +114,15 @@ fn from_lex_list(list: &LexList, level: usize) -> DocNode {
             }
         })
         .collect();
-    DocNode::List(List { items })
+
+    // Detect if list is ordered by checking the first item's marker
+    let ordered = if let Some(LexContentItem::ListItem(li)) = list.items.first() {
+        is_ordered_marker(&li.marker)
+    } else {
+        false
+    };
+
+    DocNode::List(List { items, ordered })
 }
 
 /// Converts a lex list item to an IR list item node.
@@ -190,6 +198,28 @@ fn from_lex_verbatim_line(verbatim_line: &LexVerbatimLine) -> DocNode {
         language: None,
         content,
     })
+}
+
+/// Detects if a list marker indicates an ordered list.
+/// Returns true for markers like "1. ", "2. ", "a. ", etc.
+/// Returns false for plain markers like "- ".
+fn is_ordered_marker(marker: &TextContent) -> bool {
+    let marker_text = marker.as_string().trim();
+
+    // Check if marker starts with a digit or letter followed by . or )
+    if marker_text.is_empty() {
+        return false;
+    }
+
+    let first_char = marker_text.chars().next().unwrap();
+
+    // Ordered list markers start with numbers or letters
+    if first_char.is_ascii_digit() || first_char.is_alphabetic() {
+        // Check if followed by . or )
+        marker_text.contains('.') || marker_text.contains(')')
+    } else {
+        false
+    }
 }
 
 #[cfg(test)]
