@@ -7,7 +7,6 @@ use crate::error::FormatError;
 use crate::ir::events::Event;
 use crate::ir::nodes::InlineContent;
 use crate::mappings::flat_to_nested::events_to_tree;
-use crate::mappings::heading_hierarchy::HeadingHierarchyManager;
 use comrak::nodes::{AstNode, NodeValue};
 use comrak::{parse_document, Arena, ComrakOptions};
 use lex_parser::lex::ast::Document;
@@ -48,13 +47,7 @@ type DefinitionPieces = Option<(Vec<InlineContent>, Vec<InlineContent>)>;
 fn comrak_ast_to_events<'a>(root: &'a AstNode<'a>) -> Result<Vec<Event>, FormatError> {
     let mut events = vec![Event::StartDocument];
 
-    // Track heading hierarchy using reusable manager
-    let mut heading_manager = HeadingHierarchyManager::new();
-
-    collect_children_with_definitions(root.children(), &mut events, &mut heading_manager)?;
-
-    // Close any remaining open headings
-    heading_manager.close_all(&mut events);
+    collect_children_with_definitions(root.children(), &mut events)?;
 
     events.push(Event::EndDocument);
     Ok(events)
@@ -64,29 +57,28 @@ fn comrak_ast_to_events<'a>(root: &'a AstNode<'a>) -> Result<Vec<Event>, FormatE
 fn collect_events_from_node<'a>(
     node: &'a AstNode<'a>,
     events: &mut Vec<Event>,
-    heading_manager: &mut HeadingHierarchyManager,
 ) -> Result<(), FormatError> {
     let node_data = node.data.borrow();
 
     match &node_data.value {
         NodeValue::Document => {
             // Skip document wrapper, process children
-            collect_children_with_definitions(node.children(), events, heading_manager)?;
+            collect_children_with_definitions(node.children(), events)?;
         }
 
         NodeValue::Heading(heading) => {
             let level = heading.level as usize;
 
-            // Use heading manager to handle hierarchy
-            heading_manager.on_heading(level, events);
+            // Just emit StartHeading - flat_to_nested will auto-close headings
+            events.push(Event::StartHeading(level));
 
             // Process heading text (inline content)
             for child in node.children() {
                 collect_inline_events(child, events)?;
             }
 
-            // Note: We don't emit EndHeading here - the manager handles that
-            // when we encounter the next heading at same/higher level, or at end of document
+            // No EndHeading needed - the generic flat_to_nested converter
+            // automatically closes headings when it sees a new heading at same/higher level
         }
 
         NodeValue::Paragraph => {
@@ -106,7 +98,7 @@ fn collect_events_from_node<'a>(
 
             // Process list items
             for child in node.children() {
-                collect_events_from_node(child, events, heading_manager)?;
+                collect_events_from_node(child, events)?;
             }
 
             events.push(Event::EndList);
@@ -116,7 +108,7 @@ fn collect_events_from_node<'a>(
             events.push(Event::StartListItem);
 
             // Process list item content
-            collect_children_with_definitions(node.children(), events, heading_manager)?;
+            collect_children_with_definitions(node.children(), events)?;
 
             events.push(Event::EndListItem);
         }
@@ -154,7 +146,7 @@ fn collect_events_from_node<'a>(
             // Block quotes don't have direct Lex equivalent
             // Process children as regular content
             for child in node.children() {
-                collect_events_from_node(child, events, heading_manager)?;
+                collect_events_from_node(child, events)?;
             }
         }
 
@@ -348,7 +340,6 @@ fn try_parse_definition_term<'a>(node: &'a AstNode<'a>) -> Result<DefinitionPiec
 fn collect_children_with_definitions<'a, I>(
     children: I,
     events: &mut Vec<Event>,
-    heading_manager: &mut HeadingHierarchyManager,
 ) -> Result<(), FormatError>
 where
     I: Iterator<Item = &'a AstNode<'a>>,
@@ -387,13 +378,13 @@ where
                 }
 
                 let next = iter.next().expect("peek yielded a node");
-                collect_events_from_node(next, events, heading_manager)?;
+                collect_events_from_node(next, events)?;
             }
 
             events.push(Event::EndDefinitionDescription);
             events.push(Event::EndDefinition);
         } else {
-            collect_events_from_node(node, events, heading_manager)?;
+            collect_events_from_node(node, events)?;
         }
     }
 
