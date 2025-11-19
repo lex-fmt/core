@@ -18,26 +18,28 @@
 //! |------------------|-------------------------|----------------------------------------|---------------------------------------|
 //! | Session          | Heading (# ## ###)      | Session level → heading level (1-6)    | Heading level → session nesting       |
 //! | Paragraph        | Paragraph               | Direct mapping                         | Direct mapping                        |
-//! | List             | Unordered list (- *)    | Direct mapping                         | Both ordered/unordered → Lex list    |
+//! | List             | List (- or 1. 2. 3.)    | Ordered/unordered preserved            | Detect type from first item marker    |
 //! | ListItem         | List item (- item)      | Direct mapping with nesting            | Direct mapping with nesting           |
 //! | Definition       | **Term**: Description   | Bold term + colon + content            | Parse bold + colon pattern            |
 //! | Verbatim         | Code block (```)        | Language → info string                 | Info string → language                |
-//! | Annotation       | HTML comment            | `<!-- lex:label key=val -->` format    | Parse lex: prefixed HTML comments     |
+//! | Annotation       | HTML comment            | `<!-- lex:label key=val -->` format    | Not implemented (annotations lost)    |
 //! | InlineContent:   |                         |                                        |                                       |
 //! |   Text           | Plain text              | Direct                                 | Direct                                |
 //! |   Bold           | **bold** or __bold__    | Use **                                 | Parse both                            |
 //! |   Italic         | *italic* or _italic_    | Use *                                  | Parse both                            |
 //! |   Code           | `code`                  | Direct                                 | Direct                                |
 //! |   Math           | $math$ or $$math$$      | Use $...$                              | Parse if extension enabled            |
-//! |   Reference      | [text](url)             | Convert to markdown link               | Parse link/reference syntax           |
+//! |   Reference      | \[text\]                | Plain text (Lex refs are citations)    | Parse link/reference syntax           |
 //!
 //! # Lossy Conversions
 //!
 //! The following conversions lose information on round-trip:
 //! - Lex sessions beyond level 6 → h6 with nested content (Markdown max is h6)
-//! - Lex annotations → HTML comments (may be stripped by some parsers)
+//! - Lex annotations → HTML comments (exported but not parsed on import)
 //! - Lex definition structure → bold text pattern (not native Markdown)
+//! - Lex references → plain text (citations, not URLs)
 //! - Multiple blank lines → single blank line (Markdown normalization)
+//! - Verbatim post-wall indentation → lost (see issue #276)
 //!
 //! # Architecture Notes
 //!
@@ -59,12 +61,12 @@
 //!   - [x] Paragraph
 //!   - [x] Heading (Session) - nested sessions → flat heading hierarchy
 //!   - [x] Bold, Italic, Code inlines
-//!   - [x] Lists - auto-wraps inline content in paragraphs
+//!   - [x] Lists - ordered/unordered detection, tight formatting
 //!   - [x] Code blocks (Verbatim)
 //!   - [x] Definitions - term paragraph + description siblings
-//!   - [x] Annotations - as HTML comments
+//!   - [x] Annotations - as HTML comments with content
 //!   - [x] Math - rendered as $...$ text
-//!   - [x] References - rendered as links
+//!   - [x] References - rendered as plain text citations
 //! - [x] Import (Markdown → Lex)
 //!   - [x] Paragraph
 //!   - [x] Heading → Session (flat heading hierarchy → nested sessions)

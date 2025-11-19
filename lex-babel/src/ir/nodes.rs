@@ -38,6 +38,7 @@ pub struct Paragraph {
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
     pub items: Vec<ListItem>,
+    pub ordered: bool,
 }
 
 /// Represents an item in a list.

@@ -102,6 +102,10 @@ the export implementation for testing.
     Step 1: Convert Lex AST to IR
       - Use existing `lex_babel::to_ir(doc)` function
       - This gives you IR::Document with IR nodes
+      - IMPORTANT: Annotations are attached as metadata to AST nodes, not stored in the content tree
+      - You must extract annotations from each element using element.annotations()
+      - See lex-parser/src/lex/assembling/stages/attach_annotations.rs for how they're attached
+      - See lex-babel/src/ir/from_lex.rs:extract_attached_annotations() for extraction example
 
     Step 2: Convert IR to flat event stream
       - Use `mappings::nested_to_flat::tree_to_events(&ir_doc_node)`
@@ -110,10 +114,13 @@ the export implementation for testing.
     Step 3: Convert events to Format AST (format-specific library)
       - Walk events and build format-specific nodes
       - Handle format constraints (e.g., heading depth limits)
+      - You will need state machines to manage conversion (see section 2.3 below)
 
     Step 4: Serialize Format AST to string
       - Use format library's serializer
       - Configure output options as needed
+      - Post-process to clean up library artifacts (e.g., unwanted HTML comments)
+      - Some libraries inject elements you may not want in the final output
 
     Example skeleton for serializer.rs:
 
@@ -158,6 +165,49 @@ the export implementation for testing.
     For format-specific implementation examples, see:
       - src/formats/markdown/mod.rs (once implemented)
       - src/formats/tag/mod.rs (simpler example, export only)
+
+  2.3. Common State Machines for Event ↔ Format AST Conversion:
+
+    When converting between event streams and format-specific ASTs, you will need
+    several state machines to manage the conversion process. These patterns recur
+    across all format implementations:
+
+    2.3.1. Parent Stack (for building trees from events)
+      - Maintains the current nesting level during AST construction
+      - Push containers onto stack when entering (StartHeading, StartList, etc.)
+      - Pop when exiting (EndHeading, EndList, etc.)
+      - Current parent is always stack.last_mut()
+      - Example: src/formats/markdown/serializer.rs:66-68
+
+    2.3.2. Heading Hierarchy (handled automatically by flat_to_nested)
+      - The generic flat_to_nested converter automatically closes parent headings
+      - Format parsers just emit StartHeading(level) - no EndHeading needed
+      - When flat_to_nested sees a new heading, it auto-closes any at same or deeper level
+      - At document end, it auto-closes all remaining open headings
+      - This is built into src/mappings/flat_to_nested.rs - all formats get it for free
+      - Example: src/formats/markdown/parser.rs just emits StartHeading
+
+    2.3.3. Content Accumulation (for multi-event elements)
+      - Collect content across multiple inline events before finalizing
+      - Common for verbatim blocks (accumulate lines) and definitions
+      - Use temporary buffers: in_verbatim flag + verbatim_content string
+      - Example: src/formats/markdown/serializer.rs:70-72, 199-221
+
+    2.3.4. Multi-Element Pattern Detection (for complex mappings)
+      - Some Lex elements map to patterns across multiple format elements
+      - Example: Lex Definition → Markdown "**Term**: description" + siblings
+      - Requires lookahead/peekable iterators to consume sibling nodes
+      - Track boundaries (headings, other definitions) to know when to stop
+      - Example: src/formats/markdown/parser.rs:360-413
+
+    2.3.5. Context-Sensitive Rendering (handling format quirks)
+      - List items may need auto-wrapped paragraphs (Markdown tight lists)
+      - Headings can only contain inline content, not blocks
+      - Use flags: current_heading, in_list_item, list_item_paragraph
+      - Example: src/formats/markdown/serializer.rs:77-82, 114-130, 244-260
+
+    These state machines interact and must be carefully coordinated. When in doubt,
+    study the markdown implementation as a reference for managing these patterns.
 
 3. How To Test, for each direction (import and export)
 
@@ -206,7 +256,34 @@ the export implementation for testing.
       }
 
   Note: Use lex-parser's STRING_TO_AST.run() or similar parsing utilities to load
-  isolated elements from spec files for testing. 
+  isolated elements from spec files for testing.
+
+    3.3. Snapshot Testing Best Practices:
+
+      Snapshot tests are superior to assertion-based tests for format conversion because
+      they capture the exact output and make regressions immediately visible.
+
+      Setup:
+        $ cargo install cargo-insta
+
+      Workflow:
+        1. Write test using insta::assert_snapshot!(output)
+        2. Run test - it will fail on first run (no snapshot exists)
+        3. Review generated snapshot in snapshots/ directory
+        4. If correct: cargo insta accept
+        5. If incorrect: fix code and rerun
+
+      Best practices:
+        - Review snapshot diffs carefully before accepting changes
+        - Document lossy conversions in snapshots (e.g., annotations not reimported)
+        - Use snapshot names that match test function names for clarity
+        - Commit snapshots to git alongside code
+        - Snapshots catch regressions better than hand-written assertions
+        - Use insta::assert_snapshot!(output, @"expected") for inline snapshots
+
+      Example from markdown implementation:
+        - See lex-babel/tests/markdown/export.rs for snapshot test usage
+        - See lex-babel/tests/markdown/snapshots/ for snapshot files
 
 
 4. Testing Order

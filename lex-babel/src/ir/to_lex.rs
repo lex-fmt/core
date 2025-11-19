@@ -244,6 +244,7 @@ mod tests {
                     children: vec![],
                 },
             ],
+            ordered: false,
         };
 
         let lex_item = to_lex_list(&ir_list);

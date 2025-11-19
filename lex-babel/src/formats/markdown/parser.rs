@@ -47,15 +47,7 @@ type DefinitionPieces = Option<(Vec<InlineContent>, Vec<InlineContent>)>;
 fn comrak_ast_to_events<'a>(root: &'a AstNode<'a>) -> Result<Vec<Event>, FormatError> {
     let mut events = vec![Event::StartDocument];
 
-    // Track heading levels to build session hierarchy
-    let mut heading_stack: Vec<usize> = vec![];
-
-    collect_children_with_definitions(root.children(), &mut events, &mut heading_stack)?;
-
-    // Close any remaining open headings
-    while let Some(level) = heading_stack.pop() {
-        events.push(Event::EndHeading(level));
-    }
+    collect_children_with_definitions(root.children(), &mut events)?;
 
     events.push(Event::EndDocument);
     Ok(events)
@@ -65,40 +57,28 @@ fn comrak_ast_to_events<'a>(root: &'a AstNode<'a>) -> Result<Vec<Event>, FormatE
 fn collect_events_from_node<'a>(
     node: &'a AstNode<'a>,
     events: &mut Vec<Event>,
-    heading_stack: &mut Vec<usize>,
 ) -> Result<(), FormatError> {
     let node_data = node.data.borrow();
 
     match &node_data.value {
         NodeValue::Document => {
             // Skip document wrapper, process children
-            collect_children_with_definitions(node.children(), events, heading_stack)?;
+            collect_children_with_definitions(node.children(), events)?;
         }
 
         NodeValue::Heading(heading) => {
             let level = heading.level as usize;
 
-            // Close any open headings at same or deeper level
-            while let Some(&stack_level) = heading_stack.last() {
-                if stack_level >= level {
-                    events.push(Event::EndHeading(stack_level));
-                    heading_stack.pop();
-                } else {
-                    break;
-                }
-            }
-
-            // Start new heading (becomes Session in Lex)
+            // Just emit StartHeading - flat_to_nested will auto-close headings
             events.push(Event::StartHeading(level));
-            heading_stack.push(level);
 
             // Process heading text (inline content)
             for child in node.children() {
                 collect_inline_events(child, events)?;
             }
 
-            // Note: We don't emit EndHeading here - it will be emitted when we encounter
-            // the next heading at same/higher level, or at end of document
+            // No EndHeading needed - the generic flat_to_nested converter
+            // automatically closes headings when it sees a new heading at same/higher level
         }
 
         NodeValue::Paragraph => {
@@ -112,12 +92,13 @@ fn collect_events_from_node<'a>(
             events.push(Event::EndParagraph);
         }
 
-        NodeValue::List(_) => {
-            events.push(Event::StartList);
+        NodeValue::List(list) => {
+            let ordered = matches!(list.list_type, comrak::nodes::ListType::Ordered);
+            events.push(Event::StartList { ordered });
 
             // Process list items
             for child in node.children() {
-                collect_events_from_node(child, events, heading_stack)?;
+                collect_events_from_node(child, events)?;
             }
 
             events.push(Event::EndList);
@@ -127,7 +108,7 @@ fn collect_events_from_node<'a>(
             events.push(Event::StartListItem);
 
             // Process list item content
-            collect_children_with_definitions(node.children(), events, heading_stack)?;
+            collect_children_with_definitions(node.children(), events)?;
 
             events.push(Event::EndListItem);
         }
@@ -165,7 +146,7 @@ fn collect_events_from_node<'a>(
             // Block quotes don't have direct Lex equivalent
             // Process children as regular content
             for child in node.children() {
-                collect_events_from_node(child, events, heading_stack)?;
+                collect_events_from_node(child, events)?;
             }
         }
 
@@ -359,7 +340,6 @@ fn try_parse_definition_term<'a>(node: &'a AstNode<'a>) -> Result<DefinitionPiec
 fn collect_children_with_definitions<'a, I>(
     children: I,
     events: &mut Vec<Event>,
-    heading_stack: &mut Vec<usize>,
 ) -> Result<(), FormatError>
 where
     I: Iterator<Item = &'a AstNode<'a>>,
@@ -398,13 +378,13 @@ where
                 }
 
                 let next = iter.next().expect("peek yielded a node");
-                collect_events_from_node(next, events, heading_stack)?;
+                collect_events_from_node(next, events)?;
             }
 
             events.push(Event::EndDefinitionDescription);
             events.push(Event::EndDefinition);
         } else {
-            collect_events_from_node(node, events, heading_stack)?;
+            collect_events_from_node(node, events)?;
         }
     }
 
