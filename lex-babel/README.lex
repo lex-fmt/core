@@ -255,7 +255,7 @@ the export implementation for testing.
       #[test]
       fn test_paragraph_export() {
           // Load Lex source from spec file
-          let lex_src = std::fs::read_to_string("../../specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex").unwrap();
+          let lex_src = std::fs::read_to_string("../../specs/v1/elements/paragraph.docs/paragraph-01-flat-oneline.lex").unwrap();
           let lex_doc = STRING_TO_AST.run(lex_src).unwrap();
 
           // Optionally test IR conversion

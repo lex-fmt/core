@@ -18,8 +18,8 @@ Syntax
 		:: note severity=high
 
 	Notes:
-	- Labels follow specs/v1/elements/labels.lex (mandatory)
-	- Parameters follow specs/v1/elements/parameter/parameters.lex (optional)
+	- Labels follow specs/v1/elements/label.lex (mandatory)
+	- Parameters follow specs/v1/elements/parameter.lex (optional)
 	- Whitespace between components is ignored
 	- No closing :: marker is part of the data node
 
@@ -34,4 +34,3 @@ Usage
 
 	This keeps the existing annotation-start line syntax, but explicitly names the
 	data payload for reuse.
-
