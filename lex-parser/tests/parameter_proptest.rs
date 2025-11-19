@@ -6,10 +6,12 @@
 //! - Parameters are separated by commas only (not whitespace)
 //! - Whitespace around parameters is ignored
 
+use lex_parser::lex::assembling::AttachRoot;
 use lex_parser::lex::parsing::engine::parse_from_flat_tokens;
 use lex_parser::lex::parsing::{parse_document, ContentItem, Document};
 use lex_parser::lex::testing::assert_ast;
 use lex_parser::lex::transforms::standard::LEXING;
+use lex_parser::lex::transforms::Runnable;
 use proptest::prelude::*;
 
 fn parse_annotation_without_attachment(source: &str) -> Result<Document, String> {
@@ -19,7 +21,8 @@ fn parse_annotation_without_attachment(source: &str) -> Result<Document, String>
         source.to_string()
     };
     let tokens = LEXING.run(source.clone()).map_err(|e| e.to_string())?;
-    parse_from_flat_tokens(tokens, &source)
+    let root = parse_from_flat_tokens(tokens, &source)?;
+    AttachRoot::new().run(root).map_err(|e| e.to_string())
 }
 
 /// Generate valid parameter keys

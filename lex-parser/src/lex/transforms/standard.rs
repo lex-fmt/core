@@ -3,7 +3,7 @@
 //! This module provides pre-built transforms for common use cases.
 //! All transforms are defined as static references using `once_cell::sync::Lazy`.
 
-use crate::lex::assembling::AttachAnnotations;
+use crate::lex::assembling::{AttachAnnotations, AttachRoot};
 use crate::lex::parsing::ir::ParseNode;
 use crate::lex::parsing::Document;
 use crate::lex::token::Token;
@@ -88,8 +88,9 @@ pub static TO_IR: Lazy<IrTransform> = Lazy::new(|| Transform::from_fn(Ok).then(P
 /// 2. Semantic indentation
 /// 3. Line token grouping
 /// 4. Parsing to IR
-/// 5. Building AST
-/// 6. Attaching annotations as metadata
+/// 5. Building AST root session
+/// 6. Attaching root session to Document
+/// 7. Attaching annotations as metadata
 ///
 /// This is the standard transform for most use cases.
 ///
@@ -101,34 +102,38 @@ pub static TO_IR: Lazy<IrTransform> = Lazy::new(|| Transform::from_fn(Ok).then(P
 /// let doc = STRING_TO_AST.run("Hello world\n".to_string()).unwrap();
 /// assert!(!doc.root.children.is_empty());
 /// ```
-pub static STRING_TO_AST: Lazy<AstTransform> = Lazy::new(|| {
-    Transform::from_fn(|s: String| {
-        // Ensure source ends with newline (required for parsing)
-        let source = if !s.is_empty() && !s.ends_with('\n') {
-            format!("{}\n", s)
-        } else {
-            s
-        };
+pub static STRING_TO_AST: Lazy<AstTransform> =
+    Lazy::new(|| {
+        Transform::from_fn(|s: String| {
+            // Ensure source ends with newline (required for parsing)
+            let source = if !s.is_empty() && !s.ends_with('\n') {
+                format!("{}\n", s)
+            } else {
+                s
+            };
 
-        // Run lexing
-        let tokens = LEXING.run(source.clone())?;
+            // Run lexing
+            let tokens = LEXING.run(source.clone())?;
 
-        // Parse to AST
-        let mut doc = crate::lex::parsing::engine::parse_from_flat_tokens(tokens, &source)
-            .map_err(|e| crate::lex::transforms::TransformError::StageFailed {
-                stage: "Parser".to_string(),
-                message: e.to_string(),
-            })?;
+            // Parse to AST
+            let root = crate::lex::parsing::engine::parse_from_flat_tokens(tokens, &source)
+                .map_err(|e| crate::lex::transforms::TransformError::StageFailed {
+                    stage: "Parser".to_string(),
+                    message: e.to_string(),
+                })?;
 
-        // Attach annotations as metadata
-        doc = AttachAnnotations::new().run(doc)?;
+            // Attach root session to a document
+            let mut doc = AttachRoot::new().run(root)?;
 
-        // Parse inline elements across all TextContent nodes
-        doc = ParseInlines::new().run(doc)?;
+            // Attach annotations as metadata
+            doc = AttachAnnotations::new().run(doc)?;
 
-        Ok(doc)
-    })
-});
+            // Parse inline elements across all TextContent nodes
+            doc = ParseInlines::new().run(doc)?;
+
+            Ok(doc)
+        })
+    });
 
 #[cfg(test)]
 mod tests {
