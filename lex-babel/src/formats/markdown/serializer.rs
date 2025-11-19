@@ -31,8 +31,13 @@ pub fn serialize_to_markdown(doc: &Document) -> Result<String, FormatError> {
         FormatError::SerializationError(format!("Comrak serialization failed: {}", e))
     })?;
 
-    String::from_utf8(output)
-        .map_err(|e| FormatError::SerializationError(format!("UTF-8 conversion failed: {}", e)))
+    let markdown = String::from_utf8(output)
+        .map_err(|e| FormatError::SerializationError(format!("UTF-8 conversion failed: {}", e)))?;
+
+    // Remove Comrak's "end list" HTML comments which appear between consecutive lists
+    let cleaned = markdown.replace("<!-- end list -->\n\n", "");
+
+    Ok(cleaned)
 }
 
 fn default_comrak_options() -> ComrakOptions<'static> {
@@ -407,21 +412,15 @@ fn add_inline_to_node<'a>(
             parent.append(code_node);
         }
 
-        InlineContent::Reference(url) => {
-            let link_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
-                NodeValue::Link(comrak::nodes::NodeLink {
-                    url: url.clone(),
-                    title: String::new(),
-                }),
-                (0, 0).into(),
-            ))));
-            parent.append(link_node);
-            // Add link text as child
+        InlineContent::Reference(ref_text) => {
+            // Lex references are not URLs - they're citations/cross-references
+            // Render as plain text with brackets: [reference]
+            let text_with_brackets = format!("[{}]", ref_text);
             let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
-                NodeValue::Text(url.clone()),
+                NodeValue::Text(text_with_brackets),
                 (0, 0).into(),
             ))));
-            link_node.append(text_node);
+            parent.append(text_node);
         }
 
         InlineContent::Math(math_text) => {
