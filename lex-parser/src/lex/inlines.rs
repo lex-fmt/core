@@ -4,9 +4,9 @@
 //!     (formatting, code, math). Later stages layer references and citations on top of the
 //!     same building blocks.
 //!
-//!     Finally, with the full and correctly annotated document, we will parse the TextContent
-//!     nodes for inline elements. This parsing is much simpler than block parsing, as it has
-//!     formal start/end tokens and has no structural elements.
+//!     Immediately after building (before annotations are attached in the assembly stage),
+//!     we parse the TextContent nodes for inline elements. This parsing is much simpler than
+//!     block parsing, as it has formal start/end tokens and has no structural elements.
 //!
 //!     Inline parsing is done by a declarative engine that will process each element declaration.
 //!     For some, this is a flat transformation (i.e. it only wraps up the text into a node, as

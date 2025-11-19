@@ -249,6 +249,7 @@ pub fn parse_without_annotation_attachment(
 ) -> Result<crate::lex::ast::Document, String> {
     use crate::lex::assembling::AttachRoot;
     use crate::lex::parsing::engine::parse_from_flat_tokens;
+    use crate::lex::transforms::stages::ParseInlines;
     use crate::lex::transforms::standard::LEXING;
     use crate::lex::transforms::Runnable;
 
@@ -259,6 +260,7 @@ pub fn parse_without_annotation_attachment(
     };
     let tokens = LEXING.run(source.clone()).map_err(|e| e.to_string())?;
     let root = parse_from_flat_tokens(tokens, &source).map_err(|e| e.to_string())?;
+    let root = ParseInlines::new().run(root).map_err(|e| e.to_string())?;
     // Assemble the root session into a Document but skip metadata attachment
     AttachRoot::new().run(root).map_err(|e| e.to_string())
 }

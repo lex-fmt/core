@@ -4,8 +4,8 @@
 //!         1. Lexing: Tokenization of source text. See [lexing](crate::lex::lexing) module.
 //!         2. Analysis: Syntactic analysis to produce IR nodes. See [engine](engine) module.
 //!         3. Building: Construction of AST from IR nodes. See [building](crate::lex::building) module.
-//!         4. Assembling: Post-parsing transformations. See [assembling](crate::lex::assembling) module.
-//!         5. Inline Parsing: Parse inline elements in text content. See [inlines](crate::lex::inlines) module.
+//!         4. Inline Parsing: Parse inline elements in text content. See [inlines](crate::lex::inlines) module.
+//!         5. Assembling: Post-parsing transformations. See [assembling](crate::lex::assembling) module.
 //!
 //! Parsing End To End
 //!
@@ -41,7 +41,12 @@
 //!             At this stage we create the root session node; it will be attached to the
 //!             [`Document`] during assembling.
 //!
-//!         Document Assembly (5.4):
+//!         Inline Parsing (5.4):
+//!             Before assembling the document (while annotations are still part of the content
+//!             tree), we parse the TextContent nodes for inline elements. This parsing is much
+//!             simpler, as it has formal start/end tokens and has no structural elements.
+//!
+//!         Document Assembly (5.5):
 //!             The assembling stage wraps the root session into a document node and performs
 //!             metadata attachment. Annotations, which are metadata, are always attached to AST
 //!             nodes, so they can be very targeted. Only with the full document in place we can
@@ -49,11 +54,6 @@
 //!             Keeping Lex ethos of not enforcing structure, this needs to deal with several
 //!             ambiguous cases, including some complex logic for calculating "human
 //!             understanding" distance between elements.
-//!
-//!         Inline Parsing (5.5):
-//!             Finally, with the full and correctly annotated document, we will parse the
-//!             TextContent nodes for inline elements. This parsing is much simpler, as it has
-//!             formal start/end tokens and has no structural elements.
 //!
 //! Terminology
 //!
