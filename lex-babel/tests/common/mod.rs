@@ -1,9 +1,9 @@
 //! Tests for the flat <-> nested IR conversion.
 
+use lex_babel::common::flat_to_nested::events_to_tree;
 use lex_babel::ir::events::Event;
 use lex_babel::ir::nodes::*;
 use lex_babel::ir::to_events::tree_to_events;
-use lex_babel::common::flat_to_nested::events_to_tree;
 
 fn create_test_tree() -> DocNode {
     DocNode::Document(Document {
