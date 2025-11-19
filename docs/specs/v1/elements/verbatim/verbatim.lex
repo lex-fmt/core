@@ -84,6 +84,7 @@ Content Preservation
 		- All whitespace (spaces, blank lines)
 		- Special characters (no escaping needed)
 		- Indentation beyond the wall (part of content)
+		- Leading blank lines after the subject stay in the payload
 
 	Example:
 		Code:

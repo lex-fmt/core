@@ -69,6 +69,34 @@ impl<'a> VerbatimBlockkAssertion<'a> {
         );
         self
     }
+
+    pub fn line_eq(self, index: usize, expected: &str) -> Self {
+        let line = self.verbatim_block.children.get(index).unwrap_or_else(|| {
+            panic!(
+                "{}: Verbatim line index {} out of bounds ({} lines)",
+                self.context,
+                index,
+                self.verbatim_block.children.len()
+            )
+        });
+
+        match line {
+            ContentItem::VerbatimLine(line) => {
+                let actual = line.content.as_string();
+                assert_eq!(
+                    actual, expected,
+                    "{}: Expected verbatim line {} to be '{}', but got '{}'",
+                    self.context, index, expected, actual
+                );
+            }
+            other => panic!(
+                "{}: Expected verbatim line at index {}, found {:?}",
+                self.context, index, other
+            ),
+        }
+
+        self
+    }
     pub fn has_closing_parameter_with_value(self, key: &str, value: &str) -> Self {
         let found = self
             .verbatim_block
@@ -182,6 +210,34 @@ impl<'a> VerbatimGroupAssertion<'a> {
             "{}: Expected verbatim group to have {} lines, but got {}",
             self.context, expected, actual
         );
+        self
+    }
+
+    pub fn line_eq(self, index: usize, expected: &str) -> Self {
+        let line = self.children.get(index).unwrap_or_else(|| {
+            panic!(
+                "{}: Verbatim group line index {} out of bounds ({} lines)",
+                self.context,
+                index,
+                self.children.len()
+            )
+        });
+
+        match line {
+            ContentItem::VerbatimLine(line) => {
+                let actual = line.content.as_string();
+                assert_eq!(
+                    actual, expected,
+                    "{}: Expected verbatim group line {} to be '{}', but got '{}'",
+                    self.context, index, expected, actual
+                );
+            }
+            other => panic!(
+                "{}: Expected verbatim line at index {}, found {:?}",
+                self.context, index, other
+            ),
+        }
+
         self
     }
 
