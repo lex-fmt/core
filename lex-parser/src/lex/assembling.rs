@@ -4,9 +4,10 @@
 //!     post-parsing transformations. Unlike the parsing stage which converts tokens to AST,
 //!     assembling stages operate on the AST itself.
 //!
-//!     We do have a document ast node, but it's not yet complete. Annotations, which are
-//!     metadata, are always attached to AST nodes, so they can be very targeted. Only with
-//!     the full document in place we can attach annotations to their correct target nodes.
+//!     The builder returns the root session tree, so assembling first wraps it in a
+//!     [`Document`](crate::lex::ast::Document). Annotations, which are metadata, are always
+//!     attached to AST nodes so they can be very targeted. Only with the full document in
+//!     place can we attach annotations to their correct target nodes.
 //!
 //!     This is harder than it seems. Keeping Lex ethos of not enforcing structure, this needs
 //!     to deal with several ambiguous cases, including some complex logic for calculating

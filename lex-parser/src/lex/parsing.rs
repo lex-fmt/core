@@ -91,7 +91,8 @@ type ProcessResult = Result<Document, String>;
 /// This is the primary entry point for processing lex documents. It performs:
 /// 1. Lexing: Tokenizes the source text
 /// 2. Analysis: Performs syntactic analysis to produce IR nodes
-/// 3. Building: Constructs the final AST from IR nodes
+/// 3. Building: Constructs the root session tree from IR nodes (assembling wraps it in a
+///    `Document` and attaches metadata)
 ///
 /// # Arguments
 ///

@@ -42,15 +42,16 @@ This is a high level overview of how the Lex parser is designed.
 
 
 	3. AST Building (part of STRING_TO_AST)
-		ParseNode → Document
+		ParseNode → Session (root tree)
 	- Walks IR tree creating final AST nodes
 	- Unrolls source tokens so AST nodes have access to token values
 	- Translates byte ranges to AST Location objects (line:column positions)
-	- Creates Document node with root Session
+	- Produces the root Session tree that represents document content
 
 
 	4. Document Assembly (part of STRING_TO_AST)
-		Document → Document
+		Session → Document → Document
+	- Wraps the built Session tree in a Document node
 	- Attaches annotations from content to AST nodes as metadata
 	- Calculates "human understanding" distance for ambiguous cases
 	- Post-parsing transformations on the complete AST
@@ -115,7 +116,7 @@ This is a high level overview of how the Lex parser is designed.
 
 5. AST Structure
 
-	Document is the root node, containing:
+	Document is the root node constructed during assembling, containing:
 	- Root Session: The content tree (sessions can nest arbitrarily)
 	- Annotations: Document-level metadata
 
