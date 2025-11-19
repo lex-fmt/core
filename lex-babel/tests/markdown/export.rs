@@ -95,7 +95,7 @@ fn test_heading_and_paragraph_separation() {
         }
     }
 
-    assert_eq!(heading_text.trim(), "1. Title");
+    assert_eq!(heading_text.trim(), "(1) Title");
     assert!(paragraph_text.contains("Body text."));
 }
 

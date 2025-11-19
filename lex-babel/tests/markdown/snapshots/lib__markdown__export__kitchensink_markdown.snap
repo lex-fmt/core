@@ -17,7 +17,7 @@ This definition contains a paragraph and a `list` to test mixed content at the t
 
 This is a marker annotation at the root level, attached to the definition above.
 
-# 1\. Primary Session {{session}}
+# (1) Primary Session {{session}}
 
 This session acts as the main container for testing nested structures. It starts with a simple paragraph. {{paragraph}}
 
@@ -30,7 +30,7 @@ This session acts as the main container for testing nested structures. It starts
 
 <!-- /lex:warning -->
 
-## 1.1. Nested Session (Level 2) {{session}}
+## (1.1) Nested Session (Level 2) {{session}}
 
 This is a second-level session containing a definition and a list with nested content. {{paragraph}}
 
@@ -56,7 +56,7 @@ return "lex";
 }
 ```
 
-# 2\. Second Root Session {{session}}
+# (2) Second Root Session {{session}}
 
 This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}
 
