@@ -132,8 +132,8 @@ fn collect_events_from_node<'a>(
             if let Some((label, parameters)) = parse_lex_annotation(&html.literal) {
                 events.push(Event::StartAnnotation { label, parameters });
                 // Note: Closing annotation will be found when parsing closing comment
-            } else if html.literal.trim() == "<!-- /lex -->" {
-                events.push(Event::EndAnnotation);
+            } else if let Some(label) = parse_lex_annotation_close(&html.literal) {
+                events.push(Event::EndAnnotation { label });
             }
             // Otherwise skip HTML blocks
         }
@@ -421,6 +421,32 @@ fn parse_lex_annotation(html: &str) -> Option<(String, Vec<(String, String)>)> {
     }
 
     Some((label, parameters))
+}
+
+/// Parse Lex annotation closing tag from HTML comment
+/// Supports both formats:
+/// - Generic: <!-- /lex -->
+/// - Label-specific: <!-- /lex:label -->
+fn parse_lex_annotation_close(html: &str) -> Option<String> {
+    let trimmed = html.trim();
+
+    // Try label-specific format first: <!-- /lex:label -->
+    if trimmed.starts_with("<!-- /lex:") && trimmed.ends_with("-->") {
+        let label = trimmed
+            .strip_prefix("<!-- /lex:")?
+            .strip_suffix("-->")?
+            .trim();
+        return Some(label.to_string());
+    }
+
+    // Fall back to generic format: <!-- /lex -->
+    if trimmed == "<!-- /lex -->" {
+        // For generic closing tags, we'll use an empty label
+        // The flat_to_nested converter will need to handle this gracefully
+        return Some(String::new());
+    }
+
+    None
 }
 
 #[cfg(test)]

@@ -141,6 +141,52 @@ fn test_definition_imports() {
     }
 }
 
+#[test]
+fn test_annotation_import() {
+    let md = "<!-- lex:note type=warning -->\n\nThis is annotated content.\n\n<!-- /lex -->\n";
+    let doc = md_to_lex(md);
+
+    // Find annotation in the document
+    let has_annotation = doc.root.children.iter().any(|el| {
+        if let ContentItem::Annotation(anno) = el {
+            assert_eq!(anno.data.label.value, "note");
+            assert_eq!(anno.data.parameters.len(), 1);
+            assert_eq!(anno.data.parameters[0].key, "type");
+            assert_eq!(anno.data.parameters[0].value, "warning");
+            assert!(!anno.children.is_empty(), "Annotation should have content");
+            true
+        } else {
+            false
+        }
+    });
+
+    assert!(has_annotation, "Document should contain annotation");
+}
+
+#[test]
+fn test_annotation_round_trip() {
+    // Create markdown with annotation
+    let md = "<!-- lex:note type=info -->\n\nAnnotated paragraph.\n\n<!-- /lex -->\n";
+
+    // Import to Lex
+    let lex_doc = md_to_lex(md);
+
+    // Export back to Markdown
+    let md_export = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // Import again
+    let lex_doc2 = md_to_lex(&md_export);
+
+    // Verify annotation is preserved
+    let has_annotation = lex_doc2
+        .root
+        .children
+        .iter()
+        .any(|el| matches!(el, ContentItem::Annotation(_)));
+
+    assert!(has_annotation, "Annotation should survive round-trip");
+}
+
 // ============================================================================
 // TRIFECTA TESTS - Document Structure
 // ============================================================================

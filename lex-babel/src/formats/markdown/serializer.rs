@@ -283,12 +283,13 @@ fn build_comrak_ast<'a>(
                 current_parent.append(html_node);
             }
 
-            Event::EndAnnotation => {
-                // Closing annotation comment
+            Event::EndAnnotation { label } => {
+                // Closing annotation comment with label-specific tag
+                let closing_tag = format!("<!-- /lex:{} -->", label);
                 let html_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
                     NodeValue::HtmlBlock(comrak::nodes::NodeHtmlBlock {
                         block_type: 0,
-                        literal: "<!-- /lex -->".to_string(),
+                        literal: closing_tag,
                     }),
                     (0, 0).into(),
                 ))));

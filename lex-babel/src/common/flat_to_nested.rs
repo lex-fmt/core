@@ -627,13 +627,23 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
                 });
             }
 
-            Event::EndAnnotation => {
+            Event::EndAnnotation { label } => {
                 finalize_container(
                     &mut stack,
                     "EndAnnotation",
                     "annotation",
                     |node| match node {
-                        StackNode::Annotation { .. } => Ok(node),
+                        StackNode::Annotation {
+                            label: ref node_label,
+                            ..
+                        } if node_label == label || label.is_empty() => Ok(node),
+                        StackNode::Annotation {
+                            label: ref node_label,
+                            ..
+                        } => Err(ConversionError::MismatchedEvents {
+                            expected: format!("EndAnnotation({})", node_label),
+                            found: format!("EndAnnotation({})", label),
+                        }),
                         other => Err(ConversionError::MismatchedEvents {
                             expected: "Annotation".to_string(),
                             found: other.type_name().to_string(),
@@ -826,7 +836,9 @@ mod tests {
             Event::StartParagraph,
             Event::Inline(InlineContent::Text("Warning text".to_string())),
             Event::EndParagraph,
-            Event::EndAnnotation,
+            Event::EndAnnotation {
+                label: "note".to_string(),
+            },
             Event::EndDocument,
         ];
 
