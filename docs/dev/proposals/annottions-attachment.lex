@@ -68,7 +68,7 @@ Annotations And Metadata in Lex
 
 4. Implementation Strategy
 
-	The attachment logic will be integrated into a new stage "assembling" to live under lex/assembling/ . For now the only step / stage we will have is the attach_annotations.rs which should be througoutly tested. Create tests documents in specs/v1/elements/annotation, respeciting docs/dev/guides/on-lexplore.lex  as in documents, for example specs/v1/elements/annotation/annotation-XX-document-attachment-caseA.lex (use the cases bellow for example.) Then using the Lexplore api, parse to ast, verify the annotation is there, then call the attach_annotations stage to attach the annotations to the ast. Then verify it has been attached correctly (and removed from the content ast!)
+	The attachment logic will be integrated into a new stage "assembling" to live under lex/assembling/ . For now the only step / stage we will have is the attach_annotations.rs which should be througoutly tested. Create tests documents in specs/v1/elements/annotation.docs, respeciting docs/dev/guides/on-lexplore.lex as in documents, for example specs/v1/elements/annotation.docs/annotation-XX-document-attachment-caseA.lex (use the cases bellow for example.) Then using the Lexplore api, parse to ast, verify the annotation is there, then call the attach_annotations stage to attach the annotations to the ast. Then verify it has been attached correctly (and removed from the content ast!)
 
 5. Storage and API
 

@@ -44,10 +44,10 @@
 //!             - Janest's approval
 //!             - OK from legal
 //! Learn More:
-//! - The annotation spec: specs/v1/elements/annotations.lex
+//! - The annotation spec: specs/v1/elements/annotation.lex
 //! - The annotation sample: specs/v1/samples/element-based/annotations/annotations.simple.lex
-//! - Labels: specs/v1/elements/labels.lex
-//! - Parameters: specs/v1/elements/parameters.lex
+//! - Labels: specs/v1/elements/label.lex
+//! - Parameters: specs/v1/elements/parameter.lex
 
 use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};

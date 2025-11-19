@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn test_from_path_parse() {
-        let path = workspace_path("specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
+        let path = workspace_path("specs/v1/elements/paragraph.docs/paragraph-01-flat-oneline.lex");
         let doc = Lexplore::from_path(path).parse().unwrap();
 
         let paragraph = doc.root.expect_paragraph();
@@ -374,7 +374,7 @@ mod tests {
 
     #[test]
     fn test_from_path_tokenize() {
-        let path = workspace_path("specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
+        let path = workspace_path("specs/v1/elements/paragraph.docs/paragraph-01-flat-oneline.lex");
         let tokens = Lexplore::from_path(path).tokenize().unwrap();
 
         assert!(!tokens.is_empty());
@@ -383,7 +383,7 @@ mod tests {
 
     #[test]
     fn test_from_path_source() {
-        let path = workspace_path("specs/v1/elements/paragraph/paragraph-01-flat-oneline.lex");
+        let path = workspace_path("specs/v1/elements/paragraph.docs/paragraph-01-flat-oneline.lex");
         let source = Lexplore::from_path(path).source();
 
         assert!(!source.is_empty());
