@@ -4,4 +4,7 @@
 mod common;
 
 #[cfg(test)]
+mod html;
+
+#[cfg(test)]
 mod markdown;
