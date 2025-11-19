@@ -796,7 +796,7 @@ mod tests {
 
     #[test]
     fn test_container_deref() {
-        let list_item = ListItem::new("- Item".to_string());
+        let list_item = ListItem::new("-".to_string(), "Item".to_string());
         let container = ListContainer::from_typed(vec![ListContent::ListItem(list_item)]);
         // Should be able to use Vec methods directly via Deref
         assert_eq!(container.len(), 1);

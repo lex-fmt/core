@@ -58,9 +58,10 @@ pub struct List {
     pub location: Range,
 }
 
-/// A list item has text and optional nested content
+/// A list item has a marker, body text, and optional nested content
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListItem {
+    pub marker: TextContent,
     pub text: Vec<TextContent>,
     pub children: GeneralContainer,
     pub annotations: Vec<Annotation>,
@@ -149,25 +150,24 @@ impl ListItem {
     fn default_location() -> Range {
         Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
     }
-    pub fn new(text: String) -> Self {
-        Self {
-            text: vec![TextContent::from_string(text, None)],
-            children: GeneralContainer::empty(),
-            annotations: Vec::new(),
-            location: Self::default_location(),
-        }
+    pub fn new(marker: String, text: String) -> Self {
+        Self::with_content(marker, text, Vec::new())
     }
-    pub fn with_content(text: String, children: Vec<ContentElement>) -> Self {
-        Self {
-            text: vec![TextContent::from_string(text, None)],
-            children: GeneralContainer::from_typed(children),
-            annotations: Vec::new(),
-            location: Self::default_location(),
-        }
+    pub fn with_content(marker: String, text: String, children: Vec<ContentElement>) -> Self {
+        Self::with_text_content(
+            TextContent::from_string(marker, None),
+            TextContent::from_string(text, None),
+            children,
+        )
     }
     /// Create a ListItem with TextContent that may have location information
-    pub fn with_text_content(text_content: TextContent, children: Vec<ContentElement>) -> Self {
+    pub fn with_text_content(
+        marker: TextContent,
+        text_content: TextContent,
+        children: Vec<ContentElement>,
+    ) -> Self {
         Self {
+            marker,
             text: vec![text_content],
             children: GeneralContainer::from_typed(children),
             annotations: Vec::new(),
@@ -182,6 +182,10 @@ impl ListItem {
     }
     pub fn text(&self) -> &str {
         self.text[0].as_string()
+    }
+
+    pub fn marker(&self) -> &str {
+        self.marker.as_string()
     }
 
     /// Annotations attached to this list item.
@@ -270,6 +274,7 @@ mod tests {
     fn test_list_body_location() {
         let item_range = Range::new(5..10, Position::new(1, 0), Position::new(1, 5));
         let item = ListItem::with_text_content(
+            TextContent::from_string("-".to_string(), Some(item_range.clone())),
             TextContent::from_string("Item".to_string(), Some(item_range.clone())),
             Vec::new(),
         )
@@ -288,11 +293,13 @@ mod tests {
         let item2_range = Range::new(10..14, Position::new(1, 0), Position::new(1, 4));
 
         let item1 = ListItem::with_text_content(
+            TextContent::from_string("-".to_string(), Some(item1_range.clone())),
             TextContent::from_string("One".to_string(), Some(item1_range.clone())),
             Vec::new(),
         )
         .at(item1_range.clone());
         let item2 = ListItem::with_text_content(
+            TextContent::from_string("-".to_string(), Some(item2_range.clone())),
             TextContent::from_string("Two".to_string(), Some(item2_range.clone())),
             Vec::new(),
         )
@@ -318,13 +325,13 @@ mod tests {
             vec![ContentElement::try_from(child).unwrap()],
         );
 
-        let mut list = List::new(vec![ListItem::new("Item".into())]);
+        let mut list = List::new(vec![ListItem::new("-".into(), "Item".into())]);
         list.annotations.push(annotation.clone());
 
         let contents: Vec<&ContentItem> = list.iter_annotation_contents().collect();
         assert_eq!(contents.len(), 1);
 
-        let mut item = ListItem::new("Item".into());
+        let mut item = ListItem::new("-".into(), "Item".into());
         item.annotations.push(annotation);
         let item_contents: Vec<&ContentItem> = item.iter_annotation_contents().collect();
         assert_eq!(item_contents.len(), 1);
@@ -333,13 +340,13 @@ mod tests {
     #[test]
     fn display_label_truncates_long_text() {
         let long_text = "x".repeat(60);
-        let item = ListItem::new(long_text.clone());
+        let item = ListItem::new("-".into(), long_text.clone());
 
         let label = item.display_label();
         assert!(label.ends_with("..."));
         assert!(label.len() < long_text.len());
 
-        let short = ListItem::new("short".into());
+        let short = ListItem::new("-".into(), "short".into());
         assert_eq!(short.display_label(), "short");
     }
 }
