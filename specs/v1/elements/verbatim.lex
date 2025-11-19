@@ -37,9 +37,9 @@ Verbatim Groups
 		- Blank lines between groups are preserved and do not break the group structure.
 
 	Examples:
-		- specs/v1/elements/verbatim/verbatim-11-group-shell.lex - Multiple groups with mixed content
-		- specs/v1/elements/verbatim/verbatim-13-group-spades.lex - Groups with blank lines between pairs
-		- specs/v1/elements/verbatim/verbatim-12-document-simple.lex - Groups within document context
+		- specs/v1/elements/verbatim.docs/verbatim-11-group-shell.lex - Multiple groups with mixed content
+		- specs/v1/elements/verbatim.docs/verbatim-13-group-spades.lex - Groups with blank lines between pairs
+		- specs/v1/elements/verbatim.docs/verbatim-12-document-simple.lex - Groups within document context
 
 The Indentation Wall
 
@@ -75,7 +75,7 @@ Fullwidth Mode
 		  extraction.
 
 	Example:
-		- specs/v1/elements/verbatim/verbatim-14-fullwidth.lex - Flat table
+		- specs/v1/elements/verbatim.docs/verbatim-14-fullwidth.lex - Flat table
 		  whose rows start near the left margin
 
 Content Preservation
