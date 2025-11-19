@@ -6,6 +6,11 @@
 //!     TLDR: For format authors:
 //!         - Babel never parses or serializes any format, but instead relies on the format's libraries
 //!         - The convertion should be by converting to the IR, running the common code in common if releveant (it usually is), then to the ast of the target format.
+//!         - We should use the testing harness see (lex-parser/src/lex/testing.rs) to load documents and process them into asts.
+//!         - Each element should use the harness above and the available file for isolated elements testings with unit tests (load with the lib, assert with ast / ir)
+//!         - Each format should have trifecta unit tested in from and to formats to lex.
+//!         - Each format should have a kitchensink unit tested in from and to formats to lex
+//!         - Read the README.lex the full details)
 //!
 //! Architecture
 //!
