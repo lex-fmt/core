@@ -3,7 +3,9 @@ Grammar for lex
     This document describes the formal grammar for the lex language, outlining its syntax and structural rules.
 
     The grammar is defined using a combination of Backus-Naur Form (BNF) and descriptive text to provide clarity on the language constructs.
-	This document covers the core tokens, that is the lower level ones. For the higher level line tokens see [./grammar-line.lex]
+	This document covers the core tokens, that is the lower level ones. For the higher level tokens see:
+	- Line tokens: [./grammar-line.lex]
+	- Inline tokens: [./grammar-inline.lex]
 
     1. Notation
 
