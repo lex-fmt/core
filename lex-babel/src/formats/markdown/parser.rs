@@ -7,6 +7,7 @@ use crate::error::FormatError;
 use crate::ir::events::Event;
 use crate::ir::nodes::InlineContent;
 use crate::mappings::flat_to_nested::events_to_tree;
+use crate::mappings::heading_hierarchy::HeadingHierarchyManager;
 use comrak::nodes::{AstNode, NodeValue};
 use comrak::{parse_document, Arena, ComrakOptions};
 use lex_parser::lex::ast::Document;
@@ -47,15 +48,13 @@ type DefinitionPieces = Option<(Vec<InlineContent>, Vec<InlineContent>)>;
 fn comrak_ast_to_events<'a>(root: &'a AstNode<'a>) -> Result<Vec<Event>, FormatError> {
     let mut events = vec![Event::StartDocument];
 
-    // Track heading levels to build session hierarchy
-    let mut heading_stack: Vec<usize> = vec![];
+    // Track heading hierarchy using reusable manager
+    let mut heading_manager = HeadingHierarchyManager::new();
 
-    collect_children_with_definitions(root.children(), &mut events, &mut heading_stack)?;
+    collect_children_with_definitions(root.children(), &mut events, &mut heading_manager)?;
 
     // Close any remaining open headings
-    while let Some(level) = heading_stack.pop() {
-        events.push(Event::EndHeading(level));
-    }
+    heading_manager.close_all(&mut events);
 
     events.push(Event::EndDocument);
     Ok(events)
@@ -65,40 +64,29 @@ fn comrak_ast_to_events<'a>(root: &'a AstNode<'a>) -> Result<Vec<Event>, FormatE
 fn collect_events_from_node<'a>(
     node: &'a AstNode<'a>,
     events: &mut Vec<Event>,
-    heading_stack: &mut Vec<usize>,
+    heading_manager: &mut HeadingHierarchyManager,
 ) -> Result<(), FormatError> {
     let node_data = node.data.borrow();
 
     match &node_data.value {
         NodeValue::Document => {
             // Skip document wrapper, process children
-            collect_children_with_definitions(node.children(), events, heading_stack)?;
+            collect_children_with_definitions(node.children(), events, heading_manager)?;
         }
 
         NodeValue::Heading(heading) => {
             let level = heading.level as usize;
 
-            // Close any open headings at same or deeper level
-            while let Some(&stack_level) = heading_stack.last() {
-                if stack_level >= level {
-                    events.push(Event::EndHeading(stack_level));
-                    heading_stack.pop();
-                } else {
-                    break;
-                }
-            }
-
-            // Start new heading (becomes Session in Lex)
-            events.push(Event::StartHeading(level));
-            heading_stack.push(level);
+            // Use heading manager to handle hierarchy
+            heading_manager.on_heading(level, events);
 
             // Process heading text (inline content)
             for child in node.children() {
                 collect_inline_events(child, events)?;
             }
 
-            // Note: We don't emit EndHeading here - it will be emitted when we encounter
-            // the next heading at same/higher level, or at end of document
+            // Note: We don't emit EndHeading here - the manager handles that
+            // when we encounter the next heading at same/higher level, or at end of document
         }
 
         NodeValue::Paragraph => {
@@ -118,7 +106,7 @@ fn collect_events_from_node<'a>(
 
             // Process list items
             for child in node.children() {
-                collect_events_from_node(child, events, heading_stack)?;
+                collect_events_from_node(child, events, heading_manager)?;
             }
 
             events.push(Event::EndList);
@@ -128,7 +116,7 @@ fn collect_events_from_node<'a>(
             events.push(Event::StartListItem);
 
             // Process list item content
-            collect_children_with_definitions(node.children(), events, heading_stack)?;
+            collect_children_with_definitions(node.children(), events, heading_manager)?;
 
             events.push(Event::EndListItem);
         }
@@ -166,7 +154,7 @@ fn collect_events_from_node<'a>(
             // Block quotes don't have direct Lex equivalent
             // Process children as regular content
             for child in node.children() {
-                collect_events_from_node(child, events, heading_stack)?;
+                collect_events_from_node(child, events, heading_manager)?;
             }
         }
 
@@ -360,7 +348,7 @@ fn try_parse_definition_term<'a>(node: &'a AstNode<'a>) -> Result<DefinitionPiec
 fn collect_children_with_definitions<'a, I>(
     children: I,
     events: &mut Vec<Event>,
-    heading_stack: &mut Vec<usize>,
+    heading_manager: &mut HeadingHierarchyManager,
 ) -> Result<(), FormatError>
 where
     I: Iterator<Item = &'a AstNode<'a>>,
@@ -399,13 +387,13 @@ where
                 }
 
                 let next = iter.next().expect("peek yielded a node");
-                collect_events_from_node(next, events, heading_stack)?;
+                collect_events_from_node(next, events, heading_manager)?;
             }
 
             events.push(Event::EndDefinitionDescription);
             events.push(Event::EndDefinition);
         } else {
-            collect_events_from_node(node, events, heading_stack)?;
+            collect_events_from_node(node, events, heading_manager)?;
         }
     }
 
