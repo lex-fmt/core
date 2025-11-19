@@ -1,0 +1,556 @@
+---
+source: lex-babel/tests/html/export.rs
+expression: html
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="generator" content="lex-babel">
+  <title>Lex Document</title>
+  <style>
+/* Lex HTML Export - Baseline Styles
+ * Browser reset and foundational styles for Lex documents
+ * Mobile-first, semantic HTML approach
+ */
+
+/* === Box Model Reset === */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* === Document Structure === */
+html {
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* === Lex Document Container === */
+.lex-document {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* Mobile: reduce padding */
+@media (max-width: 640px) {
+  .lex-document {
+    padding: 1rem 0.75rem;
+  }
+}
+
+/* === Sessions (Headings and Sections) === */
+section.lex-session {
+  margin: 2rem 0;
+}
+
+section.lex-session:first-child {
+  margin-top: 0;
+}
+
+/* Nested sessions have reduced top margin */
+section.lex-session section.lex-session {
+  margin-top: 1.5rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 1.5rem 0 0.75rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+h1:first-child,
+h2:first-child,
+h3:first-child,
+h4:first-child,
+h5:first-child,
+h6:first-child {
+  margin-top: 0;
+}
+
+/* === Paragraphs === */
+.lex-paragraph {
+  margin: 1rem 0;
+  line-height: 1.7;
+}
+
+.lex-paragraph:first-child {
+  margin-top: 0;
+}
+
+/* === Lists === */
+.lex-list {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+.lex-list:first-child {
+  margin-top: 0;
+}
+
+.lex-list-item {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+/* Nested lists */
+.lex-list .lex-list {
+  margin: 0.5rem 0;
+}
+
+/* === Definition Lists === */
+.lex-definition {
+  margin: 1rem 0;
+}
+
+.lex-definition dt {
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+
+.lex-definition dt:first-child {
+  margin-top: 0;
+}
+
+.lex-definition dd {
+  margin-left: 2rem;
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .lex-definition dd {
+    margin-left: 1rem;
+  }
+}
+
+/* === Verbatim (Code Blocks) === */
+.lex-verbatim {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 4px;
+  background: #f5f5f5;
+}
+
+.lex-verbatim code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+@media (max-width: 640px) {
+  .lex-verbatim {
+    padding: 0.75rem;
+    margin: 1rem -0.75rem;
+    border-radius: 0;
+  }
+}
+
+/* === Inline Elements === */
+strong {
+  font-weight: 600;
+}
+
+em {
+  font-style: italic;
+}
+
+code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9em;
+  padding: 0.125rem 0.25rem;
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+/* Code inside pre doesn't need background */
+pre code {
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+/* === Math === */
+.lex-math {
+  font-family: 'Times New Roman', Times, serif;
+  font-style: italic;
+}
+
+/* === Links (References) === */
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 0, 0, 0.3);
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.2s ease;
+}
+
+a:hover {
+  text-decoration-color: rgba(0, 0, 0, 0.7);
+}
+
+a:visited {
+  text-decoration-color: rgba(0, 0, 0, 0.2);
+}
+
+/* === Responsive Images === */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* === Print Styles === */
+@media print {
+  .lex-document {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  a {
+    text-decoration: underline;
+  }
+
+  .lex-verbatim {
+    border: 1px solid #ccc;
+    page-break-inside: avoid;
+  }
+}
+
+/* Lex HTML Export - Modern Theme
+ * Clean, contemporary sans-serif design
+ * Zeitgeist web aesthetic with excellent readability
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* === Typography === */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  color: #2d3748;
+  background: #ffffff;
+  font-size: 17px;
+  font-feature-settings: 'liga' 1, 'calt' 1;
+}
+
+/* === Headings === */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  color: #1a202c;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.03em;
+}
+
+h2 {
+  font-size: 2rem;
+  margin-top: 2.5rem;
+  margin-bottom: 0.875rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+h4 {
+  font-size: 1.25rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.625rem;
+  font-weight: 600;
+}
+
+h5 {
+  font-size: 1.125rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4a5568;
+}
+
+/* Mobile heading adjustments */
+@media (max-width: 640px) {
+  body {
+    font-size: 16px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.625rem;
+  }
+
+  h3 {
+    font-size: 1.375rem;
+  }
+
+  h4 {
+    font-size: 1.125rem;
+  }
+
+  h5, h6 {
+    font-size: 1rem;
+  }
+}
+
+/* === Paragraphs === */
+.lex-paragraph {
+  margin: 1.25rem 0;
+  line-height: 1.7;
+  color: #2d3748;
+}
+
+/* First paragraph after heading */
+h1 + .lex-paragraph,
+h2 + .lex-paragraph,
+h3 + .lex-paragraph,
+h4 + .lex-paragraph,
+h5 + .lex-paragraph,
+h6 + .lex-paragraph {
+  margin-top: 0;
+}
+
+/* === Sessions === */
+section.lex-session {
+  margin: 2.5rem 0;
+}
+
+section.lex-session:first-child {
+  margin-top: 0;
+}
+
+/* Top-level sessions with subtle visual separation */
+.lex-document > section.lex-session {
+  margin: 3rem 0;
+}
+
+.lex-document > section.lex-session:first-child {
+  margin-top: 0;
+}
+
+/* === Code and Verbatim === */
+code {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Courier New', monospace;
+  font-size: 0.875em;
+  background: #f7fafc;
+  color: #c7254e;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  font-weight: 500;
+}
+
+.lex-verbatim {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.75rem 0;
+  font-size: 0.9em;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.lex-verbatim code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1em;
+  color: #2d3748;
+  font-weight: 400;
+}
+
+/* Language indicator for code blocks */
+.lex-verbatim[data-language]::before {
+  content: attr(data-language);
+  display: block;
+  margin-bottom: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #718096;
+  letter-spacing: 0.05em;
+  font-family: 'Inter', sans-serif;
+}
+
+/* === Lists === */
+.lex-list {
+  margin: 1.25rem 0;
+  line-height: 1.7;
+}
+
+.lex-list-item {
+  margin: 0.625rem 0;
+}
+
+/* Custom markers */
+ul.lex-list {
+  list-style-type: none;
+  padding-left: 1.75rem;
+}
+
+ul.lex-list > .lex-list-item::before {
+  content: '•';
+  color: #4299e1;
+  font-weight: bold;
+  display: inline-block;
+  width: 1rem;
+  margin-left: -1.75rem;
+  margin-right: 0.75rem;
+}
+
+ol.lex-list {
+  list-style-type: decimal;
+  padding-left: 2rem;
+}
+
+ol.lex-list > .lex-list-item {
+  padding-left: 0.5rem;
+}
+
+/* === Definition Lists === */
+.lex-definition {
+  margin: 1.5rem 0;
+  border-left: 3px solid #4299e1;
+  padding-left: 1.25rem;
+}
+
+.lex-definition dt {
+  font-weight: 600;
+  font-size: 1.05em;
+  margin-top: 1rem;
+  color: #1a202c;
+}
+
+.lex-definition dt:first-child {
+  margin-top: 0;
+}
+
+.lex-definition dd {
+  margin-left: 1.5rem;
+  margin-top: 0.375rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+  color: #4a5568;
+}
+
+@media (max-width: 640px) {
+  .lex-definition dd {
+    margin-left: 1rem;
+  }
+}
+
+/* === Links === */
+a {
+  color: #2b6cb0;
+  text-decoration: none;
+  border-bottom: 1px solid #bee3f8;
+  transition: all 0.2s ease;
+}
+
+a:hover {
+  color: #2c5282;
+  border-bottom-color: #4299e1;
+  background: rgba(66, 153, 225, 0.05);
+}
+
+a:visited {
+  color: #6b46c1;
+  border-bottom-color: #e9d8fd;
+}
+
+a:visited:hover {
+  border-bottom-color: #9f7aea;
+}
+
+/* === Math === */
+.lex-math {
+  font-family: 'STIX Two Math', 'Cambria Math', 'Times New Roman', serif;
+  color: #2d3748;
+}
+
+/* === Focus styles for accessibility === */
+a:focus,
+button:focus {
+  outline: 2px solid #4299e1;
+  outline-offset: 2px;
+}
+
+/* === Selection === */
+::selection {
+  background: #bee3f8;
+  color: #1a202c;
+}
+
+/* === Print === */
+@media print {
+  body {
+    font-size: 11pt;
+    color: #000;
+  }
+
+  h1 {
+    font-size: 20pt;
+  }
+
+  h2 {
+    font-size: 16pt;
+  }
+
+  h3 {
+    font-size: 14pt;
+  }
+
+  a {
+    color: #000;
+    text-decoration: underline;
+  }
+
+  .lex-verbatim {
+    border: 1px solid #ccc;
+    box-shadow: none;
+  }
+}
+
+  </style>
+</head>
+<body>
+<div class="lex-document">
+<p class="lex-paragraph">Multiple Sessions Flat Test {{paragraph}}</p><p class="lex-paragraph">This document tests multiple sessions at the root level with paragraphs between them. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>1. First Session {{session-title}}</h1><p class="lex-paragraph">This is the content of the first session. {{paragraph}}</p><p class="lex-paragraph">It can have multiple paragraphs. {{paragraph}}</p></section><section class="lex-session lex-session-1"><h1>2. Second Session {{session-title}}</h1><p class="lex-paragraph">The second session also has content. {{paragraph}}</p></section><p class="lex-paragraph">A paragraph between sessions. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>3. Third Session {{session-title}}</h1><p class="lex-paragraph">Sessions can have different amounts of content. {{paragraph}}</p></section><p class="lex-paragraph">Another paragraph. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>4. Session Without Numbering {{session-title}}</h1><section class="lex-session lex-session-2"><h2>Session titles don't require numbering markers. {{session-title}}</h2><p class="lex-paragraph">They just need to be followed by a blank line and indented content. {{paragraph}}</p></section></section><p class="lex-paragraph">Final paragraph at the root level. {{paragraph}}</p>
+</div>
+</body>
+</html>

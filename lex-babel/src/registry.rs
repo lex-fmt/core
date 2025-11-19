@@ -120,6 +120,7 @@ impl FormatRegistry {
 
         // Register built-in formats
         registry.register(crate::formats::lex::LexFormat);
+        registry.register(crate::formats::html::HtmlFormat::default());
         registry.register(crate::formats::markdown::MarkdownFormat);
         registry.register(crate::formats::tag::TagFormat);
         registry.register(crate::formats::treeviz::TreevizFormat);
