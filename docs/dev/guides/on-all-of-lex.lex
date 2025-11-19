@@ -219,12 +219,12 @@ These conclude the description of the grammar and syntax. With that in mind, we 
 			1. We unroll source tokens so that ast nodes have acccess to token values .
 			2. The location from tokens is used to calculate the location for the the ast node.
             3. The location is transformed from  byte range to a dual byte range + line:column position.
-        At this stage we create the Document node, it's root session node and the ast will be attached to it. 
+        At this stage we create the root Session tree; the Document wrapper will be attached during the assembling stage. 
 
 
 	5.4 Document assembly
 
-		We do have a document ast node, but it's not yet complete. Annotations, which are metadata, are always attached to AST nodes, so they can be very targeted.  Only with the full document in place we can attach annotations to their correct target nodes.[10]
+		We start with the root session tree from the builder and wrap it in the Document node. With the full document in place, annotations—which are metadata—are attached to AST nodes so they can be very targeted.  Only with the document assembled can we attach annotations to their correct target nodes.[10]
 		This is harder than it seems. Keeping Lex ethos of not enforcing structure, this needs to deal with several ambiguous cases, including some complex logic for calculating "human understanding" distance between elements[12].
 
 	5.5 Inline Parsing
