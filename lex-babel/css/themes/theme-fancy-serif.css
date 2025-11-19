@@ -1,0 +1,237 @@
+/* Lex HTML Export - Fancy Serif Theme
+ * Elegant serif typography with bold titles
+ * Black on white, classic document aesthetic
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+/* === Typography === */
+body {
+  font-family: 'Crimson Text', 'Georgia', serif;
+  color: #1a1a1a;
+  background: #ffffff;
+  font-size: 18px;
+}
+
+/* === Headings === */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Cormorant Garamond', 'Georgia', serif;
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: 3rem;
+  margin-top: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+h2 {
+  font-size: 2.25rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+h3 {
+  font-size: 1.75rem;
+  margin-top: 2rem;
+  margin-bottom: 0.875rem;
+}
+
+h4 {
+  font-size: 1.375rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+h5 {
+  font-size: 1.125rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.625rem;
+}
+
+h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Mobile heading adjustments */
+@media (max-width: 640px) {
+  body {
+    font-size: 16px;
+  }
+
+  h1 {
+    font-size: 2.25rem;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+  }
+
+  h3 {
+    font-size: 1.375rem;
+  }
+
+  h4 {
+    font-size: 1.125rem;
+  }
+
+  h5, h6 {
+    font-size: 1rem;
+  }
+}
+
+/* === Paragraphs === */
+.lex-paragraph {
+  margin: 1.25rem 0;
+  line-height: 1.8;
+}
+
+/* First paragraph after heading */
+h1 + .lex-paragraph,
+h2 + .lex-paragraph,
+h3 + .lex-paragraph,
+h4 + .lex-paragraph,
+h5 + .lex-paragraph,
+h6 + .lex-paragraph {
+  margin-top: 0;
+}
+
+/* === Sessions === */
+section.lex-session {
+  margin: 3rem 0;
+}
+
+section.lex-session:first-child {
+  margin-top: 0;
+}
+
+/* Top-level sessions get extra spacing */
+.lex-document > section.lex-session {
+  margin: 4rem 0;
+  padding-top: 2rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.lex-document > section.lex-session:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* === Code and Verbatim === */
+code {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Courier New', monospace;
+  font-size: 0.875em;
+  background: #f8f8f8;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  border: 1px solid #e8e8e8;
+}
+
+.lex-verbatim {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-left: 4px solid #333;
+  padding: 1.25rem 1.5rem;
+  margin: 2rem 0;
+  font-size: 0.9em;
+}
+
+.lex-verbatim code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1em;
+}
+
+/* === Lists === */
+.lex-list {
+  margin: 1.25rem 0;
+  line-height: 1.8;
+}
+
+.lex-list-item {
+  margin: 0.75rem 0;
+}
+
+/* Ordered lists with elegant numbering */
+ol.lex-list {
+  list-style-type: decimal;
+}
+
+ul.lex-list {
+  list-style-type: disc;
+}
+
+/* === Definition Lists === */
+.lex-definition dt {
+  font-weight: 600;
+  font-size: 1.1em;
+  margin-top: 1rem;
+  color: #000;
+}
+
+.lex-definition dd {
+  margin-left: 2.5rem;
+  margin-top: 0.375rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.8;
+}
+
+/* === Links === */
+a {
+  color: #1a1a1a;
+  text-decoration: underline;
+  text-decoration-color: #999;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: all 0.2s ease;
+}
+
+a:hover {
+  color: #000;
+  text-decoration-color: #333;
+}
+
+a:visited {
+  text-decoration-color: #bbb;
+}
+
+/* === Math === */
+.lex-math {
+  font-family: 'STIX Two Math', 'Cambria Math', 'Times New Roman', serif;
+}
+
+/* === Print === */
+@media print {
+  body {
+    font-size: 12pt;
+  }
+
+  h1 {
+    font-size: 24pt;
+  }
+
+  h2 {
+    font-size: 18pt;
+  }
+
+  h3 {
+    font-size: 14pt;
+  }
+
+  .lex-document > section.lex-session {
+    page-break-before: always;
+  }
+
+  .lex-document > section.lex-session:first-child {
+    page-break-before: avoid;
+  }
+}
