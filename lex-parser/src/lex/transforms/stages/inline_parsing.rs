@@ -1,6 +1,6 @@
 use crate::lex::ast::{
-    Annotation, ContentItem, Definition, Document, List, ListItem, Paragraph, Session, TextContent,
-    TextLine, Verbatim,
+    Annotation, ContentItem, Definition, List, ListItem, Paragraph, Session, TextContent, TextLine,
+    Verbatim,
 };
 use crate::lex::transforms::{Runnable, TransformError};
 
@@ -19,9 +19,9 @@ impl Default for ParseInlines {
     }
 }
 
-impl Runnable<Document, Document> for ParseInlines {
-    fn run(&self, mut input: Document) -> Result<Document, TransformError> {
-        InlineProcessor.process_document(&mut input);
+impl Runnable<Session, Session> for ParseInlines {
+    fn run(&self, mut input: Session) -> Result<Session, TransformError> {
+        InlineProcessor.process_session(&mut input);
         Ok(input)
     }
 }
@@ -29,13 +29,6 @@ impl Runnable<Document, Document> for ParseInlines {
 struct InlineProcessor;
 
 impl InlineProcessor {
-    fn process_document(&self, document: &mut Document) {
-        for annotation in &mut document.annotations {
-            self.process_annotation(annotation);
-        }
-        self.process_session(&mut document.root);
-    }
-
     fn process_session(&self, session: &mut Session) {
         self.process_text_content(&mut session.title);
         for annotation in &mut session.annotations {
