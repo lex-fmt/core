@@ -93,8 +93,28 @@ pub fn serialize_document(doc: &Document) -> String {
 
 /// Serialize a document to AST tag format with optional parameters
 ///
-/// Supported parameters:
-/// - "ast-full": "true" - Include all nodes including document-level annotations
+/// # Parameters
+///
+/// - `"ast-full"`: When set to `"true"`, includes all AST node properties:
+///   * Document-level annotations (shown with `<annotation>` tags)
+///   * Session titles (as `<session-title>` nodes)
+///   * List item markers and text (as `<marker>` and `<text>` nodes)
+///   * Definition subjects (as `<subject>` nodes)
+///   * Annotation labels and parameters (as `<label>` and `<parameter>` nodes)
+///
+/// # Examples
+///
+/// ```ignore
+/// use std::collections::HashMap;
+///
+/// // Normal view (content only)
+/// let output = serialize_document_with_params(&doc, &HashMap::new());
+///
+/// // Full AST view (all properties)
+/// let mut params = HashMap::new();
+/// params.insert("ast-full".to_string(), "true".to_string());
+/// let output = serialize_document_with_params(&doc, &params);
+/// ```
 pub fn serialize_document_with_params(doc: &Document, params: &HashMap<String, String>) -> String {
     let mut result = String::new();
     result.push_str("<document>\n");

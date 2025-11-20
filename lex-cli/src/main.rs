@@ -77,6 +77,21 @@ fn build_cli() -> Command {
     Command::new("lex")
         .version(env!("CARGO_PKG_VERSION"))
         .about("A tool for inspecting and converting lex files")
+        .long_about(
+            "lex is a command-line tool for working with lex document files.\n\n\
+            Commands:\n  \
+            - inspect: View internal representations (tokens, AST, etc.)\n  \
+            - convert: Transform between document formats (lex, markdown, HTML, etc.)\n\n\
+            Extra Parameters:\n  \
+            Use --extra-<name> [value] to pass format-specific options.\n  \
+            Boolean flags can omit the value (defaults to 'true').\n\n\
+            Examples:\n  \
+            lex inspect file.lex                    # View AST tree visualization\n  \
+            lex inspect file.lex ast-tag            # View AST as XML tags\n  \
+            lex inspect file.lex --extra-ast-full   # Show complete AST (all node properties)\n  \
+            lex file.lex --to markdown              # Convert to markdown (outputs to stdout)\n  \
+            lex file.lex --to html -o output.html   # Convert to HTML file"
+        )
         .arg_required_else_help(true)
         .subcommand_required(false)
         .arg(
@@ -89,6 +104,25 @@ fn build_cli() -> Command {
         .subcommand(
             Command::new("inspect")
                 .about("Inspect internal representations of lex files")
+                .long_about(
+                    "View the internal structure of lex files at different processing stages.\n\n\
+                    Transforms (stage-format):\n  \
+                    - ast-treeviz:  AST as tree visualization (default)\n  \
+                    - ast-tag:      AST as XML-like tags\n  \
+                    - ast-json:     AST as JSON\n  \
+                    - token-*:      Token stream representations\n  \
+                    - ir-json:      Intermediate representation\n\n\
+                    Extra Parameters:\n  \
+                    --extra-ast-full      Show complete AST including:\n                          \
+                    * Document-level annotations\n                          \
+                    * All node properties (labels, subjects, parameters)\n                          \
+                    * Session titles, list markers, definition subjects\n\n\
+                    Examples:\n  \
+                    lex inspect file.lex                     # Tree visualization (default)\n  \
+                    lex inspect file.lex ast-tag             # XML-like output\n  \
+                    lex inspect file.lex --extra-ast-full    # Complete AST with all properties\n  \
+                    lex inspect file.lex token-core-json     # View token stream"
+                )
                 .arg(
                     Arg::new("path")
                         .help("Path to the lex file")
@@ -99,7 +133,15 @@ fn build_cli() -> Command {
                 .arg(
                     Arg::new("transform")
                         .help(
-                            "Transform to apply (stage-format, e.g., 'ast-tag', 'token-core-json'). Defaults to 'ast-treeviz'",
+                            "Transform to apply (stage-format). Defaults to 'ast-treeviz'",
+                        )
+                        .long_help(
+                            "Transform to apply in the format stage-format.\n\n\
+                            Available transforms:\n  \
+                            ast-treeviz, ast-tag, ast-json,\n  \
+                            token-core-json, token-line-json,\n  \
+                            ir-json, and more.\n\n\
+                            Use --list-transforms to see all options."
                         )
                         .required(false)
                         .value_parser(clap::builder::PossibleValuesParser::new(
@@ -112,6 +154,21 @@ fn build_cli() -> Command {
         .subcommand(
             Command::new("convert")
                 .about("Convert between document formats (default command)")
+                .long_about(
+                    "Convert documents between different formats.\n\n\
+                    Supported formats:\n  \
+                    - lex:      Lex format (.lex)\n  \
+                    - markdown: Markdown (.md)\n  \
+                    - html:     HTML with optional themes (.html)\n  \
+                    - tag:      XML-like tag format\n\n\
+                    The source format is auto-detected from the file extension.\n\
+                    Output goes to stdout by default, or use -o to specify a file.\n\n\
+                    Examples:\n  \
+                    lex convert input.lex --to markdown          # Convert to markdown (stdout)\n  \
+                    lex convert input.md --to lex -o output.lex  # Markdown to lex file\n  \
+                    lex convert doc.lex --to html -o out.html    # Generate HTML\n  \
+                    lex input.lex --to markdown                  # 'convert' is optional"
+                )
                 .arg(
                     Arg::new("input")
                         .help("Input file path")
@@ -123,12 +180,22 @@ fn build_cli() -> Command {
                     Arg::new("from")
                         .long("from")
                         .help("Source format (auto-detected from file extension if not specified)")
+                        .long_help(
+                            "Source format to convert from.\n\n\
+                            If not specified, the format is auto-detected from the file extension.\n\
+                            Use this option to override auto-detection."
+                        )
                         .value_hint(ValueHint::Other),
                 )
                 .arg(
                     Arg::new("to")
                         .long("to")
-                        .help("Target format")
+                        .help("Target format (required)")
+                        .long_help(
+                            "Target format to convert to.\n\n\
+                            Available formats: lex, markdown, html, tag\n\
+                            Use the format name, not the file extension."
+                        )
                         .required(true)
                         .value_hint(ValueHint::Other),
                 )
@@ -137,6 +204,11 @@ fn build_cli() -> Command {
                         .long("output")
                         .short('o')
                         .help("Output file path (defaults to stdout)")
+                        .long_help(
+                            "Path to write the converted output.\n\n\
+                            If not specified, output is written to stdout.\n\
+                            The file extension should match the target format."
+                        )
                         .value_hint(ValueHint::FilePath),
                 ),
         )

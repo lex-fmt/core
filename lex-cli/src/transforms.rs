@@ -2,6 +2,33 @@
 //!
 //! This module defines all the transform combinations available in the CLI.
 //! Each transform is a stage + format combination (e.g., "ast-tag", "token-core-json").
+//!
+//! ## Transform Pipeline
+//!
+//! The lex compiler has several processing stages:
+//!
+//! 1. **Tokenization** - Raw text → Token stream
+//!    - `token-core-*`: Core tokens (no semantic indentation)
+//!    - `token-line-*`: Line tokens (with semantic indentation)
+//!
+//! 2. **Parsing** - Tokens → Intermediate Representation (IR)
+//!    - `ir-json`: Parse tree representation
+//!
+//! 3. **Assembly** - IR → Abstract Syntax Tree (AST)
+//!    - `ast-tag`: XML-like tag format
+//!    - `ast-treeviz`: Tree visualization with Unicode icons
+//!    - `ast-json`: JSON representation
+//!
+//! ## Extra Parameters
+//!
+//! Transforms can accept extra parameters via `--extra-<name> [value]`:
+//!
+//! - `ast-full`: When set to "true", shows complete AST including:
+//!   * Document-level annotations
+//!   * All node properties (labels, subjects, parameters, etc.)
+//!   * Session titles, list item markers, definition subjects
+//!
+//! Example: `lex inspect file.lex ast-tag --extra-ast-full`
 
 use lex_babel::formats::{
     tag::serialize_document_with_params as serialize_ast_tag_with_params,
@@ -31,6 +58,35 @@ pub const AVAILABLE_TRANSFORMS: &[&str] = &[
 ];
 
 /// Execute a named transform on a source file with optional extra parameters
+///
+/// # Arguments
+///
+/// * `source` - The source text to transform
+/// * `transform_name` - The transform to apply (e.g., "ast-tag", "token-core-json")
+/// * `extra_params` - Optional parameters for the transform
+///
+/// # Extra Parameters
+///
+/// - `ast-full`: "true" - Show complete AST including all node properties
+///
+/// # Returns
+///
+/// The transformed output as a string, or an error message
+///
+/// # Examples
+///
+/// ```ignore
+/// let source = "# Session\n\nContent";
+/// let params = HashMap::new();
+///
+/// // Get tree visualization (default view)
+/// let output = execute_transform(source, "ast-treeviz", &params)?;
+///
+/// // Get complete AST with all properties
+/// let mut full_params = HashMap::new();
+/// full_params.insert("ast-full".to_string(), "true".to_string());
+/// let output = execute_transform(source, "ast-tag", &full_params)?;
+/// ```
 pub fn execute_transform(
     source: &str,
     transform_name: &str,
