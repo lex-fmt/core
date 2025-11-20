@@ -24,7 +24,10 @@
 
 use crate::error::FormatError;
 use crate::format::Format;
-use lex_parser::lex::ast::{snapshot_from_document, AstSnapshot, Document};
+use lex_parser::lex::ast::{
+    snapshot_from_document, snapshot_from_document_with_options, AstSnapshot, Document,
+};
+use std::collections::HashMap;
 
 /// Tag serializer that converts AstSnapshot to XML-like format
 struct TagSerializer {
@@ -85,14 +88,32 @@ fn to_tag_name(node_type: &str) -> String {
 
 /// Serialize a document to AST tag format
 pub fn serialize_document(doc: &Document) -> String {
+    serialize_document_with_params(doc, &HashMap::new())
+}
+
+/// Serialize a document to AST tag format with optional parameters
+///
+/// Supported parameters:
+/// - "ast-full": "true" - Include all nodes including document-level annotations
+pub fn serialize_document_with_params(doc: &Document, params: &HashMap<String, String>) -> String {
     let mut result = String::new();
     result.push_str("<document>\n");
 
     let mut serializer = TagSerializer::new();
     serializer.indent_level = 1;
 
+    // Check if ast-full parameter is set to true
+    let include_all = params
+        .get("ast-full")
+        .map(|v| v.to_lowercase() == "true")
+        .unwrap_or(false);
+
     // Serialize the root session
-    let snapshot = snapshot_from_document(doc);
+    let snapshot = if include_all {
+        snapshot_from_document_with_options(doc, true)
+    } else {
+        snapshot_from_document(doc)
+    };
     serializer.serialize_snapshot(&snapshot);
 
     result.push_str(&serializer.output);
