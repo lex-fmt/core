@@ -124,6 +124,7 @@ impl FormatRegistry {
         registry.register(crate::formats::markdown::MarkdownFormat);
         registry.register(crate::formats::tag::TagFormat);
         registry.register(crate::formats::treeviz::TreevizFormat);
+        registry.register(crate::formats::linetreeviz::LinetreevizFormat);
 
         registry
     }

@@ -44,6 +44,7 @@ use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
 use super::super::traits::Visitor;
+use super::super::traits::VisualStructure;
 use super::annotation::Annotation;
 use super::container::{GeneralContainer, ListContainer};
 use super::content_item::ContentItem;
@@ -140,6 +141,12 @@ impl AstNode for List {
     }
 }
 
+impl VisualStructure for List {
+    fn collapses_with_children(&self) -> bool {
+        true
+    }
+}
+
 impl fmt::Display for List {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "List({} items)", self.items.len())
@@ -230,6 +237,12 @@ impl AstNode for ListItem {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_list_item(self);
         super::super::traits::visit_children(visitor, &self.children);
+    }
+}
+
+impl VisualStructure for ListItem {
+    fn is_source_line_node(&self) -> bool {
+        true
     }
 }
 

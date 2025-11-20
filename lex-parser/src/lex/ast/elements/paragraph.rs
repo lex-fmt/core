@@ -24,7 +24,7 @@
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
-use super::super::traits::{AstNode, Container, TextNode, Visitor};
+use super::super::traits::{AstNode, Container, TextNode, Visitor, VisualStructure};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
 use std::fmt;
@@ -77,6 +77,12 @@ impl AstNode for TextLine {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_text_line(self);
+    }
+}
+
+impl VisualStructure for TextLine {
+    fn is_source_line_node(&self) -> bool {
+        true
     }
 }
 
@@ -222,6 +228,12 @@ impl TextNode for Paragraph {
         // This is a compatibility method - we no longer store raw TextContent
         // Return empty slice since we've moved to ContentItem::TextLine
         &[]
+    }
+}
+
+impl VisualStructure for Paragraph {
+    fn collapses_with_children(&self) -> bool {
+        true
     }
 }
 

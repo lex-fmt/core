@@ -9,7 +9,7 @@
 //! - A paragraph followed by a definition and an annotation
 
 use super::super::range::{Position, Range};
-use super::super::traits::{AstNode, Container, Visitor};
+use super::super::traits::{AstNode, Container, Visitor, VisualStructure};
 use super::annotation::Annotation;
 use super::blank_line_group::BlankLineGroup;
 use super::definition::Definition;
@@ -93,6 +93,53 @@ impl AstNode for ContentItem {
             ContentItem::VerbatimBlock(fb) => fb.accept(visitor),
             ContentItem::VerbatimLine(fl) => fl.accept(visitor),
             ContentItem::BlankLineGroup(blg) => blg.accept(visitor),
+        }
+    }
+}
+
+impl VisualStructure for ContentItem {
+    fn is_source_line_node(&self) -> bool {
+        match self {
+            ContentItem::Paragraph(p) => p.is_source_line_node(),
+            ContentItem::Session(s) => s.is_source_line_node(),
+            ContentItem::List(l) => l.is_source_line_node(),
+            ContentItem::ListItem(li) => li.is_source_line_node(),
+            ContentItem::TextLine(tl) => tl.is_source_line_node(),
+            ContentItem::Definition(d) => d.is_source_line_node(),
+            ContentItem::Annotation(a) => a.is_source_line_node(),
+            ContentItem::VerbatimBlock(fb) => fb.is_source_line_node(),
+            ContentItem::VerbatimLine(fl) => fl.is_source_line_node(),
+            ContentItem::BlankLineGroup(blg) => blg.is_source_line_node(),
+        }
+    }
+
+    fn has_visual_header(&self) -> bool {
+        match self {
+            ContentItem::Paragraph(p) => p.has_visual_header(),
+            ContentItem::Session(s) => s.has_visual_header(),
+            ContentItem::List(l) => l.has_visual_header(),
+            ContentItem::ListItem(li) => li.has_visual_header(),
+            ContentItem::TextLine(tl) => tl.has_visual_header(),
+            ContentItem::Definition(d) => d.has_visual_header(),
+            ContentItem::Annotation(a) => a.has_visual_header(),
+            ContentItem::VerbatimBlock(fb) => fb.has_visual_header(),
+            ContentItem::VerbatimLine(fl) => fl.has_visual_header(),
+            ContentItem::BlankLineGroup(blg) => blg.has_visual_header(),
+        }
+    }
+
+    fn collapses_with_children(&self) -> bool {
+        match self {
+            ContentItem::Paragraph(p) => p.collapses_with_children(),
+            ContentItem::Session(s) => s.collapses_with_children(),
+            ContentItem::List(l) => l.collapses_with_children(),
+            ContentItem::ListItem(li) => li.collapses_with_children(),
+            ContentItem::TextLine(tl) => tl.collapses_with_children(),
+            ContentItem::Definition(d) => d.collapses_with_children(),
+            ContentItem::Annotation(a) => a.collapses_with_children(),
+            ContentItem::VerbatimBlock(fb) => fb.collapses_with_children(),
+            ContentItem::VerbatimLine(fl) => fl.collapses_with_children(),
+            ContentItem::BlankLineGroup(blg) => blg.collapses_with_children(),
         }
     }
 }
