@@ -1,7 +1,7 @@
 //! Treeviz formatter for AST nodes
 //!
 //! Treeviz is a visual representation of the AST, design specifically for document trees.
-//! It features a one line per node format, which enables quick scanning of the tree, and is specially
+//! It features a visual tree and line based output. For a version that matches, each line to source line, see the ./linetreeviz module.
 //! helpful for formats that are primarely line oriented (like text).
 //!
 //! It encodes the node structure as indentation, with 2 white spaces per level of nesting.
