@@ -117,8 +117,8 @@ pub use elements::{
 pub use error::PositionLookupError;
 pub use range::{Position, Range, SourceLocation};
 pub use snapshot::{
-    snapshot_from_content, snapshot_from_document, snapshot_from_document_with_options,
-    snapshot_node, AstSnapshot,
+    snapshot_from_content, snapshot_from_content_with_options, snapshot_from_document,
+    snapshot_from_document_with_options, snapshot_node, AstSnapshot,
 };
 pub use text_content::TextContent;
 pub use traits::{AstNode, Container, TextNode, Visitor};
