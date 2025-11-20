@@ -201,24 +201,24 @@ fn format_content_item(
     // Process regular children
     match item {
         ContentItem::Session(s) => {
-            return output + &format_children(s.children(), &child_prefix, include_all);
+            output + &format_children(s.children(), &child_prefix, include_all)
         }
         ContentItem::Paragraph(p) => {
             // For paragraph, lines are already ContentItems
-            return output + &format_children(&p.lines, &child_prefix, include_all);
+            output + &format_children(&p.lines, &child_prefix, include_all)
         }
         ContentItem::List(l) => {
             // For list, items are already ContentItems
-            return output + &format_children(&l.items, &child_prefix, include_all);
+            output + &format_children(&l.items, &child_prefix, include_all)
         }
         ContentItem::Definition(d) => {
-            return output + &format_children(d.children(), &child_prefix, include_all);
+            output + &format_children(d.children(), &child_prefix, include_all)
         }
         ContentItem::ListItem(li) => {
-            return output + &format_children(li.children(), &child_prefix, include_all);
+            output + &format_children(li.children(), &child_prefix, include_all)
         }
         ContentItem::Annotation(a) => {
-            return output + &format_children(a.children(), &child_prefix, include_all);
+            output + &format_children(a.children(), &child_prefix, include_all)
         }
         ContentItem::VerbatimBlock(v) => {
             // Handle verbatim groups
@@ -259,7 +259,7 @@ fn format_content_item(
                     ));
                 }
             }
-            return output + &group_output;
+            output + &group_output
         }
         _ => output,
     }
