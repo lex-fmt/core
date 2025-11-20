@@ -157,7 +157,7 @@ mod tests {
     fn test_app_creation() {
         let content = "test".to_string();
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.clone());
         let app = App::new(model, content);
 
         assert_eq!(app.focus, Focus::FileViewer);
@@ -168,7 +168,7 @@ mod tests {
     fn test_focus_toggle() {
         let content = "test".to_string();
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.clone());
         let mut app = App::new(model, content);
 
         assert_eq!(app.focus, Focus::FileViewer);

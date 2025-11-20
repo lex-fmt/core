@@ -128,6 +128,10 @@ pub struct Model {
     /// The parsed AST document
     pub document: Document,
 
+    /// Source text of the document
+    #[allow(dead_code)]
+    pub source: String,
+
     /// Current selection (text or tree)
     selection: Selection,
 
@@ -137,10 +141,11 @@ pub struct Model {
 
 #[allow(dead_code)]
 impl Model {
-    /// Create a new model from a document
-    pub fn new(document: Document) -> Self {
+    /// Create a new model from a document and source text
+    pub fn new(document: Document, source: String) -> Self {
         let mut model = Model {
             document,
+            source,
             selection: Selection::TextSelection(0, 0),
             expanded_nodes: HashSet::new(),
         };
@@ -289,6 +294,9 @@ impl Model {
         let snapshot = snapshot_from_document(&self.document);
         let root_id = NodeId::new(&[]);
         self.flatten_snapshot_recursive(&snapshot, &root_id, &mut nodes);
+
+        // Filter out collection nodes (Paragraph, List) for domtreeviz-style view
+        nodes.retain(|node| !matches!(node.node_type, "Paragraph" | "List"));
 
         nodes
     }
@@ -449,7 +457,10 @@ mod tests {
 
     #[test]
     fn test_selection_text() {
-        let mut model = Model::new(lex_parser::lex::parsing::parse_document("test").unwrap());
+        let mut model = Model::new(
+            lex_parser::lex::parsing::parse_document("test").unwrap(),
+            "test".to_string(),
+        );
         model.select_position(5, 10);
         assert_eq!(model.get_selected_position(), Some((5, 10)));
         assert_eq!(model.get_selected_node_id(), None);
@@ -457,7 +468,10 @@ mod tests {
 
     #[test]
     fn test_selection_node() {
-        let mut model = Model::new(lex_parser::lex::parsing::parse_document("test").unwrap());
+        let mut model = Model::new(
+            lex_parser::lex::parsing::parse_document("test").unwrap(),
+            "test".to_string(),
+        );
         let node_id = NodeId::new(&[0, 1]);
         model.select_node(node_id);
         assert_eq!(model.get_selected_node_id(), Some(node_id));
@@ -466,7 +480,10 @@ mod tests {
 
     #[test]
     fn test_node_expansion() {
-        let mut model = Model::new(lex_parser::lex::parsing::parse_document("test").unwrap());
+        let mut model = Model::new(
+            lex_parser::lex::parsing::parse_document("test").unwrap(),
+            "test".to_string(),
+        );
         let node_id = NodeId::new(&[0, 1]);
 
         assert!(!model.is_node_expanded(node_id));
@@ -478,7 +495,10 @@ mod tests {
 
     #[test]
     fn test_expand_nodes() {
-        let mut model = Model::new(lex_parser::lex::parsing::parse_document("test").unwrap());
+        let mut model = Model::new(
+            lex_parser::lex::parsing::parse_document("test").unwrap(),
+            "test".to_string(),
+        );
         let nodes = [
             NodeId::new(&[0]),
             NodeId::new(&[0, 1]),
@@ -493,7 +513,10 @@ mod tests {
 
     #[test]
     fn test_get_ancestors() {
-        let model = Model::new(lex_parser::lex::parsing::parse_document("test").unwrap());
+        let model = Model::new(
+            lex_parser::lex::parsing::parse_document("test").unwrap(),
+            "test".to_string(),
+        );
 
         let node = NodeId::new(&[0, 1, 2]);
         let ancestors = model.get_ancestors(node);
@@ -507,7 +530,10 @@ mod tests {
 
     #[test]
     fn test_get_ancestors_root_child() {
-        let model = Model::new(lex_parser::lex::parsing::parse_document("test").unwrap());
+        let model = Model::new(
+            lex_parser::lex::parsing::parse_document("test").unwrap(),
+            "test".to_string(),
+        );
 
         let node = NodeId::new(&[0]);
         let ancestors = model.get_ancestors(node);
@@ -520,7 +546,10 @@ mod tests {
     #[test]
     fn test_flattened_tree_with_content() {
         let doc_str = "# Heading\n\nParagraph text";
-        let model = Model::new(lex_parser::lex::parsing::parse_document(doc_str).unwrap());
+        let model = Model::new(
+            lex_parser::lex::parsing::parse_document(doc_str).unwrap(),
+            doc_str.to_string(),
+        );
 
         let flattened = model.flattened_tree();
 
@@ -540,7 +569,10 @@ mod tests {
     #[test]
     fn test_flattened_tree_respects_expansion() {
         let doc_str = "# Heading\n## Subheading\nText";
-        let mut model = Model::new(lex_parser::lex::parsing::parse_document(doc_str).unwrap());
+        let mut model = Model::new(
+            lex_parser::lex::parsing::parse_document(doc_str).unwrap(),
+            doc_str.to_string(),
+        );
 
         // Get flattened tree when nothing is expanded
         let flattened_collapsed = model.flattened_tree();
@@ -562,7 +594,10 @@ mod tests {
     fn test_get_node_at_position_finds_ast_node() {
         // Create document with content we know the structure of
         let doc_str = "# Heading\n\nParagraph";
-        let model = Model::new(lex_parser::lex::parsing::parse_document(doc_str).unwrap());
+        let model = Model::new(
+            lex_parser::lex::parsing::parse_document(doc_str).unwrap(),
+            doc_str.to_string(),
+        );
 
         // Position (0, 0) should be at the heading
         if let Some(node_id) = model.get_node_at_position(0, 0) {
@@ -578,8 +613,11 @@ mod tests {
 
     #[test]
     fn test_select_position_then_get_node() {
-        let mut model =
-            Model::new(lex_parser::lex::parsing::parse_document("# Title\nContent").unwrap());
+        let source = "# Title\nContent";
+        let mut model = Model::new(
+            lex_parser::lex::parsing::parse_document(source).unwrap(),
+            source.to_string(),
+        );
 
         // Simulate file viewer selecting a position
         model.select_position(0, 0);
