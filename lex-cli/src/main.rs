@@ -15,12 +15,51 @@
 //  lex convert <input> --to <format> [--from <format>] [--output <file>]  - Same as above (explicit)
 //  lex inspect <path> [<transform>]      - Execute a transform (defaults to "ast-treeviz")
 //  lex --list-transforms                 - List available transforms
+//
+// Extra Parameters:
+//
+// Format-specific parameters can be passed using --extra-<parameter-name> <value>.
+// The CLI layer strips the "extra-" prefix and passes the parameters to the format/transform.
+// Example:
+//  lex inspect file.lex --extra-all-nodes true --extra-max-depth 5
 
 mod transforms;
 
 use clap::{Arg, ArgAction, Command, ValueHint};
 use lex_babel::FormatRegistry;
+use std::collections::HashMap;
 use std::fs;
+
+/// Parse extra-* arguments from command line args
+/// Returns (cleaned_args_without_extras, extra_params_map)
+fn parse_extra_args(args: &[String]) -> (Vec<String>, HashMap<String, String>) {
+    let mut cleaned_args = Vec::new();
+    let mut extra_params = HashMap::new();
+    let mut i = 0;
+
+    while i < args.len() {
+        let arg = &args[i];
+
+        if let Some(key) = arg.strip_prefix("--extra-") {
+            // Found an extra-* argument
+            // Next arg should be the value
+            if i + 1 < args.len() {
+                extra_params.insert(key.to_string(), args[i + 1].clone());
+                i += 2; // Skip both the key and value
+                continue;
+            } else {
+                eprintln!("Warning: --extra-{} provided without a value", key);
+                i += 1;
+                continue;
+            }
+        }
+
+        cleaned_args.push(arg.clone());
+        i += 1;
+    }
+
+    (cleaned_args, extra_params)
+}
 
 fn build_cli() -> Command {
     Command::new("lex")
@@ -95,21 +134,24 @@ fn main() {
     // Try to parse args. If no subcommand is provided, inject "convert"
     let args: Vec<String> = std::env::args().collect();
 
-    // First, try normal parsing
+    // Parse extra-* arguments before clap processing
+    let (cleaned_args, extra_params) = parse_extra_args(&args);
+
+    // First, try normal parsing with cleaned args
     let cli = build_cli();
-    let matches = match cli.clone().try_get_matches_from(&args) {
+    let matches = match cli.clone().try_get_matches_from(&cleaned_args) {
         Ok(m) => m,
         Err(e) => {
             // Check if this is a "missing subcommand" error by seeing if the first arg looks like a file
-            if args.len() > 1
-                && !args[1].starts_with('-')
-                && args[1] != "inspect"
-                && args[1] != "convert"
-                && args[1] != "help"
+            if cleaned_args.len() > 1
+                && !cleaned_args[1].starts_with('-')
+                && cleaned_args[1] != "inspect"
+                && cleaned_args[1] != "convert"
+                && cleaned_args[1] != "help"
             {
                 // Inject "convert" as the subcommand
-                let mut new_args = vec![args[0].clone(), "convert".to_string()];
-                new_args.extend_from_slice(&args[1..]);
+                let mut new_args = vec![cleaned_args[0].clone(), "convert".to_string()];
+                new_args.extend_from_slice(&cleaned_args[1..]);
 
                 // Try parsing again with "convert" injected
                 match cli.try_get_matches_from(&new_args) {
@@ -137,7 +179,7 @@ fn main() {
                 .get_one::<String>("transform")
                 .map(|s| s.as_str())
                 .unwrap_or("ast-treeviz");
-            handle_inspect_command(path, transform);
+            handle_inspect_command(path, transform, &extra_params);
         }
         Some(("convert", sub_matches)) => {
             let input = sub_matches
@@ -162,7 +204,7 @@ fn main() {
             };
 
             let output = sub_matches.get_one::<String>("output").map(|s| s.as_str());
-            handle_convert_command(input, &from, to, output);
+            handle_convert_command(input, &from, to, output, &extra_params);
         }
         _ => {
             eprintln!("Unknown subcommand. Use --help for usage information.");
@@ -172,22 +214,29 @@ fn main() {
 }
 
 /// Handle the inspect command (old execute command)
-fn handle_inspect_command(path: &str, transform: &str) {
+fn handle_inspect_command(path: &str, transform: &str, extra_params: &HashMap<String, String>) {
     let source = fs::read_to_string(path).unwrap_or_else(|e| {
         eprintln!("Error reading file '{}': {}", path, e);
         std::process::exit(1);
     });
 
-    let output = transforms::execute_transform(&source, transform).unwrap_or_else(|e| {
-        eprintln!("Execution error: {}", e);
-        std::process::exit(1);
-    });
+    let output =
+        transforms::execute_transform(&source, transform, extra_params).unwrap_or_else(|e| {
+            eprintln!("Execution error: {}", e);
+            std::process::exit(1);
+        });
 
     print!("{}", output);
 }
 
 /// Handle the convert command
-fn handle_convert_command(input: &str, from: &str, to: &str, output: Option<&str>) {
+fn handle_convert_command(
+    input: &str,
+    from: &str,
+    to: &str,
+    output: Option<&str>,
+    extra_params: &HashMap<String, String>,
+) {
     let registry = FormatRegistry::default();
 
     // Validate formats exist
@@ -213,6 +262,10 @@ fn handle_convert_command(input: &str, from: &str, to: &str, output: Option<&str
     });
 
     // Serialize
+    // TODO: Pass extra_params to serialize when the API supports it
+    if !extra_params.is_empty() {
+        eprintln!("Warning: extra parameters are not yet supported for convert command");
+    }
     let result = registry.serialize(&doc, to).unwrap_or_else(|e| {
         eprintln!("Serialization error: {}", e);
         std::process::exit(1);
@@ -257,5 +310,105 @@ fn handle_list_transforms_command() {
     let registry = FormatRegistry::default();
     for format_name in registry.list_formats() {
         println!("  {}", format_name);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_extra_args_empty() {
+        let args = vec![
+            "lex".to_string(),
+            "inspect".to_string(),
+            "file.lex".to_string(),
+        ];
+        let (cleaned, extra) = parse_extra_args(&args);
+
+        assert_eq!(cleaned, args);
+        assert!(extra.is_empty());
+    }
+
+    #[test]
+    fn test_parse_extra_args_single_param() {
+        let args = vec![
+            "lex".to_string(),
+            "inspect".to_string(),
+            "file.lex".to_string(),
+            "--extra-all-nodes".to_string(),
+            "true".to_string(),
+        ];
+        let (cleaned, extra) = parse_extra_args(&args);
+
+        assert_eq!(
+            cleaned,
+            vec![
+                "lex".to_string(),
+                "inspect".to_string(),
+                "file.lex".to_string()
+            ]
+        );
+        assert_eq!(extra.len(), 1);
+        assert_eq!(extra.get("all-nodes"), Some(&"true".to_string()));
+    }
+
+    #[test]
+    fn test_parse_extra_args_multiple_params() {
+        let args = vec![
+            "lex".to_string(),
+            "inspect".to_string(),
+            "file.lex".to_string(),
+            "--extra-all-nodes".to_string(),
+            "true".to_string(),
+            "ast-treeviz".to_string(),
+            "--extra-max-depth".to_string(),
+            "5".to_string(),
+        ];
+        let (cleaned, extra) = parse_extra_args(&args);
+
+        assert_eq!(
+            cleaned,
+            vec![
+                "lex".to_string(),
+                "inspect".to_string(),
+                "file.lex".to_string(),
+                "ast-treeviz".to_string()
+            ]
+        );
+        assert_eq!(extra.len(), 2);
+        assert_eq!(extra.get("all-nodes"), Some(&"true".to_string()));
+        assert_eq!(extra.get("max-depth"), Some(&"5".to_string()));
+    }
+
+    #[test]
+    fn test_parse_extra_args_mixed_with_regular_args() {
+        let args = vec![
+            "lex".to_string(),
+            "convert".to_string(),
+            "input.lex".to_string(),
+            "--to".to_string(),
+            "html".to_string(),
+            "--extra-theme".to_string(),
+            "dark".to_string(),
+            "--from".to_string(),
+            "lex".to_string(),
+        ];
+        let (cleaned, extra) = parse_extra_args(&args);
+
+        assert_eq!(
+            cleaned,
+            vec![
+                "lex".to_string(),
+                "convert".to_string(),
+                "input.lex".to_string(),
+                "--to".to_string(),
+                "html".to_string(),
+                "--from".to_string(),
+                "lex".to_string()
+            ]
+        );
+        assert_eq!(extra.len(), 1);
+        assert_eq!(extra.get("theme"), Some(&"dark".to_string()));
     }
 }
