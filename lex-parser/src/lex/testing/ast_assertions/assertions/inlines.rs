@@ -135,13 +135,13 @@ impl InlineExpectation {
                 InlineExpectationKind::Strong(expect_children),
                 InlineNode::Strong { content, .. },
             ) => {
-                assert_inline_children(content, expect_children, context);
+                assert_inline_children(content, &expect_children, context);
             }
             (
                 InlineExpectationKind::Emphasis(expect_children),
                 InlineNode::Emphasis { content, .. },
             ) => {
-                assert_inline_children(content, expect_children, context);
+                assert_inline_children(content, &expect_children, context);
             }
             (InlineExpectationKind::Code(matcher), InlineNode::Code { text, .. }) => {
                 matcher.assert(text, context);
