@@ -9,6 +9,7 @@ use lex_parser::lex::lexing::transformations::LineTokenGroupingMapper;
 use lex_parser::lex::loader::DocumentLoader;
 use lex_parser::lex::token::{to_line_container, LineContainer, LineToken};
 use lex_parser::lex::transforms::standard::{CORE_TOKENIZATION, LEXING, TO_IR};
+use std::collections::HashMap;
 
 /// All available CLI transforms (stage + format combinations)
 pub const AVAILABLE_TRANSFORMS: &[&str] = &[
@@ -26,8 +27,12 @@ pub const AVAILABLE_TRANSFORMS: &[&str] = &[
     "ast-treeviz",
 ];
 
-/// Execute a named transform on a source file
-pub fn execute_transform(source: &str, transform_name: &str) -> Result<String, String> {
+/// Execute a named transform on a source file with optional extra parameters
+pub fn execute_transform(
+    source: &str,
+    transform_name: &str,
+    extra_params: &HashMap<String, String>,
+) -> Result<String, String> {
     let loader = DocumentLoader::from_string(source);
 
     match transform_name {
@@ -113,6 +118,15 @@ pub fn execute_transform(source: &str, transform_name: &str) -> Result<String, S
             let doc = loader
                 .parse()
                 .map_err(|e| format!("Transform failed: {}", e))?;
+            // TODO: Pass extra_params to to_treeviz_str when API supports it
+            // For example: to_treeviz_str(&doc, extra_params)
+            // This would allow params like: --extra-all-nodes true
+            if !extra_params.is_empty() {
+                eprintln!(
+                    "Note: Extra parameters received but not yet supported by ast-treeviz: {:?}",
+                    extra_params
+                );
+            }
             Ok(to_treeviz_str(&doc))
         }
         _ => Err(format!("Unknown transform: {}", transform_name)),
@@ -248,7 +262,9 @@ mod tests {
     #[test]
     fn token_line_transform_emits_line_tokens() {
         let source = "Session:\n    Content\n";
-        let output = execute_transform(source, "token-line-json").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output =
+            execute_transform(source, "token-line-json", &extra_params).expect("transform to run");
 
         assert!(output.contains("\"line_type\""));
         assert!(output.contains("SubjectLine"));
@@ -258,7 +274,9 @@ mod tests {
     #[test]
     fn token_simple_outputs_names() {
         let source = "Session:\n    Content\n";
-        let output = execute_transform(source, "token-simple").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output =
+            execute_transform(source, "token-simple", &extra_params).expect("transform to run");
 
         assert!(output.contains("TEXT"));
         assert!(output.contains("BLANK_LINE"));
@@ -267,7 +285,9 @@ mod tests {
     #[test]
     fn token_line_simple_outputs_names() {
         let source = "Session:\n    Content\n";
-        let output = execute_transform(source, "token-line-simple").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output = execute_transform(source, "token-line-simple", &extra_params)
+            .expect("transform to run");
 
         assert!(output.contains("SUBJECT_LINE"));
         assert!(output.contains("PARAGRAPH_LINE"));
@@ -276,7 +296,9 @@ mod tests {
     #[test]
     fn token_pprint_inserts_blank_line() {
         let source = "Hello\n\nWorld\n";
-        let output = execute_transform(source, "token-pprint").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output =
+            execute_transform(source, "token-pprint", &extra_params).expect("transform to run");
 
         assert!(output.contains("BLANK_LINE\n\n"));
     }
@@ -284,9 +306,23 @@ mod tests {
     #[test]
     fn token_line_pprint_indents_children() {
         let source = "Session:\n    Content\n";
-        let output = execute_transform(source, "token-line-pprint").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output = execute_transform(source, "token-line-pprint", &extra_params)
+            .expect("transform to run");
 
         assert!(output.contains("SUBJECT_LINE"));
         assert!(output.contains("  PARAGRAPH_LINE"));
+    }
+
+    #[test]
+    fn execute_transform_accepts_extra_params() {
+        let source = "# Test\n";
+        let mut extra_params = HashMap::new();
+        extra_params.insert("all-nodes".to_string(), "true".to_string());
+        extra_params.insert("max-depth".to_string(), "5".to_string());
+
+        // Should not error, even though params aren't used yet
+        let result = execute_transform(source, "ast-treeviz", &extra_params);
+        assert!(result.is_ok());
     }
 }
