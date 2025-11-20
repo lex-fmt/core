@@ -60,8 +60,8 @@ impl AstNode for VerbatimLine {
 
     fn display_label(&self) -> String {
         let content_text = self.content.as_string();
-        if content_text.len() > 50 {
-            format!("{}...", &content_text[..50])
+        if content_text.chars().count() > 50 {
+            format!("{}…", content_text.chars().take(50).collect::<String>())
         } else {
             content_text.to_string()
         }

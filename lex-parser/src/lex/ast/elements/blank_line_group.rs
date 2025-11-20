@@ -76,7 +76,7 @@ impl AstNode for BlankLineGroup {
 
     fn display_label(&self) -> String {
         if self.count == 1 {
-            "blank line".to_string()
+            "1 blank line".to_string()
         } else {
             format!("{} blank lines", self.count)
         }
@@ -112,6 +112,6 @@ mod tests {
     fn test_blank_line_group_single() {
         let group = BlankLineGroup::new(1, vec![]);
         assert_eq!(group.count, 1);
-        assert_eq!(group.display_label(), "blank line");
+        assert_eq!(group.display_label(), "1 blank line");
     }
 }
