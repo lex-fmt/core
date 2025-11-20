@@ -13,7 +13,7 @@
 // Usage:
 //  lex <input> --to <format> [--from <format>] [--output <file>]  - Convert between formats (default)
 //  lex convert <input> --to <format> [--from <format>] [--output <file>]  - Same as above (explicit)
-//  lex inspect <path> <transform>        - Execute a transform (e.g., "ast-tag", "token-core-json")
+//  lex inspect <path> [<transform>]      - Execute a transform (defaults to "ast-treeviz")
 //  lex --list-transforms                 - List available transforms
 
 mod transforms;
@@ -48,9 +48,9 @@ fn build_cli() -> Command {
                 .arg(
                     Arg::new("transform")
                         .help(
-                            "Transform to apply (stage-format, e.g., 'ast-tag', 'token-core-json')",
+                            "Transform to apply (stage-format, e.g., 'ast-tag', 'token-core-json'). Defaults to 'ast-treeviz'",
                         )
-                        .required(true)
+                        .required(false)
                         .value_parser(clap::builder::PossibleValuesParser::new(
                             transforms::AVAILABLE_TRANSFORMS,
                         ))
@@ -135,7 +135,8 @@ fn main() {
                 .expect("path is required");
             let transform = sub_matches
                 .get_one::<String>("transform")
-                .expect("transform is required");
+                .map(|s| s.as_str())
+                .unwrap_or("ast-treeviz");
             handle_inspect_command(path, transform);
         }
         Some(("convert", sub_matches)) => {
