@@ -31,6 +31,7 @@
 //! Example: `lex inspect file.lex ast-tag --extra-ast-full`
 
 use lex_babel::formats::{
+    domtreeviz::to_domtreeviz_str,
     tag::serialize_document_with_params as serialize_ast_tag_with_params,
     treeviz::to_treeviz_str_with_params,
 };
@@ -55,6 +56,7 @@ pub const AVAILABLE_TRANSFORMS: &[&str] = &[
     "ast-json",
     "ast-tag",
     "ast-treeviz",
+    "ast-domtreeviz",
 ];
 
 /// Execute a named transform on a source file with optional extra parameters
@@ -180,6 +182,13 @@ pub fn execute_transform(
             // Pass extra_params to to_treeviz_str
             // Supports: --extra-ast-full true
             Ok(to_treeviz_str_with_params(&doc, extra_params))
+        }
+        "ast-domtreeviz" => {
+            let doc = loader
+                .parse()
+                .map_err(|e| format!("Transform failed: {}", e))?;
+            // domtreeviz needs source text for line-by-line iteration
+            Ok(to_domtreeviz_str(&doc, source))
         }
         _ => Err(format!("Unknown transform: {}", transform_name)),
     }
