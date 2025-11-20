@@ -226,10 +226,10 @@ mod tests {
         let content = TextContent::from_string("Hello *world*".to_string(), None);
         let nodes = content.inline_items();
         assert_eq!(nodes.len(), 2);
-        assert_eq!(nodes[0], InlineNode::Plain("Hello ".into()));
+        assert_eq!(nodes[0], InlineNode::plain("Hello ".into()));
         match &nodes[1] {
-            InlineNode::Strong(children) => {
-                assert_eq!(children, &vec![InlineNode::Plain("world".into())]);
+            InlineNode::Strong { content, .. } => {
+                assert_eq!(content, &vec![InlineNode::plain("world".into())]);
             }
             other => panic!("Unexpected inline node: {:?}", other),
         }
@@ -245,10 +245,10 @@ mod tests {
         content.ensure_inline_parsed();
         let nodes = content.inline_nodes().expect("expected inline nodes");
         assert_eq!(nodes.len(), 2);
-        assert_eq!(nodes[0], InlineNode::Plain("Hello ".into()));
+        assert_eq!(nodes[0], InlineNode::plain("Hello ".into()));
         match &nodes[1] {
-            InlineNode::Strong(children) => {
-                assert_eq!(children, &vec![InlineNode::Plain("world".into())]);
+            InlineNode::Strong { content, .. } => {
+                assert_eq!(content, &vec![InlineNode::plain("world".into())]);
             }
             other => panic!("Unexpected inline node: {:?}", other),
         }
