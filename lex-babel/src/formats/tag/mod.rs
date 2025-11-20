@@ -1,8 +1,6 @@
 //! XML-like AST tag serialization
 //!
-//! Serializes AST snapshots to an XML-like format.
-//! Consumes the normalized AST snapshot representation and applies
-//! XML/tag-specific formatting.
+//! Serializes AST nodes directly to an XML-like format.
 //!
 //! ## Format
 //!
@@ -24,54 +22,198 @@
 
 use crate::error::FormatError;
 use crate::format::Format;
-use lex_parser::lex::ast::{
-    snapshot_from_document, snapshot_from_document_with_options, AstSnapshot, Document,
-};
+use lex_parser::lex::ast::traits::{AstNode, Container};
+use lex_parser::lex::ast::{ContentItem, Document};
 use std::collections::HashMap;
 
-/// Tag serializer that converts AstSnapshot to XML-like format
-struct TagSerializer {
-    output: String,
-    indent_level: usize,
+/// Format a single ContentItem node with synthetic children support
+fn format_content_item(item: &ContentItem, indent_level: usize, include_all: bool) -> String {
+    let mut output = String::new();
+    let indent = "  ".repeat(indent_level);
+    let tag = to_tag_name(item.node_type());
+
+    output.push_str(&format!("{}<{}>", indent, tag));
+    output.push_str(&escape_xml(&item.display_label()));
+
+    // Collect all children to render
+    let mut all_children = Vec::new();
+
+    // Handle include_all synthetic children
+    if include_all {
+        match item {
+            ContentItem::Session(s) => {
+                // Show session title as synthetic child
+                all_children.push(SyntheticChild::SessionTitle(
+                    s.title.as_string().to_string(),
+                ));
+
+                // Show session annotations
+                for ann in &s.annotations {
+                    all_children.push(SyntheticChild::Annotation(Box::new(ann.clone())));
+                }
+            }
+            ContentItem::ListItem(li) => {
+                // Show marker as synthetic child
+                all_children.push(SyntheticChild::Marker(li.marker.as_string().to_string()));
+
+                // Show text content
+                for text_part in &li.text {
+                    all_children.push(SyntheticChild::Text(text_part.as_string().to_string()));
+                }
+
+                // Show list item annotations
+                for ann in &li.annotations {
+                    all_children.push(SyntheticChild::Annotation(Box::new(ann.clone())));
+                }
+            }
+            ContentItem::Definition(d) => {
+                // Show subject as synthetic child
+                all_children.push(SyntheticChild::Subject(d.subject.as_string().to_string()));
+
+                // Show definition annotations
+                for ann in &d.annotations {
+                    all_children.push(SyntheticChild::Annotation(Box::new(ann.clone())));
+                }
+            }
+            ContentItem::Annotation(a) => {
+                // Show label
+                all_children.push(SyntheticChild::Label(a.data.label.value.clone()));
+
+                // Show parameters
+                for param in &a.data.parameters {
+                    all_children.push(SyntheticChild::Parameter(
+                        param.key.clone(),
+                        param.value.clone(),
+                    ));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Get regular children
+    let regular_children = match item {
+        ContentItem::Session(s) => s.children(),
+        ContentItem::Paragraph(p) => &p.lines,
+        ContentItem::List(l) => &l.items,
+        ContentItem::Definition(d) => d.children(),
+        ContentItem::ListItem(li) => li.children(),
+        ContentItem::Annotation(a) => a.children(),
+        ContentItem::VerbatimBlock(v) => {
+            // Handle verbatim groups specially
+            if v.group_len() > 0 {
+                output.push('\n');
+                for (idx, group) in v.group().enumerate() {
+                    let group_label = if v.group_len() == 1 {
+                        group.subject.as_string().to_string()
+                    } else {
+                        format!(
+                            "{} (group {} of {})",
+                            group.subject.as_string(),
+                            idx + 1,
+                            v.group_len()
+                        )
+                    };
+
+                    output.push_str(&format!(
+                        "{}  <verbatim-group>{}\n",
+                        indent,
+                        escape_xml(&group_label)
+                    ));
+                    for child in group.children.iter() {
+                        output.push_str(&format_content_item(child, indent_level + 2, include_all));
+                    }
+                    output.push_str(&format!("{}  </verbatim-group>\n", indent));
+                }
+                output.push_str(&format!("{}</{}>\n", indent, tag));
+                return output;
+            }
+            &[]
+        }
+        _ => &[],
+    };
+
+    // Determine if we have any children to render
+    let has_children = !all_children.is_empty() || !regular_children.is_empty();
+
+    if !has_children {
+        output.push_str(&format!("</{}>\n", tag));
+    } else {
+        output.push('\n');
+
+        // Render synthetic children first
+        for synthetic in all_children {
+            match synthetic {
+                SyntheticChild::SessionTitle(title) => {
+                    output.push_str(&format!(
+                        "{}  <session-title>{}</session-title>\n",
+                        indent,
+                        escape_xml(&title)
+                    ));
+                }
+                SyntheticChild::Marker(marker) => {
+                    output.push_str(&format!(
+                        "{}  <marker>{}</marker>\n",
+                        indent,
+                        escape_xml(&marker)
+                    ));
+                }
+                SyntheticChild::Text(text) => {
+                    output.push_str(&format!("{}  <text>{}</text>\n", indent, escape_xml(&text)));
+                }
+                SyntheticChild::Subject(subject) => {
+                    output.push_str(&format!(
+                        "{}  <subject>{}</subject>\n",
+                        indent,
+                        escape_xml(&subject)
+                    ));
+                }
+                SyntheticChild::Label(label) => {
+                    output.push_str(&format!(
+                        "{}  <label>{}</label>\n",
+                        indent,
+                        escape_xml(&label)
+                    ));
+                }
+                SyntheticChild::Parameter(key, value) => {
+                    output.push_str(&format!(
+                        "{}  <parameter>{}={}</parameter>\n",
+                        indent,
+                        escape_xml(&key),
+                        escape_xml(&value)
+                    ));
+                }
+                SyntheticChild::Annotation(ann) => {
+                    let ann_item = ContentItem::Annotation(*ann);
+                    output.push_str(&format_content_item(
+                        &ann_item,
+                        indent_level + 1,
+                        include_all,
+                    ));
+                }
+            }
+        }
+
+        // Render regular children
+        for child in regular_children {
+            output.push_str(&format_content_item(child, indent_level + 1, include_all));
+        }
+
+        output.push_str(&format!("{}</{}>\n", indent, tag));
+    }
+
+    output
 }
 
-impl TagSerializer {
-    fn new() -> Self {
-        Self {
-            output: String::new(),
-            indent_level: 0,
-        }
-    }
-
-    fn indent(&self) -> String {
-        "  ".repeat(self.indent_level)
-    }
-
-    fn push_indent(&mut self, s: &str) {
-        self.output.push_str(&self.indent());
-        self.output.push_str(s);
-    }
-
-    fn serialize_snapshot(&mut self, snapshot: &AstSnapshot) {
-        let tag = to_tag_name(&snapshot.node_type);
-
-        self.push_indent(&format!("<{}>", tag));
-        self.output.push_str(&escape_xml(&snapshot.label));
-
-        if snapshot.children.is_empty() {
-            self.output.push_str(&format!("</{}>", tag));
-            self.output.push('\n');
-        } else {
-            self.output.push('\n');
-            self.indent_level += 1;
-            for child in &snapshot.children {
-                self.serialize_snapshot(child);
-            }
-            self.indent_level -= 1;
-            self.push_indent(&format!("</{}>", tag));
-            self.output.push('\n');
-        }
-    }
+/// Helper enum for synthetic children
+enum SyntheticChild {
+    SessionTitle(String),
+    Marker(String),
+    Text(String),
+    Subject(String),
+    Label(String),
+    Parameter(String, String),
+    Annotation(Box<lex_parser::lex::ast::Annotation>),
 }
 
 /// Convert a node type name to a tag name (e.g., "TextLine" → "text-line")
@@ -116,27 +258,28 @@ pub fn serialize_document(doc: &Document) -> String {
 /// let output = serialize_document_with_params(&doc, &params);
 /// ```
 pub fn serialize_document_with_params(doc: &Document, params: &HashMap<String, String>) -> String {
-    let mut result = String::new();
-    result.push_str("<document>\n");
-
-    let mut serializer = TagSerializer::new();
-    serializer.indent_level = 1;
-
     // Check if ast-full parameter is set to true
     let include_all = params
         .get("ast-full")
         .map(|v| v.to_lowercase() == "true")
         .unwrap_or(false);
 
-    // Serialize the root session
-    let snapshot = if include_all {
-        snapshot_from_document_with_options(doc, true)
-    } else {
-        snapshot_from_document(doc)
-    };
-    serializer.serialize_snapshot(&snapshot);
+    let mut result = String::new();
+    result.push_str("<document>\n");
 
-    result.push_str(&serializer.output);
+    // If include_all, show document-level annotations
+    if include_all {
+        for annotation in &doc.annotations {
+            let ann_item = ContentItem::Annotation(annotation.clone());
+            result.push_str(&format_content_item(&ann_item, 1, include_all));
+        }
+    }
+
+    // Show document children (flattened from root session)
+    for child in &doc.root.children {
+        result.push_str(&format_content_item(child, 1, include_all));
+    }
+
     result.push_str("</document>");
     result
 }
