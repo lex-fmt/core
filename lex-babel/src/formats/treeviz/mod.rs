@@ -148,8 +148,28 @@ pub fn to_treeviz_str(doc: &Document) -> String {
 
 /// Convert a document to treeviz string with optional parameters
 ///
-/// Supported parameters:
-/// - "ast-full": "true" - Include all nodes including document-level annotations
+/// # Parameters
+///
+/// - `"ast-full"`: When set to `"true"`, includes all AST node properties:
+///   * Document-level annotations
+///   * Session titles (as SessionTitle nodes)
+///   * List item markers and text (as Marker and Text nodes)
+///   * Definition subjects (as Subject nodes)
+///   * Annotation labels and parameters (as Label and Parameter nodes)
+///
+/// # Examples
+///
+/// ```ignore
+/// use std::collections::HashMap;
+///
+/// // Normal view (content only)
+/// let output = to_treeviz_str_with_params(&doc, &HashMap::new());
+///
+/// // Full AST view (all properties)
+/// let mut params = HashMap::new();
+/// params.insert("ast-full".to_string(), "true".to_string());
+/// let output = to_treeviz_str_with_params(&doc, &params);
+/// ```
 pub fn to_treeviz_str_with_params(doc: &Document, params: &HashMap<String, String>) -> String {
     // Check if ast-full parameter is set to true
     let include_all = params
