@@ -3,7 +3,9 @@
 //! This module defines all the transform combinations available in the CLI.
 //! Each transform is a stage + format combination (e.g., "ast-tag", "token-core-json").
 
-use lex_babel::formats::{tag::serialize_document as serialize_ast_tag, treeviz::to_treeviz_str};
+use lex_babel::formats::{
+    tag::serialize_document as serialize_ast_tag, treeviz::to_treeviz_str_with_params,
+};
 use lex_parser::lex::lexing::transformations::line_token_grouping::GroupedTokens;
 use lex_parser::lex::lexing::transformations::LineTokenGroupingMapper;
 use lex_parser::lex::loader::DocumentLoader;
@@ -118,16 +120,9 @@ pub fn execute_transform(
             let doc = loader
                 .parse()
                 .map_err(|e| format!("Transform failed: {}", e))?;
-            // TODO: Pass extra_params to to_treeviz_str when API supports it
-            // For example: to_treeviz_str(&doc, extra_params)
-            // This would allow params like: --extra-all-nodes true
-            if !extra_params.is_empty() {
-                eprintln!(
-                    "Note: Extra parameters received but not yet supported by ast-treeviz: {:?}",
-                    extra_params
-                );
-            }
-            Ok(to_treeviz_str(&doc))
+            // Pass extra_params to to_treeviz_str
+            // Supports: --extra-ast-full true
+            Ok(to_treeviz_str_with_params(&doc, extra_params))
         }
         _ => Err(format!("Unknown transform: {}", transform_name)),
     }
@@ -321,8 +316,54 @@ mod tests {
         extra_params.insert("all-nodes".to_string(), "true".to_string());
         extra_params.insert("max-depth".to_string(), "5".to_string());
 
-        // Should not error, even though params aren't used yet
+        // Should not error with unknown params
         let result = execute_transform(source, "ast-treeviz", &extra_params);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn ast_full_param_includes_annotations() {
+        use lex_babel::formats::treeviz::to_treeviz_str_with_params;
+        use lex_parser::lex::ast::elements::annotation::Annotation;
+        use lex_parser::lex::ast::elements::label::Label;
+        use lex_parser::lex::ast::elements::paragraph::Paragraph;
+        use lex_parser::lex::ast::elements::typed_content::ContentElement;
+        use lex_parser::lex::ast::{ContentItem, Document};
+
+        // Create a document with document-level annotation programmatically
+        let annotation = Annotation::new(
+            Label::new("test-annotation".to_string()),
+            vec![],
+            Vec::<ContentElement>::new(),
+        );
+        let doc = Document::with_annotations_and_content(
+            vec![annotation],
+            vec![ContentItem::Paragraph(Paragraph::from_line(
+                "Regular content".to_string(),
+            ))],
+        );
+
+        let mut extra_params = HashMap::new();
+
+        // Without ast-full, annotations should be excluded from output
+        let output_normal = to_treeviz_str_with_params(&doc, &extra_params);
+        assert!(
+            !output_normal.contains("test-annotation"),
+            "Annotation label should not be visible without ast-full"
+        );
+
+        // With ast-full=true, annotations should be included
+        extra_params.insert("ast-full".to_string(), "true".to_string());
+        let output_full = to_treeviz_str_with_params(&doc, &extra_params);
+        // The annotation icon is " (double quote character)
+        assert!(
+            output_full.contains("\" test-annotation"),
+            "With ast-full=true, annotation with icon should appear in output. Output was:\n{}",
+            output_full
+        );
+        assert!(
+            output_full.contains("test-annotation"),
+            "Annotation label should be visible with ast-full"
+        );
     }
 }

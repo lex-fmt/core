@@ -113,10 +113,22 @@ pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
 
 /// Build a snapshot for the document root, flattening the root session
 ///
-/// Note: Document-level annotations are not included in this snapshot.
+/// When `include_all` is false: Document-level annotations are not included in this snapshot.
 /// This reflects the document structure where annotations are separate from content.
+/// When `include_all` is true: All nodes including annotations are included.
+///
 /// The root session is flattened so its children appear as direct children of the Document.
 pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
+    snapshot_from_document_with_options(doc, false)
+}
+
+/// Build a snapshot for the document root with options for controlling what's included
+///
+/// When `include_all` is false: Document-level annotations are not included in this snapshot.
+/// When `include_all` is true: All nodes including annotations are included.
+///
+/// The root session is flattened so its children appear as direct children of the Document.
+pub fn snapshot_from_document_with_options(doc: &Document, include_all: bool) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new(
         "Document".to_string(),
         format!(
@@ -125,6 +137,17 @@ pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
             doc.root.children.len()
         ),
     );
+
+    // If include_all is true, include document-level annotations
+    if include_all {
+        for annotation in &doc.annotations {
+            snapshot
+                .children
+                .push(snapshot_from_content(&ContentItem::Annotation(
+                    annotation.clone(),
+                )));
+        }
+    }
 
     // Flatten the root session - its children become direct children of the Document
     for child in &doc.root.children {
