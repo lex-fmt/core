@@ -959,6 +959,8 @@ dependencies = [
 [[package]]
 name = "polymath-rs"
 version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ef6c498b9a39e7f76723d694354348b04373dbfdef5c9c38360f9358f7cdce7"
 dependencies = [
  "itertools 0.12.1",
  "tracing",
