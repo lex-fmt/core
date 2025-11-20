@@ -15,9 +15,12 @@ use crate::lex::ast::elements::inlines::{InlineNode, ReferenceType};
 /// Post-processor callback for reference nodes that classifies their type.
 pub(super) fn classify_reference_node(node: InlineNode) -> InlineNode {
     match node {
-        InlineNode::Reference(mut reference) => {
-            reference.reference_type = determine_reference_type(&reference.raw);
-            InlineNode::Reference(reference)
+        InlineNode::Reference {
+            mut data,
+            annotations,
+        } => {
+            data.reference_type = determine_reference_type(&data.raw);
+            InlineNode::Reference { data, annotations }
         }
         other => other,
     }

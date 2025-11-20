@@ -19,6 +19,7 @@
 //!     See [parser](parser) module for the inline parser implementation.
 
 mod citations;
+pub mod math;
 mod parser;
 mod references;
 
