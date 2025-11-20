@@ -25,76 +25,102 @@
 use super::icons::get_icon;
 use crate::error::FormatError;
 use crate::format::Format;
-use lex_parser::lex::ast::{
-    snapshot_from_document, snapshot_from_document_with_options, AstSnapshot, Document,
-};
+use lex_parser::lex::ast::traits::{AstNode, Container, VisualStructure};
+use lex_parser::lex::ast::{ContentItem, Document};
 use std::collections::HashMap;
 
-/// Check if a node type represents a collapsible container
-fn is_collapsible_container(node_type: &str) -> bool {
-    matches!(node_type, "Paragraph" | "List")
-}
-
-/// Build treeviz output from an AstSnapshot, collapsing container nodes
-fn format_snapshot(
-    snapshot: &AstSnapshot,
+/// Format a single ContentItem node with collapsing logic
+fn format_content_item(
+    item: &ContentItem,
     prefix: &str,
     child_index: usize,
     child_count: usize,
 ) -> String {
     let mut output = String::new();
-
     let is_last = child_index == child_count - 1;
     let connector = if is_last { "└─" } else { "├─" };
 
-    // Check if this is a collapsible container
-    if is_collapsible_container(&snapshot.node_type) && !snapshot.children.is_empty() {
-        // Don't show the container itself, show children with combined icons
-        let parent_icon = get_icon(&snapshot.node_type);
+    // Check if this node collapses with its children using the VisualStructure trait
+    let collapses = match item {
+        ContentItem::Paragraph(p) => p.collapses_with_children(),
+        ContentItem::List(l) => l.collapses_with_children(),
+        ContentItem::Session(s) => s.collapses_with_children(),
+        ContentItem::Definition(d) => d.collapses_with_children(),
+        ContentItem::Annotation(a) => a.collapses_with_children(),
+        ContentItem::VerbatimBlock(v) => v.collapses_with_children(),
+        _ => false,
+    };
 
-        for (i, child) in snapshot.children.iter().enumerate() {
-            let child_is_last = i == snapshot.children.len() - 1;
-            let child_connector = if child_is_last { "└─" } else { "├─" };
-            let child_icon = get_icon(&child.node_type);
+    if collapses {
+        // Get parent info
+        let parent_icon = get_icon(item.node_type());
+        let children: Vec<&dyn AstNode> = match item {
+            ContentItem::Paragraph(p) => p.lines.iter().map(|l| l as &dyn AstNode).collect(),
+            ContentItem::List(l) => l.items.iter().map(|i| i as &dyn AstNode).collect(),
+            _ => Vec::new(),
+        };
 
-            // Show combined parent+child icon
-            output.push_str(&format!(
-                "{}{} {} {} {}\n",
-                prefix, child_connector, parent_icon, child_icon, child.label
-            ));
+        // Show children with combined parent+child icons, using the parent's connector
+        for (i, child) in children.iter().enumerate() {
+            let child_is_last = i == children.len() - 1;
+            let child_icon = get_icon(child.node_type());
 
-            // Process grandchildren with adjusted prefix
-            if !child.children.is_empty() {
-                let grandchild_prefix =
-                    format!("{}{}", prefix, if child_is_last { "  " } else { "│ " });
-                let grandchild_count = child.children.len();
-
-                for (j, grandchild) in child.children.iter().enumerate() {
-                    output.push_str(&format_snapshot(
-                        grandchild,
-                        &grandchild_prefix,
-                        j,
-                        grandchild_count,
-                    ));
-                }
+            // For the first child, use the parent's connector; for subsequent children get indented
+            if i == 0 {
+                output.push_str(&format!(
+                    "{}{} {} {} {}\n",
+                    prefix,
+                    connector,
+                    parent_icon,
+                    child_icon,
+                    child.display_label()
+                ));
+            } else {
+                // Subsequent children get indented with the parent's continuation
+                let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
+                let child_connector = if child_is_last { "└─" } else { "├─" };
+                output.push_str(&format!(
+                    "{}{} {} {} {}\n",
+                    child_prefix,
+                    child_connector,
+                    parent_icon,
+                    child_icon,
+                    child.display_label()
+                ));
             }
+
+            // Process grandchildren if any (for nested structures within collapsed items)
+            // For now, we don't handle this case as TextLine and basic ListItem don't have children
         }
     } else {
         // Normal node - show as usual
-        let icon = get_icon(&snapshot.node_type);
-
+        let icon = get_icon(item.node_type());
         output.push_str(&format!(
             "{}{} {} {}\n",
-            prefix, connector, icon, snapshot.label
+            prefix,
+            connector,
+            icon,
+            item.display_label()
         ));
 
-        // Process children if any
-        if !snapshot.children.is_empty() {
-            let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
-            let child_count = snapshot.children.len();
+        // Process children
+        let children = match item {
+            ContentItem::Session(s) => s.children(),
+            ContentItem::Definition(d) => d.children(),
+            ContentItem::ListItem(li) => li.children(),
+            ContentItem::Annotation(a) => a.children(),
+            _ => &[],
+        };
 
-            for (i, child) in snapshot.children.iter().enumerate() {
-                output.push_str(&format_snapshot(child, &child_prefix, i, child_count));
+        if !children.is_empty() {
+            let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
+            for (i, child) in children.iter().enumerate() {
+                output.push_str(&format_content_item(
+                    child,
+                    &child_prefix,
+                    i,
+                    children.len(),
+                ));
             }
         }
     }
@@ -102,20 +128,7 @@ fn format_snapshot(
     output
 }
 
-fn format_document_snapshot(snapshot: &AstSnapshot) -> String {
-    let icon = get_icon(&snapshot.node_type);
-    let mut output = format!("{} {}\n", icon, snapshot.label);
-
-    if !snapshot.children.is_empty() {
-        let child_count = snapshot.children.len();
-        for (i, child) in snapshot.children.iter().enumerate() {
-            output.push_str(&format_snapshot(child, "", i, child_count));
-        }
-    }
-
-    output
-}
-
+/// Convert a document to linetreeviz string
 pub fn to_linetreeviz_str(doc: &Document) -> String {
     to_linetreeviz_str_with_params(doc, &HashMap::new())
 }
@@ -125,21 +138,22 @@ pub fn to_linetreeviz_str(doc: &Document) -> String {
 /// # Parameters
 ///
 /// - `"ast-full"`: When set to `"true"`, includes all AST node properties
-///   (same as treeviz)
-pub fn to_linetreeviz_str_with_params(doc: &Document, params: &HashMap<String, String>) -> String {
-    // Check if ast-full parameter is set to true
-    let include_all = params
-        .get("ast-full")
-        .map(|v| v.to_lowercase() == "true")
-        .unwrap_or(false);
+///   Note: Currently this parameter is not fully implemented for linetreeviz
+pub fn to_linetreeviz_str_with_params(doc: &Document, _params: &HashMap<String, String>) -> String {
+    let icon = get_icon("Document");
+    let mut output = format!(
+        "{} Document ({} annotations, {} items)\n",
+        icon,
+        doc.annotations.len(),
+        doc.root.children.len()
+    );
 
-    let snapshot = if include_all {
-        snapshot_from_document_with_options(doc, true)
-    } else {
-        snapshot_from_document(doc)
-    };
+    let children = &doc.root.children;
+    for (i, child) in children.iter().enumerate() {
+        output.push_str(&format_content_item(child, "", i, children.len()));
+    }
 
-    format_document_snapshot(&snapshot)
+    output
 }
 
 /// Format implementation for line tree visualization
