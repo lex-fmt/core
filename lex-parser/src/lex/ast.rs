@@ -121,7 +121,7 @@ pub use snapshot::{
     snapshot_from_document_with_options, snapshot_node, AstSnapshot,
 };
 pub use text_content::TextContent;
-pub use traits::{AstNode, Container, TextNode, Visitor};
+pub use traits::{AstNode, Container, TextNode, Visitor, VisualStructure};
 
 // Convenience functions that delegate to Document methods
 // These are provided for backwards compatibility with existing code

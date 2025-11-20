@@ -35,7 +35,7 @@
 //! - Make the AST less noisy while maintaining fidelity
 
 use super::super::range::{Position, Range};
-use super::super::traits::{AstNode, Visitor};
+use super::super::traits::{AstNode, Visitor, VisualStructure};
 use crate::lex::lexing::Token;
 use std::fmt;
 
@@ -88,6 +88,12 @@ impl AstNode for BlankLineGroup {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_blank_line_group(self);
+    }
+}
+
+impl VisualStructure for BlankLineGroup {
+    fn is_source_line_node(&self) -> bool {
+        true
     }
 }
 

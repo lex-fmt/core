@@ -29,7 +29,7 @@
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
-use super::super::traits::{AstNode, Container, Visitor};
+use super::super::traits::{AstNode, Container, Visitor, VisualStructure};
 use super::annotation::Annotation;
 use super::container::GeneralContainer;
 use super::content_item::ContentItem;
@@ -123,6 +123,16 @@ impl AstNode for Definition {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_definition(self);
         super::super::traits::visit_children(visitor, &self.children);
+    }
+}
+
+impl VisualStructure for Definition {
+    fn is_source_line_node(&self) -> bool {
+        true
+    }
+
+    fn has_visual_header(&self) -> bool {
+        true
     }
 }
 

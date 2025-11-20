@@ -59,7 +59,7 @@
 //!
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
-use super::super::traits::{AstNode, Container, Visitor};
+use super::super::traits::{AstNode, Container, Visitor, VisualStructure};
 use super::annotation::Annotation;
 use super::container::SessionContainer;
 use super::content_item::ContentItem;
@@ -381,6 +381,16 @@ impl AstNode for Session {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_session(self);
         super::super::traits::visit_children(visitor, &self.children);
+    }
+}
+
+impl VisualStructure for Session {
+    fn is_source_line_node(&self) -> bool {
+        true
+    }
+
+    fn has_visual_header(&self) -> bool {
+        true
     }
 }
 

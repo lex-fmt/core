@@ -62,29 +62,13 @@
 //!         ReferenceFootnote: ³
 //!         ReferenceSession: #
 
+use super::icons::get_icon;
 use crate::error::FormatError;
 use crate::format::Format;
 use lex_parser::lex::ast::{
     snapshot_from_document, snapshot_from_document_with_options, AstSnapshot, Document,
 };
 use std::collections::HashMap;
-
-/// Get the icon for a node type
-fn get_icon(node_type: &str) -> &'static str {
-    match node_type {
-        "Document" => "⧉",
-        "Session" => "§",
-        "Paragraph" => "¶",
-        "TextLine" => "↵",
-        "List" => "☰",
-        "ListItem" => "•",
-        "Definition" => "≔",
-        "VerbatimBlock" => "𝒱",
-        "Annotation" => "\"",
-        "BlankLineGroup" => "⎯",
-        _ => "○",
-    }
-}
 
 /// Build treeviz output from an AstSnapshot
 fn format_snapshot(
