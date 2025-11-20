@@ -2,13 +2,44 @@
 //!
 //! This module defines all the transform combinations available in the CLI.
 //! Each transform is a stage + format combination (e.g., "ast-tag", "token-core-json").
+//!
+//! ## Transform Pipeline
+//!
+//! The lex compiler has several processing stages:
+//!
+//! 1. **Tokenization** - Raw text → Token stream
+//!    - `token-core-*`: Core tokens (no semantic indentation)
+//!    - `token-line-*`: Line tokens (with semantic indentation)
+//!
+//! 2. **Parsing** - Tokens → Intermediate Representation (IR)
+//!    - `ir-json`: Parse tree representation
+//!
+//! 3. **Assembly** - IR → Abstract Syntax Tree (AST)
+//!    - `ast-tag`: XML-like tag format
+//!    - `ast-treeviz`: Tree visualization with Unicode icons
+//!    - `ast-json`: JSON representation
+//!
+//! ## Extra Parameters
+//!
+//! Transforms can accept extra parameters via `--extra-<name> [value]`:
+//!
+//! - `ast-full`: When set to "true", shows complete AST including:
+//!   * Document-level annotations
+//!   * All node properties (labels, subjects, parameters, etc.)
+//!   * Session titles, list item markers, definition subjects
+//!
+//! Example: `lex inspect file.lex ast-tag --extra-ast-full`
 
-use lex_babel::formats::{tag::serialize_document as serialize_ast_tag, treeviz::to_treeviz_str};
+use lex_babel::formats::{
+    tag::serialize_document_with_params as serialize_ast_tag_with_params,
+    treeviz::to_treeviz_str_with_params,
+};
 use lex_parser::lex::lexing::transformations::line_token_grouping::GroupedTokens;
 use lex_parser::lex::lexing::transformations::LineTokenGroupingMapper;
 use lex_parser::lex::loader::DocumentLoader;
 use lex_parser::lex::token::{to_line_container, LineContainer, LineToken};
 use lex_parser::lex::transforms::standard::{CORE_TOKENIZATION, LEXING, TO_IR};
+use std::collections::HashMap;
 
 /// All available CLI transforms (stage + format combinations)
 pub const AVAILABLE_TRANSFORMS: &[&str] = &[
@@ -26,8 +57,41 @@ pub const AVAILABLE_TRANSFORMS: &[&str] = &[
     "ast-treeviz",
 ];
 
-/// Execute a named transform on a source file
-pub fn execute_transform(source: &str, transform_name: &str) -> Result<String, String> {
+/// Execute a named transform on a source file with optional extra parameters
+///
+/// # Arguments
+///
+/// * `source` - The source text to transform
+/// * `transform_name` - The transform to apply (e.g., "ast-tag", "token-core-json")
+/// * `extra_params` - Optional parameters for the transform
+///
+/// # Extra Parameters
+///
+/// - `ast-full`: "true" - Show complete AST including all node properties
+///
+/// # Returns
+///
+/// The transformed output as a string, or an error message
+///
+/// # Examples
+///
+/// ```ignore
+/// let source = "# Session\n\nContent";
+/// let params = HashMap::new();
+///
+/// // Get tree visualization (default view)
+/// let output = execute_transform(source, "ast-treeviz", &params)?;
+///
+/// // Get complete AST with all properties
+/// let mut full_params = HashMap::new();
+/// full_params.insert("ast-full".to_string(), "true".to_string());
+/// let output = execute_transform(source, "ast-tag", &full_params)?;
+/// ```
+pub fn execute_transform(
+    source: &str,
+    transform_name: &str,
+    extra_params: &HashMap<String, String>,
+) -> Result<String, String> {
     let loader = DocumentLoader::from_string(source);
 
     match transform_name {
@@ -107,13 +171,15 @@ pub fn execute_transform(source: &str, transform_name: &str) -> Result<String, S
             let doc = loader
                 .parse()
                 .map_err(|e| format!("Transform failed: {}", e))?;
-            Ok(serialize_ast_tag(&doc))
+            Ok(serialize_ast_tag_with_params(&doc, extra_params))
         }
         "ast-treeviz" => {
             let doc = loader
                 .parse()
                 .map_err(|e| format!("Transform failed: {}", e))?;
-            Ok(to_treeviz_str(&doc))
+            // Pass extra_params to to_treeviz_str
+            // Supports: --extra-ast-full true
+            Ok(to_treeviz_str_with_params(&doc, extra_params))
         }
         _ => Err(format!("Unknown transform: {}", transform_name)),
     }
@@ -248,7 +314,9 @@ mod tests {
     #[test]
     fn token_line_transform_emits_line_tokens() {
         let source = "Session:\n    Content\n";
-        let output = execute_transform(source, "token-line-json").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output =
+            execute_transform(source, "token-line-json", &extra_params).expect("transform to run");
 
         assert!(output.contains("\"line_type\""));
         assert!(output.contains("SubjectLine"));
@@ -258,7 +326,9 @@ mod tests {
     #[test]
     fn token_simple_outputs_names() {
         let source = "Session:\n    Content\n";
-        let output = execute_transform(source, "token-simple").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output =
+            execute_transform(source, "token-simple", &extra_params).expect("transform to run");
 
         assert!(output.contains("TEXT"));
         assert!(output.contains("BLANK_LINE"));
@@ -267,7 +337,9 @@ mod tests {
     #[test]
     fn token_line_simple_outputs_names() {
         let source = "Session:\n    Content\n";
-        let output = execute_transform(source, "token-line-simple").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output = execute_transform(source, "token-line-simple", &extra_params)
+            .expect("transform to run");
 
         assert!(output.contains("SUBJECT_LINE"));
         assert!(output.contains("PARAGRAPH_LINE"));
@@ -276,7 +348,9 @@ mod tests {
     #[test]
     fn token_pprint_inserts_blank_line() {
         let source = "Hello\n\nWorld\n";
-        let output = execute_transform(source, "token-pprint").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output =
+            execute_transform(source, "token-pprint", &extra_params).expect("transform to run");
 
         assert!(output.contains("BLANK_LINE\n\n"));
     }
@@ -284,9 +358,69 @@ mod tests {
     #[test]
     fn token_line_pprint_indents_children() {
         let source = "Session:\n    Content\n";
-        let output = execute_transform(source, "token-line-pprint").expect("transform to run");
+        let extra_params = HashMap::new();
+        let output = execute_transform(source, "token-line-pprint", &extra_params)
+            .expect("transform to run");
 
         assert!(output.contains("SUBJECT_LINE"));
         assert!(output.contains("  PARAGRAPH_LINE"));
+    }
+
+    #[test]
+    fn execute_transform_accepts_extra_params() {
+        let source = "# Test\n";
+        let mut extra_params = HashMap::new();
+        extra_params.insert("all-nodes".to_string(), "true".to_string());
+        extra_params.insert("max-depth".to_string(), "5".to_string());
+
+        // Should not error with unknown params
+        let result = execute_transform(source, "ast-treeviz", &extra_params);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn ast_full_param_includes_annotations() {
+        use lex_babel::formats::treeviz::to_treeviz_str_with_params;
+        use lex_parser::lex::ast::elements::annotation::Annotation;
+        use lex_parser::lex::ast::elements::label::Label;
+        use lex_parser::lex::ast::elements::paragraph::Paragraph;
+        use lex_parser::lex::ast::elements::typed_content::ContentElement;
+        use lex_parser::lex::ast::{ContentItem, Document};
+
+        // Create a document with document-level annotation programmatically
+        let annotation = Annotation::new(
+            Label::new("test-annotation".to_string()),
+            vec![],
+            Vec::<ContentElement>::new(),
+        );
+        let doc = Document::with_annotations_and_content(
+            vec![annotation],
+            vec![ContentItem::Paragraph(Paragraph::from_line(
+                "Regular content".to_string(),
+            ))],
+        );
+
+        let mut extra_params = HashMap::new();
+
+        // Without ast-full, annotations should be excluded from output
+        let output_normal = to_treeviz_str_with_params(&doc, &extra_params);
+        assert!(
+            !output_normal.contains("test-annotation"),
+            "Annotation label should not be visible without ast-full"
+        );
+
+        // With ast-full=true, annotations should be included
+        extra_params.insert("ast-full".to_string(), "true".to_string());
+        let output_full = to_treeviz_str_with_params(&doc, &extra_params);
+        // The annotation icon is " (double quote character)
+        assert!(
+            output_full.contains("\" test-annotation"),
+            "With ast-full=true, annotation with icon should appear in output. Output was:\n{}",
+            output_full
+        );
+        assert!(
+            output_full.contains("test-annotation"),
+            "Annotation label should be visible with ast-full"
+        );
     }
 }
