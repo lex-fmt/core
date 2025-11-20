@@ -128,23 +128,29 @@ impl InlineExpectation {
 
     fn assert(&self, actual: &InlineNode, context: &str) {
         match (&self.kind, actual) {
-            (InlineExpectationKind::Plain(matcher), InlineNode::Plain(text)) => {
+            (InlineExpectationKind::Plain(matcher), InlineNode::Plain { text, .. }) => {
                 matcher.assert(text, context);
             }
-            (InlineExpectationKind::Strong(expect_children), InlineNode::Strong(children)) => {
-                assert_inline_children(children, expect_children, context);
+            (
+                InlineExpectationKind::Strong(expect_children),
+                InlineNode::Strong { content, .. },
+            ) => {
+                assert_inline_children(content, expect_children, context);
             }
-            (InlineExpectationKind::Emphasis(expect_children), InlineNode::Emphasis(children)) => {
-                assert_inline_children(children, expect_children, context);
+            (
+                InlineExpectationKind::Emphasis(expect_children),
+                InlineNode::Emphasis { content, .. },
+            ) => {
+                assert_inline_children(content, expect_children, context);
             }
-            (InlineExpectationKind::Code(matcher), InlineNode::Code(text)) => {
+            (InlineExpectationKind::Code(matcher), InlineNode::Code { text, .. }) => {
                 matcher.assert(text, context);
             }
-            (InlineExpectationKind::Math(matcher), InlineNode::Math(text)) => {
+            (InlineExpectationKind::Math(matcher), InlineNode::Math { text, .. }) => {
                 matcher.assert(text, context);
             }
-            (InlineExpectationKind::Reference(expectation), InlineNode::Reference(reference)) => {
-                expectation.assert(reference, context);
+            (InlineExpectationKind::Reference(expectation), InlineNode::Reference { data, .. }) => {
+                expectation.assert(data, context);
             }
             (expected, got) => panic!("{}: Expected inline {:?}, got {:?}", context, expected, got),
         }

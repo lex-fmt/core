@@ -344,24 +344,29 @@ impl InlineFrame {
             return;
         }
         let text = std::mem::take(&mut self.buffer);
-        if let Some(InlineNode::Plain(existing)) = self.children.last_mut() {
+        if let Some(InlineNode::Plain { text: existing, .. }) = self.children.last_mut() {
             existing.push_str(&text);
         } else {
-            self.children.push(InlineNode::Plain(text));
+            self.children.push(InlineNode::Plain {
+                text,
+                annotations: Vec::new(),
+            });
         }
     }
 
     fn push_node(&mut self, node: InlineNode) {
         self.flush_buffer();
         match node {
-            InlineNode::Plain(text) => {
+            InlineNode::Plain { text, annotations } => {
                 if text.is_empty() {
                     return;
                 }
-                if let Some(InlineNode::Plain(existing)) = self.children.last_mut() {
+                if let Some(InlineNode::Plain { text: existing, .. }) = self.children.last_mut() {
                     existing.push_str(&text);
+                    // Note: annotations from the merged node are discarded
+                    // This is intentional as Plain nodes are typically created without annotations
                 } else {
-                    self.children.push(InlineNode::Plain(text));
+                    self.children.push(InlineNode::Plain { text, annotations });
                 }
             }
             other => self.children.push(other),
@@ -370,13 +375,26 @@ impl InlineFrame {
 
     fn into_node(self, spec: &InlineSpec) -> InlineNode {
         match spec.kind {
-            InlineKind::Strong => InlineNode::Strong(self.children),
-            InlineKind::Emphasis => InlineNode::Emphasis(self.children),
-            InlineKind::Code => InlineNode::Code(flatten_literal(self.children)),
-            InlineKind::Math => InlineNode::Math(flatten_literal(self.children)),
-            InlineKind::Reference => {
-                InlineNode::Reference(ReferenceInline::new(flatten_literal(self.children)))
-            }
+            InlineKind::Strong => InlineNode::Strong {
+                content: self.children,
+                annotations: Vec::new(),
+            },
+            InlineKind::Emphasis => InlineNode::Emphasis {
+                content: self.children,
+                annotations: Vec::new(),
+            },
+            InlineKind::Code => InlineNode::Code {
+                text: flatten_literal(self.children),
+                annotations: Vec::new(),
+            },
+            InlineKind::Math => InlineNode::Math {
+                text: flatten_literal(self.children),
+                annotations: Vec::new(),
+            },
+            InlineKind::Reference => InlineNode::Reference {
+                data: ReferenceInline::new(flatten_literal(self.children)),
+                annotations: Vec::new(),
+            },
         }
     }
 
@@ -391,7 +409,7 @@ fn flatten_literal(children: InlineContent) -> String {
     let mut text = String::new();
     for node in children {
         match node {
-            InlineNode::Plain(segment) => text.push_str(&segment),
+            InlineNode::Plain { text: segment, .. } => text.push_str(&segment),
             _ => fatal_literal_content(),
         }
     }
@@ -460,7 +478,13 @@ mod tests {
     #[test]
     fn parses_plain_text() {
         let nodes = parse_inlines("hello world");
-        assert_eq!(nodes, vec![InlineNode::Plain("hello world".into())]);
+        assert_eq!(
+            nodes,
+            vec![InlineNode::Plain {
+                text: "hello world".into(),
+                annotations: Vec::new()
+            }]
+        );
     }
 
     #[test]
@@ -468,19 +492,37 @@ mod tests {
         let nodes = parse_inlines("*strong _inner_* text");
         assert_eq!(nodes.len(), 2);
         match &nodes[0] {
-            InlineNode::Strong(children) => {
-                assert_eq!(children.len(), 2);
-                assert_eq!(children[0], InlineNode::Plain("strong ".into()));
-                match &children[1] {
-                    InlineNode::Emphasis(inner) => {
-                        assert_eq!(inner, &vec![InlineNode::Plain("inner".into())]);
+            InlineNode::Strong { content, .. } => {
+                assert_eq!(content.len(), 2);
+                assert_eq!(
+                    content[0],
+                    InlineNode::Plain {
+                        text: "strong ".into(),
+                        annotations: Vec::new()
+                    }
+                );
+                match &content[1] {
+                    InlineNode::Emphasis { content: inner, .. } => {
+                        assert_eq!(
+                            inner,
+                            &vec![InlineNode::Plain {
+                                text: "inner".into(),
+                                annotations: Vec::new()
+                            }]
+                        );
                     }
                     other => panic!("Unexpected child: {:?}", other),
                 }
             }
             other => panic!("Unexpected node: {:?}", other),
         }
-        assert_eq!(nodes[1], InlineNode::Plain(" text".into()));
+        assert_eq!(
+            nodes[1],
+            InlineNode::Plain {
+                text: " text".into(),
+                annotations: Vec::new()
+            }
+        );
     }
 
     #[test]
@@ -488,12 +530,12 @@ mod tests {
         let nodes = parse_inlines("*strong and _emphasis_* text");
         assert_eq!(nodes.len(), 2);
         match &nodes[0] {
-            InlineNode::Strong(children) => {
-                assert_eq!(children.len(), 2);
-                assert_eq!(children[0], InlineNode::Plain("strong and ".into()));
-                match &children[1] {
-                    InlineNode::Emphasis(inner) => {
-                        assert_eq!(inner, &vec![InlineNode::Plain("emphasis".into())]);
+            InlineNode::Strong { content, .. } => {
+                assert_eq!(content.len(), 2);
+                assert_eq!(content[0], InlineNode::plain("strong and ".into()));
+                match &content[1] {
+                    InlineNode::Emphasis { content: inner, .. } => {
+                        assert_eq!(inner, &vec![InlineNode::plain("emphasis".into())]);
                     }
                     other => panic!("Unexpected child: {:?}", other),
                 }
@@ -506,34 +548,34 @@ mod tests {
     fn code_is_literal() {
         let nodes = parse_inlines("`a * literal _` text");
         assert_eq!(nodes.len(), 2);
-        assert_eq!(nodes[0], InlineNode::Code("a * literal _".into()));
-        assert_eq!(nodes[1], InlineNode::Plain(" text".into()));
+        assert_eq!(nodes[0], InlineNode::code("a * literal _".into()));
+        assert_eq!(nodes[1], InlineNode::plain(" text".into()));
     }
 
     #[test]
     fn math_is_literal() {
         let nodes = parse_inlines("#x + y#");
-        assert_eq!(nodes, vec![InlineNode::Math("x + y".into())]);
+        assert_eq!(nodes, vec![InlineNode::math("x + y".into())]);
     }
 
     #[test]
     fn unmatched_start_is_literal() {
         let nodes = parse_inlines("prefix *text");
-        assert_eq!(nodes, vec![InlineNode::Plain("prefix *text".into())]);
+        assert_eq!(nodes, vec![InlineNode::plain("prefix *text".into())]);
     }
 
     #[test]
     fn unmatched_nested_preserves_children() {
         let nodes = parse_inlines("*a _b_ c");
         assert_eq!(nodes.len(), 3);
-        assert_eq!(nodes[0], InlineNode::Plain("*a ".into()));
+        assert_eq!(nodes[0], InlineNode::plain("*a ".into()));
         match &nodes[1] {
-            InlineNode::Emphasis(children) => {
-                assert_eq!(children, &vec![InlineNode::Plain("b".into())]);
+            InlineNode::Emphasis { content, .. } => {
+                assert_eq!(content, &vec![InlineNode::plain("b".into())]);
             }
             other => panic!("Unexpected node: {:?}", other),
         }
-        assert_eq!(nodes[2], InlineNode::Plain(" c".into()));
+        assert_eq!(nodes[2], InlineNode::plain(" c".into()));
     }
 
     #[test]
@@ -541,10 +583,10 @@ mod tests {
         let nodes = parse_inlines("*outer *inner* text*");
         assert_eq!(nodes.len(), 1);
         match &nodes[0] {
-            InlineNode::Strong(children) => {
+            InlineNode::Strong { content, .. } => {
                 assert_eq!(
-                    children,
-                    &vec![InlineNode::Plain("outer *inner* text".into())]
+                    content,
+                    &vec![InlineNode::plain("outer *inner* text".into())]
                 );
             }
             other => panic!("Unexpected node: {:?}", other),
@@ -555,7 +597,7 @@ mod tests {
     fn reference_detects_url() {
         let nodes = parse_inlines("[https://example.com]");
         match &nodes[0] {
-            InlineNode::Reference(reference) => match &reference.reference_type {
+            InlineNode::Reference { data, .. } => match &data.reference_type {
                 ReferenceType::Url { target } => assert_eq!(target, "https://example.com"),
                 other => panic!("Expected URL reference, got {:?}", other),
             },
@@ -567,7 +609,7 @@ mod tests {
     fn reference_detects_tk_identifier() {
         let nodes = parse_inlines("[TK-feature]");
         match &nodes[0] {
-            InlineNode::Reference(reference) => match &reference.reference_type {
+            InlineNode::Reference { data, .. } => match &data.reference_type {
                 ReferenceType::ToCome { identifier } => {
                     assert_eq!(identifier.as_deref(), Some("feature"));
                 }
@@ -584,24 +626,24 @@ mod tests {
         let numbered = parse_inlines("[42]");
 
         match &citation[0] {
-            InlineNode::Reference(reference) => match &reference.reference_type {
-                ReferenceType::Citation(data) => {
-                    assert_eq!(data.keys, vec!["doe2024".to_string()]);
-                    assert!(data.locator.is_none());
+            InlineNode::Reference { data, .. } => match &data.reference_type {
+                ReferenceType::Citation(citation_data) => {
+                    assert_eq!(citation_data.keys, vec!["doe2024".to_string()]);
+                    assert!(citation_data.locator.is_none());
                 }
                 other => panic!("Expected citation, got {:?}", other),
             },
             _ => panic!("Expected reference"),
         }
         match &labeled[0] {
-            InlineNode::Reference(reference) => match &reference.reference_type {
+            InlineNode::Reference { data, .. } => match &data.reference_type {
                 ReferenceType::FootnoteLabeled { label } => assert_eq!(label, "note1"),
                 other => panic!("Expected labeled footnote, got {:?}", other),
             },
             _ => panic!("Expected reference"),
         }
         match &numbered[0] {
-            InlineNode::Reference(reference) => match &reference.reference_type {
+            InlineNode::Reference { data, .. } => match &data.reference_type {
                 ReferenceType::FootnoteNumber { number } => assert_eq!(*number, 42),
                 other => panic!("Expected numeric footnote, got {:?}", other),
             },
@@ -613,13 +655,13 @@ mod tests {
     fn reference_parses_citation_locator() {
         let nodes = parse_inlines("[@doe2024; @smith2023, pp. 45-46,47]");
         match &nodes[0] {
-            InlineNode::Reference(reference) => match &reference.reference_type {
-                ReferenceType::Citation(data) => {
+            InlineNode::Reference { data, .. } => match &data.reference_type {
+                ReferenceType::Citation(citation_data) => {
                     assert_eq!(
-                        data.keys,
+                        citation_data.keys,
                         vec!["doe2024".to_string(), "smith2023".to_string()]
                     );
-                    let locator = data.locator.as_ref().expect("expected locator");
+                    let locator = citation_data.locator.as_ref().expect("expected locator");
                     assert!(matches!(locator.format, PageFormat::Pp));
                     assert_eq!(locator.ranges.len(), 2);
                     assert_eq!(locator.ranges[0].start, 45);
@@ -638,15 +680,15 @@ mod tests {
         let general = parse_inlines("[Section Title]");
         let unsure = parse_inlines("[!!!]");
         match &general[0] {
-            InlineNode::Reference(reference) => match &reference.reference_type {
+            InlineNode::Reference { data, .. } => match &data.reference_type {
                 ReferenceType::General { target } => assert_eq!(target, "Section Title"),
                 other => panic!("Expected general reference, got {:?}", other),
             },
             _ => panic!("Expected reference"),
         }
         match &unsure[0] {
-            InlineNode::Reference(reference) => {
-                assert!(matches!(reference.reference_type, ReferenceType::NotSure));
+            InlineNode::Reference { data, .. } => {
+                assert!(matches!(data.reference_type, ReferenceType::NotSure));
             }
             _ => panic!("Expected reference"),
         }
@@ -654,10 +696,16 @@ mod tests {
 
     fn annotate_strong(node: InlineNode) -> InlineNode {
         match node {
-            InlineNode::Strong(mut children) => {
-                let mut annotated = vec![InlineNode::Plain("[strong]".into())];
-                annotated.append(&mut children);
-                InlineNode::Strong(annotated)
+            InlineNode::Strong {
+                mut content,
+                annotations,
+            } => {
+                let mut annotated = vec![InlineNode::plain("[strong]".into())];
+                annotated.append(&mut content);
+                InlineNode::Strong {
+                    content: annotated,
+                    annotations,
+                }
             }
             other => other,
         }
@@ -669,9 +717,9 @@ mod tests {
         let nodes = parser.parse("*bold*");
         assert_eq!(nodes.len(), 1);
         match &nodes[0] {
-            InlineNode::Strong(children) => {
-                assert_eq!(children[0], InlineNode::Plain("[strong]".into()));
-                assert_eq!(children[1], InlineNode::Plain("bold".into()));
+            InlineNode::Strong { content, .. } => {
+                assert_eq!(content[0], InlineNode::plain("[strong]".into()));
+                assert_eq!(content[1], InlineNode::plain("bold".into()));
             }
             other => panic!("Unexpected inline node: {:?}", other),
         }
@@ -680,13 +728,13 @@ mod tests {
     #[test]
     fn escaped_tokens_are_literal() {
         let nodes = parse_inlines("\\*literal\\*");
-        assert_eq!(nodes, vec![InlineNode::Plain("*literal*".into())]);
+        assert_eq!(nodes, vec![InlineNode::plain("*literal*".into())]);
     }
 
     #[test]
     fn backslash_before_alphanumeric_preserved() {
         let nodes = parse_inlines("C:\\Users\\name");
-        assert_eq!(nodes, vec![InlineNode::Plain("C:\\Users\\name".into())]);
+        assert_eq!(nodes, vec![InlineNode::plain("C:\\Users\\name".into())]);
     }
 
     #[test]
@@ -694,20 +742,20 @@ mod tests {
         let nodes = parse_inlines("Path: C:\\\\Users\\\\name");
         assert_eq!(
             nodes,
-            vec![InlineNode::Plain("Path: C:\\Users\\name".into())]
+            vec![InlineNode::plain("Path: C:\\Users\\name".into())]
         );
     }
 
     #[test]
     fn arithmetic_not_parsed_as_inline() {
         let nodes = parse_inlines("7 * 8");
-        assert_eq!(nodes, vec![InlineNode::Plain("7 * 8".into())]);
+        assert_eq!(nodes, vec![InlineNode::plain("7 * 8".into())]);
     }
 
     #[test]
     fn word_boundary_start_invalid() {
         let nodes = parse_inlines("word*s*");
-        assert_eq!(nodes, vec![InlineNode::Plain("word*s*".into())]);
+        assert_eq!(nodes, vec![InlineNode::plain("word*s*".into())]);
     }
 
     #[test]
@@ -715,7 +763,96 @@ mod tests {
         let nodes = parse_inlines("Calculate 7 * 8 + 3 * 4");
         assert_eq!(
             nodes,
-            vec![InlineNode::Plain("Calculate 7 * 8 + 3 * 4".into())]
+            vec![InlineNode::plain("Calculate 7 * 8 + 3 * 4".into())]
         );
+    }
+
+    #[test]
+    fn inline_node_annotations_empty_by_default() {
+        let nodes = parse_inlines("*bold* text");
+        assert_eq!(nodes.len(), 2);
+        assert!(nodes[0].annotations().is_empty());
+        assert!(nodes[1].annotations().is_empty());
+    }
+
+    #[test]
+    fn with_annotation_adds_annotation_to_node() {
+        use crate::lex::ast::elements::{Annotation, Label};
+
+        let annotation = Annotation::marker(Label::new("test".to_string()));
+        let node = InlineNode::plain("text".into()).with_annotation(annotation.clone());
+
+        assert_eq!(node.annotations().len(), 1);
+        assert_eq!(node.annotations()[0].data.label.value, "test");
+    }
+
+    #[test]
+    fn with_annotations_adds_multiple_annotations() {
+        use crate::lex::ast::elements::{Annotation, Label, Parameter};
+
+        let anno1 = Annotation::marker(Label::new("doc.data".to_string()));
+        let anno2 = Annotation::with_parameters(
+            Label::new("test".to_string()),
+            vec![Parameter::new("key".to_string(), "value".to_string())],
+        );
+
+        let node = InlineNode::math("x + y".into()).with_annotations(vec![anno1, anno2]);
+
+        assert_eq!(node.annotations().len(), 2);
+        assert_eq!(node.annotations()[0].data.label.value, "doc.data");
+        assert_eq!(node.annotations()[1].data.label.value, "test");
+    }
+
+    #[test]
+    fn annotations_mut_allows_modification() {
+        use crate::lex::ast::elements::{Annotation, Label};
+
+        let mut node = InlineNode::code("code".into());
+        assert!(node.annotations().is_empty());
+
+        let annotation = Annotation::marker(Label::new("highlighted".to_string()));
+        node.annotations_mut().push(annotation);
+
+        assert_eq!(node.annotations().len(), 1);
+        assert_eq!(node.annotations()[0].data.label.value, "highlighted");
+    }
+
+    #[test]
+    fn post_processor_can_add_annotations() {
+        use crate::lex::ast::elements::{Annotation, Label, Parameter};
+
+        fn add_mathml_annotation(node: InlineNode) -> InlineNode {
+            match node {
+                InlineNode::Math {
+                    text,
+                    mut annotations,
+                } => {
+                    let anno = Annotation::with_parameters(
+                        Label::new("doc.data".to_string()),
+                        vec![Parameter::new("type".to_string(), "mathml".to_string())],
+                    );
+                    annotations.push(anno);
+                    InlineNode::Math { text, annotations }
+                }
+                other => other,
+            }
+        }
+
+        let parser =
+            InlineParser::new().with_post_processor(InlineKind::Math, add_mathml_annotation);
+        let nodes = parser.parse("#x + y#");
+
+        assert_eq!(nodes.len(), 1);
+        match &nodes[0] {
+            InlineNode::Math { text, annotations } => {
+                assert_eq!(text, "x + y");
+                assert_eq!(annotations.len(), 1);
+                assert_eq!(annotations[0].data.label.value, "doc.data");
+                assert_eq!(annotations[0].data.parameters.len(), 1);
+                assert_eq!(annotations[0].data.parameters[0].key, "type");
+                assert_eq!(annotations[0].data.parameters[0].value, "mathml");
+            }
+            other => panic!("Expected math node, got {:?}", other),
+        }
     }
 }
