@@ -71,7 +71,7 @@ pub fn run_viewer(file_path: PathBuf) -> io::Result<()> {
     })?;
 
     // Create the modular App
-    let model = Model::new(document);
+    let model = Model::new(document, content.clone());
     let mut app = App::new(model, content);
 
     // Setup terminal

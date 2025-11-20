@@ -30,7 +30,7 @@ impl TestApp {
     pub fn with_content(content: &str) -> Self {
         let document = lex_parser::lex::parsing::parse_document(content)
             .expect("Failed to parse test document");
-        let model = Model::new(document);
+        let model = Model::new(document, content.to_string());
         let app = App::new(model, content.to_string());
 
         // Create terminal with reasonable default size (80x24)
