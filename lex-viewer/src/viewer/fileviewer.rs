@@ -419,7 +419,7 @@ mod tests {
         // Create a dummy model for handle_key
         let test_doc = "# Test";
         let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, test_doc.to_string());
 
         // Start at (0, 0)
         assert_eq!(viewer.cursor_position(), (0, 0));
@@ -463,7 +463,7 @@ mod tests {
 
         let test_doc = "# Test";
         let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, test_doc.to_string());
 
         // Move to column 9 on line 0
         for _ in 0..9 {
@@ -496,7 +496,7 @@ mod tests {
 
         let test_doc = "# Test";
         let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, test_doc.to_string());
 
         // Move right to column 4
         for _ in 0..4 {
@@ -535,7 +535,7 @@ mod tests {
 
         let test_doc = "# Test";
         let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, test_doc.to_string());
 
         // Move down through empty line to "World"
         viewer.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE), &model);
@@ -558,7 +558,7 @@ mod tests {
 
         let test_doc = "# Test";
         let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, test_doc.to_string());
 
         // Start at (0, 0) and move to column 8
         for _ in 0..8 {
@@ -591,7 +591,7 @@ mod tests {
 
         let test_doc = "# Test";
         let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, test_doc.to_string());
 
         // Start at (0, 0)
         assert_eq!(viewer.cursor_position(), (0, 0));
@@ -635,7 +635,7 @@ mod tests {
 
         let test_doc = "# Test";
         let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, test_doc.to_string());
 
         // Start at (0, 0) - 'h' in "hello"
         assert_eq!(viewer.cursor_position(), (0, 0));
@@ -682,7 +682,7 @@ mod tests {
 
         let test_doc = "# Test";
         let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, test_doc.to_string());
 
         // Start at end - manually set position
         viewer.sync_cursor_to_position(0, 16); // 'b' in "bar"
@@ -730,7 +730,7 @@ mod tests {
 
         let test_doc = "# Test";
         let doc = lex_parser::lex::parsing::parse_document(test_doc).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, test_doc.to_string());
 
         // Start at 'l' in "line" on first line
         viewer.sync_cursor_to_position(0, 6);
@@ -764,7 +764,7 @@ mod tests {
         // Test '}' (next element)
         let content = "# Heading\n\nParagraph one.\n\n## Subheading\n\nParagraph two.".to_string();
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.clone());
         let mut viewer = FileViewer::new(content);
 
         // Start at (0, 0) - on "# Heading"
@@ -789,7 +789,7 @@ mod tests {
         // Test '{' (previous element)
         let content = "# Heading\n\nParagraph one.\n\n## Subheading\n\nParagraph two.".to_string();
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.clone());
         let mut viewer = FileViewer::new(content);
 
         // Start somewhere in the middle
@@ -812,7 +812,7 @@ mod tests {
         // Test that we can navigate forward and backward through elements
         let content = "# H1\n\nPara 1\n\n## H2\n\nPara 2".to_string();
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.clone());
         let mut viewer = FileViewer::new(content);
 
         // Start at beginning
@@ -858,8 +858,9 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         let viewer_9 = FileViewer::new(content_9);
-        let doc = lex_parser::lex::parsing::parse_document("# Test").unwrap();
-        let model = Model::new(doc);
+        let doc_str = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(doc_str).unwrap();
+        let model = Model::new(doc, doc_str.to_string());
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -943,8 +944,9 @@ mod tests {
 
         let content = "Line 1\nLine 2\nLine 3".to_string();
         let mut viewer = FileViewer::new(content);
-        let doc = lex_parser::lex::parsing::parse_document("# Test").unwrap();
-        let model = Model::new(doc);
+        let doc_str = "# Test";
+        let doc = lex_parser::lex::parsing::parse_document(doc_str).unwrap();
+        let model = Model::new(doc, doc_str.to_string());
 
         // Set cursor to line 1 (second line)
         viewer.sync_cursor_to_position(1, 0);
