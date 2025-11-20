@@ -20,23 +20,23 @@
 //!
 //! Complete Lex ↔ HTML Mapping:
 //!
-//! | Lex Element      | HTML Equivalent           | Export Notes                              | Import Notes                          |
-//! |------------------|---------------------------|-------------------------------------------|---------------------------------------|
-//! | Document         | <div class="lex-document">| Root container with document class        | Parse body content                    |
-//! | Session          | <section class="lex-session lex-session-N"> + <hN> | Session → section + heading | section + heading → Session           |
-//! | Paragraph        | <p class="lex-paragraph"> | Direct mapping with class                 | Direct mapping                        |
-//! | List             | <ul>/<ol class="lex-list">| Ordered/unordered preserved with class    | Detect ul/ol type                     |
-//! | ListItem         | <li class="lex-list-item">| Direct mapping with class                 | Direct mapping                        |
-//! | Definition       | <dl class="lex-definition"> <dt> <dd>     | Term in dt, description in dd         | Parse dl/dt/dd structure              |
-//! | Verbatim         | <pre class="lex-verbatim"><code>          | Language → data-language attribute    | Extract language from attribute       |
-//! | Annotation       | <!-- lex:label key=val -->| HTML comment format                       | Parse HTML comment pattern            |
-//! | InlineContent:   |                           |                                           |                                       |
-//! |   Text           | Plain text                | Direct                                    | Direct                                |
-//! |   Bold           | <strong>                  | Semantic strong tag                       | Parse both strong and b               |
-//! |   Italic         | <em>                      | Semantic emphasis tag                     | Parse both em and i                   |
-//! |   Code           | <code>                    | Inline code tag                           | Direct                                |
-//! |   Math           | <span class="lex-math">   | Preserve $ delimiters in span             | Parse math span                       |
-//! |   Reference      | <a href="url">text</a>    | Convert to anchor with prev word as text  | Parse anchor back to reference        |
+//! | Lex Element      | HTML Equivalent                                    | Export Notes                              | Import Notes                          |
+//! |------------------|----------------------------------------------------|-------------------------------------------|---------------------------------------|
+//! | Document         | `<div class="lex-document">`                       | Root container with document class        | Parse body content                    |
+//! | Session          | `<section class="lex-session lex-session-N">` + `<hN>` | Session → section + heading        | section + heading → Session           |
+//! | Paragraph        | `<p class="lex-paragraph">`                        | Direct mapping with class                 | Direct mapping                        |
+//! | List             | `<ul>`/`<ol>` with `class="lex-list"`              | Ordered/unordered preserved with class    | Detect ul/ol type                     |
+//! | ListItem         | `<li class="lex-list-item">`                       | Direct mapping with class                 | Direct mapping                        |
+//! | Definition       | `<dl class="lex-definition">` `<dt>` `<dd>`        | Term in dt, description in dd             | Parse dl/dt/dd structure              |
+//! | Verbatim         | `<pre class="lex-verbatim">` `<code>`              | Language → data-language attribute        | Extract language from attribute       |
+//! | Annotation       | `<!-- lex:label key=val -->`                       | HTML comment format                       | Parse HTML comment pattern            |
+//! | InlineContent:   |                                                    |                                           |                                       |
+//! |   Text           | Plain text                                         | Direct                                    | Direct                                |
+//! |   Bold           | `<strong>`                                         | Semantic strong tag                       | Parse both strong and b               |
+//! |   Italic         | `<em>`                                             | Semantic emphasis tag                     | Parse both em and i                   |
+//! |   Code           | `<code>`                                           | Inline code tag                           | Direct                                |
+//! |   Math           | `<span class="lex-math">`                          | Preserve $ delimiters in span             | Parse math span                       |
+//! |   Reference      | `<a href="url">text</a>`                           | Convert to anchor with prev word as text  | Parse anchor back to reference        |
 //!
 //! # CSS Classes
 //!
