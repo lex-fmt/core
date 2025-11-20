@@ -69,16 +69,6 @@ use lex_parser::lex::ast::{
 };
 use std::collections::HashMap;
 
-fn truncate(s: &str, max_chars: usize) -> String {
-    if s.chars().count() > max_chars {
-        let mut truncated = s.chars().take(max_chars).collect::<String>();
-        truncated.push_str("...");
-        truncated
-    } else {
-        s.to_string()
-    }
-}
-
 /// Get the icon for a node type
 fn get_icon(node_type: &str) -> &'static str {
     match node_type {
@@ -91,6 +81,7 @@ fn get_icon(node_type: &str) -> &'static str {
         "Definition" => "≔",
         "VerbatimBlock" => "𝒱",
         "Annotation" => "\"",
+        "BlankLineGroup" => "⎯",
         _ => "○",
     }
 }
@@ -107,11 +98,10 @@ fn format_snapshot(
     let is_last = child_index == child_count - 1;
     let connector = if is_last { "└─" } else { "├─" };
     let icon = get_icon(&snapshot.node_type);
-    let truncated_label = truncate(&snapshot.label, 30);
 
     output.push_str(&format!(
         "{}{} {} {}\n",
-        prefix, connector, icon, truncated_label
+        prefix, connector, icon, snapshot.label
     ));
 
     // Process children if any
@@ -129,8 +119,7 @@ fn format_snapshot(
 
 fn format_document_snapshot(snapshot: &AstSnapshot) -> String {
     let icon = get_icon(&snapshot.node_type);
-    let truncated_label = truncate(&snapshot.label, 30);
-    let mut output = format!("{} {}\n", icon, truncated_label);
+    let mut output = format!("{} {}\n", icon, snapshot.label);
 
     if !snapshot.children.is_empty() {
         let child_count = snapshot.children.len();

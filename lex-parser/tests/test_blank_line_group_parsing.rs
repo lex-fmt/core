@@ -48,7 +48,7 @@ fn test_blank_line_group_display_label_visitor() {
     // Test that display_label method works
     let label = blg.display_label();
     assert_eq!(
-        label, "blank line",
+        label, "1 blank line",
         "Label should describe singular blank line"
     );
 }

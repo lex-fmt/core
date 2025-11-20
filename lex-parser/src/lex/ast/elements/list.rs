@@ -216,9 +216,9 @@ impl AstNode for ListItem {
         "ListItem"
     }
     fn display_label(&self) -> String {
-        let text = self.text();
-        if text.len() > 50 {
-            format!("{}...", &text[..50])
+        let text = self.text().trim();
+        if text.chars().count() > 50 {
+            format!("{}…", text.chars().take(50).collect::<String>())
         } else {
             text.to_string()
         }
@@ -343,8 +343,8 @@ mod tests {
         let item = ListItem::new("-".into(), long_text.clone());
 
         let label = item.display_label();
-        assert!(label.ends_with("..."));
-        assert!(label.len() < long_text.len());
+        assert!(label.ends_with("…"));
+        assert!(label.chars().count() < long_text.chars().count());
 
         let short = ListItem::new("-".into(), "short".into());
         assert_eq!(short.display_label(), "short");

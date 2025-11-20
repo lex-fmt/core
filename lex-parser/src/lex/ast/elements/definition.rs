@@ -110,8 +110,8 @@ impl AstNode for Definition {
     }
     fn display_label(&self) -> String {
         let subject_text = self.subject.as_string();
-        if subject_text.len() > 50 {
-            format!("{}...", &subject_text[..50])
+        if subject_text.chars().count() > 50 {
+            format!("{}…", subject_text.chars().take(50).collect::<String>())
         } else {
             subject_text.to_string()
         }

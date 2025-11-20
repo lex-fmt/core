@@ -64,8 +64,8 @@ impl AstNode for TextLine {
 
     fn display_label(&self) -> String {
         let text = self.text();
-        if text.len() > 50 {
-            format!("{}...", &text[..50])
+        if text.chars().count() > 50 {
+            format!("{}…", text.chars().take(50).collect::<String>())
         } else {
             text.to_string()
         }
@@ -191,12 +191,7 @@ impl AstNode for Paragraph {
         "Paragraph"
     }
     fn display_label(&self) -> String {
-        let text = self.text();
-        if text.len() > 50 {
-            format!("{}...", &text[..50])
-        } else {
-            text
-        }
+        format!("{} line(s)", self.lines.len())
     }
     fn range(&self) -> &Range {
         &self.location
