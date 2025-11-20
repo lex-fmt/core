@@ -4,7 +4,8 @@
 //! Each transform is a stage + format combination (e.g., "ast-tag", "token-core-json").
 
 use lex_babel::formats::{
-    tag::serialize_document as serialize_ast_tag, treeviz::to_treeviz_str_with_params,
+    tag::serialize_document_with_params as serialize_ast_tag_with_params,
+    treeviz::to_treeviz_str_with_params,
 };
 use lex_parser::lex::lexing::transformations::line_token_grouping::GroupedTokens;
 use lex_parser::lex::lexing::transformations::LineTokenGroupingMapper;
@@ -114,7 +115,7 @@ pub fn execute_transform(
             let doc = loader
                 .parse()
                 .map_err(|e| format!("Transform failed: {}", e))?;
-            Ok(serialize_ast_tag(&doc))
+            Ok(serialize_ast_tag_with_params(&doc, extra_params))
         }
         "ast-treeviz" => {
             let doc = loader

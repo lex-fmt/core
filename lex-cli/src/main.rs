@@ -32,6 +32,10 @@ use std::fs;
 
 /// Parse extra-* arguments from command line args
 /// Returns (cleaned_args_without_extras, extra_params_map)
+///
+/// Supports both:
+/// - `--extra-<key> <value>` (explicit value)
+/// - `--extra-<key>` (boolean flag, defaults to "true")
 fn parse_extra_args(args: &[String]) -> (Vec<String>, HashMap<String, String>) {
     let mut cleaned_args = Vec::new();
     let mut extra_params = HashMap::new();
@@ -42,16 +46,24 @@ fn parse_extra_args(args: &[String]) -> (Vec<String>, HashMap<String, String>) {
 
         if let Some(key) = arg.strip_prefix("--extra-") {
             // Found an extra-* argument
-            // Next arg should be the value
-            if i + 1 < args.len() {
+            // Check if the next arg is a value or another flag/end
+            let has_value = if i + 1 < args.len() {
+                let next = &args[i + 1];
+                !next.starts_with('-') && !next.starts_with("--")
+            } else {
+                false
+            };
+
+            if has_value {
+                // Explicit value provided
                 extra_params.insert(key.to_string(), args[i + 1].clone());
                 i += 2; // Skip both the key and value
-                continue;
             } else {
-                eprintln!("Warning: --extra-{} provided without a value", key);
+                // No value, treat as boolean flag (default to "true")
+                extra_params.insert(key.to_string(), "true".to_string());
                 i += 1;
-                continue;
             }
+            continue;
         }
 
         cleaned_args.push(arg.clone());
@@ -410,5 +422,78 @@ mod tests {
         );
         assert_eq!(extra.len(), 1);
         assert_eq!(extra.get("theme"), Some(&"dark".to_string()));
+    }
+
+    #[test]
+    fn test_parse_extra_args_boolean_flag() {
+        let args = vec![
+            "lex".to_string(),
+            "inspect".to_string(),
+            "file.lex".to_string(),
+            "ast-tag".to_string(),
+            "--extra-ast-full".to_string(),
+        ];
+        let (cleaned, extra) = parse_extra_args(&args);
+
+        assert_eq!(
+            cleaned,
+            vec![
+                "lex".to_string(),
+                "inspect".to_string(),
+                "file.lex".to_string(),
+                "ast-tag".to_string()
+            ]
+        );
+        assert_eq!(extra.len(), 1);
+        assert_eq!(extra.get("ast-full"), Some(&"true".to_string()));
+    }
+
+    #[test]
+    fn test_parse_extra_args_boolean_flag_at_end() {
+        let args = vec![
+            "lex".to_string(),
+            "inspect".to_string(),
+            "file.lex".to_string(),
+            "--extra-verbose".to_string(),
+        ];
+        let (cleaned, extra) = parse_extra_args(&args);
+
+        assert_eq!(
+            cleaned,
+            vec![
+                "lex".to_string(),
+                "inspect".to_string(),
+                "file.lex".to_string()
+            ]
+        );
+        assert_eq!(extra.len(), 1);
+        assert_eq!(extra.get("verbose"), Some(&"true".to_string()));
+    }
+
+    #[test]
+    fn test_parse_extra_args_mixed_boolean_and_value() {
+        let args = vec![
+            "lex".to_string(),
+            "inspect".to_string(),
+            "file.lex".to_string(),
+            "--extra-verbose".to_string(),
+            "--extra-max-depth".to_string(),
+            "5".to_string(),
+            "--extra-compact".to_string(),
+        ];
+        let (cleaned, extra) = parse_extra_args(&args);
+
+        assert_eq!(
+            cleaned,
+            vec![
+                "lex".to_string(),
+                "inspect".to_string(),
+                "file.lex".to_string()
+            ]
+        );
+        assert_eq!(extra.len(), 3);
+        assert_eq!(extra.get("verbose"), Some(&"true".to_string()));
+        assert_eq!(extra.get("max-depth"), Some(&"5".to_string()));
+        assert_eq!(extra.get("compact"), Some(&"true".to_string()));
     }
 }
