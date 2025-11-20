@@ -92,17 +92,25 @@ pub fn snapshot_node<T: AstNode>(node: &T) -> AstSnapshot {
 ///
 /// This is the preferred way to call the snapshot builder since it avoids unsafe casting.
 pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
+    snapshot_from_content_with_options(item, false)
+}
+
+/// Build snapshot from a concrete ContentItem enum with options
+///
+/// When `include_all` is true, all AST node properties (annotations, labels, parameters, etc.)
+/// are included as children in the snapshot.
+pub fn snapshot_from_content_with_options(item: &ContentItem, include_all: bool) -> AstSnapshot {
     match item {
-        ContentItem::Session(session) => build_session_snapshot(session),
-        ContentItem::Paragraph(para) => build_paragraph_snapshot(para),
-        ContentItem::List(list) => build_list_snapshot(list),
-        ContentItem::ListItem(li) => build_list_item_snapshot(li),
-        ContentItem::Definition(def) => build_definition_snapshot(def),
-        ContentItem::VerbatimBlock(fb) => build_verbatim_block_snapshot(fb),
+        ContentItem::Session(session) => build_session_snapshot(session, include_all),
+        ContentItem::Paragraph(para) => build_paragraph_snapshot(para, include_all),
+        ContentItem::List(list) => build_list_snapshot(list, include_all),
+        ContentItem::ListItem(li) => build_list_item_snapshot(li, include_all),
+        ContentItem::Definition(def) => build_definition_snapshot(def, include_all),
+        ContentItem::VerbatimBlock(fb) => build_verbatim_block_snapshot(fb, include_all),
         ContentItem::VerbatimLine(fl) => {
             AstSnapshot::new("VerbatimLine".to_string(), fl.display_label())
         }
-        ContentItem::Annotation(ann) => build_annotation_snapshot(ann),
+        ContentItem::Annotation(ann) => build_annotation_snapshot(ann, include_all),
         ContentItem::TextLine(tl) => AstSnapshot::new("TextLine".to_string(), tl.display_label()),
         ContentItem::BlankLineGroup(blg) => AstSnapshot::new(
             "BlankLineGroup".to_string(),
@@ -113,10 +121,22 @@ pub fn snapshot_from_content(item: &ContentItem) -> AstSnapshot {
 
 /// Build a snapshot for the document root, flattening the root session
 ///
-/// Note: Document-level annotations are not included in this snapshot.
+/// When `include_all` is false: Document-level annotations are not included in this snapshot.
 /// This reflects the document structure where annotations are separate from content.
+/// When `include_all` is true: All nodes including annotations are included.
+///
 /// The root session is flattened so its children appear as direct children of the Document.
 pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
+    snapshot_from_document_with_options(doc, false)
+}
+
+/// Build a snapshot for the document root with options for controlling what's included
+///
+/// When `include_all` is false: Document-level annotations are not included in this snapshot.
+/// When `include_all` is true: All nodes including annotations are included.
+///
+/// The root session is flattened so its children appear as direct children of the Document.
+pub fn snapshot_from_document_with_options(doc: &Document, include_all: bool) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new(
         "Document".to_string(),
         format!(
@@ -126,63 +146,167 @@ pub fn snapshot_from_document(doc: &Document) -> AstSnapshot {
         ),
     );
 
+    // If include_all is true, include document-level annotations
+    if include_all {
+        for annotation in &doc.annotations {
+            snapshot.children.push(snapshot_from_content_with_options(
+                &ContentItem::Annotation(annotation.clone()),
+                include_all,
+            ));
+        }
+    }
+
     // Flatten the root session - its children become direct children of the Document
     for child in &doc.root.children {
-        snapshot.children.push(snapshot_from_content(child));
+        snapshot
+            .children
+            .push(snapshot_from_content_with_options(child, include_all));
     }
 
     snapshot
 }
 
-fn build_session_snapshot(session: &Session) -> AstSnapshot {
+fn build_session_snapshot(session: &Session, include_all: bool) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("Session".to_string(), session.display_label());
+
+    // If include_all, show the title as a TextContent node
+    if include_all {
+        snapshot.children.push(AstSnapshot::new(
+            "SessionTitle".to_string(),
+            session.title.as_string().to_string(),
+        ));
+    }
+
+    // If include_all, show session annotations
+    if include_all {
+        for ann in &session.annotations {
+            snapshot.children.push(snapshot_from_content_with_options(
+                &ContentItem::Annotation(ann.clone()),
+                include_all,
+            ));
+        }
+    }
+
+    // Show main children
     for child in session.children() {
-        snapshot.children.push(snapshot_from_content(child));
+        snapshot
+            .children
+            .push(snapshot_from_content_with_options(child, include_all));
     }
     snapshot
 }
 
-fn build_paragraph_snapshot(para: &Paragraph) -> AstSnapshot {
+fn build_paragraph_snapshot(para: &Paragraph, include_all: bool) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("Paragraph".to_string(), para.display_label());
     for line in &para.lines {
-        snapshot.children.push(snapshot_from_content(line));
+        snapshot
+            .children
+            .push(snapshot_from_content_with_options(line, include_all));
     }
     snapshot
 }
 
-fn build_list_snapshot(list: &List) -> AstSnapshot {
+fn build_list_snapshot(list: &List, include_all: bool) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("List".to_string(), list.display_label());
     for item in &list.items {
-        snapshot.children.push(snapshot_from_content(item));
+        snapshot
+            .children
+            .push(snapshot_from_content_with_options(item, include_all));
     }
     snapshot
 }
 
-fn build_list_item_snapshot(item: &ListItem) -> AstSnapshot {
+fn build_list_item_snapshot(item: &ListItem, include_all: bool) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("ListItem".to_string(), item.display_label());
+
+    // If include_all, show the marker and text
+    if include_all {
+        snapshot.children.push(AstSnapshot::new(
+            "Marker".to_string(),
+            item.marker.as_string().to_string(),
+        ));
+
+        for text_part in item.text.iter() {
+            snapshot.children.push(AstSnapshot::new(
+                "Text".to_string(),
+                text_part.as_string().to_string(),
+            ));
+        }
+
+        // Show list item annotations
+        for ann in &item.annotations {
+            snapshot.children.push(snapshot_from_content_with_options(
+                &ContentItem::Annotation(ann.clone()),
+                include_all,
+            ));
+        }
+    }
+
+    // Show main children
     for child in item.children() {
-        snapshot.children.push(snapshot_from_content(child));
+        snapshot
+            .children
+            .push(snapshot_from_content_with_options(child, include_all));
     }
     snapshot
 }
 
-fn build_definition_snapshot(def: &Definition) -> AstSnapshot {
+fn build_definition_snapshot(def: &Definition, include_all: bool) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("Definition".to_string(), def.display_label());
+
+    // If include_all, show subject and annotations
+    if include_all {
+        snapshot.children.push(AstSnapshot::new(
+            "Subject".to_string(),
+            def.subject.as_string().to_string(),
+        ));
+
+        // Show definition annotations
+        for ann in &def.annotations {
+            snapshot.children.push(snapshot_from_content_with_options(
+                &ContentItem::Annotation(ann.clone()),
+                include_all,
+            ));
+        }
+    }
+
+    // Show main children
     for child in def.children() {
-        snapshot.children.push(snapshot_from_content(child));
+        snapshot
+            .children
+            .push(snapshot_from_content_with_options(child, include_all));
     }
     snapshot
 }
 
-fn build_annotation_snapshot(ann: &Annotation) -> AstSnapshot {
+fn build_annotation_snapshot(ann: &Annotation, include_all: bool) -> AstSnapshot {
     let mut snapshot = AstSnapshot::new("Annotation".to_string(), ann.display_label());
+
+    // If include_all, show label and parameters from the data field
+    if include_all {
+        snapshot.children.push(AstSnapshot::new(
+            "Label".to_string(),
+            ann.data.label.value.clone(),
+        ));
+
+        for param in &ann.data.parameters {
+            snapshot.children.push(AstSnapshot::new(
+                "Parameter".to_string(),
+                format!("{}={}", param.key, param.value),
+            ));
+        }
+    }
+
+    // Show main children
     for child in ann.children() {
-        snapshot.children.push(snapshot_from_content(child));
+        snapshot
+            .children
+            .push(snapshot_from_content_with_options(child, include_all));
     }
     snapshot
 }
 
-fn build_verbatim_block_snapshot(fb: &super::Verbatim) -> AstSnapshot {
+fn build_verbatim_block_snapshot(fb: &super::Verbatim, include_all: bool) -> AstSnapshot {
     let group_count = fb.group_len();
     let group_word = if group_count == 1 { "group" } else { "groups" };
     let label = format!("{} ({} {})", fb.display_label(), group_count, group_word);
@@ -201,7 +325,9 @@ fn build_verbatim_block_snapshot(fb: &super::Verbatim) -> AstSnapshot {
         };
         let mut group_snapshot = AstSnapshot::new("VerbatimGroup".to_string(), label);
         for child in group.children.iter() {
-            group_snapshot.children.push(snapshot_from_content(child));
+            group_snapshot
+                .children
+                .push(snapshot_from_content_with_options(child, include_all));
         }
         snapshot.children.push(group_snapshot);
     }

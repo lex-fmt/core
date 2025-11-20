@@ -272,15 +272,33 @@ impl Viewer for FileViewer {
     fn render(&self, frame: &mut Frame, area: Rect, _model: &Model) {
         use ratatui::style::{Color, Modifier, Style};
 
+        // Calculate line number width based on total line count
+        let line_count = self.content.lines().count();
+        let line_num_width = if line_count == 0 {
+            1
+        } else {
+            line_count.to_string().len()
+        };
+
         // Display the file content line by line, highlighting cursor position
         let lines: Vec<Line> = self
             .content
             .lines()
             .enumerate()
             .map(|(row_idx, line_text)| {
+                let line_number = row_idx + 1;
+                let line_num_str = format!("{:0width$} ", line_number, width = line_num_width);
+
                 if row_idx == self.cursor_row {
                     // This is the row with the cursor - render with cursor highlight
                     let mut spans = Vec::new();
+
+                    // Add line number with active styling (normal white)
+                    spans.push(Span::styled(
+                        line_num_str,
+                        Style::default().fg(Color::White),
+                    ));
+
                     let chars: Vec<char> = line_text.chars().collect();
 
                     for (col_idx, ch) in chars.iter().enumerate() {
@@ -309,7 +327,14 @@ impl Viewer for FileViewer {
                     Line::from(spans)
                 } else {
                     // Regular line without cursor
-                    Line::from(line_text.to_string())
+                    let spans = vec![
+                        // Add line number with subdued styling (dark gray)
+                        Span::styled(line_num_str, Style::default().fg(Color::DarkGray)),
+                        // Add line text
+                        Span::raw(line_text.to_string()),
+                    ];
+
+                    Line::from(spans)
                 }
             })
             .collect();
@@ -819,6 +844,145 @@ mod tests {
         assert_eq!(
             end_pos, start_pos,
             "Should return to start after navigating back"
+        );
+    }
+
+    #[test]
+    fn test_line_number_width_calculation() {
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        // Test with 9 lines (single digit) - should use width 1
+        let content_9 = (1..=9)
+            .map(|i| format!("Line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let viewer_9 = FileViewer::new(content_9);
+        let doc = lex_parser::lex::parsing::parse_document("# Test").unwrap();
+        let model = Model::new(doc);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                viewer_9.render(frame, area, &model);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let first_line = (0..10)
+            .map(|x| buffer.cell((x, 0)).unwrap().symbol())
+            .collect::<String>();
+
+        // Should have single-digit line numbers: "1 Line 1"
+        assert!(
+            first_line.starts_with("1 "),
+            "9-line document should use 1-digit line numbers, got: '{}'",
+            first_line
+        );
+
+        // Test with 99 lines (double digit) - should use width 2
+        let content_99 = (1..=99)
+            .map(|i| format!("Line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let viewer_99 = FileViewer::new(content_99);
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                viewer_99.render(frame, area, &model);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let first_line = (0..10)
+            .map(|x| buffer.cell((x, 0)).unwrap().symbol())
+            .collect::<String>();
+
+        // Should have zero-padded double-digit line numbers: "01 Line 1"
+        assert!(
+            first_line.starts_with("01 "),
+            "99-line document should use 2-digit zero-padded line numbers, got: '{}'",
+            first_line
+        );
+
+        // Test with 120 lines (triple digit) - should use width 3
+        let content_120 = (1..=120)
+            .map(|i| format!("Line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let viewer_120 = FileViewer::new(content_120);
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                viewer_120.render(frame, area, &model);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let first_line = (0..10)
+            .map(|x| buffer.cell((x, 0)).unwrap().symbol())
+            .collect::<String>();
+
+        // Should have zero-padded triple-digit line numbers: "001 Line 1"
+        assert!(
+            first_line.starts_with("001 "),
+            "120-line document should use 3-digit zero-padded line numbers, got: '{}'",
+            first_line
+        );
+    }
+
+    #[test]
+    fn test_line_number_styling_active_vs_inactive() {
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let content = "Line 1\nLine 2\nLine 3".to_string();
+        let mut viewer = FileViewer::new(content);
+        let doc = lex_parser::lex::parsing::parse_document("# Test").unwrap();
+        let model = Model::new(doc);
+
+        // Set cursor to line 1 (second line)
+        viewer.sync_cursor_to_position(1, 0);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                viewer.render(frame, area, &model);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+
+        // Line 0 should have DarkGray line number (inactive)
+        let line_0_num_cell = buffer.cell((0, 0)).unwrap();
+        assert_eq!(
+            line_0_num_cell.fg,
+            ratatui::style::Color::DarkGray,
+            "Inactive line should have DarkGray line number"
+        );
+
+        // Line 1 should have White line number (active, cursor is here)
+        let line_1_num_cell = buffer.cell((0, 1)).unwrap();
+        assert_eq!(
+            line_1_num_cell.fg,
+            ratatui::style::Color::White,
+            "Active line (with cursor) should have White line number"
+        );
+
+        // Line 2 should have DarkGray line number (inactive)
+        let line_2_num_cell = buffer.cell((0, 2)).unwrap();
+        assert_eq!(
+            line_2_num_cell.fg,
+            ratatui::style::Color::DarkGray,
+            "Inactive line should have DarkGray line number"
         );
     }
 }

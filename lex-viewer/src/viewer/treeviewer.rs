@@ -161,11 +161,33 @@ impl Viewer for TreeViewer {
                     .saturating_sub(icon_width)
                     .saturating_sub(space_width);
 
-                // Truncate label if necessary
-                let truncated_label: String = if node.label.chars().count() > label_max_width {
-                    node.label.chars().take(label_max_width).collect()
-                } else {
-                    node.label.to_string()
+                // Truncate label if necessary, using whichever is smaller:
+                // - character limit (label_max_width), or
+                // - first three words
+                let truncated_label: String = {
+                    let label_char_count = node.label.chars().count();
+
+                    // Find the character position after the first 3 words
+                    let words: Vec<&str> = node.label.split_whitespace().collect();
+                    let three_word_limit = if words.len() > 3 {
+                        // Find where the 3rd word ends in the original string
+                        let first_three = words[..3].join(" ");
+                        first_three.chars().count()
+                    } else {
+                        // 3 or fewer words total, no word-based truncation needed
+                        label_char_count
+                    };
+
+                    // Use the smaller of char limit or 3-word limit
+                    let effective_limit = std::cmp::min(label_max_width, three_word_limit);
+
+                    if label_char_count > effective_limit {
+                        let mut s: String = node.label.chars().take(effective_limit).collect();
+                        s.push('…');
+                        s
+                    } else {
+                        node.label.to_string()
+                    }
                 };
 
                 let text = format!("{}{} {}", indent, icon, truncated_label);
@@ -429,5 +451,69 @@ mod tests {
                 trimmed
             );
         }
+    }
+
+    #[test]
+    fn test_label_truncation_three_word_limit() {
+        // Test that labels are truncated at 3 words when that's shorter than char limit
+        // Example: "While these are all true, the format is d..." should become "While these are…"
+        let content = "# While these are all true the format is different";
+        let doc = lex_parser::lex::parsing::parse_document(content).unwrap();
+        let model = Model::new(doc);
+        let viewer = TreeViewer::new();
+
+        // Use a wide area where char limit would allow the full text
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                viewer.render(frame, area, &model);
+            })
+            .unwrap();
+
+        let output = terminal.backend().buffer().clone();
+
+        // The heading should be on line 1 (line 0 is the Document root)
+        // Extract the content and verify three-word truncation
+        let mut all_lines = Vec::new();
+        for y in 0..10 {
+            let mut line = String::new();
+            for x in 0..80 {
+                if let Some(cell) = output.cell((x, y)) {
+                    line.push_str(cell.symbol());
+                }
+            }
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                all_lines.push(trimmed.to_string());
+            }
+        }
+
+        // Look for the heading line with our test content
+        let found_line = all_lines.iter().find(|line| line.contains("While"));
+
+        assert!(
+            found_line.is_some(),
+            "Did not find any line containing 'While'. Lines: {:?}",
+            all_lines
+        );
+
+        let found_line = found_line.unwrap();
+
+        // The label will be "# While these all true the format is different"
+        // Which should truncate to first 3 words: "# While these…"
+        // (The "#", "While", and "these" are the first three whitespace-separated words)
+        assert!(
+            found_line.contains("# While these…"),
+            "Expected three-word truncation with ellipsis (# While these…), got: '{}'",
+            found_line
+        );
+        assert!(
+            !found_line.contains("all"),
+            "Should not contain words beyond the first three, got: '{}'",
+            found_line
+        );
     }
 }

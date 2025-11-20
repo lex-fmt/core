@@ -64,7 +64,10 @@
 
 use crate::error::FormatError;
 use crate::format::Format;
-use lex_parser::lex::ast::{snapshot_from_document, AstSnapshot, Document};
+use lex_parser::lex::ast::{
+    snapshot_from_document, snapshot_from_document_with_options, AstSnapshot, Document,
+};
+use std::collections::HashMap;
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() > max_chars {
@@ -140,7 +143,46 @@ fn format_document_snapshot(snapshot: &AstSnapshot) -> String {
 }
 
 pub fn to_treeviz_str(doc: &Document) -> String {
-    let snapshot = snapshot_from_document(doc);
+    to_treeviz_str_with_params(doc, &HashMap::new())
+}
+
+/// Convert a document to treeviz string with optional parameters
+///
+/// # Parameters
+///
+/// - `"ast-full"`: When set to `"true"`, includes all AST node properties:
+///   * Document-level annotations
+///   * Session titles (as SessionTitle nodes)
+///   * List item markers and text (as Marker and Text nodes)
+///   * Definition subjects (as Subject nodes)
+///   * Annotation labels and parameters (as Label and Parameter nodes)
+///
+/// # Examples
+///
+/// ```ignore
+/// use std::collections::HashMap;
+///
+/// // Normal view (content only)
+/// let output = to_treeviz_str_with_params(&doc, &HashMap::new());
+///
+/// // Full AST view (all properties)
+/// let mut params = HashMap::new();
+/// params.insert("ast-full".to_string(), "true".to_string());
+/// let output = to_treeviz_str_with_params(&doc, &params);
+/// ```
+pub fn to_treeviz_str_with_params(doc: &Document, params: &HashMap<String, String>) -> String {
+    // Check if ast-full parameter is set to true
+    let include_all = params
+        .get("ast-full")
+        .map(|v| v.to_lowercase() == "true")
+        .unwrap_or(false);
+
+    let snapshot = if include_all {
+        snapshot_from_document_with_options(doc, true)
+    } else {
+        snapshot_from_document(doc)
+    };
+
     format_document_snapshot(&snapshot)
 }
 

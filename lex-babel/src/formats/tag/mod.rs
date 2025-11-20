@@ -24,7 +24,10 @@
 
 use crate::error::FormatError;
 use crate::format::Format;
-use lex_parser::lex::ast::{snapshot_from_document, AstSnapshot, Document};
+use lex_parser::lex::ast::{
+    snapshot_from_document, snapshot_from_document_with_options, AstSnapshot, Document,
+};
+use std::collections::HashMap;
 
 /// Tag serializer that converts AstSnapshot to XML-like format
 struct TagSerializer {
@@ -85,14 +88,52 @@ fn to_tag_name(node_type: &str) -> String {
 
 /// Serialize a document to AST tag format
 pub fn serialize_document(doc: &Document) -> String {
+    serialize_document_with_params(doc, &HashMap::new())
+}
+
+/// Serialize a document to AST tag format with optional parameters
+///
+/// # Parameters
+///
+/// - `"ast-full"`: When set to `"true"`, includes all AST node properties:
+///   * Document-level annotations (shown with `<annotation>` tags)
+///   * Session titles (as `<session-title>` nodes)
+///   * List item markers and text (as `<marker>` and `<text>` nodes)
+///   * Definition subjects (as `<subject>` nodes)
+///   * Annotation labels and parameters (as `<label>` and `<parameter>` nodes)
+///
+/// # Examples
+///
+/// ```ignore
+/// use std::collections::HashMap;
+///
+/// // Normal view (content only)
+/// let output = serialize_document_with_params(&doc, &HashMap::new());
+///
+/// // Full AST view (all properties)
+/// let mut params = HashMap::new();
+/// params.insert("ast-full".to_string(), "true".to_string());
+/// let output = serialize_document_with_params(&doc, &params);
+/// ```
+pub fn serialize_document_with_params(doc: &Document, params: &HashMap<String, String>) -> String {
     let mut result = String::new();
     result.push_str("<document>\n");
 
     let mut serializer = TagSerializer::new();
     serializer.indent_level = 1;
 
+    // Check if ast-full parameter is set to true
+    let include_all = params
+        .get("ast-full")
+        .map(|v| v.to_lowercase() == "true")
+        .unwrap_or(false);
+
     // Serialize the root session
-    let snapshot = snapshot_from_document(doc);
+    let snapshot = if include_all {
+        snapshot_from_document_with_options(doc, true)
+    } else {
+        snapshot_from_document(doc)
+    };
     serializer.serialize_snapshot(&snapshot);
 
     result.push_str(&serializer.output);
