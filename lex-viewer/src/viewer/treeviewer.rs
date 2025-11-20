@@ -43,6 +43,7 @@ fn get_node_icon(node_type: &str) -> &'static str {
         "ReferenceUnknown" => "∅",
         "ReferenceFootnote" => "³",
         "ReferenceSession" => "#",
+        "BlankLineGroup" => "⋯",
         _ => "◦", // Default fallback
     }
 }
@@ -289,7 +290,7 @@ mod tests {
         // Test that short labels are not truncated
         let content = "# Short";
         let doc = lex_parser::lex::parsing::parse_document(content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.to_string());
         let viewer = TreeViewer::new();
 
         // Create a test terminal with 28 char width (TREE_VIEWER_WIDTH 30 - 2 for border)
@@ -330,7 +331,7 @@ mod tests {
         let long_label = "A".repeat(50); // 50 chars, should be truncated to 26
         let content = format!("# {}", long_label);
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.to_string());
         let viewer = TreeViewer::new();
 
         let backend = TestBackend::new(28, 10);
@@ -376,7 +377,7 @@ mod tests {
             long_label
         );
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.to_string());
         let viewer = TreeViewer::new();
 
         let backend = TestBackend::new(28, 20);
@@ -417,7 +418,7 @@ mod tests {
         let unicode_label = "こんにちは世界".repeat(10); // Japanese characters
         let content = format!("# {}", unicode_label);
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.to_string());
         let viewer = TreeViewer::new();
 
         let backend = TestBackend::new(28, 10);
@@ -459,7 +460,7 @@ mod tests {
         // Example: "While these are all true, the format is d..." should become "While these are…"
         let content = "# While these are all true the format is different";
         let doc = lex_parser::lex::parsing::parse_document(content).unwrap();
-        let model = Model::new(doc);
+        let model = Model::new(doc, content.to_string());
         let viewer = TreeViewer::new();
 
         // Use a wide area where char limit would allow the full text
