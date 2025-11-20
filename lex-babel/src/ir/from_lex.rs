@@ -66,16 +66,16 @@ fn convert_inline_content(text: &TextContent) -> Vec<InlineContent> {
 /// Converts a single InlineNode to IR InlineContent
 fn convert_inline_node(node: &InlineNode) -> InlineContent {
     match node {
-        InlineNode::Plain(text) => InlineContent::Text(text.clone()),
-        InlineNode::Strong(children) => {
-            InlineContent::Bold(children.iter().map(convert_inline_node).collect())
+        InlineNode::Plain { text, .. } => InlineContent::Text(text.clone()),
+        InlineNode::Strong { content, .. } => {
+            InlineContent::Bold(content.iter().map(convert_inline_node).collect())
         }
-        InlineNode::Emphasis(children) => {
-            InlineContent::Italic(children.iter().map(convert_inline_node).collect())
+        InlineNode::Emphasis { content, .. } => {
+            InlineContent::Italic(content.iter().map(convert_inline_node).collect())
         }
-        InlineNode::Code(text) => InlineContent::Code(text.clone()),
-        InlineNode::Math(text) => InlineContent::Math(text.clone()),
-        InlineNode::Reference(ref_inline) => InlineContent::Reference(ref_inline.raw.clone()),
+        InlineNode::Code { text, .. } => InlineContent::Code(text.clone()),
+        InlineNode::Math { text, .. } => InlineContent::Math(text.clone()),
+        InlineNode::Reference { data, .. } => InlineContent::Reference(data.raw.clone()),
     }
 }
 
