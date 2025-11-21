@@ -121,6 +121,116 @@ impl Document {
             .iter()
             .flat_map(|annotation| annotation.children())
     }
+
+    // ========================================================================
+    // REFERENCE RESOLUTION APIs (Issue #291)
+    // Delegates to the root session
+    // ========================================================================
+
+    /// Find the first annotation with a matching label.
+    ///
+    /// This searches recursively through all annotations in the document,
+    /// including both document-level annotations and annotations in the content tree.
+    ///
+    /// # Arguments
+    /// * `label` - The label string to search for
+    ///
+    /// # Returns
+    /// The first annotation whose label matches exactly, or None if not found.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// // Find annotation with label "42" for reference [42]
+    /// if let Some(annotation) = document.find_annotation_by_label("42") {
+    ///     // Jump to this annotation in go-to-definition
+    /// }
+    /// ```
+    pub fn find_annotation_by_label(&self, label: &str) -> Option<&Annotation> {
+        // First check document-level annotations
+        self.annotations
+            .iter()
+            .find(|ann| ann.data.label.value == label)
+            .or_else(|| self.root.find_annotation_by_label(label))
+    }
+
+    /// Find all annotations with a matching label.
+    ///
+    /// This searches recursively through all annotations in the document,
+    /// including both document-level annotations and annotations in the content tree.
+    ///
+    /// # Arguments
+    /// * `label` - The label string to search for
+    ///
+    /// # Returns
+    /// A vector of all annotations whose labels match exactly.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// // Find all annotations labeled "note"
+    /// let notes = document.find_annotations_by_label("note");
+    /// for note in notes {
+    ///     // Process each note annotation
+    /// }
+    /// ```
+    pub fn find_annotations_by_label(&self, label: &str) -> Vec<&Annotation> {
+        let mut results: Vec<&Annotation> = self
+            .annotations
+            .iter()
+            .filter(|ann| ann.data.label.value == label)
+            .collect();
+
+        results.extend(self.root.find_annotations_by_label(label));
+        results
+    }
+
+    /// Iterate all inline references at any depth.
+    ///
+    /// This method recursively walks the document tree, parses inline content,
+    /// and yields all reference inline nodes (e.g., [42], [@citation], [^note]).
+    ///
+    /// # Returns
+    /// An iterator of references to ReferenceInline nodes
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// for reference in document.iter_all_references() {
+    ///     match &reference.reference_type {
+    ///         ReferenceType::FootnoteNumber { number } => {
+    ///             // Find annotation with this number
+    ///         }
+    ///         ReferenceType::Citation(data) => {
+    ///             // Process citation
+    ///         }
+    ///         _ => {}
+    ///     }
+    /// }
+    /// ```
+    pub fn iter_all_references(
+        &self,
+    ) -> Box<dyn Iterator<Item = crate::lex::inlines::ReferenceInline> + '_> {
+        self.root.iter_all_references()
+    }
+
+    /// Find all references to a specific target label.
+    ///
+    /// This method searches for inline references that point to the given target.
+    /// For example, find all `[42]` references when looking for footnote "42".
+    ///
+    /// # Arguments
+    /// * `target` - The target label to search for
+    ///
+    /// # Returns
+    /// A vector of references to ReferenceInline nodes that match the target
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// // Find all references to footnote "42"
+    /// let refs = document.find_references_to("42");
+    /// println!("Found {} references to footnote 42", refs.len());
+    /// ```
+    pub fn find_references_to(&self, target: &str) -> Vec<crate::lex::inlines::ReferenceInline> {
+        self.root.find_references_to(target)
+    }
 }
 
 impl AstNode for Document {
