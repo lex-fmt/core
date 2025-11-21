@@ -58,31 +58,33 @@
 //!             - Jump from internal reference [TK-rootlist] to target
 //!             - Find all references to footnotes/citations
 //!
-//!         5. Diagnostics (textDocument/publishDiagnostics):
+//!         5. Hover Information (textDocument/hover):
+//!             - Preview footnote/citation content on hover
+//!             - Show annotation metadata
+//!             - Preview definition content when hovering over reference
+//!
+//!         6. Document Links (textDocument/documentLink):
+//!             - Clickable links in text
+//!             - Verbatim block src parameters (images, includes)
+//!             - External references
+//!
+//!     Core Features (Phase 2):
+//!
+//!         7. Document Formatting (textDocument/formatting, textDocument/rangeFormatting):
+//!             - Fix indentation issues
+//!             - Normalize blank lines
+//!             - Align list markers //!         
+//!
+//!
+//!     Core Features (Phase 3):
+//!
+//!         8. Diagnostics (textDocument/publishDiagnostics):
 //!             - Indentation errors (breaking the indentation wall)
 //!             - Malformed structures (single-item lists, unclosed verbatim blocks)
 //!             - Broken references (footnote/citation not found)
 //!             - Invalid annotation syntax
 //!
-//!         6. Hover Information (textDocument/hover):
-//!             - Preview footnote/citation content on hover
-//!             - Show annotation metadata
-//!             - Preview definition content when hovering over reference
 //!
-//!         7. Document Formatting (textDocument/formatting, textDocument/rangeFormatting):
-//!             - Fix indentation issues
-//!             - Normalize blank lines
-//!             - Align list markers
-//!
-//!         8. Document Links (textDocument/documentLink):
-//!             - Clickable links in text
-//!             - Verbatim block src parameters (images, includes)
-//!             - External references
-//!
-//! Future Features:
-//!
-//!     Later phases may add completion, code actions, selection ranges, rename, and inlay hints.
-//!     See planning docs for full roadmap.
 //!
 //! Architecture
 //!
@@ -97,16 +99,14 @@
 //!         - Implements LanguageServer trait
 //!         - Manages document state and parsing
 //!         - Coordinates feature implementations
+//!         - Very thing, mostly calls the the feature layers over lex-parser
+//!         - Thin tests just asserting the right things are being called and returned
 //!
 //!     Feature Layer:
-//!         - Individual modules for each LSP feature
 //!         - Each feature operates on Lex AST
 //!         - Stateless transformations where possible
+//!         - All logic and dense unit tests
 //!
-//!     Parser Layer (lex-parser crate):
-//!         - Incremental parsing of Lex documents
-//!         - AST generation and location tracking
-//!         - Error recovery
 //!
 //! Testing Strategy
 //!
