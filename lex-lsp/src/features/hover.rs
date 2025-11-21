@@ -1,0 +1,541 @@
+use crate::features::inline::{extract_inline_spans, InlineSpanKind};
+use lex_parser::lex::ast::{
+    Annotation, ContentItem, Definition, Document, List, Position, Range, Session, TextContent,
+};
+use lex_parser::lex::inlines::ReferenceType;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HoverResult {
+    pub range: Range,
+    pub contents: String,
+}
+
+pub fn hover(document: &Document, position: Position) -> Option<HoverResult> {
+    inline_hover(document, position).or_else(|| annotation_hover(document, position))
+}
+
+fn inline_hover(document: &Document, position: Position) -> Option<HoverResult> {
+    let mut result = None;
+    for_each_text_content(document, &mut |text| {
+        if result.is_some() {
+            return;
+        }
+        for span in extract_inline_spans(text) {
+            if span.range.contains(position) {
+                result = match span.kind {
+                    InlineSpanKind::Reference(reference_type) => {
+                        hover_for_reference(document, &span.range, &span.raw, reference_type)
+                    }
+                    _ => None,
+                };
+                if result.is_some() {
+                    break;
+                }
+            }
+        }
+    });
+    result
+}
+
+fn hover_for_reference(
+    document: &Document,
+    range: &Range,
+    raw: &str,
+    reference_type: ReferenceType,
+) -> Option<HoverResult> {
+    match reference_type {
+        ReferenceType::FootnoteLabeled { label } => footnote_hover(document, range.clone(), &label)
+            .or_else(|| Some(generic_reference(range.clone(), raw))),
+        ReferenceType::FootnoteNumber { number } => {
+            footnote_hover(document, range.clone(), &number.to_string())
+                .or_else(|| Some(generic_reference(range.clone(), raw)))
+        }
+        ReferenceType::Citation(data) => {
+            let mut lines = vec![format!("Keys: {}", data.keys.join(", "))];
+            if let Some(locator) = data.locator {
+                lines.push(format!("Locator: {}", locator.raw));
+            }
+            Some(HoverResult {
+                range: range.clone(),
+                contents: format!("**Citation**\n\n{}", lines.join("\n")),
+            })
+        }
+        ReferenceType::General { target } => {
+            definition_hover(document, range.clone(), target.trim())
+                .or_else(|| Some(generic_reference(range.clone(), raw)))
+        }
+        ReferenceType::Url { target } => Some(HoverResult {
+            range: range.clone(),
+            contents: format!("**Link**\n\n{}", target),
+        }),
+        ReferenceType::File { target } => Some(HoverResult {
+            range: range.clone(),
+            contents: format!("**File Reference**\n\n{}", target),
+        }),
+        ReferenceType::Session { target } => Some(HoverResult {
+            range: range.clone(),
+            contents: format!("**Session Reference**\n\n{}", target),
+        }),
+        _ => Some(generic_reference(range.clone(), raw)),
+    }
+}
+
+fn generic_reference(range: Range, raw: &str) -> HoverResult {
+    HoverResult {
+        range,
+        contents: format!("**Reference**\n\n{}", raw.trim()),
+    }
+}
+
+fn footnote_hover(document: &Document, range: Range, label: &str) -> Option<HoverResult> {
+    let annotation = document.find_annotation_by_label(label)?;
+    let mut lines = Vec::new();
+    if let Some(preview) = preview_from_items(annotation.children.iter()) {
+        lines.push(preview);
+    }
+    if lines.is_empty() {
+        lines.push("(no content)".to_string());
+    }
+    Some(HoverResult {
+        range,
+        contents: format!("**Footnote [{}]**\n\n{}", label, lines.join("\n\n")),
+    })
+}
+
+fn definition_hover(document: &Document, range: Range, target: &str) -> Option<HoverResult> {
+    let definition = find_definition_by_subject(document, target)?;
+    let mut body_lines = Vec::new();
+    if let Some(preview) = preview_from_items(definition.children.iter()) {
+        body_lines.push(preview);
+    }
+    Some(HoverResult {
+        range,
+        contents: format!(
+            "**Definition: {}**\n\n{}",
+            target,
+            if body_lines.is_empty() {
+                "(no content)".to_string()
+            } else {
+                body_lines.join("\n\n")
+            }
+        ),
+    })
+}
+
+fn annotation_hover(document: &Document, position: Position) -> Option<HoverResult> {
+    if let Some(annotation) = document
+        .annotations()
+        .iter()
+        .find(|ann| ann.header_location().contains(position))
+    {
+        return Some(annotation_hover_result(annotation));
+    }
+    let annotation = find_annotation_in_session(&document.root, position)?;
+    Some(annotation_hover_result(annotation))
+}
+
+fn annotation_hover_result(annotation: &Annotation) -> HoverResult {
+    let mut parts = Vec::new();
+    if !annotation.data.parameters.is_empty() {
+        let params = annotation
+            .data
+            .parameters
+            .iter()
+            .map(|param| format!("{}={}", param.key, param.value))
+            .collect::<Vec<_>>()
+            .join(", ");
+        parts.push(format!("Parameters: {}", params));
+    }
+    if let Some(preview) = preview_from_items(annotation.children.iter()) {
+        parts.push(preview);
+    }
+    if parts.is_empty() {
+        parts.push("(no content)".to_string());
+    }
+    HoverResult {
+        range: annotation.header_location().clone(),
+        contents: format!(
+            "**Annotation :: {} ::**\n\n{}",
+            annotation.data.label.value,
+            parts.join("\n\n")
+        ),
+    }
+}
+
+fn find_annotation_in_session(session: &Session, position: Position) -> Option<&Annotation> {
+    if let Some(annotation) = session
+        .annotations()
+        .iter()
+        .find(|ann| ann.header_location().contains(position))
+    {
+        return Some(annotation);
+    }
+    for child in session.children.iter() {
+        if let Some(annotation) = find_annotation_in_content(child, position) {
+            return Some(annotation);
+        }
+    }
+    None
+}
+
+fn find_annotation_in_content(item: &ContentItem, position: Position) -> Option<&Annotation> {
+    match item {
+        ContentItem::Paragraph(paragraph) => paragraph
+            .annotations()
+            .iter()
+            .find(|ann| ann.header_location().contains(position))
+            .or_else(|| find_annotation_in_items(paragraph.lines.iter(), position)),
+        ContentItem::Session(session) => find_annotation_in_session(session, position),
+        ContentItem::List(list) => list
+            .annotations()
+            .iter()
+            .find(|ann| ann.header_location().contains(position))
+            .or_else(|| {
+                list.items.iter().find_map(|item| {
+                    if let ContentItem::ListItem(list_item) = item {
+                        list_item
+                            .annotations()
+                            .iter()
+                            .find(|ann| ann.header_location().contains(position))
+                            .or_else(|| {
+                                find_annotation_in_items(list_item.children.iter(), position)
+                            })
+                    } else {
+                        None
+                    }
+                })
+            }),
+        ContentItem::Definition(definition) => definition
+            .annotations()
+            .iter()
+            .find(|ann| ann.header_location().contains(position))
+            .or_else(|| find_annotation_in_items(definition.children.iter(), position)),
+        ContentItem::Annotation(annotation) => {
+            if annotation.header_location().contains(position) {
+                Some(annotation)
+            } else {
+                find_annotation_in_items(annotation.children.iter(), position)
+            }
+        }
+        ContentItem::VerbatimBlock(verbatim) => verbatim
+            .annotations()
+            .iter()
+            .find(|ann| ann.header_location().contains(position)),
+        ContentItem::ListItem(item) => item
+            .annotations()
+            .iter()
+            .find(|ann| ann.header_location().contains(position))
+            .or_else(|| find_annotation_in_items(item.children.iter(), position)),
+        ContentItem::TextLine(_)
+        | ContentItem::VerbatimLine(_)
+        | ContentItem::BlankLineGroup(_) => None,
+    }
+}
+
+fn find_annotation_in_items<'a>(
+    items: impl Iterator<Item = &'a ContentItem>,
+    position: Position,
+) -> Option<&'a Annotation> {
+    for item in items {
+        if let Some(annotation) = find_annotation_in_content(item, position) {
+            return Some(annotation);
+        }
+    }
+    None
+}
+
+fn find_definition_by_subject<'a>(document: &'a Document, target: &str) -> Option<&'a Definition> {
+    find_definition_in_items(document.root.children.iter(), target)
+}
+
+fn find_definition_in_items<'a>(
+    items: impl Iterator<Item = &'a ContentItem>,
+    target: &str,
+) -> Option<&'a Definition> {
+    for item in items {
+        if let Some(definition) = find_definition_in_content(item, target) {
+            return Some(definition);
+        }
+    }
+    None
+}
+
+fn find_definition_in_content<'a>(item: &'a ContentItem, target: &str) -> Option<&'a Definition> {
+    match item {
+        ContentItem::Definition(definition) => {
+            if definition
+                .subject
+                .as_string()
+                .trim()
+                .eq_ignore_ascii_case(target)
+            {
+                Some(definition)
+            } else {
+                find_definition_in_items(definition.children.iter(), target)
+            }
+        }
+        ContentItem::Session(session) => find_definition_in_items(session.children.iter(), target),
+        ContentItem::List(list) => find_definition_in_list(list, target),
+        ContentItem::ListItem(item) => find_definition_in_items(item.children.iter(), target),
+        ContentItem::Annotation(annotation) => {
+            find_definition_in_items(annotation.children.iter(), target)
+        }
+        ContentItem::Paragraph(paragraph) => {
+            find_definition_in_items(paragraph.lines.iter(), target)
+        }
+        ContentItem::VerbatimBlock(_)
+        | ContentItem::TextLine(_)
+        | ContentItem::VerbatimLine(_)
+        | ContentItem::BlankLineGroup(_) => None,
+    }
+}
+
+fn find_definition_in_list<'a>(list: &'a List, target: &str) -> Option<&'a Definition> {
+    for item in list.items.iter() {
+        if let ContentItem::ListItem(list_item) = item {
+            if let Some(definition) = find_definition_in_items(list_item.children.iter(), target) {
+                return Some(definition);
+            }
+        }
+    }
+    None
+}
+
+fn for_each_text_content<F>(document: &Document, f: &mut F)
+where
+    F: FnMut(&TextContent),
+{
+    for annotation in document.annotations() {
+        visit_annotation_text(annotation, f);
+    }
+    visit_session_text(&document.root, true, f);
+}
+
+fn visit_session_text<F>(session: &Session, is_root: bool, f: &mut F)
+where
+    F: FnMut(&TextContent),
+{
+    if !is_root {
+        f(&session.title);
+    }
+    for annotation in session.annotations() {
+        visit_annotation_text(annotation, f);
+    }
+    for child in session.children.iter() {
+        visit_content_text(child, f);
+    }
+}
+
+fn visit_content_text<F>(item: &ContentItem, f: &mut F)
+where
+    F: FnMut(&TextContent),
+{
+    match item {
+        ContentItem::Paragraph(paragraph) => {
+            for line in &paragraph.lines {
+                if let ContentItem::TextLine(text_line) = line {
+                    f(&text_line.content);
+                }
+            }
+            for annotation in paragraph.annotations() {
+                visit_annotation_text(annotation, f);
+            }
+        }
+        ContentItem::Session(session) => visit_session_text(session, false, f),
+        ContentItem::List(list) => {
+            for annotation in list.annotations() {
+                visit_annotation_text(annotation, f);
+            }
+            for item in list.items.iter() {
+                if let ContentItem::ListItem(list_item) = item {
+                    for text in &list_item.text {
+                        f(text);
+                    }
+                    for annotation in list_item.annotations() {
+                        visit_annotation_text(annotation, f);
+                    }
+                    for child in list_item.children.iter() {
+                        visit_content_text(child, f);
+                    }
+                }
+            }
+        }
+        ContentItem::ListItem(item) => {
+            for text in &item.text {
+                f(text);
+            }
+            for annotation in item.annotations() {
+                visit_annotation_text(annotation, f);
+            }
+            for child in item.children.iter() {
+                visit_content_text(child, f);
+            }
+        }
+        ContentItem::Definition(definition) => {
+            f(&definition.subject);
+            for annotation in definition.annotations() {
+                visit_annotation_text(annotation, f);
+            }
+            for child in definition.children.iter() {
+                visit_content_text(child, f);
+            }
+        }
+        ContentItem::Annotation(annotation) => visit_annotation_text(annotation, f),
+        ContentItem::VerbatimBlock(_)
+        | ContentItem::TextLine(_)
+        | ContentItem::VerbatimLine(_)
+        | ContentItem::BlankLineGroup(_) => {}
+    }
+}
+
+fn visit_annotation_text<F>(annotation: &Annotation, f: &mut F)
+where
+    F: FnMut(&TextContent),
+{
+    for child in annotation.children.iter() {
+        visit_content_text(child, f);
+    }
+}
+
+fn preview_from_items<'a>(items: impl Iterator<Item = &'a ContentItem>) -> Option<String> {
+    let mut lines = Vec::new();
+    collect_preview(items, &mut lines, 3);
+    if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
+    }
+}
+
+fn collect_preview<'a>(
+    items: impl Iterator<Item = &'a ContentItem>,
+    lines: &mut Vec<String>,
+    limit: usize,
+) {
+    for item in items {
+        if lines.len() >= limit {
+            break;
+        }
+        match item {
+            ContentItem::Paragraph(paragraph) => {
+                let text = paragraph.text().trim().to_string();
+                if !text.is_empty() {
+                    lines.push(text);
+                }
+            }
+            ContentItem::ListItem(list_item) => {
+                let text = list_item.text().trim().to_string();
+                if !text.is_empty() {
+                    lines.push(text);
+                }
+            }
+            ContentItem::List(list) => {
+                for entry in list.items.iter() {
+                    if let ContentItem::ListItem(list_item) = entry {
+                        let text = list_item.text().trim().to_string();
+                        if !text.is_empty() {
+                            lines.push(text);
+                        }
+                        if lines.len() >= limit {
+                            break;
+                        }
+                    }
+                }
+            }
+            ContentItem::Definition(definition) => {
+                let subject = definition.subject.as_string().trim().to_string();
+                if !subject.is_empty() {
+                    lines.push(subject);
+                }
+                collect_preview(definition.children.iter(), lines, limit);
+            }
+            ContentItem::Annotation(annotation) => {
+                collect_preview(annotation.children.iter(), lines, limit);
+            }
+            ContentItem::Session(session) => {
+                collect_preview(session.children.iter(), lines, limit);
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::test_support::{sample_document, sample_source};
+
+    fn position_for(needle: &str) -> Position {
+        let source = sample_source();
+        let index = source
+            .find(needle)
+            .unwrap_or_else(|| panic!("{} not found", needle));
+        let mut line = 0;
+        let mut column = 0;
+        for ch in source[..index].chars() {
+            if ch == '\n' {
+                line += 1;
+                column = 0;
+            } else {
+                column += ch.len_utf8();
+            }
+        }
+        Position::new(line, column)
+    }
+
+    #[test]
+    fn hover_shows_definition_preview_for_general_reference() {
+        let document = sample_document();
+        let position = position_for("[Cache]");
+        let hover = hover(&document, position).expect("hover expected");
+        assert!(hover.contents.contains("Definition"));
+        assert!(hover.contents.contains("definition body"));
+    }
+
+    #[test]
+    fn hover_shows_footnote_content() {
+        let document = sample_document();
+        let position = position_for("[^source]");
+        let hover = hover(&document, position).expect("hover expected");
+        assert!(hover.contents.contains("Footnote [source]"));
+        assert!(hover.contents.contains("Footnote referenced"));
+    }
+
+    #[test]
+    fn hover_shows_citation_details() {
+        let document = sample_document();
+        let position = position_for("[@spec2025 p.4]");
+        let hover = hover(&document, position).expect("hover expected");
+        assert!(hover.contents.contains("Citation"));
+        assert!(hover.contents.contains("spec2025"));
+    }
+
+    #[test]
+    fn hover_shows_annotation_metadata() {
+        let document = sample_document();
+        let mut position = None;
+        for item in document.root.children.iter() {
+            if let ContentItem::Session(session) = item {
+                for child in session.children.iter() {
+                    if let ContentItem::Definition(definition) = child {
+                        if let Some(annotation) = definition.annotations().first() {
+                            position = Some(annotation.header_location().start);
+                        }
+                    }
+                }
+            }
+        }
+        let position = position.expect("annotation position");
+        let hover = hover(&document, position).expect("hover expected");
+        assert!(hover.contents.contains("Annotation"));
+        assert!(hover.contents.contains("callout"));
+        assert!(hover.contents.contains("Session-level annotation body"));
+    }
+
+    #[test]
+    fn hover_returns_none_for_invalid_position() {
+        let document = sample_document();
+        let position = Position::new(999, 0);
+        assert!(hover(&document, position).is_none());
+    }
+}

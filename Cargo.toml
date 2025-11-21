@@ -4,6 +4,7 @@ members = [
     "lex-babel",
     "lex-cli",
     "lex-viewer",
+    "lex-lsp",
 ]
 resolver = "2"
 

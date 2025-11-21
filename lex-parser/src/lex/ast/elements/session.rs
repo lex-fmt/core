@@ -365,6 +365,160 @@ impl Session {
     pub fn format_at_position(&self, position: Position) -> String {
         self.children.format_at_position(position)
     }
+
+    // ========================================================================
+    // REFERENCE RESOLUTION APIs (Issue #291)
+    // ========================================================================
+
+    /// Find the first annotation with a matching label.
+    ///
+    /// This searches recursively through all annotations in the session tree.
+    ///
+    /// # Arguments
+    /// * `label` - The label string to search for
+    ///
+    /// # Returns
+    /// The first annotation whose label matches exactly, or None if not found.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// // Find annotation with label "42" for reference [42]
+    /// if let Some(annotation) = session.find_annotation_by_label("42") {
+    ///     // Jump to this annotation in go-to-definition
+    /// }
+    /// ```
+    pub fn find_annotation_by_label(&self, label: &str) -> Option<&Annotation> {
+        self.iter_annotations_recursive()
+            .find(|ann| ann.data.label.value == label)
+    }
+
+    /// Find all annotations with a matching label.
+    ///
+    /// This searches recursively through all annotations in the session tree.
+    /// Multiple annotations might share the same label.
+    ///
+    /// # Arguments
+    /// * `label` - The label string to search for
+    ///
+    /// # Returns
+    /// A vector of all annotations whose labels match exactly.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// // Find all annotations labeled "note"
+    /// let notes = session.find_annotations_by_label("note");
+    /// for note in notes {
+    ///     // Process each note annotation
+    /// }
+    /// ```
+    pub fn find_annotations_by_label(&self, label: &str) -> Vec<&Annotation> {
+        self.iter_annotations_recursive()
+            .filter(|ann| ann.data.label.value == label)
+            .collect()
+    }
+
+    /// Iterate all inline references at any depth.
+    ///
+    /// This method recursively walks the session tree, parses inline content,
+    /// and yields all reference inline nodes (e.g., [42], [@citation], [^note]).
+    ///
+    /// Note: This method does not currently return source ranges for individual
+    /// references. Use the paragraph's location as a starting point for finding
+    /// references in the source.
+    ///
+    /// # Returns
+    /// An iterator of references to ReferenceInline nodes
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// for reference in session.iter_all_references() {
+    ///     match &reference.reference_type {
+    ///         ReferenceType::FootnoteNumber { number } => {
+    ///             // Find annotation with this number
+    ///         }
+    ///         ReferenceType::Citation(data) => {
+    ///             // Process citation
+    ///         }
+    ///         _ => {}
+    ///     }
+    /// }
+    /// ```
+    pub fn iter_all_references(
+        &self,
+    ) -> Box<dyn Iterator<Item = crate::lex::inlines::ReferenceInline> + '_> {
+        use crate::lex::inlines::InlineNode;
+
+        // Collect all paragraphs recursively
+        let paragraphs: Vec<_> = self.iter_paragraphs_recursive().collect();
+
+        // For each paragraph, iterate through lines and collect references
+        let refs: Vec<_> = paragraphs
+            .into_iter()
+            .flat_map(|para| {
+                // Iterate through each text line in the paragraph
+                para.lines
+                    .iter()
+                    .filter_map(|item| {
+                        if let super::content_item::ContentItem::TextLine(text_line) = item {
+                            Some(&text_line.content)
+                        } else {
+                            None
+                        }
+                    })
+                    .flat_map(|text_content| {
+                        // Get inline nodes from the text content
+                        let inlines = text_content.inline_items();
+
+                        // Filter to only reference nodes
+                        inlines
+                            .into_iter()
+                            .filter_map(|node| {
+                                if let InlineNode::Reference { data, .. } = node {
+                                    Some(data)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+
+        Box::new(refs.into_iter())
+    }
+
+    /// Find all references to a specific target label.
+    ///
+    /// This method searches for inline references that point to the given target.
+    /// For example, find all `[42]` references when looking for footnote "42".
+    ///
+    /// # Arguments
+    /// * `target` - The target label to search for
+    ///
+    /// # Returns
+    /// A vector of references to ReferenceInline nodes that match the target
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// // Find all references to footnote "42"
+    /// let refs = session.find_references_to("42");
+    /// println!("Found {} references to footnote 42", refs.len());
+    /// ```
+    pub fn find_references_to(&self, target: &str) -> Vec<crate::lex::inlines::ReferenceInline> {
+        use crate::lex::inlines::ReferenceType;
+
+        self.iter_all_references()
+            .filter(|reference| match &reference.reference_type {
+                ReferenceType::FootnoteNumber { number } => target == number.to_string(),
+                ReferenceType::FootnoteLabeled { label } => target == label,
+                ReferenceType::Session { target: ref_target } => target == ref_target,
+                ReferenceType::General { target: ref_target } => target == ref_target,
+                ReferenceType::Citation(data) => data.keys.iter().any(|key| key == target),
+                _ => false,
+            })
+            .collect()
+    }
 }
 
 impl AstNode for Session {
