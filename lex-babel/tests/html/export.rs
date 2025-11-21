@@ -147,6 +147,53 @@ fn test_reference() {
     assert!(html.contains("<a href=\"example.com\">"));
 }
 
+// ============================================================================
+// ISSUE B: Citation href Format Tests
+// ============================================================================
+
+#[test]
+fn test_citation_href_format() {
+    let lex_src = "According to [@smith2023], this is correct.\n";
+    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+
+    // Citations should link to #ref-* anchors, not @*
+    assert!(
+        html.contains("<a href=\"#ref-smith2023\">"),
+        "Citation should use #ref-smith2023, not @smith2023"
+    );
+    assert!(
+        !html.contains("<a href=\"@smith2023\">"),
+        "Citation should not use @ in href"
+    );
+}
+
+#[test]
+fn test_multiple_citations() {
+    let lex_src = "Research from [@jones2020] and [@brown2021] supports this.\n";
+    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+
+    assert!(html.contains("<a href=\"#ref-jones2020\">"));
+    assert!(html.contains("<a href=\"#ref-brown2021\">"));
+}
+
+#[test]
+fn test_url_reference_unchanged() {
+    let lex_src = "Visit [https://example.com] for details.\n";
+    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+
+    // URLs should remain as-is
+    assert!(html.contains("<a href=\"https://example.com\">"));
+}
+
+#[test]
+fn test_anchor_reference_unchanged() {
+    let lex_src = "See [#section-3] above.\n";
+    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+
+    // Anchors should remain as-is
+    assert!(html.contains("<a href=\"#section-3\">"));
+}
+
 // TODO: Annotations are not yet fully supported in HTML export
 // Document-level annotations aren't converted to IR/Events
 // #[test]

@@ -288,10 +288,15 @@ fn add_inline_to_node(parent: &Handle, inline: &InlineContent) -> Result<(), For
         }
 
         InlineContent::Reference(ref_text) => {
-            // Convert to anchor: the word before the reference becomes the anchor text
-            // For now, use the reference itself as anchor text
-            // TODO: Implement proper anchor extraction using extract_anchor_for_reference
-            let anchor = create_element("a", vec![("href", ref_text)]);
+            // Convert to anchor
+            // Handle citations (@...) by targeting a reference ID
+            let href = if let Some(citation) = ref_text.strip_prefix('@') {
+                format!("#ref-{}", citation)
+            } else {
+                ref_text.to_string()
+            };
+
+            let anchor = create_element("a", vec![("href", &href)]);
             let anchor_text = create_text(ref_text);
             anchor.children.borrow_mut().push(anchor_text);
             parent.children.borrow_mut().push(anchor);
