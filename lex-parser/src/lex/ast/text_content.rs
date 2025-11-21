@@ -140,9 +140,43 @@ impl TextContent {
         self.inner = TextRepresentation::Inlines { raw, nodes };
     }
 
-    // Future API (Phase 2 placeholders):
-    // pub fn as_inlines(&self) -> Option<&[InlineNode]> { ... }
-    // pub fn parse_inlines(&mut self) -> Result<()> { ... }
+    // ============================================================================
+    // LSP-FRIENDLY APIS (Issue #290)
+    // ============================================================================
+
+    /// Get parsed inline nodes if available (LSP API).
+    ///
+    /// Returns `Some` if inlines have been parsed via `parse_inlines()` or `inlines_or_parse()`.
+    /// Returns `None` if content is still in plain text form.
+    ///
+    /// This is a convenience alias for `inline_nodes()`.
+    #[inline]
+    pub fn inlines(&self) -> Option<&[InlineNode]> {
+        self.inline_nodes()
+    }
+
+    /// Parse text into inline nodes and store the result (LSP API).
+    ///
+    /// This method is idempotent - calling it multiple times has no additional effect.
+    /// After calling this method, `inlines()` will return `Some`.
+    ///
+    /// This is a convenience alias for `ensure_inline_parsed()`.
+    #[inline]
+    pub fn parse_inlines(&mut self) {
+        self.ensure_inline_parsed();
+    }
+
+    /// Get or parse inline nodes (LSP API).
+    ///
+    /// If inlines are already parsed, returns a reference to them.
+    /// Otherwise, parses the text into inlines, stores the result, and returns a reference.
+    ///
+    /// This is the recommended method for LSP features that need access to inline elements.
+    pub fn inlines_or_parse(&mut self) -> &[InlineNode] {
+        self.ensure_inline_parsed();
+        self.inline_nodes()
+            .expect("inline_nodes should be available after ensure_inline_parsed")
+    }
 }
 
 impl Default for TextContent {
@@ -259,4 +293,66 @@ mod tests {
     }
 
     use super::super::range::Position;
+
+    // ============================================================================
+    // LSP API TESTS (Issue #290)
+    // ============================================================================
+
+    #[test]
+    fn test_inlines_alias() {
+        let mut content = TextContent::from_string("Hello *world*".to_string(), None);
+
+        // Before parsing
+        assert!(content.inlines().is_none());
+
+        // After parsing
+        content.parse_inlines();
+        let nodes = content.inlines().expect("expected inline nodes");
+        assert_eq!(nodes.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_inlines_alias() {
+        let mut content = TextContent::from_string("Hello *world*".to_string(), None);
+
+        content.parse_inlines();
+        assert!(content.inlines().is_some());
+
+        // Idempotent - calling again should not panic
+        content.parse_inlines();
+        assert!(content.inlines().is_some());
+    }
+
+    #[test]
+    fn test_inlines_or_parse() {
+        let mut content = TextContent::from_string("Hello *world*".to_string(), None);
+
+        // First call parses
+        {
+            let nodes1 = content.inlines_or_parse();
+            assert_eq!(nodes1.len(), 2);
+        }
+
+        // Second call returns cached result
+        {
+            let nodes2 = content.inlines_or_parse();
+            assert_eq!(nodes2.len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_inlines_or_parse_with_references() {
+        use crate::lex::inlines::InlineNode;
+
+        let mut content =
+            TextContent::from_string("See [42] and [https://example.com]".to_string(), None);
+        let nodes = content.inlines_or_parse();
+
+        // Should have: Plain, Reference, Plain, Reference
+        assert_eq!(nodes.len(), 4);
+        assert!(matches!(nodes[0], InlineNode::Plain { .. }));
+        assert!(matches!(nodes[1], InlineNode::Reference { .. }));
+        assert!(matches!(nodes[2], InlineNode::Plain { .. }));
+        assert!(matches!(nodes[3], InlineNode::Reference { .. }));
+    }
 }
