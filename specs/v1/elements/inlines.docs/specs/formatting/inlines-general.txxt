@@ -2,9 +2,9 @@
 :: author :: Arthur Debert
 :: pub-date :: 2025-01-12
 
-Foundation specification for inline elements - the general token-based syntax pattern and parsing architecture shared by all inline content in txxt documents.
+Foundation specification for inline elements - the general token-based syntax pattern and parsing architecture shared by all inline content in lex documents.
 
-:: note :: This specification defines the foundational token-based pattern shared by all inline elements. For specific implementations see: [formatting.txxt] (strong, emphasis, code), [math.txxt] (mathematical expressions), and [references/] (links, citations, footnotes).
+:: note :: This specification defines the foundational token-based pattern shared by all inline elements. For specific implementations see: [formatting.lex] (strong, emphasis, code), [math.lex] (mathematical expressions), and [references/] (links, citations, footnotes).
 
 1. Purpose
 
@@ -42,7 +42,7 @@ Foundation specification for inline elements - the general token-based syntax pa
 
         Text appearance and semantic emphasis:
         - Strong, Emphasis, Code
-        - See [formatting.txxt] for complete specification
+        - See [formatting.lex] for complete specification
 
     3.2. Mathematical Elements
 

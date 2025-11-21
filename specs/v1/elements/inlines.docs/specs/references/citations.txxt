@@ -2,9 +2,9 @@
 :: author :: Arthur Debert
 :: pub-date :: 2025-01-12
 
-Complete specification for citation references - academic and bibliographic citations that integrate with external citation management systems in txxt documents.
+Complete specification for citation references - academic and bibliographic citations that integrate with external citation management systems in lex documents.
 
-:: note :: This specification describes the specific characteristics of citation reference elements. For the general reference token pattern and architecture, see [../references-general.txxt].
+:: note :: This specification describes the specific characteristics of citation reference elements. For the general reference token pattern and architecture, see [../references-general.lex].
 
 1. Purpose
 
@@ -199,4 +199,4 @@ Complete specification for citation references - academic and bibliographic cita
         - Clear error messages for debugging
         - Never break document processing
 
-:: note :: Citation references provide powerful academic and bibliographic capabilities while maintaining txxt's principle of delegating complex formatting to external tools. The simple bracket syntax ensures readability while supporting comprehensive citation workflows.
+:: note :: Citation references provide powerful academic and bibliographic capabilities while maintaining lex's principle of delegating complex formatting to external tools. The simple bracket syntax ensures readability while supporting comprehensive citation workflows.

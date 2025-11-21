@@ -2,17 +2,17 @@
 :: author :: Arthur Debert
 :: pub-date :: 2025-01-12
 
-Complete specification for formatting inline elements - strong, emphasis, and code elements that provide visual and semantic text markup in txxt documents.
+Complete specification for formatting inline elements - strong, emphasis, and code elements that provide visual and semantic text markup in lex documents.
 
-:: note :: This specification describes the specific characteristics of formatting inline elements. For the general inline token pattern, universal grammar, parsing architecture, and AST foundation shared by all inline elements, see [inlines-general.txxt].
+:: note :: This specification describes the specific characteristics of formatting inline elements. For the general inline token pattern, universal grammar, parsing architecture, and AST foundation shared by all inline elements, see [inlines-general.lex].
 
 1. Purpose
 
-    Formatting inline elements provide visual emphasis and semantic markup for text content. They follow the general inline token pattern defined in [inlines-general.txxt] with specific tokens and content rules. These elements maintain readability in plain text while delivering clear semantic meaning for both human readers and automated processing.
+    Formatting inline elements provide visual emphasis and semantic markup for text content. They follow the general inline token pattern defined in [inlines-general.lex] with specific tokens and content rules. These elements maintain readability in plain text while delivering clear semantic meaning for both human readers and automated processing.
 
 2. Element Types
 
-    All formatting elements follow the `<token>content<token>` pattern from [inlines-general.txxt].
+    All formatting elements follow the `<token>content<token>` pattern from [inlines-general.lex].
 
     2.1. Strong (Bold)
 
@@ -51,7 +51,7 @@ Complete specification for formatting inline elements - strong, emphasis, and co
         Unlike math and references, formatting elements have varying nesting behavior:
         - **Strong/Emphasis**: Allow nested inline elements (recursive parsing)
         - **Code**: Literal content only (no further parsing)
-        - All types follow universal rules from [inlines-general.txxt]
+        - All types follow universal rules from [inlines-general.lex]
 
     3.2. Token Conflicts
 
@@ -106,12 +106,12 @@ Complete specification for formatting inline elements - strong, emphasis, and co
             *bold*_italic_        # Valid - separate elements
             *bold* and _italic_   # Valid - clearly separated
             *bold*and*more*       # Valid - multiple strong elements
-        :: txxt.core.spec.formatting.edge.adjacent-elements :
+        :: lex.core.spec.formatting.edge.adjacent-elements :
 
     6.2. Formatting Within Code
 
         Code elements do not process internal formatting:
             `*not bold*` # Asterisks preserved literally
             `_not italic_` # Underscores preserved literally
-        :: txxt.core.spec.formatting.edge.code-literal-content :
+        :: lex.core.spec.formatting.edge.code-literal-content :
  
