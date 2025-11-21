@@ -14,3 +14,18 @@ Documentation Structure.
     Inside each version: 
         1. general.lex -> A introduction to the format, which includes general points,like character encoding a description of each major element type.
         2. grammar.lex -> the syntax and grammar/syntax defs for the language, using the simplified BNF-like described in the document
+
+Working with Markdown input.
+
+    The markdown importer lives in lex-babel and is powered by the comrak crate. We keep
+    reference fixtures under lex-babel/tests/fixtures/, including copies of the CommonMark
+    and Comrak READMEs with attribution headers. The importer converts Markdown → IR →
+    Lex AST before being consumed by other formats such as the tag/treeviz visualizers.
+
+    Recommended workflows:
+        - Run `cargo test -p lex-babel markdown::import` to exercise the element/unit suites.
+        - Run `cargo test -p lex-cli` to ensure the CLI can ingest Markdown inputs.
+        - Inspect Markdown on the shell via `cargo run --bin lex -- path/to/doc.md --to tag`
+          (auto-detected `--from markdown`).
+
+    The CLI test + command above mirror the manual debugging flow mentioned in docs/dev/guides.

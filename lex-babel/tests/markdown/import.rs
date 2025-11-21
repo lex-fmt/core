@@ -4,13 +4,31 @@
 //! by checking the resulting Lex AST structure.
 
 use comrak::{parse_document, Arena, ComrakOptions};
+use insta::assert_snapshot;
 use lex_babel::format::Format;
 use lex_babel::formats::markdown::MarkdownFormat;
+use lex_babel::formats::tag::serialize_document_with_params;
 use lex_parser::lex::ast::ContentItem;
+use std::collections::HashMap;
 
 /// Helper to parse Markdown to Lex AST
 fn md_to_lex(md: &str) -> lex_parser::lex::ast::Document {
     MarkdownFormat.parse(md).expect("Should parse markdown")
+}
+
+/// Snapshot helper for reference Markdown fixtures
+fn snapshot_md_fixture(fixture: &str, snapshot_name: &str) {
+    let path = format!("tests/fixtures/{}", fixture);
+    let md =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read {}: {}", path, e));
+
+    let doc = md_to_lex(&md);
+
+    let mut params = HashMap::new();
+    params.insert("ast-full".to_string(), "true".to_string());
+    let serialized = serialize_document_with_params(&doc, &params);
+
+    assert_snapshot!(snapshot_name, serialized);
 }
 
 #[test]
@@ -351,4 +369,24 @@ fn test_kitchensink_round_trip() {
     assert!(has_session, "Kitchensink should have sessions");
     assert!(has_list, "Kitchensink should have lists");
     assert!(has_verbatim, "Kitchensink should have verbatim blocks");
+}
+
+// ============================================================================
+// REFERENCE FIXTURE SNAPSHOTS
+// ============================================================================
+
+#[test]
+fn test_reference_commonmark_snapshot() {
+    snapshot_md_fixture(
+        "markdown-reference-commonmark.md",
+        "markdown_import_commonmark_reference",
+    );
+}
+
+#[test]
+fn test_reference_comrak_snapshot() {
+    snapshot_md_fixture(
+        "markdown-reference-comrak.md",
+        "markdown_import_comrak_reference",
+    );
 }
