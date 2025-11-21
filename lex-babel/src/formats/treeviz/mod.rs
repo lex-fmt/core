@@ -65,7 +65,8 @@
 use super::icons::get_icon;
 use crate::error::FormatError;
 use crate::format::Format;
-use lex_parser::lex::ast::traits::{AstNode, Container};
+use lex_parser::lex::ast::trait_helpers::try_as_container;
+use lex_parser::lex::ast::traits::{AstNode, Container, VisualStructure};
 use lex_parser::lex::ast::{ContentItem, Document};
 use std::collections::HashMap;
 
@@ -92,19 +93,20 @@ fn format_content_item(
 
     let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
 
-    // Handle include_all synthetic children
+    // Handle include_all: show visual headers using traits
     if include_all {
+        if item.has_visual_header() {
+            if let Some(container) = try_as_container(item) {
+                let header = container.label();
+                // Use the parent node's icon for the header (no synthetic type needed)
+                let header_icon = get_icon(item.node_type());
+                output.push_str(&format!("{}├─ {} {}\n", child_prefix, header_icon, header));
+            }
+        }
+
+        // Handle special cases that need more than just the header
         match item {
             ContentItem::Session(s) => {
-                // Show session title as synthetic child
-                let title_icon = get_icon("SessionTitle");
-                output.push_str(&format!(
-                    "{}├─ {} {}\n",
-                    child_prefix,
-                    title_icon,
-                    s.title.as_string()
-                ));
-
                 // Show session annotations
                 for (i, ann) in s.annotations.iter().enumerate() {
                     let ann_item = ContentItem::Annotation(ann.clone());
@@ -157,15 +159,6 @@ fn format_content_item(
                 }
             }
             ContentItem::Definition(d) => {
-                // Show subject as synthetic child
-                let subject_icon = get_icon("Subject");
-                output.push_str(&format!(
-                    "{}├─ {} {}\n",
-                    child_prefix,
-                    subject_icon,
-                    d.subject.as_string()
-                ));
-
                 // Show definition annotations
                 for ann in &d.annotations {
                     let ann_item = ContentItem::Annotation(ann.clone());
@@ -179,13 +172,7 @@ fn format_content_item(
                 }
             }
             ContentItem::Annotation(a) => {
-                // Show label and parameters
-                let label_icon = get_icon("Label");
-                output.push_str(&format!(
-                    "{}├─ {} {}\n",
-                    child_prefix, label_icon, a.data.label.value
-                ));
-
+                // Show parameters (label already shown by get_visual_header)
                 for param in &a.data.parameters {
                     let param_icon = get_icon("Parameter");
                     output.push_str(&format!(
@@ -198,28 +185,8 @@ fn format_content_item(
         }
     }
 
-    // Process regular children
+    // Process regular children using Container trait
     match item {
-        ContentItem::Session(s) => {
-            output + &format_children(s.children(), &child_prefix, include_all)
-        }
-        ContentItem::Paragraph(p) => {
-            // For paragraph, lines are already ContentItems
-            output + &format_children(&p.lines, &child_prefix, include_all)
-        }
-        ContentItem::List(l) => {
-            // For list, items are already ContentItems
-            output + &format_children(&l.items, &child_prefix, include_all)
-        }
-        ContentItem::Definition(d) => {
-            output + &format_children(d.children(), &child_prefix, include_all)
-        }
-        ContentItem::ListItem(li) => {
-            output + &format_children(li.children(), &child_prefix, include_all)
-        }
-        ContentItem::Annotation(a) => {
-            output + &format_children(a.children(), &child_prefix, include_all)
-        }
         ContentItem::VerbatimBlock(v) => {
             // Handle verbatim groups
             let mut group_output = String::new();
@@ -261,7 +228,15 @@ fn format_content_item(
             }
             output + &group_output
         }
-        _ => output,
+        _ => {
+            // Use Container trait to get children for all other types
+            if let Some(container) = try_as_container(item) {
+                output + &format_children(container.children(), &child_prefix, include_all)
+            } else {
+                // Leaf nodes have no children
+                output
+            }
+        }
     }
 }
 
