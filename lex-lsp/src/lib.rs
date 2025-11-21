@@ -36,39 +36,44 @@
 //!
 //!     Core Features (Phase 1):
 //!
-//!         1. Semantic Tokens (textDocument/semanticTokens/*):
-//!             - Syntax highlighting for sessions, lists, definitions, annotations
-//!             - Inline formatting: bold, italic, code, math
-//!             - References, footnotes, citations
-//!             - Verbatim blocks with language-specific highlighting
+//!         Syntax Highlighting
+//!             1. Semantic Tokens (textDocument/semanticTokens/*):
+//!                 - Syntax highlighting for sessions, lists, definitions, annotations
+//!                 - Inline formatting: bold, italic, code, math
+//!                 - References, footnotes, citations
+//!                 - Verbatim blocks with language-specific highlighting
 //!
-//!         2. Document Symbols (textDocument/documentSymbol):
-//!             - Hierarchical outline view of document structure
-//!             - Sessions with nesting (1., 1.1., 1.1.1., etc.)
-//!             - Definitions, annotations, lists as navigable symbols
+//!             2. Document Symbols (textDocument/documentSymbol):
+//!                 - Hierarchical outline view of document structure
+//!                 - Sessions with nesting (1., 1.1., 1.1.1., etc.)
+//!                 - Definitions, annotations, lists as navigable symbols
 //!
-//!         3. Folding Ranges (textDocument/foldingRange):
-//!             - Fold sessions and nested content
-//!             - Fold list items with children
-//!             - Fold annotations, definitions, verbatim blocks
+//!            3. Hover Information (textDocument/hover):
+//!                 - Preview footnote/citation content on hover
+//!                 - Show annotation metadata
+//!                 - Preview definition content when hovering over reference
 //!
-//!         4. Go to Definition / Find References (textDocument/definition, textDocument/references):
-//!             - Jump from footnote reference [42] to annotation
-//!             - Jump from citation [@spec2025] to bibliography entry
-//!             - Jump from internal reference [TK-rootlist] to target
-//!             - Find all references to footnotes/citations
-//!
-//!         5. Hover Information (textDocument/hover):
-//!             - Preview footnote/citation content on hover
-//!             - Show annotation metadata
-//!             - Preview definition content when hovering over reference
-//!
-//!         6. Document Links (textDocument/documentLink):
-//!             - Clickable links in text
-//!             - Verbatim block src parameters (images, includes)
-//!             - External references
+//!             4. Folding Ranges (textDocument/foldingRange):
+//!                 - Fold sessions and nested content
+//!                 - Fold list items with children
+//!                 - Fold annotations, definitions, verbatim blocks
 //!
 //!     Core Features (Phase 2):
+//!         
+//!         Navigation
+//!             
+//!             5. Go to Definition / Find References (textDocument/definition, textDocument/references):
+//!                 - Find all references to footnotes/citations
+//!                 - Jump from footnote reference [42] to annotation
+//!                 - Jump from citation [@spec2025] to bibliography entry
+//!                 - Jump from internal reference [TK-rootlist] to target
+//!
+//!             6. Document Links (textDocument/documentLink):
+//!                 - Clickable links in text
+//!                 - Verbatim block src parameters (images, includes)
+//!                 - External references
+//!
+//!     Core Features (Phase 3):
 //!
 //!         7. Document Formatting (textDocument/formatting, textDocument/rangeFormatting):
 //!             - Fix indentation issues
@@ -76,14 +81,13 @@
 //!             - Align list markers //!         
 //!
 //!
-//!     Core Features (Phase 3):
+//!     Core Features (Phase 4):
 //!
 //!         8. Diagnostics (textDocument/publishDiagnostics):
 //!             - Indentation errors (breaking the indentation wall)
 //!             - Malformed structures (single-item lists, unclosed verbatim blocks)
 //!             - Broken references (footnote/citation not found)
 //!             - Invalid annotation syntax
-//!
 //!
 //!
 //! Architecture
