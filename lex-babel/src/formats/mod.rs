@@ -3,6 +3,7 @@
 //! This module contains all format implementations that convert between
 //! Lex AST and various text representations.
 
+pub mod common;
 pub mod html;
 pub mod icons;
 pub mod lex;
