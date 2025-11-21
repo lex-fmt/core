@@ -62,24 +62,32 @@ impl FeatureProvider for DefaultFeatureProvider {
     }
 }
 
+#[derive(Clone)]
+struct DocumentEntry {
+    document: Arc<Document>,
+    text: Arc<String>,
+}
+
 #[derive(Default)]
 struct DocumentStore {
-    entries: RwLock<HashMap<Url, Option<Arc<Document>>>>,
+    entries: RwLock<HashMap<Url, Option<DocumentEntry>>>,
 }
 
 impl DocumentStore {
-    async fn upsert(&self, uri: Url, text: String) -> Option<Arc<Document>> {
-        let parsed = parsing::parse_document(&text).ok().map(Arc::new);
+    async fn upsert(&self, uri: Url, text: String) -> Option<DocumentEntry> {
+        let parsed = match parsing::parse_document(&text) {
+            Ok(document) => Some(DocumentEntry {
+                document: Arc::new(document),
+                text: Arc::new(text),
+            }),
+            Err(_) => None,
+        };
         self.entries.write().await.insert(uri, parsed.clone());
         parsed
     }
 
-    async fn get(&self, uri: &Url) -> Option<Arc<Document>> {
-        self.entries
-            .read()
-            .await
-            .get(uri)
-            .and_then(|entry| entry.clone())
+    async fn get(&self, uri: &Url) -> Option<DocumentEntry> {
+        self.entries.read().await.get(uri).cloned().flatten()
     }
 
     async fn remove(&self, uri: &Url) {
@@ -126,8 +134,12 @@ where
         self.documents.upsert(uri, text).await;
     }
 
-    async fn document(&self, uri: &Url) -> Option<Arc<Document>> {
+    async fn document_entry(&self, uri: &Url) -> Option<DocumentEntry> {
         self.documents.get(uri).await
+    }
+
+    async fn document(&self, uri: &Url) -> Option<Arc<Document>> {
+        self.document_entry(uri).await.map(|entry| entry.document)
     }
 }
 
@@ -146,46 +158,97 @@ fn from_lsp_position(position: Position) -> AstPosition {
     AstPosition::new(position.line as usize, position.character as usize)
 }
 
-fn encode_semantic_tokens(tokens: &[LexSemanticToken]) -> Vec<SemanticToken> {
-    let mut data = Vec::with_capacity(tokens.len());
+fn encode_semantic_tokens(tokens: &[LexSemanticToken], text: &str) -> Vec<SemanticToken> {
+    let line_offsets = compute_line_offsets(text);
+    let mut data = Vec::new();
     let mut prev_line = 0u32;
     let mut prev_start = 0u32;
 
     for token in tokens {
-        let line = token.range.start.line as u32;
-        let start = token.range.start.column as u32;
-        let delta_line = line.saturating_sub(prev_line);
-        let delta_start = if delta_line == 0 {
-            start.saturating_sub(prev_start)
-        } else {
-            start
-        };
-        let length = if token.range.start.line == token.range.end.line {
-            token
-                .range
-                .end
-                .column
-                .saturating_sub(token.range.start.column) as u32
-        } else {
-            (token.range.span.end.saturating_sub(token.range.span.start)) as u32
-        };
         let token_type_index = SEMANTIC_TOKEN_KINDS
             .iter()
             .position(|kind| *kind == token.kind)
             .unwrap_or(0) as u32;
-
-        data.push(SemanticToken {
-            delta_line,
-            delta_start,
-            length,
-            token_type: token_type_index,
-            token_modifiers_bitset: 0,
-        });
-        prev_line = line;
-        prev_start = start;
+        for (line, start, length) in split_token_on_lines(token, text, &line_offsets) {
+            if length == 0 {
+                continue;
+            }
+            let delta_line = line.saturating_sub(prev_line);
+            let delta_start = if delta_line == 0 {
+                start.saturating_sub(prev_start)
+            } else {
+                start
+            };
+            data.push(SemanticToken {
+                delta_line,
+                delta_start,
+                length,
+                token_type: token_type_index,
+                token_modifiers_bitset: 0,
+            });
+            prev_line = line;
+            prev_start = start;
+        }
     }
 
     data
+}
+
+fn compute_line_offsets(text: &str) -> Vec<usize> {
+    let mut offsets = vec![0];
+    for (idx, ch) in text.char_indices() {
+        if ch == '\n' {
+            offsets.push(idx + ch.len_utf8());
+        }
+    }
+    offsets
+}
+
+/// Expand a semantic token range into single-line segments.
+///
+/// The LSP wire format encodes tokens as delta positions relative to the previous token
+/// and disallows spanning multiple lines, so every multi-line range must be broken into
+/// per-line slices before encoding.
+fn split_token_on_lines(
+    token: &LexSemanticToken,
+    text: &str,
+    line_offsets: &[usize],
+) -> Vec<(u32, u32, u32)> {
+    let slice = &text[token.range.span.clone()];
+    let mut segments = Vec::new();
+    let mut current_line = token.range.start.line as u32;
+    let mut segment_start = 0;
+    let base_offset = token.range.span.start;
+
+    for (idx, ch) in slice.char_indices() {
+        if ch == '\n' {
+            if idx > segment_start {
+                let length = (idx - segment_start) as u32;
+                let absolute_start = base_offset + segment_start;
+                let line_offset = line_offsets
+                    .get(current_line as usize)
+                    .copied()
+                    .unwrap_or(0);
+                let start_col = (absolute_start.saturating_sub(line_offset)) as u32;
+                segments.push((current_line, start_col, length));
+            }
+            current_line += 1;
+            segment_start = idx + ch.len_utf8();
+        }
+    }
+
+    if slice.len() > segment_start {
+        let length = (slice.len() - segment_start) as u32;
+        let absolute_start = base_offset + segment_start;
+        let line_offset = line_offsets
+            .get(current_line as usize)
+            .copied()
+            .unwrap_or(0);
+        let start_col = (absolute_start.saturating_sub(line_offset)) as u32;
+        segments.push((current_line, start_col, length));
+    }
+
+    segments
 }
 
 #[allow(deprecated)]
@@ -277,9 +340,10 @@ where
         &self,
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
-        if let Some(document) = self.document(&params.text_document.uri).await {
+        if let Some(entry) = self.document_entry(&params.text_document.uri).await {
+            let DocumentEntry { document, text } = entry;
             let tokens = self.features.semantic_tokens(&document);
-            let data = encode_semantic_tokens(&tokens);
+            let data = encode_semantic_tokens(&tokens, text.as_str());
             Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
                 result_id: None,
                 data,
@@ -335,6 +399,7 @@ where
 mod tests {
     use super::*;
     use crate::features::semantic_tokens::LexSemanticTokenKind;
+    use crate::features::test_support::sample_source;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
     use tower_lsp::lsp_types::{
@@ -408,7 +473,33 @@ mod tests {
     }
 
     fn sample_text() -> String {
-        "1. Intro\n\n    Paragraph".into()
+        sample_source().to_string()
+    }
+
+    fn offset_to_position(source: &str, offset: usize) -> AstPosition {
+        let mut line = 0;
+        let mut line_start = 0;
+        for (idx, ch) in source.char_indices() {
+            if idx >= offset {
+                break;
+            }
+            if ch == '\n' {
+                line += 1;
+                line_start = idx + ch.len_utf8();
+            }
+        }
+        AstPosition::new(line, offset - line_start)
+    }
+
+    fn range_for_snippet(snippet: &str) -> AstRange {
+        let source = sample_source();
+        let start = source
+            .find(snippet)
+            .unwrap_or_else(|| panic!("snippet not found: {}", snippet));
+        let end = start + snippet.len();
+        let start_pos = offset_to_position(source, start);
+        let end_pos = offset_to_position(source, end);
+        AstRange::new(start..end, start_pos, end_pos)
     }
 
     async fn open_sample_document(server: &LexLanguageServer<NoopClient, MockFeatureProvider>) {
@@ -423,6 +514,53 @@ mod tests {
                 },
             })
             .await;
+    }
+
+    #[test]
+    fn encode_semantic_tokens_splits_multi_line_ranges() {
+        let snippet = "    CLI Example:\n        lex build\n        lex serve";
+        let range = range_for_snippet(snippet);
+        let tokens = vec![LexSemanticToken {
+            kind: LexSemanticTokenKind::SessionTitle,
+            range,
+        }];
+        let source = sample_source();
+        let encoded = encode_semantic_tokens(&tokens, source);
+        assert_eq!(encoded.len(), 3);
+        let snippet_offset = source
+            .find(snippet)
+            .expect("snippet not found in sample document");
+        let mut cursor = 0;
+        let lines: Vec<&str> = snippet.split('\n').collect();
+        let mut expected_positions = Vec::new();
+        for (idx, line) in lines.iter().enumerate() {
+            let offset = snippet_offset + cursor;
+            expected_positions.push(offset_to_position(source, offset));
+            cursor += line.len();
+            if idx < lines.len() - 1 {
+                cursor += 1; // account for newline
+            }
+        }
+        let mut absolute_positions = Vec::new();
+        let mut line = 0u32;
+        let mut column = 0u32;
+        for token in &encoded {
+            line += token.delta_line;
+            let start = if token.delta_line == 0 {
+                column + token.delta_start
+            } else {
+                token.delta_start
+            };
+            column = start;
+            absolute_positions.push((line, start));
+        }
+        for (actual, expected) in absolute_positions.iter().zip(expected_positions.iter()) {
+            assert_eq!(actual.0, expected.line as u32);
+            assert_eq!(actual.1, expected.column as u32);
+        }
+        let expected_len: usize = snippet.lines().map(|line| line.len()).sum();
+        let actual_len: usize = encoded.iter().map(|token| token.length as usize).sum();
+        assert_eq!(actual_len, expected_len);
     }
 
     #[tokio::test]
@@ -515,5 +653,41 @@ mod tests {
 
         assert_eq!(provider.folding_called.load(Ordering::SeqCst), 1);
         assert_eq!(ranges.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn semantic_tokens_returns_none_when_document_missing() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider);
+
+        let result = server
+            .semantic_tokens_full(SemanticTokensParams {
+                text_document: TextDocumentIdentifier { uri: sample_uri() },
+                work_done_progress_params: Default::default(),
+                partial_result_params: Default::default(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn hover_returns_none_without_document_entry() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider);
+
+        let hover = server
+            .hover(HoverParams {
+                text_document_position_params: TextDocumentPositionParams {
+                    text_document: TextDocumentIdentifier { uri: sample_uri() },
+                    position: Position::new(0, 0),
+                },
+                work_done_progress_params: Default::default(),
+            })
+            .await
+            .unwrap();
+
+        assert!(hover.is_none());
     }
 }

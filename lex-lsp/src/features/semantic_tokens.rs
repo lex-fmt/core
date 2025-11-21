@@ -256,13 +256,18 @@ impl TokenCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test_support::{sample_document, SAMPLE};
+    use crate::features::test_support::{sample_document, sample_source};
+    use lex_parser::lex::testing::lexplore::Lexplore;
 
-    fn snippets(tokens: &[LexSemanticToken], kind: LexSemanticTokenKind) -> Vec<String> {
+    fn snippets(
+        tokens: &[LexSemanticToken],
+        kind: LexSemanticTokenKind,
+        source: &str,
+    ) -> Vec<String> {
         tokens
             .iter()
             .filter(|token| token.kind == kind)
-            .map(|token| SAMPLE[token.range.span.clone()].to_string())
+            .map(|token| source[token.range.span.clone()].to_string())
             .collect()
     }
 
@@ -270,48 +275,60 @@ mod tests {
     fn collects_structural_tokens() {
         let document = sample_document();
         let tokens = collect_semantic_tokens(&document);
-        assert!(snippets(&tokens, LexSemanticTokenKind::SessionTitle)
-            .iter()
-            .any(|snippet| snippet.trim() == "1. Intro"));
-        assert!(snippets(&tokens, LexSemanticTokenKind::DefinitionSubject)
-            .iter()
-            .any(|snippet| snippet.trim_end() == "Cache"));
-        let markers = snippets(&tokens, LexSemanticTokenKind::ListMarker);
+        let source = sample_source();
+        assert!(
+            snippets(&tokens, LexSemanticTokenKind::SessionTitle, source)
+                .iter()
+                .any(|snippet| snippet.trim() == "1. Intro")
+        );
+        assert!(
+            snippets(&tokens, LexSemanticTokenKind::DefinitionSubject, source)
+                .iter()
+                .any(|snippet| snippet.trim_end() == "Cache")
+        );
+        let markers = snippets(&tokens, LexSemanticTokenKind::ListMarker, source);
         assert_eq!(markers.len(), 2);
         assert!(markers
             .iter()
             .all(|snippet| snippet.trim_start().starts_with('-')));
-        let annotation_labels = snippets(&tokens, LexSemanticTokenKind::AnnotationLabel);
+        let annotation_labels = snippets(&tokens, LexSemanticTokenKind::AnnotationLabel, source);
         assert!(annotation_labels
             .iter()
             .any(|snippet| snippet.contains("doc.note")));
-        let parameters = snippets(&tokens, LexSemanticTokenKind::AnnotationParameter);
+        let parameters = snippets(&tokens, LexSemanticTokenKind::AnnotationParameter, source);
         assert!(parameters
             .iter()
             .any(|snippet| snippet.contains("severity=info")));
-        let verbatim_subjects = snippets(&tokens, LexSemanticTokenKind::VerbatimSubject);
+        let verbatim_subjects = snippets(&tokens, LexSemanticTokenKind::VerbatimSubject, source);
         assert!(verbatim_subjects
             .iter()
             .any(|snippet| snippet.contains("CLI Example")));
-        assert!(snippets(&tokens, LexSemanticTokenKind::VerbatimLanguage)
-            .iter()
-            .any(|snippet| snippet.contains("shell")));
+        assert!(
+            snippets(&tokens, LexSemanticTokenKind::VerbatimLanguage, source)
+                .iter()
+                .any(|snippet| snippet.contains("shell"))
+        );
     }
 
     #[test]
     fn collects_inline_tokens() {
         let document = sample_document();
         let tokens = collect_semantic_tokens(&document);
-        assert!(snippets(&tokens, LexSemanticTokenKind::InlineStrong)
-            .iter()
-            .any(|snippet| snippet.contains("Lex")));
-        assert!(snippets(&tokens, LexSemanticTokenKind::InlineEmphasis)
-            .iter()
-            .any(|snippet| snippet.contains("format")));
-        assert!(snippets(&tokens, LexSemanticTokenKind::InlineCode)
+        let source = sample_source();
+        assert!(
+            snippets(&tokens, LexSemanticTokenKind::InlineStrong, source)
+                .iter()
+                .any(|snippet| snippet.contains("Lex"))
+        );
+        assert!(
+            snippets(&tokens, LexSemanticTokenKind::InlineEmphasis, source)
+                .iter()
+                .any(|snippet| snippet.contains("format"))
+        );
+        assert!(snippets(&tokens, LexSemanticTokenKind::InlineCode, source)
             .iter()
             .any(|snippet| snippet.contains("code")));
-        assert!(snippets(&tokens, LexSemanticTokenKind::InlineMath)
+        assert!(snippets(&tokens, LexSemanticTokenKind::InlineMath, source)
             .iter()
             .any(|snippet| snippet.contains("math")));
     }
@@ -320,17 +337,33 @@ mod tests {
     fn classifies_references() {
         let document = sample_document();
         let tokens = collect_semantic_tokens(&document);
-        assert!(snippets(&tokens, LexSemanticTokenKind::ReferenceCitation)
-            .iter()
-            .any(|snippet| snippet.contains("@spec2025")));
-        assert!(snippets(&tokens, LexSemanticTokenKind::ReferenceFootnote)
-            .iter()
-            .any(|snippet| snippet.contains("^source")));
-        assert!(snippets(&tokens, LexSemanticTokenKind::ReferenceFootnote)
-            .iter()
-            .any(|snippet| snippet.contains("42")));
-        assert!(snippets(&tokens, LexSemanticTokenKind::Reference)
+        let source = sample_source();
+        assert!(
+            snippets(&tokens, LexSemanticTokenKind::ReferenceCitation, source)
+                .iter()
+                .any(|snippet| snippet.contains("@spec2025"))
+        );
+        assert!(
+            snippets(&tokens, LexSemanticTokenKind::ReferenceFootnote, source)
+                .iter()
+                .any(|snippet| snippet.contains("^source"))
+        );
+        assert!(
+            snippets(&tokens, LexSemanticTokenKind::ReferenceFootnote, source)
+                .iter()
+                .any(|snippet| snippet.contains("42"))
+        );
+        assert!(snippets(&tokens, LexSemanticTokenKind::Reference, source)
             .iter()
             .any(|snippet| snippet.contains("Cache")));
+    }
+
+    #[test]
+    fn empty_document_has_no_tokens() {
+        let document = Lexplore::benchmark(0)
+            .parse()
+            .expect("failed to parse empty benchmark fixture");
+        let tokens = collect_semantic_tokens(&document);
+        assert!(tokens.is_empty());
     }
 }
