@@ -939,6 +939,7 @@ name = "lex-lsp"
 version = "0.1.0"
 dependencies = [
  "lex-parser",
+ "lsp-types",
  "serde",
  "serde_json",
  "tokio",
