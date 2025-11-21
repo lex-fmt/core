@@ -44,6 +44,7 @@ use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Container;
 use super::super::traits::Visitor;
+use super::super::traits::VisualStructure;
 use super::annotation::Annotation;
 use super::container::{GeneralContainer, ListContainer};
 use super::content_item::ContentItem;
@@ -140,6 +141,12 @@ impl AstNode for List {
     }
 }
 
+impl VisualStructure for List {
+    fn collapses_with_children(&self) -> bool {
+        true
+    }
+}
+
 impl fmt::Display for List {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "List({} items)", self.items.len())
@@ -216,9 +223,9 @@ impl AstNode for ListItem {
         "ListItem"
     }
     fn display_label(&self) -> String {
-        let text = self.text();
-        if text.len() > 50 {
-            format!("{}...", &text[..50])
+        let text = self.text().trim();
+        if text.chars().count() > 50 {
+            format!("{}…", text.chars().take(50).collect::<String>())
         } else {
             text.to_string()
         }
@@ -230,6 +237,12 @@ impl AstNode for ListItem {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_list_item(self);
         super::super::traits::visit_children(visitor, &self.children);
+    }
+}
+
+impl VisualStructure for ListItem {
+    fn is_source_line_node(&self) -> bool {
+        true
     }
 }
 
@@ -343,8 +356,8 @@ mod tests {
         let item = ListItem::new("-".into(), long_text.clone());
 
         let label = item.display_label();
-        assert!(label.ends_with("..."));
-        assert!(label.len() < long_text.len());
+        assert!(label.ends_with("…"));
+        assert!(label.chars().count() < long_text.chars().count());
 
         let short = ListItem::new("-".into(), "short".into());
         assert_eq!(short.display_label(), "short");

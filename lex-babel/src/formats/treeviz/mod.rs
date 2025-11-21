@@ -1,7 +1,7 @@
 //! Treeviz formatter for AST nodes
 //!
 //! Treeviz is a visual representation of the AST, design specifically for document trees.
-//! It features a one line per node format, which enables quick scanning of the tree, and is specially
+//! It features a visual tree and line based output. For a version that matches, each line to source line, see the ./linetreeviz module.
 //! helpful for formats that are primarely line oriented (like text).
 //!
 //! It encodes the node structure as indentation, with 2 white spaces per level of nesting.
@@ -62,83 +62,221 @@
 //!         ReferenceFootnote: ³
 //!         ReferenceSession: #
 
+use super::icons::get_icon;
 use crate::error::FormatError;
 use crate::format::Format;
-use lex_parser::lex::ast::{
-    snapshot_from_document, snapshot_from_document_with_options, AstSnapshot, Document,
-};
+use lex_parser::lex::ast::traits::{AstNode, Container};
+use lex_parser::lex::ast::{ContentItem, Document};
 use std::collections::HashMap;
 
-fn truncate(s: &str, max_chars: usize) -> String {
-    if s.chars().count() > max_chars {
-        let mut truncated = s.chars().take(max_chars).collect::<String>();
-        truncated.push_str("...");
-        truncated
-    } else {
-        s.to_string()
-    }
-}
-
-/// Get the icon for a node type
-fn get_icon(node_type: &str) -> &'static str {
-    match node_type {
-        "Document" => "⧉",
-        "Session" => "§",
-        "Paragraph" => "¶",
-        "TextLine" => "↵",
-        "List" => "☰",
-        "ListItem" => "•",
-        "Definition" => "≔",
-        "VerbatimBlock" => "𝒱",
-        "Annotation" => "\"",
-        _ => "○",
-    }
-}
-
-/// Build treeviz output from an AstSnapshot
-fn format_snapshot(
-    snapshot: &AstSnapshot,
+/// Format a single ContentItem node
+fn format_content_item(
+    item: &ContentItem,
     prefix: &str,
     child_index: usize,
     child_count: usize,
+    include_all: bool,
 ) -> String {
     let mut output = String::new();
-
     let is_last = child_index == child_count - 1;
     let connector = if is_last { "└─" } else { "├─" };
-    let icon = get_icon(&snapshot.node_type);
-    let truncated_label = truncate(&snapshot.label, 30);
+    let icon = get_icon(item.node_type());
 
     output.push_str(&format!(
         "{}{} {} {}\n",
-        prefix, connector, icon, truncated_label
+        prefix,
+        connector,
+        icon,
+        item.display_label()
     ));
 
-    // Process children if any
-    if !snapshot.children.is_empty() {
-        let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
-        let child_count = snapshot.children.len();
+    let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
 
-        for (i, child) in snapshot.children.iter().enumerate() {
-            output.push_str(&format_snapshot(child, &child_prefix, i, child_count));
+    // Handle include_all synthetic children
+    if include_all {
+        match item {
+            ContentItem::Session(s) => {
+                // Show session title as synthetic child
+                let title_icon = get_icon("SessionTitle");
+                output.push_str(&format!(
+                    "{}├─ {} {}\n",
+                    child_prefix,
+                    title_icon,
+                    s.title.as_string()
+                ));
+
+                // Show session annotations
+                for (i, ann) in s.annotations.iter().enumerate() {
+                    let ann_item = ContentItem::Annotation(ann.clone());
+                    output.push_str(&format_content_item(
+                        &ann_item,
+                        &child_prefix,
+                        i + 1,
+                        s.annotations.len() + s.children().len(),
+                        include_all,
+                    ));
+                }
+            }
+            ContentItem::ListItem(li) => {
+                // Show marker as synthetic child
+                let marker_icon = get_icon("Marker");
+                output.push_str(&format!(
+                    "{}├─ {} {}\n",
+                    child_prefix,
+                    marker_icon,
+                    li.marker.as_string()
+                ));
+
+                // Show text content
+                for (i, text_part) in li.text.iter().enumerate() {
+                    let text_icon = get_icon("Text");
+                    let connector = if i == li.text.len() - 1 && li.children().is_empty() {
+                        "└─"
+                    } else {
+                        "├─"
+                    };
+                    output.push_str(&format!(
+                        "{}{} {} {}\n",
+                        child_prefix,
+                        connector,
+                        text_icon,
+                        text_part.as_string()
+                    ));
+                }
+
+                // Show list item annotations
+                for ann in &li.annotations {
+                    let ann_item = ContentItem::Annotation(ann.clone());
+                    output.push_str(&format_content_item(
+                        &ann_item,
+                        &child_prefix,
+                        0,
+                        1,
+                        include_all,
+                    ));
+                }
+            }
+            ContentItem::Definition(d) => {
+                // Show subject as synthetic child
+                let subject_icon = get_icon("Subject");
+                output.push_str(&format!(
+                    "{}├─ {} {}\n",
+                    child_prefix,
+                    subject_icon,
+                    d.subject.as_string()
+                ));
+
+                // Show definition annotations
+                for ann in &d.annotations {
+                    let ann_item = ContentItem::Annotation(ann.clone());
+                    output.push_str(&format_content_item(
+                        &ann_item,
+                        &child_prefix,
+                        0,
+                        1,
+                        include_all,
+                    ));
+                }
+            }
+            ContentItem::Annotation(a) => {
+                // Show label and parameters
+                let label_icon = get_icon("Label");
+                output.push_str(&format!(
+                    "{}├─ {} {}\n",
+                    child_prefix, label_icon, a.data.label.value
+                ));
+
+                for param in &a.data.parameters {
+                    let param_icon = get_icon("Parameter");
+                    output.push_str(&format!(
+                        "{}├─ {} {}={}\n",
+                        child_prefix, param_icon, param.key, param.value
+                    ));
+                }
+            }
+            _ => {}
         }
     }
 
-    output
+    // Process regular children
+    match item {
+        ContentItem::Session(s) => {
+            output + &format_children(s.children(), &child_prefix, include_all)
+        }
+        ContentItem::Paragraph(p) => {
+            // For paragraph, lines are already ContentItems
+            output + &format_children(&p.lines, &child_prefix, include_all)
+        }
+        ContentItem::List(l) => {
+            // For list, items are already ContentItems
+            output + &format_children(&l.items, &child_prefix, include_all)
+        }
+        ContentItem::Definition(d) => {
+            output + &format_children(d.children(), &child_prefix, include_all)
+        }
+        ContentItem::ListItem(li) => {
+            output + &format_children(li.children(), &child_prefix, include_all)
+        }
+        ContentItem::Annotation(a) => {
+            output + &format_children(a.children(), &child_prefix, include_all)
+        }
+        ContentItem::VerbatimBlock(v) => {
+            // Handle verbatim groups
+            let mut group_output = String::new();
+            for (idx, group) in v.group().enumerate() {
+                let group_label = if v.group_len() == 1 {
+                    group.subject.as_string().to_string()
+                } else {
+                    format!(
+                        "{} (group {} of {})",
+                        group.subject.as_string(),
+                        idx + 1,
+                        v.group_len()
+                    )
+                };
+                let group_icon = get_icon("VerbatimGroup");
+                let is_last_group = idx == v.group_len() - 1;
+                let group_connector = if is_last_group { "└─" } else { "├─" };
+
+                group_output.push_str(&format!(
+                    "{}{} {} {}\n",
+                    child_prefix, group_connector, group_icon, group_label
+                ));
+
+                let group_child_prefix = format!(
+                    "{}{}",
+                    child_prefix,
+                    if is_last_group { "  " } else { "│ " }
+                );
+
+                for (i, child) in group.children.iter().enumerate() {
+                    group_output.push_str(&format_content_item(
+                        child,
+                        &group_child_prefix,
+                        i,
+                        group.children.len(),
+                        include_all,
+                    ));
+                }
+            }
+            output + &group_output
+        }
+        _ => output,
+    }
 }
 
-fn format_document_snapshot(snapshot: &AstSnapshot) -> String {
-    let icon = get_icon(&snapshot.node_type);
-    let truncated_label = truncate(&snapshot.label, 30);
-    let mut output = format!("{} {}\n", icon, truncated_label);
-
-    if !snapshot.children.is_empty() {
-        let child_count = snapshot.children.len();
-        for (i, child) in snapshot.children.iter().enumerate() {
-            output.push_str(&format_snapshot(child, "", i, child_count));
-        }
+fn format_children(children: &[ContentItem], prefix: &str, include_all: bool) -> String {
+    let mut output = String::new();
+    let child_count = children.len();
+    for (i, child) in children.iter().enumerate() {
+        output.push_str(&format_content_item(
+            child,
+            prefix,
+            i,
+            child_count,
+            include_all,
+        ));
     }
-
     output
 }
 
@@ -177,13 +315,25 @@ pub fn to_treeviz_str_with_params(doc: &Document, params: &HashMap<String, Strin
         .map(|v| v.to_lowercase() == "true")
         .unwrap_or(false);
 
-    let snapshot = if include_all {
-        snapshot_from_document_with_options(doc, true)
-    } else {
-        snapshot_from_document(doc)
-    };
+    let icon = get_icon("Document");
+    let mut output = format!(
+        "{} Document ({} annotations, {} items)\n",
+        icon,
+        doc.annotations.len(),
+        doc.root.children.len()
+    );
 
-    format_document_snapshot(&snapshot)
+    // If include_all, show document-level annotations
+    if include_all {
+        for annotation in &doc.annotations {
+            let ann_item = ContentItem::Annotation(annotation.clone());
+            output.push_str(&format_content_item(&ann_item, "", 0, 1, include_all));
+        }
+    }
+
+    // Show document children (flattened from root session)
+    let children = &doc.root.children;
+    output + &format_children(children, "", include_all)
 }
 
 /// Format implementation for treeviz format

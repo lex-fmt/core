@@ -50,7 +50,7 @@
 //! - Parameters: specs/v1/elements/parameter.lex
 
 use super::super::range::{Position, Range};
-use super::super::traits::{AstNode, Container, Visitor};
+use super::super::traits::{AstNode, Container, Visitor, VisualStructure};
 use super::container::GeneralContainer;
 use super::content_item::ContentItem;
 use super::data::Data;
@@ -128,6 +128,16 @@ impl AstNode for Annotation {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_annotation(self);
         super::super::traits::visit_children(visitor, &self.children);
+    }
+}
+
+impl VisualStructure for Annotation {
+    fn is_source_line_node(&self) -> bool {
+        true
+    }
+
+    fn has_visual_header(&self) -> bool {
+        true
     }
 }
 

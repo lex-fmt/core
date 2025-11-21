@@ -18,6 +18,7 @@ use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
 use super::super::traits::AstNode;
 use super::super::traits::Visitor;
+use super::super::traits::VisualStructure;
 use std::fmt;
 
 /// A verbatim line represents a single line of verbatim content
@@ -60,8 +61,8 @@ impl AstNode for VerbatimLine {
 
     fn display_label(&self) -> String {
         let content_text = self.content.as_string();
-        if content_text.len() > 50 {
-            format!("{}...", &content_text[..50])
+        if content_text.chars().count() > 50 {
+            format!("{}…", content_text.chars().take(50).collect::<String>())
         } else {
             content_text.to_string()
         }
@@ -74,6 +75,12 @@ impl AstNode for VerbatimLine {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_verbatim_line(self);
         // VerbatimLine has no children - it's a leaf node
+    }
+}
+
+impl VisualStructure for VerbatimLine {
+    fn is_source_line_node(&self) -> bool {
+        true
     }
 }
 

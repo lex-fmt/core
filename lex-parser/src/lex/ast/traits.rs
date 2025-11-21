@@ -80,6 +80,38 @@ pub trait TextNode: AstNode {
     fn lines(&self) -> &[TextContent];
 }
 
+/// Trait describing visual/structural properties of nodes for line-oriented rendering
+///
+/// This trait captures whether a node has a direct visual representation in the source,
+/// whether it has a header line separate from its content, and whether it's a homogeneous
+/// container whose children can be visually collapsed with the parent.
+pub trait VisualStructure: AstNode {
+    /// Whether this node corresponds to a line in the source document
+    ///
+    /// Returns true for nodes like TextLine, ListItem, VerbatimLine, BlankLineGroup,
+    /// and header nodes like Session (title line), Definition (subject line).
+    fn is_source_line_node(&self) -> bool {
+        false
+    }
+
+    /// Whether this node has a visual header line separate from its content
+    ///
+    /// Returns true for Session (has title), Definition (has subject),
+    /// Annotation (has data line), VerbatimBlock (has subject line).
+    fn has_visual_header(&self) -> bool {
+        false
+    }
+
+    /// Whether this is a homogeneous container whose children can collapse with parent icon
+    ///
+    /// Returns true for Paragraph (contains only TextLines) and List (contains only ListItems).
+    /// These containers don't have their own visual line, so in line-oriented views,
+    /// we show the parent icon alongside the child's icon (¶ ↵ for Paragraph/TextLine).
+    fn collapses_with_children(&self) -> bool {
+        false
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::elements::{Paragraph, Session};

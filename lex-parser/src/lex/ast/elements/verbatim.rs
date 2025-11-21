@@ -123,7 +123,7 @@
 
 use super::super::range::{Position, Range};
 use super::super::text_content::TextContent;
-use super::super::traits::{AstNode, Container, Visitor};
+use super::super::traits::{AstNode, Container, Visitor, VisualStructure};
 use super::annotation::Annotation;
 use super::container::VerbatimContainer;
 use super::content_item::ContentItem;
@@ -266,8 +266,8 @@ impl AstNode for Verbatim {
     }
     fn display_label(&self) -> String {
         let subject_text = self.subject.as_string();
-        if subject_text.len() > 50 {
-            format!("{}...", &subject_text[..50])
+        if subject_text.chars().count() > 50 {
+            format!("{}…", subject_text.chars().take(50).collect::<String>())
         } else {
             subject_text.to_string()
         }
@@ -282,6 +282,16 @@ impl AstNode for Verbatim {
         for group in self.group() {
             super::super::traits::visit_children(visitor, group.children);
         }
+    }
+}
+
+impl VisualStructure for Verbatim {
+    fn is_source_line_node(&self) -> bool {
+        true
+    }
+
+    fn has_visual_header(&self) -> bool {
+        true
     }
 }
 
