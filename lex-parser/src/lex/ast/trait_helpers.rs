@@ -3,8 +3,8 @@
 //! This module provides utilities to leverage AST traits (Container, VisualStructure)
 //! for extracting node information uniformly across formats.
 
-use lex_parser::lex::ast::traits::{Container, VisualStructure};
-use lex_parser::lex::ast::ContentItem;
+use super::traits::{Container, VisualStructure};
+use super::ContentItem;
 
 /// Try to cast a ContentItem to a Container trait object
 ///
@@ -62,7 +62,7 @@ pub fn get_children(item: &ContentItem) -> &[ContentItem] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lex_parser::lex::ast::elements::{Paragraph, Session};
+    use crate::lex::ast::elements::{Paragraph, Session};
 
     #[test]
     fn test_try_as_container_session() {

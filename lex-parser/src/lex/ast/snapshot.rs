@@ -14,6 +14,7 @@
 //! of `snapshot_from_document()` or `snapshot_from_content()` rather than reimplementing
 //! traversal logic.
 
+use super::trait_helpers::get_visual_header;
 use super::traits::{AstNode, Container};
 use super::{Annotation, ContentItem, Definition, Document, List, ListItem, Paragraph, Session};
 use serde::{Deserialize, Serialize};
@@ -166,14 +167,16 @@ pub fn snapshot_from_document_with_options(doc: &Document, include_all: bool) ->
 }
 
 fn build_session_snapshot(session: &Session, include_all: bool) -> AstSnapshot {
+    let item = ContentItem::Session(session.clone());
     let mut snapshot = AstSnapshot::new("Session".to_string(), session.display_label());
 
-    // If include_all, show the title as a TextContent node
+    // If include_all, use trait helper to get visual header
     if include_all {
-        snapshot.children.push(AstSnapshot::new(
-            "SessionTitle".to_string(),
-            session.title.as_string().to_string(),
-        ));
+        if let Some(header) = get_visual_header(&item) {
+            snapshot
+                .children
+                .push(AstSnapshot::new("SessionTitle".to_string(), header));
+        }
     }
 
     // If include_all, show session annotations
@@ -251,14 +254,16 @@ fn build_list_item_snapshot(item: &ListItem, include_all: bool) -> AstSnapshot {
 }
 
 fn build_definition_snapshot(def: &Definition, include_all: bool) -> AstSnapshot {
+    let item = ContentItem::Definition(def.clone());
     let mut snapshot = AstSnapshot::new("Definition".to_string(), def.display_label());
 
-    // If include_all, show subject and annotations
+    // If include_all, use trait helper to get visual header
     if include_all {
-        snapshot.children.push(AstSnapshot::new(
-            "Subject".to_string(),
-            def.subject.as_string().to_string(),
-        ));
+        if let Some(header) = get_visual_header(&item) {
+            snapshot
+                .children
+                .push(AstSnapshot::new("Subject".to_string(), header));
+        }
 
         // Show definition annotations
         for ann in &def.annotations {
@@ -279,15 +284,18 @@ fn build_definition_snapshot(def: &Definition, include_all: bool) -> AstSnapshot
 }
 
 fn build_annotation_snapshot(ann: &Annotation, include_all: bool) -> AstSnapshot {
+    let item = ContentItem::Annotation(ann.clone());
     let mut snapshot = AstSnapshot::new("Annotation".to_string(), ann.display_label());
 
-    // If include_all, show label and parameters from the data field
+    // If include_all, use trait helper for label, keep parameter handling special
     if include_all {
-        snapshot.children.push(AstSnapshot::new(
-            "Label".to_string(),
-            ann.data.label.value.clone(),
-        ));
+        if let Some(header) = get_visual_header(&item) {
+            snapshot
+                .children
+                .push(AstSnapshot::new("Label".to_string(), header));
+        }
 
+        // Parameters need special handling (not in Container trait)
         for param in &ann.data.parameters {
             snapshot.children.push(AstSnapshot::new(
                 "Parameter".to_string(),

@@ -107,6 +107,7 @@ pub mod error;
 pub mod range;
 pub mod snapshot;
 pub mod text_content;
+pub mod trait_helpers;
 pub mod traits;
 
 // Re-export commonly used types at module root
