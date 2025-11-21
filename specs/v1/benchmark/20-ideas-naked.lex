@@ -37,7 +37,8 @@ Given the central role of ideas in human society you'd think we'd have, if not o
 
         Lex is designed around being:
 
-        - Accessible: from a technical point of view, with minimum hardware and software requirements. If a computer can edit a text file, that's all it needs to do. - Expressive: a small, but powerful set of primitives that can be combined to express many different types of ideas from unstructured natural text to highly addressable nested sections (i.e. 1.3.4.b). 
+        - Accessible: from a technical point of view, with minimum hardware and software requirements. If a computer can edit a text file, that's all it needs to do. 
+        - Expressive: a small, but powerful set of primitives that can be combined to express many different types of ideas from unstructured natural text to highly addressable nested sections (i.e. 1.3.4.b). 
         - Universal: not designed for a specific presentation (as HTML or WikiText) or a single domain, Lex is about ideas, not presentation, and concepts, not domains. 
         - Extensible: the combination of plain text with every element being annotable through metadata, it opens extension points for tooling and workflows. The use of label namespaces can foster a level of specialization and consistency in an automated way. 
         - Simple: leveraging innate human skill, such as spatial grouping of similar objects, from indentation to a rich tradition of well established text formatting patterns (such as - This is a dialog!), Lex has low cognitive load for most people requiring no training to read, and very little training to write. 
@@ -69,7 +70,8 @@ Given the central role of ideas in human society you'd think we'd have, if not o
 
             They are every where, connecting ideas, things, todos and whatever you ideate.
 
-            - Form: Lists look like what you though they would. - Function: they can nest too.
+            - Form: Lists look like what you though they would. 
+            - Function: they can nest too.
                 1. And have several decoration styles, from plain to numeral to b. Alphabetical and lest we forget iii. Roman styling.
 
                 Lex lists are powerful and can contain any form of content save for sections.
