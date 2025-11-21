@@ -102,8 +102,10 @@
 //! out at compile time. See `docs/architecture/type-safe-containers.md` for
 //! details and compile-fail examples.
 
+pub mod diagnostics;
 pub mod elements;
 pub mod error;
+pub mod links;
 pub mod range;
 pub mod snapshot;
 pub mod text_content;
@@ -111,11 +113,13 @@ pub mod trait_helpers;
 pub mod traits;
 
 // Re-export commonly used types at module root
+pub use diagnostics::{validate_references, validate_structure, Diagnostic, DiagnosticSeverity};
 pub use elements::{
     Annotation, ContentItem, Data, Definition, Document, Label, List, ListItem, Paragraph,
     Parameter, Session, TextLine, Verbatim,
 };
 pub use error::PositionLookupError;
+pub use links::{DocumentLink, LinkType};
 pub use range::{Position, Range, SourceLocation};
 pub use snapshot::{
     snapshot_from_content, snapshot_from_content_with_options, snapshot_from_document,
