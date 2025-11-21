@@ -10,6 +10,7 @@ use lex_babel::formats::markdown::MarkdownFormat;
 use lex_babel::formats::tag::serialize_document_with_params;
 use lex_parser::lex::ast::ContentItem;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Helper to parse Markdown to Lex AST
 fn md_to_lex(md: &str) -> lex_parser::lex::ast::Document {
@@ -17,10 +18,17 @@ fn md_to_lex(md: &str) -> lex_parser::lex::ast::Document {
 }
 
 /// Snapshot helper for reference Markdown fixtures
+///
+/// Uses `ast-full` serialization to capture complete AST structure including
+/// annotations and all metadata, ensuring comprehensive regression detection
+/// for complex markdown documents.
 fn snapshot_md_fixture(fixture: &str, snapshot_name: &str) {
-    let path = format!("tests/fixtures/{}", fixture);
-    let md =
-        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read {}: {}", path, e));
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join(fixture);
+    let md = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Failed to read {:?}: {}", path, e));
 
     let doc = md_to_lex(&md);
 
