@@ -22,7 +22,8 @@
 
 use crate::error::FormatError;
 use crate::format::Format;
-use lex_parser::lex::ast::traits::{AstNode, Container};
+use lex_parser::lex::ast::trait_helpers::try_as_container;
+use lex_parser::lex::ast::traits::AstNode;
 use lex_parser::lex::ast::{ContentItem, Document};
 use std::collections::HashMap;
 
@@ -35,53 +36,42 @@ fn format_content_item(item: &ContentItem, indent_level: usize, include_all: boo
     output.push_str(&format!("{}<{}>", indent, tag));
     output.push_str(&escape_xml(&item.display_label()));
 
-    // Collect all children to render
-    let mut all_children = Vec::new();
+    // Collect special field children (not in Container trait)
+    let mut special_children = Vec::new();
 
-    // Handle include_all synthetic children
+    // Handle include_all: only genuine special cases (fields not in children())
     if include_all {
         match item {
             ContentItem::Session(s) => {
-                // Show session title as synthetic child
-                all_children.push(SyntheticChild::SessionTitle(
-                    s.title.as_string().to_string(),
-                ));
-
-                // Show session annotations
+                // Show session annotations (field, not in children())
                 for ann in &s.annotations {
-                    all_children.push(SyntheticChild::Annotation(Box::new(ann.clone())));
+                    special_children.push(SpecialChild::Annotation(Box::new(ann.clone())));
                 }
             }
             ContentItem::ListItem(li) => {
-                // Show marker as synthetic child
-                all_children.push(SyntheticChild::Marker(li.marker.as_string().to_string()));
+                // Show marker as special child (field, not in children())
+                special_children.push(SpecialChild::Marker(li.marker.as_string().to_string()));
 
-                // Show text content
+                // Show text content (field, not in children())
                 for text_part in &li.text {
-                    all_children.push(SyntheticChild::Text(text_part.as_string().to_string()));
+                    special_children.push(SpecialChild::Text(text_part.as_string().to_string()));
                 }
 
-                // Show list item annotations
+                // Show list item annotations (field, not in children())
                 for ann in &li.annotations {
-                    all_children.push(SyntheticChild::Annotation(Box::new(ann.clone())));
+                    special_children.push(SpecialChild::Annotation(Box::new(ann.clone())));
                 }
             }
             ContentItem::Definition(d) => {
-                // Show subject as synthetic child
-                all_children.push(SyntheticChild::Subject(d.subject.as_string().to_string()));
-
-                // Show definition annotations
+                // Show definition annotations (field, not in children())
                 for ann in &d.annotations {
-                    all_children.push(SyntheticChild::Annotation(Box::new(ann.clone())));
+                    special_children.push(SpecialChild::Annotation(Box::new(ann.clone())));
                 }
             }
             ContentItem::Annotation(a) => {
-                // Show label
-                all_children.push(SyntheticChild::Label(a.data.label.value.clone()));
-
-                // Show parameters
+                // Show parameters (field, not in children())
                 for param in &a.data.parameters {
-                    all_children.push(SyntheticChild::Parameter(
+                    special_children.push(SpecialChild::Parameter(
                         param.key.clone(),
                         param.value.clone(),
                     ));
@@ -91,91 +81,72 @@ fn format_content_item(item: &ContentItem, indent_level: usize, include_all: boo
         }
     }
 
-    // Get regular children
-    let regular_children = match item {
-        ContentItem::Session(s) => s.children(),
+    // Handle VerbatimBlock specially (has groups, not simple children)
+    if let ContentItem::VerbatimBlock(v) = item {
+        if v.group_len() > 0 {
+            output.push('\n');
+            for (idx, group) in v.group().enumerate() {
+                let group_label = if v.group_len() == 1 {
+                    group.subject.as_string().to_string()
+                } else {
+                    format!(
+                        "{} (group {} of {})",
+                        group.subject.as_string(),
+                        idx + 1,
+                        v.group_len()
+                    )
+                };
+
+                output.push_str(&format!(
+                    "{}  <verbatim-group>{}\n",
+                    indent,
+                    escape_xml(&group_label)
+                ));
+                for child in group.children.iter() {
+                    output.push_str(&format_content_item(child, indent_level + 2, include_all));
+                }
+                output.push_str(&format!("{}  </verbatim-group>\n", indent));
+            }
+            output.push_str(&format!("{}</{}>\n", indent, tag));
+            return output;
+        }
+    }
+
+    // Get regular children - some types use Container trait, others have special fields
+    let regular_children: &[ContentItem] = match item {
         ContentItem::Paragraph(p) => &p.lines,
         ContentItem::List(l) => &l.items,
-        ContentItem::Definition(d) => d.children(),
-        ContentItem::ListItem(li) => li.children(),
-        ContentItem::Annotation(a) => a.children(),
-        ContentItem::VerbatimBlock(v) => {
-            // Handle verbatim groups specially
-            if v.group_len() > 0 {
-                output.push('\n');
-                for (idx, group) in v.group().enumerate() {
-                    let group_label = if v.group_len() == 1 {
-                        group.subject.as_string().to_string()
-                    } else {
-                        format!(
-                            "{} (group {} of {})",
-                            group.subject.as_string(),
-                            idx + 1,
-                            v.group_len()
-                        )
-                    };
-
-                    output.push_str(&format!(
-                        "{}  <verbatim-group>{}\n",
-                        indent,
-                        escape_xml(&group_label)
-                    ));
-                    for child in group.children.iter() {
-                        output.push_str(&format_content_item(child, indent_level + 2, include_all));
-                    }
-                    output.push_str(&format!("{}  </verbatim-group>\n", indent));
-                }
-                output.push_str(&format!("{}</{}>\n", indent, tag));
-                return output;
+        _ => {
+            if let Some(container) = try_as_container(item) {
+                container.children()
+            } else {
+                &[]
             }
-            &[]
         }
-        _ => &[],
     };
 
     // Determine if we have any children to render
-    let has_children = !all_children.is_empty() || !regular_children.is_empty();
+    let has_children = !special_children.is_empty() || !regular_children.is_empty();
 
     if !has_children {
         output.push_str(&format!("</{}>\n", tag));
     } else {
         output.push('\n');
 
-        // Render synthetic children first
-        for synthetic in all_children {
-            match synthetic {
-                SyntheticChild::SessionTitle(title) => {
-                    output.push_str(&format!(
-                        "{}  <session-title>{}</session-title>\n",
-                        indent,
-                        escape_xml(&title)
-                    ));
-                }
-                SyntheticChild::Marker(marker) => {
+        // Render special field children
+        for special in special_children {
+            match special {
+                SpecialChild::Marker(marker) => {
                     output.push_str(&format!(
                         "{}  <marker>{}</marker>\n",
                         indent,
                         escape_xml(&marker)
                     ));
                 }
-                SyntheticChild::Text(text) => {
+                SpecialChild::Text(text) => {
                     output.push_str(&format!("{}  <text>{}</text>\n", indent, escape_xml(&text)));
                 }
-                SyntheticChild::Subject(subject) => {
-                    output.push_str(&format!(
-                        "{}  <subject>{}</subject>\n",
-                        indent,
-                        escape_xml(&subject)
-                    ));
-                }
-                SyntheticChild::Label(label) => {
-                    output.push_str(&format!(
-                        "{}  <label>{}</label>\n",
-                        indent,
-                        escape_xml(&label)
-                    ));
-                }
-                SyntheticChild::Parameter(key, value) => {
+                SpecialChild::Parameter(key, value) => {
                     output.push_str(&format!(
                         "{}  <parameter>{}={}</parameter>\n",
                         indent,
@@ -183,7 +154,7 @@ fn format_content_item(item: &ContentItem, indent_level: usize, include_all: boo
                         escape_xml(&value)
                     ));
                 }
-                SyntheticChild::Annotation(ann) => {
+                SpecialChild::Annotation(ann) => {
                     let ann_item = ContentItem::Annotation(*ann);
                     output.push_str(&format_content_item(
                         &ann_item,
@@ -205,13 +176,10 @@ fn format_content_item(item: &ContentItem, indent_level: usize, include_all: boo
     output
 }
 
-/// Helper enum for synthetic children
-enum SyntheticChild {
-    SessionTitle(String),
+/// Helper enum for special field children (not in Container trait)
+enum SpecialChild {
     Marker(String),
     Text(String),
-    Subject(String),
-    Label(String),
     Parameter(String, String),
     Annotation(Box<lex_parser::lex::ast::Annotation>),
 }

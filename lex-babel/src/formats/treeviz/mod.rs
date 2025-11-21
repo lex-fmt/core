@@ -65,8 +65,8 @@
 use super::icons::get_icon;
 use crate::error::FormatError;
 use crate::format::Format;
-use lex_parser::lex::ast::trait_helpers::get_visual_header;
-use lex_parser::lex::ast::traits::{AstNode, Container};
+use lex_parser::lex::ast::trait_helpers::try_as_container;
+use lex_parser::lex::ast::traits::{AstNode, Container, VisualStructure};
 use lex_parser::lex::ast::{ContentItem, Document};
 use std::collections::HashMap;
 
@@ -93,19 +93,15 @@ fn format_content_item(
 
     let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
 
-    // Handle include_all synthetic children
+    // Handle include_all: show visual headers using traits
     if include_all {
-        // Use trait helper to get visual header for nodes that have them
-        if let Some(header) = get_visual_header(item) {
-            // Determine the synthetic node type name based on the parent type
-            let header_type = match item.node_type() {
-                "Session" => "SessionTitle",
-                "Definition" => "Subject",
-                "VerbatimBlock" => "VerbatimSubject",
-                _ => "Header", // Fallback for Annotation and others
-            };
-            let header_icon = get_icon(header_type);
-            output.push_str(&format!("{}├─ {} {}\n", child_prefix, header_icon, header));
+        if item.has_visual_header() {
+            if let Some(container) = try_as_container(item) {
+                let header = container.label();
+                // Use the parent node's icon for the header (no synthetic type needed)
+                let header_icon = get_icon(item.node_type());
+                output.push_str(&format!("{}├─ {} {}\n", child_prefix, header_icon, header));
+            }
         }
 
         // Handle special cases that need more than just the header
@@ -189,28 +185,8 @@ fn format_content_item(
         }
     }
 
-    // Process regular children
+    // Process regular children using Container trait
     match item {
-        ContentItem::Session(s) => {
-            output + &format_children(s.children(), &child_prefix, include_all)
-        }
-        ContentItem::Paragraph(p) => {
-            // For paragraph, lines are already ContentItems
-            output + &format_children(&p.lines, &child_prefix, include_all)
-        }
-        ContentItem::List(l) => {
-            // For list, items are already ContentItems
-            output + &format_children(&l.items, &child_prefix, include_all)
-        }
-        ContentItem::Definition(d) => {
-            output + &format_children(d.children(), &child_prefix, include_all)
-        }
-        ContentItem::ListItem(li) => {
-            output + &format_children(li.children(), &child_prefix, include_all)
-        }
-        ContentItem::Annotation(a) => {
-            output + &format_children(a.children(), &child_prefix, include_all)
-        }
         ContentItem::VerbatimBlock(v) => {
             // Handle verbatim groups
             let mut group_output = String::new();
@@ -252,7 +228,15 @@ fn format_content_item(
             }
             output + &group_output
         }
-        _ => output,
+        _ => {
+            // Use Container trait to get children for all other types
+            if let Some(container) = try_as_container(item) {
+                output + &format_children(container.children(), &child_prefix, include_all)
+            } else {
+                // Leaf nodes have no children
+                output
+            }
+        }
     }
 }
 
