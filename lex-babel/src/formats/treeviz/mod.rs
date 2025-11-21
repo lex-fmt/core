@@ -65,6 +65,7 @@
 use super::icons::get_icon;
 use crate::error::FormatError;
 use crate::format::Format;
+use crate::formats::common::trait_helpers::get_visual_header;
 use lex_parser::lex::ast::traits::{AstNode, Container};
 use lex_parser::lex::ast::{ContentItem, Document};
 use std::collections::HashMap;
@@ -94,17 +95,22 @@ fn format_content_item(
 
     // Handle include_all synthetic children
     if include_all {
+        // Use trait helper to get visual header for nodes that have them
+        if let Some(header) = get_visual_header(item) {
+            // Determine the synthetic node type name based on the parent type
+            let header_type = match item.node_type() {
+                "Session" => "SessionTitle",
+                "Definition" => "Subject",
+                "VerbatimBlock" => "VerbatimSubject",
+                _ => "Header", // Fallback for Annotation and others
+            };
+            let header_icon = get_icon(header_type);
+            output.push_str(&format!("{}├─ {} {}\n", child_prefix, header_icon, header));
+        }
+
+        // Handle special cases that need more than just the header
         match item {
             ContentItem::Session(s) => {
-                // Show session title as synthetic child
-                let title_icon = get_icon("SessionTitle");
-                output.push_str(&format!(
-                    "{}├─ {} {}\n",
-                    child_prefix,
-                    title_icon,
-                    s.title.as_string()
-                ));
-
                 // Show session annotations
                 for (i, ann) in s.annotations.iter().enumerate() {
                     let ann_item = ContentItem::Annotation(ann.clone());
@@ -157,15 +163,6 @@ fn format_content_item(
                 }
             }
             ContentItem::Definition(d) => {
-                // Show subject as synthetic child
-                let subject_icon = get_icon("Subject");
-                output.push_str(&format!(
-                    "{}├─ {} {}\n",
-                    child_prefix,
-                    subject_icon,
-                    d.subject.as_string()
-                ));
-
                 // Show definition annotations
                 for ann in &d.annotations {
                     let ann_item = ContentItem::Annotation(ann.clone());
@@ -179,13 +176,7 @@ fn format_content_item(
                 }
             }
             ContentItem::Annotation(a) => {
-                // Show label and parameters
-                let label_icon = get_icon("Label");
-                output.push_str(&format!(
-                    "{}├─ {} {}\n",
-                    child_prefix, label_icon, a.data.label.value
-                ));
-
+                // Show parameters (label already shown by get_visual_header)
                 for param in &a.data.parameters {
                     let param_icon = get_icon("Parameter");
                     output.push_str(&format!(
