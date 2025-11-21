@@ -292,3 +292,112 @@ fn test_kitchensink_snapshot() {
 
     assert_snapshot!("kitchensink_markdown", md);
 }
+
+// ============================================================================
+// ISSUE A: Reference Escaping Tests
+// ============================================================================
+
+#[test]
+fn test_reference_url_converted_to_link() {
+    let lex_src = "Visit [https://example.com] for more.\n";
+    let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // URLs should be converted to Markdown links (as autolinks or regular links)
+    // Comrak may render as <url> autolink or [text](url) depending on context
+    assert!(
+        md.contains("https://example.com"),
+        "URL should be present in output"
+    );
+    assert!(
+        !md.contains("\\[https://"),
+        "Should not escape brackets for URLs"
+    );
+}
+
+#[test]
+fn test_reference_anchor_converted_to_link() {
+    let lex_src = "See section [#introduction] above.\n";
+    let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // Anchors should be converted to Markdown links [text](url)
+    // The # in link text is escaped as \# which is correct Markdown
+    assert!(
+        md.contains("(#introduction)"),
+        "Anchor should link to #introduction"
+    );
+    assert!(
+        md.contains("[\\#introduction]") || md.contains("[#introduction]"),
+        "Anchor text should contain #introduction"
+    );
+}
+
+#[test]
+fn test_citation_converted_to_ref_link() {
+    let lex_src = "According to [@smith2023], this is true.\n";
+    let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // Citations should be converted to #ref-* links
+    assert!(md.contains("[@smith2023]"), "Citation should be a link");
+    assert!(
+        !md.contains("\\[@"),
+        "Should not escape brackets for citations"
+    );
+}
+
+#[test]
+fn test_placeholder_reference_as_text() {
+    let lex_src = "This needs citation [TK-REF-2025-01].\n";
+    let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // Placeholders should render as plain text with escaped brackets
+    // since they're not recognized as links
+    assert!(
+        md.contains("\\[TK-REF-2025-01\\]"),
+        "Placeholder should be visible as text with escaped brackets"
+    );
+    assert!(
+        md.contains("TK-REF-2025-01"),
+        "Placeholder content should be present"
+    );
+}
+
+// ============================================================================
+// ISSUE C: Markdown List Formatting Tests
+// ============================================================================
+
+#[test]
+fn test_list_with_simple_items() {
+    let lex_src = "- First item\n- Second item\n- Third item\n";
+    let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // Simple list items should be rendered correctly
+    assert!(md.contains("- First item"));
+    assert!(md.contains("- Second item"));
+    assert!(md.contains("- Third item"));
+}
+
+#[test]
+fn test_list_with_multi_paragraph_items() {
+    // Test that list items with multiple paragraphs are properly indented
+    // Comrak should handle indentation automatically
+    let lex_src = concat!(
+        "- Item one with first paragraph.\n",
+        "\n",
+        "    Second paragraph in item one.\n",
+        "\n",
+        "- Item two.\n"
+    );
+    let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // The output should maintain list structure
+    // Comrak handles proper indentation for multi-paragraph items
+    assert!(md.contains("- "), "Should have list markers");
+    assert!(md.contains("Item one"));
+    assert!(md.contains("Item two"));
+}

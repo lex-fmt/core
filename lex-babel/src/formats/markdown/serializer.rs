@@ -479,14 +479,44 @@ fn add_inline_to_node<'a>(
         }
 
         InlineContent::Reference(ref_text) => {
-            // Lex references are not URLs - they're citations/cross-references
-            // Render as plain text with brackets: [reference]
-            let text_with_brackets = format!("[{}]", ref_text);
-            let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
-                NodeValue::Text(text_with_brackets),
-                (0, 0).into(),
-            ))));
-            parent.append(text_node);
+            // Lex references can be URLs, anchors, citations, or placeholders.
+            // Try to convert known types to Markdown links.
+            let url = if ref_text.starts_with("http")
+                || ref_text.starts_with('/')
+                || ref_text.starts_with("./")
+                || ref_text.starts_with('#')
+            {
+                Some(ref_text.clone())
+            } else {
+                ref_text
+                    .strip_prefix('@')
+                    .map(|citation| format!("#ref-{}", citation))
+            };
+
+            if let Some(url) = url {
+                let link_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Link(comrak::nodes::NodeLink {
+                        url,
+                        title: String::new(),
+                    }),
+                    (0, 0).into(),
+                ))));
+                parent.append(link_node);
+
+                let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Text(ref_text.clone()),
+                    (0, 0).into(),
+                ))));
+                link_node.append(text_node);
+            } else {
+                // Render as plain text with brackets: [reference]
+                let text_with_brackets = format!("[{}]", ref_text);
+                let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Text(text_with_brackets),
+                    (0, 0).into(),
+                ))));
+                parent.append(text_node);
+            }
         }
 
         InlineContent::Math(math_text) => {
