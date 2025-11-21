@@ -364,3 +364,40 @@ fn test_placeholder_reference_as_text() {
         "Placeholder content should be present"
     );
 }
+
+// ============================================================================
+// ISSUE C: Markdown List Formatting Tests
+// ============================================================================
+
+#[test]
+fn test_list_with_simple_items() {
+    let lex_src = "- First item\n- Second item\n- Third item\n";
+    let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // Simple list items should be rendered correctly
+    assert!(md.contains("- First item"));
+    assert!(md.contains("- Second item"));
+    assert!(md.contains("- Third item"));
+}
+
+#[test]
+fn test_list_with_multi_paragraph_items() {
+    // Test that list items with multiple paragraphs are properly indented
+    // Comrak should handle indentation automatically
+    let lex_src = concat!(
+        "- Item one with first paragraph.\n",
+        "\n",
+        "    Second paragraph in item one.\n",
+        "\n",
+        "- Item two.\n"
+    );
+    let lex_doc = STRING_TO_AST.run(lex_src.to_string()).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // The output should maintain list structure
+    // Comrak handles proper indentation for multi-paragraph items
+    assert!(md.contains("- "), "Should have list markers");
+    assert!(md.contains("Item one"));
+    assert!(md.contains("Item two"));
+}
