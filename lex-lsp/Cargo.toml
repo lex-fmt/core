@@ -1,0 +1,17 @@
+[package]
+name = "lex-lsp"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+doctest = false
+
+[dependencies]
+lex-parser = { path = "../lex-parser" }
+tower-lsp = "0.20"
+lsp-types = "0.94"
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
