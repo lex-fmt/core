@@ -109,6 +109,12 @@ the export implementation for testing.
     - LaTeX: Common LaTeX document patterns
 
     Create: tests/fixtures/<format>-reference.<ext> with representative examples
+    - Markdown currently snapshots:
+        * tests/fixtures/markdown-reference-commonmark.md (CommonMark spec README)
+        * tests/fixtures/markdown-reference-comrak.md (Comrak README)
+      These are imported in lex-babel/tests/markdown/import.rs and asserted via insta snapshots.
+      Verify round-trips from the CLI with:
+        cargo run --bin lex -- lex-babel/tests/fixtures/markdown-reference-commonmark.md --to tag
 
 1. What to test: as a general rule we want to have:
 

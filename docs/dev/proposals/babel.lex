@@ -20,11 +20,11 @@ Implementation Phases
 		-   Implement LexFormat (parser delegation, serializer)
 		-   Ensure round-trip capability for Lex documents
 
-	Phase 3: Markdown Support
+	Phase 3: Markdown Support DONE
 		-   Add comrak dependency to lex-babel
 		-   Implement interop::markdown (Lex � comrak AST)
 		-   Implement MarkdownFormat (bidirectional)
-		-   Add lex convert --from markdown --to lex
-		-   Add lex convert --from lex --to markdown
+		-   Add lex convert markdown support (auto-detected .md inputs)
+		-   Add importer regression fixtures and CLI verification docs
 
 	from there on it's all abouting adding additional format, being html then pandoc the next priorities.	
