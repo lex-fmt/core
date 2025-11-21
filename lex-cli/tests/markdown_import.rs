@@ -17,8 +17,12 @@ fn convert_markdown_to_tag_via_cli() {
     let mut cmd = cargo_bin_cmd!("lex");
     cmd.arg("convert").arg(&fixture).arg("--to").arg("tag");
 
-    let output_pred =
-        predicate::str::contains("<document>").and(predicate::str::contains("<session>CommonMark"));
+    // Verify comprehensive output structure from markdown import
+    let output_pred = predicate::str::contains("<document>")
+        .and(predicate::str::contains("<session>CommonMark"))
+        .and(predicate::str::contains("<paragraph>"))
+        .and(predicate::str::contains("<list>"))
+        .and(predicate::str::contains("Running tests against the spec"));
 
     cmd.assert().success().stdout(output_pred);
 }
