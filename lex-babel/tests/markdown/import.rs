@@ -384,7 +384,7 @@ fn test_kitchensink_round_trip() {
 // ============================================================================
 
 #[test]
-fn test_reference_commonmark_snapshot() {
+fn test_markdown_import_commonmark_reference() {
     snapshot_md_fixture(
         "markdown-reference-commonmark.md",
         "markdown_import_commonmark_reference",
@@ -392,7 +392,7 @@ fn test_reference_commonmark_snapshot() {
 }
 
 #[test]
-fn test_reference_comrak_snapshot() {
+fn test_markdown_import_comrak_reference() {
     snapshot_md_fixture(
         "markdown-reference-comrak.md",
         "markdown_import_comrak_reference",
