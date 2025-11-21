@@ -2,9 +2,9 @@
 :: author :: Arthur Debert
 :: pub-date :: 2025-01-12
 
-Complete specification for the general reference system - the foundation for linking, cross-referencing, and connecting content within and beyond txxt documents.
+Complete specification for the general reference system - the foundation for linking, cross-referencing, and connecting content within and beyond lex documents.
 
-:: note :: This specification describes the specific characteristics of reference inline elements. For the general inline token pattern, universal grammar, parsing architecture, and AST foundation shared by all inline elements, see [../inlines-general.txxt].
+:: note :: This specification describes the specific characteristics of reference inline elements. For the general inline token pattern, universal grammar, parsing architecture, and AST foundation shared by all inline elements, see [../inlines-general.lex].
 
 1. Purpose
 
@@ -47,7 +47,7 @@ Complete specification for the general reference system - the foundation for lin
 
         Direct URL references:
             [https://example.com]
-            [http://txxt.org/docs]
+            [http://lex.org/docs]
             [mailto:user@domain.com]
         :: external-links
 
@@ -56,7 +56,7 @@ Complete specification for the general reference system - the foundation for lin
     3.2. File References
 
         Local and relative file links:
-            [../docs/guide.txxt]
+            [../docs/guide.lex]
             [images/diagram.png]
             [/absolute/path/file.txt]
         :: file-references
