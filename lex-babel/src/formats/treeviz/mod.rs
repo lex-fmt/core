@@ -65,7 +65,7 @@
 use super::icons::get_icon;
 use crate::error::FormatError;
 use crate::format::Format;
-use crate::formats::common::trait_helpers::get_visual_header;
+use lex_parser::lex::ast::trait_helpers::get_visual_header;
 use lex_parser::lex::ast::traits::{AstNode, Container};
 use lex_parser::lex::ast::{ContentItem, Document};
 use std::collections::HashMap;
