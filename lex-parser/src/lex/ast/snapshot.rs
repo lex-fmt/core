@@ -112,10 +112,9 @@ pub fn snapshot_from_content_with_options(item: &ContentItem, include_all: bool)
         }
         ContentItem::Annotation(ann) => build_annotation_snapshot(ann, include_all),
         ContentItem::TextLine(tl) => AstSnapshot::new("TextLine".to_string(), tl.display_label()),
-        ContentItem::BlankLineGroup(blg) => AstSnapshot::new(
-            "BlankLineGroup".to_string(),
-            format!("{} line(s)", blg.count),
-        ),
+        ContentItem::BlankLineGroup(blg) => {
+            AstSnapshot::new("BlankLineGroup".to_string(), blg.display_label())
+        }
     }
 }
 
