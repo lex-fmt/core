@@ -75,9 +75,10 @@ The Markdown export is functional but has specific friction points regarding Lex
 
 ### Issue C: Markdown List Formatting
 
-**Severity:** Low
+**Severity:** Low (VERIFIED - NO ACTION NEEDED)
 **Observation:** Lex supports very rich content inside lists. Markdown is fragile here.
 **Recommendation:** Ensure that multi-paragraph list items in Markdown are consistently indented by 4 spaces (or 1 tab) relative to the bullet point to ensure they are treated as part of the list item and not a broken break.
+**Verification:** The Markdown exporter uses Comrak, a mature CommonMark-compliant library that automatically handles proper indentation for multi-paragraph list items. Added comprehensive tests to verify list formatting behavior. No code changes needed - Comrak already implements correct CommonMark list formatting.
 
 ## 5. Conclusion
 
