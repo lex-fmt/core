@@ -1,36 +1,31 @@
-use lex_parser::lex::parsing::{parse_document, Document};
+use lex_parser::lex::ast::Document;
+use lex_parser::lex::testing::lexplore::Lexplore;
+use std::sync::OnceLock;
 
-pub(crate) const SAMPLE: &str = r":: doc.note severity=info :: Document preface.
+const SAMPLE_BENCHMARK: usize = 50;
 
-1. Intro
+struct SampleFixture {
+    document: Document,
+    source: String,
+}
 
-    Welcome to *Lex* _format_ with `code` and #math# plus references [^source] and [@spec2025 p.4] and [Cache].
+static SAMPLE_FIXTURE: OnceLock<SampleFixture> = OnceLock::new();
 
-    Cache:
-        A definition body referencing [Cache].
-
-    :: callout ::
-        Session-level annotation body.
-    ::
-
-    - Bullet item referencing [42]
-    - Nested bullet
-        Nested paragraph inside list.
-
-    CLI Example:
-        lex build
-        lex serve
-    :: shell language=bash
-
-:: 42 ::
-    Footnote forty two for bullet.
-::
-
-:: source ::
-    Footnote referenced in text.
-::
-";
+fn sample_fixture() -> &'static SampleFixture {
+    SAMPLE_FIXTURE.get_or_init(|| {
+        let loader = Lexplore::benchmark(SAMPLE_BENCHMARK);
+        let document = loader
+            .parse()
+            .expect("failed to parse benchmark fixture for lex-lsp tests");
+        let source = loader.source();
+        SampleFixture { document, source }
+    })
+}
 
 pub(crate) fn sample_document() -> Document {
-    parse_document(SAMPLE).expect("failed to parse LSP sample document")
+    sample_fixture().document.clone()
+}
+
+pub(crate) fn sample_source() -> &'static str {
+    sample_fixture().source.as_str()
 }

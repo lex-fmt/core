@@ -463,15 +463,16 @@ fn collect_preview<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test_support::{sample_document, SAMPLE};
+    use crate::features::test_support::{sample_document, sample_source};
 
     fn position_for(needle: &str) -> Position {
-        let index = SAMPLE
+        let source = sample_source();
+        let index = source
             .find(needle)
             .unwrap_or_else(|| panic!("{} not found", needle));
         let mut line = 0;
         let mut column = 0;
-        for ch in SAMPLE[..index].chars() {
+        for ch in source[..index].chars() {
             if ch == '\n' {
                 line += 1;
                 column = 0;
@@ -529,5 +530,12 @@ mod tests {
         assert!(hover.contents.contains("Annotation"));
         assert!(hover.contents.contains("callout"));
         assert!(hover.contents.contains("Session-level annotation body"));
+    }
+
+    #[test]
+    fn hover_returns_none_for_invalid_position() {
+        let document = sample_document();
+        let position = Position::new(999, 0);
+        assert!(hover(&document, position).is_none());
     }
 }
