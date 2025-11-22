@@ -202,6 +202,11 @@ pub trait ContainerPolicy: 'static {
 
     /// Human-readable name for error messages
     const POLICY_NAME: &'static str;
+
+    /// Validate that an item is allowed in this container
+    ///
+    /// Returns Ok(()) if the item is valid, or an error message if not.
+    fn validate(item: &ContentItem) -> Result<(), String>;
 }
 
 /// Policy for Session containers - allows all elements including Sessions
@@ -216,6 +221,11 @@ impl ContainerPolicy for SessionPolicy {
     const ALLOWS_SESSIONS: bool = true;
     const ALLOWS_ANNOTATIONS: bool = true;
     const POLICY_NAME: &'static str = "SessionPolicy";
+
+    fn validate(_item: &ContentItem) -> Result<(), String> {
+        // SessionPolicy allows all content types
+        Ok(())
+    }
 }
 
 /// Policy for general containers - allows all elements EXCEPT Sessions
@@ -230,6 +240,16 @@ impl ContainerPolicy for GeneralPolicy {
     const ALLOWS_SESSIONS: bool = false;
     const ALLOWS_ANNOTATIONS: bool = true;
     const POLICY_NAME: &'static str = "GeneralPolicy";
+
+    fn validate(item: &ContentItem) -> Result<(), String> {
+        match item {
+            ContentItem::Session(_) => Err("GeneralPolicy does not allow Sessions".to_string()),
+            ContentItem::ListItem(_) => {
+                Err("GeneralPolicy does not allow ListItems (use List instead)".to_string())
+            }
+            _ => Ok(()),
+        }
+    }
 }
 
 /// Policy for list containers - only allows ListItem elements
@@ -244,6 +264,16 @@ impl ContainerPolicy for ListPolicy {
     const ALLOWS_SESSIONS: bool = false;
     const ALLOWS_ANNOTATIONS: bool = false;
     const POLICY_NAME: &'static str = "ListPolicy";
+
+    fn validate(item: &ContentItem) -> Result<(), String> {
+        match item {
+            ContentItem::ListItem(_) => Ok(()),
+            _ => Err(format!(
+                "ListPolicy only allows ListItems, found {}",
+                item.node_type()
+            )),
+        }
+    }
 }
 
 /// Policy for verbatim containers - only allows VerbatimLine elements
@@ -258,6 +288,16 @@ impl ContainerPolicy for VerbatimPolicy {
     const ALLOWS_SESSIONS: bool = false;
     const ALLOWS_ANNOTATIONS: bool = false;
     const POLICY_NAME: &'static str = "VerbatimPolicy";
+
+    fn validate(item: &ContentItem) -> Result<(), String> {
+        match item {
+            ContentItem::VerbatimLine(_) => Ok(()),
+            _ => Err(format!(
+                "VerbatimPolicy only allows VerbatimLines, found {}",
+                item.node_type()
+            )),
+        }
+    }
 }
 
 // ============================================================================
@@ -349,9 +389,79 @@ impl<P: ContainerPolicy> Container<P> {
         self.children.is_empty()
     }
 
-    /// Add a child to the container
+    /// Add a child to the container (type-safe, preferred method)
+    ///
+    /// This method accepts the policy's typed content, ensuring compile-time safety.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let mut container = GeneralContainer::empty();
+    /// let para = Paragraph::from_line("text".to_string());
+    /// container.push_typed(ContentElement::Paragraph(para));
+    /// ```
+    pub fn push_typed(&mut self, item: P::ContentType) {
+        self.children.push(item.into());
+    }
+
+    /// Add a child to the container with runtime validation
+    ///
+    /// This method accepts any ContentItem and validates it against the policy at runtime.
+    /// Use this when you need polymorphic access to containers.
+    ///
+    /// # Panics
+    /// Panics if the item violates the container's policy (e.g., adding a Session to a GeneralContainer).
+    ///
+    /// # Example
+    /// ```ignore
+    /// let mut container = GeneralContainer::empty();
+    /// let para = Paragraph::from_line("text".to_string());
+    /// container.push(ContentItem::Paragraph(para));  // OK
+    ///
+    /// let session = Session::with_title("Title".to_string());
+    /// container.push(ContentItem::Session(session));  // Panics!
+    /// ```
     pub fn push(&mut self, item: ContentItem) {
+        P::validate(&item)
+            .unwrap_or_else(|err| panic!("Invalid item for {}: {}", P::POLICY_NAME, err));
         self.children.push(item);
+    }
+
+    /// Extend the container with multiple items (with validation)
+    ///
+    /// # Panics
+    /// Panics if any item violates the container's policy.
+    pub fn extend<I>(&mut self, items: I)
+    where
+        I: IntoIterator<Item = ContentItem>,
+    {
+        for item in items {
+            self.push(item);
+        }
+    }
+
+    /// Get a specific child by index
+    pub fn get(&self, index: usize) -> Option<&ContentItem> {
+        self.children.get(index)
+    }
+
+    /// Get a mutable reference to a specific child
+    ///
+    /// Note: This allows mutation of the child itself, but not replacement with a different type.
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut ContentItem> {
+        self.children.get_mut(index)
+    }
+
+    /// Remove all children from the container
+    pub fn clear(&mut self) {
+        self.children.clear();
+    }
+
+    /// Remove and return the child at the specified index
+    ///
+    /// # Panics
+    /// Panics if index is out of bounds.
+    pub fn remove(&mut self, index: usize) -> ContentItem {
+        self.children.remove(index)
     }
 
     /// Get an iterator over the children
@@ -362,6 +472,18 @@ impl<P: ContainerPolicy> Container<P> {
     /// Get a mutable iterator over the children
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, ContentItem> {
         self.children.iter_mut()
+    }
+
+    /// Get mutable access to the underlying Vec for advanced operations
+    ///
+    /// # Safety
+    /// This method is intended for internal use by assembler stages that need
+    /// Vec-specific operations like `retain()`. Direct manipulation bypasses
+    /// policy validation - use with caution.
+    ///
+    /// Prefer `push()`, `push_typed()`, or other validated methods when possible.
+    pub fn as_mut_vec(&mut self) -> &mut Vec<ContentItem> {
+        &mut self.children
     }
 
     // ========================================================================
@@ -733,20 +855,17 @@ impl<P: ContainerPolicy> AstNode for Container<P> {
     }
 }
 
-// Implement Deref for ergonomic access to the inner Vec
+// Implement Deref for ergonomic read-only access to the children
 impl<P: ContainerPolicy> std::ops::Deref for Container<P> {
-    type Target = Vec<ContentItem>;
+    type Target = [ContentItem];
 
     fn deref(&self) -> &Self::Target {
         &self.children
     }
 }
 
-impl<P: ContainerPolicy> std::ops::DerefMut for Container<P> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.children
-    }
-}
+// DerefMut is intentionally NOT implemented to prevent bypassing type safety.
+// Use explicit methods like push(), push_typed(), get_mut(), etc. instead.
 
 impl<P: ContainerPolicy> fmt::Display for Container<P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
