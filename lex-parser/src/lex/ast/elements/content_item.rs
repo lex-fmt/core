@@ -383,6 +383,71 @@ impl ContentItem {
         }
     }
 
+    /// Find the visual line element at the given position
+    ///
+    /// Returns the element representing a source line (TextLine, ListItem, VerbatimLine,
+    /// BlankLineGroup). For container elements with headers (Session, Definition, Annotation,
+    /// VerbatimBlock), it returns the deepest line element, not the container itself.
+    pub fn visual_line_at(&self, pos: Position) -> Option<&ContentItem> {
+        // First, check children for visual line nodes (depth-first search)
+        if let Some(children) = self.children() {
+            for child in children {
+                if let Some(result) = child.visual_line_at(pos) {
+                    return Some(result);
+                }
+            }
+        }
+
+        // If no children matched, check if this item is a true line-level visual node
+        // (not a container with a header)
+        let is_line_level = matches!(
+            self,
+            ContentItem::TextLine(_)
+                | ContentItem::ListItem(_)
+                | ContentItem::VerbatimLine(_)
+                | ContentItem::BlankLineGroup(_)
+        );
+
+        if is_line_level && self.range().contains(pos) {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
+    /// Find the block element at the given position
+    ///
+    /// Returns the shallowest block-level container element (Session, Definition, List,
+    /// Paragraph, Annotation, VerbatimBlock) that contains the position. This skips
+    /// line-level elements and returns the containing structural block.
+    pub fn block_element_at(&self, pos: Position) -> Option<&ContentItem> {
+        // Check if this is a block element that contains the position
+        let is_block = matches!(
+            self,
+            ContentItem::Session(_)
+                | ContentItem::Definition(_)
+                | ContentItem::List(_)
+                | ContentItem::Paragraph(_)
+                | ContentItem::Annotation(_)
+                | ContentItem::VerbatimBlock(_)
+        );
+
+        if is_block && self.range().contains(pos) {
+            return Some(self);
+        }
+
+        // If not a block element, check children
+        if let Some(children) = self.children() {
+            for child in children {
+                if let Some(result) = child.block_element_at(pos) {
+                    return Some(result);
+                }
+            }
+        }
+
+        None
+    }
+
     /// Find the path of nodes at the given position, starting from this item
     /// Returns a vector of nodes [self, child, grandchild, ...]
     pub fn node_path_at_position(&self, pos: Position) -> Vec<&ContentItem> {
@@ -637,5 +702,169 @@ mod tests {
                 ("ListItem", 1),
             ]
         );
+    }
+
+    #[test]
+    fn test_visual_line_at_finds_text_line() {
+        // Create a paragraph with a text line
+        let para = Paragraph::from_line("Test line".to_string()).at(Range::new(
+            0..9,
+            Position::new(0, 0),
+            Position::new(0, 9),
+        ));
+        let item = ContentItem::Paragraph(para);
+
+        let pos = Position::new(0, 5);
+        let result = item.visual_line_at(pos);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_text_line());
+    }
+
+    #[test]
+    fn test_visual_line_at_finds_list_item() {
+        let list_item = ListItem::with_content("-".to_string(), "Item text".to_string(), vec![])
+            .at(Range::new(0..10, Position::new(0, 0), Position::new(0, 10)));
+        let list = List::new(vec![list_item]).at(Range::new(
+            0..10,
+            Position::new(0, 0),
+            Position::new(0, 10),
+        ));
+        let item = ContentItem::List(list);
+
+        let pos = Position::new(0, 5);
+        let result = item.visual_line_at(pos);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_list_item());
+    }
+
+    #[test]
+    fn test_visual_line_at_position_outside() {
+        let para = Paragraph::from_line("Test".to_string()).at(Range::new(
+            0..4,
+            Position::new(0, 0),
+            Position::new(0, 4),
+        ));
+        let item = ContentItem::Paragraph(para);
+
+        let pos = Position::new(10, 10);
+        let result = item.visual_line_at(pos);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_block_element_at_finds_paragraph() {
+        let para = Paragraph::from_line("Test".to_string()).at(Range::new(
+            0..4,
+            Position::new(0, 0),
+            Position::new(0, 4),
+        ));
+        let item = ContentItem::Paragraph(para);
+
+        let pos = Position::new(0, 2);
+        let result = item.block_element_at(pos);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_paragraph());
+    }
+
+    #[test]
+    fn test_block_element_at_finds_session() {
+        let mut session = Session::with_title("Section".to_string()).at(Range::new(
+            0..10,
+            Position::new(0, 0),
+            Position::new(2, 0),
+        ));
+        session
+            .children
+            .push(ContentItem::Paragraph(Paragraph::from_line(
+                "Content".to_string(),
+            )));
+        let item = ContentItem::Session(session);
+
+        let pos = Position::new(1, 0);
+        let result = item.block_element_at(pos);
+        assert!(result.is_some());
+        // Should find the Session, not descend into nested elements
+        assert!(result.unwrap().is_session());
+    }
+
+    #[test]
+    fn test_block_element_at_skips_text_line() {
+        // When called on a nested structure with TextLine, should return the Paragraph
+        let para = Paragraph::from_line("Test".to_string()).at(Range::new(
+            0..4,
+            Position::new(0, 0),
+            Position::new(0, 4),
+        ));
+
+        let mut session = Session::with_title("Section".to_string()).at(Range::new(
+            0..10,
+            Position::new(0, 0),
+            Position::new(2, 0),
+        ));
+        session.children.push(ContentItem::Paragraph(para));
+        let item = ContentItem::Session(session);
+
+        let pos = Position::new(0, 2);
+        let result = item.block_element_at(pos);
+        assert!(result.is_some());
+        // Should return Session, the first block element encountered
+        assert!(result.unwrap().is_session());
+    }
+
+    #[test]
+    fn test_block_element_at_position_outside() {
+        let para = Paragraph::from_line("Test".to_string()).at(Range::new(
+            0..4,
+            Position::new(0, 0),
+            Position::new(0, 4),
+        ));
+        let item = ContentItem::Paragraph(para);
+
+        let pos = Position::new(10, 10);
+        let result = item.block_element_at(pos);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_comparison_element_at_vs_visual_line_at_vs_block_element_at() {
+        // Build a structure: Session > Paragraph > TextLine
+        let para = Paragraph::from_line("Test line".to_string()).at(Range::new(
+            5..14,
+            Position::new(1, 0),
+            Position::new(1, 9),
+        ));
+
+        let mut session = Session::with_title("Title".to_string()).at(Range::new(
+            0..14,
+            Position::new(0, 0),
+            Position::new(1, 9),
+        ));
+        session.children.push(ContentItem::Paragraph(para));
+        let item = ContentItem::Session(session);
+
+        let pos = Position::new(1, 5);
+
+        // element_at should return the deepest element (TextLine)
+        let deepest = item.element_at(pos);
+        assert!(deepest.is_some());
+        assert!(deepest.unwrap().is_text_line());
+
+        // visual_line_at should also return TextLine (it's a visual line node)
+        let visual = item.visual_line_at(pos);
+        assert!(
+            visual.is_some(),
+            "visual_line_at should find a visual line element"
+        );
+        let visual_item = visual.unwrap();
+        assert!(
+            visual_item.is_text_line(),
+            "Expected TextLine but got: {:?}",
+            visual_item.node_type()
+        );
+
+        // block_element_at should return the Session (first block element)
+        let block = item.block_element_at(pos);
+        assert!(block.is_some());
+        assert!(block.unwrap().is_session());
     }
 }
