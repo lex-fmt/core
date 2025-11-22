@@ -23,6 +23,11 @@ M.version = "0.1.0"
 function M.setup(opts)
   opts = opts or {}
 
+  -- Debug: print opts.cmd if DEBUG_LEX_INIT is set
+  if vim.env.DEBUG_LEX_INIT then
+    print("lex.setup() called with opts.cmd: " .. vim.inspect(opts.cmd))
+  end
+
   -- Register .lex filetype
   vim.filetype.add({
     extension = {
@@ -54,6 +59,11 @@ function M.setup(opts)
     -- Auto-start LSP for .lex files with semantic token support
     local lsp_config = opts.lsp_config or {}
     local user_on_attach = lsp_config.on_attach
+
+    -- Ensure cmd is passed to the LSP config if provided
+    if opts.cmd and not lsp_config.cmd then
+      lsp_config.cmd = opts.cmd
+    end
 
     lsp_config.on_attach = function(client, bufnr)
       -- CRITICAL: Enable semantic token highlighting for .lex files
