@@ -77,14 +77,22 @@ fn format_content_item(
     child_index: usize,
     child_count: usize,
     include_all: bool,
+    show_linum: bool,
 ) -> String {
     let mut output = String::new();
     let is_last = child_index == child_count - 1;
     let connector = if is_last { "└─" } else { "├─" };
     let icon = get_icon(item.node_type());
 
+    let linum_prefix = if show_linum {
+        format!("{:02} ", item.range().start.line + 1)
+    } else {
+        String::new()
+    };
+
     output.push_str(&format!(
-        "{}{} {} {}\n",
+        "{}{}{} {} {}\n",
+        linum_prefix,
         prefix,
         connector,
         icon,
@@ -116,6 +124,7 @@ fn format_content_item(
                         i + 1,
                         s.annotations.len() + s.children().len(),
                         include_all,
+                        show_linum,
                     ));
                 }
             }
@@ -155,6 +164,7 @@ fn format_content_item(
                         0,
                         1,
                         include_all,
+                        show_linum,
                     ));
                 }
             }
@@ -168,6 +178,7 @@ fn format_content_item(
                         0,
                         1,
                         include_all,
+                        show_linum,
                     ));
                 }
             }
@@ -223,6 +234,7 @@ fn format_content_item(
                         i,
                         group.children.len(),
                         include_all,
+                        show_linum,
                     ));
                 }
             }
@@ -231,7 +243,8 @@ fn format_content_item(
         _ => {
             // Use Container trait to get children for all other types
             if let Some(container) = try_as_container(item) {
-                output + &format_children(container.children(), &child_prefix, include_all)
+                output
+                    + &format_children(container.children(), &child_prefix, include_all, show_linum)
             } else {
                 // Leaf nodes have no children
                 output
@@ -240,7 +253,12 @@ fn format_content_item(
     }
 }
 
-fn format_children(children: &[ContentItem], prefix: &str, include_all: bool) -> String {
+fn format_children(
+    children: &[ContentItem],
+    prefix: &str,
+    include_all: bool,
+    show_linum: bool,
+) -> String {
     let mut output = String::new();
     let child_count = children.len();
     for (i, child) in children.iter().enumerate() {
@@ -250,6 +268,7 @@ fn format_children(children: &[ContentItem], prefix: &str, include_all: bool) ->
             i,
             child_count,
             include_all,
+            show_linum,
         ));
     }
     output
@@ -290,6 +309,11 @@ pub fn to_treeviz_str_with_params(doc: &Document, params: &HashMap<String, Strin
         .map(|v| v.to_lowercase() == "true")
         .unwrap_or(false);
 
+    let show_linum = params
+        .get("show-linum")
+        .map(|v| v != "false")
+        .unwrap_or(false);
+
     let icon = get_icon("Document");
     let mut output = format!(
         "{} Document ({} annotations, {} items)\n",
@@ -302,13 +326,20 @@ pub fn to_treeviz_str_with_params(doc: &Document, params: &HashMap<String, Strin
     if include_all {
         for annotation in &doc.annotations {
             let ann_item = ContentItem::Annotation(annotation.clone());
-            output.push_str(&format_content_item(&ann_item, "", 0, 1, include_all));
+            output.push_str(&format_content_item(
+                &ann_item,
+                "",
+                0,
+                1,
+                include_all,
+                show_linum,
+            ));
         }
     }
 
     // Show document children (flattened from root session)
     let children = &doc.root.children;
-    output + &format_children(children, "", include_all)
+    output + &format_children(children, "", include_all, show_linum)
 }
 
 /// Format implementation for treeviz format

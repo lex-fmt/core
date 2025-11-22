@@ -28,12 +28,26 @@ use lex_parser::lex::ast::{ContentItem, Document};
 use std::collections::HashMap;
 
 /// Format a single ContentItem node with synthetic children support
-fn format_content_item(item: &ContentItem, indent_level: usize, include_all: bool) -> String {
+fn format_content_item(
+    item: &ContentItem,
+    indent_level: usize,
+    include_all: bool,
+    show_linum: bool,
+) -> String {
     let mut output = String::new();
     let indent = "  ".repeat(indent_level);
     let tag = to_tag_name(item.node_type());
+    let range_attr = if show_linum {
+        format!(
+            " range=\"{}:{}\"",
+            item.range().start.line + 1,
+            item.range().start.column + 1
+        )
+    } else {
+        String::new()
+    };
 
-    output.push_str(&format!("{}<{}>", indent, tag));
+    output.push_str(&format!("{}<{}{}>", indent, tag, range_attr));
     output.push_str(&escape_xml(&item.display_label()));
 
     // Collect special field children (not in Container trait)
@@ -103,7 +117,12 @@ fn format_content_item(item: &ContentItem, indent_level: usize, include_all: boo
                     escape_xml(&group_label)
                 ));
                 for child in group.children.iter() {
-                    output.push_str(&format_content_item(child, indent_level + 2, include_all));
+                    output.push_str(&format_content_item(
+                        child,
+                        indent_level + 2,
+                        include_all,
+                        show_linum,
+                    ));
                 }
                 output.push_str(&format!("{}  </verbatim-group>\n", indent));
             }
@@ -160,6 +179,7 @@ fn format_content_item(item: &ContentItem, indent_level: usize, include_all: boo
                         &ann_item,
                         indent_level + 1,
                         include_all,
+                        show_linum,
                     ));
                 }
             }
@@ -167,7 +187,12 @@ fn format_content_item(item: &ContentItem, indent_level: usize, include_all: boo
 
         // Render regular children
         for child in regular_children {
-            output.push_str(&format_content_item(child, indent_level + 1, include_all));
+            output.push_str(&format_content_item(
+                child,
+                indent_level + 1,
+                include_all,
+                show_linum,
+            ));
         }
 
         output.push_str(&format!("{}</{}>\n", indent, tag));
@@ -232,6 +257,11 @@ pub fn serialize_document_with_params(doc: &Document, params: &HashMap<String, S
         .map(|v| v.to_lowercase() == "true")
         .unwrap_or(false);
 
+    let show_linum = params
+        .get("show-linum")
+        .map(|v| v != "false")
+        .unwrap_or(false);
+
     let mut result = String::new();
     result.push_str("<document>\n");
 
@@ -239,13 +269,13 @@ pub fn serialize_document_with_params(doc: &Document, params: &HashMap<String, S
     if include_all {
         for annotation in &doc.annotations {
             let ann_item = ContentItem::Annotation(annotation.clone());
-            result.push_str(&format_content_item(&ann_item, 1, include_all));
+            result.push_str(&format_content_item(&ann_item, 1, include_all, show_linum));
         }
     }
 
     // Show document children (flattened from root session)
     for child in &doc.root.children {
-        result.push_str(&format_content_item(child, 1, include_all));
+        result.push_str(&format_content_item(child, 1, include_all, show_linum));
     }
 
     result.push_str("</document>");
