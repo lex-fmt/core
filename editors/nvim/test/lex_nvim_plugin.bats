@@ -21,6 +21,12 @@ setup() {
     [[ "$output" =~ "TEST_PASSED" ]]
 }
 
+@test "Theme highlights" {
+    run nvim --headless -u "$CONFIG_INIT" -l "$SCRIPT_DIR/test_theme.lua"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "TEST_PASSED" ]]
+}
+
 @test "LSP hover functionality" {
     run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_lsp_hover.lua"
     [ "$status" -eq 0 ]
@@ -44,4 +50,3 @@ setup() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "TEST_PASSED" ]]
 }
-

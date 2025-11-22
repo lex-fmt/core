@@ -35,11 +35,14 @@ NVIM_APPNAME=lex-test nvim -u config/init.lua
 
 ### Headless Testing
 
-The plugin includes headless tests that can run without a UI:
+The plugin ships with a Bats test suite that runs Neovim headlessly:
 
 ```bash
-# Run all headless tests
-./test/run_headless.sh
+# Run all headless tests (pretty output)
+./test/run_suite.sh --format=simple
+
+# CI-friendly JUnit output
+./test/run_suite.sh --format=junit
 ```
 
 ### Interactive Testing
@@ -84,12 +87,32 @@ editors/nvim/
 ├── config/             # Minimal test configurations
 │   └── init.lua        # Bootstrap config for testing
 ├── lua/
-│   └── lex/            # Plugin code
-│       └── init.lua    # Main plugin entry point
+│   ├── lex/            # Plugin code
+│   │   └── init.lua    # Main plugin entry point
+│   └── themes/         # Light/Dark highlight themes
+│       ├── lex-dark.lua
+│       └── lex-light.lua
 ├── ftdetect/           # Filetype detection
 │   └── lex.lua
 └── test/               # Headless tests
-    └── run_headless.sh
+    ├── lex_nvim_plugin.bats
+    └── *.lua scripts used by Bats
+
+## Themes
+
+Lex uses dedicated themes that borrow the Markdown color palette to feel familiar while
+highlighting the extra structural cues Lex provides. Themes live in `lua/themes/` and are
+automatically selected based on `vim.o.background` (`lex-dark` for dark backgrounds,
+`lex-light` otherwise). To override this behavior:
+
+```lua
+require("lex").setup({
+  theme = "lex-dark",   -- or "lex-light"
+})
+
+-- Disable automatic theming entirely
+-- require("lex").setup({ theme = false })
+```
 ```
 
 ## Features
