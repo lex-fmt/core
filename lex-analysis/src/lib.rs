@@ -42,4 +42,5 @@
 //! let defs = navigation::find_definition(&document, position);
 //! ```
 
-// Module declarations will be added as we migrate features
+// Core utilities
+pub mod inline;
