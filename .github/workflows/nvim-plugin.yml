@@ -1,0 +1,55 @@
+name: Neovim Plugin
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test Neovim Plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "stable"
+
+      - name: Build lex-lsp
+        run: cargo build --bin lex-lsp
+
+      - name: Install Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Install BATS
+        uses: mig4/setup-bats@v1
+        with:
+          bats-version: 1.10.0
+
+      - name: Run Tests
+        run: |
+          chmod +x editors/nvim/test/run_suite.sh
+          ./editors/nvim/test/run_suite.sh --format=junit > test_results.xml
+          
+      - name: Display Test Results
+        if: always()
+        run: cat test_results.xml
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: "test_results.xml"
+
