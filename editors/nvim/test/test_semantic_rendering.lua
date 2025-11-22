@@ -91,10 +91,10 @@ end
 -- But the namespace existing and highlight groups being defined is enough
 -- to know that the rendering infrastructure is in place
 
--- Check that highlight groups are defined
+-- Check that highlight groups are defined (using new standard token types)
 local test_groups = {
-  "@lsp.type.lexSessionTitle",
-  "@lsp.type.lexInlineStrong",
+  "@lsp.type.markup.heading",  -- Session titles
+  "@lsp.type.markup.bold",     -- Inline strong, definition subjects
 }
 
 local all_defined = true
