@@ -412,7 +412,7 @@ fn collect_sessions_by_identifier<'a>(
         let title = session.title.as_string();
         let normalized_title = title.trim().to_ascii_lowercase();
         let title_matches =
-            normalized_title.starts_with(target) && has_session_boundary(&title, target.len());
+            normalized_title.starts_with(target) && has_session_boundary(title, target.len());
         let identifier_matches = session_identifier(session)
             .as_deref()
             .map(|id| id.to_ascii_lowercase() == target)

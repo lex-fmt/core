@@ -247,7 +247,7 @@ Cache:
                 _ => None,
             })
             .expect("definition header available");
-        assert!(ranges.iter().any(|range| *range == definition_header));
+        assert!(ranges.contains(&definition_header));
     }
 
     #[test]
