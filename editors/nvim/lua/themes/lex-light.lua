@@ -1,3 +1,11 @@
+-- Lex Light Theme for Neovim
+--
+-- This theme provides semantic token highlighting for .lex files via LSP.
+-- The LSP server emits standard semantic token types (markup.heading, markup.bold, etc.)
+-- which we link to markdown highlight groups for maximum theme compatibility.
+--
+-- See lex-lsp/src/features/semantic_tokens.rs for the LSP token mapping.
+
 local palette = {
   text = "#181818",
   dim = "#555f6d",
@@ -16,55 +24,53 @@ local palette = {
   verbatim_fg = "#000000",
 }
 
--- Map Lex semantic tokens to standard markdown highlight groups
--- Based on element mapping: Session→Heading, Definition→Bold+Colon, etc.
+-- Map LSP semantic tokens to markdown highlight groups
+-- LSP emits standard types like "markup.heading", "markup.bold", etc.
+-- These become @lsp.type.markup.heading, @lsp.type.markup.bold in Neovim
 local markdown_links = {
-  -- Session titles map to markdown headings
-  ["@lsp.type.lexSessionTitle"] = "markdownH1",
+  -- Headings (Session titles)
+  ["@lsp.type.markup.heading"] = "markdownH1",
 
-  -- Definition subjects map to bold term (as in **Term**: description pattern)
-  ["@lsp.type.lexDefinitionSubject"] = "markdownBold",
+  -- Bold text (Definition subjects, inline strong)
+  ["@lsp.type.markup.bold"] = "markdownBold",
 
-  -- List markers map directly
-  ["@lsp.type.lexListMarker"] = "markdownListMarker",
+  -- Italic text (inline emphasis)
+  ["@lsp.type.markup.italic"] = "markdownItalic",
 
-  -- Annotations map to HTML comments (not visible in rendered markdown)
-  ["@lsp.type.lexAnnotationLabel"] = "Comment",
-  ["@lsp.type.lexAnnotationParameter"] = "SpecialComment",
+  -- Underline (References, citations, footnotes)
+  ["@lsp.type.markup.underline"] = "markdownLinkText",
 
-  -- Inline formatting maps directly to markdown inlines
-  ["@lsp.type.lexInlineStrong"] = "markdownBold",
-  ["@lsp.type.lexInlineEmphasis"] = "markdownItalic",
-  ["@lsp.type.lexInlineCode"] = "markdownCode",
-  ["@lsp.type.lexInlineMath"] = "markdownMath",
+  -- String (inline code, verbatim blocks)
+  ["@lsp.type.string"] = "markdownCode",
 
-  -- References - Lex uses citations not URLs, so map to link text
-  ["@lsp.type.lexReference"] = "markdownLinkText",
-  ["@lsp.type.lexReferenceCitation"] = "markdownLinkText",
-  ["@lsp.type.lexReferenceFootnote"] = "markdownFootnote",
+  -- Number (math)
+  ["@lsp.type.number"] = "markdownMath",
 
-  -- Verbatim blocks map to code blocks
-  ["@lsp.type.lexVerbatimSubject"] = "markdownCodeBlock",
-  ["@lsp.type.lexVerbatimLanguage"] = "markdownCodeDelimiter",
-  ["@lsp.type.lexVerbatimAttribute"] = "SpecialComment",
+  -- Comment (annotations)
+  ["@lsp.type.comment"] = "Comment",
+
+  -- Parameter (annotation parameters, verbatim attributes)
+  ["@lsp.type.parameter"] = "SpecialComment",
+
+  -- Operator (list markers)
+  ["@lsp.type.operator"] = "markdownListMarker",
+
+  -- Type (verbatim language)
+  ["@lsp.type.type"] = "markdownCodeDelimiter",
 }
 
+-- Fallback colors if markdown groups don't exist
 local fallback = {
-  ["@lsp.type.lexSessionTitle"] = { fg = palette.heading, bold = true },
-  ["@lsp.type.lexDefinitionSubject"] = { fg = palette.bold, bold = true },
-  ["@lsp.type.lexListMarker"] = { fg = palette.list },
-  ["@lsp.type.lexAnnotationLabel"] = { fg = palette.annotation, italic = true },
-  ["@lsp.type.lexAnnotationParameter"] = { fg = palette.annotation_param },
-  ["@lsp.type.lexInlineStrong"] = { fg = palette.bold, bold = true },
-  ["@lsp.type.lexInlineEmphasis"] = { fg = palette.italic, italic = true },
-  ["@lsp.type.lexInlineCode"] = { fg = palette.code },
-  ["@lsp.type.lexInlineMath"] = { fg = palette.math },
-  ["@lsp.type.lexReference"] = { fg = palette.link, underline = true },
-  ["@lsp.type.lexReferenceCitation"] = { fg = palette.citation, underline = true },
-  ["@lsp.type.lexReferenceFootnote"] = { fg = palette.footnote },
-  ["@lsp.type.lexVerbatimSubject"] = { fg = palette.verbatim_fg, bg = palette.verbatim_bg },
-  ["@lsp.type.lexVerbatimLanguage"] = { fg = palette.code, italic = true },
-  ["@lsp.type.lexVerbatimAttribute"] = { fg = palette.annotation_param },
+  ["@lsp.type.markup.heading"] = { fg = palette.heading, bold = true },
+  ["@lsp.type.markup.bold"] = { fg = palette.bold, bold = true },
+  ["@lsp.type.markup.italic"] = { fg = palette.italic, italic = true },
+  ["@lsp.type.markup.underline"] = { fg = palette.link, underline = true },
+  ["@lsp.type.string"] = { fg = palette.code },
+  ["@lsp.type.number"] = { fg = palette.math },
+  ["@lsp.type.comment"] = { fg = palette.annotation, italic = true },
+  ["@lsp.type.parameter"] = { fg = palette.annotation_param },
+  ["@lsp.type.operator"] = { fg = palette.list },
+  ["@lsp.type.type"] = { fg = palette.code, italic = true },
 }
 
 local M = {}

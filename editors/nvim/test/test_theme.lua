@@ -13,10 +13,11 @@ local function has_highlight(group)
   return ok and (hl.link ~= nil or hl.fg ~= nil)
 end
 
+-- Test the new standard semantic token types
 local targets = {
-  "@lsp.type.lexSessionTitle",
-  "@lsp.type.lexInlineCode",
-  "@lsp.type.lexReference",
+  "@lsp.type.markup.heading",  -- Session titles
+  "@lsp.type.string",          -- Inline code, verbatim blocks
+  "@lsp.type.markup.underline",  -- References
 }
 
 for _, group in ipairs(targets) do
