@@ -55,6 +55,6 @@ pub mod hover;
 pub mod references;
 pub mod semantic_tokens;
 
-// Test support
-#[cfg(test)]
+// Test support (available in tests and as dev-dependency)
+#[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
