@@ -32,6 +32,12 @@ setup() {
     [[ "$output" =~ "TEST_PASSED" ]]
 }
 
+@test "LSP go-to-definition functionality" {
+    run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_lsp_definition.lua"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "TEST_PASSED" ]]
+}
+
 @test "LSP semantic tokens functionality" {
     run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_lsp_semantic_tokens.lua"
     [ "$status" -eq 0 ]
@@ -56,4 +62,15 @@ setup() {
     [[ "$output" =~ "TEST_PASSED" ]]
 }
 
+@test "LSP references functionality" {
+    run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_lsp_references.lua"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "TEST_PASSED" ]]
+}
+
+@test "LSP document links functionality" {
+    run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_lsp_document_links.lua"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "TEST_PASSED" ]]
+}
 

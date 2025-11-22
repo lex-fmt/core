@@ -1,19 +1,27 @@
-# Example .lex file for testing
+1. Introduction
 
-section: introduction
-  @tag: example
+    :: doc.note severity=info :: Example metadata.
 
-  This is a test document for the Lex language.
-  We use it to verify LSP functionality.
+    This is a test document for the Lex language.
+    We use it to verify LSP functionality.
 
-section: features
-  @tag: lsp
+2. Features
 
-  - Syntax highlighting
-  - Hover documentation
-  - Go to definition
-  - Symbol search
+    - Syntax highlighting
+    - Hover documentation
+    - Go to definition
+    - Symbol search
+    - References [Cache]
 
-section: conclusion
+    Useful resources include [https://example.com] and [./guide.lex].
 
-  The LSP integration should provide a smooth editing experience.
+    Cache:
+        A definition that mentions [Cache] again and points to [^note].
+
+    :: note ::
+        Definition reference footnote.
+    ::
+
+Notes
+
+1. Footnote note content.
