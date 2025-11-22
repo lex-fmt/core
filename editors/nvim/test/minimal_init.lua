@@ -79,7 +79,7 @@ vim.filetype.add({
 
 -- Load and setup the Lex plugin
 -- This minimal_init.lua bootstraps dependencies (lazy.nvim, lspconfig) and loads our plugin
--- The actual plugin logic (LSP config, semantic tokens, themes) is in lua/lex/init.lua
+-- The actual plugin logic (LSP config, semantic tokens) is in lua/lex/init.lua
 local project_root = vim.fn.fnamemodify(plugin_dir, ":h:h")
 local lex_lsp_path = project_root .. "/target/debug/lex-lsp"
 
@@ -96,7 +96,6 @@ local ok, lex = pcall(require, "lex")
 if ok then
   lex.setup({
     cmd = { lex_lsp_path },  -- Path to lex-lsp binary
-    theme = "lex-dark",      -- Apply lex-dark theme (or false to disable)
   })
 elseif vim.env.DEBUG_LEX_INIT then
   print("Failed to load lex plugin - semantic tokens won't work for .lex files")
