@@ -265,6 +265,13 @@ Design Principles:
 			- User presses gx (or clicks)
 			- Editor opens link in browser/viewer
 
+		Implementation Notes (Phase 2 delivery):
+
+			- Go to definition lives in lex-lsp/src/features/go_to_definition.rs and resolves footnotes, definitions, sessions, and citation keys directly from the AST. Unit tests cover each reference type.
+			- Find references is implemented in lex-lsp/src/features/references.rs by scanning inline spans, so references discovered while editing surface immediately. Tests assert both request-side filtering and includeDeclaration semantics.
+			- Document links reuse the parser’s DocumentLink extractor. The language server resolves relative file paths based on the buffer URI so gx opens the right file.
+			- Neovim’s headless test suite now exercises all three features via test_lsp_definition.lua, test_lsp_references.lua, and test_lsp_document_links.lua. These run as part of editors/nvim/test/lex_nvim_plugin.bats ensuring lua↔︎LSP wiring stays healthy.
+
 
 	2.3 Phase 3 Features (Future)
 

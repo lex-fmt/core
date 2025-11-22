@@ -1,27 +1,34 @@
 //! Main language server implementation
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
+use crate::features::document_links::collect_document_links;
 use crate::features::document_symbols::{collect_document_symbols, LexDocumentSymbol};
 use crate::features::folding_ranges::{folding_ranges as collect_folding_ranges, LexFoldingRange};
+use crate::features::go_to_definition::goto_definition;
 use crate::features::hover::{hover as compute_hover, HoverResult};
+use crate::features::references::find_references;
 use crate::features::semantic_tokens::{
     collect_semantic_tokens, LexSemanticToken, SEMANTIC_TOKEN_KINDS,
 };
+use lex_parser::lex::ast::links::{DocumentLink as AstDocumentLink, LinkType};
 use lex_parser::lex::ast::{Document, Position as AstPosition, Range as AstRange};
 use lex_parser::lex::parsing;
 use tokio::sync::RwLock;
 use tower_lsp::async_trait;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, FoldingRange, FoldingRangeParams,
-    FoldingRangeProviderCapability, Hover, HoverContents, HoverParams, HoverProviderCapability,
-    InitializeParams, InitializeResult, InitializedParams, MarkupContent, MarkupKind, OneOf,
-    Position, Range, SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensFullOptions,
-    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult,
-    ServerCapabilities, ServerInfo, TextDocumentItem, TextDocumentSyncCapability,
-    TextDocumentSyncKind, Url, WorkDoneProgressOptions,
+    DocumentLink, DocumentLinkOptions, DocumentLinkParams, DocumentSymbol, DocumentSymbolParams,
+    DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
+    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents, HoverParams,
+    HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams, Location,
+    MarkupContent, MarkupKind, OneOf, Position, Range, ReferenceParams, SemanticToken,
+    SemanticTokenType, SemanticTokens, SemanticTokensFullOptions, SemanticTokensLegend,
+    SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult, ServerCapabilities,
+    ServerInfo, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, Url,
+    WorkDoneProgressOptions,
 };
 use tower_lsp::Client;
 
@@ -33,6 +40,14 @@ pub trait FeatureProvider: Send + Sync + 'static {
     fn document_symbols(&self, document: &Document) -> Vec<LexDocumentSymbol>;
     fn folding_ranges(&self, document: &Document) -> Vec<LexFoldingRange>;
     fn hover(&self, document: &Document, position: AstPosition) -> Option<HoverResult>;
+    fn goto_definition(&self, document: &Document, position: AstPosition) -> Vec<AstRange>;
+    fn references(
+        &self,
+        document: &Document,
+        position: AstPosition,
+        include_declaration: bool,
+    ) -> Vec<AstRange>;
+    fn document_links(&self, document: &Document) -> Vec<AstDocumentLink>;
 }
 
 #[derive(Default)]
@@ -59,6 +74,23 @@ impl FeatureProvider for DefaultFeatureProvider {
 
     fn hover(&self, document: &Document, position: AstPosition) -> Option<HoverResult> {
         compute_hover(document, position)
+    }
+
+    fn goto_definition(&self, document: &Document, position: AstPosition) -> Vec<AstRange> {
+        goto_definition(document, position)
+    }
+
+    fn references(
+        &self,
+        document: &Document,
+        position: AstPosition,
+        include_declaration: bool,
+    ) -> Vec<AstRange> {
+        find_references(document, position, include_declaration)
+    }
+
+    fn document_links(&self, document: &Document) -> Vec<AstDocumentLink> {
+        collect_document_links(document)
     }
 }
 
@@ -151,6 +183,13 @@ fn to_lsp_range(range: &AstRange) -> Range {
     Range {
         start: to_lsp_position(&range.start),
         end: to_lsp_position(&range.end),
+    }
+}
+
+fn to_lsp_location(uri: &Url, range: &AstRange) -> Location {
+    Location {
+        uri: uri.clone(),
+        range: to_lsp_range(range),
     }
 }
 
@@ -280,6 +319,57 @@ fn to_lsp_folding_range(range: &LexFoldingRange) -> FoldingRange {
     }
 }
 
+fn build_document_link(uri: &Url, link: &AstDocumentLink) -> Option<DocumentLink> {
+    let target = link_target_uri(uri, link)?;
+    Some(DocumentLink {
+        range: to_lsp_range(&link.range),
+        target: Some(target),
+        tooltip: None,
+        data: None,
+    })
+}
+
+fn link_target_uri(document_uri: &Url, link: &AstDocumentLink) -> Option<Url> {
+    match link.link_type {
+        LinkType::Url => Url::parse(&link.target).ok(),
+        LinkType::File | LinkType::VerbatimSrc => {
+            resolve_file_like_target(document_uri, &link.target)
+        }
+    }
+}
+
+fn resolve_file_like_target(document_uri: &Url, target: &str) -> Option<Url> {
+    if target.is_empty() {
+        return None;
+    }
+    let path = Path::new(target);
+    if path.is_absolute() {
+        return Url::from_file_path(path).ok();
+    }
+    if document_uri.scheme() == "file" {
+        let mut base = document_uri.to_file_path().ok()?;
+        base.pop();
+        base.push(target);
+        Url::from_file_path(base).ok()
+    } else {
+        parent_directory_uri(document_uri).join(target).ok()
+    }
+}
+
+fn parent_directory_uri(uri: &Url) -> Url {
+    let mut base = uri.clone();
+    let mut path = base.path().to_string();
+    if let Some(idx) = path.rfind('/') {
+        path.truncate(idx + 1);
+    } else {
+        path.push('/');
+    }
+    base.set_path(&path);
+    base.set_query(None);
+    base.set_fragment(None);
+    base
+}
+
 #[async_trait]
 impl<C, P> tower_lsp::LanguageServer for LexLanguageServer<C, P>
 where
@@ -292,6 +382,12 @@ where
             hover_provider: Some(HoverProviderCapability::Simple(true)),
             document_symbol_provider: Some(OneOf::Left(true)),
             folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
+            definition_provider: Some(OneOf::Left(true)),
+            references_provider: Some(OneOf::Left(true)),
+            document_link_provider: Some(DocumentLinkOptions {
+                work_done_progress_options: WorkDoneProgressOptions::default(),
+                resolve_provider: Some(false),
+            }),
             semantic_tokens_provider: Some(
                 lsp_types::SemanticTokensServerCapabilities::SemanticTokensOptions(
                     SemanticTokensOptions {
@@ -393,6 +489,65 @@ where
             Ok(None)
         }
     }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        if let Some(document) = self.document(&uri).await {
+            let position = from_lsp_position(params.text_document_position_params.position);
+            let ranges = self.features.goto_definition(&document, position);
+            if ranges.is_empty() {
+                Ok(None)
+            } else {
+                let locations: Vec<Location> = ranges
+                    .iter()
+                    .map(|range| to_lsp_location(&uri, range))
+                    .collect();
+                Ok(Some(GotoDefinitionResponse::Array(locations)))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
+        let uri = params.text_document_position.text_document.uri;
+        if let Some(document) = self.document(&uri).await {
+            let position = from_lsp_position(params.text_document_position.position);
+            let include_declaration = params.context.include_declaration;
+            let ranges = self
+                .features
+                .references(&document, position, include_declaration);
+            if ranges.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(
+                    ranges
+                        .iter()
+                        .map(|range| to_lsp_location(&uri, range))
+                        .collect(),
+                ))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
+        let uri = params.text_document.uri;
+        if let Some(document) = self.document(&uri).await {
+            let links = self.features.document_links(&document);
+            let resolved: Vec<DocumentLink> = links
+                .iter()
+                .filter_map(|link| build_document_link(&uri, link))
+                .collect();
+            Ok(Some(resolved))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -403,8 +558,9 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
     use tower_lsp::lsp_types::{
-        DidOpenTextDocumentParams, DocumentSymbolParams, FoldingRangeKind, FoldingRangeParams,
-        HoverParams, Position, SemanticTokensParams, SymbolKind, TextDocumentIdentifier,
+        DidOpenTextDocumentParams, DocumentLinkParams, DocumentSymbolParams, FoldingRangeKind,
+        FoldingRangeParams, GotoDefinitionParams, HoverParams, Position, ReferenceContext,
+        ReferenceParams, SemanticTokensParams, SymbolKind, TextDocumentIdentifier,
         TextDocumentItem, TextDocumentPositionParams,
     };
     use tower_lsp::LanguageServer;
@@ -420,6 +576,10 @@ mod tests {
         hover_called: AtomicUsize,
         folding_called: AtomicUsize,
         last_hover_position: Mutex<Option<AstPosition>>,
+        definition_called: AtomicUsize,
+        references_called: AtomicUsize,
+        document_links_called: AtomicUsize,
+        last_references_include: Mutex<Option<bool>>,
     }
 
     impl FeatureProvider for MockFeatureProvider {
@@ -465,6 +625,39 @@ mod tests {
                 range: AstRange::new(0..5, AstPosition::new(0, 0), AstPosition::new(0, 5)),
                 contents: "hover".into(),
             })
+        }
+
+        fn goto_definition(&self, _: &Document, _: AstPosition) -> Vec<AstRange> {
+            self.definition_called.fetch_add(1, Ordering::SeqCst);
+            vec![AstRange::new(
+                0..5,
+                AstPosition::new(0, 0),
+                AstPosition::new(0, 5),
+            )]
+        }
+
+        fn references(
+            &self,
+            _: &Document,
+            _: AstPosition,
+            include_declaration: bool,
+        ) -> Vec<AstRange> {
+            self.references_called.fetch_add(1, Ordering::SeqCst);
+            *self.last_references_include.lock().unwrap() = Some(include_declaration);
+            vec![AstRange::new(
+                0..5,
+                AstPosition::new(0, 0),
+                AstPosition::new(0, 5),
+            )]
+        }
+
+        fn document_links(&self, _: &Document) -> Vec<AstDocumentLink> {
+            self.document_links_called.fetch_add(1, Ordering::SeqCst);
+            vec![AstDocumentLink::new(
+                AstRange::new(0..5, AstPosition::new(0, 0), AstPosition::new(0, 5)),
+                "https://example.com".to_string(),
+                LinkType::Url,
+            )]
         }
     }
 
@@ -653,6 +846,86 @@ mod tests {
 
         assert_eq!(provider.folding_called.load(Ordering::SeqCst), 1);
         assert_eq!(ranges.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn goto_definition_uses_feature_provider() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider.clone());
+        open_sample_document(&server).await;
+
+        let response = server
+            .goto_definition(GotoDefinitionParams {
+                text_document_position_params: TextDocumentPositionParams {
+                    text_document: TextDocumentIdentifier { uri: sample_uri() },
+                    position: Position::new(0, 0),
+                },
+                work_done_progress_params: Default::default(),
+                partial_result_params: Default::default(),
+            })
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(provider.definition_called.load(Ordering::SeqCst), 1);
+        match response {
+            GotoDefinitionResponse::Array(locations) => assert_eq!(locations.len(), 1),
+            _ => panic!("unexpected goto definition response"),
+        }
+    }
+
+    #[tokio::test]
+    async fn references_use_feature_provider() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider.clone());
+        open_sample_document(&server).await;
+
+        let result = server
+            .references(ReferenceParams {
+                text_document_position: TextDocumentPositionParams {
+                    text_document: TextDocumentIdentifier { uri: sample_uri() },
+                    position: Position::new(0, 0),
+                },
+                context: ReferenceContext {
+                    include_declaration: true,
+                },
+                work_done_progress_params: Default::default(),
+                partial_result_params: Default::default(),
+            })
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(provider.references_called.load(Ordering::SeqCst), 1);
+        assert_eq!(result.len(), 1);
+        assert_eq!(
+            *provider.last_references_include.lock().unwrap(),
+            Some(true)
+        );
+    }
+
+    #[tokio::test]
+    async fn document_links_use_feature_provider() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider.clone());
+        open_sample_document(&server).await;
+
+        let links = server
+            .document_link(DocumentLinkParams {
+                text_document: TextDocumentIdentifier { uri: sample_uri() },
+                work_done_progress_params: Default::default(),
+                partial_result_params: Default::default(),
+            })
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(provider.document_links_called.load(Ordering::SeqCst), 1);
+        assert_eq!(links.len(), 1);
+        assert_eq!(
+            links[0].target.as_ref().map(|url| url.as_str()),
+            Some("https://example.com/")
+        );
     }
 
     #[tokio::test]
