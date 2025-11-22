@@ -361,6 +361,23 @@ impl Session {
         self.children.find_nodes_at_position(position)
     }
 
+    /// Returns the path of nodes at the given position, starting from this session
+    pub fn node_path_at_position(&self, pos: Position) -> Vec<&dyn AstNode> {
+        let path = self.children.node_path_at_position(pos);
+        if !path.is_empty() {
+            let mut nodes: Vec<&dyn AstNode> = Vec::with_capacity(path.len() + 1);
+            nodes.push(self);
+            for item in path {
+                nodes.push(item);
+            }
+            nodes
+        } else if self.location.contains(pos) {
+            vec![self]
+        } else {
+            Vec::new()
+        }
+    }
+
     /// Formats information about nodes located at a given position
     pub fn format_at_position(&self, position: Position) -> String {
         self.children.format_at_position(position)

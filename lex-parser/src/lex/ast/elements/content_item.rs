@@ -383,6 +383,28 @@ impl ContentItem {
         }
     }
 
+    /// Find the path of nodes at the given position, starting from this item
+    /// Returns a vector of nodes [self, child, grandchild, ...]
+    pub fn node_path_at_position(&self, pos: Position) -> Vec<&ContentItem> {
+        // Check nested items first
+        if let Some(children) = self.children() {
+            for child in children {
+                let mut path = child.node_path_at_position(pos);
+                if !path.is_empty() {
+                    path.insert(0, self);
+                    return path;
+                }
+            }
+        }
+
+        // If no children matched, check if this item contains the position
+        if self.range().contains(pos) {
+            vec![self]
+        } else {
+            Vec::new()
+        }
+    }
+
     /// Recursively iterate all descendants of this node (depth-first pre-order)
     /// Does not include the node itself, only its descendants
     pub fn descendants(&self) -> Box<dyn Iterator<Item = &ContentItem> + '_> {
