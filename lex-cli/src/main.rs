@@ -27,6 +27,7 @@ mod transforms;
 
 use clap::{Arg, ArgAction, Command, ValueHint};
 use lex_babel::FormatRegistry;
+use lex_parser::lex::ast::{find_node_path_at_position, Position};
 use std::collections::HashMap;
 use std::fs;
 
@@ -212,6 +213,37 @@ fn build_cli() -> Command {
                         .value_hint(ValueHint::FilePath),
                 ),
         )
+        .subcommand(
+            Command::new("element-at")
+                .about("Get information about the element at a specific position")
+                .arg(
+                    Arg::new("path")
+                        .help("Path to the lex file")
+                        .required(true)
+                        .index(1)
+                        .value_hint(ValueHint::FilePath),
+                )
+                .arg(
+                    Arg::new("row")
+                        .help("Row number (1-based)")
+                        .required(true)
+                        .index(2)
+                        .value_parser(clap::value_parser!(usize)),
+                )
+                .arg(
+                    Arg::new("col")
+                        .help("Column number (1-based)")
+                        .required(true)
+                        .index(3)
+                        .value_parser(clap::value_parser!(usize)),
+                )
+                .arg(
+                    Arg::new("all")
+                        .long("all")
+                        .help("Show all ancestors")
+                        .action(ArgAction::SetTrue),
+                ),
+        )
 }
 
 fn main() {
@@ -290,6 +322,19 @@ fn main() {
             let output = sub_matches.get_one::<String>("output").map(|s| s.as_str());
             handle_convert_command(input, &from, to, output, &extra_params);
         }
+        Some(("element-at", sub_matches)) => {
+            let path = sub_matches
+                .get_one::<String>("path")
+                .expect("path is required");
+            let row = *sub_matches
+                .get_one::<usize>("row")
+                .expect("row is required");
+            let col = *sub_matches
+                .get_one::<usize>("col")
+                .expect("col is required");
+            let all = sub_matches.get_flag("all");
+            handle_element_at_command(path, row, col, all);
+        }
         _ => {
             eprintln!("Unknown subcommand. Use --help for usage information.");
             std::process::exit(1);
@@ -366,6 +411,42 @@ fn handle_convert_command(
         None => {
             print!("{}", result);
         }
+    }
+}
+
+/// Handle the element-at command
+fn handle_element_at_command(path: &str, row: usize, col: usize, all: bool) {
+    let source = fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Error reading file '{}': {}", path, e);
+        std::process::exit(1);
+    });
+
+    let registry = FormatRegistry::default();
+    let doc = registry.parse(&source, "lex").unwrap_or_else(|e| {
+        eprintln!("Parse error: {}", e);
+        std::process::exit(1);
+    });
+
+    // Convert 1-based to 0-based
+    let pos = Position::new(row.saturating_sub(1), col.saturating_sub(1));
+
+    let path_nodes = find_node_path_at_position(&doc, pos);
+
+    if path_nodes.is_empty() {
+        // If no element found, we might want to print something or just exit
+        // The requirement says "returns the element name..."
+        // If nothing found, maybe print nothing or error?
+        // I'll print a message for now.
+        eprintln!("No element found at {}:{}", row, col);
+        return;
+    }
+
+    if all {
+        for node in path_nodes {
+            println!("{}: {}", node.node_type(), node.display_label());
+        }
+    } else if let Some(node) = path_nodes.last() {
+        println!("{}: {}", node.node_type(), node.display_label());
     }
 }
 

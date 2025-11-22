@@ -652,6 +652,17 @@ impl<P: ContainerPolicy> Container<P> {
         None
     }
 
+    /// Returns the path of nodes at the given position
+    pub fn node_path_at_position(&self, pos: Position) -> Vec<&ContentItem> {
+        for item in &self.children {
+            let path = item.node_path_at_position(pos);
+            if !path.is_empty() {
+                return path;
+            }
+        }
+        Vec::new()
+    }
+
     /// Returns the deepest AST node at the given position, if any
     pub fn find_nodes_at_position(&self, position: Position) -> Vec<&dyn AstNode> {
         if let Some(item) = self.element_at(position) {
