@@ -111,6 +111,7 @@ pub mod error;
 pub mod format;
 pub mod formats;
 pub mod registry;
+pub mod transforms;
 
 pub mod common;
 pub mod ir;
