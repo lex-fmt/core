@@ -9,11 +9,24 @@ use crate::format::Format;
 use lex_parser::lex::ast::Document;
 use lex_parser::lex::transforms::standard::STRING_TO_AST;
 
-/// Format implementation for Lex
+pub mod formatting_rules;
+pub mod serializer;
+
+use formatting_rules::FormattingRules;
+use serializer::LexSerializer;
 ///
 /// Parses Lex source text into a Document AST by delegating to lex-parser.
-/// Serialization is not yet implemented (would require a proper Lex serializer).
-pub struct LexFormat;
+/// Serialization is implemented via LexSerializer.
+#[derive(Default)]
+pub struct LexFormat {
+    rules: FormattingRules,
+}
+
+impl LexFormat {
+    pub fn new(rules: FormattingRules) -> Self {
+        Self { rules }
+    }
+}
 
 impl Format for LexFormat {
     fn name(&self) -> &str {
@@ -33,7 +46,7 @@ impl Format for LexFormat {
     }
 
     fn supports_serialization(&self) -> bool {
-        false // TODO: Implement Lex serializer
+        true
     }
 
     fn parse(&self, source: &str) -> Result<Document, FormatError> {
@@ -42,12 +55,11 @@ impl Format for LexFormat {
             .map_err(|e| FormatError::ParseError(e.to_string()))
     }
 
-    fn serialize(&self, _doc: &Document) -> Result<String, FormatError> {
-        // TODO: Implement proper Lex serializer
-        // Could use detokenizer if tokens are preserved, or build a serializer from AST
-        Err(FormatError::NotSupported(
-            "Lex serialization not yet implemented".to_string(),
-        ))
+    fn serialize(&self, doc: &Document) -> Result<String, FormatError> {
+        let serializer = LexSerializer::new(self.rules.clone());
+        serializer
+            .serialize(doc)
+            .map_err(FormatError::SerializationError)
     }
 }
 
@@ -58,20 +70,20 @@ mod tests {
 
     #[test]
     fn test_lex_format_name() {
-        let format = LexFormat;
+        let format = LexFormat::default();
         assert_eq!(format.name(), "lex");
     }
 
     #[test]
     fn test_lex_format_supports_parsing() {
-        let format = LexFormat;
+        let format = LexFormat::default();
         assert!(format.supports_parsing());
-        assert!(!format.supports_serialization());
+        assert!(format.supports_serialization());
     }
 
     #[test]
     fn test_lex_format_parse_simple() {
-        let format = LexFormat;
+        let format = LexFormat::default();
         let source = "Hello world\n";
 
         let result = format.parse(source);
@@ -88,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_lex_format_parse_session() {
-        let format = LexFormat;
+        let format = LexFormat::default();
         let source = "Introduction:\n    Welcome to the guide\n";
 
         let result = format.parse(source);
@@ -102,7 +114,7 @@ mod tests {
 
     #[test]
     fn test_lex_format_parse_error() {
-        let format = LexFormat;
+        let format = LexFormat::default();
         // Create invalid Lex that would cause a parse error
         // Note: Current parser is very permissive, so this might not fail
         // But the test shows the error handling works
@@ -114,18 +126,14 @@ mod tests {
     }
 
     #[test]
-    fn test_lex_format_serialize_not_supported() {
-        let format = LexFormat;
+    fn test_lex_format_serialize_supported() {
+        let format = LexFormat::default();
         let doc = Document::with_content(vec![ContentItem::Paragraph(Paragraph::from_line(
             "Test".to_string(),
         ))]);
 
         let result = format.serialize(&doc);
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            FormatError::NotSupported(_) => {}
-            _ => panic!("Expected NotSupported error"),
-        }
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Test\n");
     }
 }

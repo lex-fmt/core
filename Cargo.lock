@@ -919,6 +919,7 @@ dependencies = [
  "insta",
  "lex-parser",
  "markup5ever_rcdom",
+ "serde",
 ]
 
 [[package]]

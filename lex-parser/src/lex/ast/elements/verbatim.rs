@@ -280,8 +280,11 @@ impl AstNode for Verbatim {
         visitor.visit_verbatim_block(self);
         // Visit all groups, not just the first
         for group in self.group() {
+            visitor.visit_verbatim_group(&group);
             super::super::traits::visit_children(visitor, group.children);
+            visitor.leave_verbatim_group(&group);
         }
+        visitor.leave_verbatim_block(self);
     }
 }
 

@@ -197,6 +197,7 @@
 mod ast_assertions;
 pub mod lexplore;
 mod matchers;
+pub mod text_diff;
 
 pub use ast_assertions::{
     assert_ast, AnnotationAssertion, ChildrenAssertion, ContentItemAssertion, DefinitionAssertion,
