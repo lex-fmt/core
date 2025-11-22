@@ -8,5 +8,6 @@ doctest = false
 
 [dependencies]
 lex-parser = { path = "../lex-parser" }
+lsp-types = "0.94"
 
 [dev-dependencies]
