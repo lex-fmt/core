@@ -25,6 +25,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "stable"
+          save-if: false
 
       - name: Build lex-lsp
         run: cargo build --bin lex-lsp
@@ -57,3 +58,7 @@ jobs:
         if: always()
         with:
           files: "test_results.xml"
+
+      - name: Cleanup test artifacts
+        if: always()
+        run: rm -rf target/tests
