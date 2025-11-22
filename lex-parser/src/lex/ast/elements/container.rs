@@ -652,6 +652,32 @@ impl<P: ContainerPolicy> Container<P> {
         None
     }
 
+    /// Returns the visual line element at the given position
+    ///
+    /// Returns the element representing a source line (TextLine, ListItem, VerbatimLine,
+    /// BlankLineGroup, or header nodes like Session/Definition).
+    pub fn visual_line_at(&self, pos: Position) -> Option<&ContentItem> {
+        for item in &self.children {
+            if let Some(result) = item.visual_line_at(pos) {
+                return Some(result);
+            }
+        }
+        None
+    }
+
+    /// Returns the block element at the given position
+    ///
+    /// Returns the shallowest block-level container element (Session, Definition, List,
+    /// Paragraph, Annotation, VerbatimBlock) that contains the position.
+    pub fn block_element_at(&self, pos: Position) -> Option<&ContentItem> {
+        for item in &self.children {
+            if let Some(result) = item.block_element_at(pos) {
+                return Some(result);
+            }
+        }
+        None
+    }
+
     /// Returns the path of nodes at the given position
     pub fn node_path_at_position(&self, pos: Position) -> Vec<&ContentItem> {
         for item in &self.children {
