@@ -77,25 +77,58 @@ fn to_alpha_upper(n: usize) -> String {
 }
 
 fn to_roman_lower(n: usize) -> String {
-    // Simple implementation for small numbers
+    // Convert to Roman numerals (lowercase) for common values
+    // Falls back to decimal for values > 20
     match n {
         1 => "i".to_string(),
         2 => "ii".to_string(),
         3 => "iii".to_string(),
         4 => "iv".to_string(),
         5 => "v".to_string(),
-        _ => n.to_string(), // Fallback
+        6 => "vi".to_string(),
+        7 => "vii".to_string(),
+        8 => "viii".to_string(),
+        9 => "ix".to_string(),
+        10 => "x".to_string(),
+        11 => "xi".to_string(),
+        12 => "xii".to_string(),
+        13 => "xiii".to_string(),
+        14 => "xiv".to_string(),
+        15 => "xv".to_string(),
+        16 => "xvi".to_string(),
+        17 => "xvii".to_string(),
+        18 => "xviii".to_string(),
+        19 => "xix".to_string(),
+        20 => "xx".to_string(),
+        _ => n.to_string(), // Fallback to decimal for larger numbers
     }
 }
 
 fn to_roman_upper(n: usize) -> String {
+    // Convert to Roman numerals (uppercase) for common values
+    // Falls back to decimal for values > 20
     match n {
         1 => "I".to_string(),
         2 => "II".to_string(),
         3 => "III".to_string(),
         4 => "IV".to_string(),
         5 => "V".to_string(),
-        _ => n.to_string(), // Fallback
+        6 => "VI".to_string(),
+        7 => "VII".to_string(),
+        8 => "VIII".to_string(),
+        9 => "IX".to_string(),
+        10 => "X".to_string(),
+        11 => "XI".to_string(),
+        12 => "XII".to_string(),
+        13 => "XIII".to_string(),
+        14 => "XIV".to_string(),
+        15 => "XV".to_string(),
+        16 => "XVI".to_string(),
+        17 => "XVII".to_string(),
+        18 => "XVIII".to_string(),
+        19 => "XIX".to_string(),
+        20 => "XX".to_string(),
+        _ => n.to_string(), // Fallback to decimal for larger numbers
     }
 }
 
@@ -178,15 +211,9 @@ impl Visitor for LexSerializer {
     }
 
     fn visit_list(&mut self, list: &List) {
-        let marker_type = if let Some(first) = list.items.iter().next() {
-            if let Some(item) = first.as_list_item() {
-                MarkerType::from_str(item.marker.as_string())
-            } else {
-                MarkerType::Bullet
-            }
-        } else {
-            MarkerType::Bullet
-        };
+        // Use the decoration_type helper to determine marker type
+        let marker_str = list.decoration_type();
+        let marker_type = MarkerType::from_str(marker_str);
 
         self.list_stack.push(ListContext {
             index: 1,

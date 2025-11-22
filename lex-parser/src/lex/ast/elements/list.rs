@@ -122,6 +122,19 @@ impl List {
     pub fn body_location(&self) -> Option<Range> {
         Range::bounding_box(self.items.iter().map(|item| item.range()))
     }
+
+    /// Determine the decoration type from the first list item's marker.
+    ///
+    /// This is a helper for formatters and serializers to determine
+    /// what kind of list this is (bullet, numbered, alphabetical, etc.)
+    pub fn decoration_type(&self) -> &str {
+        if let Some(first) = self.items.iter().next() {
+            if let Some(item) = first.as_list_item() {
+                return item.marker.as_string();
+            }
+        }
+        "-" // Default to bullet
+    }
 }
 
 impl AstNode for List {
