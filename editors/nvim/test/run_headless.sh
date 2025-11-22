@@ -52,6 +52,9 @@ echo ""
 run_test "Plugin loads successfully" "$SCRIPT_DIR/test_plugin_loads.lua"
 run_test "Filetype detection for .lex files" "$SCRIPT_DIR/test_filetype.lua"
 run_test "LSP hover functionality" "$SCRIPT_DIR/test_lsp_hover.lua" "$SCRIPT_DIR/minimal_init.lua"
+run_test "LSP semantic tokens functionality" "$SCRIPT_DIR/test_lsp_semantic_tokens.lua" "$SCRIPT_DIR/minimal_init.lua"
+run_test "LSP document symbols functionality" "$SCRIPT_DIR/test_lsp_document_symbols.lua" "$SCRIPT_DIR/minimal_init.lua"
+run_test "LSP folding ranges functionality" "$SCRIPT_DIR/test_lsp_folding_ranges.lua" "$SCRIPT_DIR/minimal_init.lua"
 
 # Summary
 echo ""
