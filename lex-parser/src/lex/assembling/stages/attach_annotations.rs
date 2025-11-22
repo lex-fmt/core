@@ -60,12 +60,12 @@ impl Default for AttachAnnotations {
 impl Runnable<Document, Document> for AttachAnnotations {
     fn run(&self, mut input: Document) -> Result<Document, TransformError> {
         attach_annotations_in_container(
-            &mut input.root.children,
+            input.root.children.as_mut_vec(),
             AnnotationSink::Enabled(&mut input.annotations),
             ContainerKind::DocumentRoot,
             ContainerSpan::from_range(&input.root.location),
         );
-        process_children(&mut input.root.children);
+        process_children(input.root.children.as_mut_vec());
         Ok(input)
     }
 }
@@ -79,52 +79,52 @@ fn process_children(children: &mut Vec<ContentItem>) {
         match item {
             ContentItem::Session(session) => {
                 attach_annotations_in_container(
-                    &mut session.children,
+                    session.children.as_mut_vec(),
                     AnnotationSink::Enabled(&mut session.annotations),
                     ContainerKind::Regular,
                     ContainerSpan::from_range(&session.location),
                 );
-                process_children(&mut session.children);
+                process_children(session.children.as_mut_vec());
             }
             ContentItem::Definition(definition) => {
                 attach_annotations_in_container(
-                    &mut definition.children,
+                    definition.children.as_mut_vec(),
                     AnnotationSink::Enabled(&mut definition.annotations),
                     ContainerKind::Regular,
                     ContainerSpan::from_range(&definition.location),
                 );
-                process_children(&mut definition.children);
+                process_children(definition.children.as_mut_vec());
             }
             ContentItem::ListItem(list_item) => {
                 attach_annotations_in_container(
-                    &mut list_item.children,
+                    list_item.children.as_mut_vec(),
                     AnnotationSink::Enabled(&mut list_item.annotations),
                     ContainerKind::Regular,
                     ContainerSpan::from_range(&list_item.location),
                 );
-                process_children(&mut list_item.children);
+                process_children(list_item.children.as_mut_vec());
             }
             ContentItem::List(list) => {
                 for item in list.items.iter_mut() {
                     if let ContentItem::ListItem(list_item) = item {
                         attach_annotations_in_container(
-                            &mut list_item.children,
+                            list_item.children.as_mut_vec(),
                             AnnotationSink::Enabled(&mut list_item.annotations),
                             ContainerKind::Regular,
                             ContainerSpan::from_range(&list_item.location),
                         );
-                        process_children(&mut list_item.children);
+                        process_children(list_item.children.as_mut_vec());
                     }
                 }
             }
             ContentItem::Annotation(annotation) => {
                 attach_annotations_in_container(
-                    &mut annotation.children,
+                    annotation.children.as_mut_vec(),
                     AnnotationSink::Disabled,
                     ContainerKind::Detached,
                     ContainerSpan::from_range(&annotation.location),
                 );
-                process_children(&mut annotation.children);
+                process_children(annotation.children.as_mut_vec());
             }
             _ => {}
         }
