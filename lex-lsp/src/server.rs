@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::features::document_links::collect_document_links;
 use crate::features::document_symbols::{collect_document_symbols, LexDocumentSymbol};
 use crate::features::folding_ranges::{folding_ranges as collect_folding_ranges, LexFoldingRange};
+use crate::features::formatting::{self, LineRange as FormattingLineRange, TextEditSpan};
 use crate::features::go_to_definition::goto_definition;
 use crate::features::hover::{hover as compute_hover, HoverResult};
 use crate::features::references::find_references;
@@ -14,21 +15,22 @@ use crate::features::semantic_tokens::{
     collect_semantic_tokens, LexSemanticToken, SEMANTIC_TOKEN_KINDS,
 };
 use lex_parser::lex::ast::links::{DocumentLink as AstDocumentLink, LinkType};
+use lex_parser::lex::ast::range::SourceLocation;
 use lex_parser::lex::ast::{Document, Position as AstPosition, Range as AstRange};
 use lex_parser::lex::parsing;
 use tokio::sync::RwLock;
 use tower_lsp::async_trait;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    DocumentLink, DocumentLinkOptions, DocumentLinkParams, DocumentSymbol, DocumentSymbolParams,
-    DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
-    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverContents, HoverParams,
-    HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams, Location,
-    MarkupContent, MarkupKind, OneOf, Position, Range, ReferenceParams, SemanticToken,
-    SemanticTokenType, SemanticTokens, SemanticTokensFullOptions, SemanticTokensLegend,
-    SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult, ServerCapabilities,
-    ServerInfo, TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, Url,
-    WorkDoneProgressOptions,
+    DocumentFormattingParams, DocumentLink, DocumentLinkOptions, DocumentLinkParams,
+    DocumentRangeFormattingParams, DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse,
+    FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
+    InitializeParams, InitializeResult, InitializedParams, Location, MarkupContent, MarkupKind,
+    OneOf, Position, Range, ReferenceParams, SemanticToken, SemanticTokenType, SemanticTokens,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
+    SemanticTokensResult, ServerCapabilities, ServerInfo, TextDocumentItem,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
 };
 use tower_lsp::Client;
 
@@ -48,6 +50,13 @@ pub trait FeatureProvider: Send + Sync + 'static {
         include_declaration: bool,
     ) -> Vec<AstRange>;
     fn document_links(&self, document: &Document) -> Vec<AstDocumentLink>;
+    fn format_document(&self, document: &Document, source: &str) -> Vec<TextEditSpan>;
+    fn format_range(
+        &self,
+        document: &Document,
+        source: &str,
+        range: FormattingLineRange,
+    ) -> Vec<TextEditSpan>;
 }
 
 #[derive(Default)]
@@ -91,6 +100,19 @@ impl FeatureProvider for DefaultFeatureProvider {
 
     fn document_links(&self, document: &Document) -> Vec<AstDocumentLink> {
         collect_document_links(document)
+    }
+
+    fn format_document(&self, document: &Document, source: &str) -> Vec<TextEditSpan> {
+        formatting::format_document(document, source)
+    }
+
+    fn format_range(
+        &self,
+        document: &Document,
+        source: &str,
+        range: FormattingLineRange,
+    ) -> Vec<TextEditSpan> {
+        formatting::format_range(document, source, range)
     }
 }
 
@@ -191,6 +213,32 @@ fn to_lsp_location(uri: &Url, range: &AstRange) -> Location {
         uri: uri.clone(),
         range: to_lsp_range(range),
     }
+}
+
+fn spans_to_text_edits(text: &str, spans: Vec<TextEditSpan>) -> Vec<TextEdit> {
+    if spans.is_empty() {
+        return Vec::new();
+    }
+    let locator = SourceLocation::new(text);
+    spans
+        .into_iter()
+        .map(|span| TextEdit {
+            range: Range {
+                start: to_lsp_position(&locator.byte_to_position(span.start)),
+                end: to_lsp_position(&locator.byte_to_position(span.end)),
+            },
+            new_text: span.new_text,
+        })
+        .collect()
+}
+
+fn to_formatting_line_range(range: &Range) -> FormattingLineRange {
+    let start = range.start.line as usize;
+    let mut end = range.end.line as usize;
+    if range.end.character > 0 || end == start {
+        end += 1;
+    }
+    FormattingLineRange { start, end }
 }
 
 fn from_lsp_position(position: Position) -> AstPosition {
@@ -388,6 +436,8 @@ where
                 work_done_progress_options: WorkDoneProgressOptions::default(),
                 resolve_provider: Some(false),
             }),
+            document_formatting_provider: Some(OneOf::Left(true)),
+            document_range_formatting_provider: Some(OneOf::Left(true)),
             semantic_tokens_provider: Some(
                 lsp_types::SemanticTokensServerCapabilities::SemanticTokensOptions(
                     SemanticTokensOptions {
@@ -548,6 +598,34 @@ where
             Ok(None)
         }
     }
+
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document.uri;
+        if let Some(entry) = self.document_entry(&uri).await {
+            let DocumentEntry { document, text } = entry;
+            let edits = self.features.format_document(&document, text.as_str());
+            Ok(Some(spans_to_text_edits(text.as_str(), edits)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn range_formatting(
+        &self,
+        params: DocumentRangeFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document.uri;
+        if let Some(entry) = self.document_entry(&uri).await {
+            let DocumentEntry { document, text } = entry;
+            let line_range = to_formatting_line_range(&params.range);
+            let edits = self
+                .features
+                .format_range(&document, text.as_str(), line_range);
+            Ok(Some(spans_to_text_edits(text.as_str(), edits)))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -558,8 +636,9 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
     use tower_lsp::lsp_types::{
-        DidOpenTextDocumentParams, DocumentLinkParams, DocumentSymbolParams, FoldingRangeKind,
-        FoldingRangeParams, GotoDefinitionParams, HoverParams, Position, ReferenceContext,
+        DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLinkParams,
+        DocumentRangeFormattingParams, DocumentSymbolParams, FoldingRangeKind, FoldingRangeParams,
+        FormattingOptions, GotoDefinitionParams, HoverParams, Position, Range, ReferenceContext,
         ReferenceParams, SemanticTokensParams, SymbolKind, TextDocumentIdentifier,
         TextDocumentItem, TextDocumentPositionParams,
     };
@@ -580,6 +659,8 @@ mod tests {
         references_called: AtomicUsize,
         document_links_called: AtomicUsize,
         last_references_include: Mutex<Option<bool>>,
+        formatting_called: AtomicUsize,
+        range_formatting_called: AtomicUsize,
     }
 
     impl FeatureProvider for MockFeatureProvider {
@@ -658,6 +739,24 @@ mod tests {
                 "https://example.com".to_string(),
                 LinkType::Url,
             )]
+        }
+
+        fn format_document(&self, _: &Document, _: &str) -> Vec<TextEditSpan> {
+            self.formatting_called.fetch_add(1, Ordering::SeqCst);
+            vec![TextEditSpan {
+                start: 0,
+                end: 0,
+                new_text: "formatted".into(),
+            }]
+        }
+
+        fn format_range(&self, _: &Document, _: &str, _: FormattingLineRange) -> Vec<TextEditSpan> {
+            self.range_formatting_called.fetch_add(1, Ordering::SeqCst);
+            vec![TextEditSpan {
+                start: 0,
+                end: 0,
+                new_text: "range".into(),
+            }]
         }
     }
 
@@ -926,6 +1025,52 @@ mod tests {
             links[0].target.as_ref().map(|url| url.as_str()),
             Some("https://example.com/")
         );
+    }
+
+    #[tokio::test]
+    async fn formatting_uses_feature_provider() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider.clone());
+        open_sample_document(&server).await;
+
+        let edits = server
+            .formatting(DocumentFormattingParams {
+                text_document: TextDocumentIdentifier { uri: sample_uri() },
+                options: FormattingOptions::default(),
+                work_done_progress_params: Default::default(),
+            })
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(provider.formatting_called.load(Ordering::SeqCst), 1);
+        assert_eq!(edits.len(), 1);
+        assert_eq!(edits[0].new_text, "formatted");
+    }
+
+    #[tokio::test]
+    async fn range_formatting_uses_feature_provider() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider.clone());
+        open_sample_document(&server).await;
+
+        let edits = server
+            .range_formatting(DocumentRangeFormattingParams {
+                text_document: TextDocumentIdentifier { uri: sample_uri() },
+                range: Range {
+                    start: Position::new(0, 0),
+                    end: Position::new(0, 0),
+                },
+                options: FormattingOptions::default(),
+                work_done_progress_params: Default::default(),
+            })
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(provider.range_formatting_called.load(Ordering::SeqCst), 1);
+        assert_eq!(edits.len(), 1);
+        assert_eq!(edits[0].new_text, "range");
     }
 
     #[tokio::test]

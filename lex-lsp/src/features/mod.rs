@@ -2,6 +2,7 @@ pub(crate) mod document_links;
 pub mod document_symbols;
 pub(crate) mod document_utils;
 pub mod folding_ranges;
+pub mod formatting;
 pub(crate) mod go_to_definition;
 pub mod hover;
 pub mod inline;
