@@ -620,19 +620,6 @@
     - Integration tests verify wiring, not output
     - Documentation explains formatting rules and configuration
 
-13. Future Work
-
-    After initial implementation:
-
-    - Configuration file support (`.lexformat` or similar)
-    - Format-on-save in editors via LSP
-    - Range formatting (format selection only)
-    - Custom formatting rules per project
-    - Format verification in CI (check if formatted)
-    - Diff-based formatting (only changed sections)
-    - Performance optimization for large documents
-    - Incremental formatting (only dirty sections)
-
 14. Design Decisions
 
     These questions were resolved during design:
