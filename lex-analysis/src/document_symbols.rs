@@ -169,7 +169,7 @@ fn summarize_text(text: &TextContent, fallback: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test_support::sample_document;
+    use crate::test_support::sample_document;
 
     fn find_symbol<'a>(symbols: &'a [LexDocumentSymbol], name: &str) -> &'a LexDocumentSymbol {
         symbols

@@ -1,8 +1,8 @@
-use crate::features::document_utils::{
+use crate::inline::InlineSpanKind;
+use crate::reference_targets::{targets_from_reference_type, ReferenceTarget};
+use crate::utils::{
     find_definitions_by_subject, find_sessions_by_identifier, reference_span_at_position,
 };
-use crate::features::inline::InlineSpanKind;
-use crate::features::reference_targets::{targets_from_reference_type, ReferenceTarget};
 use lex_parser::lex::ast::traits::AstNode;
 use lex_parser::lex::ast::{Document, Position, Range};
 

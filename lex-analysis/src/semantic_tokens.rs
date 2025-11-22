@@ -1,4 +1,4 @@
-use crate::features::inline::{extract_inline_spans, InlineSpanKind};
+use crate::inline::{extract_inline_spans, InlineSpanKind};
 use lex_parser::lex::ast::{
     Annotation, ContentItem, Definition, Document, List, ListItem, Paragraph, Range, Session,
     TextContent, Verbatim,
@@ -273,7 +273,7 @@ impl TokenCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test_support::{sample_document, sample_source};
+    use crate::test_support::{sample_document, sample_source};
     use lex_parser::lex::testing::lexplore::Lexplore;
 
     fn snippets(

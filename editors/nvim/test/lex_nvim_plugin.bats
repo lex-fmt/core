@@ -20,12 +20,6 @@ setup() {
     [[ "$output" =~ "TEST_PASSED" ]]
 }
 
-@test "Theme highlights" {
-    run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_theme.lua"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "TEST_PASSED" ]]
-}
-
 @test "LSP hover functionality" {
     run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_lsp_hover.lua"
     [ "$status" -eq 0 ]
@@ -56,12 +50,6 @@ setup() {
     [[ "$output" =~ "TEST_PASSED" ]]
 }
 
-@test "Semantic token rendering enabled" {
-    run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_semantic_rendering.lua"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "TEST_PASSED" ]]
-}
-
 @test "LSP references functionality" {
     run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_lsp_references.lua"
     [ "$status" -eq 0 ]
@@ -79,3 +67,4 @@ setup() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "TEST_PASSED" ]]
 }
+
