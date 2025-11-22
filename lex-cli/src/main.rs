@@ -220,22 +220,16 @@ fn build_cli() -> Command {
                     "Format a lex file using standard formatting rules.\n\n\
                     This command parses the input lex file and re-serializes it,\n\
                     applying standard indentation and spacing rules.\n\n\
+                    Output is always written to stdout.\n\n\
                     Examples:\n  \
                     lex format input.lex                  # Format to stdout\n  \
-                    lex format input.lex -o formatted.lex # Format to file"
+                    lex format input.lex > formatted.lex  # Redirect to file"
                 )
                 .arg(
                     Arg::new("input")
                         .help("Input file path")
                         .required(true)
                         .index(1)
-                        .value_hint(ValueHint::FilePath),
-                )
-                .arg(
-                    Arg::new("output")
-                        .long("output")
-                        .short('o')
-                        .help("Output file path (defaults to stdout)")
                         .value_hint(ValueHint::FilePath),
                 ),
         )
@@ -352,8 +346,8 @@ fn main() {
             let input = sub_matches
                 .get_one::<String>("input")
                 .expect("input is required");
-            let output = sub_matches.get_one::<String>("output").map(|s| s.as_str());
-            handle_convert_command(input, "lex", "lex", output, &extra_params);
+            // Format command always outputs to stdout (no -o flag)
+            handle_convert_command(input, "lex", "lex", None, &extra_params);
         }
         Some(("element-at", sub_matches)) => {
             let path = sub_matches
