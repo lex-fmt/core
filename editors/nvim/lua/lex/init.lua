@@ -23,11 +23,6 @@ M.version = "0.1.0"
 function M.setup(opts)
   opts = opts or {}
 
-  -- Debug: print opts.cmd if DEBUG_LEX_INIT is set
-  if vim.env.DEBUG_LEX_INIT then
-    print("lex.setup() called with opts.cmd: " .. vim.inspect(opts.cmd))
-  end
-
   -- Register .lex filetype
   vim.filetype.add({
     extension = {
