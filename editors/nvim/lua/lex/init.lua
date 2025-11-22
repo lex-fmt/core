@@ -4,12 +4,10 @@
 -- This plugin provides LSP integration for Lex documents, including:
 -- - Automatic LSP server registration and connection
 -- - Semantic token highlighting (parser-driven, not regex-based)
--- - Theme support with Markdown-inspired color schemes
 -- - Filetype detection for .lex files
 --
 -- Usage:
 --   require("lex").setup({
---     theme = "lex-dark",  -- or "lex-light", or false to disable
 --     cmd = {"lex-lsp"},   -- command to start LSP server
 --   })
 --
@@ -17,19 +15,6 @@
 -- See docs/dev/guides/lsp-plugins.lex for detailed design documentation
 
 local M = {}
-
-local function apply_theme(theme_name)
-  if theme_name == false then
-    return
-  end
-
-  local default_theme = (vim.o.background == "light") and "lex-light" or "lex-dark"
-  local selected = theme_name or default_theme
-  local ok, theme = pcall(require, "themes." .. selected)
-  if ok and type(theme.apply) == "function" then
-    theme.apply()
-  end
-end
 
 -- Plugin version
 M.version = "0.1.0"
@@ -44,8 +29,6 @@ function M.setup(opts)
       lex = "lex",
     },
   })
-
-  apply_theme(opts.theme)
 
   -- Setup LSP if lspconfig is available
   local ok, lspconfig = pcall(require, "lspconfig")
