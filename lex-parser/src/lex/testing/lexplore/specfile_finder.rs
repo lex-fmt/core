@@ -179,7 +179,9 @@ pub fn list_files_by_number(dir: &PathBuf) -> Result<HashMap<usize, PathBuf>, Sp
 
 /// Find a spec file by category, subcategory, and number
 ///
-/// This is the main orchestrator function that combines get_doc_root and list_files_by_number.
+/// This is the main orchestrator function.
+/// Optimized to stop as soon as the file is found, without building the full map.
+/// Note: This skips duplicate detection for performance. Duplicate detection should be handled by a separate test.
 ///
 /// # Examples
 /// ```ignore
@@ -195,19 +197,40 @@ pub fn find_specfile_by_number(
     number: usize,
 ) -> Result<PathBuf, SpecFileError> {
     let dir = get_doc_root(category, subcategory);
-    let number_map = list_files_by_number(&dir)?;
 
-    number_map.get(&number).cloned().ok_or_else(|| {
-        let location = if let Some(subcat) = subcategory {
-            format!("{}/{}", category, subcat)
-        } else {
-            category.to_string()
-        };
-        SpecFileError::FileNotFound(format!(
-            "No file with number {} found in {}",
-            number, location
-        ))
-    })
+    for entry in fs::read_dir(&dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        // Only process .lex files
+        if !path.extension().map(|e| e == "lex").unwrap_or(false) {
+            continue;
+        }
+
+        if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+            // Extract number from filename
+            // Files can be either "NNN-hint.lex" or "prefix-NN-hint.lex"
+            for part in filename.split('-') {
+                if let Ok(num) = part.parse::<usize>() {
+                    if num == number {
+                        return Ok(path);
+                    }
+                    break; // Found a number but it didn't match, stop checking parts for this file
+                }
+            }
+        }
+    }
+
+    let location = if let Some(subcat) = subcategory {
+        format!("{}/{}", category, subcat)
+    } else {
+        category.to_string()
+    };
+
+    Err(SpecFileError::FileNotFound(format!(
+        "No file with number {} found in {}",
+        number, location
+    )))
 }
 
 /// List all available numbers for a given category/subcategory

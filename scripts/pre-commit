@@ -236,5 +236,19 @@ if [ -n "$STAGED_FILES" ]; then
     fi
 fi
 
+# 9. Run Neovim plugin tests
+echo ""
+echo "vim 🧪 Running Neovim plugin tests..."
+if command -v bats >/dev/null 2>&1; then
+    if ! ./editors/nvim/test/run_suite.sh --format=simple; then
+        echo "❌ Neovim plugin tests failed!"
+        exit 1
+    fi
+    echo "✅ Neovim plugin tests passed"
+else
+    echo "⚠️  Skipping Neovim plugin tests (bats not installed)"
+    echo "💡 Install bats-core to run these tests"
+fi
+
 echo ""
 echo "🎉 All pre-commit checks passed! Ready to commit."

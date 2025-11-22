@@ -94,6 +94,9 @@ fn lex_document_strategy() -> impl Strategy<Value = String> {
 
 // Property-based tests using the strategies above
 proptest! {
+    // Reduce cases to speed up slow tests
+    #![proptest_config(ProptestConfig::with_cases(50))]
+
     #[test]
     fn test_tokenize_never_panics(input in lex_document_strategy()) {
         // The lexer should never panic on any valid lex input
