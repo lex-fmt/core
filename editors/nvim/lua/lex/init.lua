@@ -11,6 +11,16 @@
 --     cmd = {"lex-lsp"},   -- command to start LSP server
 --   })
 --
+-- KNOWN LIMITATIONS:
+-- - Verbatim blocks (code blocks) do not have embedded language syntax highlighting.
+--   The block structure (:: python label) is highlighted, but the content inside
+--   gets generic "string" highlighting instead of Python syntax highlighting.
+--   This limitation exists because embedded language support requires either:
+--   1. A Lex treesitter grammar with injection queries (like markdown's injections.scm)
+--   2. LSP protocol extensions for embedded content (not yet standardized)
+--   Traditional vim syntax files with 'syntax include' are not used as Lex relies
+--   entirely on LSP semantic tokens for highlighting.
+--
 -- See docs/dev/nvim-fasttrack.lex for architecture overview
 -- See docs/dev/guides/lsp-plugins.lex for detailed design documentation
 
