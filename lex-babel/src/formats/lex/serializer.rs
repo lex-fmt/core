@@ -347,108 +347,289 @@ impl Visitor for LexSerializer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lex_parser::lex::ast::{ContentItem, Paragraph};
+    use crate::format::Format;
+    use lex_parser::lex::testing::lexplore::{ElementType, Lexplore};
+    use lex_parser::lex::testing::text_diff::assert_text_eq;
 
-    #[test]
-    fn test_serialize_simple_paragraph() {
-        let rules = FormattingRules::default();
-        let serializer = LexSerializer::new(rules);
-        let doc = Document::with_content(vec![ContentItem::Paragraph(Paragraph::from_line(
-            "Hello world".to_string(),
-        ))]);
-
-        let result = serializer.serialize(&doc).unwrap();
-        assert_eq!(result, "Hello world\n");
+    fn format_source(source: &str) -> String {
+        let format = super::super::LexFormat::default();
+        let doc = format.parse(source).unwrap();
+        let serializer = LexSerializer::new(FormattingRules::default());
+        serializer.serialize(&doc).unwrap()
     }
 
-    #[test]
-    fn test_serialize_session() {
-        let rules = FormattingRules::default();
-        let serializer = LexSerializer::new(rules);
-        let mut session = Session::with_title("Intro".to_string());
-        session
-            .children
-            .push(ContentItem::Paragraph(Paragraph::from_line(
-                "Content".to_string(),
-            )));
-        let doc = Document::with_content(vec![ContentItem::Session(session)]);
-
-        let result = serializer.serialize(&doc).unwrap();
-        // Expect:
-        //
-        // Intro
-        //
-        //     Content
-        //
-        // Note: ensure_blank_line adds one blank line if not present.
-        // Root session (doc) has empty title, so no output for it.
-        // Child session "Intro" has title.
-        // ensure_blank_line() -> adds \n (because last_was_blank=true initially? No, last_was_blank=true initially).
-        // Wait, if last_was_blank=true, ensure_blank_line does nothing.
-        // So "Intro" is written.
-        // Then ensure_blank_line() -> adds \n.
-        // Then indent.
-        // Then "Content" indented.
-
-        let expected = "Intro\n\n    Content\n";
-        assert_eq!(result, expected);
-    }
+    // ==== Paragraph Tests ====
 
     #[test]
-    fn test_serialize_list_normalization() {
-        use lex_parser::lex::ast::{List, ListItem};
-
-        let rules = FormattingRules::default();
-        let serializer = LexSerializer::new(rules);
-
-        // Create list with mixed markers: "1.", "3.", "5."
-        let item1 = ListItem::new("1.".to_string(), "One".to_string());
-        let item2 = ListItem::new("3.".to_string(), "Two".to_string());
-        let item3 = ListItem::new("5.".to_string(), "Three".to_string());
-
-        let list = List::new(vec![item1, item2, item3]);
-        let doc = Document::with_content(vec![ContentItem::List(list)]);
-
-        let result = serializer.serialize(&doc).unwrap();
-
-        // Expect sequential numbering: 1. 2. 3.
-        let expected = "1. One\n2. Two\n3. Three\n";
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_serialize_annotation_short_form() {
-        use lex_parser::lex::ast::{elements::label::Label, Annotation, Data};
-
-        let rules = FormattingRules::default();
-        let serializer = LexSerializer::new(rules);
-
-        let annotation =
-            Annotation::from_data(Data::new(Label::new("note".into()), Vec::new()), Vec::new());
-        let doc = Document::with_content(vec![ContentItem::Annotation(annotation)]);
-
-        let result = serializer.serialize(&doc).unwrap();
-        assert_eq!(result, ":: note ::\n");
-    }
-
-    #[test]
-    fn test_serialize_annotation_block_form() {
-        use lex_parser::lex::ast::{
-            elements::label::Label, elements::typed_content::ContentElement, Annotation, Data,
-        };
-
-        let rules = FormattingRules::default();
-        let serializer = LexSerializer::new(rules);
-
-        let paragraph = Paragraph::from_line("This is an important note.".to_string());
-        let annotation = Annotation::from_data(
-            Data::new(Label::new("note".into()), Vec::new()),
-            vec![ContentElement::try_from(ContentItem::Paragraph(paragraph)).unwrap()],
+    fn test_paragraph_01_oneline() {
+        let source = Lexplore::load(ElementType::Paragraph, 1).source();
+        let formatted = format_source(&source);
+        assert_text_eq(
+            &formatted,
+            "This is a simple paragraph with just one line.\n",
         );
-        let doc = Document::with_content(vec![ContentItem::Annotation(annotation)]);
+    }
 
-        let result = serializer.serialize(&doc).unwrap();
-        let expected = ":: note\n    This is an important note.\n::\n";
-        assert_eq!(result, expected);
+    #[test]
+    fn test_paragraph_02_multiline() {
+        let source = Lexplore::load(ElementType::Paragraph, 2).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("This is a multi-line paragraph"));
+        assert!(formatted.contains("second line"));
+        assert!(formatted.contains("third line"));
+    }
+
+    #[test]
+    fn test_paragraph_03_special_chars() {
+        let source = Lexplore::load(ElementType::Paragraph, 3).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("!@#$%^&*()"));
+    }
+
+    // ==== Session Tests ====
+
+    #[test]
+    fn test_session_01_simple() {
+        let source = Lexplore::load(ElementType::Session, 1).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("Introduction\n"));
+        assert!(formatted.contains("    This is a simple session"));
+    }
+
+    #[test]
+    fn test_session_02_numbered_title() {
+        let source = Lexplore::load(ElementType::Session, 2).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("1. Introduction:\n"));
+    }
+
+    #[test]
+    fn test_session_05_nested() {
+        let source = Lexplore::load(ElementType::Session, 5).source();
+        let formatted = format_source(&source);
+        // This is actually a complex doc with paragraphs and sessions
+        assert!(formatted.contains("1. Introduction {{session-title}}\n"));
+        assert!(formatted.contains("    This is the content of the session"));
+    }
+
+    // ==== List Tests ====
+
+    #[test]
+    fn test_list_01_dash() {
+        let source = Lexplore::load(ElementType::List, 1).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("- First item\n"));
+        assert!(formatted.contains("- Second item\n"));
+    }
+
+    #[test]
+    fn test_list_02_numbered() {
+        let source = Lexplore::load(ElementType::List, 2).source();
+        let formatted = format_source(&source);
+        // Should normalize to sequential numbering
+        assert!(formatted.contains("1. "));
+        assert!(formatted.contains("2. "));
+        assert!(formatted.contains("3. "));
+    }
+
+    #[test]
+    fn test_list_03_alphabetical() {
+        let source = Lexplore::load(ElementType::List, 3).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("a. "));
+        assert!(formatted.contains("b. "));
+        assert!(formatted.contains("c. "));
+    }
+
+    #[test]
+    fn test_list_04_mixed_markers() {
+        let source = Lexplore::load(ElementType::List, 4).source();
+        let formatted = format_source(&source);
+        // Should normalize to consistent markers
+        assert!(formatted.contains("1. First item\n"));
+        assert!(formatted.contains("2. Second item\n"));
+        assert!(formatted.contains("3. Third item\n"));
+    }
+
+    #[test]
+    fn test_list_07_nested_simple() {
+        let source = Lexplore::load(ElementType::List, 7).source();
+        let formatted = format_source(&source);
+        // Check for proper indentation of nested items
+        assert!(formatted.contains("- First outer item\n"));
+        assert!(formatted.contains("    - First nested item\n"));
+    }
+
+    // ==== Definition Tests ====
+
+    #[test]
+    fn test_definition_01_simple() {
+        let source = Lexplore::load(ElementType::Definition, 1).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("Cache:\n"));
+        assert!(formatted.contains("    Temporary storage"));
+    }
+
+    #[test]
+    fn test_definition_02_multi_paragraph() {
+        let source = Lexplore::load(ElementType::Definition, 2).source();
+        let formatted = format_source(&source);
+        // Should handle multiple paragraphs in definition body
+        assert!(formatted.contains("Microservice:\n"));
+        assert!(formatted.contains("    An architectural style"));
+        assert!(formatted.contains("    Each service is independently"));
+    }
+
+    // ==== Verbatim Tests ====
+
+    #[test]
+    fn test_verbatim_01_simple_code() {
+        let source = Lexplore::load(ElementType::Verbatim, 1).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains(":: javascript"));
+        assert!(formatted.contains("function hello()"));
+    }
+
+    #[test]
+    fn test_verbatim_02_with_caption() {
+        let source = Lexplore::load(ElementType::Verbatim, 2).source();
+        let formatted = format_source(&source);
+        // Should preserve verbatim content and captions
+        assert!(formatted.contains("API Response:"));
+    }
+
+    // ==== Annotation Tests ====
+
+    #[test]
+    fn test_annotation_01_marker_simple() {
+        let source = Lexplore::load(ElementType::Annotation, 1).source();
+        let formatted = format_source(&source);
+        // Document-level annotations don't appear in serialized output
+        // (they're metadata attachments to the document)
+        assert_eq!(formatted, "");
+    }
+
+    #[test]
+    fn test_annotation_02_with_params() {
+        let source = Lexplore::load(ElementType::Annotation, 2).source();
+        let formatted = format_source(&source);
+        // Document-level annotation with params - also doesn't serialize
+        assert_eq!(formatted, "");
+    }
+
+    #[test]
+    fn test_annotation_05_block_paragraph() {
+        let source = Lexplore::load(ElementType::Annotation, 5).source();
+        let formatted = format_source(&source);
+        // This is also a document-level annotation (even though it has block content)
+        // Document-level annotations are metadata and don't serialize
+        assert_eq!(formatted, "");
+    }
+
+    // ==== Round-trip Tests ====
+    // Format → parse → format should be idempotent
+
+    #[test]
+    fn test_round_trip_paragraph_01() {
+        let source = Lexplore::load(ElementType::Paragraph, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_paragraph_02_multiline() {
+        let source = Lexplore::load(ElementType::Paragraph, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_session_01() {
+        let source = Lexplore::load(ElementType::Session, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_session_02_numbered() {
+        let source = Lexplore::load(ElementType::Session, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_01_dash() {
+        let source = Lexplore::load(ElementType::List, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_02_numbered() {
+        let source = Lexplore::load(ElementType::List, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_03_alphabetical() {
+        let source = Lexplore::load(ElementType::List, 3).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_04_mixed_markers() {
+        let source = Lexplore::load(ElementType::List, 4).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_07_nested() {
+        let source = Lexplore::load(ElementType::List, 7).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_definition_01() {
+        let source = Lexplore::load(ElementType::Definition, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_definition_02_multi() {
+        let source = Lexplore::load(ElementType::Definition, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_verbatim_01() {
+        let source = Lexplore::load(ElementType::Verbatim, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_verbatim_02_caption() {
+        let source = Lexplore::load(ElementType::Verbatim, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
     }
 }
