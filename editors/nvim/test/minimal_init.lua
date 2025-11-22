@@ -32,6 +32,28 @@ require("lazy").setup({
   },
 })
 
+-- Wait for lazy to finish installing plugins (critical for CI)
+local start_time = vim.loop.hrtime()
+local timeout_seconds = 120 -- Wait up to 2 minutes in CI
+local timeout_ns = timeout_seconds * 1e9
+
+while true do
+  -- Check if lspconfig can be required
+  local status, _ = pcall(require, "lspconfig")
+  if status then
+    break
+  end
+
+  -- Check for timeout
+  if (vim.loop.hrtime() - start_time) > timeout_ns then
+    print("ERROR: Timed out waiting for lspconfig to install")
+    vim.cmd("cquit 1")
+  end
+
+  -- Wait a bit to let lazy.nvim background tasks run
+  vim.wait(100)
+end
+
 -- Filetype detection for .lex files
 vim.filetype.add({
   extension = {
