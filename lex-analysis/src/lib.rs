@@ -44,4 +44,5 @@
 
 // Core utilities
 pub mod inline;
+pub mod reference_targets;
 pub mod utils;
