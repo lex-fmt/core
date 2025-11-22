@@ -84,8 +84,7 @@
 //!     Core Features (Phase 4):
 //!
 //!         8. Diagnostics (textDocument/publishDiagnostics):
-//!             - Indentation errors (breaking the indentation wall)
-//!             - Malformed structures (single-item lists, unclosed verbatim blocks)
+//!             - Indentation errors (breaking the indentation wall, 1 offs)
 //!             - Broken references (footnote/citation not found)
 //!             - Invalid annotation syntax
 //!

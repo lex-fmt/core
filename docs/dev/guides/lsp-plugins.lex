@@ -273,9 +273,9 @@ Design Principles:
 			- Neovim’s headless test suite now exercises all three features via test_lsp_definition.lua, test_lsp_references.lua, and test_lsp_document_links.lua. These run as part of editors/nvim/test/lex_nvim_plugin.bats ensuring lua↔︎LSP wiring stays healthy.
 
 
-	2.3 Phase 3 Features (Future)
+	2.3 Phase 3 Features (Complete)
 
-		These features add document manipulation.
+		The formatter closes the loop by letting editors fix structural issues without dropping to the CLI.
 
 
 		2.3.1 Document Formatting (textDocument/formatting)
@@ -289,10 +289,10 @@ Design Principles:
 			- Fix session number spacing
 
 			Implementation approach (lex-lsp/src/features/formatting.rs):
-			- Parse document into AST
-			- Walk AST identifying formatting issues
-			- Generate TextEdit operations to fix each issue
-			- Return Vec<TextEdit> for client to apply
+			- Parse document into AST and re-serialize it with lex-babel’s canonical rules
+			- Compute TextEdit spans by diffing the original text against the formatted copy using similar::TextDiff
+				- Encode edits as LSP TextEdit records and return Vec<TextEdit>
+			- Unit tests cover indentation-only docs, range filtering, and no-op scenarios
 
 			Challenges:
 			- Preserve user's indentation style (tabs vs spaces)
@@ -301,17 +301,18 @@ Design Principles:
 			- Provide incremental formatting (range formatting)
 
 			Editor side:
-			- User runs :Format or saves with format-on-save
-			- Client sends textDocument/formatting
-			- Editor applies returned TextEdit operations
+			- Users run :lua vim.lsp.buf.format() or hit <leader>lf (provided by the Neovim plugin)
+			- Headless test_lsp_formatting.lua mutates fixtures, calls vim.lsp.buf.format(), and verifies the buffer matches the lex CLI output to prove the Lua↔︎LSP↔︎formatter chain
 
 
 		2.3.2 Range Formatting (textDocument/rangeFormatting)
 
 			Purpose: Format only selected region of document.
 
-			Same as document formatting, but constrained to a range.
-			Useful for fixing one section without touching rest of file.
+			Implementation details:
+			- Server filters TextEdit spans so only lines intersecting the user’s selection move
+			- When edits overlap the range boundaries the server slices the edit payload so content outside the selection stays untouched
+			- The Neovim test suite visual-selects half the fixture, runs vim.lsp.buf.range_formatting(), and asserts the untouched prefix/suffix still match the original buffer
 
 
 	2.4 Phase 4 Features (Future)
