@@ -40,6 +40,10 @@ jobs:
         test -f scripts/pre-commit
         test -x scripts/pre-commit
 
+    - name: Cleanup test artifacts
+      if: always()
+      run: rm -rf target/tests
+
   documentation:
     name: Documentation build
     runs-on: ubuntu-latest
@@ -55,6 +59,7 @@ jobs:
       with:
         shared-key: "stable"
         cache-on-failure: true
+        save-if: false
 
     - name: Build documentation
       run: cargo doc --workspace --no-deps --all-features
