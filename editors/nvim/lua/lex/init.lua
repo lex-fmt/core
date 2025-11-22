@@ -1,5 +1,20 @@
 -- Lex Neovim plugin
 -- Main entry point for the Lex language plugin
+--
+-- This plugin provides LSP integration for Lex documents, including:
+-- - Automatic LSP server registration and connection
+-- - Semantic token highlighting (parser-driven, not regex-based)
+-- - Theme support with Markdown-inspired color schemes
+-- - Filetype detection for .lex files
+--
+-- Usage:
+--   require("lex").setup({
+--     theme = "lex-dark",  -- or "lex-light", or false to disable
+--     cmd = {"lex-lsp"},   -- command to start LSP server
+--   })
+--
+-- See docs/dev/nvim-fasttrack.lex for architecture overview
+-- See docs/dev/guides/lsp-plugins.lex for detailed design documentation
 
 local M = {}
 
