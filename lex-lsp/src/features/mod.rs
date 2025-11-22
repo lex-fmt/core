@@ -1,14 +1,8 @@
+// LSP-specific features (use diff algorithm, TextEdit, etc.)
 pub(crate) mod document_links;
-pub mod document_symbols;
-pub(crate) mod document_utils;
-pub mod folding_ranges;
 pub mod formatting;
-pub(crate) mod go_to_definition;
-pub mod hover;
-pub mod inline;
-pub(crate) mod reference_targets;
-pub(crate) mod references;
-pub mod semantic_tokens;
 
-#[cfg(test)]
-pub(crate) mod test_support;
+// Re-export analysis features from lex-analysis
+pub use lex_analysis::{
+    document_symbols, folding_ranges, go_to_definition, hover, references, semantic_tokens,
+};

@@ -6,6 +6,9 @@ edition = "2021"
 [lib]
 doctest = false
 
+[features]
+test-support = []
+
 [dependencies]
 lex-parser = { path = "../lex-parser" }
 lsp-types = "0.94"
