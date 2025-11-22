@@ -11,8 +11,9 @@
         Session-level annotation body.
     ::
 
-    - Bullet item referencing [42]
+    - Bullet item referencing [1]
     - Nested bullet
+
         Nested paragraph inside list.
 
     CLI Example:
@@ -20,10 +21,7 @@
         lex serve
     :: shell language=bash
 
-:: 42 ::
-    Footnote forty two for bullet.
-::
-
-:: source ::
-    Footnote referenced in text.
-::
+Notes
+    
+1. Footnote forty two for bullet.
+2. Footnote referenced in text.
