@@ -123,6 +123,7 @@ impl AstNode for Definition {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_definition(self);
         super::super::traits::visit_children(visitor, &self.children);
+        visitor.leave_definition(self);
     }
 }
 

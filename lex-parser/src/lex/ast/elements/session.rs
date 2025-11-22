@@ -562,6 +562,7 @@ impl AstNode for Session {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_session(self);
         super::super::traits::visit_children(visitor, &self.children);
+        visitor.leave_session(self);
     }
 }
 

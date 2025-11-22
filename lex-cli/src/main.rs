@@ -214,6 +214,32 @@ fn build_cli() -> Command {
                 ),
         )
         .subcommand(
+            Command::new("format")
+                .about("Format a lex file")
+                .long_about(
+                    "Format a lex file using standard formatting rules.\n\n\
+                    This command parses the input lex file and re-serializes it,\n\
+                    applying standard indentation and spacing rules.\n\n\
+                    Examples:\n  \
+                    lex format input.lex                  # Format to stdout\n  \
+                    lex format input.lex -o formatted.lex # Format to file"
+                )
+                .arg(
+                    Arg::new("input")
+                        .help("Input file path")
+                        .required(true)
+                        .index(1)
+                        .value_hint(ValueHint::FilePath),
+                )
+                .arg(
+                    Arg::new("output")
+                        .long("output")
+                        .short('o')
+                        .help("Output file path (defaults to stdout)")
+                        .value_hint(ValueHint::FilePath),
+                ),
+        )
+        .subcommand(
             Command::new("element-at")
                 .about("Get information about the element at a specific position")
                 .arg(
@@ -321,6 +347,13 @@ fn main() {
 
             let output = sub_matches.get_one::<String>("output").map(|s| s.as_str());
             handle_convert_command(input, &from, to, output, &extra_params);
+        }
+        Some(("format", sub_matches)) => {
+            let input = sub_matches
+                .get_one::<String>("input")
+                .expect("input is required");
+            let output = sub_matches.get_one::<String>("output").map(|s| s.as_str());
+            handle_convert_command(input, "lex", "lex", output, &extra_params);
         }
         Some(("element-at", sub_matches)) => {
             let path = sub_matches
