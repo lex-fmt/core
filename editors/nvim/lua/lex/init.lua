@@ -51,8 +51,26 @@ function M.setup(opts)
       }
     end
 
-    -- Auto-start LSP for .lex files
-    lspconfig.lex_lsp.setup(opts.lsp_config or {})
+    -- Auto-start LSP for .lex files with semantic token support
+    local lsp_config = opts.lsp_config or {}
+    local user_on_attach = lsp_config.on_attach
+
+    lsp_config.on_attach = function(client, bufnr)
+      -- CRITICAL: Enable semantic token highlighting for .lex files
+      -- .lex files don't use traditional Vim syntax files - they rely on LSP semantic tokens
+      -- Without this call, .lex files will fall back to generic C syntax (wrong highlighting)
+      -- or show no highlighting at all. This must be called in on_attach after LSP connects.
+      if client.server_capabilities.semanticTokensProvider then
+        vim.lsp.semantic_tokens.start(bufnr, client.id)
+      end
+
+      -- Preserve user's on_attach callback if they provided one
+      if user_on_attach then
+        user_on_attach(client, bufnr)
+      end
+    end
+
+    lspconfig.lex_lsp.setup(lsp_config)
   end
 
   -- Setup autocommands for .lex files
