@@ -43,6 +43,15 @@ trap "rm -f $TEMP_SCRIPT" EXIT
 cat > "$TEMP_SCRIPT" <<'EOF'
 local project_root = "PROJECT_ROOT_PLACEHOLDER"
 
+-- Add plugin directory to runtimepath so we can load theme modules
+-- This allows require("themes.lex-dark") to work in the on_attach callback
+local plugin_dir = project_root .. "/editors/nvim"
+vim.opt.rtp:prepend(plugin_dir)
+
+-- Enable colors and syntax highlighting for visual testing
+vim.opt.termguicolors = true  -- Required for 24-bit colors in themes
+vim.cmd("syntax on")           -- Required for syntax highlighting
+
 -- Set up LSP
 local lspconfig_ok, lspconfig = pcall(require, "lspconfig")
 if not lspconfig_ok then
@@ -78,6 +87,20 @@ local lsp_attached = false
 lspconfig.lex_lsp.setup({
   on_attach = function(client, bufnr)
     lsp_attached = true
+
+    -- CRITICAL: Enable semantic token highlighting for .lex files
+    -- .lex files rely on LSP semantic tokens (not traditional syntax files)
+    -- Without this, you'll see either wrong highlighting (C syntax) or no highlighting
+    if client.server_capabilities.semanticTokensProvider then
+      vim.lsp.semantic_tokens.start(bufnr, client.id)
+    end
+
+    -- Apply theme to define highlight groups for semantic tokens
+    -- The theme maps semantic token types to colors (@lsp.type.lexSessionTitle, etc.)
+    local ok, theme = pcall(require, "themes.lex-dark")
+    if ok and type(theme.apply) == "function" then
+      theme.apply()
+    end
   end,
 })
 
