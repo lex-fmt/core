@@ -939,10 +939,12 @@ dependencies = [
 name = "lex-lsp"
 version = "0.1.0"
 dependencies = [
+ "lex-babel",
  "lex-parser",
  "lsp-types",
  "serde",
  "serde_json",
+ "similar",
  "tokio",
  "tower-lsp",
 ]

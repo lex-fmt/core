@@ -32,6 +32,9 @@ jobs:
       - name: Build lex-lsp
         run: cargo build --bin lex-lsp
 
+      - name: Build lex CLI
+        run: cargo build --bin lex
+
       - name: Install Neovim
         uses: rhysd/action-setup-vim@v1
         with:

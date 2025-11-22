@@ -84,6 +84,12 @@ function M.setup(opts)
         vim.lsp.semantic_tokens.start(bufnr, client.id)
       end
 
+      if client.server_capabilities.documentFormattingProvider then
+        vim.keymap.set("n", "<leader>lf", function()
+          vim.lsp.buf.format({ async = true })
+        end, { buffer = bufnr, desc = "Format current Lex document" })
+      end
+
       -- Preserve user's on_attach callback if they provided one
       if user_on_attach then
         user_on_attach(client, bufnr)
