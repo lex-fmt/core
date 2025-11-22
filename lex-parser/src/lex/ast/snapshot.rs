@@ -16,7 +16,9 @@
 
 use super::trait_helpers::get_visual_header;
 use super::traits::{AstNode, Container};
-use super::{Annotation, ContentItem, Definition, Document, List, ListItem, Paragraph, Session};
+use super::{
+    Annotation, ContentItem, Definition, Document, List, ListItem, Paragraph, Range, Session,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -32,17 +34,21 @@ pub struct AstSnapshot {
     /// Additional attributes specific to the node type
     pub attributes: HashMap<String, String>,
 
+    /// The source range of the node
+    pub range: Range,
+
     /// Child nodes in the tree
     pub children: Vec<AstSnapshot>,
 }
 
 impl AstSnapshot {
     /// Create a new snapshot with the given node type and label
-    pub fn new(node_type: String, label: String) -> Self {
+    pub fn new(node_type: String, label: String, range: Range) -> Self {
         Self {
             node_type,
             label,
             attributes: HashMap::new(),
+            range,
             children: Vec::new(),
         }
     }
@@ -86,7 +92,7 @@ pub fn snapshot_node<T: AstNode>(node: &T) -> AstSnapshot {
     // The solution: use ContentItem enum variants directly in callers
     // See snapshot_from_content below
 
-    AstSnapshot::new(node_type.to_string(), label)
+    AstSnapshot::new(node_type.to_string(), label, node.range().clone())
 }
 
 /// Build snapshot from a concrete ContentItem enum
@@ -108,14 +114,22 @@ pub fn snapshot_from_content_with_options(item: &ContentItem, include_all: bool)
         ContentItem::ListItem(li) => build_list_item_snapshot(li, include_all),
         ContentItem::Definition(def) => build_definition_snapshot(def, include_all),
         ContentItem::VerbatimBlock(fb) => build_verbatim_block_snapshot(fb, include_all),
-        ContentItem::VerbatimLine(fl) => {
-            AstSnapshot::new("VerbatimLine".to_string(), fl.display_label())
-        }
+        ContentItem::VerbatimLine(fl) => AstSnapshot::new(
+            "VerbatimLine".to_string(),
+            fl.display_label(),
+            fl.range().clone(),
+        ),
         ContentItem::Annotation(ann) => build_annotation_snapshot(ann, include_all),
-        ContentItem::TextLine(tl) => AstSnapshot::new("TextLine".to_string(), tl.display_label()),
-        ContentItem::BlankLineGroup(blg) => {
-            AstSnapshot::new("BlankLineGroup".to_string(), blg.display_label())
-        }
+        ContentItem::TextLine(tl) => AstSnapshot::new(
+            "TextLine".to_string(),
+            tl.display_label(),
+            tl.range().clone(),
+        ),
+        ContentItem::BlankLineGroup(blg) => AstSnapshot::new(
+            "BlankLineGroup".to_string(),
+            blg.display_label(),
+            blg.range().clone(),
+        ),
     }
 }
 
@@ -144,6 +158,7 @@ pub fn snapshot_from_document_with_options(doc: &Document, include_all: bool) ->
             doc.annotations.len(),
             doc.root.children.len()
         ),
+        doc.root.range().clone(),
     );
 
     // If include_all is true, include document-level annotations
@@ -168,14 +183,20 @@ pub fn snapshot_from_document_with_options(doc: &Document, include_all: bool) ->
 
 fn build_session_snapshot(session: &Session, include_all: bool) -> AstSnapshot {
     let item = ContentItem::Session(session.clone());
-    let mut snapshot = AstSnapshot::new("Session".to_string(), session.display_label());
+    let mut snapshot = AstSnapshot::new(
+        "Session".to_string(),
+        session.display_label(),
+        session.range().clone(),
+    );
 
     // If include_all, use trait helper to get visual header
     if include_all {
         if let Some(header) = get_visual_header(&item) {
-            snapshot
-                .children
-                .push(AstSnapshot::new("SessionTitle".to_string(), header));
+            snapshot.children.push(AstSnapshot::new(
+                "SessionTitle".to_string(),
+                header,
+                session.range().clone(), // Title shares range with session for now
+            ));
         }
     }
 
@@ -199,7 +220,11 @@ fn build_session_snapshot(session: &Session, include_all: bool) -> AstSnapshot {
 }
 
 fn build_paragraph_snapshot(para: &Paragraph, include_all: bool) -> AstSnapshot {
-    let mut snapshot = AstSnapshot::new("Paragraph".to_string(), para.display_label());
+    let mut snapshot = AstSnapshot::new(
+        "Paragraph".to_string(),
+        para.display_label(),
+        para.range().clone(),
+    );
     for line in &para.lines {
         snapshot
             .children
@@ -209,7 +234,11 @@ fn build_paragraph_snapshot(para: &Paragraph, include_all: bool) -> AstSnapshot 
 }
 
 fn build_list_snapshot(list: &List, include_all: bool) -> AstSnapshot {
-    let mut snapshot = AstSnapshot::new("List".to_string(), list.display_label());
+    let mut snapshot = AstSnapshot::new(
+        "List".to_string(),
+        list.display_label(),
+        list.range().clone(),
+    );
     for item in &list.items {
         snapshot
             .children
@@ -219,19 +248,25 @@ fn build_list_snapshot(list: &List, include_all: bool) -> AstSnapshot {
 }
 
 fn build_list_item_snapshot(item: &ListItem, include_all: bool) -> AstSnapshot {
-    let mut snapshot = AstSnapshot::new("ListItem".to_string(), item.display_label());
+    let mut snapshot = AstSnapshot::new(
+        "ListItem".to_string(),
+        item.display_label(),
+        item.range().clone(),
+    );
 
     // If include_all, show the marker and text
     if include_all {
         snapshot.children.push(AstSnapshot::new(
             "Marker".to_string(),
             item.marker.as_string().to_string(),
+            item.range().clone(), // Marker shares range with item for now
         ));
 
         for text_part in item.text.iter() {
             snapshot.children.push(AstSnapshot::new(
                 "Text".to_string(),
                 text_part.as_string().to_string(),
+                item.range().clone(), // Text shares range with item for now
             ));
         }
 
@@ -255,14 +290,20 @@ fn build_list_item_snapshot(item: &ListItem, include_all: bool) -> AstSnapshot {
 
 fn build_definition_snapshot(def: &Definition, include_all: bool) -> AstSnapshot {
     let item = ContentItem::Definition(def.clone());
-    let mut snapshot = AstSnapshot::new("Definition".to_string(), def.display_label());
+    let mut snapshot = AstSnapshot::new(
+        "Definition".to_string(),
+        def.display_label(),
+        def.range().clone(),
+    );
 
     // If include_all, use trait helper to get visual header
     if include_all {
         if let Some(header) = get_visual_header(&item) {
-            snapshot
-                .children
-                .push(AstSnapshot::new("Subject".to_string(), header));
+            snapshot.children.push(AstSnapshot::new(
+                "Subject".to_string(),
+                header,
+                def.range().clone(), // Subject shares range with definition for now
+            ));
         }
 
         // Show definition annotations
@@ -285,14 +326,20 @@ fn build_definition_snapshot(def: &Definition, include_all: bool) -> AstSnapshot
 
 fn build_annotation_snapshot(ann: &Annotation, include_all: bool) -> AstSnapshot {
     let item = ContentItem::Annotation(ann.clone());
-    let mut snapshot = AstSnapshot::new("Annotation".to_string(), ann.display_label());
+    let mut snapshot = AstSnapshot::new(
+        "Annotation".to_string(),
+        ann.display_label(),
+        ann.range().clone(),
+    );
 
     // If include_all, use trait helper for label, keep parameter handling special
     if include_all {
         if let Some(header) = get_visual_header(&item) {
-            snapshot
-                .children
-                .push(AstSnapshot::new("Label".to_string(), header));
+            snapshot.children.push(AstSnapshot::new(
+                "Label".to_string(),
+                header,
+                ann.range().clone(), // Label shares range with annotation for now
+            ));
         }
 
         // Parameters need special handling (not in Container trait)
@@ -300,6 +347,7 @@ fn build_annotation_snapshot(ann: &Annotation, include_all: bool) -> AstSnapshot
             snapshot.children.push(AstSnapshot::new(
                 "Parameter".to_string(),
                 format!("{}={}", param.key, param.value),
+                ann.range().clone(), // Parameter shares range with annotation for now
             ));
         }
     }
@@ -317,7 +365,7 @@ fn build_verbatim_block_snapshot(fb: &super::Verbatim, include_all: bool) -> Ast
     let group_count = fb.group_len();
     let group_word = if group_count == 1 { "group" } else { "groups" };
     let label = format!("{} ({} {})", fb.display_label(), group_count, group_word);
-    let mut snapshot = AstSnapshot::new("VerbatimBlock".to_string(), label);
+    let mut snapshot = AstSnapshot::new("VerbatimBlock".to_string(), label, fb.range().clone());
 
     for (idx, group) in fb.group().enumerate() {
         let label = if group_count == 1 {
@@ -330,7 +378,11 @@ fn build_verbatim_block_snapshot(fb: &super::Verbatim, include_all: bool) -> Ast
                 group_count
             )
         };
-        let mut group_snapshot = AstSnapshot::new("VerbatimGroup".to_string(), label);
+        let mut group_snapshot = AstSnapshot::new(
+            "VerbatimGroup".to_string(),
+            label,
+            fb.range().clone(), // Group shares range with block for now
+        );
         for child in group.children.iter() {
             group_snapshot
                 .children

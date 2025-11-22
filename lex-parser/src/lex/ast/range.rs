@@ -26,11 +26,12 @@
 //!
 //! See `src/lex/building/location.rs` for the canonical location conversion and aggregation utilities.
 
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Range as ByteRange;
 
 /// Represents a position in source code (line and column)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Position {
     pub line: usize,
     pub column: usize,
@@ -55,7 +56,7 @@ impl Default for Position {
 }
 
 /// Represents a location in source code (start and end positions)
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Range {
     pub span: ByteRange<usize>,
     pub start: Position,
