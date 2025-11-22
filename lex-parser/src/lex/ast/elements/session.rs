@@ -356,6 +356,16 @@ impl Session {
         self.children.element_at(pos)
     }
 
+    /// Returns the visual line element at the given position
+    pub fn visual_line_at(&self, pos: Position) -> Option<&ContentItem> {
+        self.children.visual_line_at(pos)
+    }
+
+    /// Returns the block element at the given position
+    pub fn block_element_at(&self, pos: Position) -> Option<&ContentItem> {
+        self.children.block_element_at(pos)
+    }
+
     /// Returns the deepest AST node at the given position, if any
     pub fn find_nodes_at_position(&self, position: Position) -> Vec<&dyn AstNode> {
         self.children.find_nodes_at_position(position)

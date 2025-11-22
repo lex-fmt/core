@@ -54,6 +54,10 @@ while true do
   vim.wait(100)
 end
 
+-- Enable a basic colorscheme for visual testing
+vim.cmd("colorscheme default")
+vim.opt.termguicolors = true
+
 -- Filetype detection for .lex files
 vim.filetype.add({
   extension = {

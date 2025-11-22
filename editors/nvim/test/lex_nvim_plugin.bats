@@ -50,3 +50,10 @@ setup() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "TEST_PASSED" ]]
 }
+
+@test "Semantic token rendering enabled" {
+    run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_semantic_rendering.lua"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "TEST_PASSED" ]]
+}
+

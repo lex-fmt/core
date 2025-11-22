@@ -23,6 +23,10 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 
+-- Enable colors for visual testing
+vim.opt.termguicolors = true
+vim.cmd("syntax on")
+
 -- Setup lazy.nvim with minimal plugins for LSP support
 require("lazy").setup({
   -- LSP config
@@ -38,8 +42,33 @@ require("lazy").setup({
       require("mason").setup()
       require("mason-lspconfig").setup()
 
-      -- Setup LSP capabilities
+      -- Setup LSP capabilities with semantic tokens support
       local capabilities = vim.lsp.protocol.make_client_capabilities()
+      capabilities.textDocument.semanticTokens = {
+        dynamicRegistration = false,
+        tokenTypes = {
+          "lexSessionTitle",
+          "lexDefinitionSubject",
+          "lexListMarker",
+          "lexAnnotationLabel",
+          "lexAnnotationParameter",
+          "lexInlineStrong",
+          "lexInlineEmphasis",
+          "lexInlineCode",
+          "lexInlineMath",
+          "lexReference",
+          "lexReferenceCitation",
+          "lexReferenceFootnote",
+          "lexVerbatimSubject",
+          "lexVerbatimLanguage",
+          "lexVerbatimAttribute",
+        },
+        tokenModifiers = {},
+        formats = { "relative" },
+        requests = {
+          full = true,
+        },
+      }
 
       -- Register the Lex LSP server
       local lspconfig = require("lspconfig")
@@ -74,6 +103,18 @@ require("lazy").setup({
           vim.keymap.set('n', 'gr', vim.lsp.buf.references, bufopts)
           vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, bufopts)
           vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, bufopts)
+
+          -- Enable semantic token highlighting
+          if client.server_capabilities.semanticTokensProvider then
+            vim.lsp.semantic_tokens.start(bufnr, client.id)
+          end
+
+          -- Apply Lex theme when LSP attaches
+          local theme_name = (vim.o.background == "light") and "lex-light" or "lex-dark"
+          local ok, theme = pcall(require, "themes." .. theme_name)
+          if ok and type(theme.apply) == "function" then
+            theme.apply()
+          end
         end,
       })
     end,

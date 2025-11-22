@@ -32,3 +32,4 @@ fi
 
 exec bats "$TEST_FILE" --formatter "$FORMATTER"
 
+
