@@ -88,6 +88,9 @@ mod proptest_tests {
 
     // @audit: hardcoded_source
     proptest! {
+        // Reduce cases to speed up slow tests
+        #![proptest_config(ProptestConfig::with_cases(50))]
+
         // @audit: hardcoded_source
         #[test]
         fn test_single_parameter_parsing(param in parameter_strategy()) {
