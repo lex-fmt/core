@@ -1,10 +1,10 @@
--- Minimal init.lua for LSP testing (without auto-configuring LSP)
--- This provides just the basic infrastructure without starting any LSP servers
+-- Minimal init.lua for testing the Lex plugin
+-- This config bootstraps dependencies and loads the Lex plugin as a lazy.nvim local plugin
 
--- Add the plugin directory to the runtime path
+-- Add the plugin directory to the runtime path early
 local script_path = debug.getinfo(1).source:sub(2)
-local config_dir = vim.fn.fnamemodify(script_path, ":p:h")
-local plugin_dir = vim.fn.fnamemodify(config_dir, ":h")
+local test_dir = vim.fn.fnamemodify(script_path, ":p:h")
+local plugin_dir = vim.fn.fnamemodify(test_dir, ":h")
 vim.opt.rtp:prepend(plugin_dir)
 
 -- Bootstrap lazy.nvim
@@ -24,6 +24,9 @@ vim.opt.rtp:prepend(lazypath)
 -- Minimal settings
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
+
+-- Prevent plugin/lex.lua from auto-running since we'll load via lazy.nvim
+vim.g.lex_plugin_loaded = 1
 
 -- Enable syntax highlighting and colors BEFORE loading plugins
 -- IMPORTANT: These must be set early so syntax files load correctly when filetype is detected

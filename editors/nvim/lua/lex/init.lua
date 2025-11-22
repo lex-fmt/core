@@ -55,6 +55,11 @@ function M.setup(opts)
     local lsp_config = opts.lsp_config or {}
     local user_on_attach = lsp_config.on_attach
 
+    -- Ensure cmd is passed to the LSP config if provided
+    if opts.cmd and not lsp_config.cmd then
+      lsp_config.cmd = opts.cmd
+    end
+
     lsp_config.on_attach = function(client, bufnr)
       -- CRITICAL: Enable semantic token highlighting for .lex files
       -- .lex files don't use traditional Vim syntax files - they rely on LSP semantic tokens
