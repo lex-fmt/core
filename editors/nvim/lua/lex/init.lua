@@ -67,12 +67,6 @@ function M.setup(opts)
         vim.lsp.semantic_tokens.start(bufnr, client.id)
       end
 
-      if client.server_capabilities.documentFormattingProvider then
-        vim.keymap.set("n", "<leader>lf", function()
-          vim.lsp.buf.format({ async = true })
-        end, { buffer = bufnr, desc = "Format current Lex document" })
-      end
-
       -- Preserve user's on_attach callback if they provided one
       if user_on_attach then
         user_on_attach(client, bufnr)
@@ -89,9 +83,14 @@ function M.setup(opts)
     group = augroup,
     pattern = "lex",
     callback = function()
-      -- Set buffer-local options for .lex files
-      vim.bo.commentstring = "# %s"
-      vim.bo.comments = ":#"
+      -- Comment support - Lex uses annotations for comments
+      vim.bo.commentstring = ":: comment :: %s"
+      vim.bo.comments = ""
+
+      -- Document editing settings - soft wrap at window width
+      vim.wo.wrap = true        -- Soft wrap long lines at window width
+      vim.wo.linebreak = true   -- Break at word boundaries, not mid-word
+      vim.bo.textwidth = 0      -- No hard wrapping (no auto line breaks)
     end,
   })
 end
