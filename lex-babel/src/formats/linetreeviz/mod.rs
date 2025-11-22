@@ -55,9 +55,10 @@ fn format_content_item(
     if collapses {
         // Get parent info
         let parent_icon = get_icon(item.node_type());
-        let children: Vec<&dyn AstNode> = match item {
-            ContentItem::Paragraph(p) => p.lines.iter().map(|l| l as &dyn AstNode).collect(),
-            ContentItem::List(l) => l.items.iter().map(|i| i as &dyn AstNode).collect(),
+        let continuation_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
+        let children: Vec<&ContentItem> = match item {
+            ContentItem::Paragraph(p) => p.lines.iter().collect(),
+            ContentItem::List(l) => l.items.iter().collect(),
             _ => Vec::new(),
         };
 
@@ -85,7 +86,6 @@ fn format_content_item(
                 ));
             } else {
                 // Subsequent children get indented with the parent's continuation
-                let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
                 let child_connector = if child_is_last { "└─" } else { "├─" };
                 let linum_prefix = if show_linum {
                     format!("{:02} ", child.range().start.line + 1)
@@ -96,7 +96,7 @@ fn format_content_item(
                 output.push_str(&format!(
                     "{}{}{} {} {} {}\n",
                     linum_prefix,
-                    child_prefix,
+                    continuation_prefix,
                     child_connector,
                     parent_icon,
                     child_icon,
@@ -104,8 +104,13 @@ fn format_content_item(
                 ));
             }
 
-            // Process grandchildren if any (for nested structures within collapsed items)
-            // For now, we don't handle this case as TextLine and basic ListItem don't have children
+            append_descendants(
+                child,
+                &continuation_prefix,
+                child_is_last,
+                show_linum,
+                &mut output,
+            );
         }
     } else {
         // Normal node - show as usual
@@ -131,20 +136,19 @@ fn format_content_item(
             ContentItem::Definition(d) => d.children(),
             ContentItem::ListItem(li) => li.children(),
             ContentItem::Annotation(a) => a.children(),
+            ContentItem::VerbatimBlock(v) => v.children(),
             _ => &[],
         };
 
         if !children.is_empty() {
             let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
-            for (i, child) in children.iter().enumerate() {
-                output.push_str(&format_content_item(
-                    child,
-                    &child_prefix,
-                    i,
-                    children.len(),
-                    show_linum,
-                ));
-            }
+            render_children(
+                item.range().start.line + 1,
+                children,
+                &child_prefix,
+                show_linum,
+                &mut output,
+            );
         }
     }
 
@@ -177,17 +181,112 @@ pub fn to_linetreeviz_str_with_params(doc: &Document, params: &HashMap<String, S
     );
 
     let children = &doc.root.children;
+    render_children(0, children, "", show_linum, &mut output);
+
+    output
+}
+
+fn render_children(
+    parent_line: usize,
+    children: &[ContentItem],
+    child_prefix: &str,
+    show_linum: bool,
+    output: &mut String,
+) {
+    if children.is_empty() {
+        return;
+    }
+
+    let mut last_consumed_line = parent_line;
     for (i, child) in children.iter().enumerate() {
+        let child_start_line = child.range().start.line + 1;
+        if child_start_line > last_consumed_line + 1 {
+            insert_blank_line_entries(
+                last_consumed_line + 1,
+                child_start_line,
+                child_prefix,
+                i,
+                children.len(),
+                show_linum,
+                output,
+            );
+        }
+        last_consumed_line = child.range().end.line + 1;
+
         output.push_str(&format_content_item(
             child,
-            "",
+            child_prefix,
             i,
             children.len(),
             show_linum,
         ));
     }
+}
 
-    output
+fn insert_blank_line_entries(
+    start_line: usize,
+    end_line: usize,
+    child_prefix: &str,
+    next_child_index: usize,
+    total_children: usize,
+    show_linum: bool,
+    output: &mut String,
+) {
+    if start_line >= end_line {
+        return;
+    }
+
+    for missing_line in start_line..end_line {
+        let linum_prefix = if show_linum {
+            format!("{:02} ", missing_line)
+        } else {
+            String::new()
+        };
+        let is_last_sibling = next_child_index == total_children && missing_line == end_line - 1;
+        let connector = if is_last_sibling { "└─" } else { "├─" };
+
+        output.push_str(&format!(
+            "{}{}{} {} 1 blank line\n",
+            linum_prefix,
+            child_prefix,
+            connector,
+            get_icon("BlankLineGroup")
+        ));
+    }
+}
+
+fn append_descendants(
+    child: &ContentItem,
+    parent_prefix: &str,
+    child_is_last: bool,
+    show_linum: bool,
+    output: &mut String,
+) {
+    let children = match child {
+        ContentItem::Session(s) => s.children(),
+        ContentItem::Definition(d) => d.children(),
+        ContentItem::ListItem(li) => li.children(),
+        ContentItem::Annotation(a) => a.children(),
+        ContentItem::VerbatimBlock(v) => v.children(),
+        _ => &[],
+    };
+
+    if children.is_empty() {
+        return;
+    }
+
+    let child_prefix = format!(
+        "{}{}",
+        parent_prefix,
+        if child_is_last { "  " } else { "│ " }
+    );
+    render_children(
+        child.range().start.line + 1,
+        children,
+        &child_prefix,
+        show_linum,
+        output,
+    );
 }
 
 /// Format implementation for line tree visualization
@@ -222,6 +321,7 @@ impl Format for LinetreevizFormat {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lex_parser::lex::loader::DocumentLoader;
 
     #[test]
     fn test_icon_mapping() {
@@ -231,5 +331,34 @@ mod tests {
         assert_eq!(get_icon("Definition"), "≔");
         assert_eq!(get_icon("Paragraph"), "¶");
         assert_eq!(get_icon("List"), "☰");
+    }
+
+    #[test]
+    fn linetreeviz_renders_nested_list_children_per_line() {
+        let source = r#"Session Root {{session}}
+
+    - Parent list item. {{list-item}}
+        Nested paragraph in list. {{paragraph}}
+    - Second list item. {{list-item}}
+"#;
+
+        let doc = DocumentLoader::from_string(source)
+            .parse()
+            .expect("document to parse");
+        let mut params = HashMap::new();
+        params.insert("show-linum".to_string(), "true".to_string());
+
+        let output = to_linetreeviz_str_with_params(&doc, &params);
+        let nested_line = output
+            .lines()
+            .find(|line| line.contains("Nested paragraph in list."))
+            .unwrap_or_else(|| panic!("Missing nested paragraph line in output:\n{output}"));
+
+        assert!(
+            nested_line.starts_with("04 "),
+            "Expected nested paragraph to retain source line number, got:\n{}\nFull output:\n{}",
+            nested_line,
+            output
+        );
     }
 }
