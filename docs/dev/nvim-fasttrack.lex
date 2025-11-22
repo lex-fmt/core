@@ -169,9 +169,9 @@ This is a high-level overview of how the Lex Neovim plugin is designed.
 		- Return Vec<TextEdit> with all changes
 
 		Neovim side:
-		- Zero changes - vim.lsp.buf.format() works automatically
-		- User runs :lua vim.lsp.buf.format() or saves with format-on-save
-		- Plugin can add mapping: vim.keymap.set("n", "<leader>f", vim.lsp.buf.format)
+		- vim.lsp.buf.format() works automatically once the LSP attaches
+		- The plugin now exposes <leader>lf as a discoverable shortcut that calls vim.lsp.buf.format({ async = true }) when the server advertises documentFormattingProvider
+		- The headless test_lsp_formatting.lua script rewrites fixtures, calls vim.lsp.buf.format(), and verifies the buffer matches lex CLI output so regressions are caught in CI
 
 	Range Formatting (textDocument/rangeFormatting):
 
@@ -180,8 +180,8 @@ This is a high-level overview of how the Lex Neovim plugin is designed.
 		- Useful for fixing one section without touching rest of document
 
 		Neovim side:
-		- Visual select lines, run :lua vim.lsp.buf.format()
-		- Only selected region gets formatted
+		- Visual select lines, run :lua vim.lsp.buf.range_formatting() or rely on any mappings the user adds
+		- Only the selection changes; the Lua test confirms the untouched prefix/suffix remain byte-for-byte identical to the original fixture
 
 
 Key files:
