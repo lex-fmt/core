@@ -35,6 +35,7 @@ fn format_content_item(
     prefix: &str,
     child_index: usize,
     child_count: usize,
+    show_linum: bool,
 ) -> String {
     let mut output = String::new();
     let is_last = child_index == child_count - 1;
@@ -67,8 +68,15 @@ fn format_content_item(
 
             // For the first child, use the parent's connector; for subsequent children get indented
             if i == 0 {
+                let linum_prefix = if show_linum {
+                    format!("{:02} ", child.range().start.line + 1)
+                } else {
+                    String::new()
+                };
+
                 output.push_str(&format!(
-                    "{}{} {} {} {}\n",
+                    "{}{}{} {} {} {}\n",
+                    linum_prefix,
                     prefix,
                     connector,
                     parent_icon,
@@ -79,8 +87,15 @@ fn format_content_item(
                 // Subsequent children get indented with the parent's continuation
                 let child_prefix = format!("{}{}", prefix, if is_last { "  " } else { "│ " });
                 let child_connector = if child_is_last { "└─" } else { "├─" };
+                let linum_prefix = if show_linum {
+                    format!("{:02} ", child.range().start.line + 1)
+                } else {
+                    String::new()
+                };
+
                 output.push_str(&format!(
-                    "{}{} {} {} {}\n",
+                    "{}{}{} {} {} {}\n",
+                    linum_prefix,
                     child_prefix,
                     child_connector,
                     parent_icon,
@@ -95,8 +110,15 @@ fn format_content_item(
     } else {
         // Normal node - show as usual
         let icon = get_icon(item.node_type());
+        let linum_prefix = if show_linum {
+            format!("{:02} ", item.range().start.line + 1)
+        } else {
+            String::new()
+        };
+
         output.push_str(&format!(
-            "{}{} {} {}\n",
+            "{}{}{} {} {}\n",
+            linum_prefix,
             prefix,
             connector,
             icon,
@@ -120,6 +142,7 @@ fn format_content_item(
                     &child_prefix,
                     i,
                     children.len(),
+                    show_linum,
                 ));
             }
         }
@@ -139,7 +162,12 @@ pub fn to_linetreeviz_str(doc: &Document) -> String {
 ///
 /// - `"ast-full"`: When set to `"true"`, includes all AST node properties
 ///   Note: Currently this parameter is not fully implemented for linetreeviz
-pub fn to_linetreeviz_str_with_params(doc: &Document, _params: &HashMap<String, String>) -> String {
+pub fn to_linetreeviz_str_with_params(doc: &Document, params: &HashMap<String, String>) -> String {
+    let show_linum = params
+        .get("show-linum")
+        .map(|v| v != "false")
+        .unwrap_or(false);
+
     let icon = get_icon("Document");
     let mut output = format!(
         "{} Document ({} annotations, {} items)\n",
@@ -150,7 +178,13 @@ pub fn to_linetreeviz_str_with_params(doc: &Document, _params: &HashMap<String, 
 
     let children = &doc.root.children;
     for (i, child) in children.iter().enumerate() {
-        output.push_str(&format_content_item(child, "", i, children.len()));
+        output.push_str(&format_content_item(
+            child,
+            "",
+            i,
+            children.len(),
+            show_linum,
+        ));
     }
 
     output

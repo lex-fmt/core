@@ -31,7 +31,7 @@
 //! Example: `lex inspect file.lex ast-tag --extra-ast-full`
 
 use lex_babel::formats::{
-    linetreeviz::to_linetreeviz_str,
+    linetreeviz::to_linetreeviz_str_with_params,
     tag::serialize_document_with_params as serialize_ast_tag_with_params,
     treeviz::to_treeviz_str_with_params,
 };
@@ -95,6 +95,12 @@ pub fn execute_transform(
     extra_params: &HashMap<String, String>,
 ) -> Result<String, String> {
     let loader = DocumentLoader::from_string(source);
+
+    // Default show-linum to true for inspect command if not specified
+    let mut params = extra_params.clone();
+    if !params.contains_key("show-linum") {
+        params.insert("show-linum".to_string(), "true".to_string());
+    }
 
     match transform_name {
         "token-core-json" => {
@@ -173,7 +179,7 @@ pub fn execute_transform(
             let doc = loader
                 .parse()
                 .map_err(|e| format!("Transform failed: {}", e))?;
-            Ok(serialize_ast_tag_with_params(&doc, extra_params))
+            Ok(serialize_ast_tag_with_params(&doc, &params))
         }
         "ast-treeviz" => {
             let doc = loader
@@ -181,14 +187,14 @@ pub fn execute_transform(
                 .map_err(|e| format!("Transform failed: {}", e))?;
             // Pass extra_params to to_treeviz_str
             // Supports: --extra-ast-full true
-            Ok(to_treeviz_str_with_params(&doc, extra_params))
+            Ok(to_treeviz_str_with_params(&doc, &params))
         }
         "ast-linetreeviz" => {
             let doc = loader
                 .parse()
                 .map_err(|e| format!("Transform failed: {}", e))?;
             // linetreeviz collapses containers like Paragraph and List
-            Ok(to_linetreeviz_str(&doc))
+            Ok(to_linetreeviz_str_with_params(&doc, &params))
         }
         _ => Err(format!("Unknown transform: {}", transform_name)),
     }

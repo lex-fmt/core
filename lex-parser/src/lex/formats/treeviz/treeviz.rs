@@ -63,6 +63,7 @@
 //!         ReferenceSession: #
 
 use crate::lex::ast::{snapshot_from_document, AstSnapshot, Document};
+use std::collections::HashMap;
 
 fn truncate(s: &str, max_chars: usize) -> String {
     if s.chars().count() > max_chars {
@@ -96,6 +97,7 @@ fn format_snapshot(
     prefix: &str,
     child_index: usize,
     child_count: usize,
+    show_linum: bool,
 ) -> String {
     let mut output = String::new();
 
@@ -104,9 +106,15 @@ fn format_snapshot(
     let icon = get_icon(&snapshot.node_type);
     let truncated_label = truncate(&snapshot.label, 30);
 
+    let linum_prefix = if show_linum {
+        format!("{:02} ", snapshot.range.start.line + 1)
+    } else {
+        String::new()
+    };
+
     output.push_str(&format!(
-        "{}{} {} {}\n",
-        prefix, connector, icon, truncated_label
+        "{}{}{} {} {}\n",
+        linum_prefix, prefix, connector, icon, truncated_label
     ));
 
     // Process children if any
@@ -115,14 +123,20 @@ fn format_snapshot(
         let child_count = snapshot.children.len();
 
         for (i, child) in snapshot.children.iter().enumerate() {
-            output.push_str(&format_snapshot(child, &child_prefix, i, child_count));
+            output.push_str(&format_snapshot(
+                child,
+                &child_prefix,
+                i,
+                child_count,
+                show_linum,
+            ));
         }
     }
 
     output
 }
 
-fn format_document_snapshot(snapshot: &AstSnapshot) -> String {
+fn format_document_snapshot(snapshot: &AstSnapshot, show_linum: bool) -> String {
     let icon = get_icon(&snapshot.node_type);
     let truncated_label = truncate(&snapshot.label, 30);
     let mut output = format!("{} {}\n", icon, truncated_label);
@@ -130,7 +144,7 @@ fn format_document_snapshot(snapshot: &AstSnapshot) -> String {
     if !snapshot.children.is_empty() {
         let child_count = snapshot.children.len();
         for (i, child) in snapshot.children.iter().enumerate() {
-            output.push_str(&format_snapshot(child, "", i, child_count));
+            output.push_str(&format_snapshot(child, "", i, child_count, show_linum));
         }
     }
 
@@ -138,8 +152,17 @@ fn format_document_snapshot(snapshot: &AstSnapshot) -> String {
 }
 
 pub fn to_treeviz_str(doc: &Document) -> String {
+    to_treeviz_str_with_params(doc, &HashMap::new())
+}
+
+pub fn to_treeviz_str_with_params(doc: &Document, params: &HashMap<String, String>) -> String {
+    let show_linum = params
+        .get("show-linum")
+        .map(|v| v != "false")
+        .unwrap_or(false);
+
     let snapshot = snapshot_from_document(doc);
-    format_document_snapshot(&snapshot)
+    format_document_snapshot(&snapshot, show_linum)
 }
 
 /// Formatter implementation for treeviz format
