@@ -30,17 +30,42 @@ use super::text_content::TextContent;
 pub trait Visitor {
     // Container nodes with labels and children
     fn visit_session(&mut self, _session: &super::Session) {}
-    fn visit_definition(&mut self, _definition: &super::Definition) {}
-    fn visit_list(&mut self, _list: &super::List) {}
-    fn visit_list_item(&mut self, _list_item: &super::ListItem) {}
+    fn leave_session(&mut self, _session: &super::Session) {}
 
-    // Leaf nodes
+    fn visit_definition(&mut self, _definition: &super::Definition) {}
+    fn leave_definition(&mut self, _definition: &super::Definition) {}
+
+    fn visit_list(&mut self, _list: &super::List) {}
+    fn leave_list(&mut self, _list: &super::List) {}
+
+    fn visit_list_item(&mut self, _list_item: &super::ListItem) {}
+    fn leave_list_item(&mut self, _list_item: &super::ListItem) {}
+
+    // Leaf nodes (some contain lines)
     fn visit_paragraph(&mut self, _paragraph: &super::Paragraph) {}
+    fn leave_paragraph(&mut self, _paragraph: &super::Paragraph) {}
+
     fn visit_text_line(&mut self, _text_line: &super::elements::paragraph::TextLine) {}
+    fn leave_text_line(&mut self, _text_line: &super::elements::paragraph::TextLine) {}
+
     fn visit_verbatim_block(&mut self, _verbatim_block: &super::Verbatim) {}
+    fn leave_verbatim_block(&mut self, _verbatim_block: &super::Verbatim) {}
+
+    fn visit_verbatim_group(&mut self, _group: &super::elements::verbatim::VerbatimGroupItemRef) {}
+    fn leave_verbatim_group(&mut self, _group: &super::elements::verbatim::VerbatimGroupItemRef) {}
+
     fn visit_verbatim_line(&mut self, _verbatim_line: &VerbatimLine) {}
+    fn leave_verbatim_line(&mut self, _verbatim_line: &VerbatimLine) {}
+
     fn visit_annotation(&mut self, _annotation: &super::Annotation) {}
+    fn leave_annotation(&mut self, _annotation: &super::Annotation) {}
+
     fn visit_blank_line_group(
+        &mut self,
+        _blank_line_group: &super::elements::blank_line_group::BlankLineGroup,
+    ) {
+    }
+    fn leave_blank_line_group(
         &mut self,
         _blank_line_group: &super::elements::blank_line_group::BlankLineGroup,
     ) {

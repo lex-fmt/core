@@ -1,0 +1,635 @@
+use super::formatting_rules::FormattingRules;
+use lex_parser::lex::ast::{
+    elements::{
+        blank_line_group::BlankLineGroup, paragraph::TextLine, verbatim::VerbatimGroupItemRef,
+        VerbatimLine,
+    },
+    traits::{AstNode, Visitor},
+    Annotation, Definition, Document, List, ListItem, Paragraph, Session, Verbatim,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum MarkerType {
+    Bullet,
+    Numeric,
+    AlphaLower,
+    AlphaUpper,
+    RomanLower,
+    RomanUpper,
+    Unknown,
+}
+
+struct ListContext {
+    index: usize,
+    marker_type: MarkerType,
+}
+
+impl MarkerType {
+    fn from_str(s: &str) -> Self {
+        if s == "-" {
+            MarkerType::Bullet
+        } else if let Some(prefix) = s.strip_suffix('.') {
+            if prefix.chars().all(|c| c.is_ascii_digit()) {
+                MarkerType::Numeric
+            } else if prefix.len() == 1 && prefix.chars().next().unwrap().is_ascii_lowercase() {
+                MarkerType::AlphaLower
+            } else if prefix.len() == 1 && prefix.chars().next().unwrap().is_ascii_uppercase() {
+                MarkerType::AlphaUpper
+            } else if is_roman_lower(prefix) {
+                MarkerType::RomanLower
+            } else if is_roman_upper(prefix) {
+                MarkerType::RomanUpper
+            } else {
+                MarkerType::Unknown
+            }
+        } else {
+            MarkerType::Unknown
+        }
+    }
+}
+
+fn is_roman_lower(s: &str) -> bool {
+    !s.is_empty()
+        && s.chars()
+            .all(|c| matches!(c, 'i' | 'v' | 'x' | 'l' | 'c' | 'd' | 'm'))
+}
+
+fn is_roman_upper(s: &str) -> bool {
+    !s.is_empty()
+        && s.chars()
+            .all(|c| matches!(c, 'I' | 'V' | 'X' | 'L' | 'C' | 'D' | 'M'))
+}
+
+fn to_alpha_lower(n: usize) -> String {
+    if (1..=26).contains(&n) {
+        char::from_u32((n as u32) + 96).unwrap().to_string()
+    } else {
+        n.to_string()
+    }
+}
+
+fn to_alpha_upper(n: usize) -> String {
+    if (1..=26).contains(&n) {
+        char::from_u32((n as u32) + 64).unwrap().to_string()
+    } else {
+        n.to_string()
+    }
+}
+
+fn to_roman_lower(n: usize) -> String {
+    // Convert to Roman numerals (lowercase) for common values
+    // Falls back to decimal for values > 20
+    match n {
+        1 => "i".to_string(),
+        2 => "ii".to_string(),
+        3 => "iii".to_string(),
+        4 => "iv".to_string(),
+        5 => "v".to_string(),
+        6 => "vi".to_string(),
+        7 => "vii".to_string(),
+        8 => "viii".to_string(),
+        9 => "ix".to_string(),
+        10 => "x".to_string(),
+        11 => "xi".to_string(),
+        12 => "xii".to_string(),
+        13 => "xiii".to_string(),
+        14 => "xiv".to_string(),
+        15 => "xv".to_string(),
+        16 => "xvi".to_string(),
+        17 => "xvii".to_string(),
+        18 => "xviii".to_string(),
+        19 => "xix".to_string(),
+        20 => "xx".to_string(),
+        _ => n.to_string(), // Fallback to decimal for larger numbers
+    }
+}
+
+fn to_roman_upper(n: usize) -> String {
+    // Convert to Roman numerals (uppercase) for common values
+    // Falls back to decimal for values > 20
+    match n {
+        1 => "I".to_string(),
+        2 => "II".to_string(),
+        3 => "III".to_string(),
+        4 => "IV".to_string(),
+        5 => "V".to_string(),
+        6 => "VI".to_string(),
+        7 => "VII".to_string(),
+        8 => "VIII".to_string(),
+        9 => "IX".to_string(),
+        10 => "X".to_string(),
+        11 => "XI".to_string(),
+        12 => "XII".to_string(),
+        13 => "XIII".to_string(),
+        14 => "XIV".to_string(),
+        15 => "XV".to_string(),
+        16 => "XVI".to_string(),
+        17 => "XVII".to_string(),
+        18 => "XVIII".to_string(),
+        19 => "XIX".to_string(),
+        20 => "XX".to_string(),
+        _ => n.to_string(), // Fallback to decimal for larger numbers
+    }
+}
+
+pub struct LexSerializer {
+    rules: FormattingRules,
+    output: String,
+    indent_level: usize,
+    consecutive_newlines: usize,
+    list_stack: Vec<ListContext>,
+}
+
+impl LexSerializer {
+    pub fn new(rules: FormattingRules) -> Self {
+        Self {
+            rules,
+            output: String::new(),
+            indent_level: 0,
+            consecutive_newlines: 2, // Start as if we have blank lines
+            list_stack: Vec::new(),
+        }
+    }
+
+    pub fn serialize(mut self, doc: &Document) -> Result<String, String> {
+        doc.root.accept(&mut self);
+        Ok(self.output)
+    }
+
+    fn indent(&self) -> String {
+        self.rules.indent_string.repeat(self.indent_level)
+    }
+
+    fn write_line(&mut self, text: &str) {
+        self.output.push_str(&self.indent());
+        self.output.push_str(text);
+        self.output.push('\n');
+        self.consecutive_newlines = 1;
+    }
+
+    fn ensure_blank_lines(&mut self, count: usize) {
+        let target_newlines = count + 1;
+        while self.consecutive_newlines < target_newlines {
+            self.output.push('\n');
+            self.consecutive_newlines += 1;
+        }
+    }
+}
+
+impl Visitor for LexSerializer {
+    fn visit_session(&mut self, session: &Session) {
+        let title = session.title.as_string();
+        if !title.is_empty() {
+            self.ensure_blank_lines(self.rules.session_blank_lines_before);
+            self.write_line(title);
+            self.ensure_blank_lines(self.rules.session_blank_lines_after);
+            self.indent_level += 1;
+        }
+    }
+
+    fn leave_session(&mut self, session: &Session) {
+        if !session.title.as_string().is_empty() {
+            self.indent_level -= 1;
+        }
+    }
+
+    fn visit_paragraph(&mut self, _paragraph: &Paragraph) {
+        // Paragraphs are handled by visiting TextLines
+    }
+
+    fn visit_text_line(&mut self, text_line: &TextLine) {
+        self.write_line(text_line.text());
+    }
+
+    fn visit_blank_line_group(&mut self, group: &BlankLineGroup) {
+        let count = if self.rules.max_blank_lines > 0 {
+            std::cmp::min(group.count, self.rules.max_blank_lines)
+        } else {
+            group.count
+        };
+        self.ensure_blank_lines(count);
+    }
+
+    fn visit_list(&mut self, list: &List) {
+        // Use the decoration_type helper to determine marker type
+        let marker_str = list.decoration_type();
+        let marker_type = MarkerType::from_str(marker_str);
+
+        self.list_stack.push(ListContext {
+            index: 1,
+            marker_type,
+        });
+    }
+
+    fn leave_list(&mut self, _list: &List) {
+        self.list_stack.pop();
+    }
+
+    fn visit_list_item(&mut self, list_item: &ListItem) {
+        let context = self
+            .list_stack
+            .last_mut()
+            .expect("List stack empty in list item");
+
+        let marker = if self.rules.normalize_list_markers {
+            match context.marker_type {
+                MarkerType::Bullet => self.rules.unordered_list_marker.to_string(),
+                MarkerType::Numeric => format!("{}.", context.index),
+                MarkerType::AlphaLower => format!("{}.", to_alpha_lower(context.index)),
+                MarkerType::AlphaUpper => format!("{}.", to_alpha_upper(context.index)),
+                MarkerType::RomanLower => format!("{}.", to_roman_lower(context.index)),
+                MarkerType::RomanUpper => format!("{}.", to_roman_upper(context.index)),
+                MarkerType::Unknown => list_item.marker.as_string().to_string(),
+            }
+        } else {
+            list_item.marker.as_string().to_string()
+        };
+
+        context.index += 1;
+
+        // Use the first text content as the item line
+        let text = if !list_item.text.is_empty() {
+            list_item.text[0].as_string()
+        } else {
+            ""
+        };
+
+        let line = if text.is_empty() {
+            marker
+        } else {
+            format!("{} {}", marker, text)
+        };
+
+        self.write_line(&line);
+        self.indent_level += 1;
+    }
+
+    fn leave_list_item(&mut self, _list_item: &ListItem) {
+        self.indent_level -= 1;
+    }
+
+    fn visit_definition(&mut self, definition: &Definition) {
+        let subject = definition.subject.as_string();
+        self.write_line(&format!("{}:", subject));
+        self.indent_level += 1;
+    }
+
+    fn leave_definition(&mut self, _definition: &Definition) {
+        self.indent_level -= 1;
+    }
+
+    fn visit_annotation(&mut self, annotation: &Annotation) {
+        let label = &annotation.data.label.value;
+        let params = &annotation.data.parameters;
+
+        let mut header = format!(":: {}", label);
+        if !params.is_empty() {
+            for param in params {
+                header.push(' ');
+                header.push_str(&param.key);
+                header.push('=');
+                header.push_str(&param.value);
+            }
+        }
+
+        // Only add closing :: for short-form annotations (no children)
+        if annotation.children.is_empty() {
+            header.push_str(" ::");
+        }
+
+        self.write_line(&header);
+
+        if !annotation.children.is_empty() {
+            self.indent_level += 1;
+        }
+    }
+
+    fn leave_annotation(&mut self, annotation: &Annotation) {
+        if !annotation.children.is_empty() {
+            self.indent_level -= 1;
+            self.write_line("::");
+        }
+    }
+
+    fn visit_verbatim_block(&mut self, _verbatim: &Verbatim) {
+        // Handled in groups
+    }
+
+    fn visit_verbatim_group(&mut self, group: &VerbatimGroupItemRef) {
+        let subject = group.subject.as_string();
+        self.write_line(&format!("{}:", subject));
+        self.indent_level += 1;
+    }
+
+    fn leave_verbatim_group(&mut self, _group: &VerbatimGroupItemRef) {
+        self.indent_level -= 1;
+    }
+
+    fn visit_verbatim_line(&mut self, verbatim_line: &VerbatimLine) {
+        self.write_line(verbatim_line.content.as_string());
+    }
+
+    fn leave_verbatim_block(&mut self, verbatim: &Verbatim) {
+        let label = &verbatim.closing_data.label.value;
+        let mut footer = format!(":: {}", label);
+        if !verbatim.closing_data.parameters.is_empty() {
+            for param in &verbatim.closing_data.parameters {
+                footer.push(' ');
+                footer.push_str(&param.key);
+                footer.push('=');
+                footer.push_str(&param.value);
+            }
+        }
+        self.write_line(&footer);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::format::Format;
+    use lex_parser::lex::testing::lexplore::{ElementType, Lexplore};
+    use lex_parser::lex::testing::text_diff::assert_text_eq;
+
+    fn format_source(source: &str) -> String {
+        let format = super::super::LexFormat::default();
+        let doc = format.parse(source).unwrap();
+        let serializer = LexSerializer::new(FormattingRules::default());
+        serializer.serialize(&doc).unwrap()
+    }
+
+    // ==== Paragraph Tests ====
+
+    #[test]
+    fn test_paragraph_01_oneline() {
+        let source = Lexplore::load(ElementType::Paragraph, 1).source();
+        let formatted = format_source(&source);
+        assert_text_eq(
+            &formatted,
+            "This is a simple paragraph with just one line.\n",
+        );
+    }
+
+    #[test]
+    fn test_paragraph_02_multiline() {
+        let source = Lexplore::load(ElementType::Paragraph, 2).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("This is a multi-line paragraph"));
+        assert!(formatted.contains("second line"));
+        assert!(formatted.contains("third line"));
+    }
+
+    #[test]
+    fn test_paragraph_03_special_chars() {
+        let source = Lexplore::load(ElementType::Paragraph, 3).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("!@#$%^&*()"));
+    }
+
+    // ==== Session Tests ====
+
+    #[test]
+    fn test_session_01_simple() {
+        let source = Lexplore::load(ElementType::Session, 1).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("Introduction\n"));
+        assert!(formatted.contains("    This is a simple session"));
+    }
+
+    #[test]
+    fn test_session_02_numbered_title() {
+        let source = Lexplore::load(ElementType::Session, 2).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("1. Introduction:\n"));
+    }
+
+    #[test]
+    fn test_session_05_nested() {
+        let source = Lexplore::load(ElementType::Session, 5).source();
+        let formatted = format_source(&source);
+        // This is actually a complex doc with paragraphs and sessions
+        assert!(formatted.contains("1. Introduction {{session-title}}\n"));
+        assert!(formatted.contains("    This is the content of the session"));
+    }
+
+    // ==== List Tests ====
+
+    #[test]
+    fn test_list_01_dash() {
+        let source = Lexplore::load(ElementType::List, 1).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("- First item\n"));
+        assert!(formatted.contains("- Second item\n"));
+    }
+
+    #[test]
+    fn test_list_02_numbered() {
+        let source = Lexplore::load(ElementType::List, 2).source();
+        let formatted = format_source(&source);
+        // Should normalize to sequential numbering
+        assert!(formatted.contains("1. "));
+        assert!(formatted.contains("2. "));
+        assert!(formatted.contains("3. "));
+    }
+
+    #[test]
+    fn test_list_03_alphabetical() {
+        let source = Lexplore::load(ElementType::List, 3).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("a. "));
+        assert!(formatted.contains("b. "));
+        assert!(formatted.contains("c. "));
+    }
+
+    #[test]
+    fn test_list_04_mixed_markers() {
+        let source = Lexplore::load(ElementType::List, 4).source();
+        let formatted = format_source(&source);
+        // Should normalize to consistent markers
+        assert!(formatted.contains("1. First item\n"));
+        assert!(formatted.contains("2. Second item\n"));
+        assert!(formatted.contains("3. Third item\n"));
+    }
+
+    #[test]
+    fn test_list_07_nested_simple() {
+        let source = Lexplore::load(ElementType::List, 7).source();
+        let formatted = format_source(&source);
+        // Check for proper indentation of nested items
+        assert!(formatted.contains("- First outer item\n"));
+        assert!(formatted.contains("    - First nested item\n"));
+    }
+
+    // ==== Definition Tests ====
+
+    #[test]
+    fn test_definition_01_simple() {
+        let source = Lexplore::load(ElementType::Definition, 1).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains("Cache:\n"));
+        assert!(formatted.contains("    Temporary storage"));
+    }
+
+    #[test]
+    fn test_definition_02_multi_paragraph() {
+        let source = Lexplore::load(ElementType::Definition, 2).source();
+        let formatted = format_source(&source);
+        // Should handle multiple paragraphs in definition body
+        assert!(formatted.contains("Microservice:\n"));
+        assert!(formatted.contains("    An architectural style"));
+        assert!(formatted.contains("    Each service is independently"));
+    }
+
+    // ==== Verbatim Tests ====
+
+    #[test]
+    fn test_verbatim_01_simple_code() {
+        let source = Lexplore::load(ElementType::Verbatim, 1).source();
+        let formatted = format_source(&source);
+        assert!(formatted.contains(":: javascript"));
+        assert!(formatted.contains("function hello()"));
+    }
+
+    #[test]
+    fn test_verbatim_02_with_caption() {
+        let source = Lexplore::load(ElementType::Verbatim, 2).source();
+        let formatted = format_source(&source);
+        // Should preserve verbatim content and captions
+        assert!(formatted.contains("API Response:"));
+    }
+
+    // ==== Annotation Tests ====
+
+    #[test]
+    fn test_annotation_01_marker_simple() {
+        let source = Lexplore::load(ElementType::Annotation, 1).source();
+        let formatted = format_source(&source);
+        // Document-level annotations don't appear in serialized output
+        // (they're metadata attachments to the document)
+        assert_eq!(formatted, "");
+    }
+
+    #[test]
+    fn test_annotation_02_with_params() {
+        let source = Lexplore::load(ElementType::Annotation, 2).source();
+        let formatted = format_source(&source);
+        // Document-level annotation with params - also doesn't serialize
+        assert_eq!(formatted, "");
+    }
+
+    #[test]
+    fn test_annotation_05_block_paragraph() {
+        let source = Lexplore::load(ElementType::Annotation, 5).source();
+        let formatted = format_source(&source);
+        // This is also a document-level annotation (even though it has block content)
+        // Document-level annotations are metadata and don't serialize
+        assert_eq!(formatted, "");
+    }
+
+    // ==== Round-trip Tests ====
+    // Format → parse → format should be idempotent
+
+    #[test]
+    fn test_round_trip_paragraph_01() {
+        let source = Lexplore::load(ElementType::Paragraph, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_paragraph_02_multiline() {
+        let source = Lexplore::load(ElementType::Paragraph, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_session_01() {
+        let source = Lexplore::load(ElementType::Session, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_session_02_numbered() {
+        let source = Lexplore::load(ElementType::Session, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_01_dash() {
+        let source = Lexplore::load(ElementType::List, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_02_numbered() {
+        let source = Lexplore::load(ElementType::List, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_03_alphabetical() {
+        let source = Lexplore::load(ElementType::List, 3).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_04_mixed_markers() {
+        let source = Lexplore::load(ElementType::List, 4).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_list_07_nested() {
+        let source = Lexplore::load(ElementType::List, 7).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_definition_01() {
+        let source = Lexplore::load(ElementType::Definition, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_definition_02_multi() {
+        let source = Lexplore::load(ElementType::Definition, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_verbatim_01() {
+        let source = Lexplore::load(ElementType::Verbatim, 1).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+
+    #[test]
+    fn test_round_trip_verbatim_02_caption() {
+        let source = Lexplore::load(ElementType::Verbatim, 2).source();
+        let formatted = format_source(&source);
+        let formatted_again = format_source(&formatted);
+        assert_text_eq(&formatted, &formatted_again);
+    }
+}

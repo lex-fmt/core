@@ -88,6 +88,7 @@ impl AstNode for BlankLineGroup {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_blank_line_group(self);
+        visitor.leave_blank_line_group(self);
     }
 }
 
