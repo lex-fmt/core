@@ -17,6 +17,9 @@ coverage/
 *.swp
 *.swo
 *~
+node_modules/
+editors/vscode/out/
+editors/vscode/dist/
 
 # OS
 .DS_Store
