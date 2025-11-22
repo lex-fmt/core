@@ -14,52 +14,52 @@ jobs:
     name: Critical checks (pre-commit)
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
-    - name: Cache Rust dependencies
-      uses: Swatinem/rust-cache@v2
-      with:
-        shared-key: "stable"
-        cache-on-failure: true
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "stable"
+          cache-on-failure: true
 
-    - name: Install cargo-nextest
-      uses: taiki-e/install-action@nextest
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
 
-    - name: Run pre-commit script (critical checks)
-      run: |
-        chmod +x scripts/pre-commit
-        ./scripts/pre-commit --all --verbose
+      - name: Run pre-commit script (critical checks)
+        run: |
+          chmod +x scripts/pre-commit
+          ./scripts/pre-commit --all --verbose
 
-    - name: Check that pre-commit script exists and is executable
-      run: |
-        test -f scripts/pre-commit
-        test -x scripts/pre-commit
+      - name: Check that pre-commit script exists and is executable
+        run: |
+          test -f scripts/pre-commit
+          test -x scripts/pre-commit
 
-    - name: Cleanup test artifacts
-      if: always()
-      run: rm -rf target/tests
+      - name: Cleanup test artifacts
+        if: always()
+        run: rm -rf target/tests
 
   documentation:
     name: Documentation build
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail the entire workflow if docs fail
+    continue-on-error: true # Don't fail the entire workflow if docs fail
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: Cache Rust dependencies
-      uses: Swatinem/rust-cache@v2
-      with:
-        shared-key: "stable"
-        cache-on-failure: true
-        save-if: false
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "stable"
+          cache-on-failure: true
+          save-if: false
 
-    - name: Build documentation
-      run: cargo doc --workspace --no-deps --all-features
+      - name: Build documentation
+        run: cargo doc --workspace --no-deps --all-features
