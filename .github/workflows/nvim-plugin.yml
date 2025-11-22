@@ -48,7 +48,7 @@ jobs:
         run: |
           chmod +x editors/nvim/test/run_suite.sh
           ./editors/nvim/test/run_suite.sh --format=junit > test_results.xml
-          
+
       - name: Display Test Results
         if: always()
         run: cat test_results.xml
