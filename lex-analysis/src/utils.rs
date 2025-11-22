@@ -1,10 +1,10 @@
-use crate::features::inline::{extract_inline_spans, InlineSpan, InlineSpanKind};
+use crate::inline::{extract_inline_spans, InlineSpan, InlineSpanKind};
 use lex_parser::lex::ast::traits::AstNode;
 use lex_parser::lex::ast::{
     Annotation, ContentItem, Definition, Document, Position, Session, TextContent,
 };
 
-pub(crate) fn for_each_text_content<F>(document: &Document, f: &mut F)
+pub fn for_each_text_content<F>(document: &Document, f: &mut F)
 where
     F: FnMut(&TextContent),
 {
@@ -14,7 +14,7 @@ where
     visit_session_text(&document.root, true, f);
 }
 
-pub(crate) fn find_definition_by_subject<'a>(
+pub fn find_definition_by_subject<'a>(
     document: &'a Document,
     target: &str,
 ) -> Option<&'a Definition> {
@@ -23,7 +23,7 @@ pub(crate) fn find_definition_by_subject<'a>(
         .next()
 }
 
-pub(crate) fn find_definitions_by_subject<'a>(
+pub fn find_definitions_by_subject<'a>(
     document: &'a Document,
     target: &str,
 ) -> Vec<&'a Definition> {
@@ -39,10 +39,7 @@ pub(crate) fn find_definitions_by_subject<'a>(
     matches
 }
 
-pub(crate) fn find_definition_at_position(
-    document: &Document,
-    position: Position,
-) -> Option<&Definition> {
+pub fn find_definition_at_position(document: &Document, position: Position) -> Option<&Definition> {
     for annotation in document.annotations() {
         if let Some(definition) = find_definition_in_items(annotation.children.iter(), position) {
             return Some(definition);
@@ -51,10 +48,7 @@ pub(crate) fn find_definition_at_position(
     find_definition_in_items(document.root.children.iter(), position)
 }
 
-pub(crate) fn find_annotation_at_position(
-    document: &Document,
-    position: Position,
-) -> Option<&Annotation> {
+pub fn find_annotation_at_position(document: &Document, position: Position) -> Option<&Annotation> {
     for annotation in document.annotations() {
         if annotation.header_location().contains(position) {
             return Some(annotation);
@@ -66,14 +60,11 @@ pub(crate) fn find_annotation_at_position(
     find_annotation_in_session(&document.root, position, true)
 }
 
-pub(crate) fn find_session_at_position(
-    document: &Document,
-    position: Position,
-) -> Option<&Session> {
+pub fn find_session_at_position(document: &Document, position: Position) -> Option<&Session> {
     find_session_in_branch(&document.root, position, true)
 }
 
-pub(crate) fn find_sessions_by_identifier<'a>(
+pub fn find_sessions_by_identifier<'a>(
     document: &'a Document,
     identifier: &str,
 ) -> Vec<&'a Session> {
@@ -86,14 +77,11 @@ pub(crate) fn find_sessions_by_identifier<'a>(
     matches
 }
 
-pub(crate) fn session_identifier(session: &Session) -> Option<String> {
+pub fn session_identifier(session: &Session) -> Option<String> {
     extract_session_identifier(session.title.as_string())
 }
 
-pub(crate) fn reference_span_at_position(
-    document: &Document,
-    position: Position,
-) -> Option<InlineSpan> {
+pub fn reference_span_at_position(document: &Document, position: Position) -> Option<InlineSpan> {
     let mut result = None;
     for_each_text_content(document, &mut |text| {
         if result.is_some() {

@@ -1,4 +1,4 @@
-use crate::features::document_utils::session_identifier;
+use crate::utils::session_identifier;
 use lex_parser::lex::ast::{Annotation, Definition, Session};
 use lex_parser::lex::inlines::ReferenceType;
 

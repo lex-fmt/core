@@ -1,12 +1,12 @@
-use crate::features::document_utils::{
+use crate::inline::{extract_inline_spans, InlineSpanKind};
+use crate::reference_targets::{
+    targets_from_annotation, targets_from_definition, targets_from_reference_type,
+    targets_from_session, ReferenceTarget,
+};
+use crate::utils::{
     find_annotation_at_position, find_definition_at_position, find_definitions_by_subject,
     find_session_at_position, find_sessions_by_identifier, for_each_text_content,
     reference_span_at_position,
-};
-use crate::features::inline::{extract_inline_spans, InlineSpanKind};
-use crate::features::reference_targets::{
-    targets_from_annotation, targets_from_definition, targets_from_reference_type,
-    targets_from_session, ReferenceTarget,
 };
 use lex_parser::lex::ast::traits::AstNode;
 use lex_parser::lex::ast::{Document, Position, Range};
