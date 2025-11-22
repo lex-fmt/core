@@ -34,59 +34,47 @@
 //!     Lex is a structured document format, not a programming language. LSP features are selected
 //!     to optimize document authoring and navigation workflows:
 //!
-//!     Core Features (Phase 1):
+//!     Core Features:
 //!
-//!         Syntax Highlighting
+//!         a. Syntax Highlighting
+
 //!             1. Semantic Tokens (textDocument/semanticTokens/*):
 //!                 - Syntax highlighting for sessions, lists, definitions, annotations
 //!                 - Inline formatting: bold, italic, code, math
 //!                 - References, footnotes, citations
 //!                 - Verbatim blocks with language-specific highlighting
-//!
 //!             2. Document Symbols (textDocument/documentSymbol):
 //!                 - Hierarchical outline view of document structure
 //!                 - Sessions with nesting (1., 1.1., 1.1.1., etc.)
 //!                 - Definitions, annotations, lists as navigable symbols
-//!
 //!            3. Hover Information (textDocument/hover):
 //!                 - Preview footnote/citation content on hover
 //!                 - Show annotation metadata
 //!                 - Preview definition content when hovering over reference
-//!
 //!             4. Folding Ranges (textDocument/foldingRange):
 //!                 - Fold sessions and nested content
 //!                 - Fold list items with children
 //!                 - Fold annotations, definitions, verbatim blocks
 //!
-//!     Core Features (Phase 2):
-//!         
-//!         Navigation
-//!             
+//!         b. Navigation
+//!
 //!             5. Go to Definition / Find References (textDocument/definition, textDocument/references):
 //!                 - Find all references to footnotes/citations
 //!                 - Jump from footnote reference [42] to annotation
 //!                 - Jump from citation [@spec2025] to bibliography entry
 //!                 - Jump from internal reference [TK-rootlist] to target
-//!
 //!             6. Document Links (textDocument/documentLink):
 //!                 - Clickable links in text
 //!                 - Verbatim block src parameters (images, includes)
 //!                 - External references
 //!
-//!     Core Features (Phase 3):
+//!         c. Editing
 //!
-//!         7. Document Formatting (textDocument/formatting, textDocument/rangeFormatting):
-//!             - Fix indentation issues
-//!             - Normalize blank lines
-//!             - Align list markers //!         
+//!             7. Document Formatting (textDocument/formatting, textDocument/rangeFormatting):
+//!                 - Fix indentation issues
+//!                 - Normalize blank lines
+//!                 - Align list markers //!         
 //!
-//!
-//!     Core Features (Phase 4):
-//!
-//!         8. Diagnostics (textDocument/publishDiagnostics):
-//!             - Indentation errors (breaking the indentation wall, 1 offs)
-//!             - Broken references (footnote/citation not found)
-//!             - Invalid annotation syntax
 //!
 //!
 //! Architecture
@@ -128,6 +116,7 @@
 //!         - Implementation: No interfaces/implementations
 //!         - Moniker: For cross-repo linking, not needed
 //!         - Linked Editing Range: For paired tags (HTML/XML)
+//!         - Diagnostics: we don't have a clear vision for how that would work.
 //!
 //! Usage
 //!
