@@ -145,7 +145,7 @@ impl Container for Definition {
         &self.children
     }
     fn children_mut(&mut self) -> &mut Vec<ContentItem> {
-        &mut self.children
+        self.children.as_mut_vec()
     }
 }
 
