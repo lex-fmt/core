@@ -140,6 +140,14 @@ pub fn find_nodes_at_position(document: &Document, position: Position) -> Vec<&d
     document.root.find_nodes_at_position(position)
 }
 
+/// Find the path of nodes at a given position in the document
+///
+/// Returns a vector containing the path of AST nodes from root to the deepest node at the given position.
+#[inline]
+pub fn find_node_path_at_position(document: &Document, position: Position) -> Vec<&dyn AstNode> {
+    document.node_path_at_position(position)
+}
+
 /// Format information about nodes at a given position
 ///
 /// This is a convenience wrapper around `Document::format_at_position()`.

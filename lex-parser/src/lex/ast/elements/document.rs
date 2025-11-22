@@ -32,7 +32,7 @@
 //! - Document-level metadata via annotations
 //! - All body content accessible via document.root.children
 
-use super::super::range::Range;
+use super::super::range::{Position, Range};
 use super::super::traits::{AstNode, Container, Visitor};
 use super::annotation::Annotation;
 use super::content_item::ContentItem;
@@ -98,6 +98,19 @@ impl Document {
 
     pub fn into_root(self) -> Session {
         self.root
+    }
+
+    /// Returns the path of nodes at the given position, starting from the document
+    pub fn node_path_at_position(&self, pos: Position) -> Vec<&dyn AstNode> {
+        let path = self.root.node_path_at_position(pos);
+        if !path.is_empty() {
+            let mut nodes: Vec<&dyn AstNode> = Vec::with_capacity(path.len() + 1);
+            nodes.push(self);
+            nodes.extend(path);
+            nodes
+        } else {
+            Vec::new()
+        }
     }
 
     /// All annotations attached directly to the document (document-level metadata).
