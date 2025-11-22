@@ -42,6 +42,38 @@ The plugin includes headless tests that can run without a UI:
 ./test/run_headless.sh
 ```
 
+### Interactive Testing
+
+To test LSP features interactively:
+
+```bash
+# Open a Lex file with the LSP enabled
+NVIM_APPNAME=lex-test nvim -u editors/nvim/test/minimal_init.lua specs/v1/benchmark/050-lsp-fixture.lex
+```
+
+Then use these keybindings:
+- `K` - Show hover information
+- `:lua vim.lsp.buf.document_symbol()` - Show document outline
+- `zc` / `zo` / `za` - Fold/unfold/toggle sections
+
+### Debugging LSP Commands
+
+Use the command runner to test any LSP command:
+
+```bash
+# Test hover at a specific position
+./test/run_lsp_command.sh specs/v1/benchmark/050-lsp-fixture.lex 5,75 \
+  'vim.lsp.buf_request_sync(0, "textDocument/hover", vim.lsp.util.make_position_params(), 2000)'
+
+# Test document symbols
+./test/run_lsp_command.sh specs/v1/benchmark/20-ideas-naked.lex 12,5 \
+  'vim.lsp.buf_request_sync(0, "textDocument/documentSymbol", {textDocument = vim.lsp.util.make_text_document_params()}, 2000)'
+
+# Test semantic tokens
+./test/run_lsp_command.sh specs/v1/benchmark/050-lsp-fixture.lex 1,0 \
+  'vim.lsp.buf_request_sync(0, "textDocument/semanticTokens/full", {textDocument = vim.lsp.util.make_text_document_params()}, 2000)'
+```
+
 ## Development
 
 The plugin follows standard Neovim plugin structure:
@@ -62,10 +94,19 @@ editors/nvim/
 
 ## Features
 
+### Phase 1 (Complete)
 - [x] Filetype detection for `.lex` files
 - [x] LSP server integration
-- [ ] Hover documentation
+- [x] Hover documentation
+- [x] Document symbols (outline/navigation)
+- [x] Semantic token highlighting
+- [x] Folding ranges
+
+### Phase 2 (Planned)
 - [ ] Go to definition
-- [ ] Symbol search
-- [ ] Semantic token highlighting
+- [ ] Find references
+- [ ] Document links
+
+### Phase 3+ (Future)
+- [ ] Document formatting
 - [ ] Diagnostics
