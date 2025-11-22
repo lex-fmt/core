@@ -632,7 +632,7 @@ where
 mod tests {
     use super::*;
     use crate::features::semantic_tokens::LexSemanticTokenKind;
-    use crate::features::test_support::sample_source;
+    use lex_analysis::test_support::sample_source;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
     use tower_lsp::lsp_types::{

@@ -4,32 +4,27 @@
 -- This plugin provides LSP integration for Lex documents, including:
 -- - Automatic LSP server registration and connection
 -- - Semantic token highlighting (parser-driven, not regex-based)
--- - Theme support with Markdown-inspired color schemes
 -- - Filetype detection for .lex files
 --
 -- Usage:
 --   require("lex").setup({
---     theme = "lex-dark",  -- or "lex-light", or false to disable
 --     cmd = {"lex-lsp"},   -- command to start LSP server
 --   })
+--
+-- KNOWN LIMITATIONS:
+-- - Verbatim blocks (code blocks) do not have embedded language syntax highlighting.
+--   The block structure (:: python label) is highlighted, but the content inside
+--   gets generic "string" highlighting instead of Python syntax highlighting.
+--   This limitation exists because embedded language support requires either:
+--   1. A Lex treesitter grammar with injection queries (like markdown's injections.scm)
+--   2. LSP protocol extensions for embedded content (not yet standardized)
+--   Traditional vim syntax files with 'syntax include' are not used as Lex relies
+--   entirely on LSP semantic tokens for highlighting.
 --
 -- See docs/dev/nvim-fasttrack.lex for architecture overview
 -- See docs/dev/guides/lsp-plugins.lex for detailed design documentation
 
 local M = {}
-
-local function apply_theme(theme_name)
-  if theme_name == false then
-    return
-  end
-
-  local default_theme = (vim.o.background == "light") and "lex-light" or "lex-dark"
-  local selected = theme_name or default_theme
-  local ok, theme = pcall(require, "themes." .. selected)
-  if ok and type(theme.apply) == "function" then
-    theme.apply()
-  end
-end
 
 -- Plugin version
 M.version = "0.1.0"
@@ -44,8 +39,6 @@ function M.setup(opts)
       lex = "lex",
     },
   })
-
-  apply_theme(opts.theme)
 
   -- Setup LSP if lspconfig is available
   local ok, lspconfig = pcall(require, "lspconfig")
@@ -84,12 +77,6 @@ function M.setup(opts)
         vim.lsp.semantic_tokens.start(bufnr, client.id)
       end
 
-      if client.server_capabilities.documentFormattingProvider then
-        vim.keymap.set("n", "<leader>lf", function()
-          vim.lsp.buf.format({ async = true })
-        end, { buffer = bufnr, desc = "Format current Lex document" })
-      end
-
       -- Preserve user's on_attach callback if they provided one
       if user_on_attach then
         user_on_attach(client, bufnr)
@@ -106,9 +93,14 @@ function M.setup(opts)
     group = augroup,
     pattern = "lex",
     callback = function()
-      -- Set buffer-local options for .lex files
-      vim.bo.commentstring = "# %s"
-      vim.bo.comments = ":#"
+      -- Comment support - Lex uses annotations for comments
+      vim.bo.commentstring = ":: comment :: %s"
+      vim.bo.comments = ""
+
+      -- Document editing settings - soft wrap at window width
+      vim.wo.wrap = true        -- Soft wrap long lines at window width
+      vim.wo.linebreak = true   -- Break at word boundaries, not mid-word
+      vim.bo.textwidth = 0      -- No hard wrapping (no auto line breaks)
     end,
   })
 end

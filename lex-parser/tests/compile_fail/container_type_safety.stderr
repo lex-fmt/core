@@ -1,0 +1,11 @@
+error[E0308]: mismatched types
+  --> tests/compile_fail/container_type_safety.rs:12:67
+   |
+12 |     let _annotation = Annotation::new(label.clone(), vec![], vec![SessionContent::Session(session.clone())]);
+   |                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `ContentElement`, found `SessionContent`
+
+error[E0308]: mismatched types
+  --> tests/compile_fail/container_type_safety.rs:16:53
+   |
+16 |     let _definition = Definition::new(subject, vec![SessionContent::Session(session)]);
+   |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `ContentElement`, found `SessionContent`

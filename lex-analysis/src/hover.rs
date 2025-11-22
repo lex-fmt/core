@@ -1,7 +1,7 @@
-use crate::features::document_utils::{
+use crate::inline::{extract_inline_spans, InlineSpanKind};
+use crate::utils::{
     find_annotation_at_position, find_definition_by_subject, for_each_text_content,
 };
-use crate::features::inline::{extract_inline_spans, InlineSpanKind};
 use lex_parser::lex::ast::{Annotation, ContentItem, Document, Position, Range};
 use lex_parser::lex::inlines::ReferenceType;
 
@@ -221,7 +221,7 @@ fn collect_preview<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test_support::{sample_document, sample_source};
+    use crate::test_support::{sample_document, sample_source};
 
     fn position_for(needle: &str) -> Position {
         let source = sample_source();
