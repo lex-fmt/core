@@ -22,10 +22,10 @@ fn sample_fixture() -> &'static SampleFixture {
     })
 }
 
-pub(crate) fn sample_document() -> Document {
+pub fn sample_document() -> Document {
     sample_fixture().document.clone()
 }
 
-pub(crate) fn sample_source() -> &'static str {
+pub fn sample_source() -> &'static str {
     sample_fixture().source.as_str()
 }

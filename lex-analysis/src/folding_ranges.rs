@@ -164,7 +164,7 @@ impl FoldingCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::test_support::sample_document;
+    use crate::test_support::sample_document;
 
     #[test]
     fn creates_ranges_for_sessions_and_definitions() {
