@@ -128,6 +128,7 @@ impl AstNode for Annotation {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_annotation(self);
         super::super::traits::visit_children(visitor, &self.children);
+        visitor.leave_annotation(self);
     }
 }
 

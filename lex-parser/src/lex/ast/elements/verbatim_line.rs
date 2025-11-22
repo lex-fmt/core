@@ -75,6 +75,7 @@ impl AstNode for VerbatimLine {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_verbatim_line(self);
         // VerbatimLine has no children - it's a leaf node
+        visitor.leave_verbatim_line(self);
     }
 }
 

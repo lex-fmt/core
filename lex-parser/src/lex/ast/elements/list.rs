@@ -138,6 +138,7 @@ impl AstNode for List {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_list(self);
         super::super::traits::visit_children(visitor, &self.items);
+        visitor.leave_list(self);
     }
 }
 
@@ -237,6 +238,7 @@ impl AstNode for ListItem {
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_list_item(self);
         super::super::traits::visit_children(visitor, &self.children);
+        visitor.leave_list_item(self);
     }
 }
 

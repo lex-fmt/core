@@ -77,6 +77,7 @@ impl AstNode for TextLine {
 
     fn accept(&self, visitor: &mut dyn Visitor) {
         visitor.visit_text_line(self);
+        visitor.leave_text_line(self);
     }
 }
 
@@ -207,6 +208,7 @@ impl AstNode for Paragraph {
         visitor.visit_paragraph(self);
         // Visit child TextLines
         super::super::traits::visit_children(visitor, &self.lines);
+        visitor.leave_paragraph(self);
     }
 }
 
