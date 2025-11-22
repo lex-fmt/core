@@ -46,3 +46,15 @@
 pub mod inline;
 pub mod reference_targets;
 pub mod utils;
+
+// Analysis features
+pub mod document_symbols;
+pub mod folding_ranges;
+pub mod go_to_definition;
+pub mod hover;
+pub mod references;
+pub mod semantic_tokens;
+
+// Test support
+#[cfg(test)]
+pub mod test_support;
