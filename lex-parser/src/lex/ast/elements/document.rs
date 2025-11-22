@@ -113,6 +113,21 @@ impl Document {
         }
     }
 
+    /// Returns the deepest (most nested) element that contains the position
+    pub fn element_at(&self, pos: Position) -> Option<&ContentItem> {
+        self.root.element_at(pos)
+    }
+
+    /// Returns the visual line element at the given position
+    pub fn visual_line_at(&self, pos: Position) -> Option<&ContentItem> {
+        self.root.visual_line_at(pos)
+    }
+
+    /// Returns the block element at the given position
+    pub fn block_element_at(&self, pos: Position) -> Option<&ContentItem> {
+        self.root.block_element_at(pos)
+    }
+
     /// All annotations attached directly to the document (document-level metadata).
     pub fn annotations(&self) -> &[Annotation] {
         &self.annotations
