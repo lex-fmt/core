@@ -147,7 +147,12 @@ This is a high-level overview of how the Lex Neovim plugin is designed.
 		Neovim side:
 		- Links become clickable in supporting plugins
 		- gx opens link in browser (standard Neovim)
-		- Useful for images, includes in verbatim blocks
+			- Useful for images, includes in verbatim blocks
+
+	Phase 2 verification:
+
+		- The editors/nvim/test/fixtures/example.lex fixture now contains definitions, references, and external links so the Lua tests exercise real-world data.
+		- New headless scripts test_lsp_definition.lua, test_lsp_references.lua, and test_lsp_document_links.lua call vim.lsp.buf_request_sync() and assert the returned locations/targets. The Bats suite runs them automatically, catching regressions before CI.
 
 
 7. Phase 3 Implementation Guide
