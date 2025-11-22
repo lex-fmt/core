@@ -173,13 +173,13 @@ impl ContentItem {
 
     pub fn children_mut(&mut self) -> Option<&mut Vec<ContentItem>> {
         match self {
-            ContentItem::Session(s) => Some(&mut s.children),
-            ContentItem::Definition(d) => Some(&mut d.children),
-            ContentItem::Annotation(a) => Some(&mut a.children),
-            ContentItem::List(l) => Some(&mut l.items),
-            ContentItem::ListItem(li) => Some(&mut li.children),
+            ContentItem::Session(s) => Some(s.children.as_mut_vec()),
+            ContentItem::Definition(d) => Some(d.children.as_mut_vec()),
+            ContentItem::Annotation(a) => Some(a.children.as_mut_vec()),
+            ContentItem::List(l) => Some(l.items.as_mut_vec()),
+            ContentItem::ListItem(li) => Some(li.children.as_mut_vec()),
             ContentItem::Paragraph(p) => Some(&mut p.lines),
-            ContentItem::VerbatimBlock(fb) => Some(&mut fb.children),
+            ContentItem::VerbatimBlock(fb) => Some(fb.children.as_mut_vec()),
             ContentItem::TextLine(_) => None,
             ContentItem::VerbatimLine(_) => None,
             _ => None,
