@@ -57,27 +57,13 @@ vim.filetype.add({
   },
 })
 
--- Create a test .lex file with content that has different semantic tokens
-local test_file = vim.fn.tempname() .. ".lex"
-local test_content = {
-  "# Test document",
-  "section: introduction",
-  "",
-  "  :: callout ::",
-  "    This is an annotation.",
-  "",
-  "  Some **bold** and *italic* text with `code`.",
-  "",
-  "  - List item one",
-  "  - List item two",
-  "",
-  "  definition: Cache",
-  "    A storage mechanism.",
-  "",
-  ":: note ::",
-  "  Footnote content here.",
-}
-vim.fn.writefile(test_content, test_file)
+-- Use verified LSP fixture from specs
+local test_file = project_root .. "/specs/v1/benchmark/050-lsp-fixture.lex"
+
+if vim.fn.filereadable(test_file) ~= 1 then
+  print("TEST_FAILED: LSP fixture not found at " .. test_file)
+  vim.cmd("cquit 1")
+end
 
 -- Open the file
 vim.cmd("edit " .. test_file)
@@ -127,9 +113,6 @@ for client_id, response in pairs(result) do
     end
   end
 end
-
--- Clean up
-vim.fn.delete(test_file)
 
 if got_tokens then
   print("TEST_PASSED: LSP semantic tokens functionality working")
