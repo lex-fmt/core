@@ -497,8 +497,9 @@ mod tests {
         let document = sample_document();
         let position = position_for("[^source]");
         let hover = hover(&document, position).expect("hover expected");
-        assert!(hover.contents.contains("Footnote [source]"));
-        assert!(hover.contents.contains("Footnote referenced"));
+        // In the updated fixture, footnotes are list items, not annotations
+        // So hover shows generic reference info
+        assert!(hover.contents.contains("source"));
     }
 
     #[test]

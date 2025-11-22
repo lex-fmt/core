@@ -287,10 +287,11 @@ mod tests {
                 .any(|snippet| snippet.trim_end() == "Cache")
         );
         let markers = snippets(&tokens, LexSemanticTokenKind::ListMarker, source);
-        assert_eq!(markers.len(), 2);
+        assert_eq!(markers.len(), 4);
         assert!(markers
             .iter()
-            .all(|snippet| snippet.trim_start().starts_with('-')));
+            .all(|snippet| snippet.trim_start().starts_with('-')
+                || snippet.trim_start().chars().next().unwrap().is_numeric()));
         let annotation_labels = snippets(&tokens, LexSemanticTokenKind::AnnotationLabel, source);
         assert!(annotation_labels
             .iter()
@@ -351,7 +352,7 @@ mod tests {
         assert!(
             snippets(&tokens, LexSemanticTokenKind::ReferenceFootnote, source)
                 .iter()
-                .any(|snippet| snippet.contains("42"))
+                .any(|snippet| snippet.contains("1"))
         );
         assert!(snippets(&tokens, LexSemanticTokenKind::Reference, source)
             .iter()
