@@ -1,0 +1,75 @@
+{
+  "name": "lex-vscode",
+  "displayName": "Lex",
+  "description": "Language support for Lex documents via lex-lsp.",
+  "version": "0.1.0",
+  "publisher": "lex",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "main": "./out/src/main.js",
+  "engines": {
+    "vscode": "^1.95.0",
+    "node": ">=20"
+  },
+  "activationEvents": [
+    "onLanguage:lex"
+  ],
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "lex",
+        "aliases": [
+          "Lex"
+        ],
+        "extensions": [
+          ".lex"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configuration": {
+      "title": "Lex",
+      "properties": {
+        "lex.lspBinaryPath": {
+          "type": "string",
+          "markdownDescription": "Absolute or workspace-relative path to the lex-lsp binary.",
+          "default": "../../target/debug/lex-lsp"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "bundle": "esbuild src/main.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --target=node20",
+    "vscode:prepublish": "npm run bundle -- --minify",
+    "pretest": "npm run build",
+    "test": "node ./out/test/unit/index.js",
+    "lint": "eslint src test",
+    "format": "prettier --write 'src/**/*.ts' 'test/**/*.ts'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lex-lang/lex.git"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^20.19.25",
+    "@types/vscode": "^1.106.1",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.23.1",
+    "eslint": "^9.39.1",
+    "globals": "^15.15.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  }
+}
