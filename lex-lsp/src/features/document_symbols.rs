@@ -207,7 +207,13 @@ mod tests {
     fn includes_document_level_annotations() {
         let document = sample_document();
         let symbols = collect_document_symbols(&document);
-        assert!(symbols.iter().any(|symbol| symbol.name == ":: 42 ::"));
-        assert!(symbols.iter().any(|symbol| symbol.name == ":: source ::"));
+        assert!(symbols.iter().any(|symbol| symbol.name == ":: doc.note ::"));
+        // callout is nested within the definition, not at document level
+        fn find_symbol_recursive(symbols: &[LexDocumentSymbol], name: &str) -> bool {
+            symbols
+                .iter()
+                .any(|symbol| symbol.name == name || find_symbol_recursive(&symbol.children, name))
+        }
+        assert!(find_symbol_recursive(&symbols, ":: callout ::"));
     }
 }
