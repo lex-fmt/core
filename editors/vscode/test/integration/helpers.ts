@@ -2,6 +2,7 @@ import path from 'node:path';
 import * as vscode from 'vscode';
 
 export const TEST_DOCUMENT_PATH = 'documents/getting-started.lex';
+export const SEMANTIC_TOKENS_DOCUMENT_PATH = 'documents/semantic-tokens.lex';
 
 export function requireWorkspaceFolder(): vscode.WorkspaceFolder {
   const folder = vscode.workspace.workspaceFolders?.[0];

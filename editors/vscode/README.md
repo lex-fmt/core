@@ -11,7 +11,7 @@ npm run build
 npm test
 ```
 
-Tests currently cover configuration helpers, VS Code activation, and an initial lex-lsp handshake. Run individual suites with:
+Tests currently cover configuration helpers, VS Code activation, lex-lsp handshake, and semantic tokens. Run individual suites with:
 
 ```
 npm run test:unit
