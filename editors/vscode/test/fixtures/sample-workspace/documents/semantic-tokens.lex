@@ -21,6 +21,8 @@
         lex serve
     :: shell language=bash
 
+See https://lexlang.org for docs.
+
 2. Notes
     
 1. Footnote forty two for bullet.
