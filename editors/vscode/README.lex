@@ -20,6 +20,11 @@ npm test               # unit + VS Code integration
 ```
 CI mirrors the same sequence via `.github/workflows/vscode-plugin.yml`.
 
+Packaging
+---------
+- `./editors/vscode/scripts/build_extension.sh` builds `lex-lsp` in release mode, copies it into `editors/vscode/resources/lex-lsp`, installs npm dependencies, and runs `npm run bundle`.
+- Run `npx vsce package` afterwards to create the VSIX.
+
 Features Covered
 ----------------
 - Activation + handshake with lex-lsp (configurable binary path).

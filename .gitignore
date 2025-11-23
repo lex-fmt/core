@@ -21,6 +21,7 @@ node_modules/
 editors/vscode/out/
 editors/vscode/dist/
 editors/vscode/.vscode-test/
+editors/vscode/resources/lex-lsp*
 
 # OS
 .DS_Store
