@@ -9,7 +9,7 @@
   "private": true,
   "main": "./out/src/main.js",
   "engines": {
-    "vscode": "^1.95.0",
+    "vscode": "^1.106.0",
     "node": ">=20"
   },
   "activationEvents": [
