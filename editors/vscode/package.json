@@ -37,7 +37,7 @@
         "lex.lspBinaryPath": {
           "type": "string",
           "markdownDescription": "Absolute or workspace-relative path to the lex-lsp binary.",
-          "default": "../../target/debug/lex-lsp"
+          "default": "./resources/lex-lsp"
         }
       }
     }
@@ -52,7 +52,8 @@
     "test:unit": "node ./out/test/unit/index.js",
     "test:integration": "node ./out/test/runTests.js",
     "lint": "eslint src test",
-    "format": "prettier --write 'src/**/*.ts' 'test/**/*.ts'"
+    "format": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
+    "build:with-binary": "bash ./scripts/build_extension.sh"
   },
   "repository": {
     "type": "git",
