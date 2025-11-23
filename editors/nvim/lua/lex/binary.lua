@@ -16,16 +16,16 @@ local IS_WINDOWS = OS_NAME:find('windows') ~= nil
 
 local PLATFORM_ASSETS = {
   linux = {
-    amd64 = 'lex-linux-amd64.tar.gz',
-    arm64 = 'lex-linux-arm64.tar.gz',
+    amd64 = { filename = 'lex-lsp-x86_64-unknown-linux-gnu.tar.xz', kind = 'tar.xz' },
+    arm64 = { filename = 'lex-lsp-aarch64-unknown-linux-gnu.tar.xz', kind = 'tar.xz' },
   },
   darwin = {
-    amd64 = 'lex-macos-amd64.tar.gz',
-    arm64 = 'lex-macos-arm64.tar.gz',
+    amd64 = { filename = 'lex-lsp-x86_64-apple-darwin.tar.xz', kind = 'tar.xz' },
+    arm64 = { filename = 'lex-lsp-aarch64-apple-darwin.tar.xz', kind = 'tar.xz' },
   },
   windows = {
-    amd64 = 'lex-windows-amd64.zip',
-    arm64 = 'lex-windows-arm64.zip',
+    amd64 = { filename = 'lex-lsp-x86_64-pc-windows-msvc.zip', kind = 'zip' },
+    arm64 = { filename = 'lex-lsp-aarch64-pc-windows-msvc.zip', kind = 'zip' },
   },
 }
 
@@ -95,10 +95,10 @@ local function download_release(tag, dest)
   end
 
   local base = 'https://github.com/arthur-debert/lex/releases/download/%s/%s'
-  local url = string.format(base, tag, asset)
+  local url = string.format(base, tag, asset.filename)
 
   local tmpdir = with_tempdir()
-  local archive = tmpdir .. '/' .. asset
+  local archive = tmpdir .. '/' .. asset.filename
 
   local _, curl_err = run_cmd({ 'curl', '-sSL', '-o', archive, url })
   if curl_err then
@@ -106,7 +106,9 @@ local function download_release(tag, dest)
   end
 
   local extract_err
-  if asset:match('%.tar%.gz$') then
+  if asset.kind == 'tar.xz' then
+    _, extract_err = run_cmd({ 'tar', '-xJf', archive, '-C', tmpdir })
+  elseif asset.kind == 'tar.gz' then
     _, extract_err = run_cmd({ 'tar', '-xzf', archive, '-C', tmpdir })
   else
     local expand_cmd = string.format(
