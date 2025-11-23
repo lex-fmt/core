@@ -14,6 +14,12 @@ setup() {
     [[ "$output" =~ "TEST_PASSED" ]]
 }
 
+@test "Binary manager handles version resolution" {
+    run nvim --headless -u NONE -l "$SCRIPT_DIR/test_binary_manager.lua"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "TEST_PASSED" ]]
+}
+
 @test "Filetype detection for .lex files" {
     run nvim --headless -u "$MINIMAL_INIT" -l "$SCRIPT_DIR/test_filetype.lua"
     [ "$status" -eq 0 ]
@@ -67,4 +73,3 @@ setup() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "TEST_PASSED" ]]
 }
-
