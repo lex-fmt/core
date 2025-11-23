@@ -7,6 +7,7 @@
 
 local uv = vim.loop
 local M = {}
+local test_overrides -- populated by _set_test_overrides during tests
 
 local OS_NAME = uv.os_uname().sysname:lower()
 local IS_WINDOWS = OS_NAME:find('windows') ~= nil
@@ -49,11 +50,17 @@ local function with_tempdir()
 end
 
 local function get_plugin_root()
+  if test_overrides and test_overrides.plugin_root then
+    return test_overrides.plugin_root
+  end
   local source = debug.getinfo(1, 'S').source:sub(2)
   return vim.fn.fnamemodify(source, ':h:h:h')
 end
 
 local function download_release(tag, dest)
+  if test_overrides and test_overrides.download_release then
+    return test_overrides.download_release(tag, dest)
+  end
   local asset = select_asset()
   if not asset then
     return nil, 'unsupported platform for automatic lex-lsp download'
@@ -110,6 +117,9 @@ local function download_release(tag, dest)
 end
 
 local function latest_tag()
+  if test_overrides and test_overrides.latest_tag then
+    return test_overrides.latest_tag()
+  end
   local api_url = 'https://api.github.com/repos/arthur-debert/lex/releases/latest'
   local output, err = run_cmd({ 'curl', '-sSL', api_url })
   if err then
@@ -166,5 +176,11 @@ local function ensure_binary(version)
 end
 
 M.ensure_binary = ensure_binary
+M._set_test_overrides = function(overrides)
+  test_overrides = overrides
+end
+M._reset_test_overrides = function()
+  test_overrides = nil
+end
 
 return M

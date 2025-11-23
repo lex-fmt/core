@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::features::commands::{self, execute_command};
 use crate::features::document_links::collect_document_links;
 use crate::features::document_symbols::{collect_document_symbols, LexDocumentSymbol};
 use crate::features::folding_ranges::{folding_ranges as collect_folding_ranges, LexFoldingRange};
@@ -18,19 +19,21 @@ use lex_parser::lex::ast::links::{DocumentLink as AstDocumentLink, LinkType};
 use lex_parser::lex::ast::range::SourceLocation;
 use lex_parser::lex::ast::{Document, Position as AstPosition, Range as AstRange};
 use lex_parser::lex::parsing;
+use serde_json::Value;
 use tokio::sync::RwLock;
 use tower_lsp::async_trait;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     DocumentFormattingParams, DocumentLink, DocumentLinkOptions, DocumentLinkParams,
     DocumentRangeFormattingParams, DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse,
-    FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
-    InitializeParams, InitializeResult, InitializedParams, Location, MarkupContent, MarkupKind,
-    OneOf, Position, Range, ReferenceParams, SemanticToken, SemanticTokenType, SemanticTokens,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
-    SemanticTokensResult, ServerCapabilities, ServerInfo, TextDocumentItem,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
+    ExecuteCommandOptions, ExecuteCommandParams, FoldingRange, FoldingRangeParams,
+    FoldingRangeProviderCapability, GotoDefinitionParams, GotoDefinitionResponse, Hover,
+    HoverContents, HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
+    InitializedParams, Location, MarkupContent, MarkupKind, OneOf, Position, Range,
+    ReferenceParams, SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensFullOptions,
+    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult,
+    ServerCapabilities, ServerInfo, TextDocumentItem, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
 };
 use tower_lsp::Client;
 
@@ -57,6 +60,7 @@ pub trait FeatureProvider: Send + Sync + 'static {
         source: &str,
         range: FormattingLineRange,
     ) -> Vec<TextEditSpan>;
+    fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>>;
 }
 
 #[derive(Default)]
@@ -113,6 +117,10 @@ impl FeatureProvider for DefaultFeatureProvider {
         range: FormattingLineRange,
     ) -> Vec<TextEditSpan> {
         formatting::format_range(document, source, range)
+    }
+
+    fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>> {
+        execute_command(command, arguments)
     }
 }
 
@@ -448,6 +456,10 @@ where
                     },
                 ),
             ),
+            execute_command_provider: Some(ExecuteCommandOptions {
+                commands: vec![commands::COMMAND_ECHO.to_string()],
+                work_done_progress_options: WorkDoneProgressOptions::default(),
+            }),
             ..ServerCapabilities::default()
         };
 
@@ -626,6 +638,11 @@ where
             Ok(None)
         }
     }
+
+    async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
+        self.features
+            .execute_command(&params.command, &params.arguments)
+    }
 }
 
 #[cfg(test)]
@@ -661,6 +678,7 @@ mod tests {
         last_references_include: Mutex<Option<bool>>,
         formatting_called: AtomicUsize,
         range_formatting_called: AtomicUsize,
+        execute_command_called: AtomicUsize,
     }
 
     impl FeatureProvider for MockFeatureProvider {
@@ -757,6 +775,15 @@ mod tests {
                 end: 0,
                 new_text: "range".into(),
             }]
+        }
+
+        fn execute_command(&self, command: &str, _: &[Value]) -> Result<Option<Value>> {
+            self.execute_command_called.fetch_add(1, Ordering::SeqCst);
+            if command == "test.command" {
+                Ok(Some(Value::String("executed".into())))
+            } else {
+                Ok(None)
+            }
         }
     }
 
@@ -1088,6 +1115,25 @@ mod tests {
             .unwrap();
 
         assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn execute_command_uses_feature_provider() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider.clone());
+
+        let result = server
+            .execute_command(ExecuteCommandParams {
+                command: "test.command".into(),
+                arguments: vec![],
+                work_done_progress_params: Default::default(),
+            })
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(provider.execute_command_called.load(Ordering::SeqCst), 1);
+        assert_eq!(result, Value::String("executed".into()));
     }
 
     #[tokio::test]
