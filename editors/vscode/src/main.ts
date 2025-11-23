@@ -7,13 +7,33 @@ import {
 } from './config.js';
 import { createLexClient } from './client.js';
 
+export interface LexExtensionApi {
+  clientReady(): Promise<void>;
+}
+
 let client: LanguageClient | undefined;
+let resolveClientReady: (() => void) | undefined;
+const clientReadyPromise = new Promise<void>(resolve => {
+  resolveClientReady = resolve;
+});
+
+function signalClientReady(): void {
+  resolveClientReady?.();
+}
 
 function shouldSkipLanguageClient(): boolean {
   return process.env.LEX_VSCODE_SKIP_SERVER === '1';
 }
 
-export async function activate(context: vscode.ExtensionContext) {
+function createApi(): LexExtensionApi {
+  return {
+    clientReady: () => clientReadyPromise
+  };
+}
+
+export async function activate(
+  context: vscode.ExtensionContext
+): Promise<LexExtensionApi> {
   const config = vscode.workspace.getConfiguration(LEX_CONFIGURATION_SECTION);
   const configuredLspPath = config.get<string | null>(LSP_BINARY_SETTING, null);
   const resolvedConfig = buildLexExtensionConfig(
@@ -23,12 +43,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
   if (shouldSkipLanguageClient()) {
     console.info('[lex] Skipping language client startup (LEX_VSCODE_SKIP_SERVER=1).');
-    return;
+    signalClientReady();
+    return createApi();
   }
 
   client = createLexClient(resolvedConfig.lspBinaryPath, context);
   context.subscriptions.push(client);
   await client.start();
+  signalClientReady();
+  return createApi();
 }
 
 export async function deactivate(): Promise<void> {

@@ -5,12 +5,13 @@ This package hosts the VS Code extension for the Lex language. The extension is 
 ## Developer Setup
 
 ```
+cargo build --bin lex-lsp
 npm install
 npm run build
 npm test
 ```
 
-Tests currently cover configuration helpers and a VS Code activation smoke test. Run individual suites with:
+Tests currently cover configuration helpers, VS Code activation, and an initial lex-lsp handshake. Run individual suites with:
 
 ```
 npm run test:unit
@@ -18,4 +19,4 @@ npm run test:integration
 ./test/run_suite.sh --format=simple
 ```
 
-The integration runner uses `@vscode/test-electron` to launch a headless VS Code instance. During milestone 3 we set `LEX_VSCODE_SKIP_SERVER=1` (handled automatically by the runner) to bypass the Rust LSP binary until handshake coverage lands.
+The integration runner uses `@vscode/test-electron` to launch a headless VS Code instance and spins up the `lex-lsp` binary from `target/debug/lex-lsp`. If the binary is missing, the runner instructs you to build it first.
