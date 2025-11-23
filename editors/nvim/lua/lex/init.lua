@@ -24,14 +24,45 @@
 -- See docs/dev/nvim-fasttrack.lex for architecture overview
 -- See docs/dev/guides/lsp-plugins.lex for detailed design documentation
 
+local binary_manager = require("lex.binary")
+
 local M = {}
 
--- Plugin version
+-- Plugin version + bundled lex-lsp version (used by binary manager).
 M.version = "0.1.0"
+M.lex_lsp_version = "v0.1.6"
+
+-- Resolve which lex-lsp binary to execute. When opts.lex_lsp_version (or the
+-- default M.lex_lsp_version) is set, we lazily download the correct GitHub
+-- release artifact into ${PLUGIN_ROOT}/bin/lex-lsp-vX.Y.Z and reuse it across
+-- sessions. Setting lex_lsp_version=nil (or "") keeps the prior behaviour and
+-- defers to whatever binary is on PATH – handy for local development.
+local function resolve_lsp_cmd(opts)
+  if opts.cmd then
+    return opts.cmd
+  end
+
+  local desired = opts.lex_lsp_version
+  if desired == nil then
+    desired = M.lex_lsp_version
+  end
+
+  if desired and desired ~= "" then
+    -- Binaries are stored under ${PLUGIN_ROOT}/bin/lex-lsp-vX.Y.Z(.exe).
+    -- They are downloaded lazily on demand and reused across plugin upgrades.
+    local path = binary_manager.ensure_binary(desired)
+    if path then
+      return { path }
+    end
+  end
+
+  return { "lex-lsp" }
+end
 
 -- Setup function called by lazy.nvim or manual setup
 function M.setup(opts)
   opts = opts or {}
+  local resolved_cmd = resolve_lsp_cmd(opts)
 
   -- Register .lex filetype
   vim.filetype.add({
@@ -49,7 +80,7 @@ function M.setup(opts)
     if not configs.lex_lsp then
       configs.lex_lsp = {
         default_config = {
-          cmd = opts.cmd or { "lex-lsp" },
+          cmd = resolved_cmd,
           filetypes = { "lex" },
           root_dir = function(fname)
             return lspconfig.util.find_git_ancestor(fname) or vim.fn.getcwd()
@@ -64,8 +95,8 @@ function M.setup(opts)
     local user_on_attach = lsp_config.on_attach
 
     -- Ensure cmd is passed to the LSP config if provided
-    if opts.cmd and not lsp_config.cmd then
-      lsp_config.cmd = opts.cmd
+    if not lsp_config.cmd then
+      lsp_config.cmd = resolved_cmd
     end
 
     lsp_config.on_attach = function(client, bufnr)
