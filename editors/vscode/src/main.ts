@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LanguageClient } from 'vscode-languageclient/node';
+import { LanguageClient } from 'vscode-languageclient/node.js';
 import {
   buildLexExtensionConfig,
   LEX_CONFIGURATION_SECTION,
@@ -9,6 +9,10 @@ import { createLexClient } from './client.js';
 
 let client: LanguageClient | undefined;
 
+function shouldSkipLanguageClient(): boolean {
+  return process.env.LEX_VSCODE_SKIP_SERVER === '1';
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration(LEX_CONFIGURATION_SECTION);
   const configuredLspPath = config.get<string | null>(LSP_BINARY_SETTING, null);
@@ -16,6 +20,11 @@ export async function activate(context: vscode.ExtensionContext) {
     context.extensionUri.fsPath,
     configuredLspPath
   );
+
+  if (shouldSkipLanguageClient()) {
+    console.info('[lex] Skipping language client startup (LEX_VSCODE_SKIP_SERVER=1).');
+    return;
+  }
 
   client = createLexClient(resolvedConfig.lspBinaryPath, context);
   context.subscriptions.push(client);
