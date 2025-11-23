@@ -17,16 +17,28 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: lex
             asset_name: lex-linux-amd64
-          - os: macos-latest
+            archive_ext: tar.gz
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            asset_name: lex-linux-arm64
+            archive_ext: tar.gz
+          - os: macos-13
             target: x86_64-apple-darwin
-            artifact_name: lex
             asset_name: lex-macos-amd64
+            archive_ext: tar.gz
+          - os: macos-14
+            target: aarch64-apple-darwin
+            asset_name: lex-macos-arm64
+            archive_ext: tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: lex
             asset_name: lex-windows-amd64
+            archive_ext: zip
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            asset_name: lex-windows-arm64
+            archive_ext: zip
 
     steps:
       - name: Checkout code
@@ -36,6 +48,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      - name: Install Linux ARM64 linker
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Build binaries
         run: cargo build --release --target ${{ matrix.target }} --workspace --exclude lex-analysis --exclude lex-babel --exclude lex-parser
@@ -52,7 +70,7 @@ jobs:
           cp target/${{ matrix.target }}/release/lexv release/
           cp target/${{ matrix.target }}/release/lex-lsp release/
           cd release
-          tar -czf ../${{ matrix.asset_name }}.tar.gz *
+          tar -czf ../${{ matrix.asset_name }}.${{ matrix.archive_ext }} *
 
       - name: Prepare artifacts (Windows)
         if: matrix.os == 'windows-latest'
@@ -62,7 +80,7 @@ jobs:
           Copy-Item target/${{ matrix.target }}/release/lex.exe -Destination release/
           Copy-Item target/${{ matrix.target }}/release/lexv.exe -Destination release/
           Copy-Item target/${{ matrix.target }}/release/lex-lsp.exe -Destination release/
-          Compress-Archive -Path release/* -DestinationPath ${{ matrix.asset_name }}.zip
+          Compress-Archive -Path release/* -DestinationPath ${{ matrix.asset_name }}.${{ matrix.archive_ext }}
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
@@ -70,19 +88,46 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: |
-            ${{ matrix.asset_name }}.tar.gz
-            ${{ matrix.asset_name }}.zip
+          files: ${{ matrix.asset_name }}.${{ matrix.archive_ext }}
 
   build-vscode-extension:
-    name: Build VS Code Extension
-    runs-on: ubuntu-latest
+    name: Build VS Code Extension (${{ matrix.vsce_target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rust_target: x86_64-unknown-linux-gnu
+            vsce_target: linux-x64
+          - os: ubuntu-latest
+            rust_target: aarch64-unknown-linux-gnu
+            vsce_target: linux-arm64
+          - os: macos-13
+            rust_target: x86_64-apple-darwin
+            vsce_target: darwin-x64
+          - os: macos-14
+            rust_target: aarch64-apple-darwin
+            vsce_target: darwin-arm64
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            vsce_target: win32-x64
+          - os: windows-latest
+            rust_target: aarch64-pc-windows-msvc
+            vsce_target: win32-arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Install Linux ARM64 linker
+        if: matrix.rust_target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -92,11 +137,12 @@ jobs:
           cache-dependency-path: editors/vscode/package-lock.json
 
       - name: Build VS Code extension bundle
-        run: ./editors/vscode/scripts/build_extension.sh
+        shell: bash
+        run: ./editors/vscode/scripts/build_extension.sh --target "${{ matrix.rust_target }}"
 
       - name: Package VS Code extension
         working-directory: editors/vscode
-        run: npx vsce package --no-dependencies --out lex-vscode.vsix
+        run: npx vsce package --no-dependencies --target ${{ matrix.vsce_target }} --out lex-vscode-${{ matrix.vsce_target }}.vsix
 
       - name: Upload VS Code extension asset
         uses: softprops/action-gh-release@v1
@@ -104,7 +150,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: editors/vscode/lex-vscode.vsix
+          files: editors/vscode/lex-vscode-${{ matrix.vsce_target }}.vsix
 
   build-neovim-plugin:
     name: Build Neovim Plugin

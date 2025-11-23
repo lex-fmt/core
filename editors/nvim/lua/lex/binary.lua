@@ -9,24 +9,52 @@ local uv = vim.loop
 local M = {}
 local test_overrides -- populated by _set_test_overrides during tests
 
-local OS_NAME = uv.os_uname().sysname:lower()
+local UNAME = uv.os_uname()
+local OS_NAME = UNAME.sysname:lower()
+local MACHINE = (UNAME.machine or ''):lower()
 local IS_WINDOWS = OS_NAME:find('windows') ~= nil
 
-local PLATFORM_ASSET = {
-  linux = 'lex-linux-amd64.tar.gz',
-  darwin = 'lex-macos-amd64.tar.gz',
-  windows = 'lex-windows-amd64.zip',
+local PLATFORM_ASSETS = {
+  linux = {
+    amd64 = 'lex-linux-amd64.tar.gz',
+    arm64 = 'lex-linux-arm64.tar.gz',
+  },
+  darwin = {
+    amd64 = 'lex-macos-amd64.tar.gz',
+    arm64 = 'lex-macos-arm64.tar.gz',
+  },
+  windows = {
+    amd64 = 'lex-windows-amd64.zip',
+    arm64 = 'lex-windows-arm64.zip',
+  },
 }
 
-local function select_asset()
-  if OS_NAME:find('linux') then
-    return PLATFORM_ASSET.linux
-  elseif OS_NAME:find('darwin') then
-    return PLATFORM_ASSET.darwin
-  elseif IS_WINDOWS then
-    return PLATFORM_ASSET.windows
+local function normalized_arch(machine)
+  if not machine or machine == '' then
+    return 'amd64'
+  end
+  machine = machine:lower()
+  if machine:find('arm64', 1, true) or machine:find('aarch64', 1, true) then
+    return 'arm64'
+  end
+  return 'amd64'
+end
+
+local function select_asset_for(os_name, machine)
+  os_name = (os_name or ''):lower()
+  local arch = normalized_arch(machine)
+  if os_name:find('linux') then
+    return PLATFORM_ASSETS.linux[arch] or PLATFORM_ASSETS.linux.amd64
+  elseif os_name:find('darwin') then
+    return PLATFORM_ASSETS.darwin[arch] or PLATFORM_ASSETS.darwin.amd64
+  elseif os_name:find('windows') then
+    return PLATFORM_ASSETS.windows[arch] or PLATFORM_ASSETS.windows.amd64
   end
   return nil
+end
+
+local function select_asset()
+  return select_asset_for(OS_NAME, MACHINE)
 end
 
 local function run_cmd(cmd)
@@ -182,5 +210,6 @@ end
 M._reset_test_overrides = function()
   test_overrides = nil
 end
+M._select_asset_for_testing = select_asset_for
 
 return M

@@ -60,6 +60,16 @@ add_test('reuses existing binary', function()
   assert_true(resolved == existing, 'should reuse existing binary for ' .. version)
 end)
 
+add_test('selects architecture specific assets', function()
+  local select_asset = binary._select_asset_for_testing
+  assert_true(select_asset('darwin', 'arm64') == 'lex-macos-arm64.tar.gz', 'mac arm64 asset mismatch')
+  assert_true(select_asset('darwin', 'x86_64') == 'lex-macos-amd64.tar.gz', 'mac amd64 asset mismatch')
+  assert_true(select_asset('linux', 'aarch64') == 'lex-linux-arm64.tar.gz', 'linux arm64 asset mismatch')
+  assert_true(select_asset('linux', 'x86_64') == 'lex-linux-amd64.tar.gz', 'linux amd64 asset mismatch')
+  assert_true(select_asset('windows', 'arm64') == 'lex-windows-arm64.zip', 'windows arm64 asset mismatch')
+  assert_true(select_asset('windows', 'amd64') == 'lex-windows-amd64.zip', 'windows amd64 asset mismatch')
+end)
+
 add_test('downloads missing version', function()
   local root = temp_plugin_root()
   local version = 'v1.2.3'
