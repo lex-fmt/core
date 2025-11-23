@@ -21,7 +21,7 @@
         lex serve
     :: shell language=bash
 
-Notes
+2. Notes
     
 1. Footnote forty two for bullet.
 2. Footnote referenced in text.
