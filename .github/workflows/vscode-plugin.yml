@@ -41,6 +41,11 @@ jobs:
         run: npm ci
         working-directory: editors/vscode
 
+      - name: Install BATS
+        uses: mig4/setup-bats@v1
+        with:
+          bats-version: 1.10.0
+
       - name: Lint
         run: npm run lint
         working-directory: editors/vscode
@@ -49,6 +54,18 @@ jobs:
         run: npm run build
         working-directory: editors/vscode
 
-      - name: Test
-        run: npm test
+      - name: Run VS Code test suite
+        run: |
+          chmod +x test/run_suite.sh
+          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' ./test/run_suite.sh --format=junit > test_results.xml
         working-directory: editors/vscode
+
+      - name: Display Test Results
+        if: always()
+        run: cat editors/vscode/test_results.xml
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: editors/vscode/test_results.xml
