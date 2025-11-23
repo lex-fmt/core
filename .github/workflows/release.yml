@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: lex
+            asset_name: lex-linux-amd64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: lex
+            asset_name: lex-macos-amd64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: lex
+            asset_name: lex-windows-amd64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build binaries
+        run: cargo build --release --target ${{ matrix.target }} --workspace --exclude lex-analysis --exclude lex-babel --exclude lex-parser
+
+      # We need to package the binaries. 
+      # The binaries are: lex-cli, lex-viewer, lex-lsp
+      # Their paths will be target/${{ matrix.target }}/release/lex-cli, etc.
+
+      - name: Prepare artifacts (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir -p release
+          cp target/${{ matrix.target }}/release/lex release/
+          cp target/${{ matrix.target }}/release/lexv release/
+          cp target/${{ matrix.target }}/release/lex-lsp release/
+          cd release
+          tar -czf ../${{ matrix.asset_name }}.tar.gz *
+
+      - name: Prepare artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release
+          Copy-Item target/${{ matrix.target }}/release/lex.exe -Destination release/
+          Copy-Item target/${{ matrix.target }}/release/lexv.exe -Destination release/
+          Copy-Item target/${{ matrix.target }}/release/lex-lsp.exe -Destination release/
+          Compress-Archive -Path release/* -DestinationPath ${{ matrix.asset_name }}.zip
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            ${{ matrix.asset_name }}.tar.gz
+            ${{ matrix.asset_name }}.zip
