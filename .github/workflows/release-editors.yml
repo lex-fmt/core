@@ -1,0 +1,107 @@
+name: Release Editors
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  REPO_NAME: ${{ github.repository }}
+  RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+jobs:
+  vscode:
+    name: Package VS Code Extension (${{ matrix.suffix }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            vsce_target: linux-x64
+            suffix: linux-amd64
+            archive_ext: tar.xz
+          - target: aarch64-unknown-linux-gnu
+            vsce_target: linux-arm64
+            suffix: linux-arm64
+            archive_ext: tar.xz
+          - target: x86_64-apple-darwin
+            vsce_target: darwin-x64
+            suffix: macos-amd64
+            archive_ext: tar.xz
+          - target: aarch64-apple-darwin
+            vsce_target: darwin-arm64
+            suffix: macos-arm64
+            archive_ext: tar.xz
+          - target: x86_64-pc-windows-msvc
+            vsce_target: win32-x64
+            suffix: windows-amd64
+            archive_ext: zip
+          - target: aarch64-pc-windows-msvc
+            vsce_target: win32-arm64
+            suffix: windows-arm64
+            archive_ext: zip
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: editors/vscode/package-lock.json
+      - name: Download lex-lsp artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p artifacts extracted
+          gh release download "$RELEASE_TAG" \
+            --repo "$REPO_NAME" \
+            --pattern "lex-lsp-${{ matrix.target }}.*" \
+            --dir artifacts
+          ASSET=$(ls artifacts/lex-lsp-${{ matrix.target }}.*)
+          if [[ ! -f "$ASSET" ]]; then
+            echo "lex-lsp artifact not found for ${{ matrix.target }}" >&2
+            exit 1
+          fi
+          if [[ "$ASSET" == *.zip ]]; then
+            unzip "$ASSET" -d extracted
+          else
+            tar -xf "$ASSET" -C extracted
+          fi
+          DEST="editors/vscode/resources/lex-lsp"
+          SRC=$(ls extracted/lex-lsp*)
+          if [[ "$SRC" == *.exe ]]; then
+            DEST="$DEST.exe"
+          fi
+          mkdir -p editors/vscode/resources
+          cp "$SRC" "$DEST"
+          chmod +x "$DEST" || true
+      - name: Build VS Code extension bundle
+        working-directory: editors/vscode
+        run: |
+          npm ci
+          npm run build
+          npm run bundle
+      - name: Package VS Code extension
+        working-directory: editors/vscode
+        run: |
+          npx vsce package --no-dependencies --target ${{ matrix.vsce_target }} --out lex-vscode-${{ matrix.suffix }}.vsix
+      - name: Upload VS Code extension asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$RELEASE_TAG" "editors/vscode/lex-vscode-${{ matrix.suffix }}.vsix" --repo "$REPO_NAME" --clobber
+
+  neovim:
+    name: Package Neovim Plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build plugin archive
+        run: ./editors/nvim/scripts/build_plugin.sh --version "$RELEASE_TAG"
+      - name: Upload Neovim asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$RELEASE_TAG" editors/nvim/dist/lex-nvim.tar.gz --repo "$REPO_NAME" --clobber
