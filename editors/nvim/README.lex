@@ -25,3 +25,9 @@ Documentation:
 	- docs/dev/nvim-fasttrack.lex: Quick architecture overview
 	- docs/dev/guides/lsp-plugins.lex: Detailed design documentation
 	- lua/lex/init.lua: Plugin source with inline documentation
+
+Packaging:
+
+	Build a release-ready plugin archive (sets lex_lsp_version to the provided tag):
+	./editors/nvim/scripts/build_plugin.sh --version v0.1.6
+	:: shell
