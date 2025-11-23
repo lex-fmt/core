@@ -30,7 +30,7 @@ local M = {}
 
 -- Plugin version + bundled lex-lsp version (used by binary manager).
 M.version = "0.1.0"
-M.lex_lsp_version = "v0.1.12"
+M.lex_lsp_version = "v0.1.13"
 
 -- Resolve which lex-lsp binary to execute. When opts.lex_lsp_version (or the
 -- default M.lex_lsp_version) is set, we lazily download the correct GitHub

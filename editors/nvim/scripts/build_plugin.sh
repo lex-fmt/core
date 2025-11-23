@@ -6,7 +6,7 @@ usage() {
 Usage: $(basename "$0") --version <vX.Y.Z> [--output-name <name>]
 
 Builds the Lex Neovim plugin bundle. The provided version should match the
-release tag (e.g. v0.1.12) and is embedded as the default lex-lsp binary
+release tag (e.g. v0.1.13) and is embedded as the default lex-lsp binary
 version. The resulting archive is written to editors/nvim/dist/.
 USAGE
 }
