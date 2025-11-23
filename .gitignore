@@ -22,6 +22,8 @@ editors/vscode/out/
 editors/vscode/dist/
 editors/vscode/.vscode-test/
 editors/vscode/resources/lex-lsp*
+editors/nvim/bin/
+editors/nvim/bin/lex-lsp*
 
 # OS
 .DS_Store
