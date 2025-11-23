@@ -61,3 +61,18 @@ Editor Tooling
 6. Help / Documentation
 
 	Being a novel format, it would be very welcome to be able to offer help and documetation for the format itself. I'm not very sure how to best achieve this, but it's worth carving out the mental model for this.
+
+7. Shared Architecture
+
+	To avoid duplicating logic across plugins, we use the LSP `workspace/executeCommand` capability. This allows plugins to delegate complex tasks to the `lex-lsp` server.
+
+	Mechanism:
+	The server exposes a set of commands (e.g., `lex.echo`). Plugins invoke these commands using their editor's LSP client API.
+
+	Usage:
+
+	VSCode:
+	Use `vscode.commands.executeCommand('lex.commandName', args)`.
+
+	Neovim:
+	Use `client:exec_cmd({ command = 'lex.commandName', arguments = args })` (or `vim.lsp.buf.execute_command` for older versions).
