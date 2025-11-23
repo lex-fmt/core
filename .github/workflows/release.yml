@@ -73,3 +73,35 @@ jobs:
           files: |
             ${{ matrix.asset_name }}.tar.gz
             ${{ matrix.asset_name }}.zip
+
+  build-vscode-extension:
+    name: Build VS Code Extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: editors/vscode/package-lock.json
+
+      - name: Build VS Code extension bundle
+        run: ./editors/vscode/scripts/build_extension.sh
+
+      - name: Package VS Code extension
+        working-directory: editors/vscode
+        run: npx vsce package --no-dependencies --out lex-vscode.vsix
+
+      - name: Upload VS Code extension asset
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: editors/vscode/lex-vscode.vsix
