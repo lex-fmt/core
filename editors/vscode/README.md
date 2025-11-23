@@ -4,8 +4,10 @@ This package hosts the VS Code extension for the Lex language. The extension is 
 
 ## Developer Setup
 
+
 ```
 cargo build --bin lex-lsp
+cd editors/vscode
 npm install
 npm run build
 npm test
@@ -20,3 +22,13 @@ npm run test:integration
 ```
 
 The integration runner uses `@vscode/test-electron` to launch a headless VS Code instance and spins up the `lex-lsp` binary from `target/debug/lex-lsp`. If the binary is missing, the runner instructs you to build it first.
+
+## Building the Extension Bundle
+
+Use the helper script to build `lex-lsp` in release mode, copy it into the extension’s `resources/` directory, and bundle the TypeScript sources:
+
+```
+./editors/vscode/scripts/build_extension.sh
+```
+
+This produces `resources/lex-lsp` (the path shipped in the VSIX) and refreshes `dist/extension.js`. Follow up with `npx vsce package` if you want to produce a distributable VSIX.
