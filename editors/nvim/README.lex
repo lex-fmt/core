@@ -29,5 +29,5 @@ Documentation:
 Packaging:
 
 	Build a release-ready plugin archive (sets lex_lsp_version to the provided tag):
-	./editors/nvim/scripts/build_plugin.sh --version v0.1.8
+	./editors/nvim/scripts/build_plugin.sh --version v0.1.10
 	:: shell
