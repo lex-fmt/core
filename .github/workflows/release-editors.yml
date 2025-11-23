@@ -1,19 +1,25 @@
 name: Release Editors
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to package (e.g. v0.1.12)
+        required: true
 
 permissions:
   contents: write
 
 env:
   REPO_NAME: ${{ github.repository }}
-  RELEASE_TAG: ${{ github.event.release.tag_name }}
 
 jobs:
   vscode:
     name: Package VS Code Extension (${{ matrix.suffix }})
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -44,6 +50,22 @@ jobs:
             suffix: windows-arm64
             archive_ext: zip
     steps:
+      - name: Resolve release tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+              echo "Release workflow did not succeed" >&2
+              exit 1
+            fi
+            TAG="${{ github.event.workflow_run.head_branch }}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "Release tag is required" >&2
+            exit 1
+          fi
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -95,8 +117,25 @@ jobs:
 
   neovim:
     name: Package Neovim Plugin
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve release tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+              echo "Release workflow did not succeed" >&2
+              exit 1
+            fi
+            TAG="${{ github.event.workflow_run.head_branch }}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "Release tag is required" >&2
+            exit 1
+          fi
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - name: Build plugin archive
         run: ./editors/nvim/scripts/build_plugin.sh --version "$RELEASE_TAG"
