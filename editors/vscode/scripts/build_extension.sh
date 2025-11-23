@@ -37,6 +37,7 @@ echo "lex-lsp copied to $BINARY_DEST"
 
 pushd "$EXT_DIR" >/dev/null
 npm ci
+npm run build
 npm run bundle
 popd >/dev/null
 
