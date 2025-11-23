@@ -20,6 +20,7 @@ coverage/
 node_modules/
 editors/vscode/out/
 editors/vscode/dist/
+editors/vscode/.vscode-test/
 
 # OS
 .DS_Store

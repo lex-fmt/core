@@ -3,7 +3,7 @@ import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions
-} from 'vscode-languageclient/node';
+} from 'vscode-languageclient/node.js';
 
 export function createLexClient(
   binaryPath: string,
