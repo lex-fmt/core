@@ -57,7 +57,7 @@ jobs:
       - name: Run VS Code test suite
         run: |
           chmod +x test/run_suite.sh
-          ./test/run_suite.sh --format=junit > test_results.xml
+          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' ./test/run_suite.sh --format=junit > test_results.xml
         working-directory: editors/vscode
 
       - name: Display Test Results
