@@ -13,13 +13,14 @@ jobs:
     name: Build and Release
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             asset_name: lex-linux-amd64
             archive_ext: tar.gz
-          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             asset_name: lex-linux-arm64
             archive_ext: tar.gz
@@ -50,7 +51,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install Linux ARM64 linker
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        if: matrix.os == 'ubuntu-latest' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
@@ -94,26 +95,33 @@ jobs:
     name: Build VS Code Extension (${{ matrix.vsce_target }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             rust_target: x86_64-unknown-linux-gnu
             vsce_target: linux-x64
-          - os: ubuntu-latest
+            artifact_suffix: linux-amd64
+          - os: ubuntu-24.04-arm
             rust_target: aarch64-unknown-linux-gnu
             vsce_target: linux-arm64
+            artifact_suffix: linux-arm64
           - os: macos-13
             rust_target: x86_64-apple-darwin
             vsce_target: darwin-x64
+            artifact_suffix: macos-amd64
           - os: macos-14
             rust_target: aarch64-apple-darwin
             vsce_target: darwin-arm64
+            artifact_suffix: macos-arm64
           - os: windows-latest
             rust_target: x86_64-pc-windows-msvc
             vsce_target: win32-x64
+            artifact_suffix: windows-amd64
           - os: windows-latest
             rust_target: aarch64-pc-windows-msvc
             vsce_target: win32-arm64
+            artifact_suffix: windows-arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -124,7 +132,7 @@ jobs:
           targets: ${{ matrix.rust_target }}
 
       - name: Install Linux ARM64 linker
-        if: matrix.rust_target == 'aarch64-unknown-linux-gnu'
+        if: matrix.os == 'ubuntu-latest' && matrix.rust_target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
@@ -142,7 +150,7 @@ jobs:
 
       - name: Package VS Code extension
         working-directory: editors/vscode
-        run: npx vsce package --no-dependencies --target ${{ matrix.vsce_target }} --out lex-vscode-${{ matrix.vsce_target }}.vsix
+        run: npx vsce package --no-dependencies --target ${{ matrix.vsce_target }} --out lex-vscode-${{ matrix.artifact_suffix }}.vsix
 
       - name: Upload VS Code extension asset
         uses: softprops/action-gh-release@v1
@@ -150,7 +158,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: editors/vscode/lex-vscode-${{ matrix.vsce_target }}.vsix
+          files: editors/vscode/lex-vscode-${{ matrix.artifact_suffix }}.vsix
 
   build-neovim-plugin:
     name: Build Neovim Plugin
