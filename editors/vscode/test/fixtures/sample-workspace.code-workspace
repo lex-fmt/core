@@ -1,0 +1,10 @@
+{
+  "folders": [
+    {
+      "path": "./sample-workspace"
+    }
+  ],
+  "settings": {
+    "lex.lspBinaryPath": "../../../../target/debug/lex-lsp"
+  }
+}
