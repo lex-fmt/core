@@ -105,3 +105,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: editors/vscode/lex-vscode.vsix
+
+  build-neovim-plugin:
+    name: Build Neovim Plugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Neovim plugin bundle
+        run: ./editors/nvim/scripts/build_plugin.sh --version "${GITHUB_REF_NAME}"
+
+      - name: Upload Neovim plugin asset
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: editors/nvim/dist/lex-nvim.tar.gz
