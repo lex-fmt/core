@@ -5,6 +5,6 @@
     }
   ],
   "settings": {
-    "lex.lspBinaryPath": "../../../../target/debug/lex-lsp"
+    "lex.lspBinaryPath": "../../target/debug/lex-lsp"
   }
 }
