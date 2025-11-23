@@ -21,6 +21,7 @@ integrationTest('applies whole-document formatting fixes indentation', async () 
   const misformatEdit = new vscode.WorkspaceEdit();
   misformatEdit.insert(document.uri, new vscode.Position(0, 0), '  ');
   await vscode.workspace.applyEdit(misformatEdit);
+  await new Promise(resolve => setTimeout(resolve, 500));
 
   try {
     const edits = await vscode.commands.executeCommand<
