@@ -1,4 +1,5 @@
 // LSP-specific features (use diff algorithm, TextEdit, etc.)
+pub mod commands;
 pub(crate) mod document_links;
 pub mod formatting;
 
