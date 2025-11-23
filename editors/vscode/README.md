@@ -11,7 +11,7 @@ npm run build
 npm test
 ```
 
-Tests currently cover configuration helpers, VS Code activation, lex-lsp handshake, semantic tokens, document symbols, hover information, folding ranges, navigation (definitions/references), and document links. Run individual suites with:
+Tests currently cover configuration helpers, VS Code activation, lex-lsp handshake, semantic tokens, document symbols, hover information, folding ranges, navigation (definitions/references), document links, and document formatting. Run individual suites with:
 
 ```
 npm run test:unit
