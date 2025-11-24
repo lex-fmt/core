@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+# Check for required tools
+if ! command -v semver &> /dev/null; then
+    log_error "semver is required but not installed."
+    exit 1
+fi
+
+if ! command -v gh &> /dev/null; then
+    log_error "gh (GitHub CLI) is required but not installed."
+    exit 1
+fi
+
+# 1. Preflight Checks
+
+# a) Make sure that repo is clean
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    log_error "Repository is dirty. Please commit or stash changes before releasing."
+    exit 1
+fi
+
+# Get latest release version
+LATEST_VERSION=$(./scripts/get-latest-release-version)
+log_info "Latest version: $LATEST_VERSION"
+
+# Parse argument
+if [ $# -eq 0 ]; then
+    log_error "Usage: $0 <version|bump>"
+    exit 1
+fi
+
+INPUT_VERSION=$1
+NEW_VERSION=""
+
+if [ "$INPUT_VERSION" == "bump" ]; then
+    # Remove 'v' prefix if present for semver calculation
+    CLEAN_LATEST=${LATEST_VERSION#v}
+    NEW_VERSION=$(semver -i patch "$CLEAN_LATEST")
+    # Add 'v' prefix back if the latest version had it, or just stick to semver. 
+    # The user prompt implies "0.1.14", so maybe no 'v' in Cargo.toml, but tags usually have 'v'.
+    # Let's check the format of LATEST_VERSION.
+    # If LATEST_VERSION starts with v, we prepend v to tag, but Cargo.toml usually doesn't have v.
+    log_info "Bumping patch version: $CLEAN_LATEST -> $NEW_VERSION"
+else
+    NEW_VERSION=$INPUT_VERSION
+fi
+
+# Validate version format (simple check)
+if ! semver "$NEW_VERSION" &> /dev/null; then
+    log_error "Invalid version format: $NEW_VERSION"
+    exit 1
+fi
+
+# b) Check if requested version > latest version
+# We need to handle potential 'v' prefix differences. 
+# Assuming Cargo.toml versions are X.Y.Z and tags are vX.Y.Z or X.Y.Z.
+# Let's normalize for comparison.
+CLEAN_NEW=${NEW_VERSION#v}
+CLEAN_LATEST=${LATEST_VERSION#v}
+
+if ! semver "$CLEAN_NEW" -r "> $CLEAN_LATEST" &> /dev/null; then
+    log_error "New version ($CLEAN_NEW) must be greater than latest version ($CLEAN_LATEST)"
+    exit 1
+fi
+
+# c) Check if there is already a git tag for it
+TAG_NAME="v$CLEAN_NEW"
+if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+    log_error "Tag $TAG_NAME already exists."
+    exit 1
+fi
+
+log_info "Preparing release for version: $CLEAN_NEW (Tag: $TAG_NAME)"
+
+# 2. Update Cargo.toml files
+# We use the pattern from version_defs.sh: lex-*/Cargo.toml
+# We want to replace 'version = "..."' with 'version = "$CLEAN_NEW"'
+# We must be careful to only match the package version, not dependencies.
+# The prompt says: ./lex-*/Cargo.toml:3:version = "0.1.14"
+# So it's likely the first occurrence or specifically top-level.
+# We'll use sed to replace the first occurrence of version = "..."
+
+log_info "Updating Cargo.toml files..."
+
+# Find all lex-*/Cargo.toml files
+FILES=$(find . -path "./lex-*/Cargo.toml" -type f)
+
+for file in $FILES; do
+    log_info "Updating $file"
+    # Use sed to replace version. 
+    # Assuming standard Cargo.toml formatting where [package] is first and version is inside it.
+    # We replace the first line matching ^version = ".*"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "1,/^\[dependencies\]/s/^version = \".*\"/version = \"$CLEAN_NEW\"/" "$file"
+    else
+        sed -i "1,/^\[dependencies\]/s/^version = \".*\"/version = \"$CLEAN_NEW\"/" "$file"
+    fi
+done
+
+# 3. Check git status, commit and push
+if git diff --quiet; then
+    log_warn "No changes detected in Cargo.toml files. Were they already updated?"
+else
+    log_info "Staging changes..."
+    git add lex-*/Cargo.toml
+    
+    log_info "Committing changes..."
+    git commit -m "chore: release $CLEAN_NEW"
+    
+    log_info "Pushing changes..."
+    git push
+fi
+
+# 4. Create and push tag
+log_info "Creating tag $TAG_NAME..."
+git tag "$TAG_NAME"
+
+log_info "Pushing tag..."
+git push origin "$TAG_NAME"
+
+log_info "Release process initiated! The release workflow should trigger shortly."
