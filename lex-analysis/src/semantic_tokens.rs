@@ -1,3 +1,43 @@
+//! This is the semantic token collector, which editors use for syntax highlighting.
+//! It's worth going over the general approach.
+//!
+//! Semantic Tokens and Editor Highlighting Architecture
+//!
+//!     1. LSP emits semantic tokens using our format's native terminology (e.g., `Verbatim`
+//! Annotation, etc). The LSP declares a token legend at initialization and emits tokens as indices
+//! into that legend—it has no knowledge of editor-specific theming.
+//!     2. Editor plugins map our token types to the editor's theme primitives. This lets users
+//! leverage their existing theme choices while our core LSP code remains editor-agnostic.
+//!     
+//! Editor-Specific Mapping
+//!
+//!     VSCode — declarative mapping in `package.json`:
+//!         "semanticTokenScopes": [{
+//!         "language": "ourformat",
+//!         "scopes": {
+//!         "Verbatim": ["markup.inline.raw"],
+//!         "Heading": ["markup.heading"],
+//!         "Emphasis": ["markup.italic"]
+//!         }
+//!         }]
+//!     :: javascript
+//!
+//!     We map to TextMate scopes (`markup.*`) as they have broad theme support and are a natural
+//! fit for markup.
+//!
+//!     Neovim — imperative mapping in the plugin:
+//!         vim.api.nvim_set_hl(0, '@lsp.type.Verbatim', { link = '@markup.raw' })
+//!         `vim.api.nvim_set_hl(0, '@lsp.type.Heading', { link = '@markup.heading' })
+//!         vim.api.nvim_set_hl(0, '@lsp.type.Emphasis', { link = '@markup.italic' })
+//!     :: lua
+//!     We link to treesitter's `@markup.*` groups for equivalent theme coverage.
+//!     Benefits:
+//!         - LSP speaks our format's semantics—no impedance mismatch
+//!         - Users get syntax highlighting that respects their theme
+//!         - Mapping logic is isolated to editor plugins; adding a new editor doesn't touch the LSP
+//!
+//! The file editors/vscode/themes/lex-light.json has the reocommended theming for Lex to be used in
+//! tests and so forth.
 use crate::inline::{extract_inline_spans, InlineSpanKind};
 use lex_parser::lex::ast::{
     Annotation, ContentItem, Definition, Document, List, ListItem, Paragraph, Range, Session,
@@ -8,10 +48,15 @@ use lex_parser::lex::inlines::ReferenceType;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LexSemanticTokenKind {
     SessionTitle,
+    SessionMarker,
+    SessionTitleText,
     DefinitionSubject,
+    DefinitionContent,
     ListMarker,
+    ListItemText,
     AnnotationLabel,
     AnnotationParameter,
+    AnnotationContent,
     InlineStrong,
     InlineEmphasis,
     InlineCode,
@@ -22,53 +67,64 @@ pub enum LexSemanticTokenKind {
     VerbatimSubject,
     VerbatimLanguage,
     VerbatimAttribute,
+    VerbatimContent,
 }
 
 impl LexSemanticTokenKind {
     /// Returns the semantic token type string for LSP.
     ///
-    /// We use standard LSP/markup token types where possible to ensure
-    /// compatibility with existing editor themes (Neovim, VSCode, etc.)
-    /// based on the Lex↔Markdown mapping from lex-babel.
+    /// These token type names are mapped to standard TextMate scopes in editor configurations
+    /// to ensure compatibility with existing themes (Neovim, VSCode, etc.).
     ///
-    /// Mapping rationale (see lex-babel/src/formats/markdown/mod.rs):
-    /// - Session → Heading → "markup.heading"
-    /// - Definition → **Term**: Desc → "markup.bold" (for term)
-    /// - InlineStrong → **bold** → "markup.bold"
-    /// - InlineEmphasis → *italic* → "markup.italic"
-    /// - InlineCode → `code` → "string" (standard for inline code)
-    /// - InlineMath → $math$ → "number" (visually distinct, standard type)
-    /// - Reference → [citation] → "markup.underline" (references are underlined)
-    /// - Verbatim → ```block``` → "string" (code blocks)
-    /// - Annotation → <!-- comment --> → "comment"
-    /// - ListMarker → - or 1. → "operator" (punctuation-like)
+    /// Mapping rationale (based on Lex↔Markdown mapping from lex-babel):
+    /// - Session → Heading → maps to "markup.heading"
+    /// - Definition → Term: Desc → maps to "variable.other.definition"
+    /// - InlineStrong → bold → maps to "markup.bold"
+    /// - InlineEmphasis → *italic* → maps to "markup.italic"
+    /// - InlineCode → `code` → maps to "markup.inline.raw"
+    /// - InlineMath → $math$ → maps to "constant.numeric"
+    /// - Reference → [citation] → maps to "markup.underline.link"
+    /// - Verbatim → ```block``` → maps to "markup.raw.block"
+    /// - Annotation → <!-- comment --> → maps to "comment.block"
+    /// - ListMarker → - or 1. → maps to "punctuation.definition.list"
     pub fn as_str(self) -> &'static str {
         match self {
-            LexSemanticTokenKind::SessionTitle => "markup.heading",
-            LexSemanticTokenKind::DefinitionSubject => "markup.bold",
-            LexSemanticTokenKind::ListMarker => "operator",
-            LexSemanticTokenKind::AnnotationLabel => "comment",
-            LexSemanticTokenKind::AnnotationParameter => "parameter",
-            LexSemanticTokenKind::InlineStrong => "markup.bold",
-            LexSemanticTokenKind::InlineEmphasis => "markup.italic",
-            LexSemanticTokenKind::InlineCode => "string",
-            LexSemanticTokenKind::InlineMath => "number",
-            LexSemanticTokenKind::Reference => "markup.underline",
-            LexSemanticTokenKind::ReferenceCitation => "markup.underline",
-            LexSemanticTokenKind::ReferenceFootnote => "markup.underline",
-            LexSemanticTokenKind::VerbatimSubject => "string",
-            LexSemanticTokenKind::VerbatimLanguage => "type",
-            LexSemanticTokenKind::VerbatimAttribute => "parameter",
+            LexSemanticTokenKind::SessionTitle => "sessionTitle",
+            LexSemanticTokenKind::SessionMarker => "sessionMarker",
+            LexSemanticTokenKind::SessionTitleText => "sessionTitleText",
+            LexSemanticTokenKind::DefinitionSubject => "definitionSubject",
+            LexSemanticTokenKind::DefinitionContent => "definitionContent",
+            LexSemanticTokenKind::ListMarker => "listMarker",
+            LexSemanticTokenKind::ListItemText => "listItemText",
+            LexSemanticTokenKind::AnnotationLabel => "annotationLabel",
+            LexSemanticTokenKind::AnnotationParameter => "annotationParameter",
+            LexSemanticTokenKind::AnnotationContent => "annotationContent",
+            LexSemanticTokenKind::InlineStrong => "inlineStrong",
+            LexSemanticTokenKind::InlineEmphasis => "inlineEmphasis",
+            LexSemanticTokenKind::InlineCode => "inlineCode",
+            LexSemanticTokenKind::InlineMath => "inlineMath",
+            LexSemanticTokenKind::Reference => "reference",
+            LexSemanticTokenKind::ReferenceCitation => "referenceCitation",
+            LexSemanticTokenKind::ReferenceFootnote => "referenceFootnote",
+            LexSemanticTokenKind::VerbatimSubject => "verbatimSubject",
+            LexSemanticTokenKind::VerbatimLanguage => "verbatimLanguage",
+            LexSemanticTokenKind::VerbatimAttribute => "verbatimAttribute",
+            LexSemanticTokenKind::VerbatimContent => "verbatimContent",
         }
     }
 }
 
 pub const SEMANTIC_TOKEN_KINDS: &[LexSemanticTokenKind] = &[
     LexSemanticTokenKind::SessionTitle,
+    LexSemanticTokenKind::SessionMarker,
+    LexSemanticTokenKind::SessionTitleText,
     LexSemanticTokenKind::DefinitionSubject,
+    LexSemanticTokenKind::DefinitionContent,
     LexSemanticTokenKind::ListMarker,
+    LexSemanticTokenKind::ListItemText,
     LexSemanticTokenKind::AnnotationLabel,
     LexSemanticTokenKind::AnnotationParameter,
+    LexSemanticTokenKind::AnnotationContent,
     LexSemanticTokenKind::InlineStrong,
     LexSemanticTokenKind::InlineEmphasis,
     LexSemanticTokenKind::InlineCode,
@@ -79,6 +135,7 @@ pub const SEMANTIC_TOKEN_KINDS: &[LexSemanticTokenKind] = &[
     LexSemanticTokenKind::VerbatimSubject,
     LexSemanticTokenKind::VerbatimLanguage,
     LexSemanticTokenKind::VerbatimAttribute,
+    LexSemanticTokenKind::VerbatimContent,
 ];
 
 #[derive(Debug, Clone, PartialEq)]
@@ -95,11 +152,17 @@ pub fn collect_semantic_tokens(document: &Document) -> Vec<LexSemanticToken> {
 
 struct TokenCollector {
     tokens: Vec<LexSemanticToken>,
+    in_annotation: bool,
+    in_definition: bool,
 }
 
 impl TokenCollector {
     fn new() -> Self {
-        Self { tokens: Vec::new() }
+        Self {
+            tokens: Vec::new(),
+            in_annotation: false,
+            in_definition: false,
+        }
     }
 
     fn finish(mut self) -> Vec<LexSemanticToken> {
@@ -167,6 +230,15 @@ impl TokenCollector {
     fn process_paragraph(&mut self, paragraph: &Paragraph) {
         for line in &paragraph.lines {
             if let ContentItem::TextLine(text_line) = line {
+                if self.in_annotation {
+                    if let Some(location) = &text_line.content.location {
+                        self.push_range(location, LexSemanticTokenKind::AnnotationContent);
+                    }
+                } else if self.in_definition {
+                    if let Some(location) = &text_line.content.location {
+                        self.push_range(location, LexSemanticTokenKind::DefinitionContent);
+                    }
+                }
                 self.process_text_content(&text_line.content);
             }
         }
@@ -187,6 +259,9 @@ impl TokenCollector {
             self.push_range(marker_range, LexSemanticTokenKind::ListMarker);
         }
         for text in &list_item.text {
+            if let Some(location) = &text.location {
+                self.push_range(location, LexSemanticTokenKind::ListItemText);
+            }
             self.process_text_content(text);
         }
         self.process_annotations(list_item.annotations());
@@ -201,9 +276,12 @@ impl TokenCollector {
         }
         self.process_text_content(&definition.subject);
         self.process_annotations(definition.annotations());
+        let was_in_definition = self.in_definition;
+        self.in_definition = true;
         for child in definition.children.iter() {
             self.process_content_item(child);
         }
+        self.in_definition = was_in_definition;
     }
 
     fn process_verbatim(&mut self, verbatim: &Verbatim) {
@@ -222,6 +300,13 @@ impl TokenCollector {
             self.push_range(&parameter.location, LexSemanticTokenKind::VerbatimAttribute);
         }
 
+        // Highlight verbatim content lines
+        for child in &verbatim.children {
+            if let ContentItem::VerbatimLine(line) = child {
+                self.push_range(&line.location, LexSemanticTokenKind::VerbatimContent);
+            }
+        }
+
         self.process_annotations(verbatim.annotations());
     }
 
@@ -236,9 +321,12 @@ impl TokenCollector {
                 LexSemanticTokenKind::AnnotationParameter,
             );
         }
+        let was_in_annotation = self.in_annotation;
+        self.in_annotation = true;
         for child in annotation.children.iter() {
             self.process_content_item(child);
         }
+        self.in_annotation = was_in_annotation;
     }
 
     fn process_annotations(&mut self, annotations: &[Annotation]) {
