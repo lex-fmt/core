@@ -31,7 +31,7 @@
 //! Example: `lex inspect file.lex ast-tag --extra-ast-full`
 
 use lex_babel::formats::{
-    linetreeviz::to_linetreeviz_str_with_params,
+    linetreeviz::to_linetreeviz_str_with_params, nodemap::to_nodemap_str_with_params,
     tag::serialize_document_with_params as serialize_ast_tag_with_params,
     treeviz::to_treeviz_str_with_params,
 };
@@ -57,6 +57,7 @@ pub const AVAILABLE_TRANSFORMS: &[&str] = &[
     "ast-tag",
     "ast-treeviz",
     "ast-linetreeviz",
+    "ast-nodemap",
 ];
 
 /// Execute a named transform on a source file with optional extra parameters
@@ -195,6 +196,12 @@ pub fn execute_transform(
                 .map_err(|e| format!("Transform failed: {}", e))?;
             // linetreeviz collapses containers like Paragraph and List
             Ok(to_linetreeviz_str_with_params(&doc, &params))
+        }
+        "ast-nodemap" => {
+            let doc = loader
+                .parse()
+                .map_err(|e| format!("Transform failed: {}", e))?;
+            Ok(to_nodemap_str_with_params(&doc, source, &params))
         }
         _ => Err(format!("Unknown transform: {}", transform_name)),
     }
