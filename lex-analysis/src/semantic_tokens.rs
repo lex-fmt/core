@@ -8,10 +8,15 @@ use lex_parser::lex::inlines::ReferenceType;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LexSemanticTokenKind {
     SessionTitle,
+    SessionMarker,
+    SessionTitleText,
     DefinitionSubject,
+    DefinitionContent,
     ListMarker,
+    ListItemText,
     AnnotationLabel,
     AnnotationParameter,
+    AnnotationContent,
     InlineStrong,
     InlineEmphasis,
     InlineCode,
@@ -22,6 +27,7 @@ pub enum LexSemanticTokenKind {
     VerbatimSubject,
     VerbatimLanguage,
     VerbatimAttribute,
+    VerbatimContent,
 }
 
 impl LexSemanticTokenKind {
@@ -33,7 +39,7 @@ impl LexSemanticTokenKind {
     ///
     /// Mapping rationale (see lex-babel/src/formats/markdown/mod.rs):
     /// - Session → Heading → "markup.heading"
-    /// - Definition → **Term**: Desc → "markup.bold" (for term)
+    /// - Definition → **Term**: Desc → "variable" (for term, distinct from inline bold)
     /// - InlineStrong → **bold** → "markup.bold"
     /// - InlineEmphasis → *italic* → "markup.italic"
     /// - InlineCode → `code` → "string" (standard for inline code)
@@ -45,10 +51,15 @@ impl LexSemanticTokenKind {
     pub fn as_str(self) -> &'static str {
         match self {
             LexSemanticTokenKind::SessionTitle => "markup.heading",
-            LexSemanticTokenKind::DefinitionSubject => "markup.bold",
+            LexSemanticTokenKind::SessionMarker => "operator",
+            LexSemanticTokenKind::SessionTitleText => "markup.heading",
+            LexSemanticTokenKind::DefinitionSubject => "variable",
+            LexSemanticTokenKind::DefinitionContent => "text",
             LexSemanticTokenKind::ListMarker => "operator",
+            LexSemanticTokenKind::ListItemText => "string",
             LexSemanticTokenKind::AnnotationLabel => "comment",
             LexSemanticTokenKind::AnnotationParameter => "parameter",
+            LexSemanticTokenKind::AnnotationContent => "comment",
             LexSemanticTokenKind::InlineStrong => "markup.bold",
             LexSemanticTokenKind::InlineEmphasis => "markup.italic",
             LexSemanticTokenKind::InlineCode => "string",
@@ -59,16 +70,22 @@ impl LexSemanticTokenKind {
             LexSemanticTokenKind::VerbatimSubject => "string",
             LexSemanticTokenKind::VerbatimLanguage => "type",
             LexSemanticTokenKind::VerbatimAttribute => "parameter",
+            LexSemanticTokenKind::VerbatimContent => "string",
         }
     }
 }
 
 pub const SEMANTIC_TOKEN_KINDS: &[LexSemanticTokenKind] = &[
     LexSemanticTokenKind::SessionTitle,
+    LexSemanticTokenKind::SessionMarker,
+    LexSemanticTokenKind::SessionTitleText,
     LexSemanticTokenKind::DefinitionSubject,
+    LexSemanticTokenKind::DefinitionContent,
     LexSemanticTokenKind::ListMarker,
+    LexSemanticTokenKind::ListItemText,
     LexSemanticTokenKind::AnnotationLabel,
     LexSemanticTokenKind::AnnotationParameter,
+    LexSemanticTokenKind::AnnotationContent,
     LexSemanticTokenKind::InlineStrong,
     LexSemanticTokenKind::InlineEmphasis,
     LexSemanticTokenKind::InlineCode,
@@ -79,6 +96,7 @@ pub const SEMANTIC_TOKEN_KINDS: &[LexSemanticTokenKind] = &[
     LexSemanticTokenKind::VerbatimSubject,
     LexSemanticTokenKind::VerbatimLanguage,
     LexSemanticTokenKind::VerbatimAttribute,
+    LexSemanticTokenKind::VerbatimContent,
 ];
 
 #[derive(Debug, Clone, PartialEq)]
@@ -95,11 +113,17 @@ pub fn collect_semantic_tokens(document: &Document) -> Vec<LexSemanticToken> {
 
 struct TokenCollector {
     tokens: Vec<LexSemanticToken>,
+    in_annotation: bool,
+    in_definition: bool,
 }
 
 impl TokenCollector {
     fn new() -> Self {
-        Self { tokens: Vec::new() }
+        Self {
+            tokens: Vec::new(),
+            in_annotation: false,
+            in_definition: false,
+        }
     }
 
     fn finish(mut self) -> Vec<LexSemanticToken> {
@@ -167,6 +191,15 @@ impl TokenCollector {
     fn process_paragraph(&mut self, paragraph: &Paragraph) {
         for line in &paragraph.lines {
             if let ContentItem::TextLine(text_line) = line {
+                if self.in_annotation {
+                    if let Some(location) = &text_line.content.location {
+                        self.push_range(location, LexSemanticTokenKind::AnnotationContent);
+                    }
+                } else if self.in_definition {
+                    if let Some(location) = &text_line.content.location {
+                        self.push_range(location, LexSemanticTokenKind::DefinitionContent);
+                    }
+                }
                 self.process_text_content(&text_line.content);
             }
         }
@@ -187,6 +220,9 @@ impl TokenCollector {
             self.push_range(marker_range, LexSemanticTokenKind::ListMarker);
         }
         for text in &list_item.text {
+            if let Some(location) = &text.location {
+                self.push_range(location, LexSemanticTokenKind::ListItemText);
+            }
             self.process_text_content(text);
         }
         self.process_annotations(list_item.annotations());
@@ -201,9 +237,12 @@ impl TokenCollector {
         }
         self.process_text_content(&definition.subject);
         self.process_annotations(definition.annotations());
+        let was_in_definition = self.in_definition;
+        self.in_definition = true;
         for child in definition.children.iter() {
             self.process_content_item(child);
         }
+        self.in_definition = was_in_definition;
     }
 
     fn process_verbatim(&mut self, verbatim: &Verbatim) {
@@ -222,6 +261,13 @@ impl TokenCollector {
             self.push_range(&parameter.location, LexSemanticTokenKind::VerbatimAttribute);
         }
 
+        // Highlight verbatim content lines
+        for child in &verbatim.children {
+            if let ContentItem::VerbatimLine(line) = child {
+                self.push_range(&line.location, LexSemanticTokenKind::VerbatimContent);
+            }
+        }
+
         self.process_annotations(verbatim.annotations());
     }
 
@@ -236,9 +282,12 @@ impl TokenCollector {
                 LexSemanticTokenKind::AnnotationParameter,
             );
         }
+        let was_in_annotation = self.in_annotation;
+        self.in_annotation = true;
         for child in annotation.children.iter() {
             self.process_content_item(child);
         }
+        self.in_annotation = was_in_annotation;
     }
 
     fn process_annotations(&mut self, annotations: &[Annotation]) {

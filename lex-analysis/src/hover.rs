@@ -1,6 +1,7 @@
 use crate::inline::{extract_inline_spans, InlineSpanKind};
 use crate::utils::{
-    find_annotation_at_position, find_definition_by_subject, for_each_text_content,
+    find_annotation_at_position, find_definition_by_subject, find_session_at_position,
+    for_each_text_content, session_identifier,
 };
 use lex_parser::lex::ast::{Annotation, ContentItem, Document, Position, Range};
 use lex_parser::lex::inlines::ReferenceType;
@@ -12,7 +13,9 @@ pub struct HoverResult {
 }
 
 pub fn hover(document: &Document, position: Position) -> Option<HoverResult> {
-    inline_hover(document, position).or_else(|| annotation_hover(document, position))
+    inline_hover(document, position)
+        .or_else(|| annotation_hover(document, position))
+        .or_else(|| session_hover(document, position))
 }
 
 fn inline_hover(document: &Document, position: Position) -> Option<HoverResult> {
@@ -153,6 +156,40 @@ fn annotation_hover_result(annotation: &Annotation) -> HoverResult {
             parts.join("\n\n")
         ),
     }
+}
+
+fn session_hover(document: &Document, position: Position) -> Option<HoverResult> {
+    let session = find_session_at_position(document, position)?;
+    let header = session.header_location()?;
+
+    let mut parts = Vec::new();
+    let title = session.title.as_string().trim();
+
+    if let Some(identifier) = session_identifier(session) {
+        parts.push(format!("Identifier: {}", identifier));
+    }
+
+    let child_count = session.children.len();
+    if child_count > 0 {
+        parts.push(format!("{} item(s)", child_count));
+    }
+
+    if let Some(preview) = preview_from_items(session.children.iter()) {
+        parts.push(preview);
+    }
+
+    Some(HoverResult {
+        range: header.clone(),
+        contents: format!(
+            "**Session: {}**\n\n{}",
+            title,
+            if parts.is_empty() {
+                "(no content)".to_string()
+            } else {
+                parts.join("\n\n")
+            }
+        ),
+    })
 }
 
 fn preview_from_items<'a>(items: impl Iterator<Item = &'a ContentItem>) -> Option<String> {
@@ -296,5 +333,14 @@ mod tests {
         let document = sample_document();
         let position = Position::new(999, 0);
         assert!(hover(&document, position).is_none());
+    }
+
+    #[test]
+    fn hover_shows_session_info() {
+        let document = sample_document();
+        let position = position_for("1. Intro");
+        let hover = hover(&document, position).expect("hover expected for session");
+        assert!(hover.contents.contains("Session"));
+        assert!(hover.contents.contains("Intro"));
     }
 }
