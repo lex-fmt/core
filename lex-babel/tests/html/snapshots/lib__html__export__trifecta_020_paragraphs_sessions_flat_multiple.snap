@@ -1,5 +1,6 @@
 ---
 source: lex-babel/tests/html/export.rs
+assertion_line: 273
 expression: html
 ---
 <!DOCTYPE html>
@@ -550,7 +551,7 @@ button:focus {
 </head>
 <body>
 <div class="lex-document">
-<p class="lex-paragraph">Multiple Sessions Flat Test {{paragraph}}</p><p class="lex-paragraph">This document tests multiple sessions at the root level with paragraphs between them. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>First Session {{session-title}}</h1><p class="lex-paragraph">This is the content of the first session. {{paragraph}}</p><p class="lex-paragraph">It can have multiple paragraphs. {{paragraph}}</p></section><section class="lex-session lex-session-1"><h1>Second Session {{session-title}}</h1><p class="lex-paragraph">The second session also has content. {{paragraph}}</p></section><p class="lex-paragraph">A paragraph between sessions. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>Third Session {{session-title}}</h1><p class="lex-paragraph">Sessions can have different amounts of content. {{paragraph}}</p></section><p class="lex-paragraph">Another paragraph. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>Session Without Numbering {{session-title}}</h1><section class="lex-session lex-session-2"><h2>Session titles don't require numbering markers. {{session-title}}</h2><p class="lex-paragraph">They just need to be followed by a blank line and indented content. {{paragraph}}</p></section></section><p class="lex-paragraph">Final paragraph at the root level. {{paragraph}}</p>
+<p class="lex-paragraph">Multiple Sessions Flat Test {{paragraph}}</p><p class="lex-paragraph">This document tests multiple sessions at the root level with paragraphs between them. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>1. First Session {{session-title}}</h1><p class="lex-paragraph">This is the content of the first session. {{paragraph}}</p><p class="lex-paragraph">It can have multiple paragraphs. {{paragraph}}</p></section><section class="lex-session lex-session-1"><h1>2. Second Session {{session-title}}</h1><p class="lex-paragraph">The second session also has content. {{paragraph}}</p></section><p class="lex-paragraph">A paragraph between sessions. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>3. Third Session {{session-title}}</h1><p class="lex-paragraph">Sessions can have different amounts of content. {{paragraph}}</p></section><p class="lex-paragraph">Another paragraph. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>4. Session Without Numbering {{session-title}}</h1><section class="lex-session lex-session-2"><h2>Session titles don't require numbering markers. {{session-title}}</h2><p class="lex-paragraph">They just need to be followed by a blank line and indented content. {{paragraph}}</p></section></section><p class="lex-paragraph">Final paragraph at the root level. {{paragraph}}</p>
 </div>
 </body>
 </html>
