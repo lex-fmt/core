@@ -84,14 +84,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           mkdir -p artifacts extracted
+          ARCHIVE="lex-lsp-${{ matrix.target }}.${{ matrix.archive_ext }}"
           gh release download "$RELEASE_TAG" \
             --repo "$REPO_NAME" \
-            --pattern "lex-lsp-${{ matrix.target }}.${{ matrix.archive_ext }}" \
+            --pattern "$ARCHIVE" \
             --dir artifacts
-          ASSET=$(ls artifacts/lex-lsp-${{ matrix.target }}.${{ matrix.archive_ext }})
+          ASSET="artifacts/$ARCHIVE"
           if [[ ! -f "$ASSET" ]]; then
-            echo "lex-lsp artifact not found for ${{ matrix.target }}" >&2
+            echo "lex-lsp artifact $ARCHIVE not found for ${{ matrix.target }}" >&2
             exit 1
           fi
           if [[ "$ASSET" == *.zip ]]; then
@@ -99,13 +101,17 @@ jobs:
           else
             tar -xf "$ASSET" -C extracted
           fi
+          BIN_PATH=$(find extracted -maxdepth 1 -type f -name 'lex-lsp*' ! -name '*README*' | head -n 1)
+          if [[ -z "$BIN_PATH" ]]; then
+            echo "lex-lsp binary not found inside $ARCHIVE" >&2
+            exit 1
+          fi
           DEST="editors/vscode/resources/lex-lsp"
-          SRC=$(ls extracted/lex-lsp*)
-          if [[ "$SRC" == *.exe ]]; then
+          if [[ "$BIN_PATH" == *.exe ]]; then
             DEST="$DEST.exe"
           fi
           mkdir -p editors/vscode/resources
-          cp "$SRC" "$DEST"
+          cp "$BIN_PATH" "$DEST"
           chmod +x "$DEST" || true
       - name: Build VS Code extension bundle
         working-directory: editors/vscode
