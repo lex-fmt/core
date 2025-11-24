@@ -9,6 +9,12 @@ on:
       tag:
         description: Release tag to package (e.g. v0.1.12)
         required: true
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to package (e.g. v0.1.12)
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -19,7 +25,7 @@ env:
 jobs:
   vscode:
     name: Package VS Code Extension (${{ matrix.suffix }})
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -54,6 +60,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_call" ]; then
+            TAG="${{ inputs.tag }}"
           else
             if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
               echo "Release workflow did not succeed" >&2
@@ -125,7 +133,7 @@ jobs:
   vscode-release-notes:
     name: Update VS Code Release Notes
     needs: vscode
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
       VSCE_TARGETS: |
@@ -142,6 +150,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_call" ]; then
+            TAG="${{ inputs.tag }}"
           else
             if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
               echo "Release workflow did not succeed" >&2
@@ -214,13 +224,15 @@ jobs:
 
   neovim:
     name: Package Neovim Plugin
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Resolve release tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_call" ]; then
+            TAG="${{ inputs.tag }}"
           else
             if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
               echo "Release workflow did not succeed" >&2
