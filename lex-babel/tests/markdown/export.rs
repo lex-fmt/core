@@ -95,7 +95,8 @@ fn test_heading_and_paragraph_separation() {
         }
     }
 
-    assert_eq!(heading_text.trim(), "(1) Title");
+    // The marker "1." is now stripped from the heading title
+    assert_eq!(heading_text.trim(), "Title");
     assert!(paragraph_text.contains("Body text."));
 }
 
