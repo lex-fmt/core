@@ -70,6 +70,18 @@ add_test('selects architecture specific assets', function()
   assert_true(select_asset('windows', 'amd64').filename == 'lex-lsp-x86_64-pc-windows-msvc.zip', 'windows amd64 asset mismatch')
 end)
 
+add_test('finds extracted binary inside nested directories', function()
+  local tmp = vim.fn.tempname()
+  vim.fn.mkdir(tmp, 'p')
+  local nested = string.format('%s/lex-lsp-test', tmp)
+  vim.fn.mkdir(nested, 'p')
+  local expected = string.format('%s/lex-lsp', nested)
+  make_fake_binary(expected)
+  local found = binary._find_binary_in_tmpdir_for_testing(tmp, 'lex-lsp')
+  assert_true(found == expected, 'should locate binary within archive subdirectories')
+  vim.fn.delete(tmp, 'rf')
+end)
+
 add_test('downloads missing version', function()
   local root = temp_plugin_root()
   local version = 'v1.2.3'
