@@ -31,6 +31,10 @@ Term:
 
 
 2. Notes
-    
+
 1. Footnote forty two for bullet.
 2. Footnote referenced in text.
+
+:: source ::
+    This is the source footnote content.
+::
