@@ -106,6 +106,38 @@ function M.setup(opts)
       -- or show no highlighting at all. This must be called in on_attach after LSP connects.
       if client.server_capabilities.semanticTokensProvider then
         vim.lsp.semantic_tokens.start(bufnr, client.id)
+
+        -- Map LSP semantic tokens (PascalCase) to Treesitter highlight groups
+        local links = {
+          ["@lsp.type.SessionTitle"] = "@markup.heading",
+          ["@lsp.type.SessionMarker"] = "@punctuation.definition.heading",
+          ["@lsp.type.SessionTitleText"] = "@markup.heading",
+          ["@lsp.type.DefinitionSubject"] = "@variable.member", -- or @variable.other.definition
+          ["@lsp.type.DefinitionContent"] = "@text",
+          ["@lsp.type.ListMarker"] = "@punctuation.definition.list",
+          ["@lsp.type.ListItemText"] = "@markup.list",
+          ["@lsp.type.AnnotationLabel"] = "@comment.note",
+          ["@lsp.type.AnnotationParameter"] = "@variable.parameter",
+          ["@lsp.type.AnnotationContent"] = "@comment",
+          ["@lsp.type.InlineStrong"] = "@markup.strong",
+          ["@lsp.type.InlineEmphasis"] = "@markup.italic",
+          ["@lsp.type.InlineCode"] = "@markup.raw",
+          ["@lsp.type.InlineMath"] = "@constant.numeric", -- or @markup.math
+          ["@lsp.type.Reference"] = "@markup.link",
+          ["@lsp.type.ReferenceCitation"] = "@markup.link.label",
+          ["@lsp.type.ReferenceFootnote"] = "@markup.link.label",
+          ["@lsp.type.VerbatimSubject"] = "@label",
+          ["@lsp.type.VerbatimLanguage"] = "@keyword",
+          ["@lsp.type.VerbatimAttribute"] = "@variable.parameter",
+          ["@lsp.type.VerbatimContent"] = "@markup.raw.block",
+        }
+
+        for lsp_hl, ts_hl in pairs(links) do
+          -- Only set if not already defined (allow user overrides)
+          if vim.fn.hlexists(lsp_hl) == 0 then
+            vim.api.nvim_set_hl(0, lsp_hl, { link = ts_hl, default = true })
+          end
+        end
       end
 
       -- Preserve user's on_attach callback if they provided one
