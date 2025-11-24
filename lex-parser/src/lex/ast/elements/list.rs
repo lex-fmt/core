@@ -4,8 +4,6 @@
 //! and optional nested content. Lists can be used to structure
 //! outlines, steps, or bullet points.
 //!
-//! Lists have decoration styles, for example the plain one (dashes) or various ordering formats, as numerical, alphabetical, roman, etc.
-//!
 //! Lists must have a minimum of 2 items.  And it's not ilegal to have mixed decorations in a list, as the parser will consider the first item's decoration to set the list type. The ordering doesn't have to be correct, as lists itself are ordered, they are just a marker, but tooling will order them under demand.
 //!
 //! Parsing Structure:
@@ -32,6 +30,48 @@
 //!    1. Groceries
 //!        - Bread
 //!        - Milk
+//!
+//!Formalize Sequence Decoration Styles
+//!        List items have two parts, their markers , that determines they are a list item, and their
+//!  text content. These appear together in the source text (possible even without space to separate
+//! them, perfectly legal), but they are different things, and the actual text for list items does
+//!not include the marker.
+//!         1. Presentation
+//!           
+//!          List items can be presented in various dimensions.
+//!           - Decoration Styles:
+//!             - Plain , a dash -
+//!             - Numerical 3
+//!             - Roman Numerals IV
+//!             - Alphabetical b
+//!           - Separators:
+//!             - Periods , as in 3.
+//!             - Parenthesis as in b)
+//!             - Double parenthesis  as in (c)
+//!           - Forms:
+//!             - Forms only matter for deeper than 1 level items.
+//!             - Short: only that level , as in 3.
+//!             - Extender: full nested index , as in 1.3.5
+//!
+// !          Note that all of these can be mixed, for example: 1.b.iii is a valid sequence item as
+//! in 1.b)v)
+//!
+//!
+//!        2. Parsing Rules
+//!
+//!          The list decoration  style, separator and form are determined by the first list item in
+//! that list's (same level). Nested lists can have multiple characteristics, and at each level the
+//! first of it's items will determine the lists.
+//!          Note that these are taken as the authors choice for presentation, they are in no way
+//! used to validate or invalidate lists. A list with items in a nonsensical order and mixed
+//! presentation is a perfectly valid lists. Tooling such as formatters or publishing tools will often
+//! order items correctly on exports. This is a feature actually, as it's easier to same number all
+//! items while editing, else on insertions and swaps you must reorder all subsequent items.
+//!          The presentation characteristics are a list property, as they are set for the entire list,
+//!  even if the source text did not do it consistently. And they are to be used on any ast -> string
+//! representation to form the list marker (the full combination of all presentation traits).
+//!         In list items we do keep the source marker version for recreation capacity, and
+//! formatters and other tools are not to be expected to use them.
 //!
 //!
 //! Learn More:
