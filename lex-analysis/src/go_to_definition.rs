@@ -120,7 +120,7 @@ Cache:
     #[test]
     fn resolves_definition_subjects() {
         let (document, source) = fixture();
-        let position = position_of(&source, "[Cache]");
+        let position = position_of(&source, "Cache]");
         let locations = goto_definition(&document, position);
         assert_eq!(locations.len(), 1);
         let definition = document
@@ -138,7 +138,7 @@ Cache:
     #[test]
     fn resolves_annotations() {
         let (document, source) = fixture();
-        let position = position_of(&source, "[^source]");
+        let position = position_of(&source, "^source]");
         let locations = goto_definition(&document, position);
         assert_eq!(locations.len(), 1);
         assert!(document
@@ -150,7 +150,7 @@ Cache:
     #[test]
     fn resolves_citations() {
         let (document, source) = fixture();
-        let position = position_of(&source, "[@spec2025]");
+        let position = position_of(&source, "@spec2025]");
         let locations = goto_definition(&document, position);
         assert_eq!(locations.len(), 1);
         assert!(document
@@ -162,7 +162,7 @@ Cache:
     #[test]
     fn resolves_session_references() {
         let (document, source) = fixture();
-        let position = position_of(&source, "[#1]");
+        let position = position_of(&source, "#1]");
         let locations = goto_definition(&document, position);
         assert_eq!(locations.len(), 1);
         let expected = document

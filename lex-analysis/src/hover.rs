@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn hover_shows_definition_preview_for_general_reference() {
         let document = sample_document();
-        let position = position_for("[Cache]");
+        let position = position_for("Cache]");
         let hover = hover(&document, position).expect("hover expected");
         assert!(hover.contents.contains("Definition"));
         assert!(hover.contents.contains("definition body"));
@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn hover_shows_footnote_content() {
         let document = sample_document();
-        let position = position_for("[^source]");
+        let position = position_for("^source]");
         let hover = hover(&document, position).expect("hover expected");
         // In the updated fixture, footnotes are list items, not annotations
         // So hover shows generic reference info
@@ -300,7 +300,7 @@ mod tests {
     #[test]
     fn hover_shows_citation_details() {
         let document = sample_document();
-        let position = position_for("[@spec2025 p.4]");
+        let position = position_for("@spec2025 p.4]");
         let hover = hover(&document, position).expect("hover expected");
         assert!(hover.contents.contains("Citation"));
         assert!(hover.contents.contains("spec2025"));

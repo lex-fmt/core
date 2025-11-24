@@ -216,7 +216,7 @@ Cache:
     #[test]
     fn finds_references_from_usage() {
         let (document, source) = fixture();
-        let position = position_of(&source, "[Cache]");
+        let position = position_of(&source, "Cache]");
         let ranges = find_references(&document, position, false);
         assert_eq!(ranges.len(), 2);
     }
@@ -253,7 +253,7 @@ Cache:
     #[test]
     fn finds_annotation_references() {
         let (document, source) = fixture();
-        let position = position_of(&source, "[^note]");
+        let position = position_of(&source, "^note]");
         let ranges = find_references(&document, position, false);
         assert_eq!(ranges.len(), 1);
         assert!(ranges[0].contains(position));
