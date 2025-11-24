@@ -33,44 +33,43 @@ pub enum LexSemanticTokenKind {
 impl LexSemanticTokenKind {
     /// Returns the semantic token type string for LSP.
     ///
-    /// We use standard LSP/markup token types where possible to ensure
-    /// compatibility with existing editor themes (Neovim, VSCode, etc.)
-    /// based on the Lex↔Markdown mapping from lex-babel.
+    /// These token type names are mapped to standard TextMate scopes in editor configurations
+    /// to ensure compatibility with existing themes (Neovim, VSCode, etc.).
     ///
-    /// Mapping rationale (see lex-babel/src/formats/markdown/mod.rs):
-    /// - Session → Heading → "markup.heading"
-    /// - Definition → **Term**: Desc → "variable" (for term, distinct from inline bold)
-    /// - InlineStrong → **bold** → "markup.bold"
-    /// - InlineEmphasis → *italic* → "markup.italic"
-    /// - InlineCode → `code` → "string" (standard for inline code)
-    /// - InlineMath → $math$ → "number" (visually distinct, standard type)
-    /// - Reference → [citation] → "markup.underline" (references are underlined)
-    /// - Verbatim → ```block``` → "string" (code blocks)
-    /// - Annotation → <!-- comment --> → "comment"
-    /// - ListMarker → - or 1. → "operator" (punctuation-like)
+    /// Mapping rationale (based on Lex↔Markdown mapping from lex-babel):
+    /// - Session → Heading → maps to "markup.heading"
+    /// - Definition → **Term**: Desc → maps to "variable.other.definition"
+    /// - InlineStrong → **bold** → maps to "markup.bold"
+    /// - InlineEmphasis → *italic* → maps to "markup.italic"
+    /// - InlineCode → `code` → maps to "markup.inline.raw"
+    /// - InlineMath → $math$ → maps to "constant.numeric"
+    /// - Reference → [citation] → maps to "markup.underline.link"
+    /// - Verbatim → ```block``` → maps to "markup.raw.block"
+    /// - Annotation → <!-- comment --> → maps to "comment.block"
+    /// - ListMarker → - or 1. → maps to "punctuation.definition.list"
     pub fn as_str(self) -> &'static str {
         match self {
-            LexSemanticTokenKind::SessionTitle => "markup.heading",
-            LexSemanticTokenKind::SessionMarker => "operator",
-            LexSemanticTokenKind::SessionTitleText => "markup.heading",
-            LexSemanticTokenKind::DefinitionSubject => "variable",
-            LexSemanticTokenKind::DefinitionContent => "text",
-            LexSemanticTokenKind::ListMarker => "operator",
-            LexSemanticTokenKind::ListItemText => "string",
-            LexSemanticTokenKind::AnnotationLabel => "comment",
-            LexSemanticTokenKind::AnnotationParameter => "parameter",
-            LexSemanticTokenKind::AnnotationContent => "comment",
-            LexSemanticTokenKind::InlineStrong => "markup.bold",
-            LexSemanticTokenKind::InlineEmphasis => "markup.italic",
-            LexSemanticTokenKind::InlineCode => "string",
-            LexSemanticTokenKind::InlineMath => "number",
-            LexSemanticTokenKind::Reference => "markup.underline",
-            LexSemanticTokenKind::ReferenceCitation => "markup.underline",
-            LexSemanticTokenKind::ReferenceFootnote => "markup.underline",
-            LexSemanticTokenKind::VerbatimSubject => "string",
-            LexSemanticTokenKind::VerbatimLanguage => "type",
-            LexSemanticTokenKind::VerbatimAttribute => "parameter",
-            LexSemanticTokenKind::VerbatimContent => "string",
+            LexSemanticTokenKind::SessionTitle => "sessionTitle",
+            LexSemanticTokenKind::SessionMarker => "sessionMarker",
+            LexSemanticTokenKind::SessionTitleText => "sessionTitleText",
+            LexSemanticTokenKind::DefinitionSubject => "definitionSubject",
+            LexSemanticTokenKind::DefinitionContent => "definitionContent",
+            LexSemanticTokenKind::ListMarker => "listMarker",
+            LexSemanticTokenKind::ListItemText => "listItemText",
+            LexSemanticTokenKind::AnnotationLabel => "annotationLabel",
+            LexSemanticTokenKind::AnnotationParameter => "annotationParameter",
+            LexSemanticTokenKind::AnnotationContent => "annotationContent",
+            LexSemanticTokenKind::InlineStrong => "inlineStrong",
+            LexSemanticTokenKind::InlineEmphasis => "inlineEmphasis",
+            LexSemanticTokenKind::InlineCode => "inlineCode",
+            LexSemanticTokenKind::InlineMath => "inlineMath",
+            LexSemanticTokenKind::Reference => "reference",
+            LexSemanticTokenKind::ReferenceCitation => "referenceCitation",
+            LexSemanticTokenKind::ReferenceFootnote => "referenceFootnote",
+            LexSemanticTokenKind::VerbatimSubject => "verbatimSubject",
+            LexSemanticTokenKind::VerbatimLanguage => "verbatimLanguage",
+            LexSemanticTokenKind::VerbatimAttribute => "verbatimAttribute",
+            LexSemanticTokenKind::VerbatimContent => "verbatimContent",
         }
     }
 }
