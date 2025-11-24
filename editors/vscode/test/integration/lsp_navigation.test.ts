@@ -17,7 +17,7 @@ integrationTest('supports go-to-definition for references', async () => {
   await api?.clientReady();
 
   const document = await openWorkspaceDocument(NAVIGATION_DOCUMENT_PATH);
-  const positionInfo = findPosition(document, '[Cache]');
+  const positionInfo = findPosition(document, 'Cache]');
   assert.ok(positionInfo, 'Reference text should exist in document');
 
   const definitionLocations = await vscode.commands.executeCommand<
