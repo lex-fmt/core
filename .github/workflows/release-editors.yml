@@ -87,9 +87,9 @@ jobs:
           mkdir -p artifacts extracted
           gh release download "$RELEASE_TAG" \
             --repo "$REPO_NAME" \
-            --pattern "lex-lsp-${{ matrix.target }}.*" \
+            --pattern "lex-lsp-${{ matrix.target }}.${{ matrix.archive_ext }}" \
             --dir artifacts
-          ASSET=$(ls artifacts/lex-lsp-${{ matrix.target }}.*)
+          ASSET=$(ls artifacts/lex-lsp-${{ matrix.target }}.${{ matrix.archive_ext }})
           if [[ ! -f "$ASSET" ]]; then
             echo "lex-lsp artifact not found for ${{ matrix.target }}" >&2
             exit 1
