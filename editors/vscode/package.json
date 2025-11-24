@@ -40,87 +40,87 @@
     ],
     "semanticTokenTypes": [
       {
-        "id": "sessionTitle",
+        "id": "SessionTitle",
         "description": "Session title/heading"
       },
       {
-        "id": "sessionMarker",
+        "id": "SessionMarker",
         "description": "Session marker"
       },
       {
-        "id": "sessionTitleText",
+        "id": "SessionTitleText",
         "description": "Session title text"
       },
       {
-        "id": "definitionSubject",
+        "id": "DefinitionSubject",
         "description": "Definition subject/term"
       },
       {
-        "id": "definitionContent",
+        "id": "DefinitionContent",
         "description": "Definition content"
       },
       {
-        "id": "listMarker",
+        "id": "ListMarker",
         "description": "List item marker"
       },
       {
-        "id": "listItemText",
+        "id": "ListItemText",
         "description": "List item text"
       },
       {
-        "id": "annotationLabel",
+        "id": "AnnotationLabel",
         "description": "Annotation label"
       },
       {
-        "id": "annotationParameter",
+        "id": "AnnotationParameter",
         "description": "Annotation parameter"
       },
       {
-        "id": "annotationContent",
+        "id": "AnnotationContent",
         "description": "Annotation content"
       },
       {
-        "id": "inlineStrong",
+        "id": "InlineStrong",
         "description": "Strong/bold text"
       },
       {
-        "id": "inlineEmphasis",
+        "id": "InlineEmphasis",
         "description": "Emphasized/italic text"
       },
       {
-        "id": "inlineCode",
+        "id": "InlineCode",
         "description": "Inline code"
       },
       {
-        "id": "inlineMath",
+        "id": "InlineMath",
         "description": "Inline math"
       },
       {
-        "id": "reference",
+        "id": "Reference",
         "description": "Reference"
       },
       {
-        "id": "referenceCitation",
+        "id": "ReferenceCitation",
         "description": "Citation reference"
       },
       {
-        "id": "referenceFootnote",
+        "id": "ReferenceFootnote",
         "description": "Footnote reference"
       },
       {
-        "id": "verbatimSubject",
+        "id": "VerbatimSubject",
         "description": "Verbatim block subject"
       },
       {
-        "id": "verbatimLanguage",
+        "id": "VerbatimLanguage",
         "description": "Verbatim language identifier"
       },
       {
-        "id": "verbatimAttribute",
+        "id": "VerbatimAttribute",
         "description": "Verbatim attribute"
       },
       {
-        "id": "verbatimContent",
+        "id": "VerbatimContent",
         "description": "Verbatim content"
       }
     ],
@@ -128,27 +128,27 @@
       {
         "language": "lex",
         "scopes": {
-          "sessionTitle": ["markup.heading"],
-          "sessionMarker": ["punctuation.definition.heading"],
-          "sessionTitleText": ["markup.heading"],
-          "definitionSubject": ["variable.other.definition"],
-          "definitionContent": ["text"],
-          "listMarker": ["punctuation.definition.list"],
-          "listItemText": ["markup.list"],
-          "annotationLabel": ["comment.block"],
-          "annotationParameter": ["variable.parameter"],
-          "annotationContent": ["comment.block"],
-          "inlineStrong": ["markup.bold"],
-          "inlineEmphasis": ["markup.italic"],
-          "inlineCode": ["markup.inline.raw"],
-          "inlineMath": ["constant.numeric"],
-          "reference": ["markup.underline.link"],
-          "referenceCitation": ["markup.underline.link"],
-          "referenceFootnote": ["markup.underline.link"],
-          "verbatimSubject": ["entity.name.section"],
-          "verbatimLanguage": ["entity.name.tag"],
-          "verbatimAttribute": ["variable.parameter"],
-          "verbatimContent": ["markup.raw.block"]
+          "SessionTitle": ["markup.heading"],
+          "SessionMarker": ["punctuation.definition.heading"],
+          "SessionTitleText": ["markup.heading"],
+          "DefinitionSubject": ["variable.other.definition"],
+          "DefinitionContent": ["text"],
+          "ListMarker": ["punctuation.definition.list"],
+          "ListItemText": ["markup.list"],
+          "AnnotationLabel": ["comment.block"],
+          "AnnotationParameter": ["variable.parameter"],
+          "AnnotationContent": ["comment.block"],
+          "InlineStrong": ["markup.bold"],
+          "InlineEmphasis": ["markup.italic"],
+          "InlineCode": ["markup.inline.raw"],
+          "InlineMath": ["constant.numeric"],
+          "Reference": ["markup.underline.link"],
+          "ReferenceCitation": ["markup.underline.link"],
+          "ReferenceFootnote": ["markup.underline.link"],
+          "VerbatimSubject": ["entity.name.section"],
+          "VerbatimLanguage": ["entity.name.tag"],
+          "VerbatimAttribute": ["variable.parameter"],
+          "VerbatimContent": ["markup.raw.block"]
         }
       }
     ],
