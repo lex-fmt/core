@@ -1,8 +1,8 @@
 use super::formatting_rules::FormattingRules;
 use lex_parser::lex::ast::{
     elements::{
-        blank_line_group::BlankLineGroup, paragraph::TextLine, verbatim::VerbatimGroupItemRef,
-        VerbatimLine,
+        blank_line_group::BlankLineGroup, paragraph::TextLine, sequence_marker::Form,
+        verbatim::VerbatimGroupItemRef, VerbatimLine,
     },
     traits::{AstNode, Visitor},
     Annotation, Definition, Document, List, ListItem, Paragraph, Session, Verbatim,
@@ -21,6 +21,7 @@ enum MarkerType {
 struct ListContext {
     index: usize,
     marker_type: MarkerType,
+    marker_form: Option<Form>,
 }
 
 impl MarkerType {}
@@ -205,6 +206,7 @@ impl Visitor for LexSerializer {
         self.list_stack.push(ListContext {
             index: 1,
             marker_type,
+            marker_form: list.marker.as_ref().map(|marker| marker.form),
         });
     }
 
@@ -218,13 +220,17 @@ impl Visitor for LexSerializer {
             .expect("List stack empty in list item");
 
         let marker = if self.rules.normalize_list_markers {
-            match context.marker_type {
-                MarkerType::Bullet => self.rules.unordered_list_marker.to_string(),
-                MarkerType::Numeric => format!("{}.", context.index),
-                MarkerType::AlphaLower => format!("{}.", to_alpha_lower(context.index)),
-                MarkerType::AlphaUpper => format!("{}.", to_alpha_upper(context.index)),
-                MarkerType::RomanLower => format!("{}.", to_roman_lower(context.index)),
-                MarkerType::RomanUpper => format!("{}.", to_roman_upper(context.index)),
+            if matches!(context.marker_form, Some(Form::Extended)) {
+                list_item.marker.as_string().to_string()
+            } else {
+                match context.marker_type {
+                    MarkerType::Bullet => self.rules.unordered_list_marker.to_string(),
+                    MarkerType::Numeric => format!("{}.", context.index),
+                    MarkerType::AlphaLower => format!("{}.", to_alpha_lower(context.index)),
+                    MarkerType::AlphaUpper => format!("{}.", to_alpha_upper(context.index)),
+                    MarkerType::RomanLower => format!("{}.", to_roman_lower(context.index)),
+                    MarkerType::RomanUpper => format!("{}.", to_roman_upper(context.index)),
+                }
             }
         } else {
             list_item.marker.as_string().to_string()
@@ -443,6 +449,14 @@ mod tests {
         // Check for proper indentation of nested items
         assert!(formatted.contains("- First outer item\n"));
         assert!(formatted.contains("    - First nested item\n"));
+    }
+
+    #[test]
+    fn test_list_extended_markers_preserved() {
+        let source = "1.2.3 Item one\n1.2.4 Item two\n";
+        let formatted = format_source(source);
+        assert!(formatted.contains("1.2.3 Item one\n"));
+        assert!(formatted.contains("1.2.4 Item two\n"));
     }
 
     // ==== Definition Tests ====
