@@ -362,63 +362,6 @@ fn build_comrak_ast<'a>(
     Ok(root)
 }
 
-/// Convert session numbering from "N. " format to "(N) " format to avoid Markdown escaping
-/// Handles patterns like "1. ", "1.2. ", "1.2.3. " etc.
-fn convert_numbering_to_parens(text: &str) -> String {
-    let mut chars = text.chars().peekable();
-    let mut numbering = String::new();
-
-    // Collect digit.digit.digit... pattern
-    loop {
-        // Collect digits
-        let mut has_digits = false;
-        while let Some(&ch) = chars.peek() {
-            if ch.is_ascii_digit() {
-                numbering.push(ch);
-                chars.next();
-                has_digits = true;
-            } else {
-                break;
-            }
-        }
-
-        if !has_digits {
-            // Not a numbering pattern
-            return text.to_string();
-        }
-
-        // Check for dot
-        if let Some(&'.') = chars.peek() {
-            numbering.push('.');
-            chars.next();
-
-            // Check if this is followed by a space (end of numbering) or more digits
-            match chars.peek() {
-                Some(&' ') => {
-                    // End of numbering pattern, consume the space
-                    chars.next();
-                    // Remove trailing dot from numbering
-                    numbering.pop();
-                    // Collect rest of string
-                    let rest: String = chars.collect();
-                    return format!("({}) {}", numbering, rest);
-                }
-                Some(&ch) if ch.is_ascii_digit() => {
-                    // Continue collecting numbering
-                    continue;
-                }
-                _ => {
-                    // Not a valid numbering pattern
-                    return text.to_string();
-                }
-            }
-        } else {
-            // No dot after digits, not a numbering pattern
-            return text.to_string();
-        }
-    }
-}
-
 /// Add inline content to a comrak node
 fn add_inline_to_node<'a>(
     arena: &'a Arena<AstNode<'a>>,
@@ -431,15 +374,8 @@ fn add_inline_to_node<'a>(
         InlineContent::Text(text) => {
             let sanitized = text.replace('\n', " ");
 
-            // If this is text in a heading, convert "N. " patterns to "(N) " to avoid escaping
-            let final_text = if matches!(parent.data.borrow().value, NodeValue::Heading(_)) {
-                convert_numbering_to_parens(&sanitized)
-            } else {
-                sanitized
-            };
-
             let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
-                NodeValue::Text(final_text),
+                NodeValue::Text(sanitized),
                 (0, 0).into(),
             ))));
             parent.append(text_node);

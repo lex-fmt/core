@@ -100,6 +100,7 @@ fn from_lex_content_item_with_level(item: &LexContentItem, level: usize) -> DocN
 
 /// Converts a lex session to an IR heading.
 fn from_lex_session(session: &LexSession, level: usize) -> DocNode {
+    // Preserve the original session title (including any sequence marker)
     let content = convert_inline_content(&session.title);
     let children = convert_children(&session.children, level + 1);
     DocNode::Heading(Heading {
