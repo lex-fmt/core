@@ -18,7 +18,7 @@ npm run lint && npm run build
 npm test               # unit + VS Code integration
 ./test/run_suite.sh --format=simple
 ```
-CI mirrors the same sequence via `.github/workflows/vscode-plugin.yml`.
+CI mirrors the same sequence via `.github/workflows/test-vscode-plugin.yml`.
 
 Packaging
 ---------
