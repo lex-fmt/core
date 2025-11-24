@@ -164,19 +164,6 @@ impl List {
     pub fn body_location(&self) -> Option<Range> {
         Range::bounding_box(self.items.iter().map(|item| item.range()))
     }
-
-    /// Determine the decoration type from the first list item's marker.
-    ///
-    /// This is a helper for formatters and serializers to determine
-    /// what kind of list this is (bullet, numbered, alphabetical, etc.)
-    pub fn decoration_type(&self) -> &str {
-        if let Some(first) = self.items.iter().next() {
-            if let Some(item) = first.as_list_item() {
-                return item.marker.as_string();
-            }
-        }
-        "-" // Default to bullet
-    }
 }
 
 impl AstNode for List {
@@ -418,5 +405,214 @@ mod tests {
 
         let short = ListItem::new("-".into(), "short".into());
         assert_eq!(short.display_label(), "short");
+    }
+
+    mod sequence_marker_integration {
+        use super::*;
+        use crate::lex::ast::elements::{DecorationStyle, Form, Separator};
+        use crate::lex::ast::ContentItem;
+        use crate::lex::loader::DocumentLoader;
+
+        #[test]
+        fn parse_extracts_plain_marker() {
+            let source = "- Item one\n- Item two";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Plain);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "-");
+        }
+
+        #[test]
+        fn parse_extracts_numerical_period_marker() {
+            let source = "1. First item\n2. Second item";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "1.");
+        }
+
+        #[test]
+        fn parse_extracts_numerical_paren_marker() {
+            let source = "1) First item\n2) Second item";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::Parenthesis);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "1)");
+        }
+
+        #[test]
+        fn parse_extracts_alphabetical_marker() {
+            let source = "a. Alpha\nb. Beta";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Alphabetical);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "a.");
+        }
+
+        #[test]
+        fn parse_extracts_roman_marker() {
+            let source = "I. First\nII. Second";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Roman);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "I.");
+        }
+
+        #[test]
+        fn parse_extracts_extended_numerical_marker() {
+            let source = "1.2.3 Item\n1.2.4 Item";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Extended);
+            assert_eq!(marker.raw_text.as_string(), "1.2.3");
+        }
+
+        #[test]
+        fn parse_extracts_double_paren_marker() {
+            let source = "(1) Item one\n(2) Item two";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::DoubleParens);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "(1)");
+        }
+
+        #[test]
+        fn empty_list_has_no_marker() {
+            let list = List::new(vec![]);
+            assert!(list.marker.is_none());
+        }
     }
 }
