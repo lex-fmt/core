@@ -5,10 +5,38 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 EXT_DIR="$REPO_ROOT/editors/vscode"
 RESOURCES_DIR="$EXT_DIR/resources"
-BINARY_DEST="$RESOURCES_DIR/lex-lsp"
+
+TARGET_TRIPLE=""
 
 BUILD_PROFILE="release"
-TARGET_DIR="$REPO_ROOT/target/$BUILD_PROFILE"
+
+usage() {
+  cat <<USAGE
+Usage: $(basename "$0") [--target <triple>]
+
+Builds lex-lsp in release mode (optionally for the provided Rust target
+triple), copies it into the VS Code extension resources directory, and bundles
+the TypeScript sources.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --target)
+      TARGET_TRIPLE="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
 
 if ! command -v cargo >/dev/null 2>&1; then
   echo "cargo is required to build lex-lsp" >&2
@@ -16,8 +44,19 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 pushd "$REPO_ROOT" >/dev/null
-cargo build --bin lex-lsp --release
+if [[ -n "$TARGET_TRIPLE" ]]; then
+  cargo build --bin lex-lsp --release --target "$TARGET_TRIPLE"
+else
+  cargo build --bin lex-lsp --release
+fi
 popd >/dev/null
+
+TARGET_DIR="$REPO_ROOT/target"
+if [[ -n "$TARGET_TRIPLE" ]]; then
+  TARGET_DIR="$TARGET_DIR/$TARGET_TRIPLE/$BUILD_PROFILE"
+else
+  TARGET_DIR="$TARGET_DIR/$BUILD_PROFILE"
+fi
 
 BINARY_SRC="$TARGET_DIR/lex-lsp"
 if [[ ! -f "$BINARY_SRC" && -f "$BINARY_SRC.exe" ]]; then
@@ -30,10 +69,15 @@ if [[ ! -f "$BINARY_SRC" ]]; then
 fi
 
 mkdir -p "$RESOURCES_DIR"
-cp "$BINARY_SRC" "$BINARY_DEST"
-chmod +x "$BINARY_DEST"
+DEST_PATH="$RESOURCES_DIR/lex-lsp"
+if [[ "$BINARY_SRC" == *.exe ]]; then
+  DEST_PATH="$DEST_PATH.exe"
+fi
 
-echo "lex-lsp copied to $BINARY_DEST"
+cp "$BINARY_SRC" "$DEST_PATH"
+chmod +x "$DEST_PATH"
+
+echo "lex-lsp copied to $DEST_PATH"
 
 pushd "$EXT_DIR" >/dev/null
 npm ci

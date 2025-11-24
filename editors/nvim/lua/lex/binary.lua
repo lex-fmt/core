@@ -9,27 +9,109 @@ local uv = vim.loop
 local M = {}
 local test_overrides -- populated by _set_test_overrides during tests
 
-local OS_NAME = uv.os_uname().sysname:lower()
+local run_cmd
+
+local UNAME = uv.os_uname()
+local OS_NAME = UNAME.sysname:lower()
+local MACHINE = (UNAME.machine or ''):lower()
 local IS_WINDOWS = OS_NAME:find('windows') ~= nil
 
-local PLATFORM_ASSET = {
-  linux = 'lex-linux-amd64.tar.gz',
-  darwin = 'lex-macos-amd64.tar.gz',
-  windows = 'lex-windows-amd64.zip',
+local PLATFORM_ASSETS = {
+  linux = {
+    amd64 = { filename = 'lex-lsp-x86_64-unknown-linux-gnu.tar.xz', kind = 'tar.xz' },
+    arm64 = { filename = 'lex-lsp-aarch64-unknown-linux-gnu.tar.xz', kind = 'tar.xz' },
+  },
+  darwin = {
+    amd64 = { filename = 'lex-lsp-x86_64-apple-darwin.tar.xz', kind = 'tar.xz' },
+    arm64 = { filename = 'lex-lsp-aarch64-apple-darwin.tar.xz', kind = 'tar.xz' },
+  },
+  windows = {
+    amd64 = { filename = 'lex-lsp-x86_64-pc-windows-msvc.zip', kind = 'zip' },
+    arm64 = { filename = 'lex-lsp-aarch64-pc-windows-msvc.zip', kind = 'zip' },
+  },
 }
 
-local function select_asset()
-  if OS_NAME:find('linux') then
-    return PLATFORM_ASSET.linux
-  elseif OS_NAME:find('darwin') then
-    return PLATFORM_ASSET.darwin
-  elseif IS_WINDOWS then
-    return PLATFORM_ASSET.windows
+local function normalized_arch(machine)
+  if not machine or machine == '' then
+    return 'amd64'
+  end
+  machine = machine:lower()
+  if machine:find('arm64', 1, true) or machine:find('aarch64', 1, true) then
+    return 'arm64'
+  end
+  return 'amd64'
+end
+
+local function select_asset_for(os_name, machine)
+  os_name = (os_name or ''):lower()
+  local arch = normalized_arch(machine)
+  if os_name:find('linux') then
+    return PLATFORM_ASSETS.linux[arch] or PLATFORM_ASSETS.linux.amd64
+  elseif os_name:find('darwin') then
+    return PLATFORM_ASSETS.darwin[arch] or PLATFORM_ASSETS.darwin.amd64
+  elseif os_name:find('windows') then
+    return PLATFORM_ASSETS.windows[arch] or PLATFORM_ASSETS.windows.amd64
   end
   return nil
 end
 
-local function run_cmd(cmd)
+local function select_asset()
+  return select_asset_for(OS_NAME, MACHINE)
+end
+
+local function extract_archive(archive, tmpdir, asset)
+  local function tar_extract(args)
+    return run_cmd(args)
+  end
+
+  if asset.kind == 'tar.xz' then
+    local _, err = tar_extract({ 'tar', '-xJf', archive, '-C', tmpdir })
+    if err then
+      local fallback = string.format(
+        "xz -dc %s | tar -xf - -C %s",
+        vim.fn.shellescape(archive),
+        vim.fn.shellescape(tmpdir)
+      )
+      _, err = run_cmd({ 'sh', '-c', fallback })
+    end
+    if err then
+      return nil, err
+    end
+  elseif asset.kind == 'tar.gz' then
+    local _, err = tar_extract({ 'tar', '-xzf', archive, '-C', tmpdir })
+    if err then
+      local fallback = string.format(
+        "gzip -dc %s | tar -xf - -C %s",
+        vim.fn.shellescape(archive),
+        vim.fn.shellescape(tmpdir)
+      )
+      _, err = run_cmd({ 'sh', '-c', fallback })
+    end
+    if err then
+      return nil, err
+    end
+  else
+    local expand_cmd = string.format(
+      'powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path \\\"%s\\\" -DestinationPath \\\"%s\\\" -Force"',
+      archive,
+      tmpdir
+    )
+    local _, err = run_cmd(expand_cmd)
+    if err then
+      return nil, err
+    end
+  end
+  return true, nil
+end
+
+local function find_extracted_binary(tmpdir, binary_name)
+  local paths = vim.fs.find(function(name)
+    return name == binary_name
+  end, { path = tmpdir, type = 'file', limit = 1 })
+  return paths[1]
+end
+
+run_cmd = function(cmd)
   local output = vim.fn.system(cmd)
   if vim.v.shell_error ~= 0 then
     return nil, output
@@ -67,34 +149,32 @@ local function download_release(tag, dest)
   end
 
   local base = 'https://github.com/arthur-debert/lex/releases/download/%s/%s'
-  local url = string.format(base, tag, asset)
+  local url = string.format(base, tag, asset.filename)
 
   local tmpdir = with_tempdir()
-  local archive = tmpdir .. '/' .. asset
+  local archive = tmpdir .. '/' .. asset.filename
 
-  local _, curl_err = run_cmd({ 'curl', '-sSL', '-o', archive, url })
+  local token = vim.env.LEX_GITHUB_TOKEN or vim.env.GITHUB_TOKEN
+  local curl_cmd = { 'curl', '-f', '-sSL', '-o', archive }
+  if token and token ~= '' then
+    table.insert(curl_cmd, '-H')
+    table.insert(curl_cmd, 'Authorization: Bearer ' .. token)
+  end
+  table.insert(curl_cmd, url)
+
+  local _, curl_err = run_cmd(curl_cmd)
   if curl_err then
     return nil, curl_err
   end
 
-  local extract_err
-  if asset:match('%.tar%.gz$') then
-    _, extract_err = run_cmd({ 'tar', '-xzf', archive, '-C', tmpdir })
-  else
-    local expand_cmd = string.format(
-      'powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path \"%s\" -DestinationPath \"%s\" -Force"',
-      archive,
-      tmpdir
-    )
-    _, extract_err = run_cmd(expand_cmd)
-  end
+  local _, extract_err = extract_archive(archive, tmpdir, asset)
   if extract_err then
     return nil, extract_err
   end
 
   local binary_name = IS_WINDOWS and 'lex-lsp.exe' or 'lex-lsp'
-  local extracted = tmpdir .. '/' .. binary_name
-  if vim.fn.filereadable(extracted) == 0 then
+  local extracted = find_extracted_binary(tmpdir, binary_name)
+  if not extracted or vim.fn.filereadable(extracted) == 0 then
     vim.fn.delete(tmpdir, 'rf')
     return nil, 'lex-lsp binary not found in archive'
   end
@@ -182,5 +262,7 @@ end
 M._reset_test_overrides = function()
   test_overrides = nil
 end
+M._select_asset_for_testing = select_asset_for
+M._find_binary_in_tmpdir_for_testing = find_extracted_binary
 
 return M
