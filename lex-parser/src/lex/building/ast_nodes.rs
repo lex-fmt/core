@@ -203,6 +203,7 @@ pub(super) fn list_node(items: Vec<ListItem>) -> ContentItem {
 
     ContentItem::List(List {
         items: crate::lex::ast::elements::container::ListContainer::from_typed(typed_items),
+        marker: None,
         annotations: Vec::new(),
         location,
     })

@@ -74,6 +74,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Session {
     pub title: TextContent,
+    pub marker: Option<super::sequence_marker::SequenceMarker>,
     pub children: SessionContainer,
     pub annotations: Vec<Annotation>,
     pub location: Range,
@@ -86,6 +87,7 @@ impl Session {
     pub fn new(title: TextContent, children: Vec<SessionContent>) -> Self {
         Self {
             title,
+            marker: None,
             children: SessionContainer::from_typed(children),
             annotations: Vec::new(),
             location: Self::default_location(),
@@ -94,6 +96,7 @@ impl Session {
     pub fn with_title(title: String) -> Self {
         Self {
             title: TextContent::from_string(title, None),
+            marker: None,
             children: SessionContainer::empty(),
             annotations: Vec::new(),
             location: Self::default_location(),

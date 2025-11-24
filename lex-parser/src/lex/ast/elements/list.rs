@@ -69,7 +69,7 @@
 //! items while editing, else on insertions and swaps you must reorder all subsequent items.
 //!          The presentation characteristics are a list property, as they are set for the entire list,
 //!  even if the source text did not do it consistently. And they are to be used on any ast -> string
-//! representation to form the list marker (the full combination of all presentation traits).
+//! representation to form the sequence marker (the full combination of all presentation traits).
 //!         In list items we do keep the source marker version for recreation capacity, and
 //! formatters and other tools are not to be expected to use them.
 //!
@@ -95,6 +95,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
     pub items: ListContainer,
+    pub marker: Option<super::sequence_marker::SequenceMarker>,
     pub annotations: Vec<Annotation>,
     pub location: Range,
 }
@@ -120,6 +121,7 @@ impl List {
             .collect::<Vec<_>>();
         Self {
             items: ListContainer::from_typed(typed_items),
+            marker: None,
             annotations: Vec::new(),
             location: Self::default_location(),
         }
