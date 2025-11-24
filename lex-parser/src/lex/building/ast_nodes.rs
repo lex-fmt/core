@@ -40,11 +40,12 @@ use crate::lex::ast::elements::typed_content::{
     ContentElement, ListContent, SessionContent, VerbatimContent,
 };
 use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
+use crate::lex::ast::elements::SequenceMarker;
 use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{
-    Annotation, Data, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
-    TextLine, Verbatim,
+    Annotation, Data, Definition, Label, List, ListItem, Paragraph, Position, Range, Session,
+    TextContent, TextLine, Verbatim,
 };
 use crate::lex::parsing::ContentItem;
 use crate::lex::token::Token;
@@ -136,12 +137,88 @@ pub(super) fn session_node(
     source_location: &SourceLocation,
 ) -> ContentItem {
     let title_location = byte_range_to_ast_range(data.title_byte_range, source_location);
+    let title_text = data.title_text.clone();
     let title = TextContent::from_string(data.title_text, Some(title_location.clone()));
+
+    // Extract sequence marker from title if present
+    // Sessions support numerical, alphabetical, and roman markers (but not plain dash)
+    let marker = extract_session_marker(&title_text, &title_location);
+
     let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
     let location = aggregate_locations(title_location, &child_items);
 
-    let session = Session::new(title, content).at(location);
+    let mut session = Session::new(title, content).at(location);
+    session.marker = marker;
     ContentItem::Session(session)
+}
+
+/// Extract a sequence marker from a session title
+///
+/// Attempts to parse a sequence marker from the start of the session title.
+/// Sessions support all marker styles except Plain (dash).
+///
+/// # Arguments
+///
+/// * `title_text` - The full title text
+/// * `title_location` - The location of the title in the source
+///
+/// # Returns
+///
+/// `Some(SequenceMarker)` if a valid marker is found at the start, `None` otherwise
+fn extract_session_marker(title_text: &str, title_location: &Range) -> Option<SequenceMarker> {
+    use crate::lex::ast::elements::SequenceMarker;
+
+    let trimmed = title_text.trim_start();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    // Try to find where a marker might end
+    // Markers can be: "1. ", "a) ", "(IV) ", "1.2.3 ", etc.
+    // We need to find the first whitespace after a potential marker
+
+    let mut end_idx = 0;
+    let chars: Vec<char> = trimmed.chars().collect();
+
+    // Skip the marker content until we hit whitespace
+    while end_idx < chars.len() && !chars[end_idx].is_whitespace() {
+        end_idx += 1;
+    }
+
+    if end_idx == 0 || end_idx >= chars.len() {
+        // No whitespace found or marker would be the entire title
+        return None;
+    }
+
+    let potential_marker = &trimmed[..end_idx];
+
+    // Calculate the location of the marker within the title
+    let marker_start_offset = title_text.len() - trimmed.len();
+    let marker_end_offset = marker_start_offset + end_idx;
+
+    let marker_location = Range::new(
+        title_location.span.start + marker_start_offset
+            ..title_location.span.start + marker_end_offset,
+        Position::new(
+            title_location.start.line,
+            title_location.start.column + marker_start_offset,
+        ),
+        Position::new(
+            title_location.start.line,
+            title_location.start.column + marker_end_offset,
+        ),
+    );
+
+    // Try to parse the marker
+    let parsed = SequenceMarker::parse(potential_marker, Some(marker_location))?;
+
+    // Sessions don't support plain dash markers (those are list-only)
+    use crate::lex::ast::elements::DecorationStyle;
+    if parsed.style == DecorationStyle::Plain {
+        return None;
+    }
+
+    Some(parsed)
 }
 
 // ============================================================================
@@ -199,7 +276,7 @@ pub(super) fn list_node(items: Vec<ListItem>) -> ContentItem {
         use crate::lex::ast::elements::SequenceMarker;
         let marker_text = first_item.marker.as_string();
         let marker_location = first_item.marker.location.clone();
-        SequenceMarker::parse(&marker_text, marker_location)
+        SequenceMarker::parse(marker_text, marker_location)
     });
 
     let typed_items: Vec<ListContent> = items.into_iter().map(ListContent::ListItem).collect();

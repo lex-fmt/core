@@ -124,6 +124,49 @@ impl Session {
         Range::bounding_box(self.children.iter().map(|item| item.range()))
     }
 
+    /// Get the title text without the sequence marker
+    ///
+    /// Returns the title with any leading sequence marker removed.
+    /// For example, "1. Introduction" becomes "Introduction".
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let session = parse_session("1. Introduction:\n\n    Content");
+    /// assert_eq!(session.title_text(), "Introduction");
+    /// ```
+    pub fn title_text(&self) -> &str {
+        if let Some(marker) = &self.marker {
+            let full_title = self.title.as_string();
+            let marker_text = marker.as_str();
+
+            // Find where the marker ends in the title
+            if let Some(pos) = full_title.find(marker_text) {
+                // Skip the marker and any whitespace after it
+                let after_marker = &full_title[pos + marker_text.len()..];
+                return after_marker.trim_start();
+            }
+        }
+
+        // No marker, return the full title
+        self.title.as_string()
+    }
+
+    /// Get the full title including any sequence marker
+    ///
+    /// Returns the complete title as it appears in the source, including
+    /// any sequence marker prefix.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let session = parse_session("1. Introduction:\n\n    Content");
+    /// assert_eq!(session.full_title(), "1. Introduction");
+    /// ```
+    pub fn full_title(&self) -> &str {
+        self.title.as_string()
+    }
+
     /// Mutable access to session annotations.
     pub fn annotations_mut(&mut self) -> &mut Vec<Annotation> {
         &mut self.annotations
@@ -686,5 +729,282 @@ mod tests {
         assert_eq!(session.iter_paragraphs().count(), 2);
         assert_eq!(session.first_paragraph().unwrap().text(), "Para 1");
         assert_eq!(session.count_by_type(), (2, 0, 0, 0));
+    }
+
+    mod sequence_marker_integration {
+        use super::*;
+        use crate::lex::ast::elements::{DecorationStyle, Form, Separator};
+        use crate::lex::loader::DocumentLoader;
+
+        #[test]
+        fn parse_extracts_numerical_period_marker() {
+            let source = "1. First Session:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            assert!(session.marker.is_some());
+            let marker = session.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "1.");
+        }
+
+        #[test]
+        fn parse_extracts_numerical_paren_marker() {
+            let source = "1) Second Session:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            assert!(session.marker.is_some());
+            let marker = session.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::Parenthesis);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "1)");
+        }
+
+        #[test]
+        fn parse_extracts_alphabetical_marker() {
+            let source = "a. Alpha Session:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            assert!(session.marker.is_some());
+            let marker = session.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Alphabetical);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "a.");
+        }
+
+        #[test]
+        fn parse_extracts_roman_marker() {
+            let source = "I. Roman Session:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            assert!(session.marker.is_some());
+            let marker = session.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Roman);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "I.");
+        }
+
+        #[test]
+        fn parse_extracts_extended_numerical_marker() {
+            let source = "1.2.3 Extended Session:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            assert!(session.marker.is_some());
+            let marker = session.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Extended);
+            assert_eq!(marker.raw_text.as_string(), "1.2.3");
+        }
+
+        #[test]
+        fn parse_extracts_double_paren_marker() {
+            let source = "(1) Parens Session:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            assert!(session.marker.is_some());
+            let marker = session.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::DoubleParens);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "(1)");
+        }
+
+        #[test]
+        fn session_without_marker_has_none() {
+            let source = "Plain Session:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            assert!(session.marker.is_none());
+        }
+
+        #[test]
+        fn title_text_excludes_marker() {
+            let source = "1. Introduction:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            // The title includes the colon, but the marker is stripped
+            assert_eq!(session.title_text(), "Introduction:");
+            assert_eq!(session.full_title(), "1. Introduction:");
+        }
+
+        #[test]
+        fn title_text_without_marker_returns_full_title() {
+            let source = "Plain Title:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            // No marker, so title_text() returns the full title
+            assert_eq!(session.title_text(), "Plain Title:");
+            assert_eq!(session.full_title(), "Plain Title:");
+        }
+
+        #[test]
+        fn plain_dash_not_valid_for_sessions() {
+            // Sessions should not support plain dash markers
+            // This test verifies that "- " is not treated as a marker
+            let source = "- Not A Marker:\n\n    Content here";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let session = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::Session(session) = item {
+                        Some(session)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected session");
+
+            // The dash should not be parsed as a marker for sessions
+            assert!(
+                session.marker.is_none(),
+                "Dash should not be treated as a marker for sessions"
+            );
+            assert_eq!(session.full_title(), "- Not A Marker:");
+        }
     }
 }
