@@ -1,3 +1,43 @@
+//! This is the semantic token collector, which editors use for syntax highlighting.
+//! It's worth going over the general approach.
+//!
+//! Semantic Tokens and Editor Highlighting Architecture
+//!
+//!     1. LSP emits semantic tokens using our format's native terminology (e.g., `Verbatim`
+//! Annotation, etc). The LSP declares a token legend at initialization and emits tokens as indices
+//! into that legend—it has no knowledge of editor-specific theming.
+//!     2. Editor plugins map our token types to the editor's theme primitives. This lets users
+//! leverage their existing theme choices while our core LSP code remains editor-agnostic.
+//!     
+//! Editor-Specific Mapping
+//!
+//!     VSCode — declarative mapping in `package.json`:
+//!         "semanticTokenScopes": [{
+//!         "language": "ourformat",
+//!         "scopes": {
+//!         "Verbatim": ["markup.inline.raw"],
+//!         "Heading": ["markup.heading"],
+//!         "Emphasis": ["markup.italic"]
+//!         }
+//!         }]
+//!     :: javascript
+//!
+//!     We map to TextMate scopes (`markup.*`) as they have broad theme support and are a natural
+//! fit for markup.
+//!
+//!     Neovim — imperative mapping in the plugin:
+//!         vim.api.nvim_set_hl(0, '@lsp.type.Verbatim', { link = '@markup.raw' })
+//!         `vim.api.nvim_set_hl(0, '@lsp.type.Heading', { link = '@markup.heading' })
+//!         vim.api.nvim_set_hl(0, '@lsp.type.Emphasis', { link = '@markup.italic' })
+//!     :: lua
+//!     We link to treesitter's `@markup.*` groups for equivalent theme coverage.
+//!     Benefits:
+//!         - LSP speaks our format's semantics—no impedance mismatch
+//!         - Users get syntax highlighting that respects their theme
+//!         - Mapping logic is isolated to editor plugins; adding a new editor doesn't touch the LSP
+//!
+//! The file editors/vscode/themes/lex-light.json has the reocommended theming for Lex to be used in
+//! tests and so forth.
 use crate::inline::{extract_inline_spans, InlineSpanKind};
 use lex_parser::lex::ast::{
     Annotation, ContentItem, Definition, Document, List, ListItem, Paragraph, Range, Session,
@@ -38,8 +78,8 @@ impl LexSemanticTokenKind {
     ///
     /// Mapping rationale (based on Lex↔Markdown mapping from lex-babel):
     /// - Session → Heading → maps to "markup.heading"
-    /// - Definition → **Term**: Desc → maps to "variable.other.definition"
-    /// - InlineStrong → **bold** → maps to "markup.bold"
+    /// - Definition → Term: Desc → maps to "variable.other.definition"
+    /// - InlineStrong → bold → maps to "markup.bold"
     /// - InlineEmphasis → *italic* → maps to "markup.italic"
     /// - InlineCode → `code` → maps to "markup.inline.raw"
     /// - InlineMath → $math$ → maps to "constant.numeric"
