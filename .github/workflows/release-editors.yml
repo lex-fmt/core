@@ -58,10 +58,10 @@ jobs:
     steps:
       - name: Resolve release tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          elif [ "${{ github.event_name }}" = "workflow_call" ]; then
+          if [ -n "${{ inputs.tag }}" ]; then
             TAG="${{ inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
           else
             if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
               echo "Release workflow did not succeed" >&2
@@ -148,10 +148,10 @@ jobs:
     steps:
       - name: Resolve release tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          elif [ "${{ github.event_name }}" = "workflow_call" ]; then
+          if [ -n "${{ inputs.tag }}" ]; then
             TAG="${{ inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
           else
             if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
               echo "Release workflow did not succeed" >&2
@@ -229,10 +229,10 @@ jobs:
     steps:
       - name: Resolve release tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          elif [ "${{ github.event_name }}" = "workflow_call" ]; then
+          if [ -n "${{ inputs.tag }}" ]; then
             TAG="${{ inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
           else
             if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
               echo "Release workflow did not succeed" >&2
