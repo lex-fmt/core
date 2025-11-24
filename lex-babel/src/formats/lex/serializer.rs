@@ -16,7 +16,6 @@ enum MarkerType {
     AlphaUpper,
     RomanLower,
     RomanUpper,
-    Unknown,
 }
 
 struct ListContext {
@@ -24,41 +23,7 @@ struct ListContext {
     marker_type: MarkerType,
 }
 
-impl MarkerType {
-    fn from_str(s: &str) -> Self {
-        if s == "-" {
-            MarkerType::Bullet
-        } else if let Some(prefix) = s.strip_suffix('.') {
-            if prefix.chars().all(|c| c.is_ascii_digit()) {
-                MarkerType::Numeric
-            } else if prefix.len() == 1 && prefix.chars().next().unwrap().is_ascii_lowercase() {
-                MarkerType::AlphaLower
-            } else if prefix.len() == 1 && prefix.chars().next().unwrap().is_ascii_uppercase() {
-                MarkerType::AlphaUpper
-            } else if is_roman_lower(prefix) {
-                MarkerType::RomanLower
-            } else if is_roman_upper(prefix) {
-                MarkerType::RomanUpper
-            } else {
-                MarkerType::Unknown
-            }
-        } else {
-            MarkerType::Unknown
-        }
-    }
-}
-
-fn is_roman_lower(s: &str) -> bool {
-    !s.is_empty()
-        && s.chars()
-            .all(|c| matches!(c, 'i' | 'v' | 'x' | 'l' | 'c' | 'd' | 'm'))
-}
-
-fn is_roman_upper(s: &str) -> bool {
-    !s.is_empty()
-        && s.chars()
-            .all(|c| matches!(c, 'I' | 'V' | 'X' | 'L' | 'C' | 'D' | 'M'))
-}
+impl MarkerType {}
 
 fn to_alpha_lower(n: usize) -> String {
     if (1..=26).contains(&n) {
@@ -67,7 +32,6 @@ fn to_alpha_lower(n: usize) -> String {
         n.to_string()
     }
 }
-
 fn to_alpha_upper(n: usize) -> String {
     if (1..=26).contains(&n) {
         char::from_u32((n as u32) + 64).unwrap().to_string()
@@ -211,9 +175,32 @@ impl Visitor for LexSerializer {
     }
 
     fn visit_list(&mut self, list: &List) {
-        // Use the decoration_type helper to determine marker type
-        let marker_str = list.decoration_type();
-        let marker_type = MarkerType::from_str(marker_str);
+        // Use the SequenceMarker to determine marker type
+        let marker_type = if let Some(marker) = &list.marker {
+            use lex_parser::lex::ast::elements::DecorationStyle;
+            match marker.style {
+                DecorationStyle::Plain => MarkerType::Bullet,
+                DecorationStyle::Numerical => MarkerType::Numeric,
+                DecorationStyle::Alphabetical => {
+                    // Check case from raw_text
+                    if marker.as_str().chars().any(|c| c.is_ascii_uppercase()) {
+                        MarkerType::AlphaUpper
+                    } else {
+                        MarkerType::AlphaLower
+                    }
+                }
+                DecorationStyle::Roman => {
+                    // Check case from raw_text
+                    if marker.as_str().chars().any(|c| c.is_ascii_uppercase()) {
+                        MarkerType::RomanUpper
+                    } else {
+                        MarkerType::RomanLower
+                    }
+                }
+            }
+        } else {
+            MarkerType::Bullet // Default fallback
+        };
 
         self.list_stack.push(ListContext {
             index: 1,
@@ -224,7 +211,6 @@ impl Visitor for LexSerializer {
     fn leave_list(&mut self, _list: &List) {
         self.list_stack.pop();
     }
-
     fn visit_list_item(&mut self, list_item: &ListItem) {
         let context = self
             .list_stack
@@ -239,7 +225,6 @@ impl Visitor for LexSerializer {
                 MarkerType::AlphaUpper => format!("{}.", to_alpha_upper(context.index)),
                 MarkerType::RomanLower => format!("{}.", to_roman_lower(context.index)),
                 MarkerType::RomanUpper => format!("{}.", to_roman_upper(context.index)),
-                MarkerType::Unknown => list_item.marker.as_string().to_string(),
             }
         } else {
             list_item.marker.as_string().to_string()

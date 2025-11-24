@@ -193,6 +193,15 @@ pub(super) fn definition_node(
 /// A List ContentItem
 pub(super) fn list_node(items: Vec<ListItem>) -> ContentItem {
     let item_locations: Vec<Range> = items.iter().map(|item| item.location.clone()).collect();
+
+    // Extract marker from first item if available
+    let marker = items.first().and_then(|first_item| {
+        use crate::lex::ast::elements::SequenceMarker;
+        let marker_text = first_item.marker.as_string();
+        let marker_location = first_item.marker.location.clone();
+        SequenceMarker::parse(&marker_text, marker_location)
+    });
+
     let typed_items: Vec<ListContent> = items.into_iter().map(ListContent::ListItem).collect();
 
     let location = if item_locations.is_empty() {
@@ -203,7 +212,7 @@ pub(super) fn list_node(items: Vec<ListItem>) -> ContentItem {
 
     ContentItem::List(List {
         items: crate::lex::ast::elements::container::ListContainer::from_typed(typed_items),
-        marker: None,
+        marker,
         annotations: Vec::new(),
         location,
     })

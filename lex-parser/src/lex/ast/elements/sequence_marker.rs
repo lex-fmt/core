@@ -189,9 +189,12 @@ impl SequenceMarker {
         } else if text.ends_with(')') {
             (Separator::Parenthesis, true)
         } else {
-            // No separator found - this might be an extended form without trailing separator
-            // For now, we'll treat this as invalid
-            return None;
+            // No explicit separator - check if it looks like an extended form
+            if text.contains('.') {
+                (Separator::Period, false)
+            } else {
+                return None;
+            }
         };
 
         // Remove the separator to get the marker content
@@ -215,9 +218,7 @@ impl SequenceMarker {
         // For extended forms, verify all parts are valid
         if form == Form::Extended {
             for part in &parts {
-                if Self::detect_style(part).is_none() {
-                    return None;
-                }
+                Self::detect_style(part)?;
             }
         }
 
@@ -249,17 +250,18 @@ impl SequenceMarker {
             return Some(DecorationStyle::Numerical);
         }
 
-        // Check for alphabetical (single letter)
-        if segment.len() == 1 && segment.chars().next().unwrap().is_alphabetic() {
-            return Some(DecorationStyle::Alphabetical);
-        }
-
         // Check for roman numeral (all uppercase I, V, X, L, C, D, M)
+        // Check this BEFORE Alphabetical to correctly classify "I", "V", etc.
         if segment
             .chars()
             .all(|c| matches!(c, 'I' | 'V' | 'X' | 'L' | 'C' | 'D' | 'M'))
         {
             return Some(DecorationStyle::Roman);
+        }
+
+        // Check for alphabetical (single letter)
+        if segment.len() == 1 && segment.chars().next().unwrap().is_alphabetic() {
+            return Some(DecorationStyle::Alphabetical);
         }
 
         None
@@ -287,7 +289,7 @@ impl AstNode for SequenceMarker {
     }
 
     fn display_label(&self) -> String {
-        format!("{}", self.as_str())
+        self.as_str().to_string()
     }
 
     fn range(&self) -> &Range {
