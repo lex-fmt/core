@@ -21,8 +21,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: editors/vscode/package-lock.json
 
       - name: Install Rust
@@ -31,7 +31,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: 'stable'
+          shared-key: "stable"
           save-if: false
 
       - name: Build lex-lsp

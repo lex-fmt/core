@@ -3,28 +3,50 @@ import path from 'node:path';
 export const LEX_CONFIGURATION_SECTION = 'lex';
 export const LSP_BINARY_SETTING = 'lspBinaryPath';
 const DEFAULT_RELATIVE_BINARY = '../../target/debug/lex-lsp';
+const WINDOWS_EXECUTABLE_SUFFIX = '.exe';
+
+function normalizeWindowsExecutable(
+  binaryPath: string,
+  platform: NodeJS.Platform = process.platform
+): string {
+  if (platform !== 'win32') {
+    return binaryPath;
+  }
+
+  if (binaryPath.toLowerCase().endsWith(WINDOWS_EXECUTABLE_SUFFIX)) {
+    return binaryPath;
+  }
+
+  return `${binaryPath}${WINDOWS_EXECUTABLE_SUFFIX}`;
+}
 
 export interface LexExtensionConfig {
   lspBinaryPath: string;
 }
 
-export function defaultLspBinaryPath(extensionPath: string): string {
-  return path.resolve(extensionPath, DEFAULT_RELATIVE_BINARY);
+export function defaultLspBinaryPath(
+  extensionPath: string,
+  platform: NodeJS.Platform = process.platform
+): string {
+  const resolved = path.resolve(extensionPath, DEFAULT_RELATIVE_BINARY);
+  return normalizeWindowsExecutable(resolved, platform);
 }
 
 export function resolveLspBinaryPath(
   extensionPath: string,
-  configuredPath?: string | null
+  configuredPath?: string | null,
+  platform: NodeJS.Platform = process.platform
 ): string {
   if (!configuredPath || configuredPath.trim() === '') {
-    return defaultLspBinaryPath(extensionPath);
+    return defaultLspBinaryPath(extensionPath, platform);
   }
 
   if (path.isAbsolute(configuredPath)) {
-    return configuredPath;
+    return normalizeWindowsExecutable(configuredPath, platform);
   }
 
-  return path.resolve(extensionPath, configuredPath);
+  const resolved = path.resolve(extensionPath, configuredPath);
+  return normalizeWindowsExecutable(resolved, platform);
 }
 
 export function buildLexExtensionConfig(
