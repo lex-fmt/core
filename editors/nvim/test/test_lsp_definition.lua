@@ -62,7 +62,7 @@ end
 
 vim.wait(300)
 
-vim.fn.search("\\[Cache\\]", "w")
+vim.fn.search("Cache\\]", "w")
 local params = vim.lsp.util.make_position_params()
 local result = vim.lsp.buf_request_sync(0, 'textDocument/definition', params, 2000)
 
