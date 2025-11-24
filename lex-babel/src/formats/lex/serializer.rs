@@ -1,8 +1,8 @@
 use super::formatting_rules::FormattingRules;
 use lex_parser::lex::ast::{
     elements::{
-        blank_line_group::BlankLineGroup, paragraph::TextLine, verbatim::VerbatimGroupItemRef,
-        VerbatimLine,
+        blank_line_group::BlankLineGroup, paragraph::TextLine, sequence_marker::Form,
+        verbatim::VerbatimGroupItemRef, VerbatimLine,
     },
     traits::{AstNode, Visitor},
     Annotation, Definition, Document, List, ListItem, Paragraph, Session, Verbatim,
@@ -16,49 +16,15 @@ enum MarkerType {
     AlphaUpper,
     RomanLower,
     RomanUpper,
-    Unknown,
 }
 
 struct ListContext {
     index: usize,
     marker_type: MarkerType,
+    marker_form: Option<Form>,
 }
 
-impl MarkerType {
-    fn from_str(s: &str) -> Self {
-        if s == "-" {
-            MarkerType::Bullet
-        } else if let Some(prefix) = s.strip_suffix('.') {
-            if prefix.chars().all(|c| c.is_ascii_digit()) {
-                MarkerType::Numeric
-            } else if prefix.len() == 1 && prefix.chars().next().unwrap().is_ascii_lowercase() {
-                MarkerType::AlphaLower
-            } else if prefix.len() == 1 && prefix.chars().next().unwrap().is_ascii_uppercase() {
-                MarkerType::AlphaUpper
-            } else if is_roman_lower(prefix) {
-                MarkerType::RomanLower
-            } else if is_roman_upper(prefix) {
-                MarkerType::RomanUpper
-            } else {
-                MarkerType::Unknown
-            }
-        } else {
-            MarkerType::Unknown
-        }
-    }
-}
-
-fn is_roman_lower(s: &str) -> bool {
-    !s.is_empty()
-        && s.chars()
-            .all(|c| matches!(c, 'i' | 'v' | 'x' | 'l' | 'c' | 'd' | 'm'))
-}
-
-fn is_roman_upper(s: &str) -> bool {
-    !s.is_empty()
-        && s.chars()
-            .all(|c| matches!(c, 'I' | 'V' | 'X' | 'L' | 'C' | 'D' | 'M'))
-}
+impl MarkerType {}
 
 fn to_alpha_lower(n: usize) -> String {
     if (1..=26).contains(&n) {
@@ -67,7 +33,6 @@ fn to_alpha_lower(n: usize) -> String {
         n.to_string()
     }
 }
-
 fn to_alpha_upper(n: usize) -> String {
     if (1..=26).contains(&n) {
         char::from_u32((n as u32) + 64).unwrap().to_string()
@@ -211,20 +176,43 @@ impl Visitor for LexSerializer {
     }
 
     fn visit_list(&mut self, list: &List) {
-        // Use the decoration_type helper to determine marker type
-        let marker_str = list.decoration_type();
-        let marker_type = MarkerType::from_str(marker_str);
+        // Use the SequenceMarker to determine marker type
+        let marker_type = if let Some(marker) = &list.marker {
+            use lex_parser::lex::ast::elements::DecorationStyle;
+            match marker.style {
+                DecorationStyle::Plain => MarkerType::Bullet,
+                DecorationStyle::Numerical => MarkerType::Numeric,
+                DecorationStyle::Alphabetical => {
+                    // Check case from raw_text
+                    if marker.as_str().chars().any(|c| c.is_ascii_uppercase()) {
+                        MarkerType::AlphaUpper
+                    } else {
+                        MarkerType::AlphaLower
+                    }
+                }
+                DecorationStyle::Roman => {
+                    // Check case from raw_text
+                    if marker.as_str().chars().any(|c| c.is_ascii_uppercase()) {
+                        MarkerType::RomanUpper
+                    } else {
+                        MarkerType::RomanLower
+                    }
+                }
+            }
+        } else {
+            MarkerType::Bullet // Default fallback
+        };
 
         self.list_stack.push(ListContext {
             index: 1,
             marker_type,
+            marker_form: list.marker.as_ref().map(|marker| marker.form),
         });
     }
 
     fn leave_list(&mut self, _list: &List) {
         self.list_stack.pop();
     }
-
     fn visit_list_item(&mut self, list_item: &ListItem) {
         let context = self
             .list_stack
@@ -232,14 +220,17 @@ impl Visitor for LexSerializer {
             .expect("List stack empty in list item");
 
         let marker = if self.rules.normalize_list_markers {
-            match context.marker_type {
-                MarkerType::Bullet => self.rules.unordered_list_marker.to_string(),
-                MarkerType::Numeric => format!("{}.", context.index),
-                MarkerType::AlphaLower => format!("{}.", to_alpha_lower(context.index)),
-                MarkerType::AlphaUpper => format!("{}.", to_alpha_upper(context.index)),
-                MarkerType::RomanLower => format!("{}.", to_roman_lower(context.index)),
-                MarkerType::RomanUpper => format!("{}.", to_roman_upper(context.index)),
-                MarkerType::Unknown => list_item.marker.as_string().to_string(),
+            if matches!(context.marker_form, Some(Form::Extended)) {
+                list_item.marker.as_string().to_string()
+            } else {
+                match context.marker_type {
+                    MarkerType::Bullet => self.rules.unordered_list_marker.to_string(),
+                    MarkerType::Numeric => format!("{}.", context.index),
+                    MarkerType::AlphaLower => format!("{}.", to_alpha_lower(context.index)),
+                    MarkerType::AlphaUpper => format!("{}.", to_alpha_upper(context.index)),
+                    MarkerType::RomanLower => format!("{}.", to_roman_lower(context.index)),
+                    MarkerType::RomanUpper => format!("{}.", to_roman_upper(context.index)),
+                }
             }
         } else {
             list_item.marker.as_string().to_string()
@@ -458,6 +449,14 @@ mod tests {
         // Check for proper indentation of nested items
         assert!(formatted.contains("- First outer item\n"));
         assert!(formatted.contains("    - First nested item\n"));
+    }
+
+    #[test]
+    fn test_list_extended_markers_preserved() {
+        let source = "1.2.3 Item one\n1.2.4 Item two\n";
+        let formatted = format_source(source);
+        assert!(formatted.contains("1.2.3 Item one\n"));
+        assert!(formatted.contains("1.2.4 Item two\n"));
     }
 
     // ==== Definition Tests ====
