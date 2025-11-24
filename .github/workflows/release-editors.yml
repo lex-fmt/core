@@ -101,7 +101,7 @@ jobs:
           else
             tar -xf "$ASSET" -C extracted
           fi
-          BIN_PATH=$(find extracted -maxdepth 1 -type f -name 'lex-lsp*' ! -name '*README*' | head -n 1)
+          BIN_PATH=$(find extracted -type f -name 'lex-lsp*' ! -name '*README*' | head -n 1)
           if [[ -z "$BIN_PATH" ]]; then
             echo "lex-lsp binary not found inside $ARCHIVE" >&2
             exit 1
