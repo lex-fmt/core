@@ -35,7 +35,8 @@ export default [
     rules: {
       ...typeCheckedRules,
       '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-floating-promises': 'error'
+      '@typescript-eslint/no-floating-promises': 'error',
+      'no-undef': 'off'
     }
   },
   {
@@ -46,7 +47,8 @@ export default [
     },
     rules: {
       ...typeCheckedRules,
-      '@typescript-eslint/no-floating-promises': 'off'
+      '@typescript-eslint/no-floating-promises': 'off',
+      'no-undef': 'off'
     }
   }
 ];
