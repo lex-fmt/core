@@ -38,6 +38,120 @@
         "path": "./themes/lex-light.json"
       }
     ],
+    "semanticTokenTypes": [
+      {
+        "id": "sessionTitle",
+        "description": "Session title/heading"
+      },
+      {
+        "id": "sessionMarker",
+        "description": "Session marker"
+      },
+      {
+        "id": "sessionTitleText",
+        "description": "Session title text"
+      },
+      {
+        "id": "definitionSubject",
+        "description": "Definition subject/term"
+      },
+      {
+        "id": "definitionContent",
+        "description": "Definition content"
+      },
+      {
+        "id": "listMarker",
+        "description": "List item marker"
+      },
+      {
+        "id": "listItemText",
+        "description": "List item text"
+      },
+      {
+        "id": "annotationLabel",
+        "description": "Annotation label"
+      },
+      {
+        "id": "annotationParameter",
+        "description": "Annotation parameter"
+      },
+      {
+        "id": "annotationContent",
+        "description": "Annotation content"
+      },
+      {
+        "id": "inlineStrong",
+        "description": "Strong/bold text"
+      },
+      {
+        "id": "inlineEmphasis",
+        "description": "Emphasized/italic text"
+      },
+      {
+        "id": "inlineCode",
+        "description": "Inline code"
+      },
+      {
+        "id": "inlineMath",
+        "description": "Inline math"
+      },
+      {
+        "id": "reference",
+        "description": "Reference"
+      },
+      {
+        "id": "referenceCitation",
+        "description": "Citation reference"
+      },
+      {
+        "id": "referenceFootnote",
+        "description": "Footnote reference"
+      },
+      {
+        "id": "verbatimSubject",
+        "description": "Verbatim block subject"
+      },
+      {
+        "id": "verbatimLanguage",
+        "description": "Verbatim language identifier"
+      },
+      {
+        "id": "verbatimAttribute",
+        "description": "Verbatim attribute"
+      },
+      {
+        "id": "verbatimContent",
+        "description": "Verbatim content"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "lex",
+        "scopes": {
+          "sessionTitle": ["markup.heading"],
+          "sessionMarker": ["punctuation.definition.heading"],
+          "sessionTitleText": ["markup.heading"],
+          "definitionSubject": ["variable.other.definition"],
+          "definitionContent": ["text"],
+          "listMarker": ["punctuation.definition.list"],
+          "listItemText": ["markup.list"],
+          "annotationLabel": ["comment.block"],
+          "annotationParameter": ["variable.parameter"],
+          "annotationContent": ["comment.block"],
+          "inlineStrong": ["markup.bold"],
+          "inlineEmphasis": ["markup.italic"],
+          "inlineCode": ["markup.inline.raw"],
+          "inlineMath": ["constant.numeric"],
+          "reference": ["markup.underline.link"],
+          "referenceCitation": ["markup.underline.link"],
+          "referenceFootnote": ["markup.underline.link"],
+          "verbatimSubject": ["entity.name.section"],
+          "verbatimLanguage": ["entity.name.tag"],
+          "verbatimAttribute": ["variable.parameter"],
+          "verbatimContent": ["markup.raw.block"]
+        }
+      }
+    ],
     "configuration": {
       "title": "Lex",
       "properties": {
