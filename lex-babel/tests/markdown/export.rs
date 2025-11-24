@@ -95,8 +95,8 @@ fn test_heading_and_paragraph_separation() {
         }
     }
 
-    // The marker "1." is now stripped from the heading title
-    assert_eq!(heading_text.trim(), "Title");
+    // Session numbering must be preserved in the heading text
+    assert_eq!(heading_text.trim(), "1. Title");
     assert!(paragraph_text.contains("Body text."));
 }
 
