@@ -1,6 +1,6 @@
 [package]
 name = "lex-viewer"
-version = "0.1.13"
+version = "0.1.14"
 edition = "2021"
 authors = ["lex contributors"]
 description = "Interactive terminal viewer for the lex document format"
@@ -9,6 +9,9 @@ repository = "https://github.com/adebert/lex"
 keywords = ["cli", "viewer", "lex"]
 categories = ["command-line-utilities"]
 default-run = "lexv"
+
+[package.metadata.dist]
+dist = false
 
 [[bin]]
 name = "lexv"
