@@ -89,7 +89,7 @@ fn reference_spans(text: &str, base_range: &Range) -> Vec<InlineSpan> {
         if inner_end <= inner_start {
             continue;
         }
-        let range = sub_range(base_range, text, start, end);
+        let range = sub_range(base_range, text, inner_start, inner_end);
         let raw = text[inner_start..inner_end].to_string();
         let reference_type = classify_reference(&raw);
         spans.push(InlineSpan {

@@ -1,0 +1,110 @@
+{
+  "name": "Lex Light",
+  "type": "light",
+  "colors": {
+    "editor.background": "#ffffff",
+    "editor.foreground": "#000000"
+  },
+  "semanticHighlighting": true,
+  "semanticTokenColors": {
+    "operator": {
+      "foreground": "#666666",
+      "fontStyle": "italic"
+    },
+    "markup.heading": {
+      "foreground": "#000000",
+      "fontStyle": "bold"
+    },
+    "markup.bold": {
+      "foreground": "#000000",
+      "fontStyle": "bold"
+    },
+    "variable": {
+      "foreground": "#000000",
+      "fontStyle": "italic"
+    },
+    "string": {
+      "foreground": "#000000",
+      "fontStyle": "italic"
+    },
+    "comment": {
+      "foreground": "#b3b3b3"
+    },
+    "parameter": {
+      "foreground": "#b3b3b3"
+    },
+    "markup.italic": {
+      "foreground": "#000000",
+      "fontStyle": "italic"
+    },
+    "markup.underline": {
+      "foreground": "#808080"
+    },
+    "type": {
+      "foreground": "#b3b3b3"
+    },
+    "number": {
+      "foreground": "#000000",
+      "fontStyle": "italic"
+    },
+    "text": {
+      "foreground": "#000000",
+      "fontStyle": ""
+    }
+  },
+  "tokenColors": [
+    {
+      "scope": [
+        "markup.heading"
+      ],
+      "settings": {
+        "foreground": "#000000",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "scope": [
+        "markup.bold"
+      ],
+      "settings": {
+        "foreground": "#000000",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "scope": [
+        "variable"
+      ],
+      "settings": {
+        "foreground": "#000000",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "scope": [
+        "markup.italic"
+      ],
+      "settings": {
+        "foreground": "#000000",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "scope": [
+        "string.other.inline.code"
+      ],
+      "settings": {
+        "foreground": "#000000",
+        "fontStyle": ""
+      }
+    },
+    {
+      "scope": [
+        "comment"
+      ],
+      "settings": {
+        "foreground": "#b3b3b3"
+      }
+    }
+  ]
+}
