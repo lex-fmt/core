@@ -27,18 +27,26 @@ pub(in crate::lex::parsing::parser::builder) fn build_session(
         };
 
     // Filter out trailing Whitespace and BlankLine tokens from session label
-    let subject_tokens: Vec<_> = subject_token
+    // Filter out trailing Whitespace and BlankLine tokens from session label
+    // We must preserve internal whitespace for marker parsing!
+    let mut subject_tokens: Vec<_> = subject_token
         .source_tokens
         .clone()
         .into_iter()
         .zip(subject_token.token_spans.clone())
-        .filter(|(token, _)| {
-            !matches!(
-                token,
-                crate::lex::lexing::Token::Whitespace(_) | crate::lex::lexing::Token::BlankLine(_)
-            )
-        })
         .collect();
+
+    // Remove trailing whitespace/newlines
+    while let Some((token, _)) = subject_tokens.last() {
+        if matches!(
+            token,
+            crate::lex::lexing::Token::Whitespace(_) | crate::lex::lexing::Token::BlankLine(_)
+        ) {
+            subject_tokens.pop();
+        } else {
+            break;
+        }
+    }
 
     Ok(ParseNode::new(
         NodeType::Session,

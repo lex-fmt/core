@@ -1,7 +1,7 @@
 # Issue #202: Extended list markers flattened by formatter
 
 ## Summary
-The lex formatter now infers list style from `List.marker`, but `visit_list_item` ignores the `Form::Extended` flag. Extended markers such as `1.2.3` or `IV.2.1)` are serialized as simple incremental markers (`1.`, `2.`, …) whenever `normalize_list_markers` is true (the default). Previously those markers were left untouched, so documents relying on hierarchical numbering are now mangled.
+The lex formatter now infers list style from `List.marker`, but `visit_list_item` ignores the `Form::Extended` flag. Extended markers such as `1.2.3` or `IV.2.1)` are serialized as simple incremental markers (`1.`, `2.`, …) whenever `normalize_seq_markers` is true (the default). Previously those markers were left untouched, so documents relying on hierarchical numbering are now mangled.
 
 ## Impact
 - Multi-part list markers lose their structure, defeating outline numbering.

@@ -44,8 +44,8 @@ use crate::lex::ast::elements::SequenceMarker;
 use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{
-    Annotation, Data, Definition, Label, List, ListItem, Paragraph, Position, Range, Session,
-    TextContent, TextLine, Verbatim,
+    Annotation, Data, Definition, Label, List, ListItem, Paragraph, Range, Session, TextContent,
+    TextLine, Verbatim,
 };
 use crate::lex::parsing::ContentItem;
 use crate::lex::token::Token;
@@ -131,94 +131,45 @@ pub(super) fn paragraph_node(data: ParagraphData, source_location: &SourceLocati
 /// # Returns
 ///
 /// A Session ContentItem
-pub(super) fn session_node(
-    data: SessionData,
+pub(in crate::lex::building) fn session_node(
+    session_data: SessionData,
     content: Vec<SessionContent>,
     source_location: &SourceLocation,
 ) -> ContentItem {
-    let title_location = byte_range_to_ast_range(data.title_byte_range, source_location);
-    let title_text = data.title_text.clone();
-    let title = TextContent::from_string(data.title_text, Some(title_location.clone()));
+    let title_location = source_location.byte_range_to_ast_range(&session_data.title_byte_range);
+    let title_text = session_data.title_text;
 
-    // Extract sequence marker from title if present
-    // Sessions support numerical, alphabetical, and roman markers (but not plain dash)
-    let marker = extract_session_marker(&title_text, &title_location);
+    // Construct SequenceMarker if present in session_data
+    let marker = if let Some(marker_data) = session_data.marker {
+        let marker_location = source_location.byte_range_to_ast_range(&marker_data.byte_range);
+
+        Some(SequenceMarker::new(
+            marker_data.style,
+            marker_data.separator,
+            marker_data.form,
+            TextContent::from_string(marker_data.text, Some(marker_location.clone())),
+            marker_location,
+        ))
+    } else {
+        None
+    };
+
+    // Validate that session markers are valid (no Plain style)
+    if let Some(ref m) = marker {
+        debug_assert!(
+            m.is_valid_for_session(),
+            "Invalid session marker: {:?}. Sessions don't support Plain (-) markers.",
+            m
+        );
+    }
 
     let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
-    let location = aggregate_locations(title_location, &child_items);
+    let location = aggregate_locations(title_location.clone(), &child_items);
 
+    let title = TextContent::from_string(title_text, Some(title_location));
     let mut session = Session::new(title, content).at(location);
     session.marker = marker;
     ContentItem::Session(session)
-}
-
-/// Extract a sequence marker from a session title
-///
-/// Attempts to parse a sequence marker from the start of the session title.
-/// Sessions support all marker styles except Plain (dash).
-///
-/// # Arguments
-///
-/// * `title_text` - The full title text
-/// * `title_location` - The location of the title in the source
-///
-/// # Returns
-///
-/// `Some(SequenceMarker)` if a valid marker is found at the start, `None` otherwise
-fn extract_session_marker(title_text: &str, title_location: &Range) -> Option<SequenceMarker> {
-    use crate::lex::ast::elements::SequenceMarker;
-
-    let trimmed = title_text.trim_start();
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    // Try to find where a marker might end
-    // Markers can be: "1. ", "a) ", "(IV) ", "1.2.3 ", etc.
-    // We need to find the first whitespace after a potential marker
-
-    let mut end_idx = 0;
-    let chars: Vec<char> = trimmed.chars().collect();
-
-    // Skip the marker content until we hit whitespace
-    while end_idx < chars.len() && !chars[end_idx].is_whitespace() {
-        end_idx += 1;
-    }
-
-    if end_idx == 0 || end_idx >= chars.len() {
-        // No whitespace found or marker would be the entire title
-        return None;
-    }
-
-    let potential_marker = &trimmed[..end_idx];
-
-    // Calculate the location of the marker within the title
-    let marker_start_offset = title_text.len() - trimmed.len();
-    let marker_end_offset = marker_start_offset + end_idx;
-
-    let marker_location = Range::new(
-        title_location.span.start + marker_start_offset
-            ..title_location.span.start + marker_end_offset,
-        Position::new(
-            title_location.start.line,
-            title_location.start.column + marker_start_offset,
-        ),
-        Position::new(
-            title_location.start.line,
-            title_location.start.column + marker_end_offset,
-        ),
-    );
-
-    // Try to parse the marker
-    let parsed = SequenceMarker::parse(potential_marker, Some(marker_location))?;
-
-    // Sessions don't support plain dash markers (those are list-only)
-    use crate::lex::ast::elements::DecorationStyle;
-    if parsed.style == DecorationStyle::Plain {
-        return None;
-    }
-
-    Some(parsed)
 }
 
 // ============================================================================
@@ -511,6 +462,7 @@ mod tests {
         let data = SessionData {
             title_text: "Session".to_string(),
             title_byte_range: 0..7,
+            marker: None,
         };
 
         let result = session_node(data, Vec::<SessionContent>::new(), &source_location);
@@ -640,6 +592,7 @@ mod tests {
         let data = SessionData {
             title_text: "Parent Session".to_string(),
             title_byte_range: 0..14,
+            marker: None,
         };
 
         // This should succeed - Sessions can contain Sessions
