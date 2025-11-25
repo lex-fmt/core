@@ -130,6 +130,16 @@ function M.setup(opts)
           ["@lsp.type.VerbatimLanguage"] = "@keyword",
           ["@lsp.type.VerbatimAttribute"] = "@variable.parameter",
           ["@lsp.type.VerbatimContent"] = "@markup.raw.block",
+          ["@lsp.type.InlineMarker.strong.start"] = "@punctuation.delimiter",
+          ["@lsp.type.InlineMarker.strong.end"] = "@punctuation.delimiter",
+          ["@lsp.type.InlineMarker.emphasis.start"] = "@punctuation.delimiter",
+          ["@lsp.type.InlineMarker.emphasis.end"] = "@punctuation.delimiter",
+          ["@lsp.type.InlineMarker.code.start"] = "@punctuation.delimiter",
+          ["@lsp.type.InlineMarker.code.end"] = "@punctuation.delimiter",
+          ["@lsp.type.InlineMarker.math.start"] = "@punctuation.delimiter",
+          ["@lsp.type.InlineMarker.math.end"] = "@punctuation.delimiter",
+          ["@lsp.type.InlineMarker.ref.start"] = "@punctuation.delimiter",
+          ["@lsp.type.InlineMarker.ref.end"] = "@punctuation.delimiter",
         }
 
         for lsp_hl, ts_hl in pairs(links) do
