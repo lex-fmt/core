@@ -9,7 +9,7 @@ use lex_parser::lex::ast::elements::verbatim_line::VerbatimLine;
 use lex_parser::lex::ast::range::Position;
 use lex_parser::lex::ast::traits::{AstNode, Visitor};
 use lex_parser::lex::ast::Document;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Renders the AST as a character map where each source position is represented
 /// by a character corresponding to the deepest AST node at that position.
@@ -26,6 +26,12 @@ pub fn to_nodemap_str_with_params(
     let use_color_char = params
         .get("colorchar")
         .or(params.get("color-char"))
+        .map(|v| v.to_lowercase() == "true")
+        .unwrap_or(false);
+
+    let include_summary = params
+        .get("nodesummary")
+        .or(params.get("node-summary"))
         .map(|v| v.to_lowercase() == "true")
         .unwrap_or(false);
 
@@ -56,11 +62,13 @@ pub fn to_nodemap_str_with_params(
     let mut node_map: Vec<usize> = vec![0; total_chars];
 
     // 2. Traverse AST and fill node_map
+    let mut node_sizes = HashMap::new();
     let mut visitor = NodeMapVisitor {
         map: &mut node_map,
         line_starts: &line_starts,
         next_id: 1,
         total_chars,
+        node_sizes: &mut node_sizes,
     };
 
     doc.accept(&mut visitor);
@@ -97,6 +105,41 @@ pub fn to_nodemap_str_with_params(
         final_output.push_str("\x1b[0m");
     }
 
+    // 4. Summary
+    if include_summary {
+        final_output.push_str(
+            "\n--------------------------------------------------------------------------------\n",
+        );
+
+        // Identify represented nodes (unique non-zero IDs in map)
+        let represented_ids: HashSet<usize> =
+            node_map.iter().cloned().filter(|&id| id != 0).collect();
+        let count = represented_ids.len();
+
+        final_output.push_str(&format!("Ast Nodes = {}\n\n", count));
+
+        // Collect sizes of represented nodes
+        let mut sizes: Vec<usize> = represented_ids
+            .iter()
+            .filter_map(|id| node_sizes.get(id).cloned())
+            .collect();
+        sizes.sort_unstable();
+
+        let median = if sizes.is_empty() {
+            0
+        } else {
+            sizes[sizes.len() / 2]
+        };
+
+        final_output.push_str(&format!("Median Node Size = {}\n\n", median));
+
+        // Size distribution for 1..=5
+        for size in 1..=5 {
+            let count_size = sizes.iter().filter(|&&s| s == size).count();
+            final_output.push_str(&format!("{} char ast node = {}\n", size, count_size));
+        }
+    }
+
     final_output
 }
 
@@ -111,6 +154,7 @@ struct NodeMapVisitor<'a> {
     line_starts: &'a [usize],
     next_id: usize,
     total_chars: usize,
+    node_sizes: &'a mut HashMap<usize, usize>,
 }
 
 impl<'a> NodeMapVisitor<'a> {
@@ -119,6 +163,19 @@ impl<'a> NodeMapVisitor<'a> {
         let end_idx = self.pos_to_index(range.end);
         let id = self.next_id;
         self.next_id += 1;
+
+        // Record node size (length in chars)
+        // Range end is typically exclusive in standard range notation but inclusive in some ASTs.
+        // Lex parser ranges are usually byte offsets or line/col.
+        // Here we are calculating char length in the source string via index mapping.
+        // start_idx and end_idx are indices in `chars` vector space.
+        // Size = end_idx - start_idx.
+        let size = if end_idx >= start_idx {
+            end_idx - start_idx
+        } else {
+            0
+        };
+        self.node_sizes.insert(id, size);
 
         for i in start_idx..end_idx.min(self.total_chars) {
             self.map[i] = id;
@@ -314,5 +371,18 @@ mod tests {
         // Check that it contains the mapped char for session.
         let session_char = get_base2048_char(2);
         assert!(output.contains(session_char));
+    }
+
+    #[test]
+    fn test_nodemap_summary() {
+        let (doc, source) = create_simple_doc();
+        let mut params = HashMap::new();
+        params.insert("nodesummary".to_string(), "true".to_string());
+
+        let output = to_nodemap_str_with_params(&doc, &source, &params);
+
+        assert!(output.contains("Ast Nodes ="));
+        assert!(output.contains("Median Node Size ="));
+        assert!(output.contains("1 char ast node ="));
     }
 }
