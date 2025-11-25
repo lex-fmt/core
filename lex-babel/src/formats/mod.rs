@@ -9,6 +9,7 @@ pub mod icons;
 pub mod lex;
 pub mod linetreeviz;
 pub mod markdown;
+pub mod nodemap;
 pub mod pandoc;
 pub mod pdf;
 pub mod tag;
