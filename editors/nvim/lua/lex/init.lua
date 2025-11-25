@@ -147,45 +147,69 @@ function M.setup(opts)
             vim.api.nvim_set_hl(0, lsp_hl, hl_opts)
           end
         else
-          -- Production: link to Treesitter highlight groups for theme compatibility
-          local links = {
-            ["@lsp.type.SessionTitle"] = "@markup.heading",
-            ["@lsp.type.SessionMarker"] = "@punctuation.definition.heading",
-            ["@lsp.type.SessionTitleText"] = "@markup.heading",
-            ["@lsp.type.DefinitionSubject"] = "@variable.member",
-            ["@lsp.type.DefinitionContent"] = "@text",
-            ["@lsp.type.ListMarker"] = "@punctuation.definition.list",
-            ["@lsp.type.ListItemText"] = "@markup.list",
-            ["@lsp.type.AnnotationLabel"] = "@comment.note",
-            ["@lsp.type.AnnotationParameter"] = "@variable.parameter",
-            ["@lsp.type.AnnotationContent"] = "@comment",
-            ["@lsp.type.InlineStrong"] = "@markup.strong",
-            ["@lsp.type.InlineEmphasis"] = "@markup.italic",
-            ["@lsp.type.InlineCode"] = "@markup.raw",
-            ["@lsp.type.InlineMath"] = "@constant.numeric",
-            ["@lsp.type.Reference"] = "@markup.link",
-            ["@lsp.type.ReferenceCitation"] = "@markup.link.label",
-            ["@lsp.type.ReferenceFootnote"] = "@markup.link.label",
-            ["@lsp.type.VerbatimSubject"] = "@label",
-            ["@lsp.type.VerbatimLanguage"] = "@keyword",
-            ["@lsp.type.VerbatimAttribute"] = "@variable.parameter",
-            ["@lsp.type.VerbatimContent"] = "@markup.raw.block",
-            ["@lsp.type.InlineMarker_strong_start"] = "@punctuation.delimiter",
-            ["@lsp.type.InlineMarker_strong_end"] = "@punctuation.delimiter",
-            ["@lsp.type.InlineMarker_emphasis_start"] = "@punctuation.delimiter",
-            ["@lsp.type.InlineMarker_emphasis_end"] = "@punctuation.delimiter",
-            ["@lsp.type.InlineMarker_code_start"] = "@punctuation.delimiter",
-            ["@lsp.type.InlineMarker_code_end"] = "@punctuation.delimiter",
-            ["@lsp.type.InlineMarker_math_start"] = "@punctuation.delimiter",
-            ["@lsp.type.InlineMarker_math_end"] = "@punctuation.delimiter",
-            ["@lsp.type.InlineMarker_ref_start"] = "@punctuation.delimiter",
-            ["@lsp.type.InlineMarker_ref_end"] = "@punctuation.delimiter",
-          }
-          for lsp_hl, ts_hl in pairs(links) do
-            if vim.fn.hlexists(lsp_hl) == 0 then
-              vim.api.nvim_set_hl(0, lsp_hl, { link = ts_hl, default = true })
-            end
+          -- Production: theme-compatible highlighting
+          --
+          -- Philosophy: Three intensity levels that respect the user's colorscheme
+          --   NORMAL: Theme's foreground color (we only add bold/italic)
+          --   MUTED:  Dimmer color for structural elements (links to @punctuation)
+          --   FAINT:  Faded color for meta-info like comments (links to @comment)
+          --
+          -- Users can override @lex.muted and @lex.faint for custom intensity.
+
+          -- Define base intensity groups (user-overridable)
+          vim.api.nvim_set_hl(0, "@lex.muted", { link = "@punctuation", default = true })
+          vim.api.nvim_set_hl(0, "@lex.faint", { link = "@comment", default = true })
+
+          -- Helper: create highlight with color from a base group + typography
+          local function hl_with_style(base_group, style)
+            local base = vim.api.nvim_get_hl(0, { name = base_group, link = false })
+            local hl = { fg = base.fg, bg = base.bg }
+            if style.bold then hl.bold = true end
+            if style.italic then hl.italic = true end
+            if style.underline then hl.underline = true end
+            return hl
           end
+
+          -- NORMAL intensity: theme's foreground, we control typography only
+          -- (Setting just bold/italic without fg inherits from Normal)
+          vim.api.nvim_set_hl(0, "@lsp.type.SessionTitleText", { bold = true, default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.DefinitionSubject", { italic = true, default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.DefinitionContent", { default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineStrong", { bold = true, default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineEmphasis", { italic = true, default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineCode", { link = "@markup.raw", default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMath", { italic = true, default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.VerbatimContent", { link = "@markup.raw.block", default = true })
+
+          -- MUTED intensity: structural elements (markers, references)
+          vim.api.nvim_set_hl(0, "@lsp.type.SessionTitle", { link = "@lex.muted", default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.SessionMarker", hl_with_style("@lex.muted", { italic = true }))
+          vim.api.nvim_set_hl(0, "@lsp.type.ListMarker", hl_with_style("@lex.muted", { italic = true }))
+          vim.api.nvim_set_hl(0, "@lsp.type.ListItemText", hl_with_style("@lex.muted", { italic = true }))
+          vim.api.nvim_set_hl(0, "@lsp.type.Reference", hl_with_style("@lex.muted", { underline = true }))
+          vim.api.nvim_set_hl(0, "@lsp.type.ReferenceCitation", hl_with_style("@lex.muted", { underline = true }))
+          vim.api.nvim_set_hl(0, "@lsp.type.ReferenceFootnote", hl_with_style("@lex.muted", { underline = true }))
+
+          -- FAINT intensity: meta-information (annotations, verbatim metadata, syntax markers)
+          vim.api.nvim_set_hl(0, "@lsp.type.AnnotationLabel", { link = "@lex.faint", default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.AnnotationParameter", { link = "@lex.faint", default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.AnnotationContent", { link = "@lex.faint", default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.VerbatimSubject", { link = "@lex.faint", default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.VerbatimLanguage", { link = "@lex.faint", default = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.VerbatimAttribute", { link = "@lex.faint", default = true })
+
+          -- Inline markers (*, _, `, #, []) - faintest, should fade into background
+          local faint_italic = hl_with_style("@lex.faint", { italic = true })
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_strong_start", faint_italic)
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_strong_end", faint_italic)
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_emphasis_start", faint_italic)
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_emphasis_end", faint_italic)
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_code_start", faint_italic)
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_code_end", faint_italic)
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_math_start", faint_italic)
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_math_end", faint_italic)
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_ref_start", faint_italic)
+          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_ref_end", faint_italic)
         end
       end
 
