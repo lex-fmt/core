@@ -405,8 +405,8 @@ fn is_roman_numeral(s: &str) -> bool {
 fn detect_segment_style(token: &Token) -> DecorationStyle {
     match token {
         Token::Number(_) => DecorationStyle::Numerical,
-        Token::Text(s) if is_single_letter(s) => DecorationStyle::Alphabetical,
         Token::Text(s) if is_roman_numeral(s) => DecorationStyle::Roman,
+        Token::Text(s) if is_single_letter(s) => DecorationStyle::Alphabetical,
         _ => DecorationStyle::Numerical, // Default fallback
     }
 }
