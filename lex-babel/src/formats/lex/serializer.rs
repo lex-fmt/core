@@ -219,12 +219,12 @@ impl Visitor for LexSerializer {
             .last_mut()
             .expect("List stack empty in list item");
 
-        let marker = if self.rules.normalize_list_markers {
+        let marker = if self.rules.normalize_seq_markers {
             if matches!(context.marker_form, Some(Form::Extended)) {
                 list_item.marker.as_string().to_string()
             } else {
                 match context.marker_type {
-                    MarkerType::Bullet => self.rules.unordered_list_marker.to_string(),
+                    MarkerType::Bullet => self.rules.unordered_seq_marker.to_string(),
                     MarkerType::Numeric => format!("{}.", context.index),
                     MarkerType::AlphaLower => format!("{}.", to_alpha_lower(context.index)),
                     MarkerType::AlphaUpper => format!("{}.", to_alpha_upper(context.index)),

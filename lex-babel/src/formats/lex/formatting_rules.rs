@@ -10,10 +10,10 @@ pub struct FormattingRules {
     pub session_blank_lines_after: usize,
 
     /// Whether to normalize list markers (e.g. all bullets to '-')
-    pub normalize_list_markers: bool,
+    pub normalize_seq_markers: bool,
 
     /// The character to use for unordered list markers
-    pub unordered_list_marker: char,
+    pub unordered_seq_marker: char,
 
     /// Maximum number of consecutive blank lines allowed
     pub max_blank_lines: usize,
@@ -33,8 +33,8 @@ impl Default for FormattingRules {
         Self {
             session_blank_lines_before: 1,
             session_blank_lines_after: 1,
-            normalize_list_markers: true,
-            unordered_list_marker: '-',
+            normalize_seq_markers: true,
+            unordered_seq_marker: '-',
             max_blank_lines: 2,
             indent_string: "    ".to_string(),
             preserve_trailing_blanks: false,

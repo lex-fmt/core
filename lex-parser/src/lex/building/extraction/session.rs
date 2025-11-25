@@ -4,7 +4,7 @@
 //! for building Session AST nodes.
 
 use crate::lex::ast::elements::sequence_marker::{DecorationStyle, Form, Separator};
-use crate::lex::lexing::line_classification::parse_list_marker;
+use crate::lex::lexing::line_classification::parse_seq_marker;
 use crate::lex::token::normalization::utilities::{compute_bounding_box, extract_text};
 use crate::lex::token::Token;
 use std::ops::Range as ByteRange;
@@ -47,10 +47,10 @@ pub(in crate::lex::building) fn extract_session_data(
     source: &str,
 ) -> SessionData {
     // Try to parse a marker from the tokens
-    // We reuse parse_list_marker because the syntax is identical,
+    // We reuse parse_seq_marker because the syntax is identical,
     // but we must filter out Plain style (dashes) which are not valid for sessions.
     let token_refs: Vec<Token> = tokens.iter().map(|(t, _)| t.clone()).collect();
-    let parsed_marker = parse_list_marker(&token_refs);
+    let parsed_marker = parse_seq_marker(&token_refs);
 
     if let Some(pm) = parsed_marker {
         // Sessions do not support Plain markers (dashes)
