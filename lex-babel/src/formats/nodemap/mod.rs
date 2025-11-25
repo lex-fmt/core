@@ -23,8 +23,15 @@ pub fn to_nodemap_str_with_params(
         .map(|v| v.to_lowercase() == "true")
         .unwrap_or(false);
 
-    // Default to base2048 (char) if not specified.
-    let render_mode = if use_color {
+    let use_color_char = params
+        .get("colorchar")
+        .or(params.get("color-char"))
+        .map(|v| v.to_lowercase() == "true")
+        .unwrap_or(false);
+
+    let render_mode = if use_color_char {
+        RenderMode::ColorChar
+    } else if use_color {
         RenderMode::Color
     } else {
         RenderMode::Base2048
@@ -64,7 +71,7 @@ pub fn to_nodemap_str_with_params(
 
     for (i, &node_id) in node_map.iter().enumerate() {
         if i < chars.len() && chars[i] == '\n' {
-            if matches!(render_mode, RenderMode::Color) {
+            if matches!(render_mode, RenderMode::Color | RenderMode::ColorChar) {
                 final_output.push_str("\x1b[0m");
             }
             final_output.push('\n');
@@ -79,9 +86,14 @@ pub fn to_nodemap_str_with_params(
                 let (r, g, b) = get_color_for_id(node_id);
                 final_output.push_str(&format!("\x1b[38;2;{};{};{}m█", r, g, b));
             }
+            RenderMode::ColorChar => {
+                let (r, g, b) = get_color_for_id(node_id);
+                let c = get_base2048_char(node_id);
+                final_output.push_str(&format!("\x1b[38;2;{};{};{}m{}", r, g, b, c));
+            }
         }
     }
-    if matches!(render_mode, RenderMode::Color) {
+    if matches!(render_mode, RenderMode::Color | RenderMode::ColorChar) {
         final_output.push_str("\x1b[0m");
     }
 
@@ -91,6 +103,7 @@ pub fn to_nodemap_str_with_params(
 enum RenderMode {
     Base2048,
     Color,
+    ColorChar,
 }
 
 struct NodeMapVisitor<'a> {
@@ -284,5 +297,22 @@ mod tests {
 
         assert!(output.contains("\x1b["));
         assert!(output.contains("█"));
+    }
+
+    #[test]
+    fn test_nodemap_color_char() {
+        let (doc, source) = create_simple_doc();
+        let mut params = HashMap::new();
+        params.insert("color-char".to_string(), "true".to_string());
+
+        let output = to_nodemap_str_with_params(&doc, &source, &params);
+
+        // Should contain ANSI codes
+        assert!(output.contains("\x1b["));
+        // Should NOT contain block char █ if characters are different (most likely they are)
+        // But Base2048 char might randomly be a block char? Unlikely.
+        // Check that it contains the mapped char for session.
+        let session_char = get_base2048_char(2);
+        assert!(output.contains(session_char));
     }
 }
