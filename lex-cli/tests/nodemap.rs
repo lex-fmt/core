@@ -16,10 +16,6 @@ fn test_inspect_nodemap_basic() {
         // Output should not be empty
         .stdout(predicate::str::is_empty().not());
 
-    // Verify line structure roughly
-    // output should have lines matching source lines
-    // We can't easily predict chars without importing logic, but we can check line count
-
     let output = cmd.output().unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
     let lines: Vec<&str> = stdout.lines().collect();
@@ -48,6 +44,29 @@ fn test_inspect_nodemap_color() {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("\x1b[")); // ANSI code
+
+    fs::remove_file(file).ok();
+}
+
+#[test]
+fn test_inspect_nodemap_summary() {
+    let content = "# Session\n\nPara";
+    let file = "test_nodemap_summary.lex";
+    fs::write(file, content).unwrap();
+
+    let mut cmd = cargo_bin_cmd!("lex");
+    cmd.arg("inspect")
+        .arg(file)
+        .arg("ast-nodemap")
+        .arg("--extra-nodesummary");
+
+    let assert = cmd.assert().success();
+    let output = assert.get_output();
+    let stdout = String::from_utf8(output.stdout.clone()).unwrap();
+
+    assert!(stdout.contains("Ast Nodes ="));
+    assert!(stdout.contains("Median Node Size ="));
+    assert!(stdout.contains("1 char ast node ="));
 
     fs::remove_file(file).ok();
 }
