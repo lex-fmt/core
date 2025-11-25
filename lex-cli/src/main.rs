@@ -108,8 +108,9 @@ fn build_cli() -> Command {
                 .long_about(
                     "View the internal structure of lex files at different processing stages.\n\n\
                     Transforms (stage-format):\n  \
-                    - ast-treeviz:  AST as tree visualization (default)\n  \
                     - ast-tag:      AST as XML-like tags\n  \
+                    - ast-treeviz:  AST as tree visualization (default)\n  \
+                    - ast-nodemap:  AST as character/color map\n  \
                     - ast-json:     AST as JSON\n  \
                     - token-*:      Token stream representations\n  \
                     - ir-json:      Intermediate representation\n\n\
@@ -139,7 +140,7 @@ fn build_cli() -> Command {
                         .long_help(
                             "Transform to apply in the format stage-format.\n\n\
                             Available transforms:\n  \
-                            ast-treeviz, ast-tag, ast-json,\n  \
+                            ast-treeviz, ast-tag, ast-json, ast-nodemap,\n  \
                             token-core-json, token-line-json,\n  \
                             ir-json, and more.\n\n\
                             Use --list-transforms to see all options."
@@ -490,6 +491,7 @@ fn handle_list_transforms_command() {
     println!("  json        - JSON output (all stages)");
     println!("  tag         - XML-like tag format (AST only)");
     println!("  treeviz     - Tree visualization (AST only)");
+    println!("  nodemap     - Character/color map (AST only)");
     println!("  simple      - Plain text token names");
     println!("  pprint      - Pretty-printed token names\n");
 
