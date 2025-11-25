@@ -122,43 +122,58 @@ function M.setup(opts)
         vim.lsp.semantic_tokens.start(bufnr, client.id)
 
         if opts.debug_theme then
-          -- DEBUG MODE: Exact colors from editors/vscode/themes/lex-light.json
+          -- DEBUG MODE: Exact colors for development and visual regression testing.
           -- ===================================================================
-          -- Hardcoded colors for development and visual regression testing.
-          -- Ensures consistent highlighting across sessions for debugging.
-          -- Color reference: #000000=normal, #808080=muted, #b3b3b3=faint
+          -- Adapts to dark/light mode via vim.o.background.
+          -- Light: from editors/vscode/themes/lex-light.json
+          -- Dark: inverted equivalents for dark backgrounds
+          local is_dark = vim.o.background == "dark"
+          local colors = is_dark and {
+            normal = "#e0e0e0",   -- light gray on dark bg
+            muted = "#888888",    -- medium gray
+            faint = "#666666",    -- darker gray
+            faintest = "#555555", -- darkest gray for markers
+            code_bg = "#2a2a2a",  -- subtle dark bg for code
+          } or {
+            normal = "#000000",   -- black on light bg
+            muted = "#808080",    -- medium gray
+            faint = "#b3b3b3",    -- light gray
+            faintest = "#cacaca", -- lightest gray for markers
+            code_bg = "#f5f5f5",  -- subtle light bg for code
+          }
+
           local debug_highlights = {
-            ["@lsp.type.SessionTitle"] = { fg = "#000000", bold = true },
-            ["@lsp.type.SessionMarker"] = { fg = "#808080", italic = true },
-            ["@lsp.type.SessionTitleText"] = { fg = "#000000", bold = true },
-            ["@lsp.type.DefinitionSubject"] = { fg = "#000000", italic = true },
-            ["@lsp.type.DefinitionContent"] = { fg = "#000000" },
-            ["@lsp.type.ListMarker"] = { fg = "#666666", italic = true },
-            ["@lsp.type.ListItemText"] = { fg = "#808080", italic = true },
-            ["@lsp.type.AnnotationLabel"] = { fg = "#b3b3b3" },
-            ["@lsp.type.AnnotationParameter"] = { fg = "#b3b3b3" },
-            ["@lsp.type.AnnotationContent"] = { fg = "#b3b3b3" },
-            ["@lsp.type.InlineStrong"] = { fg = "#000000", bold = true },
-            ["@lsp.type.InlineEmphasis"] = { fg = "#000000", italic = true },
-            ["@lsp.type.InlineCode"] = { fg = "#000000" },
-            ["@lsp.type.InlineMath"] = { fg = "#000000", italic = true },
-            ["@lsp.type.Reference"] = { fg = "#808080", underline = true },
-            ["@lsp.type.ReferenceCitation"] = { fg = "#808080", underline = true },
-            ["@lsp.type.ReferenceFootnote"] = { fg = "#808080", underline = true },
-            ["@lsp.type.VerbatimSubject"] = { fg = "#b3b3b3" },
-            ["@lsp.type.VerbatimLanguage"] = { fg = "#b3b3b3" },
-            ["@lsp.type.VerbatimAttribute"] = { fg = "#b3b3b3" },
-            ["@lsp.type.VerbatimContent"] = { fg = "#000000", bg = "#f5f5f5" },
-            ["@lsp.type.InlineMarker_strong_start"] = { fg = "#cacaca", italic = true },
-            ["@lsp.type.InlineMarker_strong_end"] = { fg = "#cacaca", italic = true },
-            ["@lsp.type.InlineMarker_emphasis_start"] = { fg = "#cacaca", italic = true },
-            ["@lsp.type.InlineMarker_emphasis_end"] = { fg = "#cacaca", italic = true },
-            ["@lsp.type.InlineMarker_code_start"] = { fg = "#cacaca", italic = true },
-            ["@lsp.type.InlineMarker_code_end"] = { fg = "#cacaca", italic = true },
-            ["@lsp.type.InlineMarker_math_start"] = { fg = "#cacaca", italic = true },
-            ["@lsp.type.InlineMarker_math_end"] = { fg = "#cacaca", italic = true },
-            ["@lsp.type.InlineMarker_ref_start"] = { fg = "#cacaca", italic = true },
-            ["@lsp.type.InlineMarker_ref_end"] = { fg = "#cacaca", italic = true },
+            ["@lsp.type.SessionTitle"] = { fg = colors.normal, bold = true },
+            ["@lsp.type.SessionMarker"] = { fg = colors.muted, italic = true },
+            ["@lsp.type.SessionTitleText"] = { fg = colors.normal, bold = true },
+            ["@lsp.type.DefinitionSubject"] = { fg = colors.normal, italic = true },
+            ["@lsp.type.DefinitionContent"] = { fg = colors.normal },
+            ["@lsp.type.ListMarker"] = { fg = colors.muted, italic = true },
+            ["@lsp.type.ListItemText"] = { fg = colors.muted, italic = true },
+            ["@lsp.type.AnnotationLabel"] = { fg = colors.faint },
+            ["@lsp.type.AnnotationParameter"] = { fg = colors.faint },
+            ["@lsp.type.AnnotationContent"] = { fg = colors.faint },
+            ["@lsp.type.InlineStrong"] = { fg = colors.normal, bold = true },
+            ["@lsp.type.InlineEmphasis"] = { fg = colors.normal, italic = true },
+            ["@lsp.type.InlineCode"] = { fg = colors.normal },
+            ["@lsp.type.InlineMath"] = { fg = colors.normal, italic = true },
+            ["@lsp.type.Reference"] = { fg = colors.muted, underline = true },
+            ["@lsp.type.ReferenceCitation"] = { fg = colors.muted, underline = true },
+            ["@lsp.type.ReferenceFootnote"] = { fg = colors.muted, underline = true },
+            ["@lsp.type.VerbatimSubject"] = { fg = colors.faint },
+            ["@lsp.type.VerbatimLanguage"] = { fg = colors.faint },
+            ["@lsp.type.VerbatimAttribute"] = { fg = colors.faint },
+            ["@lsp.type.VerbatimContent"] = { fg = colors.normal, bg = colors.code_bg },
+            ["@lsp.type.InlineMarker_strong_start"] = { fg = colors.faintest, italic = true },
+            ["@lsp.type.InlineMarker_strong_end"] = { fg = colors.faintest, italic = true },
+            ["@lsp.type.InlineMarker_emphasis_start"] = { fg = colors.faintest, italic = true },
+            ["@lsp.type.InlineMarker_emphasis_end"] = { fg = colors.faintest, italic = true },
+            ["@lsp.type.InlineMarker_code_start"] = { fg = colors.faintest, italic = true },
+            ["@lsp.type.InlineMarker_code_end"] = { fg = colors.faintest, italic = true },
+            ["@lsp.type.InlineMarker_math_start"] = { fg = colors.faintest, italic = true },
+            ["@lsp.type.InlineMarker_math_end"] = { fg = colors.faintest, italic = true },
+            ["@lsp.type.InlineMarker_ref_start"] = { fg = colors.faintest, italic = true },
+            ["@lsp.type.InlineMarker_ref_end"] = { fg = colors.faintest, italic = true },
           }
           for lsp_hl, hl_opts in pairs(debug_highlights) do
             vim.api.nvim_set_hl(0, lsp_hl, hl_opts)
