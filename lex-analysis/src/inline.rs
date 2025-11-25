@@ -8,6 +8,16 @@ pub enum InlineSpanKind {
     Code,
     Math,
     Reference(ReferenceType),
+    StrongMarkerStart,
+    StrongMarkerEnd,
+    EmphasisMarkerStart,
+    EmphasisMarkerEnd,
+    CodeMarkerStart,
+    CodeMarkerEnd,
+    MathMarkerStart,
+    MathMarkerEnd,
+    RefMarkerStart,
+    RefMarkerEnd,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -34,24 +44,32 @@ pub fn extract_inline_spans(text: &TextContent) -> Vec<InlineSpan> {
         base_range,
         '*',
         InlineSpanKind::Strong,
+        InlineSpanKind::StrongMarkerStart,
+        InlineSpanKind::StrongMarkerEnd,
     ));
     spans.extend(spans_from_marker(
         content,
         base_range,
         '_',
         InlineSpanKind::Emphasis,
+        InlineSpanKind::EmphasisMarkerStart,
+        InlineSpanKind::EmphasisMarkerEnd,
     ));
     spans.extend(spans_from_marker(
         content,
         base_range,
         '`',
         InlineSpanKind::Code,
+        InlineSpanKind::CodeMarkerStart,
+        InlineSpanKind::CodeMarkerEnd,
     ));
     spans.extend(spans_from_marker(
         content,
         base_range,
         '#',
         InlineSpanKind::Math,
+        InlineSpanKind::MathMarkerStart,
+        InlineSpanKind::MathMarkerEnd,
     ));
     spans.extend(reference_spans(content, base_range));
     spans
@@ -61,21 +79,38 @@ fn spans_from_marker(
     text: &str,
     base_range: &Range,
     marker: char,
-    kind: InlineSpanKind,
+    content_kind: InlineSpanKind,
+    start_marker_kind: InlineSpanKind,
+    end_marker_kind: InlineSpanKind,
 ) -> Vec<InlineSpan> {
     let mut spans = Vec::new();
     for (start, end) in scan_symmetric_pairs(text, marker) {
-        let inner_start = start + marker.len_utf8();
-        let inner_end = end.saturating_sub(marker.len_utf8());
+        let marker_len = marker.len_utf8();
+        let inner_start = start + marker_len;
+        let inner_end = end.saturating_sub(marker_len);
         if inner_end <= inner_start {
             continue;
         }
-        let range = sub_range(base_range, text, inner_start, inner_end);
-        let raw = text[inner_start..inner_end].to_string();
+
+        // Opening marker
         spans.push(InlineSpan {
-            kind: kind.clone(),
-            range,
-            raw,
+            kind: start_marker_kind.clone(),
+            range: sub_range(base_range, text, start, inner_start),
+            raw: marker.to_string(),
+        });
+
+        // Content
+        spans.push(InlineSpan {
+            kind: content_kind.clone(),
+            range: sub_range(base_range, text, inner_start, inner_end),
+            raw: text[inner_start..inner_end].to_string(),
+        });
+
+        // Closing marker
+        spans.push(InlineSpan {
+            kind: end_marker_kind.clone(),
+            range: sub_range(base_range, text, inner_end, end),
+            raw: marker.to_string(),
         });
     }
     spans
@@ -89,13 +124,28 @@ fn reference_spans(text: &str, base_range: &Range) -> Vec<InlineSpan> {
         if inner_end <= inner_start {
             continue;
         }
-        let range = sub_range(base_range, text, inner_start, inner_end);
         let raw = text[inner_start..inner_end].to_string();
         let reference_type = classify_reference(&raw);
+
+        // Opening bracket
+        spans.push(InlineSpan {
+            kind: InlineSpanKind::RefMarkerStart,
+            range: sub_range(base_range, text, start, inner_start),
+            raw: "[".to_string(),
+        });
+
+        // Reference content
         spans.push(InlineSpan {
             kind: InlineSpanKind::Reference(reference_type),
-            range,
+            range: sub_range(base_range, text, inner_start, inner_end),
             raw,
+        });
+
+        // Closing bracket
+        spans.push(InlineSpan {
+            kind: InlineSpanKind::RefMarkerEnd,
+            range: sub_range(base_range, text, inner_end, end),
+            raw: "]".to_string(),
         });
     }
     spans
@@ -206,7 +256,8 @@ mod tests {
     fn detects_basic_inline_spans() {
         let text = text_with_range("*bold* _em_ `code` #math#", 2, 4);
         let spans = extract_inline_spans(&text);
-        assert_eq!(spans.len(), 4);
+        // Each inline produces 3 spans: start marker, content, end marker
+        assert_eq!(spans.len(), 12);
         assert!(spans
             .iter()
             .any(|span| matches!(span.kind, InlineSpanKind::Strong)));
@@ -219,6 +270,12 @@ mod tests {
         assert!(spans
             .iter()
             .any(|span| matches!(span.kind, InlineSpanKind::Math)));
+        assert!(spans
+            .iter()
+            .any(|span| matches!(span.kind, InlineSpanKind::StrongMarkerStart)));
+        assert!(spans
+            .iter()
+            .any(|span| matches!(span.kind, InlineSpanKind::StrongMarkerEnd)));
     }
 
     #[test]
