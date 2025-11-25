@@ -88,15 +88,15 @@ pub fn classify_line_tokens(tokens: &[Token]) -> LineType {
     }
 
     // Check if line both starts with list marker AND ends with colon
-    let has_list_marker = parse_list_marker(tokens).is_some();
+    let has_seq_marker = parse_seq_marker(tokens).is_some();
     let has_colon = ends_with_colon(tokens);
 
-    if has_list_marker && has_colon {
+    if has_seq_marker && has_colon {
         return LineType::SubjectOrListItemLine;
     }
 
     // LIST_LINE: Starts with list marker
-    if has_list_marker {
+    if has_seq_marker {
         return LineType::ListLine;
     }
 
@@ -262,7 +262,7 @@ fn is_data_line(tokens: &[Token]) -> bool {
 /// - Ordered single-part: "1.", "1)", "a.", "I." (with trailing space)
 /// - Ordered extended: multi-part sequences like "4.3.2" or "IV.2.1)" (with trailing space)
 /// - Parenthetical: "(1)", "(a)", "(I)" (with trailing space)
-pub fn parse_list_marker(tokens: &[Token]) -> Option<ParsedListMarker> {
+pub fn parse_seq_marker(tokens: &[Token]) -> Option<ParsedListMarker> {
     let mut i = 0;
 
     // Skip leading indentation and whitespace
@@ -376,8 +376,8 @@ pub fn parse_list_marker(tokens: &[Token]) -> Option<ParsedListMarker> {
 }
 
 /// Check if line starts with a list marker (after optional indentation)
-pub fn has_list_marker(tokens: &[Token]) -> bool {
-    parse_list_marker(tokens).is_some()
+pub fn has_seq_marker(tokens: &[Token]) -> bool {
+    parse_seq_marker(tokens).is_some()
 }
 
 /// Check if a string is a single letter (a-z, A-Z)
@@ -405,8 +405,8 @@ fn is_roman_numeral(s: &str) -> bool {
 fn detect_segment_style(token: &Token) -> DecorationStyle {
     match token {
         Token::Number(_) => DecorationStyle::Numerical,
-        Token::Text(s) if is_single_letter(s) => DecorationStyle::Alphabetical,
         Token::Text(s) if is_roman_numeral(s) => DecorationStyle::Roman,
+        Token::Text(s) if is_single_letter(s) => DecorationStyle::Alphabetical,
         _ => DecorationStyle::Numerical, // Default fallback
     }
 }
@@ -540,7 +540,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ordered_list_markers() {
+    fn test_ordered_seq_markers() {
         // Number-based
         let tokens = vec![
             Token::Number("1".to_string()),
@@ -548,7 +548,7 @@ mod tests {
             Token::Whitespace(1),
             Token::Text("Item".to_string()),
         ];
-        assert!(has_list_marker(&tokens));
+        assert!(has_seq_marker(&tokens));
 
         // Letter-based
         let tokens = vec![
@@ -557,7 +557,7 @@ mod tests {
             Token::Whitespace(1),
             Token::Text("Item".to_string()),
         ];
-        assert!(has_list_marker(&tokens));
+        assert!(has_seq_marker(&tokens));
 
         // Roman numeral
         let tokens = vec![
@@ -566,7 +566,7 @@ mod tests {
             Token::Whitespace(1),
             Token::Text("Item".to_string()),
         ];
-        assert!(has_list_marker(&tokens));
+        assert!(has_seq_marker(&tokens));
 
         // With close paren
         let tokens = vec![
@@ -575,11 +575,11 @@ mod tests {
             Token::Whitespace(1),
             Token::Text("Item".to_string()),
         ];
-        assert!(has_list_marker(&tokens));
+        assert!(has_seq_marker(&tokens));
     }
 
     #[test]
-    fn test_extended_ordered_list_marker() {
+    fn test_extended_ordered_seq_marker() {
         let tokens = vec![
             Token::Number("4".to_string()),
             Token::Period,
@@ -590,7 +590,7 @@ mod tests {
             Token::Text("Item".to_string()),
         ];
 
-        let parsed = parse_list_marker(&tokens).expect("expected list marker");
+        let parsed = parse_seq_marker(&tokens).expect("expected list marker");
         assert_eq!(parsed.marker_start, 0);
         assert_eq!(parsed.marker_end, 5);
         assert_eq!(parsed.body_start, 6);
