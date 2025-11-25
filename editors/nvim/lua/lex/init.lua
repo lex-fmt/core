@@ -1,28 +1,42 @@
--- Lex Neovim plugin
--- Main entry point for the Lex language plugin
+-- Lex Neovim Plugin
+-- ===================
 --
--- This plugin provides LSP integration for Lex documents, including:
--- - Automatic LSP server registration and connection
+-- Main entry point for the Lex language plugin providing:
+-- - LSP integration via nvim-lspconfig
 -- - Semantic token highlighting (parser-driven, not regex-based)
 -- - Filetype detection for .lex files
 --
--- Usage:
+-- HIGHLIGHTING MODEL
+-- ------------------
+-- Uses a three-intensity model that respects user colorschemes:
+--
+--   NORMAL: Theme's foreground color, we add bold/italic only
+--           -> Session titles, inline strong/emphasis, content text
+--
+--   MUTED:  Dimmer color for structural elements (-> @punctuation)
+--           -> Session markers, list markers, references
+--           Users can override: @lex.muted
+--
+--   FAINT:  Faded like comments (-> @comment)
+--           -> Annotations, verbatim metadata, inline markers
+--           Users can override: @lex.faint
+--
+-- See: lex-analysis/src/semantic_tokens.rs for token type definitions
+-- See: editors/vscode/themes/lex-light.json for reference colors
+-- See: README.lex for user documentation
+--
+-- USAGE
+-- -----
 --   require("lex").setup({
---     cmd = {"lex-lsp"},   -- command to start LSP server
+--     cmd = {"lex-lsp"},      -- command to start LSP server
+--     debug_theme = false,    -- use lex-light.json colors for testing
 --   })
 --
--- KNOWN LIMITATIONS:
--- - Verbatim blocks (code blocks) do not have embedded language syntax highlighting.
---   The block structure (:: python label) is highlighted, but the content inside
---   gets generic "string" highlighting instead of Python syntax highlighting.
---   This limitation exists because embedded language support requires either:
---   1. A Lex treesitter grammar with injection queries (like markdown's injections.scm)
---   2. LSP protocol extensions for embedded content (not yet standardized)
---   Traditional vim syntax files with 'syntax include' are not used as Lex relies
---   entirely on LSP semantic tokens for highlighting.
---
--- See docs/dev/nvim-fasttrack.lex for architecture overview
--- See docs/dev/guides/lsp-plugins.lex for detailed design documentation
+-- KNOWN LIMITATIONS
+-- -----------------
+-- - Verbatim blocks don't have embedded language highlighting.
+--   The block structure is highlighted but content uses generic styling.
+--   Would require treesitter grammar with injection queries.
 
 local binary_manager = require("lex.binary")
 
@@ -108,8 +122,11 @@ function M.setup(opts)
         vim.lsp.semantic_tokens.start(bufnr, client.id)
 
         if opts.debug_theme then
-          -- Debug theme: exact colors from editors/vscode/themes/lex-light.json
-          -- Useful for testing/debugging semantic token highlighting
+          -- DEBUG MODE: Exact colors from editors/vscode/themes/lex-light.json
+          -- ===================================================================
+          -- Hardcoded colors for development and visual regression testing.
+          -- Ensures consistent highlighting across sessions for debugging.
+          -- Color reference: #000000=normal, #808080=muted, #b3b3b3=faint
           local debug_highlights = {
             ["@lsp.type.SessionTitle"] = { fg = "#000000", bold = true },
             ["@lsp.type.SessionMarker"] = { fg = "#808080", italic = true },
@@ -147,14 +164,17 @@ function M.setup(opts)
             vim.api.nvim_set_hl(0, lsp_hl, hl_opts)
           end
         else
-          -- Production: theme-compatible highlighting
+          -- PRODUCTION MODE: Theme-compatible highlighting
+          -- ================================================
+          -- Three intensity levels that respect the user's colorscheme.
+          -- See file header and README.lex for full documentation.
           --
-          -- Philosophy: Three intensity levels that respect the user's colorscheme
-          --   NORMAL: Theme's foreground color (we only add bold/italic)
-          --   MUTED:  Dimmer color for structural elements (links to @punctuation)
-          --   FAINT:  Faded color for meta-info like comments (links to @comment)
+          -- Quick reference:
+          --   NORMAL: Theme's fg, we add bold/italic only (no fg color set)
+          --   MUTED:  @lex.muted -> @punctuation (dimmer)
+          --   FAINT:  @lex.faint -> @comment (faded)
           --
-          -- Users can override @lex.muted and @lex.faint for custom intensity.
+          -- Users can override @lex.muted and @lex.faint in their config.
 
           -- Define base intensity groups (user-overridable)
           vim.api.nvim_set_hl(0, "@lex.muted", { link = "@punctuation", default = true })
