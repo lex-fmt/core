@@ -109,8 +109,8 @@
 
         - `session_blank_lines_before`: Count before session title (default: 1)
         - `session_blank_lines_after`: Count after session title (default: 1)
-        - `normalize_list_markers`: Standardize markers (default: true)
-        - `unordered_list_marker`: Default bullet char (default: '-')
+        - `normalize_seq_markers`: Standardize markers (default: true)
+        - `unordered_seq_marker`: Default bullet char (default: '-')
         - `max_blank_lines`: Collapse excess blanks (default: 2)
         - `indent_string`: Indentation unit (default: "    ")
         - `preserve_trailing_blanks`: Keep blanks at document end (default: false)
@@ -287,8 +287,8 @@
 
         Test each rule in isolation:
 
-        - `test_normalize_list_markers_bullets()`
-        - `test_normalize_list_markers_numbered()`
+        - `test_normalize_seq_markers_bullets()`
+        - `test_normalize_seq_markers_numbered()`
         - `test_collapse_blank_lines()`
         - `test_indentation_depth()`
         - `test_trailing_whitespace_removal()`

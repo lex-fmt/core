@@ -4,8 +4,6 @@
 //! and optional nested content. Lists can be used to structure
 //! outlines, steps, or bullet points.
 //!
-//! Lists have decoration styles, for example the plain one (dashes) or various ordering formats, as numerical, alphabetical, roman, etc.
-//!
 //! Lists must have a minimum of 2 items.  And it's not ilegal to have mixed decorations in a list, as the parser will consider the first item's decoration to set the list type. The ordering doesn't have to be correct, as lists itself are ordered, they are just a marker, but tooling will order them under demand.
 //!
 //! Parsing Structure:
@@ -33,6 +31,48 @@
 //!        - Bread
 //!        - Milk
 //!
+//!Formalize Sequence Decoration Styles
+//!        List items have two parts, their markers , that determines they are a list item, and their
+//!  text content. These appear together in the source text (possible even without space to separate
+//! them, perfectly legal), but they are different things, and the actual text for list items does
+//!not include the marker.
+//!         1. Presentation
+//!           
+//!          List items can be presented in various dimensions.
+//!           - Decoration Styles:
+//!             - Plain , a dash -
+//!             - Numerical 3
+//!             - Roman Numerals IV
+//!             - Alphabetical b
+//!           - Separators:
+//!             - Periods , as in 3.
+//!             - Parenthesis as in b)
+//!             - Double parenthesis  as in (c)
+//!           - Forms:
+//!             - Forms only matter for deeper than 1 level items.
+//!             - Short: only that level , as in 3.
+//!             - Extender: full nested index , as in 1.3.5
+//!
+// !          Note that all of these can be mixed, for example: 1.b.iii is a valid sequence item as
+//! in 1.b)v)
+//!
+//!
+//!        2. Parsing Rules
+//!
+//!          The list decoration  style, separator and form are determined by the first list item in
+//! that list's (same level). Nested lists can have multiple characteristics, and at each level the
+//! first of it's items will determine the lists.
+//!          Note that these are taken as the authors choice for presentation, they are in no way
+//! used to validate or invalidate lists. A list with items in a nonsensical order and mixed
+//! presentation is a perfectly valid lists. Tooling such as formatters or publishing tools will often
+//! order items correctly on exports. This is a feature actually, as it's easier to same number all
+//! items while editing, else on insertions and swaps you must reorder all subsequent items.
+//!          The presentation characteristics are a list property, as they are set for the entire list,
+//!  even if the source text did not do it consistently. And they are to be used on any ast -> string
+//! representation to form the sequence marker (the full combination of all presentation traits).
+//!         In list items we do keep the source marker version for recreation capacity, and
+//! formatters and other tools are not to be expected to use them.
+//!
 //!
 //! Learn More:
 //! - Lists spec: specs/v1/elements/list.lex
@@ -55,6 +95,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct List {
     pub items: ListContainer,
+    pub marker: Option<super::sequence_marker::SequenceMarker>,
     pub annotations: Vec<Annotation>,
     pub location: Range,
 }
@@ -80,6 +121,7 @@ impl List {
             .collect::<Vec<_>>();
         Self {
             items: ListContainer::from_typed(typed_items),
+            marker: None,
             annotations: Vec::new(),
             location: Self::default_location(),
         }
@@ -121,19 +163,6 @@ impl List {
     /// Bounding range covering only the list items.
     pub fn body_location(&self) -> Option<Range> {
         Range::bounding_box(self.items.iter().map(|item| item.range()))
-    }
-
-    /// Determine the decoration type from the first list item's marker.
-    ///
-    /// This is a helper for formatters and serializers to determine
-    /// what kind of list this is (bullet, numbered, alphabetical, etc.)
-    pub fn decoration_type(&self) -> &str {
-        if let Some(first) = self.items.iter().next() {
-            if let Some(item) = first.as_list_item() {
-                return item.marker.as_string();
-            }
-        }
-        "-" // Default to bullet
     }
 }
 
@@ -376,5 +405,214 @@ mod tests {
 
         let short = ListItem::new("-".into(), "short".into());
         assert_eq!(short.display_label(), "short");
+    }
+
+    mod sequence_marker_integration {
+        use super::*;
+        use crate::lex::ast::elements::{DecorationStyle, Form, Separator};
+        use crate::lex::ast::ContentItem;
+        use crate::lex::loader::DocumentLoader;
+
+        #[test]
+        fn parse_extracts_plain_marker() {
+            let source = "- Item one\n- Item two";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Plain);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "-");
+        }
+
+        #[test]
+        fn parse_extracts_numerical_period_marker() {
+            let source = "1. First item\n2. Second item";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "1.");
+        }
+
+        #[test]
+        fn parse_extracts_numerical_paren_marker() {
+            let source = "1) First item\n2) Second item";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::Parenthesis);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "1)");
+        }
+
+        #[test]
+        fn parse_extracts_alphabetical_marker() {
+            let source = "a. Alpha\nb. Beta";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Alphabetical);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "a.");
+        }
+
+        #[test]
+        fn parse_extracts_roman_marker() {
+            let source = "I. First\nII. Second";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Roman);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "I.");
+        }
+
+        #[test]
+        fn parse_extracts_extended_numerical_marker() {
+            let source = "1.2.3 Item\n1.2.4 Item";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::Period);
+            assert_eq!(marker.form, Form::Extended);
+            assert_eq!(marker.raw_text.as_string(), "1.2.3");
+        }
+
+        #[test]
+        fn parse_extracts_double_paren_marker() {
+            let source = "(1) Item one\n(2) Item two";
+            let doc = DocumentLoader::from_string(source)
+                .parse()
+                .expect("parse failed");
+
+            let list = doc
+                .root
+                .children
+                .get(0)
+                .and_then(|item| {
+                    if let ContentItem::List(list) = item {
+                        Some(list)
+                    } else {
+                        None
+                    }
+                })
+                .expect("expected list");
+
+            assert!(list.marker.is_some());
+            let marker = list.marker.as_ref().unwrap();
+            assert_eq!(marker.style, DecorationStyle::Numerical);
+            assert_eq!(marker.separator, Separator::DoubleParens);
+            assert_eq!(marker.form, Form::Short);
+            assert_eq!(marker.raw_text.as_string(), "(1)");
+        }
+
+        #[test]
+        fn empty_list_has_no_marker() {
+            let list = List::new(vec![]);
+            assert!(list.marker.is_none());
+        }
     }
 }

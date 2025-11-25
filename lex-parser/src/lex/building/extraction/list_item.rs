@@ -3,7 +3,7 @@
 //! Extracts primitive data (text, byte ranges) from normalized token vectors
 //! for building ListItem AST nodes.
 
-use crate::lex::lexing::line_classification::parse_list_marker;
+use crate::lex::lexing::line_classification::parse_seq_marker;
 use crate::lex::token::normalization::utilities::{compute_bounding_box, extract_text};
 use crate::lex::token::Token;
 use std::ops::Range as ByteRange;
@@ -37,7 +37,7 @@ pub(in crate::lex::building) fn extract_list_item_data(
     tokens: Vec<(Token, ByteRange<usize>)>,
     source: &str,
 ) -> ListItemData {
-    let parsed_marker = parse_list_marker(
+    let parsed_marker = parse_seq_marker(
         &tokens
             .iter()
             .map(|(token, _)| token.clone())
