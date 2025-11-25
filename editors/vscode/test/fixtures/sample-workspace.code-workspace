@@ -6,6 +6,6 @@
   ],
   "settings": {
     "lex.lspBinaryPath": "../../target/debug/lex-lsp",
-    "workbench.colorTheme": "Lex Light"
+    "workbench.colorTheme": "Default Dark Modern"
   }
 }

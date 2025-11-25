@@ -68,6 +68,16 @@ pub enum LexSemanticTokenKind {
     VerbatimLanguage,
     VerbatimAttribute,
     VerbatimContent,
+    InlineMarkerStrongStart,
+    InlineMarkerStrongEnd,
+    InlineMarkerEmphasisStart,
+    InlineMarkerEmphasisEnd,
+    InlineMarkerCodeStart,
+    InlineMarkerCodeEnd,
+    InlineMarkerMathStart,
+    InlineMarkerMathEnd,
+    InlineMarkerRefStart,
+    InlineMarkerRefEnd,
 }
 
 impl LexSemanticTokenKind {
@@ -110,6 +120,16 @@ impl LexSemanticTokenKind {
             LexSemanticTokenKind::VerbatimLanguage => "VerbatimLanguage",
             LexSemanticTokenKind::VerbatimAttribute => "VerbatimAttribute",
             LexSemanticTokenKind::VerbatimContent => "VerbatimContent",
+            LexSemanticTokenKind::InlineMarkerStrongStart => "InlineMarker.strong.start",
+            LexSemanticTokenKind::InlineMarkerStrongEnd => "InlineMarker.strong.end",
+            LexSemanticTokenKind::InlineMarkerEmphasisStart => "InlineMarker.emphasis.start",
+            LexSemanticTokenKind::InlineMarkerEmphasisEnd => "InlineMarker.emphasis.end",
+            LexSemanticTokenKind::InlineMarkerCodeStart => "InlineMarker.code.start",
+            LexSemanticTokenKind::InlineMarkerCodeEnd => "InlineMarker.code.end",
+            LexSemanticTokenKind::InlineMarkerMathStart => "InlineMarker.math.start",
+            LexSemanticTokenKind::InlineMarkerMathEnd => "InlineMarker.math.end",
+            LexSemanticTokenKind::InlineMarkerRefStart => "InlineMarker.ref.start",
+            LexSemanticTokenKind::InlineMarkerRefEnd => "InlineMarker.ref.end",
         }
     }
 }
@@ -136,6 +156,16 @@ pub const SEMANTIC_TOKEN_KINDS: &[LexSemanticTokenKind] = &[
     LexSemanticTokenKind::VerbatimLanguage,
     LexSemanticTokenKind::VerbatimAttribute,
     LexSemanticTokenKind::VerbatimContent,
+    LexSemanticTokenKind::InlineMarkerStrongStart,
+    LexSemanticTokenKind::InlineMarkerStrongEnd,
+    LexSemanticTokenKind::InlineMarkerEmphasisStart,
+    LexSemanticTokenKind::InlineMarkerEmphasisEnd,
+    LexSemanticTokenKind::InlineMarkerCodeStart,
+    LexSemanticTokenKind::InlineMarkerCodeEnd,
+    LexSemanticTokenKind::InlineMarkerMathStart,
+    LexSemanticTokenKind::InlineMarkerMathEnd,
+    LexSemanticTokenKind::InlineMarkerRefStart,
+    LexSemanticTokenKind::InlineMarkerRefEnd,
 ];
 
 #[derive(Debug, Clone, PartialEq)]
@@ -392,6 +422,28 @@ impl TokenCollector {
                     }
                     _ => LexSemanticTokenKind::Reference,
                 }),
+                InlineSpanKind::StrongMarkerStart => {
+                    Some(LexSemanticTokenKind::InlineMarkerStrongStart)
+                }
+                InlineSpanKind::StrongMarkerEnd => {
+                    Some(LexSemanticTokenKind::InlineMarkerStrongEnd)
+                }
+                InlineSpanKind::EmphasisMarkerStart => {
+                    Some(LexSemanticTokenKind::InlineMarkerEmphasisStart)
+                }
+                InlineSpanKind::EmphasisMarkerEnd => {
+                    Some(LexSemanticTokenKind::InlineMarkerEmphasisEnd)
+                }
+                InlineSpanKind::CodeMarkerStart => {
+                    Some(LexSemanticTokenKind::InlineMarkerCodeStart)
+                }
+                InlineSpanKind::CodeMarkerEnd => Some(LexSemanticTokenKind::InlineMarkerCodeEnd),
+                InlineSpanKind::MathMarkerStart => {
+                    Some(LexSemanticTokenKind::InlineMarkerMathStart)
+                }
+                InlineSpanKind::MathMarkerEnd => Some(LexSemanticTokenKind::InlineMarkerMathEnd),
+                InlineSpanKind::RefMarkerStart => Some(LexSemanticTokenKind::InlineMarkerRefStart),
+                InlineSpanKind::RefMarkerEnd => Some(LexSemanticTokenKind::InlineMarkerRefEnd),
             };
             if let Some(kind) = kind {
                 self.push_range(&span.range, kind);
