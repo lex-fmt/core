@@ -122,6 +122,46 @@
       {
         "id": "VerbatimContent",
         "description": "Verbatim content"
+      },
+      {
+        "id": "InlineMarker.strong.start",
+        "description": "Strong/bold opening marker"
+      },
+      {
+        "id": "InlineMarker.strong.end",
+        "description": "Strong/bold closing marker"
+      },
+      {
+        "id": "InlineMarker.emphasis.start",
+        "description": "Emphasis/italic opening marker"
+      },
+      {
+        "id": "InlineMarker.emphasis.end",
+        "description": "Emphasis/italic closing marker"
+      },
+      {
+        "id": "InlineMarker.code.start",
+        "description": "Inline code opening marker"
+      },
+      {
+        "id": "InlineMarker.code.end",
+        "description": "Inline code closing marker"
+      },
+      {
+        "id": "InlineMarker.math.start",
+        "description": "Inline math opening marker"
+      },
+      {
+        "id": "InlineMarker.math.end",
+        "description": "Inline math closing marker"
+      },
+      {
+        "id": "InlineMarker.ref.start",
+        "description": "Reference opening bracket"
+      },
+      {
+        "id": "InlineMarker.ref.end",
+        "description": "Reference closing bracket"
       }
     ],
     "semanticTokenScopes": [
@@ -148,7 +188,17 @@
           "VerbatimSubject": ["entity.name.section"],
           "VerbatimLanguage": ["entity.name.tag"],
           "VerbatimAttribute": ["variable.parameter"],
-          "VerbatimContent": ["markup.raw.block"]
+          "VerbatimContent": ["markup.raw.block"],
+          "InlineMarker.strong.start": ["punctuation.definition.inline"],
+          "InlineMarker.strong.end": ["punctuation.definition.inline"],
+          "InlineMarker.emphasis.start": ["punctuation.definition.inline"],
+          "InlineMarker.emphasis.end": ["punctuation.definition.inline"],
+          "InlineMarker.code.start": ["punctuation.definition.inline"],
+          "InlineMarker.code.end": ["punctuation.definition.inline"],
+          "InlineMarker.math.start": ["punctuation.definition.inline"],
+          "InlineMarker.math.end": ["punctuation.definition.inline"],
+          "InlineMarker.ref.start": ["punctuation.definition.inline"],
+          "InlineMarker.ref.end": ["punctuation.definition.inline"]
         }
       }
     ],

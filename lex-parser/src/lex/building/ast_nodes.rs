@@ -40,6 +40,7 @@ use crate::lex::ast::elements::typed_content::{
     ContentElement, ListContent, SessionContent, VerbatimContent,
 };
 use crate::lex::ast::elements::verbatim::VerbatimGroupItem;
+use crate::lex::ast::elements::SequenceMarker;
 use crate::lex::ast::range::SourceLocation;
 use crate::lex::ast::traits::AstNode;
 use crate::lex::ast::{
@@ -130,17 +131,44 @@ pub(super) fn paragraph_node(data: ParagraphData, source_location: &SourceLocati
 /// # Returns
 ///
 /// A Session ContentItem
-pub(super) fn session_node(
-    data: SessionData,
+pub(in crate::lex::building) fn session_node(
+    session_data: SessionData,
     content: Vec<SessionContent>,
     source_location: &SourceLocation,
 ) -> ContentItem {
-    let title_location = byte_range_to_ast_range(data.title_byte_range, source_location);
-    let title = TextContent::from_string(data.title_text, Some(title_location.clone()));
-    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
-    let location = aggregate_locations(title_location, &child_items);
+    let title_location = source_location.byte_range_to_ast_range(&session_data.title_byte_range);
+    let title_text = session_data.title_text;
 
-    let session = Session::new(title, content).at(location);
+    // Construct SequenceMarker if present in session_data
+    let marker = if let Some(marker_data) = session_data.marker {
+        let marker_location = source_location.byte_range_to_ast_range(&marker_data.byte_range);
+
+        Some(SequenceMarker::new(
+            marker_data.style,
+            marker_data.separator,
+            marker_data.form,
+            TextContent::from_string(marker_data.text, Some(marker_location.clone())),
+            marker_location,
+        ))
+    } else {
+        None
+    };
+
+    // Validate that session markers are valid (no Plain style)
+    if let Some(ref m) = marker {
+        debug_assert!(
+            m.is_valid_for_session(),
+            "Invalid session marker: {:?}. Sessions don't support Plain (-) markers.",
+            m
+        );
+    }
+
+    let child_items: Vec<ContentItem> = content.iter().cloned().map(ContentItem::from).collect();
+    let location = aggregate_locations(title_location.clone(), &child_items);
+
+    let title = TextContent::from_string(title_text, Some(title_location));
+    let mut session = Session::new(title, content).at(location);
+    session.marker = marker;
     ContentItem::Session(session)
 }
 
@@ -193,6 +221,15 @@ pub(super) fn definition_node(
 /// A List ContentItem
 pub(super) fn list_node(items: Vec<ListItem>) -> ContentItem {
     let item_locations: Vec<Range> = items.iter().map(|item| item.location.clone()).collect();
+
+    // Extract marker from first item if available
+    let marker = items.first().and_then(|first_item| {
+        use crate::lex::ast::elements::SequenceMarker;
+        let marker_text = first_item.marker.as_string();
+        let marker_location = first_item.marker.location.clone();
+        SequenceMarker::parse(marker_text, marker_location)
+    });
+
     let typed_items: Vec<ListContent> = items.into_iter().map(ListContent::ListItem).collect();
 
     let location = if item_locations.is_empty() {
@@ -203,6 +240,7 @@ pub(super) fn list_node(items: Vec<ListItem>) -> ContentItem {
 
     ContentItem::List(List {
         items: crate::lex::ast::elements::container::ListContainer::from_typed(typed_items),
+        marker,
         annotations: Vec::new(),
         location,
     })
@@ -424,6 +462,7 @@ mod tests {
         let data = SessionData {
             title_text: "Session".to_string(),
             title_byte_range: 0..7,
+            marker: None,
         };
 
         let result = session_node(data, Vec::<SessionContent>::new(), &source_location);
@@ -553,6 +592,7 @@ mod tests {
         let data = SessionData {
             title_text: "Parent Session".to_string(),
             title_byte_range: 0..14,
+            marker: None,
         };
 
         // This should succeed - Sessions can contain Sessions

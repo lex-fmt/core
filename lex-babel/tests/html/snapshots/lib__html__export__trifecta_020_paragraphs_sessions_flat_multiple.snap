@@ -1,5 +1,6 @@
 ---
 source: lex-babel/tests/html/export.rs
+assertion_line: 273
 expression: html
 ---
 <!DOCTYPE html>

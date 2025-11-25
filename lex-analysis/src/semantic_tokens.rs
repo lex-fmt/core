@@ -68,6 +68,16 @@ pub enum LexSemanticTokenKind {
     VerbatimLanguage,
     VerbatimAttribute,
     VerbatimContent,
+    InlineMarkerStrongStart,
+    InlineMarkerStrongEnd,
+    InlineMarkerEmphasisStart,
+    InlineMarkerEmphasisEnd,
+    InlineMarkerCodeStart,
+    InlineMarkerCodeEnd,
+    InlineMarkerMathStart,
+    InlineMarkerMathEnd,
+    InlineMarkerRefStart,
+    InlineMarkerRefEnd,
 }
 
 impl LexSemanticTokenKind {
@@ -110,6 +120,16 @@ impl LexSemanticTokenKind {
             LexSemanticTokenKind::VerbatimLanguage => "VerbatimLanguage",
             LexSemanticTokenKind::VerbatimAttribute => "VerbatimAttribute",
             LexSemanticTokenKind::VerbatimContent => "VerbatimContent",
+            LexSemanticTokenKind::InlineMarkerStrongStart => "InlineMarker.strong.start",
+            LexSemanticTokenKind::InlineMarkerStrongEnd => "InlineMarker.strong.end",
+            LexSemanticTokenKind::InlineMarkerEmphasisStart => "InlineMarker.emphasis.start",
+            LexSemanticTokenKind::InlineMarkerEmphasisEnd => "InlineMarker.emphasis.end",
+            LexSemanticTokenKind::InlineMarkerCodeStart => "InlineMarker.code.start",
+            LexSemanticTokenKind::InlineMarkerCodeEnd => "InlineMarker.code.end",
+            LexSemanticTokenKind::InlineMarkerMathStart => "InlineMarker.math.start",
+            LexSemanticTokenKind::InlineMarkerMathEnd => "InlineMarker.math.end",
+            LexSemanticTokenKind::InlineMarkerRefStart => "InlineMarker.ref.start",
+            LexSemanticTokenKind::InlineMarkerRefEnd => "InlineMarker.ref.end",
         }
     }
 }
@@ -136,6 +156,16 @@ pub const SEMANTIC_TOKEN_KINDS: &[LexSemanticTokenKind] = &[
     LexSemanticTokenKind::VerbatimLanguage,
     LexSemanticTokenKind::VerbatimAttribute,
     LexSemanticTokenKind::VerbatimContent,
+    LexSemanticTokenKind::InlineMarkerStrongStart,
+    LexSemanticTokenKind::InlineMarkerStrongEnd,
+    LexSemanticTokenKind::InlineMarkerEmphasisStart,
+    LexSemanticTokenKind::InlineMarkerEmphasisEnd,
+    LexSemanticTokenKind::InlineMarkerCodeStart,
+    LexSemanticTokenKind::InlineMarkerCodeEnd,
+    LexSemanticTokenKind::InlineMarkerMathStart,
+    LexSemanticTokenKind::InlineMarkerMathEnd,
+    LexSemanticTokenKind::InlineMarkerRefStart,
+    LexSemanticTokenKind::InlineMarkerRefEnd,
 ];
 
 #[derive(Debug, Clone, PartialEq)]
@@ -200,9 +230,51 @@ impl TokenCollector {
 
     fn process_session(&mut self, session: &Session, is_root: bool) {
         if !is_root {
-            if let Some(header) = session.header_location() {
-                self.push_range(header, LexSemanticTokenKind::SessionTitle);
+            // Emit separate tokens for marker and title text
+            if let Some(marker) = &session.marker {
+                // Emit SessionMarker token for the sequence marker
+                self.push_range(&marker.location, LexSemanticTokenKind::SessionMarker);
             }
+
+            // Emit SessionTitleText token for the title text (without marker)
+            // Create a range for the title text by using the full title location
+            // and adjusting if there's a marker
+            if let Some(header) = session.header_location() {
+                if let Some(marker) = &session.marker {
+                    // Calculate the title text range (after the marker)
+                    let marker_text = marker.as_str();
+                    let full_title = session.full_title();
+
+                    // Find where the marker ends in the title
+                    if let Some(pos) = full_title.find(marker_text) {
+                        let marker_end = pos + marker_text.len();
+                        // Skip whitespace after marker
+                        let title_start = full_title[marker_end..]
+                            .chars()
+                            .position(|c| !c.is_whitespace())
+                            .map(|p| marker_end + p)
+                            .unwrap_or(marker_end);
+
+                        if title_start < full_title.len() {
+                            // Create range for title text only
+                            use lex_parser::lex::ast::Position;
+                            let title_text_range = Range::new(
+                                header.span.start + title_start..header.span.end,
+                                Position::new(header.start.line, header.start.column + title_start),
+                                header.end,
+                            );
+                            self.push_range(
+                                &title_text_range,
+                                LexSemanticTokenKind::SessionTitleText,
+                            );
+                        }
+                    }
+                } else {
+                    // No marker, the entire header is title text
+                    self.push_range(header, LexSemanticTokenKind::SessionTitleText);
+                }
+            }
+
             self.process_text_content(&session.title);
         }
 
@@ -350,6 +422,28 @@ impl TokenCollector {
                     }
                     _ => LexSemanticTokenKind::Reference,
                 }),
+                InlineSpanKind::StrongMarkerStart => {
+                    Some(LexSemanticTokenKind::InlineMarkerStrongStart)
+                }
+                InlineSpanKind::StrongMarkerEnd => {
+                    Some(LexSemanticTokenKind::InlineMarkerStrongEnd)
+                }
+                InlineSpanKind::EmphasisMarkerStart => {
+                    Some(LexSemanticTokenKind::InlineMarkerEmphasisStart)
+                }
+                InlineSpanKind::EmphasisMarkerEnd => {
+                    Some(LexSemanticTokenKind::InlineMarkerEmphasisEnd)
+                }
+                InlineSpanKind::CodeMarkerStart => {
+                    Some(LexSemanticTokenKind::InlineMarkerCodeStart)
+                }
+                InlineSpanKind::CodeMarkerEnd => Some(LexSemanticTokenKind::InlineMarkerCodeEnd),
+                InlineSpanKind::MathMarkerStart => {
+                    Some(LexSemanticTokenKind::InlineMarkerMathStart)
+                }
+                InlineSpanKind::MathMarkerEnd => Some(LexSemanticTokenKind::InlineMarkerMathEnd),
+                InlineSpanKind::RefMarkerStart => Some(LexSemanticTokenKind::InlineMarkerRefStart),
+                InlineSpanKind::RefMarkerEnd => Some(LexSemanticTokenKind::InlineMarkerRefEnd),
             };
             if let Some(kind) = kind {
                 self.push_range(&span.range, kind);
@@ -381,10 +475,17 @@ mod tests {
         let document = sample_document();
         let tokens = collect_semantic_tokens(&document);
         let source = sample_source();
+
+        // Session titles are now split into SessionMarker and SessionTitleText
         assert!(
-            snippets(&tokens, LexSemanticTokenKind::SessionTitle, source)
+            snippets(&tokens, LexSemanticTokenKind::SessionMarker, source)
                 .iter()
-                .any(|snippet| snippet.trim() == "1. Intro")
+                .any(|snippet| snippet.trim() == "1.")
+        );
+        assert!(
+            snippets(&tokens, LexSemanticTokenKind::SessionTitleText, source)
+                .iter()
+                .any(|snippet| snippet.trim() == "Intro")
         );
         assert!(
             snippets(&tokens, LexSemanticTokenKind::DefinitionSubject, source)
