@@ -134,6 +134,15 @@
     },
     {
       "scope": [
+        "punctuation.definition.inline"
+      ],
+      "settings": {
+        "foreground": "#cacaca", 
+        "fontStyle": "italics"
+      }
+    },
+    {
+      "scope": [
         "text"
       ],
       "settings": {

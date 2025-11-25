@@ -124,43 +124,43 @@
         "description": "Verbatim content"
       },
       {
-        "id": "InlineMarker.strong.start",
+        "id": "InlineMarker_strong_start",
         "description": "Strong/bold opening marker"
       },
       {
-        "id": "InlineMarker.strong.end",
+        "id": "InlineMarker_strong_end",
         "description": "Strong/bold closing marker"
       },
       {
-        "id": "InlineMarker.emphasis.start",
+        "id": "InlineMarker_emphasis_start",
         "description": "Emphasis/italic opening marker"
       },
       {
-        "id": "InlineMarker.emphasis.end",
+        "id": "InlineMarker_emphasis_end",
         "description": "Emphasis/italic closing marker"
       },
       {
-        "id": "InlineMarker.code.start",
+        "id": "InlineMarker_code_start",
         "description": "Inline code opening marker"
       },
       {
-        "id": "InlineMarker.code.end",
+        "id": "InlineMarker_code_end",
         "description": "Inline code closing marker"
       },
       {
-        "id": "InlineMarker.math.start",
+        "id": "InlineMarker_math_start",
         "description": "Inline math opening marker"
       },
       {
-        "id": "InlineMarker.math.end",
+        "id": "InlineMarker_math_end",
         "description": "Inline math closing marker"
       },
       {
-        "id": "InlineMarker.ref.start",
+        "id": "InlineMarker_ref_start",
         "description": "Reference opening bracket"
       },
       {
-        "id": "InlineMarker.ref.end",
+        "id": "InlineMarker_ref_end",
         "description": "Reference closing bracket"
       }
     ],
@@ -189,16 +189,16 @@
           "VerbatimLanguage": ["entity.name.tag"],
           "VerbatimAttribute": ["variable.parameter"],
           "VerbatimContent": ["markup.raw.block"],
-          "InlineMarker.strong.start": ["punctuation.definition.inline"],
-          "InlineMarker.strong.end": ["punctuation.definition.inline"],
-          "InlineMarker.emphasis.start": ["punctuation.definition.inline"],
-          "InlineMarker.emphasis.end": ["punctuation.definition.inline"],
-          "InlineMarker.code.start": ["punctuation.definition.inline"],
-          "InlineMarker.code.end": ["punctuation.definition.inline"],
-          "InlineMarker.math.start": ["punctuation.definition.inline"],
-          "InlineMarker.math.end": ["punctuation.definition.inline"],
-          "InlineMarker.ref.start": ["punctuation.definition.inline"],
-          "InlineMarker.ref.end": ["punctuation.definition.inline"]
+          "InlineMarker_strong_start": ["punctuation.definition.inline"],
+          "InlineMarker_strong_end": ["punctuation.definition.inline"],
+          "InlineMarker_emphasis_start": ["punctuation.definition.inline"],
+          "InlineMarker_emphasis_end": ["punctuation.definition.inline"],
+          "InlineMarker_code_start": ["punctuation.definition.inline"],
+          "InlineMarker_code_end": ["punctuation.definition.inline"],
+          "InlineMarker_math_start": ["punctuation.definition.inline"],
+          "InlineMarker_math_end": ["punctuation.definition.inline"],
+          "InlineMarker_ref_start": ["punctuation.definition.inline"],
+          "InlineMarker_ref_end": ["punctuation.definition.inline"]
         }
       }
     ],

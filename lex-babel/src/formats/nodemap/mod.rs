@@ -170,11 +170,7 @@ impl<'a> NodeMapVisitor<'a> {
         // Here we are calculating char length in the source string via index mapping.
         // start_idx and end_idx are indices in `chars` vector space.
         // Size = end_idx - start_idx.
-        let size = if end_idx >= start_idx {
-            end_idx - start_idx
-        } else {
-            0
-        };
+        let size = end_idx.saturating_sub(start_idx);
         self.node_sizes.insert(id, size);
 
         for i in start_idx..end_idx.min(self.total_chars) {
