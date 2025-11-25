@@ -120,16 +120,16 @@ impl LexSemanticTokenKind {
             LexSemanticTokenKind::VerbatimLanguage => "VerbatimLanguage",
             LexSemanticTokenKind::VerbatimAttribute => "VerbatimAttribute",
             LexSemanticTokenKind::VerbatimContent => "VerbatimContent",
-            LexSemanticTokenKind::InlineMarkerStrongStart => "InlineMarker.strong.start",
-            LexSemanticTokenKind::InlineMarkerStrongEnd => "InlineMarker.strong.end",
-            LexSemanticTokenKind::InlineMarkerEmphasisStart => "InlineMarker.emphasis.start",
-            LexSemanticTokenKind::InlineMarkerEmphasisEnd => "InlineMarker.emphasis.end",
-            LexSemanticTokenKind::InlineMarkerCodeStart => "InlineMarker.code.start",
-            LexSemanticTokenKind::InlineMarkerCodeEnd => "InlineMarker.code.end",
-            LexSemanticTokenKind::InlineMarkerMathStart => "InlineMarker.math.start",
-            LexSemanticTokenKind::InlineMarkerMathEnd => "InlineMarker.math.end",
-            LexSemanticTokenKind::InlineMarkerRefStart => "InlineMarker.ref.start",
-            LexSemanticTokenKind::InlineMarkerRefEnd => "InlineMarker.ref.end",
+            LexSemanticTokenKind::InlineMarkerStrongStart => "InlineMarker_strong_start",
+            LexSemanticTokenKind::InlineMarkerStrongEnd => "InlineMarker_strong_end",
+            LexSemanticTokenKind::InlineMarkerEmphasisStart => "InlineMarker_emphasis_start",
+            LexSemanticTokenKind::InlineMarkerEmphasisEnd => "InlineMarker_emphasis_end",
+            LexSemanticTokenKind::InlineMarkerCodeStart => "InlineMarker_code_start",
+            LexSemanticTokenKind::InlineMarkerCodeEnd => "InlineMarker_code_end",
+            LexSemanticTokenKind::InlineMarkerMathStart => "InlineMarker_math_start",
+            LexSemanticTokenKind::InlineMarkerMathEnd => "InlineMarker_math_end",
+            LexSemanticTokenKind::InlineMarkerRefStart => "InlineMarker_ref_start",
+            LexSemanticTokenKind::InlineMarkerRefEnd => "InlineMarker_ref_end",
         }
     }
 }
@@ -302,15 +302,9 @@ impl TokenCollector {
     fn process_paragraph(&mut self, paragraph: &Paragraph) {
         for line in &paragraph.lines {
             if let ContentItem::TextLine(text_line) = line {
-                if self.in_annotation {
-                    if let Some(location) = &text_line.content.location {
-                        self.push_range(location, LexSemanticTokenKind::AnnotationContent);
-                    }
-                } else if self.in_definition {
-                    if let Some(location) = &text_line.content.location {
-                        self.push_range(location, LexSemanticTokenKind::DefinitionContent);
-                    }
-                }
+                // Don't emit full-line tokens for DefinitionContent or AnnotationContent
+                // as they overlap with inline tokens. The context is already clear from
+                // the DefinitionSubject and AnnotationLabel tokens.
                 self.process_text_content(&text_line.content);
             }
         }
