@@ -53,3 +53,29 @@ export async function openWorkspaceDocument(
 export async function closeAllEditors(): Promise<void> {
   await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 }
+
+export async function waitForExtensionActivation<T>(
+  extensionId: string,
+  timeoutMs = 10000
+): Promise<vscode.Extension<T>> {
+  const extension = vscode.extensions.getExtension<T>(extensionId);
+  if (!extension) {
+    throw new Error(`Extension ${extensionId} is not installed`);
+  }
+
+  if (extension.isActive) {
+    return extension;
+  }
+
+  const start = Date.now();
+  const pollIntervalMs = 200;
+
+  while (Date.now() - start < timeoutMs) {
+    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    if (extension.isActive) {
+      return extension;
+    }
+  }
+
+  throw new Error(`Timed out waiting for ${extensionId} activation`);
+}
