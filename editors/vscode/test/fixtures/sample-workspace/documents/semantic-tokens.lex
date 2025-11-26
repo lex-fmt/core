@@ -50,7 +50,10 @@ This document demonstrates all semantic token types emitted by lex-lsp and serve
         1. Numbered markers work the same way
         2. They help readers scan document structure
 
-        References use muted color with underline: [^footnote], [@citation], [Link]
+        References use muted color with underline: [^footnote], [@citation], [Cache]
+
+        Cache:
+            A definition entry that can be referenced for navigation testing.
 
         Session markers (1., 1.1., etc.) are muted + italic to separate them
         from the session title text which is bold at normal intensity.
