@@ -18,10 +18,11 @@ Tests currently cover configuration helpers, VS Code activation, lex-lsp handsha
 ```
 npm run test:unit
 npm run test:integration
+npm run test:vsix
 ./test/run_suite.sh --format=simple
 ```
 
-The integration runner uses `@vscode/test-electron` to launch a headless VS Code instance and spins up the `lex-lsp` binary from `target/debug/lex-lsp`. If the binary is missing, the runner instructs you to build it first.
+The integration runner uses `@vscode/test-electron` to launch a headless VS Code instance and spins up the `lex-lsp` binary from `target/debug/lex-lsp`. If the binary is missing, the runner instructs you to build it first. The `npm run test:vsix` command packages the extension with `vsce`, installs the VSIX into a clean VS Code profile, opens a sample `.lex` document, and asserts that the shipped extension activates. Set `LEX_VSIX_KEEP_PROFILE=1` when running it if you want to inspect the cached VS Code profile after execution; otherwise it is cleaned automatically.
 
 ## Building the Extension Bundle
 
