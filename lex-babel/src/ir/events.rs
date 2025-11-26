@@ -12,6 +12,10 @@ pub enum Event {
     EndDocument,
     StartHeading(usize),
     EndHeading(usize),
+    /// Marks the start of a container's children (mirrors AST container structure)
+    StartContent,
+    /// Marks the end of a container's children
+    EndContent,
     StartParagraph,
     EndParagraph,
     StartList {
