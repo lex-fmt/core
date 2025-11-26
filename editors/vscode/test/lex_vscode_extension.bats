@@ -24,6 +24,17 @@ teardown() {
   [[ "$output" =~ "VSCode Integration" ]]
 }
 
+# Ensures we can package, install, and activate the extension through a VSIX
+@test "VSIX install smoke test" {
+  cd "$EXTENSION_DIR"
+  run npm run test:vsix
+  if [ "$status" -ne 0 ]; then
+    echo "$output" >&2
+  fi
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "VSIX smoke tests" ]]
+}
+
 @test "VSIX packaging produces valid extension" {
   cd "$EXTENSION_DIR"
 

@@ -215,6 +215,7 @@
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "node ./out/test/unit/index.js",
     "test:integration": "node ./out/test/runTests.js",
+    "test:vsix": "npm run build && npm run bundle && node ./out/test/runVsixSmoke.js",
     "lint": "eslint src test",
     "format": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
     "build:with-binary": "bash ./scripts/build_extension.sh"
