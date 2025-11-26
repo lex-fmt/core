@@ -14,10 +14,10 @@
 //!
 //!     See [location](super::location) for location calculation utilities.
 
-use crate::lex::ast::elements::container::SessionContainer;
 use crate::lex::ast::elements::typed_content::{self, ContentElement, SessionContent};
 use crate::lex::ast::error::{format_source_context, ParserError, ParserResult};
 use crate::lex::ast::range::SourceLocation;
+use crate::lex::ast::text_content::TextContent;
 use crate::lex::ast::{AstNode, ContentItem, ListItem, Range, Session};
 use crate::lex::building::api as ast_api;
 use crate::lex::building::location::compute_location_from_locations;
@@ -39,18 +39,55 @@ impl<'a> AstTreeBuilder<'a> {
     }
 
     /// Builds the document's root Session from a root `ParseNode`.
-    pub fn build(&self, root_node: ParseNode) -> ParserResult<Session> {
+    /// Builds the document's root Session from a root `ParseNode`.
+    pub fn build(&self, mut root_node: ParseNode) -> ParserResult<Session> {
         if root_node.node_type != NodeType::Document {
             // Or handle this more gracefully
             panic!("Expected a Document node at the root");
         }
+
+        let mut document_title = TextContent::from_string(String::new(), None);
+        let mut children_to_skip = 0;
+
+        // Check for explicit document title: Paragraph (1 line) + BlankLineGroup
+        if root_node.children.len() >= 2 {
+            let first = &root_node.children[0];
+            let second = &root_node.children[1];
+
+            if first.node_type == NodeType::Paragraph
+                && second.node_type == NodeType::BlankLineGroup
+            {
+                // Check if paragraph is single line
+                let token_lines = group_tokens_by_line(first.tokens.clone());
+                if token_lines.len() == 1 {
+                    // Extract title text
+                    let para = ast_api::paragraph_from_token_lines(
+                        token_lines,
+                        self.source,
+                        &self.source_location,
+                    );
+
+                    if let ContentItem::Paragraph(p) = para {
+                        if let Some(ContentItem::TextLine(line)) = p.lines.first() {
+                            document_title = line.content.clone();
+                        }
+                    }
+                    children_to_skip = 2;
+                }
+            }
+        }
+
+        // Apply skip
+        if children_to_skip > 0 {
+            root_node.children.drain(0..children_to_skip);
+        }
+
         let content = self.build_content_items(root_node.children)?;
         let content_locations: Vec<Range> =
             content.iter().map(|item| item.range().clone()).collect();
         let root_location = compute_location_from_locations(&content_locations);
         let session_content = typed_content::into_session_contents(content);
-        let mut root = Session::with_title(String::new());
-        root.children = SessionContainer::from_typed(session_content);
+        let root = Session::new(document_title, session_content);
         Ok(root.at(root_location))
     }
 
@@ -335,5 +372,100 @@ mod tests {
         } else {
             panic!("expected verbatim block");
         }
+    }
+
+    #[test]
+    fn test_document_title_parsing() {
+        let source = "My Document Title\n\nContent paragraph.\n";
+        let builder = AstTreeBuilder::new(source);
+
+        let title_tokens = vec![
+            (Token::Text("My Document Title".into()), 0..17),
+            (Token::BlankLine(Some("\n".into())), 17..18),
+        ];
+
+        let blank_tokens = vec![(Token::BlankLine(Some("\n".into())), 18..19)];
+
+        let content_tokens = vec![
+            (Token::Text("Content paragraph.".into()), 19..37),
+            (Token::BlankLine(Some("\n".into())), 37..38),
+        ];
+
+        let root_node = ParseNode {
+            node_type: NodeType::Document,
+            tokens: vec![],
+            children: vec![
+                ParseNode {
+                    node_type: NodeType::Paragraph,
+                    tokens: title_tokens,
+                    children: vec![],
+                    payload: None,
+                },
+                ParseNode {
+                    node_type: NodeType::BlankLineGroup,
+                    tokens: blank_tokens,
+                    children: vec![],
+                    payload: None,
+                },
+                ParseNode {
+                    node_type: NodeType::Paragraph,
+                    tokens: content_tokens,
+                    children: vec![],
+                    payload: None,
+                },
+            ],
+            payload: None,
+        };
+
+        let session = builder.build(root_node).expect("Builder failed");
+
+        assert_eq!(session.title.as_string(), "My Document Title");
+        assert_eq!(session.children.len(), 1);
+        if let ContentItem::Paragraph(p) = &session.children[0] {
+            assert_eq!(p.text(), "Content paragraph.");
+        } else {
+            panic!("Expected paragraph");
+        }
+    }
+
+    #[test]
+    fn test_document_title_parsing_no_blank_line() {
+        let source = "Not A Title\nContent paragraph.\n";
+        let builder = AstTreeBuilder::new(source);
+
+        let title_tokens = vec![
+            (Token::Text("Not A Title".into()), 0..11),
+            (Token::BlankLine(Some("\n".into())), 11..12),
+        ];
+
+        let content_tokens = vec![
+            (Token::Text("Content paragraph.".into()), 12..30),
+            (Token::BlankLine(Some("\n".into())), 30..31),
+        ];
+
+        let root_node = ParseNode {
+            node_type: NodeType::Document,
+            tokens: vec![],
+            children: vec![
+                ParseNode {
+                    node_type: NodeType::Paragraph,
+                    tokens: title_tokens,
+                    children: vec![],
+                    payload: None,
+                },
+                ParseNode {
+                    node_type: NodeType::Paragraph,
+                    tokens: content_tokens,
+                    children: vec![],
+                    payload: None,
+                },
+            ],
+            payload: None,
+        };
+
+        let session = builder.build(root_node).expect("Builder failed");
+
+        assert_eq!(session.title.as_string(), "");
+        assert_eq!(session.children.len(), 2);
     }
 }
