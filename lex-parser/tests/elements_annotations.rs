@@ -316,9 +316,6 @@ fn test_annotations_overview_document() {
 
     assert_ast(&doc)
         .item(0, |item| {
-            item.assert_paragraph().text("Annotations ");
-        })
-        .item(1, |item| {
             item.assert_session()
                 .label("Introduction")
                 .child(0, |child| {
@@ -336,7 +333,7 @@ fn test_annotations_overview_document() {
                     child.assert_list().item_count(4);
                 });
         })
-        .item(2, |item| {
+        .item(1, |item| {
             item.assert_session().label("Syntax Forms:");
         });
 }

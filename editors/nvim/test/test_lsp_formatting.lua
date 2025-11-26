@@ -194,7 +194,10 @@ local end_idx = range_params.range["end"].line + 1
 local original_prefix = slice_lines(messy_range, 1, start_idx)
 local original_suffix = slice_lines(messy_range, end_idx, #messy_range + 1)
 local selection_lines = slice_lines(messy_range, start_idx, end_idx)
+-- Prepend blank line to avoid Document Title detection for the snippet
+table.insert(selection_lines, 1, "")
 local expected_selection = canonical_from_cli(selection_lines)
+-- Formatter removes leading blank line, so result is correct (formatted as Paragraph)
 
 for i, line in ipairs(original_prefix) do
   if after_range[i] ~= line then

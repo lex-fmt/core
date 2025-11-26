@@ -810,7 +810,8 @@ mod tests {
     #[test]
     fn test_vim_element_navigation_round_trip() {
         // Test that we can navigate forward and backward through elements
-        let content = "# H1\n\nPara 1\n\n## H2\n\nPara 2".to_string();
+
+        let content = "Title\n====\n\nPara 1\n\nPara 2".to_string();
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
         let model = Model::new(doc, content.clone());
         let mut viewer = FileViewer::new(content);
@@ -820,7 +821,7 @@ mod tests {
         assert_eq!(start_pos, (0, 0));
 
         // Navigate forward a few times
-        for _ in 0..3 {
+        for _ in 0..2 {
             viewer.handle_key(
                 KeyEvent::new(KeyCode::Char('}'), KeyModifiers::NONE),
                 &model,
@@ -832,7 +833,7 @@ mod tests {
         assert_ne!(middle_pos, start_pos, "Should have moved forward");
 
         // Navigate backward the same number of times
-        for _ in 0..3 {
+        for _ in 0..2 {
             viewer.handle_key(
                 KeyEvent::new(KeyCode::Char('{'), KeyModifiers::NONE),
                 &model,
