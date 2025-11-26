@@ -11,12 +11,12 @@ const linuxPlatform: NodeJS.Platform = 'linux';
 const windowsPlatform: NodeJS.Platform = 'win32';
 
 test('defaultLspBinaryPath resolves relative binary path inside workspace', () => {
-  const expected = path.resolve(fakeExtensionPath, '../../target/debug/lex-lsp');
+  const expected = path.resolve(fakeExtensionPath, './resources/lex-lsp');
   assert.equal(defaultLspBinaryPath(fakeExtensionPath, linuxPlatform), expected);
 });
 
 test('defaultLspBinaryPath appends .exe on Windows', () => {
-  const expected = path.resolve(fakeExtensionPath, '../../target/debug/lex-lsp.exe');
+  const expected = path.resolve(fakeExtensionPath, './resources/lex-lsp.exe');
   assert.equal(defaultLspBinaryPath(fakeExtensionPath, windowsPlatform), expected);
 });
 
