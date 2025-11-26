@@ -14,8 +14,8 @@
 
 /* === Document Structure === */
 html {
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.25;
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -73,7 +73,7 @@ h6:first-child {
 /* === Paragraphs === */
 .lex-paragraph {
   margin: 1rem 0;
-  line-height: 1.7;
+  line-height: 1.25;
 }
 
 .lex-paragraph:first-child {
@@ -92,7 +92,7 @@ h6:first-child {
 
 .lex-list-item {
   margin: 0.5rem 0;
-  line-height: 1.6;
+  line-height: 1.25;
 }
 
 /* Nested lists */

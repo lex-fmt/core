@@ -26,8 +26,8 @@ body {
   font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
   color: var(--lex-normal);
   background: var(--lex-bg);
-  font-size: 17px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.25;
 }
 
 /* === Document Container === */
@@ -65,9 +65,9 @@ section.lex-session section.lex-session {
 }
 
 /* === Headings with Scaled Sizes ===
- * Level 1: 2x regular size
+ * Level 1: 1.3x regular size
  * Level 5: 1x regular size
- * Smooth interpolation between levels
+ * Smooth interpolation between levels (0.075 step)
  */
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
@@ -77,25 +77,25 @@ h1, h2, h3, h4, h5, h6 {
   margin: 1.25rem 0 0.75rem;
 }
 
-/* Title sizing: 2x at level 1, decreasing to 1x at level 5 */
+/* Title sizing: 1.3x at level 1, decreasing to 1x at level 5 */
 h1 {
-  font-size: 2em;      /* 2x - Level 1 */
+  font-size: 1.3em;    /* 1.3x - Level 1 */
   margin-top: 0;
   margin-bottom: 1rem;
 }
 
 h2 {
-  font-size: 1.75em;   /* 1.75x - Level 2 */
+  font-size: 1.225em;  /* 1.225x - Level 2 */
   margin-top: 1.5rem;
 }
 
 h3 {
-  font-size: 1.5em;    /* 1.5x - Level 3 */
+  font-size: 1.15em;   /* 1.15x - Level 3 */
   margin-top: 1.25rem;
 }
 
 h4 {
-  font-size: 1.25em;   /* 1.25x - Level 4 */
+  font-size: 1.075em;  /* 1.075x - Level 4 */
   margin-top: 1rem;
 }
 
@@ -135,22 +135,18 @@ section.lex-session > h6:first-child {
   }
 
   h1 {
-    font-size: 1.75em;
+    font-size: 1.225em;
   }
 
   h2 {
-    font-size: 1.5em;
-  }
-
-  h3 {
-    font-size: 1.35em;
-  }
-
-  h4 {
     font-size: 1.15em;
   }
 
-  h5, h6 {
+  h3 {
+    font-size: 1.075em;
+  }
+
+  h4, h5, h6 {
     font-size: 1em;
   }
 }
@@ -158,7 +154,7 @@ section.lex-session > h6:first-child {
 /* === Paragraphs === */
 .lex-paragraph {
   margin: 1rem 0;
-  line-height: 1.7;
+  line-height: 1.25;
   color: var(--lex-normal);
 }
 
@@ -180,7 +176,7 @@ h6 + .lex-paragraph {
 .lex-list {
   margin: 1rem 0;
   padding-left: 2rem;
-  line-height: 1.7;
+  line-height: 1.25;
 }
 
 .lex-list:first-child {
@@ -229,7 +225,7 @@ ol.lex-list {
   margin-left: 1.5rem;
   margin-top: 0.25rem;
   margin-bottom: 0.5rem;
-  line-height: 1.7;
+  line-height: 1.25;
 }
 
 /* === Code and Verbatim === */
