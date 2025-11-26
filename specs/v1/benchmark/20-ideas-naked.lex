@@ -4,6 +4,7 @@
 
 Ideas, Naked
 
+
     We know of nothing more powerful than ideas, and no denser medium for them than written language. (actually we do, math, but math is too dense).
 
     Specific ideas differ, but there is an ideal structure for ideas, as they are made of the same things: definitions, descriptions, references, comparisons, connections, structure and so on.

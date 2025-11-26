@@ -16,7 +16,7 @@ fn parse_document(source: &str) -> Document {
 
 #[test]
 fn test_blank_line_group_node_type_visitor() {
-    let source = "A\n\nB";
+    let source = "A\nLine 2\n\nB";
     let doc = parse_document(source);
     let root = &doc.root;
 
@@ -34,7 +34,7 @@ fn test_blank_line_group_node_type_visitor() {
 
 #[test]
 fn test_blank_line_group_display_label_visitor() {
-    let source = "A\n\nB";
+    let source = "A\nLine 2\n\nB";
     let doc = parse_document(source);
     let root = &doc.root;
 
@@ -55,7 +55,7 @@ fn test_blank_line_group_display_label_visitor() {
 
 #[test]
 fn test_blank_line_group_structure_count() {
-    let source = "A\n\nB";
+    let source = "A\nLine 2\n\nB";
     let doc = parse_document(source);
     let root = &doc.root;
 
@@ -72,7 +72,7 @@ fn test_blank_line_group_structure_count() {
 
 #[test]
 fn test_blank_line_group_structure_source_tokens() {
-    let source = "A\n\nB";
+    let source = "A\nLine 2\n\nB";
     let doc = parse_document(source);
     let root = &doc.root;
 
@@ -99,7 +99,7 @@ fn test_blank_line_group_structure_source_tokens() {
 #[test]
 fn test_blank_line_group_near_lists() {
     let source =
-        "Intro paragraph\n\n- Item 1\n    Content A\n- Item 2\n    Content B\n\nClosing paragraph";
+        "Intro paragraph\nLine 2\n\n- Item 1\n    Content A\n- Item 2\n    Content B\n\nClosing paragraph";
     let doc = parse_document(source);
     let root = &doc.root;
 
@@ -174,7 +174,7 @@ fn test_blank_line_group_in_sessions() {
 #[test]
 fn test_blank_line_group_is_content_item_variant() {
     // Verify BlankLineGroup can be matched as a ContentItem variant
-    let source = "A\n\nB";
+    let source = "A\nLine 2\n\nB";
     let doc = parse_document(source);
 
     // This test verifies the variant exists in ContentItem enum

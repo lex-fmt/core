@@ -123,6 +123,28 @@ impl Session {
 
         let mut links = Vec::new();
 
+        // Check for links in the session title
+        if let Some(inlines) = self.title.inlines() {
+            for inline in inlines {
+                if let InlineNode::Reference { data, .. } = inline {
+                    match &data.reference_type {
+                        ReferenceType::Url { target } => {
+                            // Use header location if available, otherwise session location
+                            let range = self.header_location().unwrap_or(&self.location).clone();
+                            let link = DocumentLink::new(range, target.clone(), LinkType::Url);
+                            links.push(link);
+                        }
+                        ReferenceType::File { target } => {
+                            let range = self.header_location().unwrap_or(&self.location).clone();
+                            let link = DocumentLink::new(range, target.clone(), LinkType::File);
+                            links.push(link);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         // Use existing iter_all_references() API to find URL and File references
         for paragraph in self.iter_paragraphs_recursive() {
             for line_item in &paragraph.lines {

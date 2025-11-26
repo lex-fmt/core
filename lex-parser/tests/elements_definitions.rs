@@ -232,26 +232,23 @@ fn test_definitions_overview_document() {
 
     // Verify the document parses successfully with expected structure
     assert_ast(&doc)
-        .item_count(7)
+        .item_count(6)
         .item(0, |item| {
-            item.assert_paragraph().text("Definitions");
-        })
-        .item(1, |item| {
             item.assert_session().label("Introduction");
         })
-        .item(2, |item| {
+        .item(1, |item| {
             item.assert_session().label("Syntax");
         })
-        .item(3, |item| {
+        .item(2, |item| {
             item.assert_session().label("Disambiguation from Sessions");
         })
-        .item(4, |item| {
+        .item(3, |item| {
             item.assert_session().label("Content Structure");
         })
-        .item(5, |item| {
+        .item(4, |item| {
             item.assert_session().label("Block Termination");
         })
-        .item(6, |item| {
+        .item(5, |item| {
             item.assert_session().label("Examples");
         });
 }

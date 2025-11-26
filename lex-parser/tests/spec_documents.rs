@@ -10,19 +10,15 @@ fn test_labels_spec_document() {
         .parse()
         .unwrap();
 
-    assert_ast(&doc)
-        .item(0, |item| {
-            item.assert_paragraph().text("Labels");
-        })
-        .item(1, |item| {
-            item.assert_session()
-                .label_contains("Introduction")
-                .child(0, |child| {
-                    child
-                        .assert_paragraph()
-                        .text_contains("identifiers for annotations");
-                });
-        });
+    assert_ast(&doc).item(0, |item| {
+        item.assert_session()
+            .label_contains("Introduction")
+            .child(0, |child| {
+                child
+                    .assert_paragraph()
+                    .text_contains("identifiers for annotations");
+            });
+    });
 }
 
 #[test]
@@ -31,13 +27,9 @@ fn test_parameters_spec_document() {
         .parse()
         .unwrap();
 
-    assert_ast(&doc)
-        .item(0, |item| {
-            item.assert_paragraph().text("Parameters");
-        })
-        .item(1, |item| {
-            item.assert_session().label("Introduction");
-        });
+    assert_ast(&doc).item(0, |item| {
+        item.assert_session().label("Introduction");
+    });
 }
 
 #[test]
@@ -48,12 +40,9 @@ fn test_verbatim_spec_document() {
 
     assert_ast(&doc)
         .item(0, |item| {
-            item.assert_paragraph().text("Verbatim Blocks");
-        })
-        .item(1, |item| {
             item.assert_session().label("Introduction");
         })
-        .item(2, |item| {
+        .item(1, |item| {
             item.assert_session().label("Syntax");
         });
 }
@@ -64,18 +53,13 @@ fn test_template_document_simple() {
         .parse()
         .unwrap();
 
-    assert_ast(&doc)
-        .item(0, |item| {
-            item.assert_paragraph()
-                .text_contains("Trifecta Flat Structure Test");
-        })
-        .item(2, |item| {
-            item.assert_session()
-                .label("1. Session with Paragraph Content {{session-title}}")
-                .child(2, |child| {
-                    child.assert_paragraph().text("<insert element here>");
-                });
-        });
+    assert_ast(&doc).item(1, |item| {
+        item.assert_session()
+            .label("1. Session with Paragraph Content {{session-title}}")
+            .child(2, |child| {
+                child.assert_paragraph().text("<insert element here>");
+            });
+    });
 }
 
 #[test]
@@ -84,21 +68,16 @@ fn test_template_document_tricky() {
         .parse()
         .unwrap();
 
-    assert_ast(&doc)
-        .item(0, |item| {
-            item.assert_paragraph()
-                .text_contains("Trifecta Nesting Test");
-        })
-        .item(2, |item| {
-            item.assert_session()
-                .label("1. Root Session {{session-title}}")
-                .child(1, |child| {
-                    child
-                        .assert_session()
-                        .label("1.1. Sub-session with Paragraph {{session-title}}")
-                        .child(1, |list_child| {
-                            list_child.assert_list().item_count(2);
-                        });
-                });
-        });
+    assert_ast(&doc).item(1, |item| {
+        item.assert_session()
+            .label("1. Root Session {{session-title}}")
+            .child(1, |child| {
+                child
+                    .assert_session()
+                    .label("1.1. Sub-session with Paragraph {{session-title}}")
+                    .child(1, |list_child| {
+                        list_child.assert_list().item_count(2);
+                    });
+            });
+    });
 }
