@@ -130,20 +130,15 @@ fn test_verbatim_07_nested_in_list() {
     // verbatim-07-nested-in-list.lex: Verbatim blocks nested in list items
     let doc = Lexplore::verbatim(7).parse().unwrap();
 
-    assert_ast(&doc).item_count(2); // para, list
-
-    // Verify title paragraph
-    assert_ast(&doc).item(0, |item| {
-        item.assert_paragraph().text_contains("Code examples");
-    });
+    assert_ast(&doc).item_count(1); // list
 
     // Verify list with 2 items
-    assert_ast(&doc).item(1, |item| {
+    assert_ast(&doc).item(0, |item| {
         item.assert_list().item_count(2);
     });
 
     // Verify first list item with Python verbatim
-    assert_ast(&doc).item(1, |item| {
+    assert_ast(&doc).item(0, |item| {
         item.assert_list().item(0, |list_item| {
             list_item
                 .text_contains("Python example")
@@ -163,7 +158,7 @@ fn test_verbatim_07_nested_in_list() {
     });
 
     // Verify second list item with JavaScript verbatim
-    assert_ast(&doc).item(1, |item| {
+    assert_ast(&doc).item(0, |item| {
         item.assert_list().item(1, |list_item| {
             list_item
                 .text_contains("JavaScript example")
@@ -538,17 +533,11 @@ fn test_verbatim_12_document_simple() {
     // Verify first paragraph
     assert_ast(&doc).item(0, |item| {
         item.assert_paragraph()
-            .text_contains("Trifecta Flat Structure Test");
-    });
-
-    // Verify second paragraph
-    assert_ast(&doc).item(1, |item| {
-        item.assert_paragraph()
             .text_contains("This document tests the combination of all three core elements");
     });
 
     // Verify first session "1. Session with Paragraph Content"
-    assert_ast(&doc).item(2, |item| {
+    assert_ast(&doc).item(1, |item| {
         item.assert_session()
             .label_contains("Session with Paragraph Content")
             .child_count(3) // para, para, verbatim
@@ -593,7 +582,7 @@ fn test_verbatim_12_document_simple() {
     });
 
     // Verify second session "2. Session with List Content"
-    assert_ast(&doc).item(3, |item| {
+    assert_ast(&doc).item(2, |item| {
         item.assert_session()
             .label_contains("Session with List Content")
             .child_count(1) // list only (verbatim inside list removed due to parser issue)
@@ -613,20 +602,20 @@ fn test_verbatim_12_document_simple() {
     });
 
     // Verify third session "3. Session with Mixed Content"
-    assert_ast(&doc).item(4, |item| {
+    assert_ast(&doc).item(3, |item| {
         item.assert_session()
             .label_contains("Session with Mixed Content")
             .child_count(3); // para, list, para - structure verified by accessing children
     });
 
     // Verify root level paragraph
-    assert_ast(&doc).item(5, |item| {
+    assert_ast(&doc).item(4, |item| {
         item.assert_paragraph()
             .text_contains("A paragraph at the root level");
     });
 
     // Verify root level list
-    assert_ast(&doc).item(6, |item| {
+    assert_ast(&doc).item(5, |item| {
         item.assert_list()
             .item_count(2)
             .item(0, |list_item| {
@@ -638,7 +627,7 @@ fn test_verbatim_12_document_simple() {
     });
 
     // Verify image marker verbatim block
-    assert_ast(&doc).item(7, |item| {
+    assert_ast(&doc).item(6, |item| {
         item.assert_verbatim_block()
             .subject("This is an Image Verbatim Representation")
             .closing_label("image")
@@ -647,20 +636,20 @@ fn test_verbatim_12_document_simple() {
     });
 
     // Verify fourth session "4. Another Session"
-    assert_ast(&doc).item(8, |item| {
+    assert_ast(&doc).item(7, |item| {
         item.assert_session()
             .label_contains("Another Session")
             .child_count(3); // list, para, list
     });
 
     // Verify final root level paragraph
-    assert_ast(&doc).item(9, |item| {
+    assert_ast(&doc).item(8, |item| {
         item.assert_paragraph()
             .text_contains("Final root level paragraph");
     });
 
     // Verify final verbatim block
-    assert_ast(&doc).item(10, |item| {
+    assert_ast(&doc).item(9, |item| {
         item.assert_verbatim_block()
             .subject("Say goodbye mom")
             .closing_label("javascript")

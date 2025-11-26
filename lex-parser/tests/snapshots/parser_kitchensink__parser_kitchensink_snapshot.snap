@@ -1,19 +1,16 @@
 ---
 source: lex-parser/tests/parser_kitchensink.rs
-assertion_line: 16
 expression: snapshot
 ---
-Document with 12 root items:
+Document with 10 root items:
 
-[0] Paragraph with 1 line(s):   [0] TextLine: Kitchensink Test Document {{paragraph}}
+[0] Paragraph with 1 line(s):   [0] TextLine: This document includes *all major features* of the lex language to serve as a comprehensive "kitchensink" regression test for the parser, as noted in [@spec2025, pp. 45-46]. {{paragraph}}
 [1] BlankLineGroup with 1 line(s)
-[2] Paragraph with 1 line(s):   [0] TextLine: This document includes *all major features* of the lex language to serve as a comprehensive "kitchensink" regression test for the parser, as noted in [@spec2025, pp. 45-46]. {{paragraph}}
-[3] BlankLineGroup with 1 line(s)
-[4] Paragraph with 2 line(s): 
+[2] Paragraph with 2 line(s): 
   [0] TextLine: This is a two-lined paragraph.
   [1] TextLine: First, a simple _definition_ at the root level. {{paragraph}}
-[5] BlankLineGroup with 1 line(s)
-[6] Definition with 5 item(s):
+[3] BlankLineGroup with 1 line(s)
+[4] Definition with 5 item(s):
   [0] Paragraph with 1 line(s):     [0] TextLine: This definition contains a paragraph and a `list` to test mixed content at the top level. {{definition}}
   [1] BlankLineGroup with 1 line(s)
   [2] List with 2 item(s):
@@ -21,9 +18,9 @@ Document with 12 root items:
     [1] List item with 0 content item(s):
   [3] BlankLineGroup with 1 line(s)
   [4] BlankLineGroup with 1 line(s)
-[7] Paragraph with 1 line(s):   [0] TextLine: This is a marker annotation at the root level, attached to the definition above.
-[8] BlankLineGroup with 1 line(s)
-[9] Session with 9 item(s):
+[5] Paragraph with 1 line(s):   [0] TextLine: This is a marker annotation at the root level, attached to the definition above.
+[6] BlankLineGroup with 1 line(s)
+[7] Session with 9 item(s):
   [0] Paragraph with 1 line(s):     [0] TextLine: This session acts as the main container for testing nested structures. It starts with a simple paragraph. {{paragraph}}
   [1] BlankLineGroup with 1 line(s)
   [2] List with 2 item(s):
@@ -53,9 +50,9 @@ Document with 12 root items:
   [6] Paragraph with 1 line(s):     [0] TextLine: A paragraph back at the first level of nesting. {{paragraph}}
   [7] VerbatimBlock with 72 content char(s)
   [8] BlankLineGroup with 1 line(s)
-[10] Session with 4 item(s):
+[8] Session with 4 item(s):
   [0] Paragraph with 1 line(s):     [0] TextLine: This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}
   [1] BlankLineGroup with 1 line(s)
   [2] VerbatimBlock with 0 content char(s)
   [3] BlankLineGroup with 1 line(s)
-[11] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}
+[9] Paragraph with 1 line(s):   [0] TextLine: Final paragraph at the end of the document. {{paragraph}}

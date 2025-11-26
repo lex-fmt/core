@@ -48,18 +48,14 @@ fn test_session_05_nested_simple() {
     // session-05-nested-simple.lex: Document with paragraphs and nested sessions
     let doc = Lexplore::session(5).parse().unwrap();
 
-    // Document structure: Para, Para, Session, Para, Session, Para
+    // Document structure: Para, Session, Para, Session, Para
     assert_ast(&doc)
-        .item_count(6)
+        .item_count(5)
         .item(0, |item| {
-            item.assert_paragraph()
-                .text_contains("Paragraphs and Single Session Test");
-        })
-        .item(1, |item| {
             item.assert_paragraph()
                 .text_contains("combination of paragraphs");
         })
-        .item(2, |item| {
+        .item(1, |item| {
             item.assert_session()
                 .label("1. Introduction {{session-title}}")
                 .child_count(2)
@@ -74,11 +70,11 @@ fn test_session_05_nested_simple() {
                         .text_contains("multiple paragraphs");
                 });
         })
-        .item(3, |item| {
+        .item(2, |item| {
             item.assert_paragraph()
                 .text_contains("paragraph comes after the session");
         })
-        .item(4, |item| {
+        .item(3, |item| {
             item.assert_session()
                 .label("Another Session {{session-title}}")
                 .child_count(1)
@@ -88,7 +84,7 @@ fn test_session_05_nested_simple() {
                         .text_contains("multiple sessions at the same level");
                 });
         })
-        .item(5, |item| {
+        .item(4, |item| {
             item.assert_paragraph()
                 .text_contains("Final paragraph at the root level");
         });
@@ -138,12 +134,8 @@ fn test_session_07_paragraphs_sessions_flat_multiple() {
     let doc = Lexplore::session(7).parse().unwrap();
 
     assert_ast(&doc)
-        .item_count(9)
-        .item(0, |item| {
-            item.assert_paragraph()
-                .text_contains("Multiple Sessions Flat Test");
-        })
-        .item(2, |item| {
+        .item_count(8)
+        .item(1, |item| {
             item.assert_session()
                 .label("1. First Session {{session-title}}")
                 .child(0, |child| {
@@ -152,7 +144,7 @@ fn test_session_07_paragraphs_sessions_flat_multiple() {
                         .text_contains("content of the first session");
                 });
         })
-        .item(5, |item| {
+        .item(4, |item| {
             item.assert_session()
                 .label("3. Third Session {{session-title}}")
                 .child(0, |child| {
@@ -161,7 +153,7 @@ fn test_session_07_paragraphs_sessions_flat_multiple() {
                         .text_contains("different amounts of content");
                 });
         })
-        .item(7, |item| {
+        .item(6, |item| {
             item.assert_session()
                 .label("4. Session Without Numbering {{session-title}}")
                 .child(0, |child| {
@@ -182,12 +174,8 @@ fn test_session_08_paragraphs_sessions_nested_multiple() {
     let doc = Lexplore::session(8).parse().unwrap();
 
     assert_ast(&doc)
-        .item_count(5)
-        .item(0, |item| {
-            item.assert_paragraph()
-                .text_contains("Nested Sessions Test");
-        })
-        .item(2, |item| {
+        .item_count(4)
+        .item(1, |item| {
             item.assert_session()
                 .label("1. Root Session {{session-title}}")
                 .child(1, |child| {
@@ -201,7 +189,7 @@ fn test_session_08_paragraphs_sessions_nested_multiple() {
                         });
                 });
         })
-        .item(3, |item| {
+        .item(2, |item| {
             item.assert_session()
                 .label("2. Another Root Session {{session-title}}")
                 .child(0, |child| {

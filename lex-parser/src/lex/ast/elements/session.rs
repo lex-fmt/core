@@ -521,11 +521,29 @@ impl Session {
     ) -> Box<dyn Iterator<Item = crate::lex::inlines::ReferenceInline> + '_> {
         use crate::lex::inlines::InlineNode;
 
+        // Helper to extract refs from TextContent
+        let extract_refs = |text_content: &TextContent| {
+            let inlines = text_content.inline_items();
+            inlines
+                .into_iter()
+                .filter_map(|node| {
+                    if let InlineNode::Reference { data, .. } = node {
+                        Some(data)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+
+        // Title refs
+        let title_refs = extract_refs(&self.title);
+
         // Collect all paragraphs recursively
         let paragraphs: Vec<_> = self.iter_paragraphs_recursive().collect();
 
         // For each paragraph, iterate through lines and collect references
-        let refs: Vec<_> = paragraphs
+        let para_refs: Vec<_> = paragraphs
             .into_iter()
             .flat_map(|para| {
                 // Iterate through each text line in the paragraph
@@ -538,27 +556,12 @@ impl Session {
                             None
                         }
                     })
-                    .flat_map(|text_content| {
-                        // Get inline nodes from the text content
-                        let inlines = text_content.inline_items();
-
-                        // Filter to only reference nodes
-                        inlines
-                            .into_iter()
-                            .filter_map(|node| {
-                                if let InlineNode::Reference { data, .. } = node {
-                                    Some(data)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                    })
+                    .flat_map(extract_refs)
                     .collect::<Vec<_>>()
             })
             .collect();
 
-        Box::new(refs.into_iter())
+        Box::new(title_refs.into_iter().chain(para_refs))
     }
 
     /// Find all references to a specific target label.

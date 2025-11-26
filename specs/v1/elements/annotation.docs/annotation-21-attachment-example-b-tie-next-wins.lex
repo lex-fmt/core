@@ -1,3 +1,4 @@
+Start
 Some paragraph ends here.
 
 :: foo ::
