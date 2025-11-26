@@ -212,7 +212,7 @@ mod tests {
 
     const FULL_FIXTURE: &str = "Section:\n\n    - item one   \n\n\n\n\n  - item two\n\n";
     const RANGE_FIXTURE: &str =
-        "Intro:\n\n    - keep   \n\n\n\n\n  - align me\n\nTail:\n\n\n- fix me\n- also me\n\n";
+        "Intro:\n\n    - keep   \n\n\n\n\n  - align me\n\nTail:\n\n\n-  fix me\n- also me\n\n";
 
     fn parse(source: &str) -> Document {
         parsing::parse_document(source).expect("parse fixture")
