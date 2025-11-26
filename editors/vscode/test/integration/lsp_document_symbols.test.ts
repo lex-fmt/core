@@ -41,16 +41,16 @@ integrationTest('provides hierarchical document symbols', async () => {
   const flattened = flattenSymbols(symbols);
   const titles = flattened.map(symbol => symbol.name);
   assert.ok(
-    titles.some(name => name.includes('Intro')),
-    'Outline should include the Intro session'
+    titles.some(name => name.includes('Highlighting Philosophy')),
+    'Outline should include the Highlighting Philosophy session'
   );
   assert.ok(
-    titles.some(name => name.includes('List')),
-    'Outline should include list items'
+    titles.some(name => name.includes('Token Types')),
+    'Outline should include Token Types session'
   );
   assert.ok(
-    titles.some(name => name.includes('Verbatim: CLI Example')),
-    'Verbatim blocks should surface as document symbols'
+    titles.some(name => name.includes('All Token Types Reference')),
+    'Outline should include All Token Types Reference session'
   );
 
   assert.ok(
