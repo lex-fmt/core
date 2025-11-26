@@ -100,6 +100,20 @@ impl Document {
         self.root
     }
 
+    /// Get the document title.
+    ///
+    /// This delegates to the root session's title.
+    pub fn title(&self) -> &str {
+        self.root.title.as_string()
+    }
+
+    /// Set the document title.
+    ///
+    /// This updates the root session's title.
+    pub fn set_title(&mut self, title: String) {
+        self.root.title = crate::lex::ast::text_content::TextContent::from_string(title, None);
+    }
+
     /// Returns the path of nodes at the given position, starting from the document
     pub fn node_path_at_position(&self, pos: Position) -> Vec<&dyn AstNode> {
         let path = self.root.node_path_at_position(pos);
