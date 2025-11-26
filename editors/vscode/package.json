@@ -7,13 +7,16 @@
   "license": "MIT",
   "type": "module",
   "private": true,
-  "main": "./out/src/main.js",
+  "main": "./out/src/main.cjs",
   "engines": {
     "vscode": "^1.106.0",
     "node": ">=20"
   },
   "categories": [
     "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:lex"
   ],
   "contributes": {
     "languages": [
@@ -206,7 +209,7 @@
   "scripts": {
     "build": "tsc -p .",
     "watch": "tsc -watch -p .",
-    "bundle": "esbuild src/main.ts --bundle --outfile=out/src/main.js --external:vscode --format=cjs --platform=node --target=node20",
+    "bundle": "esbuild src/main.ts --bundle --outfile=out/src/main.cjs --external:vscode --format=cjs --platform=node --target=node20",
     "vscode:prepublish": "npm run bundle -- --minify",
     "pretest": "npm run build",
     "test": "npm run test:unit && npm run test:integration",
