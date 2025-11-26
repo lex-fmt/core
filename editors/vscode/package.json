@@ -204,6 +204,11 @@
           "default": "./resources/lex-lsp"
         }
       }
+    },
+    "configurationDefaults": {
+      "[lex]": {
+        "editor.formatOnSave": false
+      }
     }
   },
   "scripts": {
