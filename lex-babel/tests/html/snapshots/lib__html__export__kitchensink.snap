@@ -1,6 +1,5 @@
 ---
 source: lex-babel/tests/html/export.rs
-assertion_line: 318
 expression: html
 ---
 <!DOCTYPE html>
@@ -22,13 +21,12 @@ expression: html
 *::after {
   box-sizing: border-box;
   margin: 0;
-  padding: 0;
 }
 
 /* === Document Structure === */
 html {
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.25;
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -68,6 +66,11 @@ section.lex-session section.lex-session {
   margin-top: 1.5rem;
 }
 
+/* === Content Containers (AST container structure) === */
+.lex-content {
+  /* Themes add padding-left and border for visual indentation */
+}
+
 h1, h2, h3, h4, h5, h6 {
   margin: 1.5rem 0 0.75rem;
   line-height: 1.3;
@@ -86,7 +89,7 @@ h6:first-child {
 /* === Paragraphs === */
 .lex-paragraph {
   margin: 1rem 0;
-  line-height: 1.7;
+  line-height: 1.25;
 }
 
 .lex-paragraph:first-child {
@@ -105,7 +108,7 @@ h6:first-child {
 
 .lex-list-item {
   margin: 0.5rem 0;
-  line-height: 1.6;
+  line-height: 1.25;
 }
 
 /* Nested lists */
@@ -261,8 +264,8 @@ body {
   font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
   color: var(--lex-normal);
   background: var(--lex-bg);
-  font-size: 17px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.25;
 }
 
 /* === Document Container === */
@@ -272,21 +275,16 @@ body {
   padding: 2rem 1.5rem;
 }
 
-/* === Sessions (Sections) with Visual Indentation === */
+/* === Sessions (Sections) === */
 section.lex-session {
   margin: 1.5rem 0;
-  padding-left: 1.5rem;
-  border-left: 2px solid var(--lex-faintest);
 }
 
 section.lex-session:first-child {
   margin-top: 0;
 }
 
-/* Top-level sessions have no indentation border */
 .lex-document > section.lex-session {
-  padding-left: 0;
-  border-left: none;
   margin: 2rem 0;
 }
 
@@ -294,15 +292,20 @@ section.lex-session:first-child {
   margin-top: 0;
 }
 
-/* Deeper nesting gets subtle left border */
-section.lex-session section.lex-session {
-  border-left-color: var(--lex-faintest);
+/* === Content Containers (AST container visual indentation) === */
+.lex-content {
+  padding-left: 25px;
+}
+
+/* Top-level session content has no indentation */
+.lex-document > section.lex-session > .lex-content {
+  padding-left: 0;
 }
 
 /* === Headings with Scaled Sizes ===
- * Level 1: 2x regular size
+ * Level 1: 1.3x regular size
  * Level 5: 1x regular size
- * Smooth interpolation between levels
+ * Smooth interpolation between levels (0.075 step)
  */
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
@@ -312,25 +315,25 @@ h1, h2, h3, h4, h5, h6 {
   margin: 1.25rem 0 0.75rem;
 }
 
-/* Title sizing: 2x at level 1, decreasing to 1x at level 5 */
+/* Title sizing: 1.3x at level 1, decreasing to 1x at level 5 */
 h1 {
-  font-size: 2em;      /* 2x - Level 1 */
+  font-size: 1.3em;    /* 1.3x - Level 1 */
   margin-top: 0;
   margin-bottom: 1rem;
 }
 
 h2 {
-  font-size: 1.75em;   /* 1.75x - Level 2 */
+  font-size: 1.225em;  /* 1.225x - Level 2 */
   margin-top: 1.5rem;
 }
 
 h3 {
-  font-size: 1.5em;    /* 1.5x - Level 3 */
+  font-size: 1.15em;   /* 1.15x - Level 3 */
   margin-top: 1.25rem;
 }
 
 h4 {
-  font-size: 1.25em;   /* 1.25x - Level 4 */
+  font-size: 1.075em;  /* 1.075x - Level 4 */
   margin-top: 1rem;
 }
 
@@ -370,22 +373,18 @@ section.lex-session > h6:first-child {
   }
 
   h1 {
-    font-size: 1.75em;
+    font-size: 1.225em;
   }
 
   h2 {
-    font-size: 1.5em;
-  }
-
-  h3 {
-    font-size: 1.35em;
-  }
-
-  h4 {
     font-size: 1.15em;
   }
 
-  h5, h6 {
+  h3 {
+    font-size: 1.075em;
+  }
+
+  h4, h5, h6 {
     font-size: 1em;
   }
 }
@@ -393,7 +392,7 @@ section.lex-session > h6:first-child {
 /* === Paragraphs === */
 .lex-paragraph {
   margin: 1rem 0;
-  line-height: 1.7;
+  line-height: 1.25;
   color: var(--lex-normal);
 }
 
@@ -415,7 +414,7 @@ h6 + .lex-paragraph {
 .lex-list {
   margin: 1rem 0;
   padding-left: 2rem;
-  line-height: 1.7;
+  line-height: 1.25;
 }
 
 .lex-list:first-child {
@@ -428,7 +427,7 @@ h6 + .lex-paragraph {
 
 /* List markers in muted color */
 ul.lex-list {
-  list-style-type: disc;
+  list-style-type: "- ";
 }
 
 ol.lex-list {
@@ -464,7 +463,7 @@ ol.lex-list {
   margin-left: 1.5rem;
   margin-top: 0.25rem;
   margin-bottom: 0.5rem;
-  line-height: 1.7;
+  line-height: 1.25;
 }
 
 /* === Code and Verbatim === */
@@ -603,22 +602,22 @@ a:focus {
 <body>
 <div class="lex-document">
 <p class="lex-paragraph">Kitchensink Test Document {{paragraph}}</p><p class="lex-paragraph">This document includes <strong>all major features</strong> of the lex language to serve as a comprehensive "kitchensink" regression test for the parser, as noted in <a href="#ref-spec2025, pp. 45-46">@spec2025, pp. 45-46</a>. {{paragraph}}</p><p class="lex-paragraph">This is a two-lined paragraph.
-First, a simple <em>definition</em> at the root level. {{paragraph}}</p><dl class="lex-definition"><dt>Root Definition</dt><dd><p class="lex-paragraph">This definition contains a paragraph and a <code>list</code> to test mixed content at the top level. {{definition}}</p><ul class="lex-list"><li class="lex-list-item">Item 1 in definition referencing <a href="TK-rootlist">TK-rootlist</a>. {{list-item}}
+First, a simple <em>definition</em> at the root level. {{paragraph}}</p><dl class="lex-definition"><dt>Root Definition</dt><dd><div class="lex-content"><p class="lex-paragraph">This definition contains a paragraph and a <code>list</code> to test mixed content at the top level. {{definition}}</p><ul class="lex-list"><li class="lex-list-item">Item 1 in definition referencing <a href="TK-rootlist">TK-rootlist</a>. {{list-item}}
 </li><li class="lex-list-item">Item 2 in definition with note <a href="42">42</a>. {{list-item}}
-</li></ul></dd></dl><p class="lex-paragraph">This is a marker annotation at the root level, attached to the definition above.</p><section class="lex-session lex-session-1"><h1>1. Primary Session {{session}}</h1><p class="lex-paragraph">This session acts as the main container for testing nested structures. It starts with a simple paragraph. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Followed by a simple list. {{list-item}}
+</li></ul></div></dd></dl><p class="lex-paragraph">This is a marker annotation at the root level, attached to the definition above.</p><section class="lex-session lex-session-1"><h1>1. Primary Session {{session}}</h1><div class="lex-content"><p class="lex-paragraph">This session acts as the main container for testing nested structures. It starts with a simple paragraph. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Followed by a simple list. {{list-item}}
 </li><li class="lex-list-item">This list has two items. {{list-item}}
-</li></ul><!-- lex:warning severity=high --><p class="lex-paragraph"> This is a single-line annotation inside the session.</p><!-- /lex:warning --><section class="lex-session lex-session-2"><h2>1.1. Nested Session (Level 2) {{session}}</h2><p class="lex-paragraph">This is a second-level session containing a definition and a list with nested content. {{paragraph}}</p><dl class="lex-definition"><dt>Nested Definition</dt><dd><p class="lex-paragraph">This definition is inside a nested session and contains a list. {{definition}}</p><ul class="lex-list"><li class="lex-list-item">List inside a nested definition. {{list-item}}
+</li></ul><!-- lex:warning severity=high --><div class="lex-content"><p class="lex-paragraph"> This is a single-line annotation inside the session.</p></div><!-- /lex:warning --><section class="lex-session lex-session-2"><h2>1.1. Nested Session (Level 2) {{session}}</h2><div class="lex-content"><p class="lex-paragraph">This is a second-level session containing a definition and a list with nested content. {{paragraph}}</p><dl class="lex-definition"><dt>Nested Definition</dt><dd><div class="lex-content"><p class="lex-paragraph">This definition is inside a nested session and contains a list. {{definition}}</p><ul class="lex-list"><li class="lex-list-item">List inside a nested definition. {{list-item}}
 </li><li class="lex-list-item">Second item. {{list-item}}
-</li></ul></dd></dl><ul class="lex-list"><li class="lex-list-item">A list item at level 2. {{list-item}}
-<p class="lex-paragraph">This list item contains a nested paragraph. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">And a nested list (Level 3). {{list-item}}
+</li></ul></div></dd></dl><ul class="lex-list"><li class="lex-list-item">A list item at level 2. {{list-item}}
+<div class="lex-content"><p class="lex-paragraph">This list item contains a nested paragraph. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">And a nested list (Level 3). {{list-item}}
 </li><li class="lex-list-item">With its own items. {{list-item}}
-</li></ul></li><li class="lex-list-item">Another list item at level 2. {{list-item}}
-</li></ul></section><p class="lex-paragraph">A paragraph back at the first level of nesting. {{paragraph}}</p><pre class="lex-verbatim" data-language="javascript"><code>// This is a verbatim block with code.
+</li></ul></div></li><li class="lex-list-item">Another list item at level 2. {{list-item}}
+</li></ul></div></section><p class="lex-paragraph">A paragraph back at the first level of nesting. {{paragraph}}</p><pre class="lex-verbatim" data-language="javascript"><code>// This is a verbatim block with code.
 function example() {
 return "lex";
-}</code></pre></section><section class="lex-session lex-session-1"><h1>2. Second Root Session {{session}}</h1><p class="lex-paragraph">This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}</p><pre class="lex-verbatim" data-language="image"><code></code></pre><!-- lex:todo status="open" assignee="team" --><p class="lex-paragraph">This is a block annotation. {{paragraph}}</p><p class="lex-paragraph">It contains a paragraph and a list. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Task 1 to complete. {{list-item}}
+}</code></pre></div></section><section class="lex-session lex-session-1"><h1>2. Second Root Session {{session}}</h1><div class="lex-content"><p class="lex-paragraph">This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}</p><pre class="lex-verbatim" data-language="image"><code></code></pre><!-- lex:todo status="open" assignee="team" --><div class="lex-content"><p class="lex-paragraph">This is a block annotation. {{paragraph}}</p><p class="lex-paragraph">It contains a paragraph and a list. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Task 1 to complete. {{list-item}}
 </li><li class="lex-list-item">Task 2 to complete. {{list-item}}
-</li></ul><!-- /lex:todo --></section><p class="lex-paragraph">Final paragraph at the end of the document. {{paragraph}}</p>
+</li></ul></div><!-- /lex:todo --></div></section><p class="lex-paragraph">Final paragraph at the end of the document. {{paragraph}}</p>
 </div>
 </body>
 </html>

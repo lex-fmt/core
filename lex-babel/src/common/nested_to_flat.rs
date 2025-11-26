@@ -60,8 +60,12 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
         }) => {
             events.push(Event::StartHeading(*level));
             emit_inlines(content, events);
-            for child in children {
-                walk_node(child, events);
+            if !children.is_empty() {
+                events.push(Event::StartContent);
+                for child in children {
+                    walk_node(child, events);
+                }
+                events.push(Event::EndContent);
             }
             events.push(Event::EndHeading(*level));
         }
@@ -89,8 +93,12 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
             emit_inlines(term, events);
             events.push(Event::EndDefinitionTerm);
             events.push(Event::StartDefinitionDescription);
-            for child in description {
-                walk_node(child, events);
+            if !description.is_empty() {
+                events.push(Event::StartContent);
+                for child in description {
+                    walk_node(child, events);
+                }
+                events.push(Event::EndContent);
             }
             events.push(Event::EndDefinitionDescription);
             events.push(Event::EndDefinition);
@@ -109,8 +117,12 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
                 label: label.clone(),
                 parameters: parameters.clone(),
             });
-            for child in content {
-                walk_node(child, events);
+            if !content.is_empty() {
+                events.push(Event::StartContent);
+                for child in content {
+                    walk_node(child, events);
+                }
+                events.push(Event::EndContent);
             }
             events.push(Event::EndAnnotation {
                 label: label.clone(),
@@ -123,8 +135,12 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
 fn walk_list_item(item: &ListItem, events: &mut Vec<Event>) {
     events.push(Event::StartListItem);
     emit_inlines(&item.content, events);
-    for child in &item.children {
-        walk_node(child, events);
+    if !item.children.is_empty() {
+        events.push(Event::StartContent);
+        for child in &item.children {
+            walk_node(child, events);
+        }
+        events.push(Event::EndContent);
     }
     events.push(Event::EndListItem);
 }
@@ -185,16 +201,20 @@ mod tests {
             Event::StartDocument,
             Event::StartHeading(2),
             Event::Inline(InlineContent::Text("Intro".to_string())),
+            Event::StartContent,
             Event::StartParagraph,
             Event::Inline(InlineContent::Text("Welcome".to_string())),
             Event::EndParagraph,
+            Event::EndContent,
             Event::EndHeading(2),
             Event::StartList { ordered: false },
             Event::StartListItem,
             Event::Inline(InlineContent::Text("Item".to_string())),
+            Event::StartContent,
             Event::StartVerbatim(Some("rust".to_string())),
             Event::Inline(InlineContent::Text("fn main() {}".to_string())),
             Event::EndVerbatim,
+            Event::EndContent,
             Event::EndListItem,
             Event::EndList,
             Event::StartDefinition,
@@ -202,18 +222,22 @@ mod tests {
             Event::Inline(InlineContent::Text("Term".to_string())),
             Event::EndDefinitionTerm,
             Event::StartDefinitionDescription,
+            Event::StartContent,
             Event::StartParagraph,
             Event::Inline(InlineContent::Text("Definition".to_string())),
             Event::EndParagraph,
+            Event::EndContent,
             Event::EndDefinitionDescription,
             Event::EndDefinition,
             Event::StartAnnotation {
                 label: "note".to_string(),
                 parameters: vec![("key".to_string(), "value".to_string())],
             },
+            Event::StartContent,
             Event::StartParagraph,
             Event::Inline(InlineContent::Text("Body".to_string())),
             Event::EndParagraph,
+            Event::EndContent,
             Event::EndAnnotation {
                 label: "note".to_string(),
             },

@@ -9,7 +9,6 @@
 *::after {
   box-sizing: border-box;
   margin: 0;
-  padding: 0;
 }
 
 /* === Document Structure === */
@@ -53,6 +52,11 @@ section.lex-session:first-child {
 /* Nested sessions have reduced top margin */
 section.lex-session section.lex-session {
   margin-top: 1.5rem;
+}
+
+/* === Content Containers (AST container structure) === */
+.lex-content {
+  /* Themes add padding-left and border for visual indentation */
 }
 
 h1, h2, h3, h4, h5, h6 {

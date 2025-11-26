@@ -1,6 +1,5 @@
 ---
 source: lex-babel/tests/html/export.rs
-assertion_line: 288
 expression: html
 ---
 <!DOCTYPE html>
@@ -22,13 +21,12 @@ expression: html
 *::after {
   box-sizing: border-box;
   margin: 0;
-  padding: 0;
 }
 
 /* === Document Structure === */
 html {
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.25;
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -68,6 +66,11 @@ section.lex-session section.lex-session {
   margin-top: 1.5rem;
 }
 
+/* === Content Containers (AST container structure) === */
+.lex-content {
+  /* Themes add padding-left and border for visual indentation */
+}
+
 h1, h2, h3, h4, h5, h6 {
   margin: 1.5rem 0 0.75rem;
   line-height: 1.3;
@@ -86,7 +89,7 @@ h6:first-child {
 /* === Paragraphs === */
 .lex-paragraph {
   margin: 1rem 0;
-  line-height: 1.7;
+  line-height: 1.25;
 }
 
 .lex-paragraph:first-child {
@@ -105,7 +108,7 @@ h6:first-child {
 
 .lex-list-item {
   margin: 0.5rem 0;
-  line-height: 1.6;
+  line-height: 1.25;
 }
 
 /* Nested lists */
@@ -261,8 +264,8 @@ body {
   font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
   color: var(--lex-normal);
   background: var(--lex-bg);
-  font-size: 17px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.25;
 }
 
 /* === Document Container === */
@@ -272,21 +275,16 @@ body {
   padding: 2rem 1.5rem;
 }
 
-/* === Sessions (Sections) with Visual Indentation === */
+/* === Sessions (Sections) === */
 section.lex-session {
   margin: 1.5rem 0;
-  padding-left: 1.5rem;
-  border-left: 2px solid var(--lex-faintest);
 }
 
 section.lex-session:first-child {
   margin-top: 0;
 }
 
-/* Top-level sessions have no indentation border */
 .lex-document > section.lex-session {
-  padding-left: 0;
-  border-left: none;
   margin: 2rem 0;
 }
 
@@ -294,15 +292,20 @@ section.lex-session:first-child {
   margin-top: 0;
 }
 
-/* Deeper nesting gets subtle left border */
-section.lex-session section.lex-session {
-  border-left-color: var(--lex-faintest);
+/* === Content Containers (AST container visual indentation) === */
+.lex-content {
+  padding-left: 25px;
+}
+
+/* Top-level session content has no indentation */
+.lex-document > section.lex-session > .lex-content {
+  padding-left: 0;
 }
 
 /* === Headings with Scaled Sizes ===
- * Level 1: 2x regular size
+ * Level 1: 1.3x regular size
  * Level 5: 1x regular size
- * Smooth interpolation between levels
+ * Smooth interpolation between levels (0.075 step)
  */
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
@@ -312,25 +315,25 @@ h1, h2, h3, h4, h5, h6 {
   margin: 1.25rem 0 0.75rem;
 }
 
-/* Title sizing: 2x at level 1, decreasing to 1x at level 5 */
+/* Title sizing: 1.3x at level 1, decreasing to 1x at level 5 */
 h1 {
-  font-size: 2em;      /* 2x - Level 1 */
+  font-size: 1.3em;    /* 1.3x - Level 1 */
   margin-top: 0;
   margin-bottom: 1rem;
 }
 
 h2 {
-  font-size: 1.75em;   /* 1.75x - Level 2 */
+  font-size: 1.225em;  /* 1.225x - Level 2 */
   margin-top: 1.5rem;
 }
 
 h3 {
-  font-size: 1.5em;    /* 1.5x - Level 3 */
+  font-size: 1.15em;   /* 1.15x - Level 3 */
   margin-top: 1.25rem;
 }
 
 h4 {
-  font-size: 1.25em;   /* 1.25x - Level 4 */
+  font-size: 1.075em;  /* 1.075x - Level 4 */
   margin-top: 1rem;
 }
 
@@ -370,22 +373,18 @@ section.lex-session > h6:first-child {
   }
 
   h1 {
-    font-size: 1.75em;
+    font-size: 1.225em;
   }
 
   h2 {
-    font-size: 1.5em;
-  }
-
-  h3 {
-    font-size: 1.35em;
-  }
-
-  h4 {
     font-size: 1.15em;
   }
 
-  h5, h6 {
+  h3 {
+    font-size: 1.075em;
+  }
+
+  h4, h5, h6 {
     font-size: 1em;
   }
 }
@@ -393,7 +392,7 @@ section.lex-session > h6:first-child {
 /* === Paragraphs === */
 .lex-paragraph {
   margin: 1rem 0;
-  line-height: 1.7;
+  line-height: 1.25;
   color: var(--lex-normal);
 }
 
@@ -415,7 +414,7 @@ h6 + .lex-paragraph {
 .lex-list {
   margin: 1rem 0;
   padding-left: 2rem;
-  line-height: 1.7;
+  line-height: 1.25;
 }
 
 .lex-list:first-child {
@@ -428,7 +427,7 @@ h6 + .lex-paragraph {
 
 /* List markers in muted color */
 ul.lex-list {
-  list-style-type: disc;
+  list-style-type: "- ";
 }
 
 ol.lex-list {
@@ -464,7 +463,7 @@ ol.lex-list {
   margin-left: 1.5rem;
   margin-top: 0.25rem;
   margin-bottom: 0.5rem;
-  line-height: 1.7;
+  line-height: 1.25;
 }
 
 /* === Code and Verbatim === */
@@ -602,25 +601,25 @@ a:focus {
 </head>
 <body>
 <div class="lex-document">
-<p class="lex-paragraph">Trifecta Nesting Test {{paragraph}}</p><p class="lex-paragraph">This document tests the combination of all three core elements (sessions, paragraphs, lists) with various levels of nesting. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>1. Root Session {{session-title}}</h1><p class="lex-paragraph">This root session contains various nested elements. {{paragraph}}</p><section class="lex-session lex-session-2"><h2>1.1. Sub-session with Paragraph {{session-title}}</h2><p class="lex-paragraph">This sub-session starts with a paragraph. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Then has a list {{list-item}}
+<p class="lex-paragraph">Trifecta Nesting Test {{paragraph}}</p><p class="lex-paragraph">This document tests the combination of all three core elements (sessions, paragraphs, lists) with various levels of nesting. {{paragraph}}</p><section class="lex-session lex-session-1"><h1>1. Root Session {{session-title}}</h1><div class="lex-content"><p class="lex-paragraph">This root session contains various nested elements. {{paragraph}}</p><section class="lex-session lex-session-2"><h2>1.1. Sub-session with Paragraph {{session-title}}</h2><div class="lex-content"><p class="lex-paragraph">This sub-session starts with a paragraph. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Then has a list {{list-item}}
 </li><li class="lex-list-item">With multiple items {{list-item}}
-</li></ul></section><section class="lex-session lex-session-2"><h2>1.2. Sub-session with List {{session-title}}</h2><ul class="lex-list"><li class="lex-list-item">Starts with a list {{list-item}}
+</li></ul></div></section><section class="lex-session lex-session-2"><h2>1.2. Sub-session with List {{session-title}}</h2><div class="lex-content"><ul class="lex-list"><li class="lex-list-item">Starts with a list {{list-item}}
 </li><li class="lex-list-item">Has multiple items {{list-item}}
-</li></ul><p class="lex-paragraph">Then has a paragraph. {{paragraph}}</p><section class="lex-session lex-session-3"><h3>1.2.1. Deeply Nested Session {{session-title}}</h3><p class="lex-paragraph">This is a deeply nested session. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">With its own list {{list-item}}
+</li></ul><p class="lex-paragraph">Then has a paragraph. {{paragraph}}</p><section class="lex-session lex-session-3"><h3>1.2.1. Deeply Nested Session {{session-title}}</h3><div class="lex-content"><p class="lex-paragraph">This is a deeply nested session. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">With its own list {{list-item}}
 </li><li class="lex-list-item">And multiple items {{list-item}}
 </li></ul><ul class="lex-list"><li class="lex-list-item">Another list follows {{list-item}}
 </li><li class="lex-list-item">In the same session {{list-item}}
-</li></ul></section></section><p class="lex-paragraph">Back to the root session level. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Root session can also have lists {{list-item}}
+</li></ul></div></section></div></section><p class="lex-paragraph">Back to the root session level. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Root session can also have lists {{list-item}}
 </li><li class="lex-list-item">At its own level {{list-item}}
-</li></ul></section><section class="lex-session lex-session-1"><h1>2. Another Root Session {{session-title}}</h1><p class="lex-paragraph">This session demonstrates different nesting patterns. {{paragraph}}</p><section class="lex-session lex-session-2"><h2>2.1. Mixed Content Sub-session {{session-title}}</h2><ul class="lex-list"><li class="lex-list-item">Starts with list {{list-item}}
+</li></ul></div></section><section class="lex-session lex-session-1"><h1>2. Another Root Session {{session-title}}</h1><div class="lex-content"><p class="lex-paragraph">This session demonstrates different nesting patterns. {{paragraph}}</p><section class="lex-session lex-session-2"><h2>2.1. Mixed Content Sub-session {{session-title}}</h2><div class="lex-content"><ul class="lex-list"><li class="lex-list-item">Starts with list {{list-item}}
 </li><li class="lex-list-item">Multiple items {{list-item}}
 </li></ul><p class="lex-paragraph">Paragraph in the middle. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Ends with another list {{list-item}}
 </li><li class="lex-list-item">To complete the pattern {{list-item}}
-</li></ul><section class="lex-session lex-session-3"><h3>2.1.1. Even Deeper Nesting {{session-title}}</h3><p class="lex-paragraph">The deepest level contains paragraphs and lists. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">First deep list {{list-item}}
+</li></ul><section class="lex-session lex-session-3"><h3>2.1.1. Even Deeper Nesting {{session-title}}</h3><div class="lex-content"><p class="lex-paragraph">The deepest level contains paragraphs and lists. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">First deep list {{list-item}}
 </li><li class="lex-list-item">Second deep item {{list-item}}
 </li></ul><p class="lex-paragraph">Another paragraph at deep level. {{paragraph}}</p><ul class="lex-list"><li class="lex-list-item">Second deep list {{list-item}}
 </li><li class="lex-list-item">Completing the deep structure {{list-item}}
-</li></ul></section></section></section><p class="lex-paragraph">Final root level paragraph. {{paragraph}}</p>
+</li></ul></div></section></div></section></div></section><p class="lex-paragraph">Final root level paragraph. {{paragraph}}</p>
 </div>
 </body>
 </html>
