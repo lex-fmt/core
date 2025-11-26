@@ -111,6 +111,14 @@ fn build_comrak_ast<'a>(
                 current_heading = None;
             }
 
+            Event::StartContent => {
+                // Content markers are for HTML indentation - no-op in Markdown
+            }
+
+            Event::EndContent => {
+                // Content markers are for HTML indentation - no-op in Markdown
+            }
+
             Event::StartParagraph => {
                 // Block after a heading – inline content should no longer
                 // target the heading title.

@@ -89,6 +89,22 @@ fn build_html_dom(events: &[Event]) -> Result<RcDom, FormatError> {
                 })?;
             }
 
+            Event::StartContent => {
+                // Create content wrapper (mirrors AST container structure for indentation)
+                current_heading = None;
+                let content = create_element("div", vec![("class", "lex-content")]);
+                current_parent.children.borrow_mut().push(content.clone());
+                parent_stack.push(current_parent.clone());
+                current_parent = content;
+            }
+
+            Event::EndContent => {
+                // Close content wrapper
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced content end".to_string())
+                })?;
+            }
+
             Event::StartParagraph => {
                 current_heading = None;
                 let para = create_element("p", vec![("class", "lex-paragraph")]);
@@ -453,7 +469,7 @@ mod tests {
 
         assert!(html.contains("<style>"));
         assert!(html.contains(".lex-document"));
-        assert!(html.contains("Inter")); // Modern theme uses Inter font
+        assert!(html.contains("Helvetica")); // Modern theme uses Helvetica font
     }
 
     #[test]
