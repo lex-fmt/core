@@ -217,6 +217,11 @@ local function ensure_binary(version)
     return nil
   end
 
+  -- If version is a path to an existing file, use it directly
+  if vim.fn.filereadable(version) == 1 then
+    return version
+  end
+
   local plugin_root = get_plugin_root()
   local bin_dir = plugin_root .. '/bin'
   ensure_dir(bin_dir)

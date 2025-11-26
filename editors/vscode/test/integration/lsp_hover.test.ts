@@ -15,8 +15,8 @@ interface HoverExpectation {
 }
 
 const EXPECTATIONS: HoverExpectation[] = [
-  { search: '^source', description: 'footnote reference hover' },
-  { search: '@spec2025', description: 'citation hover' },
+  { search: '^footnote', description: 'footnote reference hover' },
+  { search: '@citation', description: 'citation hover' },
   { search: 'Cache]', description: 'definition / reference hover' }
 ];
 

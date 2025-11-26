@@ -96,6 +96,7 @@ local ok, lex = pcall(require, "lex")
 if ok then
   lex.setup({
     cmd = { lex_lsp_path },  -- Path to lex-lsp binary
+    -- debug_theme = true,   -- Uncomment to use lex-light.json colors for visual testing
   })
 elseif vim.env.DEBUG_LEX_INIT then
   print("Failed to load lex plugin - semantic tokens won't work for .lex files")
