@@ -3,7 +3,7 @@
 
 
 Ideas, Naked
- 
+
     We know of nothing more powerful than ideas, and no denser medium for them than written language. (actually we do, math, but math is too dense).
 
     Specific ideas differ, but there is an ideal structure for ideas, as they are made of the same things: definitions, descriptions, references, comparisons, connections, structure and so on.
@@ -14,7 +14,7 @@ Ideas, Naked
 
 
 1. Formating Ideas
-    
+
     HTML has proven to be a very rich structure for ideas of all kinds, but it is very tied to browser, presentation and other publishing legacies in one way, and too poor conceptually in others (flat structure, sections are lists). Wikimedia's format is a good candidate, but also too domain and legacy driven.  
 
     The best candidates we have from this tend to be SGML descendants in a variety of XML formats, normally quite domain specific. While very capable and widely used, these serve as the backend part, while content is authored somewhere else (LaTeX, Doc, HTML), that is they are the final stage of an automated pipeline. 
@@ -23,7 +23,7 @@ Ideas, Naked
         IBM's 1960s Generalized Markup Language work by Charles Goldfarb, Edward Mosher, and Raymond Lorie. GML established the principle of separating content from presentation—marking up what something is (a title, equation, citation) rather than how it should look. Later on SGML, in the 80s standardized and expanded the idea.
 
         HTML and XML are the children of these, and have proven incredibly successful as general vessels of human knowledge. They have, however, from SGML and parts of XML proven to be too complex and never quite achieved the universal and unequivocal format they hoped to be.
-        
+
     There is an underlying assumption here, that any such formats are not good fits for generating / iterating through ideas, but as a final database-like stop. HTML, probably the most successful under this light has proven way too complex for people to hand edit, and in fact, it rarely is, with the work being done either by bespoke GUIs or markdown (which is great at this)
 
 
