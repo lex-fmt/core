@@ -121,7 +121,7 @@ function buildSemanticTokenRules(colors: MonochromeColors): Record<string, strin
 
 const SEMANTIC_TOKEN_CONFIG_KEY = 'editor.semanticTokenColorCustomizations';
 
-async function getExistingCustomizations(): Promise<Record<string, unknown>> {
+function getExistingCustomizations(): Record<string, unknown> {
   const config = vscode.workspace.getConfiguration();
   return config.get<Record<string, unknown>>(SEMANTIC_TOKEN_CONFIG_KEY) ?? {};
 }
@@ -130,7 +130,7 @@ export async function applyLexTheme(): Promise<void> {
   const colors = getMonochromeColors();
   const rules = buildSemanticTokenRules(colors);
 
-  const existing = await getExistingCustomizations();
+  const existing = getExistingCustomizations();
   const existingRules = (existing.rules as Record<string, unknown>) ?? {};
 
   // Merge our lex-specific rules with any existing rules
