@@ -1,3 +1,5 @@
+/* eslint-env node */
+
 function activate() {
   console.log('Lex VSIX smoke harness activated');
 }

@@ -50,5 +50,15 @@ export default [
       '@typescript-eslint/no-floating-promises': 'off',
       'no-undef': 'off'
     }
+  },
+  {
+    files: ['test/vsix-smoke-extension/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: {
+        ...globals.node
+      }
+    }
   }
 ];
