@@ -103,3 +103,18 @@ Editor Tooling
 
     These are currently working in the Neovim plugin. All of these are built over the LSP protocol, with the lex-lsp binary being the server.
 
+
+8. Configuration
+
+    The Lex formatter can be configured via `lex.toml` or editor settings. The available options are:
+
+    | Option | Type | Default | Description |
+    |---|---|---|---|
+    | `session_blank_lines_before` | Integer | `1` | Number of blank lines before a session title. |
+    | `session_blank_lines_after` | Integer | `1` | Number of blank lines after a session title. |
+    | `normalize_seq_markers` | Boolean | `true` | Whether to normalize list markers (e.g. all bullets to `-`). |
+    | `unordered_seq_marker` | Character | `-` | The character to use for unordered list markers. |
+    | `max_blank_lines` | Integer | `2` | Maximum number of consecutive blank lines allowed. |
+    | `indent_string` | String | `"    "` | String to use for indentation (usually 4 spaces). |
+    | `preserve_trailing_blanks` | Boolean | `false` | Whether to preserve trailing blank lines at the end of the document. |
+    | `normalize_verbatim_markers` | Boolean | `true` | Whether to normalize verbatim markers to `::`.
