@@ -1,5 +1,6 @@
 node_modules
 out/test
+dist
 test
 src
 scripts
@@ -7,3 +8,5 @@ scripts
 .eslintrc.*
 *.ts
 *.ts.map
+.vscode-test
+.vscode-test-user-data

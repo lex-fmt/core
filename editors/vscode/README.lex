@@ -31,6 +31,16 @@ Features Covered
 - Semantic tokens, document symbols, hover info, folding ranges.
 - Go to definition, find references, document links.
 - Whole-document formatting (shares fixtures with lex-lsp tests).
+- Monochrome syntax theme for .lex files (adapts to light/dark mode).
+
+Theming
+-------
+Lex applies a monochrome theme to .lex files that uses typography (bold, italic)
+and grayscale intensity levels rather than colors. This reduces visual noise and
+keeps focus on the content. The theme automatically adapts to VS Code's light or
+dark mode.
+
+See `src/theme.ts` for implementation details and the rationale behind this approach.
 
 Implementation Notes
 --------------------

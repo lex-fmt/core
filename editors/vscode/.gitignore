@@ -1,2 +1,4 @@
 .vscode-test-user-data/
+.vscode-vsix-test/
+.vscode-vsix-integration-test/
 *.vsix

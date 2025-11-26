@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { existsSync } from 'node:fs';
 import { LanguageClient } from 'vscode-languageclient/node.js';
 import {
   buildLexExtensionConfig,
@@ -6,6 +7,7 @@ import {
   LSP_BINARY_SETTING
 } from './config.js';
 import { createLexClient } from './client.js';
+import { applyLexTheme, setupThemeListeners } from './theme.js';
 
 export interface LexExtensionApi {
   clientReady(): Promise<void>;
@@ -34,6 +36,10 @@ function createApi(): LexExtensionApi {
 export async function activate(
   context: vscode.ExtensionContext
 ): Promise<LexExtensionApi> {
+  // Apply monochrome theme for .lex files (adapts to light/dark mode)
+  await applyLexTheme();
+  setupThemeListeners(context);
+
   const config = vscode.workspace.getConfiguration(LEX_CONFIGURATION_SECTION);
   const configuredLspPath = config.get<string | null>(LSP_BINARY_SETTING, null);
   const resolvedConfig = buildLexExtensionConfig(
@@ -43,6 +49,12 @@ export async function activate(
 
   if (shouldSkipLanguageClient()) {
     console.info('[lex] Skipping language client startup (LEX_VSCODE_SKIP_SERVER=1).');
+    signalClientReady();
+    return createApi();
+  }
+
+  if (!existsSync(resolvedConfig.lspBinaryPath)) {
+    console.warn(`[lex] LSP binary not found at ${resolvedConfig.lspBinaryPath}. Language features disabled.`);
     signalClientReady();
     return createApi();
   }

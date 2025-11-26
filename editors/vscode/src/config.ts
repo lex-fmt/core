@@ -2,7 +2,8 @@ import path from 'node:path';
 
 export const LEX_CONFIGURATION_SECTION = 'lex';
 export const LSP_BINARY_SETTING = 'lspBinaryPath';
-const DEFAULT_RELATIVE_BINARY = '../../target/debug/lex-lsp';
+// Default path to the bundled LSP binary (matches package.json default)
+const DEFAULT_RELATIVE_BINARY = './resources/lex-lsp';
 const WINDOWS_EXECUTABLE_SUFFIX = '.exe';
 
 function normalizeWindowsExecutable(

@@ -85,4 +85,4 @@ npm run build
 npm run bundle
 popd >/dev/null
 
-echo "Extension bundle written to $EXT_DIR/dist/extension.js"
+echo "Extension bundle written to $EXT_DIR/out/src/main.cjs"
