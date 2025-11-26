@@ -1,6 +1,6 @@
 use lex_parser::lex::ast::{
-    Annotation, AstNode, ContentItem, Definition, Document, List, Range, Session, TextContent,
-    Verbatim,
+    Annotation, AstNode, ContentItem, Definition, Document, List, ListItem, Paragraph, Range,
+    Session, TextContent, Verbatim,
 };
 use lsp_types::SymbolKind;
 
@@ -58,13 +58,8 @@ fn collect_symbols_from_items<'a>(
             ContentItem::List(list) => symbols.push(list_symbol(list)),
             ContentItem::Annotation(annotation) => symbols.push(annotation_symbol(annotation)),
             ContentItem::VerbatimBlock(verbatim) => symbols.push(verbatim_symbol(verbatim)),
-            ContentItem::Paragraph(paragraph) => {
-                symbols.extend(annotation_symbol_list(paragraph.annotations()));
-            }
-            ContentItem::ListItem(list_item) => {
-                symbols.extend(annotation_symbol_list(list_item.annotations()));
-                symbols.extend(collect_symbols_from_items(list_item.children.iter()));
-            }
+            ContentItem::Paragraph(paragraph) => symbols.push(paragraph_symbol(paragraph)),
+            ContentItem::ListItem(list_item) => symbols.push(list_item_symbol(list_item)),
             ContentItem::TextLine(_)
             | ContentItem::VerbatimLine(_)
             | ContentItem::BlankLineGroup(_) => {}
@@ -92,12 +87,8 @@ fn definition_symbol(definition: &Definition) -> LexDocumentSymbol {
 
 fn list_symbol(list: &List) -> LexDocumentSymbol {
     let mut children = annotation_symbol_list(list.annotations());
-    for item in list.items.iter() {
-        if let ContentItem::ListItem(list_item) = item {
-            children.extend(annotation_symbol_list(list_item.annotations()));
-            children.extend(collect_symbols_from_items(list_item.children.iter()));
-        }
-    }
+    children.extend(collect_symbols_from_items(list.items.iter()));
+
     LexDocumentSymbol {
         name: format!("List ({} items)", list.items.len()),
         detail: None,
@@ -123,6 +114,45 @@ fn verbatim_symbol(verbatim: &Verbatim) -> LexDocumentSymbol {
             .location
             .clone()
             .unwrap_or_else(|| verbatim.range().clone()),
+        children,
+    }
+}
+
+fn paragraph_symbol(paragraph: &Paragraph) -> LexDocumentSymbol {
+    let children = annotation_symbol_list(paragraph.annotations());
+    // Use the first line of text as the name, truncated if necessary
+    let name = if let Some(ContentItem::TextLine(first_line)) = paragraph.lines.first() {
+        summarize_text(&first_line.content, "Paragraph")
+    } else {
+        "Paragraph".to_string()
+    };
+
+    LexDocumentSymbol {
+        name,
+        detail: None,
+        kind: SymbolKind::STRING,
+        range: paragraph.range().clone(),
+        selection_range: paragraph.range().clone(),
+        children,
+    }
+}
+
+fn list_item_symbol(list_item: &ListItem) -> LexDocumentSymbol {
+    let mut children = annotation_symbol_list(list_item.annotations());
+    children.extend(collect_symbols_from_items(list_item.children.iter()));
+
+    let name = if let Some(first_text) = list_item.text.first() {
+        summarize_text(first_text, "List Item")
+    } else {
+        "List Item".to_string()
+    };
+
+    LexDocumentSymbol {
+        name: format!("{} {}", list_item.marker.as_string(), name),
+        detail: None,
+        kind: SymbolKind::FIELD, // Or Property/Variable
+        range: list_item.range().clone(),
+        selection_range: list_item.range().clone(),
         children,
     }
 }
@@ -195,12 +225,64 @@ mod tests {
         let definition_symbol = session
             .children
             .iter()
-            .find(|child| child.name.contains("Cache"))
+            .find(|child| child.name.contains("Cache") && child.kind == SymbolKind::STRUCT)
             .expect("definition symbol not found");
-        assert!(definition_symbol
+
+        fn find_recursive(symbols: &[LexDocumentSymbol], name_part: &str) -> bool {
+            symbols
+                .iter()
+                .any(|s| s.name.contains(name_part) || find_recursive(&s.children, name_part))
+        }
+
+        assert!(
+            find_recursive(&definition_symbol.children, ":: callout ::"),
+            "callout not found in definition"
+        );
+    }
+
+    #[test]
+    fn includes_paragraphs_and_list_items() {
+        use lex_parser::lex::ast::elements::paragraph::TextLine;
+        use lex_parser::lex::ast::{ContentItem, List, ListItem, Paragraph, TextContent};
+
+        // Create a document with a paragraph and a list
+        let paragraph = Paragraph::new(vec![ContentItem::TextLine(TextLine::new(
+            TextContent::from_string("Hello World".to_string(), None),
+        ))]);
+
+        let list_item = ListItem::new("-".to_string(), "Item 1".to_string());
+        let list = List::new(vec![list_item]);
+
+        let document = Document::with_content(vec![
+            ContentItem::Paragraph(paragraph),
+            ContentItem::List(list),
+        ]);
+
+        let symbols = collect_document_symbols(&document);
+
+        // Check for paragraph
+        let paragraph_symbol = symbols
+            .iter()
+            .find(|s| s.name == "Hello World")
+            .expect("Paragraph symbol not found");
+        assert_eq!(paragraph_symbol.kind, SymbolKind::STRING);
+
+        // Check for list
+        let list_symbol = symbols
+            .iter()
+            .find(|s| s.name.contains("List"))
+            .expect("List symbol not found");
+
+        // Check for list item
+        let item_symbol = list_symbol
             .children
             .iter()
-            .any(|child| child.name.contains(":: callout ::")));
+            .find(|s| s.name.contains("Item 1"));
+        if item_symbol.is_none() {
+            println!("List symbol children: {:#?}", list_symbol.children);
+        }
+        let item_symbol = item_symbol.expect("List item symbol not found");
+        assert!(item_symbol.name.contains("-"));
     }
 
     #[test]
