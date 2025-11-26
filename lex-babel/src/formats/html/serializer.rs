@@ -7,7 +7,7 @@ use crate::common::nested_to_flat::tree_to_events;
 use crate::error::FormatError;
 use crate::formats::html::HtmlTheme;
 use crate::ir::events::Event;
-use crate::ir::nodes::{DocNode, InlineContent};
+use crate::ir::nodes::{DocNode, InlineContent, TableCellAlignment};
 use html5ever::{
     ns, serialize, serialize::SerializeOpts, serialize::TraversalScope, Attribute, LocalName,
     QualName,
@@ -215,6 +215,55 @@ fn build_html_dom(events: &[Event]) -> Result<RcDom, FormatError> {
                     FormatError::SerializationError(
                         "Unbalanced definition description end".to_string(),
                     )
+                })?;
+            }
+
+            Event::StartTable => {
+                current_heading = None;
+                let table = create_element("table", vec![("class", "lex-table")]);
+                current_parent.children.borrow_mut().push(table.clone());
+                parent_stack.push(current_parent.clone());
+                current_parent = table;
+            }
+
+            Event::EndTable => {
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced table end".to_string())
+                })?;
+            }
+
+            Event::StartTableRow { header: _ } => {
+                let tr = create_element("tr", vec![]);
+                current_parent.children.borrow_mut().push(tr.clone());
+                parent_stack.push(current_parent.clone());
+                current_parent = tr;
+            }
+
+            Event::EndTableRow => {
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced table row end".to_string())
+                })?;
+            }
+
+            Event::StartTableCell { header, align } => {
+                let tag = if *header { "th" } else { "td" };
+                let mut attrs = vec![];
+                match align {
+                    TableCellAlignment::Left => attrs.push(("style", "text-align: left")),
+                    TableCellAlignment::Right => attrs.push(("style", "text-align: right")),
+                    TableCellAlignment::Center => attrs.push(("style", "text-align: center")),
+                    TableCellAlignment::None => {}
+                }
+
+                let cell = create_element(tag, attrs);
+                current_parent.children.borrow_mut().push(cell.clone());
+                parent_stack.push(current_parent.clone());
+                current_parent = cell;
+            }
+
+            Event::EndTableCell => {
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced table cell end".to_string())
                 })?;
             }
 

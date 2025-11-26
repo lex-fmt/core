@@ -12,6 +12,7 @@ pub enum DocNode {
     Verbatim(Verbatim),
     Annotation(Annotation),
     Inline(InlineContent),
+    Table(Table),
 }
 
 /// Represents the root of a document.
@@ -68,6 +69,37 @@ pub struct Annotation {
     pub label: String,
     pub parameters: Vec<(String, String)>,
     pub content: Vec<DocNode>,
+}
+
+/// Represents a table.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Table {
+    pub rows: Vec<TableRow>,
+    pub header: Vec<TableRow>,
+    pub caption: Option<Vec<InlineContent>>,
+}
+
+/// Represents a table row.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TableRow {
+    pub cells: Vec<TableCell>,
+}
+
+/// Represents a table cell.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TableCell {
+    pub content: Vec<DocNode>,
+    pub header: bool,
+    pub align: TableCellAlignment,
+}
+
+/// Alignment of a table cell.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TableCellAlignment {
+    Left,
+    Center,
+    Right,
+    None,
 }
 
 /// Represents inline content, such as text, bold, italics, etc.

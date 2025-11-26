@@ -6,8 +6,8 @@
 use crate::common::nested_to_flat::tree_to_events;
 use crate::error::FormatError;
 use crate::ir::events::Event;
-use crate::ir::nodes::{DocNode, InlineContent};
-use comrak::nodes::{Ast, AstNode, ListDelimType, ListType, NodeValue};
+use crate::ir::nodes::{DocNode, InlineContent, TableCellAlignment};
+use comrak::nodes::{Ast, AstNode, ListDelimType, ListType, NodeTable, NodeValue, TableAlignment};
 use comrak::{format_commonmark, Arena, ComrakOptions};
 use lex_parser::lex::ast::Document;
 use std::cell::RefCell;
@@ -80,6 +80,9 @@ fn build_comrak_ast<'a>(
     let mut in_list_item = false;
     let mut list_item_paragraph: Option<&'a AstNode<'a>> = None;
 
+    // State for handling table cells (flatten paragraphs inside cells)
+    let mut in_table_cell = false;
+
     for event in events {
         match event {
             Event::StartDocument => {
@@ -124,23 +127,30 @@ fn build_comrak_ast<'a>(
                 // target the heading title.
                 current_heading = None;
 
-                let para_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
-                    NodeValue::Paragraph,
-                    (0, 0).into(),
-                ))));
-                current_parent.append(para_node);
-                parent_stack.push(current_parent);
-                current_parent = para_node;
-                // If we're in a list item, this explicit paragraph replaces any auto-created one
-                if in_list_item {
-                    list_item_paragraph = None;
+                if in_table_cell {
+                    // Don't create paragraph node inside table cell
+                    // Just let inline content be added to current_parent (which is TableCell)
+                } else {
+                    let para_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                        NodeValue::Paragraph,
+                        (0, 0).into(),
+                    ))));
+                    current_parent.append(para_node);
+                    parent_stack.push(current_parent);
+                    current_parent = para_node;
+                    // If we're in a list item, this explicit paragraph replaces any auto-created one
+                    if in_list_item {
+                        list_item_paragraph = None;
+                    }
                 }
             }
 
             Event::EndParagraph => {
-                current_parent = parent_stack.pop().ok_or_else(|| {
-                    FormatError::SerializationError("Unbalanced paragraph end".to_string())
-                })?;
+                if !in_table_cell {
+                    current_parent = parent_stack.pop().ok_or_else(|| {
+                        FormatError::SerializationError("Unbalanced paragraph end".to_string())
+                    })?;
+                }
             }
 
             Event::StartList { ordered } => {
@@ -363,6 +373,86 @@ fn build_comrak_ast<'a>(
 
             Event::EndDefinitionDescription => {
                 // Nothing needed
+            }
+
+            Event::StartTable => {
+                current_heading = None;
+                let table_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Table(NodeTable {
+                        alignments: vec![],
+                        num_columns: 0,
+                        num_rows: 0,
+                        num_nonempty_cells: 0,
+                    }),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(table_node);
+                parent_stack.push(current_parent);
+                current_parent = table_node;
+            }
+
+            Event::EndTable => {
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced table end".to_string())
+                })?;
+            }
+
+            Event::StartTableRow { header } => {
+                let row_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::TableRow(*header),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(row_node);
+                parent_stack.push(current_parent);
+                current_parent = row_node;
+            }
+
+            Event::EndTableRow => {
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced table row end".to_string())
+                })?;
+            }
+
+            Event::StartTableCell { header: _, align } => {
+                let cell_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::TableCell,
+                    (0, 0).into(),
+                ))));
+                current_parent.append(cell_node);
+                parent_stack.push(current_parent);
+
+                // Update table alignments if we are in the first row
+                if parent_stack.len() >= 2 {
+                    let table_node = parent_stack[parent_stack.len() - 2];
+                    let row_node = parent_stack[parent_stack.len() - 1];
+
+                    let mut table_data = table_node.data.borrow_mut();
+                    if let NodeValue::Table(ref mut table) = table_data.value {
+                        let is_first_row = table_node
+                            .first_child()
+                            .map_or(false, |first| std::ptr::eq(first, row_node));
+
+                        if is_first_row {
+                            let align_enum = match align {
+                                TableCellAlignment::Left => TableAlignment::Left,
+                                TableCellAlignment::Right => TableAlignment::Right,
+                                TableCellAlignment::Center => TableAlignment::Center,
+                                TableCellAlignment::None => TableAlignment::None,
+                            };
+                            table.alignments.push(align_enum);
+                        }
+                    }
+                }
+
+                current_parent = cell_node;
+                in_table_cell = true;
+            }
+
+            Event::EndTableCell => {
+                in_table_cell = false;
+                current_parent = parent_stack.pop().ok_or_else(|| {
+                    FormatError::SerializationError("Unbalanced table cell end".to_string())
+                })?;
             }
         }
     }

@@ -34,7 +34,7 @@
 use crate::ir::events::Event;
 use crate::ir::nodes::{
     Annotation, Definition, DocNode, Document, Heading, InlineContent, List, ListItem, Paragraph,
-    Verbatim,
+    Table, TableCell, TableRow, Verbatim,
 };
 
 /// Converts a `DocNode` tree to a flat vector of `Event`s.
@@ -128,8 +128,45 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
                 label: label.clone(),
             });
         }
+        DocNode::Table(Table {
+            rows,
+            header,
+            caption: _,
+        }) => {
+            events.push(Event::StartTable);
+            for row in header {
+                walk_table_row(row, events, true);
+            }
+            for row in rows {
+                walk_table_row(row, events, false);
+            }
+            events.push(Event::EndTable);
+        }
         DocNode::Inline(inline) => events.push(Event::Inline(inline.clone())),
     }
+}
+
+fn walk_table_row(row: &TableRow, events: &mut Vec<Event>, header: bool) {
+    events.push(Event::StartTableRow { header });
+    for cell in &row.cells {
+        walk_table_cell(cell, events);
+    }
+    events.push(Event::EndTableRow);
+}
+
+fn walk_table_cell(cell: &TableCell, events: &mut Vec<Event>) {
+    events.push(Event::StartTableCell {
+        header: cell.header,
+        align: cell.align,
+    });
+    if !cell.content.is_empty() {
+        events.push(Event::StartContent);
+        for child in &cell.content {
+            walk_node(child, events);
+        }
+        events.push(Event::EndContent);
+    }
+    events.push(Event::EndTableCell);
 }
 
 fn walk_list_item(item: &ListItem, events: &mut Vec<Event>) {

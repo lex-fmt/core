@@ -14,7 +14,7 @@ use lex_parser::lex::ast::{Data, Document as LexDocument, Parameter, Range, Text
 
 use super::nodes::{
     Annotation, Definition, DocNode, Document, Heading, InlineContent, List, ListItem, Paragraph,
-    Verbatim,
+    Table, TableCell, TableRow, Verbatim,
 };
 
 /// Converts an IR document to a Lex document.
@@ -45,6 +45,7 @@ fn to_lex_content_items(node: &DocNode, level: usize) -> Vec<LexContentItem> {
         DocNode::Definition(def) => vec![to_lex_definition(def)],
         DocNode::Verbatim(verb) => vec![to_lex_verbatim(verb)],
         DocNode::Annotation(ann) => vec![to_lex_annotation(ann, level)],
+        DocNode::Table(table) => vec![to_lex_table(table, level)],
         DocNode::Inline(_) => {
             // Inline content should not appear at block level
             vec![]
@@ -52,7 +53,6 @@ fn to_lex_content_items(node: &DocNode, level: usize) -> Vec<LexContentItem> {
     }
 }
 
-/// Converts an IR Heading to a Lex Session.
 fn to_lex_session(heading: &Heading, level: usize) -> LexContentItem {
     let title_text = inline_content_to_text(&heading.content);
     let title = TextContent::from_string(title_text, None);
@@ -66,6 +66,93 @@ fn to_lex_session(heading: &Heading, level: usize) -> LexContentItem {
     let session_children = typed_content::into_session_contents(children);
 
     LexContentItem::Session(LexSession::new(title, session_children))
+}
+
+/// Converts an IR Table to a Lex Annotation (nested).
+fn to_lex_table(table: &Table, level: usize) -> LexContentItem {
+    let label = Label::new("table".to_string());
+    let parameters = Vec::new(); // Could add caption here if needed
+
+    let mut children = Vec::new();
+
+    // Header
+    if !table.header.is_empty() {
+        let thead_label = Label::new("thead".to_string());
+        let mut thead_rows = Vec::new();
+        for row in &table.header {
+            thead_rows.push(to_lex_table_row(row, level + 1));
+        }
+        let thead = LexContentItem::Annotation(LexAnnotation::new(
+            thead_label,
+            Vec::new(),
+            to_content_elements(thead_rows),
+        ));
+        children.push(thead);
+    }
+
+    // Body (rows)
+    let tbody_label = Label::new("tbody".to_string());
+    let mut tbody_rows = Vec::new();
+    for row in &table.rows {
+        tbody_rows.push(to_lex_table_row(row, level + 1));
+    }
+    let tbody = LexContentItem::Annotation(LexAnnotation::new(
+        tbody_label,
+        Vec::new(),
+        to_content_elements(tbody_rows),
+    ));
+    children.push(tbody);
+
+    LexContentItem::Annotation(LexAnnotation::new(
+        label,
+        parameters,
+        to_content_elements(children),
+    ))
+}
+
+fn to_lex_table_row(row: &TableRow, level: usize) -> LexContentItem {
+    let label = Label::new("tr".to_string());
+    let mut cells = Vec::new();
+    for cell in &row.cells {
+        cells.push(to_lex_table_cell(cell, level + 1));
+    }
+    LexContentItem::Annotation(LexAnnotation::new(
+        label,
+        Vec::new(),
+        to_content_elements(cells),
+    ))
+}
+
+fn to_lex_table_cell(cell: &TableCell, level: usize) -> LexContentItem {
+    let label_str = if cell.header { "th" } else { "td" };
+    let label = Label::new(label_str.to_string());
+
+    let mut parameters = Vec::new();
+    // Handle alignment
+    let align_val = match cell.align {
+        crate::ir::nodes::TableCellAlignment::Left => Some("left"),
+        crate::ir::nodes::TableCellAlignment::Center => Some("center"),
+        crate::ir::nodes::TableCellAlignment::Right => Some("right"),
+        crate::ir::nodes::TableCellAlignment::None => None,
+    };
+    if let Some(align) = align_val {
+        parameters.push(Parameter {
+            key: "align".to_string(),
+            value: align.to_string(),
+            location: default_range(),
+        });
+    }
+
+    let mut content = Vec::new();
+    for child in &cell.content {
+        content.extend(to_lex_content_items(child, level + 1));
+    }
+
+    LexContentItem::Annotation(LexAnnotation::new(
+        label,
+        parameters,
+        to_content_elements(content),
+    ))
 }
 
 /// Converts an IR Paragraph to a Lex Paragraph.

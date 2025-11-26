@@ -127,6 +127,20 @@ enum StackNode {
         parameters: Vec<(String, String)>,
         content: Vec<DocNode>,
     },
+    Table {
+        rows: Vec<TableRow>,
+        header: Vec<TableRow>,
+        caption: Option<Vec<InlineContent>>,
+    },
+    TableRow {
+        cells: Vec<TableCell>,
+        header: bool,
+    },
+    TableCell {
+        content: Vec<DocNode>,
+        header: bool,
+        align: TableCellAlignment,
+    },
 }
 
 impl StackNode {
@@ -163,6 +177,24 @@ impl StackNode {
                 parameters,
                 content,
             }),
+            StackNode::Table {
+                rows,
+                header,
+                caption,
+            } => DocNode::Table(Table {
+                rows,
+                header,
+                caption,
+            }),
+            StackNode::TableRow { cells: _, .. } => {
+                // TableRow is not a DocNode, it's part of Table
+                // This should not happen if logic is correct (TableRow is consumed by Table)
+                panic!("TableRow cannot be converted directly to DocNode")
+            }
+            StackNode::TableCell { .. } => {
+                // TableCell is not a DocNode
+                panic!("TableCell cannot be converted directly to DocNode")
+            }
         }
     }
 
@@ -177,6 +209,9 @@ impl StackNode {
             StackNode::Definition { .. } => "Definition",
             StackNode::Verbatim { .. } => "Verbatim",
             StackNode::Annotation { .. } => "Annotation",
+            StackNode::Table { .. } => "Table",
+            StackNode::TableRow { .. } => "TableRow",
+            StackNode::TableCell { .. } => "TableCell",
         }
     }
 
@@ -221,6 +256,10 @@ impl StackNode {
                 }
             }
             StackNode::Annotation { content, .. } => {
+                content.push(child);
+                Ok(())
+            }
+            StackNode::TableCell { content, .. } => {
                 content.push(child);
                 Ok(())
             }
@@ -659,6 +698,122 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
                         }),
                     },
                 )?;
+            }
+
+            Event::StartTable => {
+                stack.push(StackNode::Table {
+                    rows: vec![],
+                    header: vec![],
+                    caption: None,
+                });
+            }
+
+            Event::EndTable => {
+                finalize_container(&mut stack, "EndTable", "table", |node| match node {
+                    StackNode::Table { .. } => Ok(node),
+                    other => Err(ConversionError::MismatchedEvents {
+                        expected: "Table".to_string(),
+                        found: other.type_name().to_string(),
+                    }),
+                })?;
+            }
+
+            Event::StartTableRow { header } => {
+                stack.push(StackNode::TableRow {
+                    cells: vec![],
+                    header: *header,
+                });
+            }
+
+            Event::EndTableRow => {
+                // TableRow is special: it's not a DocNode, so finalize_container won't work directly
+                // We need to pop it and add it to the Table parent manually
+                let node = stack.pop().ok_or_else(|| {
+                    ConversionError::UnexpectedEnd("EndTableRow with empty stack".to_string())
+                })?;
+
+                match node {
+                    StackNode::TableRow { cells, header } => {
+                        let row = TableRow { cells };
+                        let parent = stack.last_mut().ok_or_else(|| {
+                            ConversionError::UnexpectedEnd("No parent for table row".to_string())
+                        })?;
+
+                        match parent {
+                            StackNode::Table {
+                                rows,
+                                header: table_header,
+                                ..
+                            } => {
+                                if header {
+                                    table_header.push(row);
+                                } else {
+                                    rows.push(row);
+                                }
+                                Ok(())
+                            }
+                            _ => Err(ConversionError::MismatchedEvents {
+                                expected: "Table".to_string(),
+                                found: parent.type_name().to_string(),
+                            }),
+                        }?;
+                    }
+                    other => {
+                        return Err(ConversionError::MismatchedEvents {
+                            expected: "TableRow".to_string(),
+                            found: other.type_name().to_string(),
+                        })
+                    }
+                }
+            }
+
+            Event::StartTableCell { header, align } => {
+                stack.push(StackNode::TableCell {
+                    content: vec![],
+                    header: *header,
+                    align: *align,
+                });
+            }
+
+            Event::EndTableCell => {
+                // TableCell is special: it's not a DocNode
+                let node = stack.pop().ok_or_else(|| {
+                    ConversionError::UnexpectedEnd("EndTableCell with empty stack".to_string())
+                })?;
+
+                match node {
+                    StackNode::TableCell {
+                        content,
+                        header,
+                        align,
+                    } => {
+                        let cell = TableCell {
+                            content,
+                            header,
+                            align,
+                        };
+                        let parent = stack.last_mut().ok_or_else(|| {
+                            ConversionError::UnexpectedEnd("No parent for table cell".to_string())
+                        })?;
+
+                        match parent {
+                            StackNode::TableRow { cells, .. } => {
+                                cells.push(cell);
+                                Ok(())
+                            }
+                            _ => Err(ConversionError::MismatchedEvents {
+                                expected: "TableRow".to_string(),
+                                found: parent.type_name().to_string(),
+                            }),
+                        }?;
+                    }
+                    other => {
+                        return Err(ConversionError::MismatchedEvents {
+                            expected: "TableCell".to_string(),
+                            found: other.type_name().to_string(),
+                        })
+                    }
+                }
             }
 
             Event::Inline(inline) => {
