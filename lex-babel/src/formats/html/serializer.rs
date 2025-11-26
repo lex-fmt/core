@@ -453,7 +453,7 @@ mod tests {
 
         assert!(html.contains("<style>"));
         assert!(html.contains(".lex-document"));
-        assert!(html.contains("Inter")); // Modern theme uses Inter font
+        assert!(html.contains("Helvetica")); // Modern theme uses Helvetica font
     }
 
     #[test]
