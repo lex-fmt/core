@@ -8,18 +8,18 @@
 --
 -- HIGHLIGHTING MODEL
 -- ------------------
--- Uses a three-intensity model that respects user colorschemes:
+-- Lex uses intentionally MONOCHROME (grayscale) highlighting to keep focus
+-- on document structure rather than colorful syntax. We define our own colors
+-- but adapt to dark/light mode via vim.o.background.
 --
---   NORMAL: Theme's foreground color, we add bold/italic only
---           -> Session titles, inline strong/emphasis, content text
+-- Four intensity levels:
+--   NORMAL:   Full contrast - content readers focus on (black/white)
+--   MUTED:    Medium contrast - structural elements (50% gray)
+--   FAINT:    Low contrast - meta-information (70% gray)
+--   FAINTEST: Minimal contrast - syntax markers (80% gray)
 --
---   MUTED:  Dimmer color for structural elements (-> @punctuation)
---           -> Session markers, list markers, references
---           Users can override: @lex.muted
---
---   FAINT:  Faded like comments (-> @comment)
---           -> Annotations, verbatim metadata, inline markers
---           Users can override: @lex.faint
+-- Users can override @lex.normal, @lex.muted, @lex.faint, @lex.faintest
+-- to customize the grayscale palette while keeping Lex's typography.
 --
 -- See: lex-analysis/src/semantic_tokens.rs for token type definitions
 -- See: editors/vscode/themes/lex-light.json for reference colors
@@ -28,8 +28,7 @@
 -- USAGE
 -- -----
 --   require("lex").setup({
---     cmd = {"lex-lsp"},      -- command to start LSP server
---     debug_theme = false,    -- use lex-light.json colors for testing
+--     cmd = {"lex-lsp"},  -- command to start LSP server
 --   })
 --
 -- KNOWN LIMITATIONS
@@ -121,131 +120,79 @@ function M.setup(opts)
       if client.server_capabilities.semanticTokensProvider then
         vim.lsp.semantic_tokens.start(bufnr, client.id)
 
-        if opts.debug_theme then
-          -- DEBUG MODE: Exact colors for development and visual regression testing.
-          -- ===================================================================
-          -- Adapts to dark/light mode via vim.o.background.
-          -- Light: from editors/vscode/themes/lex-light.json
-          -- Dark: inverted equivalents for dark backgrounds
-          local is_dark = vim.o.background == "dark"
-          local colors = is_dark and {
-            normal = "#e0e0e0",   -- light gray on dark bg
-            muted = "#888888",    -- medium gray
-            faint = "#666666",    -- darker gray
-            faintest = "#555555", -- darkest gray for markers
-            code_bg = "#2a2a2a",  -- subtle dark bg for code
-          } or {
-            normal = "#000000",   -- black on light bg
-            muted = "#808080",    -- medium gray
-            faint = "#b3b3b3",    -- light gray
-            faintest = "#cacaca", -- lightest gray for markers
-            code_bg = "#f5f5f5",  -- subtle light bg for code
-          }
+        -- MONOCHROME HIGHLIGHTING
+        -- ========================
+        -- Lex uses intentionally monochrome (grayscale) highlighting to keep
+        -- focus on document structure rather than colorful syntax. We define
+        -- our own colors but respect dark/light mode via vim.o.background.
+        --
+        -- Three intensity levels:
+        --   NORMAL:   Full contrast text (content readers focus on)
+        --   MUTED:    Medium contrast (structural elements, navigation)
+        --   FAINT:    Low contrast (meta-info, syntax markers)
+        --
+        -- Users can override @lex.normal, @lex.muted, @lex.faint for custom colors.
 
-          local debug_highlights = {
-            ["@lsp.type.SessionTitle"] = { fg = colors.normal, bold = true },
-            ["@lsp.type.SessionMarker"] = { fg = colors.muted, italic = true },
-            ["@lsp.type.SessionTitleText"] = { fg = colors.normal, bold = true },
-            ["@lsp.type.DefinitionSubject"] = { fg = colors.normal, italic = true },
-            ["@lsp.type.DefinitionContent"] = { fg = colors.normal },
-            ["@lsp.type.ListMarker"] = { fg = colors.muted, italic = true },
-            ["@lsp.type.ListItemText"] = { fg = colors.muted, italic = true },
-            ["@lsp.type.AnnotationLabel"] = { fg = colors.faint },
-            ["@lsp.type.AnnotationParameter"] = { fg = colors.faint },
-            ["@lsp.type.AnnotationContent"] = { fg = colors.faint },
-            ["@lsp.type.InlineStrong"] = { fg = colors.normal, bold = true },
-            ["@lsp.type.InlineEmphasis"] = { fg = colors.normal, italic = true },
-            ["@lsp.type.InlineCode"] = { fg = colors.normal },
-            ["@lsp.type.InlineMath"] = { fg = colors.normal, italic = true },
-            ["@lsp.type.Reference"] = { fg = colors.muted, underline = true },
-            ["@lsp.type.ReferenceCitation"] = { fg = colors.muted, underline = true },
-            ["@lsp.type.ReferenceFootnote"] = { fg = colors.muted, underline = true },
-            ["@lsp.type.VerbatimSubject"] = { fg = colors.faint },
-            ["@lsp.type.VerbatimLanguage"] = { fg = colors.faint },
-            ["@lsp.type.VerbatimAttribute"] = { fg = colors.faint },
-            ["@lsp.type.VerbatimContent"] = { fg = colors.normal, bg = colors.code_bg },
-            ["@lsp.type.InlineMarker_strong_start"] = { fg = colors.faintest, italic = true },
-            ["@lsp.type.InlineMarker_strong_end"] = { fg = colors.faintest, italic = true },
-            ["@lsp.type.InlineMarker_emphasis_start"] = { fg = colors.faintest, italic = true },
-            ["@lsp.type.InlineMarker_emphasis_end"] = { fg = colors.faintest, italic = true },
-            ["@lsp.type.InlineMarker_code_start"] = { fg = colors.faintest, italic = true },
-            ["@lsp.type.InlineMarker_code_end"] = { fg = colors.faintest, italic = true },
-            ["@lsp.type.InlineMarker_math_start"] = { fg = colors.faintest, italic = true },
-            ["@lsp.type.InlineMarker_math_end"] = { fg = colors.faintest, italic = true },
-            ["@lsp.type.InlineMarker_ref_start"] = { fg = colors.faintest, italic = true },
-            ["@lsp.type.InlineMarker_ref_end"] = { fg = colors.faintest, italic = true },
-          }
-          for lsp_hl, hl_opts in pairs(debug_highlights) do
-            vim.api.nvim_set_hl(0, lsp_hl, hl_opts)
-          end
-        else
-          -- PRODUCTION MODE: Theme-compatible highlighting
-          -- ================================================
-          -- Three intensity levels that respect the user's colorscheme.
-          -- See file header and README.lex for full documentation.
-          --
-          -- Quick reference:
-          --   NORMAL: Theme's fg, we add bold/italic only (no fg color set)
-          --   MUTED:  @lex.muted -> @punctuation (dimmer)
-          --   FAINT:  @lex.faint -> @comment (faded)
-          --
-          -- Users can override @lex.muted and @lex.faint in their config.
+        local is_dark = vim.o.background == "dark"
+        local colors = is_dark and {
+          normal = "#e0e0e0",   -- light gray on dark bg
+          muted = "#888888",    -- medium gray
+          faint = "#666666",    -- darker gray
+          faintest = "#555555", -- darkest gray for markers
+          code_bg = "#2a2a2a",  -- subtle dark bg for code
+        } or {
+          normal = "#000000",   -- black on light bg
+          muted = "#808080",    -- medium gray
+          faint = "#b3b3b3",    -- light gray
+          faintest = "#cacaca", -- lightest gray for markers
+          code_bg = "#f5f5f5",  -- subtle light bg for code
+        }
 
-          -- Define base intensity groups (user-overridable)
-          vim.api.nvim_set_hl(0, "@lex.muted", { link = "@punctuation", default = true })
-          vim.api.nvim_set_hl(0, "@lex.faint", { link = "@comment", default = true })
+        -- Define base intensity groups (user-overridable)
+        vim.api.nvim_set_hl(0, "@lex.normal", { fg = colors.normal, default = true })
+        vim.api.nvim_set_hl(0, "@lex.muted", { fg = colors.muted, default = true })
+        vim.api.nvim_set_hl(0, "@lex.faint", { fg = colors.faint, default = true })
+        vim.api.nvim_set_hl(0, "@lex.faintest", { fg = colors.faintest, default = true })
 
-          -- Helper: create highlight with color from a base group + typography
-          local function hl_with_style(base_group, style)
-            local base = vim.api.nvim_get_hl(0, { name = base_group, link = false })
-            local hl = { fg = base.fg, bg = base.bg }
-            if style.bold then hl.bold = true end
-            if style.italic then hl.italic = true end
-            if style.underline then hl.underline = true end
-            return hl
-          end
+        -- NORMAL intensity: content text readers focus on
+        vim.api.nvim_set_hl(0, "@lsp.type.SessionTitleText", { fg = colors.normal, bold = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.DefinitionSubject", { fg = colors.normal, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.DefinitionContent", { fg = colors.normal })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineStrong", { fg = colors.normal, bold = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineEmphasis", { fg = colors.normal, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineCode", { fg = colors.normal })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMath", { fg = colors.normal, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.VerbatimContent", { fg = colors.normal, bg = colors.code_bg })
 
-          -- NORMAL intensity: theme's foreground, we control typography only
-          -- (Setting just bold/italic without fg inherits from Normal)
-          vim.api.nvim_set_hl(0, "@lsp.type.SessionTitleText", { bold = true, default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.DefinitionSubject", { italic = true, default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.DefinitionContent", { default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineStrong", { bold = true, default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineEmphasis", { italic = true, default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineCode", { link = "@markup.raw", default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMath", { italic = true, default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.VerbatimContent", { link = "@markup.raw.block", default = true })
+        -- MUTED intensity: structural elements (markers, references)
+        vim.api.nvim_set_hl(0, "@lsp.type.SessionTitle", { fg = colors.muted, bold = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.SessionMarker", { fg = colors.muted, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.ListMarker", { fg = colors.muted, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.ListItemText", { fg = colors.muted, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.Reference", { fg = colors.muted, underline = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.ReferenceCitation", { fg = colors.muted, underline = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.ReferenceFootnote", { fg = colors.muted, underline = true })
 
-          -- MUTED intensity: structural elements (markers, references)
-          vim.api.nvim_set_hl(0, "@lsp.type.SessionTitle", { link = "@lex.muted", default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.SessionMarker", hl_with_style("@lex.muted", { italic = true }))
-          vim.api.nvim_set_hl(0, "@lsp.type.ListMarker", hl_with_style("@lex.muted", { italic = true }))
-          vim.api.nvim_set_hl(0, "@lsp.type.ListItemText", hl_with_style("@lex.muted", { italic = true }))
-          vim.api.nvim_set_hl(0, "@lsp.type.Reference", hl_with_style("@lex.muted", { underline = true }))
-          vim.api.nvim_set_hl(0, "@lsp.type.ReferenceCitation", hl_with_style("@lex.muted", { underline = true }))
-          vim.api.nvim_set_hl(0, "@lsp.type.ReferenceFootnote", hl_with_style("@lex.muted", { underline = true }))
+        -- FAINT intensity: meta-information (annotations, verbatim metadata)
+        vim.api.nvim_set_hl(0, "@lsp.type.AnnotationLabel", { fg = colors.faint })
+        vim.api.nvim_set_hl(0, "@lsp.type.AnnotationParameter", { fg = colors.faint })
+        vim.api.nvim_set_hl(0, "@lsp.type.AnnotationContent", { fg = colors.faint })
+        vim.api.nvim_set_hl(0, "@lsp.type.VerbatimSubject", { fg = colors.faint })
+        vim.api.nvim_set_hl(0, "@lsp.type.VerbatimLanguage", { fg = colors.faint })
+        vim.api.nvim_set_hl(0, "@lsp.type.VerbatimAttribute", { fg = colors.faint })
 
-          -- FAINT intensity: meta-information (annotations, verbatim metadata, syntax markers)
-          vim.api.nvim_set_hl(0, "@lsp.type.AnnotationLabel", { link = "@lex.faint", default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.AnnotationParameter", { link = "@lex.faint", default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.AnnotationContent", { link = "@lex.faint", default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.VerbatimSubject", { link = "@lex.faint", default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.VerbatimLanguage", { link = "@lex.faint", default = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.VerbatimAttribute", { link = "@lex.faint", default = true })
-
-          -- Inline markers (*, _, `, #, []) - faintest, should fade into background
-          local faint_italic = hl_with_style("@lex.faint", { italic = true })
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_strong_start", faint_italic)
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_strong_end", faint_italic)
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_emphasis_start", faint_italic)
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_emphasis_end", faint_italic)
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_code_start", faint_italic)
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_code_end", faint_italic)
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_math_start", faint_italic)
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_math_end", faint_italic)
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_ref_start", faint_italic)
-          vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_ref_end", faint_italic)
-        end
+        -- FAINTEST intensity: inline syntax markers (*, _, `, #, [])
+        -- These should nearly disappear, leaving just the formatted text visible
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_strong_start", { fg = colors.faintest, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_strong_end", { fg = colors.faintest, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_emphasis_start", { fg = colors.faintest, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_emphasis_end", { fg = colors.faintest, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_code_start", { fg = colors.faintest, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_code_end", { fg = colors.faintest, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_math_start", { fg = colors.faintest, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_math_end", { fg = colors.faintest, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_ref_start", { fg = colors.faintest, italic = true })
+        vim.api.nvim_set_hl(0, "@lsp.type.InlineMarker_ref_end", { fg = colors.faintest, italic = true })
       end
 
       -- Preserve user's on_attach callback if they provided one
@@ -357,11 +304,6 @@ function M.setup(opts)
     group = augroup,
     pattern = "lex",
     callback = function()
-      -- CRITICAL: Disable built-in syntax highlighting for .lex files
-      -- Neovim has a built-in lex.vim syntax file for the Unix lexer tool (flex/lex)
-      -- which conflicts with our LSP semantic tokens. We rely entirely on LSP for highlighting.
-      vim.bo.syntax = ""
-
       -- Comment support - Lex uses annotations for comments
       vim.bo.commentstring = ":: comment :: %s"
       vim.bo.comments = ""
@@ -370,6 +312,42 @@ function M.setup(opts)
       vim.wo.wrap = true        -- Soft wrap long lines at window width
       vim.wo.linebreak = true   -- Break at word boundaries, not mid-word
       vim.bo.textwidth = 0      -- No hard wrapping (no auto line breaks)
+    end,
+  })
+
+  -- CRITICAL: Disable built-in syntax highlighting for .lex files
+  -- Neovim has a built-in lex.vim syntax file for the Unix lexer tool (flex/lex)
+  -- which conflicts with our LSP semantic tokens. We rely entirely on LSP.
+  --
+  -- This is tricky because:
+  -- 1. FileType autocmd runs, but syntax file may load after
+  -- 2. Other plugins (like NvChad) may re-enable syntax
+  -- 3. BufEnter may re-apply syntax settings
+  --
+  -- Solution: Use multiple events + vim.schedule() to run AFTER all other autocmds
+  local function disable_lex_syntax()
+    if vim.bo.filetype == "lex" and vim.bo.syntax ~= "" then
+      -- Use both methods to ensure syntax is fully cleared
+      vim.bo.syntax = ""
+      vim.cmd("syntax clear")
+    end
+  end
+
+  vim.api.nvim_create_autocmd({ "FileType" }, {
+    group = augroup,
+    pattern = "lex",
+    callback = function()
+      -- Schedule to run after all other FileType autocmds
+      vim.schedule(disable_lex_syntax)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "Syntax" }, {
+    group = augroup,
+    pattern = { "*.lex", "lex" },
+    callback = function()
+      -- Schedule to run after all other autocmds for these events
+      vim.schedule(disable_lex_syntax)
     end,
   })
 end
