@@ -5,6 +5,8 @@ test
 src
 scripts
 .vscode
+.vscode-vsix-test
+.vscode-vsix-integration-test
 .eslintrc.*
 *.ts
 *.ts.map
