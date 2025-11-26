@@ -211,7 +211,7 @@
     "watch": "tsc -watch -p .",
     "bundle": "esbuild src/main.ts --bundle --outfile=out/src/main.cjs --external:vscode --format=cjs --platform=node --target=node20",
     "vscode:prepublish": "npm run bundle -- --minify",
-    "pretest": "npm run build",
+    "pretest": "npm run build && npm run bundle",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "node ./out/test/unit/index.js",
     "test:integration": "node ./out/test/runTests.js",
