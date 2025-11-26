@@ -6,8 +6,8 @@
 use crate::common::flat_to_nested::events_to_tree;
 use crate::error::FormatError;
 use crate::ir::events::Event;
-use crate::ir::nodes::InlineContent;
-use comrak::nodes::{AstNode, NodeValue};
+use crate::ir::nodes::{InlineContent, TableCellAlignment};
+use comrak::nodes::{AstNode, NodeValue, TableAlignment};
 use comrak::{parse_document, Arena, ComrakOptions};
 use lex_parser::lex::ast::Document;
 
@@ -150,12 +150,83 @@ fn collect_events_from_node<'a>(
             }
         }
 
+        NodeValue::Table(_) => {
+            events.push(Event::StartTable);
+            for child in node.children() {
+                collect_events_from_node(child, events)?;
+            }
+            events.push(Event::EndTable);
+        }
+
+        NodeValue::TableRow(header) => {
+            events.push(Event::StartTableRow { header: *header });
+            for child in node.children() {
+                collect_events_from_node(child, events)?;
+            }
+            events.push(Event::EndTableRow);
+        }
+
+        NodeValue::TableCell => {
+            let (header, align) = get_table_cell_info(node);
+            events.push(Event::StartTableCell { header, align });
+
+            events.push(Event::StartParagraph);
+            for child in node.children() {
+                collect_inline_events(child, events)?;
+            }
+            events.push(Event::EndParagraph);
+
+            events.push(Event::EndTableCell);
+        }
+
         _ => {
             // Unknown block type, skip
         }
     }
 
     Ok(())
+}
+
+fn get_table_cell_info<'a>(node: &'a AstNode<'a>) -> (bool, TableCellAlignment) {
+    let parent = match node.parent() {
+        Some(p) => p,
+        None => return (false, TableCellAlignment::None),
+    };
+
+    let is_header = if let NodeValue::TableRow(header) = &parent.data.borrow().value {
+        *header
+    } else {
+        false
+    };
+
+    let mut col_index = 0;
+    let mut curr = node.previous_sibling();
+    while let Some(sibling) = curr {
+        col_index += 1;
+        curr = sibling.previous_sibling();
+    }
+
+    let grandparent = match parent.parent() {
+        Some(p) => p,
+        None => return (is_header, TableCellAlignment::None),
+    };
+
+    let align = if let NodeValue::Table(table) = &grandparent.data.borrow().value {
+        if col_index < table.alignments.len() {
+            match table.alignments[col_index] {
+                TableAlignment::Left => TableCellAlignment::Left,
+                TableAlignment::Right => TableCellAlignment::Right,
+                TableAlignment::Center => TableCellAlignment::Center,
+                TableAlignment::None => TableCellAlignment::None,
+            }
+        } else {
+            TableCellAlignment::None
+        }
+    } else {
+        TableCellAlignment::None
+    };
+
+    (is_header, align)
 }
 
 /// Collect inline events from a Comrak node

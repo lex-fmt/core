@@ -8,7 +8,7 @@ use lex_parser::lex::ast::TextContent;
 
 use super::nodes::{
     Annotation, Definition, DocNode, Document, Heading, InlineContent, List, ListItem, Paragraph,
-    Verbatim,
+    Table, TableCell, TableCellAlignment, TableRow, Verbatim,
 };
 
 /// Converts a lex document to the IR.
@@ -193,6 +193,9 @@ fn from_lex_verbatim(verbatim: &LexVerbatim) -> DocNode {
 
 /// Converts a lex annotation to an IR annotation.
 fn from_lex_annotation(annotation: &LexAnnotation, level: usize) -> DocNode {
+    if annotation.data.label.value == "table" {
+        return from_lex_table(annotation, level);
+    }
     let label = annotation.data.label.value.clone();
     let parameters = annotation
         .data
@@ -206,6 +209,76 @@ fn from_lex_annotation(annotation: &LexAnnotation, level: usize) -> DocNode {
         parameters,
         content,
     })
+}
+
+fn from_lex_table(annotation: &LexAnnotation, level: usize) -> DocNode {
+    // Parse children to find thead and tbody
+    let mut header = Vec::new();
+    let mut rows = Vec::new();
+
+    for child in &annotation.children {
+        if let LexContentItem::Annotation(ann) = child {
+            if ann.data.label.value == "thead" {
+                for row_item in &ann.children {
+                    if let LexContentItem::Annotation(row_ann) = row_item {
+                        if row_ann.data.label.value == "tr" {
+                            header.push(from_lex_table_row(row_ann, level));
+                        }
+                    }
+                }
+            } else if ann.data.label.value == "tbody" {
+                for row_item in &ann.children {
+                    if let LexContentItem::Annotation(row_ann) = row_item {
+                        if row_ann.data.label.value == "tr" {
+                            rows.push(from_lex_table_row(row_ann, level));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    DocNode::Table(Table {
+        rows,
+        header,
+        caption: None,
+    })
+}
+
+fn from_lex_table_row(annotation: &LexAnnotation, level: usize) -> TableRow {
+    let mut cells = Vec::new();
+    for child in &annotation.children {
+        if let LexContentItem::Annotation(ann) = child {
+            if ann.data.label.value == "th" || ann.data.label.value == "td" {
+                cells.push(from_lex_table_cell(ann, level));
+            }
+        }
+    }
+    TableRow { cells }
+}
+
+fn from_lex_table_cell(annotation: &LexAnnotation, level: usize) -> TableCell {
+    let header = annotation.data.label.value == "th";
+
+    let mut align = TableCellAlignment::None;
+    for param in &annotation.data.parameters {
+        if param.key == "align" {
+            align = match param.value.as_str() {
+                "left" => TableCellAlignment::Left,
+                "center" => TableCellAlignment::Center,
+                "right" => TableCellAlignment::Right,
+                _ => TableCellAlignment::None,
+            };
+        }
+    }
+
+    let content = convert_children(&annotation.children, level);
+
+    TableCell {
+        content,
+        header,
+        align,
+    }
 }
 
 /// Converts a standalone TextLine to an IR paragraph.
