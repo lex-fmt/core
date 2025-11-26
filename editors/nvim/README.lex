@@ -86,12 +86,14 @@ Neovim plugin for reading and writing Lex, the plain-text format for ideas, docu
     The list of groups and highlights:
 
     Base intensity groups (override these to change all elements at that level):
+
         @lex.normal   - Full contrast content text
         @lex.muted    - Medium gray structural elements
         @lex.faint    - Light gray meta-information
         @lex.faintest - Barely visible syntax markers
 
     Content tokens (normal intensity):
+
         @lsp.type.SessionTitleText   - Session heading text (bold)
         @lsp.type.DefinitionSubject  - Term being defined (italic)
         @lsp.type.DefinitionContent  - Definition body text
@@ -103,6 +105,7 @@ Neovim plugin for reading and writing Lex, the plain-text format for ideas, docu
         @lsp.type.VerbatimContent    - Code block content
 
     Structural tokens (muted intensity):
+
         @lsp.type.SessionTitle       - Full session header line
         @lsp.type.SessionMarker      - The 1., 1.1., A. prefix (italic)
         @lsp.type.ListMarker         - Bullet or number prefix (italic)
@@ -111,6 +114,7 @@ Neovim plugin for reading and writing Lex, the plain-text format for ideas, docu
         @lsp.type.ReferenceFootnote  - Footnotes [^like this]
 
     Meta tokens (faint intensity):
+
         @lsp.type.AnnotationLabel     - The :: label :: part
         @lsp.type.AnnotationParameter - Parameters like key=value
         @lsp.type.AnnotationContent   - Content inside annotations
@@ -119,6 +123,7 @@ Neovim plugin for reading and writing Lex, the plain-text format for ideas, docu
         @lsp.type.VerbatimAttribute   - Attributes like language=bash
 
     Marker tokens (faintest intensity):
+
         @lsp.type.InlineMarker_strong_start    - Opening *
         @lsp.type.InlineMarker_strong_end      - Closing *
         @lsp.type.InlineMarker_emphasis_start  - Opening _
