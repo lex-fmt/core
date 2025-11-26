@@ -14,7 +14,6 @@ enum MarkerType {
     Numeric,
     AlphaLower,
     AlphaUpper,
-    RomanLower,
     RomanUpper,
 }
 
@@ -38,34 +37,6 @@ fn to_alpha_upper(n: usize) -> String {
         char::from_u32((n as u32) + 64).unwrap().to_string()
     } else {
         n.to_string()
-    }
-}
-
-fn to_roman_lower(n: usize) -> String {
-    // Convert to Roman numerals (lowercase) for common values
-    // Falls back to decimal for values > 20
-    match n {
-        1 => "i".to_string(),
-        2 => "ii".to_string(),
-        3 => "iii".to_string(),
-        4 => "iv".to_string(),
-        5 => "v".to_string(),
-        6 => "vi".to_string(),
-        7 => "vii".to_string(),
-        8 => "viii".to_string(),
-        9 => "ix".to_string(),
-        10 => "x".to_string(),
-        11 => "xi".to_string(),
-        12 => "xii".to_string(),
-        13 => "xiii".to_string(),
-        14 => "xiv".to_string(),
-        15 => "xv".to_string(),
-        16 => "xvi".to_string(),
-        17 => "xvii".to_string(),
-        18 => "xviii".to_string(),
-        19 => "xix".to_string(),
-        20 => "xx".to_string(),
-        _ => n.to_string(), // Fallback to decimal for larger numbers
     }
 }
 
@@ -163,10 +134,15 @@ impl Visitor for LexSerializer {
     }
 
     fn visit_text_line(&mut self, text_line: &TextLine) {
-        self.write_line(text_line.text());
+        let text = text_line.text().trim_end();
+        self.write_line(text);
     }
 
     fn visit_blank_line_group(&mut self, group: &BlankLineGroup) {
+        if group.count == 0 {
+            return;
+        }
+
         let count = if self.rules.max_blank_lines > 0 {
             std::cmp::min(group.count, self.rules.max_blank_lines)
         } else {
@@ -183,36 +159,33 @@ impl Visitor for LexSerializer {
                 DecorationStyle::Plain => MarkerType::Bullet,
                 DecorationStyle::Numerical => MarkerType::Numeric,
                 DecorationStyle::Alphabetical => {
-                    // Check case from raw_text
-                    if marker.as_str().chars().any(|c| c.is_ascii_uppercase()) {
+                    let text = marker.as_str();
+                    if text.chars().next().is_some_and(|c| c.is_uppercase()) {
                         MarkerType::AlphaUpper
                     } else {
                         MarkerType::AlphaLower
                     }
                 }
-                DecorationStyle::Roman => {
-                    // Check case from raw_text
-                    if marker.as_str().chars().any(|c| c.is_ascii_uppercase()) {
-                        MarkerType::RomanUpper
-                    } else {
-                        MarkerType::RomanLower
-                    }
-                }
+                DecorationStyle::Roman => MarkerType::RomanUpper,
             }
         } else {
-            MarkerType::Bullet // Default fallback
+            MarkerType::Bullet
         };
 
+        // Determine marker form (Standard vs Extended)
+        let marker_form = list.marker.as_ref().map(|marker| marker.form);
+
         self.list_stack.push(ListContext {
-            index: 1,
             marker_type,
-            marker_form: list.marker.as_ref().map(|marker| marker.form),
+            marker_form,
+            index: 1,
         });
     }
 
     fn leave_list(&mut self, _list: &List) {
         self.list_stack.pop();
     }
+
     fn visit_list_item(&mut self, list_item: &ListItem) {
         let context = self
             .list_stack
@@ -228,7 +201,6 @@ impl Visitor for LexSerializer {
                     MarkerType::Numeric => format!("{}.", context.index),
                     MarkerType::AlphaLower => format!("{}.", to_alpha_lower(context.index)),
                     MarkerType::AlphaUpper => format!("{}.", to_alpha_upper(context.index)),
-                    MarkerType::RomanLower => format!("{}.", to_roman_lower(context.index)),
                     MarkerType::RomanUpper => format!("{}.", to_roman_upper(context.index)),
                 }
             }
@@ -240,7 +212,7 @@ impl Visitor for LexSerializer {
 
         // Use the first text content as the item line
         let text = if !list_item.text.is_empty() {
-            list_item.text[0].as_string()
+            list_item.text[0].as_string().trim_end()
         } else {
             ""
         };
