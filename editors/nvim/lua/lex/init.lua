@@ -293,15 +293,16 @@ function M.setup(opts)
     if inspect.semantic_tokens and #inspect.semantic_tokens > 0 then
       for _, token in ipairs(inspect.semantic_tokens) do
         found_token = true
-        local hl_group = "@lsp.type." .. token.type
+        local token_type = token.type or token.opts and token.opts.hl_group or "unknown"
+        local hl_group = "@lsp.type." .. token_type
         if token.modifiers and #token.modifiers > 0 then
           hl_group = hl_group .. " (modifiers: " .. table.concat(token.modifiers, ", ") .. ")"
         end
-        table.insert(lines, string.format("  Type: %s", token.type))
-        table.insert(lines, string.format("  HL Group: @lsp.type.%s", token.type))
+        table.insert(lines, string.format("  Type: %s", token_type))
+        table.insert(lines, string.format("  HL Group: @lsp.type.%s", token_type))
 
         -- Get the highlight definition
-        local hl_info = vim.api.nvim_get_hl(0, { name = "@lsp.type." .. token.type })
+        local hl_info = vim.api.nvim_get_hl(0, { name = "@lsp.type." .. token_type })
         if hl_info and next(hl_info) then
           local def_parts = {}
           if hl_info.link then table.insert(def_parts, "link=" .. hl_info.link) end
