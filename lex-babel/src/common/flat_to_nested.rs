@@ -501,6 +501,15 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
                 })?;
             }
 
+            Event::StartContent => {
+                // Content markers don't affect tree structure - they're used by serializers
+                // to create visual wrappers for indented content
+            }
+
+            Event::EndContent => {
+                // Content markers don't affect tree structure
+            }
+
             Event::StartParagraph => {
                 stack.push(StackNode::Paragraph { content: vec![] });
             }
