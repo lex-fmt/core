@@ -225,58 +225,53 @@ impl TokenCollector {
 
     fn process_document(&mut self, document: &Document) {
         self.process_annotations(document.annotations());
-        self.process_session(&document.root, true);
+        self.process_session(&document.root);
     }
 
-    fn process_session(&mut self, session: &Session, is_root: bool) {
-        if !is_root {
-            // Emit separate tokens for marker and title text
-            if let Some(marker) = &session.marker {
-                // Emit SessionMarker token for the sequence marker
-                self.push_range(&marker.location, LexSemanticTokenKind::SessionMarker);
-            }
-
-            // Emit SessionTitleText token for the title text (without marker)
-            // Create a range for the title text by using the full title location
-            // and adjusting if there's a marker
-            if let Some(header) = session.header_location() {
-                if let Some(marker) = &session.marker {
-                    // Calculate the title text range (after the marker)
-                    let marker_text = marker.as_str();
-                    let full_title = session.full_title();
-
-                    // Find where the marker ends in the title
-                    if let Some(pos) = full_title.find(marker_text) {
-                        let marker_end = pos + marker_text.len();
-                        // Skip whitespace after marker
-                        let title_start = full_title[marker_end..]
-                            .chars()
-                            .position(|c| !c.is_whitespace())
-                            .map(|p| marker_end + p)
-                            .unwrap_or(marker_end);
-
-                        if title_start < full_title.len() {
-                            // Create range for title text only
-                            use lex_parser::lex::ast::Position;
-                            let title_text_range = Range::new(
-                                header.span.start + title_start..header.span.end,
-                                Position::new(header.start.line, header.start.column + title_start),
-                                header.end,
-                            );
-                            self.push_range(
-                                &title_text_range,
-                                LexSemanticTokenKind::SessionTitleText,
-                            );
-                        }
-                    }
-                } else {
-                    // No marker, the entire header is title text
-                    self.push_range(header, LexSemanticTokenKind::SessionTitleText);
-                }
-            }
-
-            self.process_text_content(&session.title);
+    fn process_session(&mut self, session: &Session) {
+        // Emit separate tokens for marker and title text
+        if let Some(marker) = &session.marker {
+            // Emit SessionMarker token for the sequence marker
+            self.push_range(&marker.location, LexSemanticTokenKind::SessionMarker);
         }
+
+        // Emit SessionTitleText token for the title text (without marker)
+        // Create a range for the title text by using the full title location
+        // and adjusting if there's a marker
+        if let Some(header) = session.header_location() {
+            if let Some(marker) = &session.marker {
+                // Calculate the title text range (after the marker)
+                let marker_text = marker.as_str();
+                let full_title = session.full_title();
+
+                // Find where the marker ends in the title
+                if let Some(pos) = full_title.find(marker_text) {
+                    let marker_end = pos + marker_text.len();
+                    // Skip whitespace after marker
+                    let title_start = full_title[marker_end..]
+                        .chars()
+                        .position(|c| !c.is_whitespace())
+                        .map(|p| marker_end + p)
+                        .unwrap_or(marker_end);
+
+                    if title_start < full_title.len() {
+                        // Create range for title text only
+                        use lex_parser::lex::ast::Position;
+                        let title_text_range = Range::new(
+                            header.span.start + title_start..header.span.end,
+                            Position::new(header.start.line, header.start.column + title_start),
+                            header.end,
+                        );
+                        self.push_range(&title_text_range, LexSemanticTokenKind::SessionTitleText);
+                    }
+                }
+            } else {
+                // No marker, the entire header is title text
+                self.push_range(header, LexSemanticTokenKind::SessionTitleText);
+            }
+        }
+
+        self.process_text_content(&session.title);
 
         self.process_annotations(session.annotations());
         for child in session.children.iter() {
@@ -287,7 +282,7 @@ impl TokenCollector {
     fn process_content_item(&mut self, item: &ContentItem) {
         match item {
             ContentItem::Paragraph(paragraph) => self.process_paragraph(paragraph),
-            ContentItem::Session(session) => self.process_session(session, false),
+            ContentItem::Session(session) => self.process_session(session),
             ContentItem::List(list) => self.process_list(list),
             ContentItem::ListItem(list_item) => self.process_list_item(list_item),
             ContentItem::Definition(definition) => self.process_definition(definition),
