@@ -31,7 +31,7 @@ Neovim plugin for reading and writing Lex, the plain-text format for ideas, docu
     The plugin auto-downloads the lex-lsp binary on first use.
 
 2. Configuration
-
+    There is not much configurations for lex:
         require("lex").setup({
             -- Theme: "monochrome" (default) or "native"
             theme = "monochrome",
@@ -68,35 +68,74 @@ Neovim plugin for reading and writing Lex, the plain-text format for ideas, docu
 4. Customization
 
     Even with monochrome theme, you can override specific highlights:
-
         -- After lex.setup(), add your overrides:
-
         -- Change reference color to blue
         vim.api.nvim_set_hl(0, "@lsp.type.Reference", {
             fg = "#5588ff",
             underline = true
         })
-
         -- Make annotations green instead of gray
         vim.api.nvim_set_hl(0, "@lsp.type.AnnotationLabel", {
             fg = "#22aa22"
         })
-    :: lua
-
     Override base intensity groups to change all elements at that level:
-
         vim.api.nvim_set_hl(0, "@lex.muted", { fg = "#666666" })
         vim.api.nvim_set_hl(0, "@lex.faint", { fg = "#999999" })
     :: lua
 
-    The list of groups and highlights: 
+    The list of groups and highlights:
+
+    Base intensity groups (override these to change all elements at that level):
+        @lex.normal   - Full contrast content text
+        @lex.muted    - Medium gray structural elements
+        @lex.faint    - Light gray meta-information
+        @lex.faintest - Barely visible syntax markers
+
+    Content tokens (normal intensity):
+        @lsp.type.SessionTitleText   - Session heading text (bold)
+        @lsp.type.DefinitionSubject  - Term being defined (italic)
+        @lsp.type.DefinitionContent  - Definition body text
+        @lsp.type.ListItemText       - Text after list markers
+        @lsp.type.InlineStrong       - Bold text between *markers*
+        @lsp.type.InlineEmphasis     - Italic text between _markers_
+        @lsp.type.InlineCode         - Code between `markers`
+        @lsp.type.InlineMath         - Math between #markers#
+        @lsp.type.VerbatimContent    - Code block content
+
+    Structural tokens (muted intensity):
+        @lsp.type.SessionTitle       - Full session header line
+        @lsp.type.SessionMarker      - The 1., 1.1., A. prefix (italic)
+        @lsp.type.ListMarker         - Bullet or number prefix (italic)
+        @lsp.type.Reference          - Cross-references [like this]
+        @lsp.type.ReferenceCitation  - Citations [@like this]
+        @lsp.type.ReferenceFootnote  - Footnotes [^like this]
+
+    Meta tokens (faint intensity):
+        @lsp.type.AnnotationLabel     - The :: label :: part
+        @lsp.type.AnnotationParameter - Parameters like key=value
+        @lsp.type.AnnotationContent   - Content inside annotations
+        @lsp.type.VerbatimSubject     - Label before :: in code blocks
+        @lsp.type.VerbatimLanguage    - Language identifier after ::
+        @lsp.type.VerbatimAttribute   - Attributes like language=bash
+
+    Marker tokens (faintest intensity):
+        @lsp.type.InlineMarker_strong_start    - Opening *
+        @lsp.type.InlineMarker_strong_end      - Closing *
+        @lsp.type.InlineMarker_emphasis_start  - Opening _
+        @lsp.type.InlineMarker_emphasis_end    - Closing _
+        @lsp.type.InlineMarker_code_start      - Opening `
+        @lsp.type.InlineMarker_code_end        - Closing `
+        @lsp.type.InlineMarker_math_start      - Opening #
+        @lsp.type.InlineMarker_math_end        - Closing #
+        @lsp.type.InlineMarker_ref_start       - Opening [
+        @lsp.type.InlineMarker_ref_end         - Closing ]
 
 
-  5. The Lex-lsp Binrary
+5. The Lex-lsp Binrary
 
     By default the Lex plugin will download and install the lex-lsp binary post install or on updates, when needed. If you'd rather use another version you can specify a version by: 
 
-    require("lex").setup({
+      require("lex").setup({
             -- Or use a custom binary path
             cmd = { "/path/to/lex-lsp" },
 
@@ -104,4 +143,6 @@ Neovim plugin for reading and writing Lex, the plain-text format for ideas, docu
     :: lua
 
 
+6. The Lex format
 
+  Lex is designed to make writing structured techinical documents with no toolling a breeze. 
