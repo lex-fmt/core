@@ -39,5 +39,16 @@ pub enum Event {
     EndAnnotation {
         label: String,
     },
+    StartTable,
+    EndTable,
+    StartTableRow {
+        header: bool,
+    },
+    EndTableRow,
+    StartTableCell {
+        header: bool,
+        align: crate::ir::nodes::TableCellAlignment,
+    },
+    EndTableCell,
     Inline(InlineContent),
 }

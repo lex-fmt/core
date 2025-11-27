@@ -6,8 +6,8 @@
 use crate::common::flat_to_nested::events_to_tree;
 use crate::error::FormatError;
 use crate::ir::events::Event;
-use crate::ir::nodes::InlineContent;
-use comrak::nodes::{AstNode, NodeValue};
+use crate::ir::nodes::{InlineContent, TableCellAlignment};
+use comrak::nodes::{AstNode, NodeValue, TableAlignment};
 use comrak::{parse_document, Arena, ComrakOptions};
 use lex_parser::lex::ast::Document;
 
@@ -38,6 +38,7 @@ fn default_comrak_options() -> ComrakOptions<'static> {
     options.extension.autolink = true;
     options.extension.tasklist = true;
     options.extension.superscript = true;
+    options.extension.front_matter_delimiter = Some("---".to_string());
     options
 }
 
@@ -129,13 +130,65 @@ fn collect_events_from_node<'a>(
 
         NodeValue::HtmlBlock(html) => {
             // Try to parse as Lex annotation
-            if let Some((label, parameters)) = parse_lex_annotation(&html.literal) {
-                events.push(Event::StartAnnotation { label, parameters });
-                // Note: Closing annotation will be found when parsing closing comment
+            if let Some((label, parameters, content)) = parse_lex_annotation(&html.literal) {
+                events.push(Event::StartAnnotation {
+                    label: label.clone(),
+                    parameters,
+                });
+
+                if let Some(text) = content {
+                    events.push(Event::StartParagraph);
+                    events.push(Event::Inline(InlineContent::Text(text)));
+                    events.push(Event::EndParagraph);
+                    // If it had content, it's a self-contained annotation block, so we close it immediately
+                    events.push(Event::EndAnnotation { label });
+                }
+                // If no content, it's a start tag, closing tag will be found later
             } else if let Some(label) = parse_lex_annotation_close(&html.literal) {
                 events.push(Event::EndAnnotation { label });
             }
             // Otherwise skip HTML blocks
+        }
+
+        NodeValue::FrontMatter(content) => {
+            // Parse YAML frontmatter
+            // We'll treat it as a special annotation with label "frontmatter"
+            // and parameters derived from the YAML content (flattened)
+
+            let yaml_str = content.trim();
+            // Remove delimiters if present (Comrak might include them or not depending on version/options)
+            let yaml_str = yaml_str
+                .trim_start_matches("---")
+                .trim_end_matches("---")
+                .trim();
+
+            let mut parameters = vec![];
+
+            // Simple YAML parsing: key: value
+            // For a real implementation, we should use serde_yaml, but for now we'll do basic parsing
+            // to avoid adding a dependency if possible, or we can just store the raw content
+            // as a special parameter if we want to be safe.
+            // Let's try to parse simple key-value pairs.
+
+            for line in yaml_str.lines() {
+                if let Some((key, value)) = line.split_once(':') {
+                    let key = key.trim().to_string();
+                    let value = value.trim().to_string();
+                    // Remove quotes if present
+                    let value = value.trim_matches('"').trim_matches('\'').to_string();
+
+                    // Handle arrays like [a, b] -> just store as string for now
+                    parameters.push((key, value));
+                }
+            }
+
+            events.push(Event::StartAnnotation {
+                label: "frontmatter".to_string(),
+                parameters,
+            });
+            events.push(Event::EndAnnotation {
+                label: "frontmatter".to_string(),
+            });
         }
 
         NodeValue::ThematicBreak => {
@@ -150,12 +203,83 @@ fn collect_events_from_node<'a>(
             }
         }
 
+        NodeValue::Table(_) => {
+            events.push(Event::StartTable);
+            for child in node.children() {
+                collect_events_from_node(child, events)?;
+            }
+            events.push(Event::EndTable);
+        }
+
+        NodeValue::TableRow(header) => {
+            events.push(Event::StartTableRow { header: *header });
+            for child in node.children() {
+                collect_events_from_node(child, events)?;
+            }
+            events.push(Event::EndTableRow);
+        }
+
+        NodeValue::TableCell => {
+            let (header, align) = get_table_cell_info(node);
+            events.push(Event::StartTableCell { header, align });
+
+            events.push(Event::StartParagraph);
+            for child in node.children() {
+                collect_inline_events(child, events)?;
+            }
+            events.push(Event::EndParagraph);
+
+            events.push(Event::EndTableCell);
+        }
+
         _ => {
             // Unknown block type, skip
         }
     }
 
     Ok(())
+}
+
+fn get_table_cell_info<'a>(node: &'a AstNode<'a>) -> (bool, TableCellAlignment) {
+    let parent = match node.parent() {
+        Some(p) => p,
+        None => return (false, TableCellAlignment::None),
+    };
+
+    let is_header = if let NodeValue::TableRow(header) = &parent.data.borrow().value {
+        *header
+    } else {
+        false
+    };
+
+    let mut col_index = 0;
+    let mut curr = node.previous_sibling();
+    while let Some(sibling) = curr {
+        col_index += 1;
+        curr = sibling.previous_sibling();
+    }
+
+    let grandparent = match parent.parent() {
+        Some(p) => p,
+        None => return (is_header, TableCellAlignment::None),
+    };
+
+    let align = if let NodeValue::Table(table) = &grandparent.data.borrow().value {
+        if col_index < table.alignments.len() {
+            match table.alignments[col_index] {
+                TableAlignment::Left => TableCellAlignment::Left,
+                TableAlignment::Right => TableCellAlignment::Right,
+                TableAlignment::Center => TableCellAlignment::Center,
+                TableAlignment::None => TableCellAlignment::None,
+            }
+        } else {
+            TableCellAlignment::None
+        }
+    } else {
+        TableCellAlignment::None
+    };
+
+    (is_header, align)
 }
 
 /// Collect inline events from a Comrak node
@@ -393,20 +517,33 @@ where
 
 /// Parse Lex annotation from HTML comment
 /// Format: <!-- lex:label key1=val1 key2=val2 -->
-fn parse_lex_annotation(html: &str) -> Option<(String, Vec<(String, String)>)> {
+/// Or multi-line:
+/// <!-- lex:label key=val
+/// Content
+/// -->
+#[allow(clippy::type_complexity)]
+fn parse_lex_annotation(html: &str) -> Option<(String, Vec<(String, String)>, Option<String>)> {
     let trimmed = html.trim();
     if !trimmed.starts_with("<!-- lex:") || !trimmed.ends_with("-->") {
         return None;
     }
 
     // Remove <!-- lex: prefix and --> suffix
-    let content = trimmed
+    let content_block = trimmed
         .strip_prefix("<!-- lex:")?
         .strip_suffix("-->")?
         .trim();
 
-    // Split on whitespace
-    let parts: Vec<&str> = content.split_whitespace().collect();
+    // Split into header (label + params) and body (content)
+    // If there is a newline, everything after is content
+    let (header, body) = if let Some((h, b)) = content_block.split_once('\n') {
+        (h, Some(b.trim().to_string()))
+    } else {
+        (content_block, None)
+    };
+
+    // Split header on whitespace
+    let parts: Vec<&str> = header.split_whitespace().collect();
     if parts.is_empty() {
         return None;
     }
@@ -420,7 +557,7 @@ fn parse_lex_annotation(html: &str) -> Option<(String, Vec<(String, String)>)> {
         }
     }
 
-    Some((label, parameters))
+    Some((label, parameters, body))
 }
 
 /// Parse Lex annotation closing tag from HTML comment
