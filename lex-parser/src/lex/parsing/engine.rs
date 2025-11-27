@@ -46,11 +46,16 @@ pub fn parse_from_grouped_stream(
     grouped_tokens: Vec<GroupedTokens>,
     source: &str,
 ) -> Result<Session, String> {
+    use crate::lex::lexing::transformations::DocumentStartMarker;
+
     // Convert grouped tokens to line tokens
-    let line_tokens = grouped_tokens
+    let line_tokens: Vec<_> = grouped_tokens
         .into_iter()
         .map(GroupedTokens::into_line_token)
         .collect();
+
+    // Inject DocumentStart marker to mark metadata/content boundary
+    let line_tokens = DocumentStartMarker::mark(line_tokens);
 
     // Build LineContainer tree from line tokens
     let tree = to_line_container::build_line_container(line_tokens);

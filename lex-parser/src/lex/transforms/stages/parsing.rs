@@ -48,7 +48,7 @@ fn parse_to_ir(
     source: &str,
 ) -> Result<ParseNode, TransformError> {
     use crate::lex::lexing::transformations::line_token_grouping::GroupedTokens;
-    use crate::lex::lexing::transformations::LineTokenGroupingMapper;
+    use crate::lex::lexing::transformations::{DocumentStartMarker, LineTokenGroupingMapper};
     use crate::lex::parsing::parser;
     use crate::lex::token::line::LineToken;
     use crate::lex::token::to_line_container;
@@ -62,6 +62,9 @@ fn parse_to_ir(
         .into_iter()
         .map(GroupedTokens::into_line_token)
         .collect();
+
+    // Inject DocumentStart marker to mark metadata/content boundary
+    let line_tokens = DocumentStartMarker::mark(line_tokens);
 
     // Build LineContainer tree
     let tree = to_line_container::build_line_container(line_tokens);

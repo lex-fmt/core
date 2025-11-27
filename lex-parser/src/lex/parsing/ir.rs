@@ -15,6 +15,8 @@ pub type TokenLocation = (Token, Range<usize>);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum NodeType {
     Document,
+    /// Synthetic marker for the start of document content (after metadata/annotations)
+    DocumentStart,
     Paragraph,
     Session,
     ListItem,

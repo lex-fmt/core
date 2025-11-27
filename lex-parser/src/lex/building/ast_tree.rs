@@ -49,10 +49,20 @@ impl<'a> AstTreeBuilder<'a> {
         let mut document_title = TextContent::from_string(String::new(), None);
         let mut children_to_skip = 0;
 
+        // Skip DocumentStart marker if present (it's structural, not content)
+        let content_start = if !root_node.children.is_empty()
+            && root_node.children[0].node_type == NodeType::DocumentStart
+        {
+            children_to_skip = 1;
+            1
+        } else {
+            0
+        };
+
         // Check for explicit document title: Paragraph (1 line) + BlankLineGroup
-        if root_node.children.len() >= 2 {
-            let first = &root_node.children[0];
-            let second = &root_node.children[1];
+        if root_node.children.len() >= content_start + 2 {
+            let first = &root_node.children[content_start];
+            let second = &root_node.children[content_start + 1];
 
             if first.node_type == NodeType::Paragraph
                 && second.node_type == NodeType::BlankLineGroup
@@ -72,7 +82,7 @@ impl<'a> AstTreeBuilder<'a> {
                             document_title = line.content.clone();
                         }
                     }
-                    children_to_skip = 2;
+                    children_to_skip = content_start + 2;
                 }
             }
         }
@@ -95,6 +105,8 @@ impl<'a> AstTreeBuilder<'a> {
     fn build_content_items(&self, nodes: Vec<ParseNode>) -> ParserResult<Vec<ContentItem>> {
         nodes
             .into_iter()
+            // Skip DocumentStart markers - they're structural markers with no AST representation
+            .filter(|node| node.node_type != NodeType::DocumentStart)
             .map(|node| self.build_content_item(node))
             .collect()
     }
