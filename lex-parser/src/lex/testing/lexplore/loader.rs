@@ -223,6 +223,7 @@ impl Lexplore {
         definition => Definition, "definition";
         annotation => Annotation, "annotation";
         verbatim => Verbatim, "verbatim";
+        document => Document, "document";
     }
 
     // ===== Convenience shortcuts for document collections =====

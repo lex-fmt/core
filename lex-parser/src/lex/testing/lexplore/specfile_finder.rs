@@ -42,6 +42,7 @@ pub enum ElementType {
     Definition,
     Annotation,
     Verbatim,
+    Document,
 }
 
 /// Document collection types for comprehensive testing
@@ -61,6 +62,7 @@ impl ElementType {
             ElementType::Definition => "definition",
             ElementType::Annotation => "annotation",
             ElementType::Verbatim => "verbatim",
+            ElementType::Document => "document",
         }
     }
 }

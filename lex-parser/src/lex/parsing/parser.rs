@@ -51,13 +51,19 @@ impl GrammarMatcher {
             return Some(result);
         }
 
+        // Try document title (requires negative lookahead which Rust regex doesn't support)
+        if let Some(result) = Self::match_document_title(tokens, start_idx) {
+            return Some(result);
+        }
+
         // Convert remaining tokens to grammar string
         let remaining_tokens = &tokens[start_idx..];
         let token_string = Self::tokens_to_grammar_string(remaining_tokens)?;
 
         // Try each pattern in order
         for (pattern_name, pattern_regex_str) in GRAMMAR_PATTERNS {
-            if *pattern_name == "verbatim_block" {
+            // Skip patterns handled imperatively above
+            if *pattern_name == "verbatim_block" || *pattern_name == "document_title" {
                 continue;
             }
             if let Ok(regex) = Regex::new(pattern_regex_str) {
@@ -193,6 +199,12 @@ impl GrammarMatcher {
                             end_idx: consumed_count - 1,
                         },
                         "blank_line_group" => PatternMatch::BlankLineGroup,
+                        "document_title" => {
+                            // Document title: DocumentStart + single paragraph line + blank lines
+                            // Pattern: <document-start-line><paragraph-line><blank-line>+
+                            // Title line is at index 1 (after DocumentStart at index 0)
+                            PatternMatch::DocumentTitle { title_idx: 1 }
+                        }
                         "document_start" => PatternMatch::DocumentStart,
                         _ => continue,
                     };
@@ -231,6 +243,98 @@ impl GrammarMatcher {
         grammar_str.matches('<').count()
     }
 
+    /// Match document title using imperative logic.
+    ///
+    /// Document title pattern: <document-start-line><title-line><blank-line>+ NOT followed by <container>
+    ///
+    /// This requires a negative lookahead which Rust's regex crate doesn't support,
+    /// so we implement it imperatively. The key distinction from session is:
+    /// - Document title: title + blanks, NOT followed by container
+    /// - Session: title + blanks + container
+    fn match_document_title(
+        tokens: &[LineContainer],
+        start_idx: usize,
+    ) -> Option<(PatternMatch, Range<usize>)> {
+        use LineType::{
+            BlankLine, DocumentStart, ListLine, ParagraphLine, SubjectLine, SubjectOrListItemLine,
+        };
+
+        // Must start at position 0 (document title only valid at document start)
+        if start_idx != 0 {
+            return None;
+        }
+
+        let len = tokens.len();
+        if len < 3 {
+            // Need at least: DocumentStart + title + blank
+            return None;
+        }
+
+        // First token must be DocumentStart
+        let is_doc_start = matches!(
+            &tokens[0],
+            LineContainer::Token(line) if line.line_type == DocumentStart
+        );
+        if !is_doc_start {
+            return None;
+        }
+
+        // Second token must be a title line
+        // We accept SubjectLine, list-like lines, and ParagraphLine that doesn't look like a
+        // regular sentence. The heuristic: if a ParagraphLine ends with a period, it's probably
+        // a regular first paragraph, not a document title.
+        let title_token = match &tokens[1] {
+            LineContainer::Token(line) => line,
+            LineContainer::Container { .. } => return None,
+        };
+
+        let is_valid_title = match title_token.line_type {
+            SubjectLine | ListLine | SubjectOrListItemLine => true,
+            ParagraphLine => true, // ParagraphLine is valid as document title
+            _ => false,
+        };
+
+        if !is_valid_title {
+            return None;
+        }
+
+        // Count blank lines starting at index 2
+        let mut blank_count = 0;
+        let mut idx = 2;
+        while idx < len {
+            if let LineContainer::Token(line) = &tokens[idx] {
+                if line.line_type == BlankLine {
+                    blank_count += 1;
+                    idx += 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // Must have at least one blank line
+        if blank_count == 0 {
+            return None;
+        }
+
+        // Check what follows the blank lines - must NOT be a container
+        // If it IS a container, this is a session, not a document title
+        if idx < len {
+            if let LineContainer::Container { .. } = &tokens[idx] {
+                return None; // This is a session pattern, not document title
+            }
+        }
+
+        // Success! We have: DocumentStart + title + blank(s) + NOT container
+        // Consume: DocumentStart (1) + title (1) + blanks (blank_count) = 2 + blank_count
+        let consumed = 2 + blank_count;
+
+        Some((
+            PatternMatch::DocumentTitle { title_idx: 1 },
+            start_idx..consumed,
+        ))
+    }
+
     /// Match verbatim blocks using imperative logic.
     ///
     /// Verbatim blocks consist of:
@@ -253,18 +357,18 @@ impl GrammarMatcher {
         tokens: &[LineContainer],
         start_idx: usize,
     ) -> Option<(PatternMatch, Range<usize>)> {
-        use LineType::{BlankLine, DataLine, SubjectLine, SubjectOrListItemLine};
+        use LineType::{BlankLine, DataLine, DocumentStart, SubjectLine, SubjectOrListItemLine};
 
         let len = tokens.len();
         if start_idx >= len {
             return None;
         }
 
-        // Allow blank lines before the subject to be consumed as part of this match
+        // Allow blank lines and DocumentStart before the subject to be consumed as part of this match
         let mut idx = start_idx;
         while idx < len {
             if let LineContainer::Token(line) = &tokens[idx] {
-                if line.line_type == BlankLine {
+                if line.line_type == BlankLine || line.line_type == DocumentStart {
                     idx += 1;
                     continue;
                 }
@@ -408,9 +512,12 @@ fn parse_with_declarative_grammar_internal(
                 (
                     matches!(last_node.node_type, NodeType::BlankLineGroup),
                     // A node with children indicates we just closed a container; this counts as a boundary.
-                    // DocumentStart also counts as a boundary - it marks the start of document content.
+                    // DocumentStart and DocumentTitle also count as boundaries - they mark the start of document content.
                     !last_node.children.is_empty()
-                        || matches!(last_node.node_type, NodeType::DocumentStart),
+                        || matches!(
+                            last_node.node_type,
+                            NodeType::DocumentStart | NodeType::DocumentTitle
+                        ),
                     matches!(last_node.node_type, NodeType::Session),
                 )
             } else {

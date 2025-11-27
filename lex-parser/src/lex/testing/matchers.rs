@@ -12,6 +12,15 @@ pub enum TextMatch {
 }
 
 impl TextMatch {
+    /// Check if the actual text matches this pattern (returns bool)
+    pub fn matches(&self, actual: &str) -> bool {
+        match self {
+            TextMatch::Exact(expected) => actual == expected,
+            TextMatch::StartsWith(prefix) => actual.starts_with(prefix),
+            TextMatch::Contains(substring) => actual.contains(substring),
+        }
+    }
+
     /// Assert that the actual text matches this pattern
     pub fn assert(&self, actual: &str, context: &str) {
         match self {
