@@ -3,7 +3,7 @@
  * Mobile-first, semantic HTML approach
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400;1,600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400;1,600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* === CSS Variables for Palette + Rhythm === */
 :root {
@@ -55,11 +55,12 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
+  font-family: 'Helvetica Neue', 'Geist', Helvetica, 'Source Sans 3', Arial, sans-serif;
   color: var(--lex-normal);
   background: var(--lex-bg);
   font-size: 1rem;
   line-height: 1.25;
+  font-weight: 400;
 }
 
 /* === Lex Document Container === */
@@ -100,8 +101,8 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
-  font-weight: 700;
+  font-family: 'Helvetica Neue', 'Geist', Helvetica, 'Source Sans 3', Arial, sans-serif;
+  font-weight: 600;
   color: var(--lex-normal);
   line-height: 1.25;
   margin: var(--lex-space-125) 0 var(--lex-space-075);
@@ -241,7 +242,7 @@ h6 + .lex-paragraph {
   font-weight: 600;
   text-transform: lowercase;
   color: var(--lex-faint);
-  font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
+  font-family: 'Helvetica Neue', 'Geist', Helvetica, 'Source Sans 3', Arial, sans-serif;
 }
 
 @media (max-width: var(--lex-breakpoint-sm)) {
