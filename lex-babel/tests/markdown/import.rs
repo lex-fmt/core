@@ -56,7 +56,8 @@ fn test_paragraph_simple() {
 
 #[test]
 fn test_heading_to_session() {
-    let md = "# Introduction\n\nSome content here.\n";
+    // Use H2 for sessions (H1 is reserved for document title)
+    let md = "## Introduction\n\nSome content here.\n";
     let doc = md_to_lex(md);
 
     // Should have session with title "Introduction"
@@ -82,7 +83,8 @@ fn test_heading_to_session() {
 
 #[test]
 fn test_nested_headings() {
-    let md = "# Level 1\n\n## Level 2\n\nContent.\n";
+    // Use H2/H3 for sessions (H1 is reserved for document title)
+    let md = "## Level 1\n\n### Level 2\n\nContent.\n";
     let doc = md_to_lex(md);
 
     // Should have nested sessions

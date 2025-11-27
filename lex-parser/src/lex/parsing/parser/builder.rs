@@ -55,6 +55,8 @@ pub(super) enum PatternMatch {
     Paragraph { start_idx: usize, end_idx: usize },
     /// Blank line group: one or more consecutive blank lines
     BlankLineGroup,
+    /// Document start marker: synthetic boundary between metadata and content
+    DocumentStart,
 }
 
 /// Convert a matched pattern to a ParseNode.
@@ -121,7 +123,17 @@ pub(super) fn convert_pattern_to_node(
             build_paragraph(tokens, pattern_offset + start_idx, pattern_offset + end_idx)
         }
         PatternMatch::BlankLineGroup => build_blank_line_group(tokens, pattern_range.clone()),
+        PatternMatch::DocumentStart => build_document_start(),
     }
+}
+
+/// Build a DocumentStart node (synthetic marker with no content)
+fn build_document_start() -> Result<ParseNode, String> {
+    Ok(ParseNode::new(
+        crate::lex::parsing::ir::NodeType::DocumentStart,
+        vec![],
+        vec![],
+    ))
 }
 
 pub(super) fn blank_line_node_from_range(

@@ -57,6 +57,7 @@ impl GrammarMatcher {
 
         // Try each pattern in order
         for (pattern_name, pattern_regex_str) in GRAMMAR_PATTERNS {
+            // Skip patterns handled imperatively above
             if *pattern_name == "verbatim_block" {
                 continue;
             }
@@ -193,6 +194,7 @@ impl GrammarMatcher {
                             end_idx: consumed_count - 1,
                         },
                         "blank_line_group" => PatternMatch::BlankLineGroup,
+                        "document_start" => PatternMatch::DocumentStart,
                         _ => continue,
                     };
 
@@ -252,18 +254,18 @@ impl GrammarMatcher {
         tokens: &[LineContainer],
         start_idx: usize,
     ) -> Option<(PatternMatch, Range<usize>)> {
-        use LineType::{BlankLine, DataLine, SubjectLine, SubjectOrListItemLine};
+        use LineType::{BlankLine, DataLine, DocumentStart, SubjectLine, SubjectOrListItemLine};
 
         let len = tokens.len();
         if start_idx >= len {
             return None;
         }
 
-        // Allow blank lines before the subject to be consumed as part of this match
+        // Allow blank lines and DocumentStart before the subject to be consumed as part of this match
         let mut idx = start_idx;
         while idx < len {
             if let LineContainer::Token(line) = &tokens[idx] {
-                if line.line_type == BlankLine {
+                if line.line_type == BlankLine || line.line_type == DocumentStart {
                     idx += 1;
                     continue;
                 }
@@ -407,7 +409,9 @@ fn parse_with_declarative_grammar_internal(
                 (
                     matches!(last_node.node_type, NodeType::BlankLineGroup),
                     // A node with children indicates we just closed a container; this counts as a boundary.
-                    !last_node.children.is_empty(),
+                    // DocumentStart also counts as a boundary - it marks the start of document content.
+                    !last_node.children.is_empty()
+                        || matches!(last_node.node_type, NodeType::DocumentStart),
                     matches!(last_node.node_type, NodeType::Session),
                 )
             } else {

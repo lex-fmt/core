@@ -432,6 +432,45 @@ pub fn blank_line_group_from_tokens(
     ast_nodes::blank_line_group_node(tokens, source_location)
 }
 
+/// Build a TextContent from already-normalized tokens.
+///
+/// This extracts the text and location from tokens without wrapping in a ContentItem.
+/// Used for extracting document titles.
+///
+/// # Arguments
+///
+/// * `tokens` - Normalized tokens for the text
+/// * `source` - Original source string
+/// * `source_location` - Source location helper
+///
+/// # Returns
+///
+/// A TextContent with the extracted text and location
+pub fn text_content_from_tokens(
+    tokens: Vec<(Token, ByteRange<usize>)>,
+    source: &str,
+    source_location: &SourceLocation,
+) -> crate::lex::ast::text_content::TextContent {
+    use crate::lex::token::normalization::utilities::{compute_bounding_box, extract_text};
+
+    // Filter out BlankLine tokens which represent trailing newlines
+    // that shouldn't be part of the text content
+    let filtered_tokens: Vec<_> = tokens
+        .into_iter()
+        .filter(|(token, _)| !matches!(token, Token::BlankLine(_)))
+        .collect();
+
+    if filtered_tokens.is_empty() {
+        return crate::lex::ast::text_content::TextContent::from_string(String::new(), None);
+    }
+
+    let byte_range = compute_bounding_box(&filtered_tokens);
+    let text = extract_text(byte_range.clone(), source);
+    let location = source_location.byte_range_to_ast_range(&byte_range);
+
+    crate::lex::ast::text_content::TextContent::from_string(text, Some(location))
+}
+
 // ============================================================================
 // TEXT-BASED API (for pre-extracted inputs)
 // ============================================================================

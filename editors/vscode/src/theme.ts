@@ -92,7 +92,7 @@ function buildSemanticTokenRules(colors: MonochromeColors): Record<string, strin
     'VerbatimContent:lex': colors.normal,
     'ListItemText:lex': colors.normal,
 
-    'SessionTitle:lex': { foreground: colors.muted, fontStyle: 'bold' },
+    'DocumentTitle:lex': { foreground: colors.muted, fontStyle: 'bold' },
     'SessionMarker:lex': { foreground: colors.muted, fontStyle: 'italic' },
     'ListMarker:lex': { foreground: colors.muted, fontStyle: 'italic' },
     'Reference:lex': { foreground: colors.muted, fontStyle: 'underline' },

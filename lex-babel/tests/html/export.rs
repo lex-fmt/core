@@ -289,6 +289,48 @@ fn test_trifecta_060_nesting() {
 }
 
 // ============================================================================
+// DOCUMENT TITLE TESTS
+// ============================================================================
+
+#[test]
+fn test_document_title_from_lex_document() {
+    // Use spec file: document with explicit title
+    let lex_src = std::fs::read_to_string(
+        "../specs/v1/elements/document.docs/document-01-title-explicit.lex",
+    )
+    .expect("document-01 spec file should exist");
+    let html = lex_to_html(&lex_src, HtmlTheme::Modern);
+
+    assert!(html.contains("<title>My Document Title</title>"));
+}
+
+#[test]
+fn test_document_title_first_paragraph() {
+    // Use spec file: first paragraph followed by blank line becomes document title
+    let lex_src =
+        std::fs::read_to_string("../specs/v1/elements/document.docs/document-06-title-empty.lex")
+            .expect("document-06 spec file should exist");
+    let html = lex_to_html(&lex_src, HtmlTheme::Modern);
+
+    // First paragraph "Just a paragraph with no title." becomes the document title
+    assert!(html.contains("<title>Just a paragraph with no title.</title>"));
+}
+
+#[test]
+fn test_document_title_session_without_title() {
+    // Use spec file: document starts with session (no explicit document title)
+    // Session hoisting is not currently implemented, falls back to "Lex Document"
+    let lex_src = std::fs::read_to_string(
+        "../specs/v1/elements/document.docs/document-05-title-session-hoist.lex",
+    )
+    .expect("document-05 spec file should exist");
+    let html = lex_to_html(&lex_src, HtmlTheme::Modern);
+
+    // Document should fallback to default title (session hoisting not implemented)
+    assert!(html.contains("<title>Lex Document</title>"));
+}
+
+// ============================================================================
 // KITCHENSINK TEST
 // ============================================================================
 

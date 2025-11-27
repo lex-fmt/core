@@ -3,12 +3,61 @@
 use super::{annotation::AnnotationAssertion, summarize_items, visible_len, visible_nth};
 use crate::lex::ast::Document;
 use crate::lex::testing::ast_assertions::ContentItemAssertion;
+use crate::lex::testing::TextMatch;
 
 pub struct DocumentAssertion<'a> {
     pub(crate) doc: &'a Document,
 }
 
 impl<'a> DocumentAssertion<'a> {
+    // ===== Title assertions =====
+
+    /// Assert the document title matches exactly
+    pub fn title(self, expected: &str) -> Self {
+        let actual = self.doc.title();
+        assert_eq!(
+            actual, expected,
+            "Expected document title \"{}\", found \"{}\"",
+            expected, actual
+        );
+        self
+    }
+
+    /// Assert the document title matches a pattern
+    pub fn title_matches(self, matcher: TextMatch) -> Self {
+        let actual = self.doc.title();
+        assert!(
+            matcher.matches(actual),
+            "Document title \"{}\" does not match pattern {:?}",
+            actual,
+            matcher
+        );
+        self
+    }
+
+    /// Assert the document has no title (empty string)
+    pub fn title_is_empty(self) -> Self {
+        let actual = self.doc.title();
+        assert!(
+            actual.is_empty(),
+            "Expected empty document title, found \"{}\"",
+            actual
+        );
+        self
+    }
+
+    /// Assert the document has a non-empty title
+    pub fn has_title(self) -> Self {
+        let actual = self.doc.title();
+        assert!(
+            !actual.is_empty(),
+            "Expected document to have a title, but title is empty"
+        );
+        self
+    }
+
+    // ===== Item assertions =====
+
     /// Assert the number of items in the document
     pub fn item_count(self, expected: usize) -> Self {
         let actual = visible_len(&self.doc.root.children);
