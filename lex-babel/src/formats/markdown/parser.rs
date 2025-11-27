@@ -38,6 +38,7 @@ fn default_comrak_options() -> ComrakOptions<'static> {
     options.extension.autolink = true;
     options.extension.tasklist = true;
     options.extension.superscript = true;
+    options.extension.front_matter_delimiter = Some("---".to_string());
     options
 }
 
@@ -136,6 +137,47 @@ fn collect_events_from_node<'a>(
                 events.push(Event::EndAnnotation { label });
             }
             // Otherwise skip HTML blocks
+        }
+
+        NodeValue::FrontMatter(content) => {
+            // Parse YAML frontmatter
+            // We'll treat it as a special annotation with label "frontmatter"
+            // and parameters derived from the YAML content (flattened)
+
+            let yaml_str = content.trim();
+            // Remove delimiters if present (Comrak might include them or not depending on version/options)
+            let yaml_str = yaml_str
+                .trim_start_matches("---")
+                .trim_end_matches("---")
+                .trim();
+
+            let mut parameters = vec![];
+
+            // Simple YAML parsing: key: value
+            // For a real implementation, we should use serde_yaml, but for now we'll do basic parsing
+            // to avoid adding a dependency if possible, or we can just store the raw content
+            // as a special parameter if we want to be safe.
+            // Let's try to parse simple key-value pairs.
+
+            for line in yaml_str.lines() {
+                if let Some((key, value)) = line.split_once(':') {
+                    let key = key.trim().to_string();
+                    let value = value.trim().to_string();
+                    // Remove quotes if present
+                    let value = value.trim_matches('"').trim_matches('\'').to_string();
+
+                    // Handle arrays like [a, b] -> just store as string for now
+                    parameters.push((key, value));
+                }
+            }
+
+            events.push(Event::StartAnnotation {
+                label: "frontmatter".to_string(),
+                parameters,
+            });
+            events.push(Event::EndAnnotation {
+                label: "frontmatter".to_string(),
+            });
         }
 
         NodeValue::ThematicBreak => {
