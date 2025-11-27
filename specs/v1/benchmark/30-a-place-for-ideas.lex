@@ -1,6 +1,4 @@
-:: title :: Lex: The Universal Format for Ideas
-:: author :: Arthur
-:: publishing-date :: 2025/10/15 19:38:00, São Paulo, Brazil
+A Place For Ideas
 
 1. The Cage of Compromise
 
