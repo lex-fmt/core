@@ -111,4 +111,5 @@ pub enum InlineContent {
     Code(String),
     Math(String),
     Reference(String),
+    Marker(String),
 }
