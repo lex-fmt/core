@@ -37,13 +37,13 @@ expression: html
   --lex-space-200: 2rem;
 
   /* Layout tokens derived from legacy pixel values */
-  --lex-width-document: 53.333rem; /* 800px */
-  --lex-indent-content: 1.667rem; /* 25px */
-  --lex-radius-sm: 0.2rem; /* 3px */
-  --lex-radius-md: 0.267rem; /* 4px */
-  --lex-outline-width: 0.133rem; /* 2px */
-  --lex-border-thin: 0.067rem; /* 1px */
-  --lex-breakpoint-sm: 42.667rem; /* 640px */
+  --lex-width-document: 50rem; /* 800px */
+  --lex-indent-content: 1.5625rem; /* 25px */
+  --lex-radius-sm: 0.1875rem; /* 3px */
+  --lex-radius-md: 0.25rem; /* 4px */
+  --lex-outline-width: 0.125rem; /* 2px */
+  --lex-border-thin: 0.0625rem; /* 1px */
+  --lex-breakpoint-sm: 40rem; /* 640px */
 }
 
 /* === Box Model Reset === */
@@ -56,7 +56,7 @@ expression: html
 
 /* === Document Structure === */
 html {
-  font-size: 15px;
+  font-size: 100%;
   line-height: 1.25;
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
