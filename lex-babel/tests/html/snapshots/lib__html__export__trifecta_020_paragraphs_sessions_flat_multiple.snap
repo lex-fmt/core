@@ -251,12 +251,23 @@ img {
 
 /* === Color Variables === */
 :root {
-  --lex-normal: #000000;
+  /* VSCode Light Theme inspired colors */
+  --lex-normal: #3b3b3b;
   --lex-muted: #808080;
-  --lex-faint: #b3b3b3;
-  --lex-faintest: #cacaca;
+  /* Comments/Secondary */
+  --lex-faint: #aaaaaa;
+  /* Meta/Tertiary */
+  --lex-faintest: #cccccc;
+  /* Subtle */
   --lex-bg: #ffffff;
-  --lex-code-bg: #f5f5f5;
+  --lex-code-bg: #f3f3f3;
+}
+
+.seq_marker {
+  color: var(--lex-faint);
+  font-weight: normal;
+  /* Ensure markers aren't bold even in headings */
+  margin-right: 0.25em;
 }
 
 /* === Typography === */
@@ -284,11 +295,11 @@ section.lex-session:first-child {
   margin-top: 0;
 }
 
-.lex-document > section.lex-session {
+.lex-document>section.lex-session {
   margin: 2rem 0;
 }
 
-.lex-document > section.lex-session:first-child {
+.lex-document>section.lex-session:first-child {
   margin-top: 0;
 }
 
@@ -298,7 +309,7 @@ section.lex-session:first-child {
 }
 
 /* Top-level session content has no indentation */
-.lex-document > section.lex-session > .lex-content {
+.lex-document>section.lex-session> {
   padding-left: 0;
 }
 
@@ -307,7 +318,12 @@ section.lex-session:first-child {
  * Level 5: 1x regular size
  * Smooth interpolation between levels (0.075 step)
  */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: 'Helvetica Neue', Helvetica, 'Source Sans 3', Arial, sans-serif;
   font-weight: 700;
   color: var(--lex-normal);
@@ -317,44 +333,50 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Title sizing: 1.3x at level 1, decreasing to 1x at level 5 */
 h1 {
-  font-size: 1.3em;    /* 1.3x - Level 1 */
+  font-size: 1.3em;
+  /* 1.3x - Level 1 */
   margin-top: 0;
   margin-bottom: 1rem;
 }
 
 h2 {
-  font-size: 1.225em;  /* 1.225x - Level 2 */
+  font-size: 1.225em;
+  /* 1.225x - Level 2 */
   margin-top: 1.5rem;
 }
 
 h3 {
-  font-size: 1.15em;   /* 1.15x - Level 3 */
+  font-size: 1.15em;
+  /* 1.15x - Level 3 */
   margin-top: 1.25rem;
 }
 
 h4 {
-  font-size: 1.075em;  /* 1.075x - Level 4 */
+  font-size: 1.075em;
+  /* 1.075x - Level 4 */
   margin-top: 1rem;
 }
 
 h5 {
-  font-size: 1em;      /* 1x - Level 5 */
+  font-size: 1em;
+  /* 1x - Level 5 */
   margin-top: 1rem;
 }
 
 h6 {
-  font-size: 1em;      /* 1x - Level 6 (same as 5) */
+  font-size: 1em;
+  /* 1x - Level 6 (same as 5) */
   margin-top: 1rem;
   font-weight: 600;
 }
 
 /* First heading in a session has no top margin */
-section.lex-session > h1:first-child,
-section.lex-session > h2:first-child,
-section.lex-session > h3:first-child,
-section.lex-session > h4:first-child,
-section.lex-session > h5:first-child,
-section.lex-session > h6:first-child {
+section.lex-session>h1:first-child,
+section.lex-session>h2:first-child,
+section.lex-session>h3:first-child,
+section.lex-session>h4:first-child,
+section.lex-session>h5:first-child,
+section.lex-session>h6:first-child {
   margin-top: 0;
 }
 
@@ -384,7 +406,9 @@ section.lex-session > h6:first-child {
     font-size: 1.075em;
   }
 
-  h4, h5, h6 {
+  h4,
+  h5,
+  h6 {
     font-size: 1em;
   }
 }
@@ -401,12 +425,12 @@ section.lex-session > h6:first-child {
 }
 
 /* First paragraph after heading */
-h1 + .lex-paragraph,
-h2 + .lex-paragraph,
-h3 + .lex-paragraph,
-h4 + .lex-paragraph,
-h5 + .lex-paragraph,
-h6 + .lex-paragraph {
+h1+.lex-paragraph,
+h2+.lex-paragraph,
+h3+.lex-paragraph,
+h4+.lex-paragraph,
+h5+.lex-paragraph,
+h6+.lex-paragraph {
   margin-top: 0;
 }
 
@@ -427,11 +451,11 @@ h6 + .lex-paragraph {
 
 /* List markers in muted color */
 ul.lex-list {
-  list-style-type: "- ";
+  list-style-type: none;
 }
 
 ol.lex-list {
-  list-style-type: decimal;
+  list-style-type: none;
 }
 
 .lex-list-item::marker {
@@ -583,7 +607,8 @@ a:focus {
     font-size: 12pt;
   }
 
-  h5, h6 {
+  h5,
+  h6 {
     font-size: 11pt;
   }
 
@@ -596,12 +621,11 @@ a:focus {
     border: 1px solid #ccc;
   }
 }
-
   </style>
 </head>
 <body>
 <div class="lex-document">
-<p class="lex-paragraph">This document tests multiple sessions at the root level with paragraphs between them. {{paragraph}}</p><section class="lex-session lex-session-2"><h2>1. First Session {{session-title}}</h2><div class="lex-content"><p class="lex-paragraph">This is the content of the first session. {{paragraph}}</p><p class="lex-paragraph">It can have multiple paragraphs. {{paragraph}}</p></div></section><section class="lex-session lex-session-2"><h2>2. Second Session {{session-title}}</h2><div class="lex-content"><p class="lex-paragraph">The second session also has content. {{paragraph}}</p></div></section><p class="lex-paragraph">A paragraph between sessions. {{paragraph}}</p><section class="lex-session lex-session-2"><h2>3. Third Session {{session-title}}</h2><div class="lex-content"><p class="lex-paragraph">Sessions can have different amounts of content. {{paragraph}}</p></div></section><p class="lex-paragraph">Another paragraph. {{paragraph}}</p><section class="lex-session lex-session-2"><h2>4. Session Without Numbering {{session-title}}</h2><div class="lex-content"><section class="lex-session lex-session-3"><h3>Session titles don't require numbering markers. {{session-title}}</h3><div class="lex-content"><p class="lex-paragraph">They just need to be followed by a blank line and indented content. {{paragraph}}</p></div></section></div></section><p class="lex-paragraph">Final paragraph at the root level. {{paragraph}}</p>
+<p class="lex-paragraph">This document tests multiple sessions at the root level with paragraphs between them. {{paragraph}}</p><section class="lex-session lex-session-2"><h2><span class="seq_marker">1.</span> First Session {{session-title}}</h2><div class="lex-content"><p class="lex-paragraph">This is the content of the first session. {{paragraph}}</p><p class="lex-paragraph">It can have multiple paragraphs. {{paragraph}}</p></div></section><section class="lex-session lex-session-2"><h2><span class="seq_marker">2.</span> Second Session {{session-title}}</h2><div class="lex-content"><p class="lex-paragraph">The second session also has content. {{paragraph}}</p></div></section><p class="lex-paragraph">A paragraph between sessions. {{paragraph}}</p><section class="lex-session lex-session-2"><h2><span class="seq_marker">3.</span> Third Session {{session-title}}</h2><div class="lex-content"><p class="lex-paragraph">Sessions can have different amounts of content. {{paragraph}}</p></div></section><p class="lex-paragraph">Another paragraph. {{paragraph}}</p><section class="lex-session lex-session-2"><h2><span class="seq_marker">4.</span> Session Without Numbering {{session-title}}</h2><div class="lex-content"><section class="lex-session lex-session-3"><h3>Session titles don't require numbering markers. {{session-title}}</h3><div class="lex-content"><p class="lex-paragraph">They just need to be followed by a blank line and indented content. {{paragraph}}</p></div></section></div></section><p class="lex-paragraph">Final paragraph at the root level. {{paragraph}}</p>
 </div>
 </body>
 </html>

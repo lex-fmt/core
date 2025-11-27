@@ -1,7 +1,8 @@
 ---
-author: Arthur Debert
-publishing-date: 2025/10/12 20:23:23, São Paulo, Brazil
+publishing-date:  2025/10/12 20:23:23, São Paulo, Brazil
+author:  Arthur Debert  
 ---
+
 # Ideas, Naked
 
 We know of nothing more powerful than ideas, and no denser medium for them than written language. (actually we do, math, but math is too dense).
@@ -12,7 +13,7 @@ And communicating them, regardless of domain, shows recurring themes: segmenting
 
 Given the central role of ideas in human society you'd think we'd have, if not one universally accepted, a handful of well known, well established, and more importantly useful document formats for ideas. And yet, we don't, not exactly.
 
-## 1\. Formating Ideas
+## 1\. Formatting Ideas
 
 HTML has proven to be a very rich structure for ideas of all kinds, but it is very tied to browser, presentation and other publishing legacies in one way, and too poor conceptually in others (flat structure, sections are lists). Wikimedia's format is a good candidate, but also too domain and legacy driven.  
 
@@ -20,7 +21,7 @@ The best candidates we have from this tend to be SGML descendants in a variety o
 
 **GML/SGML**:
 
-IBM's 1960s Generalized Markup Language work by Charles Goldfarb, Edward Mosher, and Raymond Lorie. GML established the principle of separating content from presentation—marking up what something is (a title, equation, citation) rather than how it should look. Later on SGML, in the 80s standardized and expanded the idea.
+IBM's 1960s Generalized Markup Language work by Charles Goldfarb, Edward Mosher, and Raymond Lorie. XML established the principle of separating content from presentation—marking up what something is (a title, equation, citation) rather than how it should look. Later on SGML, in the 80s standardized and expanded the idea.
 
 HTML and XML are the children of these, and have proven incredibly successful as general vessels of human knowledge. They have, however, from SGML and parts of XML proven to be too complex and never quite achieved the universal and unequivocal format they hoped to be.
 
@@ -59,17 +60,17 @@ Lex is homomorphic, that is if you copy from a well exported HTML file to a text
 
 ### 3.3 The Primitives
 
-#### 3.3.1 Nested structure
+#### 3.3.1. Nested structure
 
 Lex documents are not flat, as HTML and markdown files are but instead nested. With sections having formal children, siblings and parents. In fact this very section, section 3.3.1 has 3.3 The primitives as its parent, itself a child of section 3. Lex: ideas, naked.
 
 Structure is encoded through indentations, where a section's children (its content) is +1 indented off the section (including its title).
 
-#### 3.3.2 Paragraphs
+#### 3.3.2 . Paragraphs
 
 The mother of all structures, the most forgiving and flexible one. A sequence of sentences, separated by blank spaces. Paragraphs are too good, too perfectly design in order to need further introduction.
 
-#### 3.3.3 Lists
+#### 3.3.3. Lists
 
 They are every where, connecting ideas, things, todos and whatever you ideate.
 
@@ -78,7 +79,7 @@ They are every where, connecting ideas, things, todos and whatever you ideate.
   1\. And have several decoration styles, from plain to numeral to b. Alphabetical and lest we forget iii. Roman styling.
   Lex lists are powerful and can contain any form of content save for sections.
 
-#### 3.3.4 Verbatim Content
+#### 3.3.4. Verbatim Content
 
 ``` javascript
 
@@ -91,30 +92,36 @@ Many times this is, as above a piece of text that is formatted in a formal langu
 With its epic proportions the tower of Babel is, although a gloomy one, a unequivocal recognition that human communication takes all sorts of forms.
 ```
 
-### 3.3.5 Annotations
+#### 3.3.5. Annotations
 
 Annotations represent meta-data, that is, information about the content, not the content itself. Like the author and pub date at this document's top level ones.
 
+<!-- lex:note-editor -->
+
+ Maybe this could be better rephrased? Not sure how annotations are linked to the closes element comes in from this phrase.
+
+<!-- /lex:note-editor -->
+
+<!-- lex:note.author -->
+
+ Done, I'm still keeping it simple, though. They can be attached to any content, and are connected through the annotation position.
+
+<!-- /lex:note.author -->
+
 Annotations are very flexible, and allow tooling, like review and comments in publishing workflows
 
-<!-- lex:note -->
-
- Maybe this could be better rephrased? Not sure how annotations are linked to the closes element comes in from this phrase. :: note.author :: Done, I'm still keeping it simple, though. They can be attached to any content, and are connected through the annotation position.
-
-<!-- /lex:note -->
-
-### 3.3.6 References
+#### 3.3.6. References
 
 Ideas, without connections are not ideas. That's why Lex includes a rich set of reference targets, for urls <http://example.com> to files [./hi-mom.txt](./hi-mom.txt), sections in the same document [\#3.2](#3.2), placeholders \[TK-betterimage\], citations [@john-2023, p.43](#ref-john-2023,%20p.43) and last but never least footnotes\[1\]
 
-### 3.3.7 Inlines
+#### 3.3.7. Inlines
 
 These are rendered instructions such as this should be **strong** or *emphasized* and that a word is a `technical term` or math \#$$E=mc^2$$\#.
 
-# 4\. Parting Notes
+## 4\. Parting Notes
 
 This document is Lex-formatted itself. In fact, it showcases all of Lex elements and structures. Hopefully it serves as an example of how simple and unobtrusive the syntax is, where ideas are centered, with minimal distractions, and where most syntax is leveraged by prior knowledge of the rich plain text tradition most people are exposed to.
 
-# Notes
+## Notes
 
 1\. Citations format hook into established citation management systems as BibTeX and Zotero standards.

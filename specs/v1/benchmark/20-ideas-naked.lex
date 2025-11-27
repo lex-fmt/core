@@ -1,7 +1,5 @@
 :: author :: Arthur Debert  
 :: publishing-date :: 2025/10/12 20:23:23, São Paulo, Brazil
-
-
 Ideas, Naked
 
 
@@ -69,7 +67,15 @@ Ideas, Naked
 
             Lex documents are not flat, as HTML and markdown files are but instead nested. With sections having formal children, siblings and parents. In fact this very section, section 3.3.1 has 3.3 The primitives as its parent, itself a child of section 3. Lex: ideas, naked.
 
-            Structure is encoded through indentations, where a section's children (its content) is +1 indented off the section (including its title).
+            Structure is *encoded* through indentations, where a section's children (its content) is +1 indented off the section (including its title).
+
+
+        3.3.3. Theo
+
+            Hobber Mallow:
+                Charatcer that is Chocomallow
+
+
 
 
         3.3.2 . Paragraphs
