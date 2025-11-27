@@ -5,17 +5,18 @@ use lex_parser::lex::ast::ContentItem;
 
 #[test]
 fn test_session_hierarchy() {
+    // H1 is reserved for document title, use H2+ for sessions
     let md = r#"
-# Level 1
+## Level 1
 Content 1
 
-## Level 2
+### Level 2
 Content 2
 
-### Level 3
+#### Level 3
 Content 3
 
-# Level 1 again
+## Level 1 again
 Content 1b
 "#;
 
@@ -63,11 +64,12 @@ Content 1b
 
 #[test]
 fn test_mixed_levels() {
+    // H1 is reserved for document title, use H2+ for sessions
     let md = r#"
-# Level 1
-## Level 2
-### Level 3
-## Level 2 again
+## Level 1
+### Level 2
+#### Level 3
+### Level 2 again
 "#;
 
     let doc = MarkdownFormat.parse(md).expect("Failed to parse markdown");

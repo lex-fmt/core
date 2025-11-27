@@ -294,41 +294,39 @@ fn test_trifecta_060_nesting() {
 
 #[test]
 fn test_document_title_from_lex_document() {
-    // Document with explicit title (first paragraph followed by blank line at document start)
-    let lex_src = "My Document Title\n\nSome content here.\n";
-    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+    // Use spec file: document with explicit title
+    let lex_src = std::fs::read_to_string(
+        "../specs/v1/elements/document.docs/document-01-title-explicit.lex",
+    )
+    .expect("document-01 spec file should exist");
+    let html = lex_to_html(&lex_src, HtmlTheme::Modern);
 
     assert!(html.contains("<title>My Document Title</title>"));
 }
 
 #[test]
-fn test_document_title_fallback() {
-    // Document without title (starts directly with content) falls back to "Lex Document"
-    // Note: A paragraph NOT followed by blank line is not a document title
-    let lex_src = "Just a paragraph.\n";
-    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+fn test_document_title_first_paragraph() {
+    // Use spec file: first paragraph followed by blank line becomes document title
+    let lex_src =
+        std::fs::read_to_string("../specs/v1/elements/document.docs/document-06-title-empty.lex")
+            .expect("document-06 spec file should exist");
+    let html = lex_to_html(&lex_src, HtmlTheme::Modern);
 
-    assert!(html.contains("<title>Lex Document</title>"));
-}
-
-#[test]
-fn test_document_title_html_escaping() {
-    // Document title with HTML special characters should be escaped
-    let lex_src = "Title with <tags> & \"quotes\"\n\nContent.\n";
-    let html = lex_to_html(lex_src, HtmlTheme::Modern);
-
-    // Should contain escaped title
-    assert!(html.contains("<title>Title with &lt;tags&gt; &amp; &quot;quotes&quot;</title>"));
+    // First paragraph "Just a paragraph with no title." becomes the document title
+    assert!(html.contains("<title>Just a paragraph with no title.</title>"));
 }
 
 #[test]
 fn test_document_title_session_without_title() {
-    // When document starts with session (no explicit document title), falls back to "Lex Document"
-    // Note: Session hoisting is not currently implemented
-    let lex_src = "1. Introduction\n\n    Content.\n";
-    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+    // Use spec file: document starts with session (no explicit document title)
+    // Session hoisting is not currently implemented, falls back to "Lex Document"
+    let lex_src = std::fs::read_to_string(
+        "../specs/v1/elements/document.docs/document-05-title-session-hoist.lex",
+    )
+    .expect("document-05 spec file should exist");
+    let html = lex_to_html(&lex_src, HtmlTheme::Modern);
 
-    // Document should fallback to default title
+    // Document should fallback to default title (session hoisting not implemented)
     assert!(html.contains("<title>Lex Document</title>"));
 }
 

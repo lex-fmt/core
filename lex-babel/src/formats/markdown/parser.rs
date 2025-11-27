@@ -48,10 +48,52 @@ type DefinitionPieces = Option<(Vec<InlineContent>, Vec<InlineContent>)>;
 fn comrak_ast_to_events<'a>(root: &'a AstNode<'a>) -> Result<Vec<Event>, FormatError> {
     let mut events = vec![Event::StartDocument];
 
-    collect_children_with_definitions(root.children(), &mut events)?;
+    // Check if first child is an H1 heading - if so, treat it as document title
+    let mut children_iter = root.children().peekable();
+    let mut document_title: Option<String> = None;
+
+    if let Some(first_child) = children_iter.peek() {
+        if let NodeValue::Heading(heading) = &first_child.data.borrow().value {
+            if heading.level == 1 {
+                // Extract H1 text as document title
+                let first_child = children_iter.next().unwrap();
+                let mut title_text = String::new();
+                for child in first_child.children() {
+                    collect_text_content(child, &mut title_text);
+                }
+                document_title = Some(title_text.trim().to_string());
+            }
+        }
+    }
+
+    // If we found a document title, emit it as a special event
+    // For now, we'll emit it as a paragraph that becomes the document title
+    // when converted back to Lex AST
+    if let Some(title) = document_title {
+        // Emit document title as a paragraph followed by an implicit blank
+        // The from_ir conversion will recognize this as the document title
+        events.push(Event::StartParagraph);
+        events.push(Event::Inline(InlineContent::Text(title)));
+        events.push(Event::EndParagraph);
+    }
+
+    collect_children_with_definitions(children_iter, &mut events)?;
 
     events.push(Event::EndDocument);
     Ok(events)
+}
+
+/// Collect text content from a node (for extracting document title)
+fn collect_text_content<'a>(node: &'a AstNode<'a>, output: &mut String) {
+    match &node.data.borrow().value {
+        NodeValue::Text(text) => output.push_str(text),
+        NodeValue::SoftBreak | NodeValue::LineBreak => output.push(' '),
+        _ => {
+            for child in node.children() {
+                collect_text_content(child, output);
+            }
+        }
+    }
 }
 
 /// Recursively collect events from a Comrak AST node
