@@ -58,8 +58,12 @@
 //! # CSS and Theming
 //!
 //! HTML export includes embedded CSS from:
-//! - `css/baseline.css`: Browser reset and base styles
-//! - `css/themes/theme-*.css`: Theme-specific styles
+//! - `css/baseline.css`: Browser reset + default modern presentation (always included)
+//! - `css/themes/theme-*.css`: Optional overrides layered on top of the baseline
+//!
+//! The default theme (`HtmlTheme::Modern`) injects an empty stylesheet so the
+//! baseline alone controls rendering. Other themes, like Fancy Serif, only add
+//! targeted overrides.
 //!
 //! Themes use Google Fonts and are mobile-responsive.
 //!
@@ -119,9 +123,9 @@ pub struct HtmlFormat {
 /// Available CSS themes for HTML export
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HtmlTheme {
-    /// Fancy serif theme with bold titles
+    /// Serif typography override (fonts only, layout comes from baseline)
     FancySerif,
-    /// Modern zeitgeist theme with sans-serif
+    /// Baseline modern theme (no-op; relies on baseline.css)
     Modern,
 }
 
