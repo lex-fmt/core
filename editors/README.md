@@ -70,7 +70,7 @@ Use `client:exec_cmd({ command = 'lex.commandName', arguments = args })` (or `vi
 
 Bellow are the feature packs already implemented and live.
 
-## 8\.1\. Minimal Featureset : Syntax and Language Support
+### 8.1. Minimal Featureset : Syntax and Language Support
 
 These are the initial launch features for both editors:
 
@@ -88,15 +88,13 @@ These are currently working in the Neovim plugin. All of these are built over th
 
 ## 9\. Configuration
 
-``` doc.table
 | Option | Type | Default | Description |
-|---|---|---|---|
-| `session_blank_lines_before` | Integer | `1` | Number of blank lines before a session title. |
-| `session_blank_lines_after` | Integer | `1` | Number of blank lines after a session title. |
-| `normalize_seq_markers` | Boolean | `true` | Whether to normalize list markers (e.g. all bullets to `-`). |
-| `unordered_seq_marker` | Character | `-` | The character to use for unordered list markers. |
-| `max_blank_lines` | Integer | `2` | Maximum number of consecutive blank lines allowed. |
-| `indent_string` | String | `"    "` | String to use for indentation (usually 4 spaces). |
-| `preserve_trailing_blanks` | Boolean | `false` | Whether to preserve trailing blank lines at the end of the document. |
-| `normalize_verbatim_markers` | Boolean | `true` | Whether to normalize verbatim markers to `::`.
-```
+| --- | --- | --- | --- |
+| \`session\_blank\_lines\_before\` | Integer | \`1\` | Number of blank lines before a session title. |
+| \`session\_blank\_lines\_after\` | Integer | \`1\` | Number of blank lines after a session title. |
+| \`normalize\_seq\_markers\` | Boolean | \`true\` | Whether to normalize list markers (e.g. all bullets to \`-\`). |
+| \`unordered\_seq\_marker\` | Character | \`-\` | The character to use for unordered list markers. |
+| \`max\_blank\_lines\` | Integer | \`2\` | Maximum number of consecutive blank lines allowed. |
+| \`indent\_string\` | String | \`"    "\` | String to use for indentation (usually 4 spaces). |
+| \`preserve\_trailing\_blanks\` | Boolean | \`false\` | Whether to preserve trailing blank lines at the end of the document. |
+| \`normalize\_verbatim\_markers\` | Boolean | \`true\` | Whether to normalize verbatim markers to \`::\`. |

@@ -381,6 +381,13 @@ fn add_inline_to_node(parent: &Handle, inline: &InlineContent) -> Result<(), For
             anchor.children.borrow_mut().push(anchor_text);
             parent.children.borrow_mut().push(anchor);
         }
+
+        InlineContent::Marker(marker_text) => {
+            let span = create_element("span", vec![("class", "seq_marker")]);
+            let text = create_text(marker_text);
+            span.children.borrow_mut().push(text);
+            parent.children.borrow_mut().push(span);
+        }
     }
 
     Ok(())
