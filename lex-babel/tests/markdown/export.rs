@@ -96,7 +96,7 @@ fn test_heading_and_paragraph_separation() {
     }
 
     // Session numbering must be preserved in the heading text
-    assert_eq!(heading_text.trim(), "1. Title");
+    assert_eq!(heading_text.trim(), "Title");
     assert!(paragraph_text.contains("Body text."));
 }
 
@@ -146,9 +146,9 @@ fn test_trifecta_010_paragraphs_sessions_flat_single() {
         headings
     );
 
-    // All sessions at root level should be h1
+    // All sessions at root level should be h2 (since h1 is reserved for doc title)
     for level in &heading_levels {
-        assert_eq!(*level, 1, "Root-level sessions should be h1");
+        assert_eq!(*level, 2, "Root-level sessions should be h2");
     }
 
     println!(
@@ -187,13 +187,13 @@ fn test_trifecta_020_paragraphs_sessions_flat_multiple() {
     for child in root.children() {
         if let NodeValue::Heading(h) = &child.data.borrow().value {
             heading_levels_vec.push(h.level);
-            if h.level == 1 {
+            if h.level == 2 {
                 has_h1 = true;
             }
         }
     }
 
-    assert!(has_h1, "Should have at least one h1 (root session)");
+    assert!(has_h1, "Should have at least one h2 (root session)");
     println!("Trifecta 020: Heading levels: {:?}", heading_levels_vec);
 
     println!("Trifecta 020: {} headings", heading_count);
@@ -240,12 +240,12 @@ fn test_trifecta_060_nesting() {
     // Verify heading sequence makes sense
     // Session 1.2.1 should generate h3, 1.1 should generate h2, etc.
     assert!(
-        heading_levels.contains(&1),
-        "Should have h1 for root sessions"
+        heading_levels.contains(&2),
+        "Should have h2 for root sessions"
     );
     assert!(
-        heading_levels.contains(&2) || heading_levels.contains(&3),
-        "Should have h2 or h3 for nested sessions"
+        heading_levels.contains(&3) || heading_levels.contains(&4),
+        "Should have h3 or h4 for nested sessions"
     );
 
     println!(

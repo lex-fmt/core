@@ -156,6 +156,21 @@ fn build_html_dom(events: &[Event]) -> Result<RcDom, FormatError> {
             }
 
             Event::EndVerbatim => {
+                // Check for special metadata comment format
+                if let Some(ref lang) = verbatim_language {
+                    if let Some(label) = lang.strip_prefix("lex-metadata:") {
+                        // Render as comment
+                        let comment_text = format!(" lex:{}{}", label, verbatim_content);
+                        let comment_node = create_comment(&comment_text);
+                        current_parent.children.borrow_mut().push(comment_node);
+
+                        in_verbatim = false;
+                        verbatim_language = None;
+                        verbatim_content.clear();
+                        continue; // Skip normal verbatim handling
+                    }
+                }
+
                 // Create pre + code block
                 let mut attrs = vec![("class", "lex-verbatim")];
                 let lang_string;
@@ -504,8 +519,8 @@ mod tests {
 
         let html = serialize_to_html(&lex_doc, HtmlTheme::Modern).unwrap();
 
-        assert!(html.contains("<section class=\"lex-session lex-session-1\">"));
-        assert!(html.contains("<h1>"));
+        assert!(html.contains("<section class=\"lex-session lex-session-2\">"));
+        assert!(html.contains("<h2>"));
         assert!(html.contains("Introduction"));
     }
 

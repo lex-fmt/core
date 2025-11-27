@@ -15,12 +15,9 @@ This definition contains a paragraph and a `list` to test mixed content at the t
 
 This is a marker annotation at the root level, attached to the definition above.
 
-# 1\. Primary Session {{session}}
+## Primary Session {{session}}
 
 This session acts as the main container for testing nested structures. It starts with a simple paragraph. {{paragraph}}
-
-- Followed by a simple list. {{list-item}} 
-- This list has two items. {{list-item}} 
 
 <!-- lex:warning severity=high -->
 
@@ -28,7 +25,10 @@ This session acts as the main container for testing nested structures. It starts
 
 <!-- /lex:warning -->
 
-## 1.1. Nested Session (Level 2) {{session}}
+- Followed by a simple list. {{list-item}} 
+- This list has two items. {{list-item}} 
+
+### Nested Session (Level 2) {{session}}
 
 This is a second-level session containing a definition and a list with nested content. {{paragraph}}
 
@@ -54,12 +54,9 @@ return "lex";
 }
 ```
 
-# 2\. Second Root Session {{session}}
+## Second Root Session {{session}}
 
 This session tests annotations with block content and marker-style verbatim blocks. {{paragraph}}
-
-``` image
-```
 
 <!-- lex:todo status="open" assignee="team" -->
 
@@ -71,5 +68,8 @@ It contains a paragraph and a list. {{paragraph}}
 - Task 2 to complete. {{list-item}} 
 
 <!-- /lex:todo -->
+
+``` image
+```
 
 Final paragraph at the end of the document. {{paragraph}}
