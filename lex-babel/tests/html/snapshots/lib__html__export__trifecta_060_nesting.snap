@@ -184,6 +184,7 @@ h6 + .lex-paragraph {
 .lex-list {
   margin: var(--lex-space-100) 0;
   padding-left: var(--lex-space-200);
+  list-style: none;
   line-height: 1.25;
 }
 
