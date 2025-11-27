@@ -34,7 +34,7 @@
 use crate::ir::events::Event;
 use crate::ir::nodes::{
     Annotation, Definition, DocNode, Document, Heading, InlineContent, List, ListItem, Paragraph,
-    Verbatim,
+    Table, TableCell, TableRow, Verbatim,
 };
 
 /// Converts a `DocNode` tree to a flat vector of `Event`s.
@@ -113,6 +113,47 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
             parameters,
             content,
         }) => {
+            // Check if this is a metadata annotation that should be serialized as a single HTML block
+            let metadata_labels = [
+                "author", "note", "title", "date", "tags", "category", "template",
+            ];
+            if metadata_labels.contains(&label.as_str()) {
+                // Serialize content to text
+                // This is a simplification: we assume content is mostly text paragraphs
+                let mut text_content = String::new();
+                for child in content {
+                    if let DocNode::Paragraph(p) = child {
+                        for inline in &p.content {
+                            if let InlineContent::Text(t) = inline {
+                                text_content.push_str(t);
+                            } else if let InlineContent::Reference(r) = inline {
+                                text_content.push_str(r);
+                            }
+                            // Ignore other inline types for now or implement full serialization
+                        }
+                        text_content.push('\n');
+                    }
+                }
+
+                // Let's construct the full comment string here.
+                let mut comment_body = String::new();
+                for (key, value) in parameters {
+                    comment_body.push_str(&format!(" {}={}", key, value));
+                }
+                if !text_content.is_empty() {
+                    comment_body.push('\n');
+                    comment_body.push_str(&text_content);
+                }
+
+                events.push(Event::StartVerbatim(Some(format!(
+                    "lex-metadata:{}",
+                    label
+                ))));
+                events.push(Event::Inline(InlineContent::Text(comment_body)));
+                events.push(Event::EndVerbatim);
+                return;
+            }
+
             events.push(Event::StartAnnotation {
                 label: label.clone(),
                 parameters: parameters.clone(),
@@ -128,8 +169,45 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
                 label: label.clone(),
             });
         }
+        DocNode::Table(Table {
+            rows,
+            header,
+            caption: _,
+        }) => {
+            events.push(Event::StartTable);
+            for row in header {
+                walk_table_row(row, events, true);
+            }
+            for row in rows {
+                walk_table_row(row, events, false);
+            }
+            events.push(Event::EndTable);
+        }
         DocNode::Inline(inline) => events.push(Event::Inline(inline.clone())),
     }
+}
+
+fn walk_table_row(row: &TableRow, events: &mut Vec<Event>, header: bool) {
+    events.push(Event::StartTableRow { header });
+    for cell in &row.cells {
+        walk_table_cell(cell, events);
+    }
+    events.push(Event::EndTableRow);
+}
+
+fn walk_table_cell(cell: &TableCell, events: &mut Vec<Event>) {
+    events.push(Event::StartTableCell {
+        header: cell.header,
+        align: cell.align,
+    });
+    if !cell.content.is_empty() {
+        events.push(Event::StartContent);
+        for child in &cell.content {
+            walk_node(child, events);
+        }
+        events.push(Event::EndContent);
+    }
+    events.push(Event::EndTableCell);
 }
 
 fn walk_list_item(item: &ListItem, events: &mut Vec<Event>) {
@@ -229,18 +307,9 @@ mod tests {
             Event::EndContent,
             Event::EndDefinitionDescription,
             Event::EndDefinition,
-            Event::StartAnnotation {
-                label: "note".to_string(),
-                parameters: vec![("key".to_string(), "value".to_string())],
-            },
-            Event::StartContent,
-            Event::StartParagraph,
-            Event::Inline(InlineContent::Text("Body".to_string())),
-            Event::EndParagraph,
-            Event::EndContent,
-            Event::EndAnnotation {
-                label: "note".to_string(),
-            },
+            Event::StartVerbatim(Some("lex-metadata:note".to_string())),
+            Event::Inline(InlineContent::Text(" key=value\nBody\n".to_string())),
+            Event::EndVerbatim,
             Event::EndDocument,
         ];
 
