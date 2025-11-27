@@ -47,6 +47,7 @@ fn default_comrak_options() -> ComrakOptions<'static> {
     options.extension.autolink = true;
     options.extension.tasklist = true;
     options.extension.superscript = true;
+    options.extension.front_matter_delimiter = Some("---".to_string());
     // Allow HTML output for annotations (rendered as HTML comments)
     options.render.unsafe_ = true;
     options
@@ -282,6 +283,24 @@ fn build_comrak_ast<'a>(
                 }
             }
 
+            Event::StartAnnotation { label, parameters } if label == "frontmatter" => {
+                // Serialize as YAML frontmatter
+                let mut yaml = String::from("---\n");
+                for (key, value) in parameters {
+                    // Simple YAML serialization
+                    // If value contains special chars, we might need quoting, but for now simple string
+                    yaml.push_str(&format!("{}: {}\n", key, value));
+                }
+                yaml.push_str("---\n\n");
+
+                let frontmatter_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::FrontMatter(yaml),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(frontmatter_node);
+                // No need to push to stack or change current_parent as FrontMatter is a leaf block
+            }
+
             Event::StartAnnotation { label, parameters } => {
                 current_heading = None;
                 // Emit as HTML comment
@@ -299,6 +318,10 @@ fn build_comrak_ast<'a>(
                     (0, 0).into(),
                 ))));
                 current_parent.append(html_node);
+            }
+
+            Event::EndAnnotation { label } if label == "frontmatter" => {
+                // Nothing to do, FrontMatter node is self-contained
             }
 
             Event::EndAnnotation { label } => {
@@ -430,7 +453,7 @@ fn build_comrak_ast<'a>(
                     if let NodeValue::Table(ref mut table) = table_data.value {
                         let is_first_row = table_node
                             .first_child()
-                            .map_or(false, |first| std::ptr::eq(first, row_node));
+                            .is_some_and(|first| std::ptr::eq(first, row_node));
 
                         if is_first_row {
                             let align_enum = match align {
