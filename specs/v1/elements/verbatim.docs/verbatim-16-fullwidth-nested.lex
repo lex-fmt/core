@@ -1,3 +1,4 @@
+Another line.
 This paragraph comes before the fullwidth block.
 
 Fullwidth Table at Root:
