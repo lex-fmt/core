@@ -13,12 +13,23 @@
 
 /* === Color Variables === */
 :root {
-  --lex-normal: #000000;
+  /* VSCode Light Theme inspired colors */
+  --lex-normal: #3b3b3b;
   --lex-muted: #808080;
-  --lex-faint: #b3b3b3;
-  --lex-faintest: #cacaca;
+  /* Comments/Secondary */
+  --lex-faint: #aaaaaa;
+  /* Meta/Tertiary */
+  --lex-faintest: #cccccc;
+  /* Subtle */
   --lex-bg: #ffffff;
-  --lex-code-bg: #f5f5f5;
+  --lex-code-bg: #f3f3f3;
+}
+
+.seq_marker {
+  color: var(--lex-faint);
+  font-weight: normal;
+  /* Ensure markers aren't bold even in headings */
+  margin-right: 0.25em;
 }
 
 /* === Typography === */
@@ -202,11 +213,11 @@ h6+.lex-paragraph {
 
 /* List markers in muted color */
 ul.lex-list {
-  list-style-type: "- ";
+  list-style-type: none;
 }
 
 ol.lex-list {
-  list-style-type: decimal;
+  list-style-type: none;
 }
 
 .lex-list-item::marker {

@@ -262,6 +262,7 @@ fn inline_content_to_text(content: &[InlineContent]) -> String {
             InlineContent::Code(code) => format!("`{}`", code),
             InlineContent::Math(math) => format!("#{}#", math),
             InlineContent::Reference(ref_text) => format!("[{}]", ref_text),
+            InlineContent::Marker(marker) => marker.clone(),
         })
         .collect()
 }
