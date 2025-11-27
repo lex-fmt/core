@@ -87,6 +87,9 @@ pub(super) static LIST_ITEM_REGEX: Lazy<Regex> =
 /// - `<container>` represents a nested indented block
 /// - Quantifiers like `+` (one or more) and `{2,}` (two or more) enforce grammar rules
 pub(super) const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
+    // Document start marker: synthetic boundary between metadata and content
+    // This is matched first and consumed to establish document position
+    ("document_start", r"^<document-start-line>"),
     // Annotation (multi-line with markers): <annotation-start-line><container><annotation-end-line>
     (
         "annotation_block_with_end",

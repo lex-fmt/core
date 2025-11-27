@@ -32,6 +32,7 @@
 //!         - ParagraphLine: Any other line (paragraph text)
 //!         - DialogLine: a line that starts with a dash, but is marked not to be a list item.
 //!         - Indent / Dedent: structural markers passed through from indentation handling.
+//!         - DocumentStart: synthetic marker for document content boundary.
 //!
 //!     And to represent a group of lines at the same level, there is a LineContainer.
 //!
@@ -122,6 +123,16 @@ pub enum LineType {
 
     /// Dedentation marker (pass-through from prior transformation)
     Dedent,
+
+    /// Document start marker (synthetic)
+    ///
+    /// Marks the boundary between document-level metadata (annotations) and document content.
+    /// Injected by DocumentStartMarker transformation at:
+    /// - Position 0 if no document-level annotations
+    /// - Immediately after the last document-level annotation otherwise
+    ///
+    /// This enables grammar rules to reason about document structure and position.
+    DocumentStart,
 }
 
 impl fmt::Display for LineType {
@@ -138,6 +149,7 @@ impl fmt::Display for LineType {
             LineType::DialogLine => "DIALOG_LINE",
             LineType::Indent => "INDENT",
             LineType::Dedent => "DEDENT",
+            LineType::DocumentStart => "DOCUMENT_START",
         };
         write!(f, "{}", name)
     }
@@ -165,6 +177,7 @@ impl LineType {
             LineType::DialogLine => "dialog-line",
             LineType::Indent => "indent",
             LineType::Dedent => "dedent",
+            LineType::DocumentStart => "document-start-line",
         };
         format!("<{}>", name)
     }
@@ -230,6 +243,10 @@ mod tests {
         );
         assert_eq!(LineType::Indent.to_grammar_string(), "<indent>");
         assert_eq!(LineType::Dedent.to_grammar_string(), "<dedent>");
+        assert_eq!(
+            LineType::DocumentStart.to_grammar_string(),
+            "<document-start-line>"
+        );
     }
 
     #[test]
