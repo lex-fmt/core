@@ -17,6 +17,8 @@ pub enum NodeType {
     Document,
     /// Synthetic marker for the start of document content (after metadata/annotations)
     DocumentStart,
+    /// Document title: a single paragraph line after DocumentStart, followed by blank lines
+    DocumentTitle,
     Paragraph,
     Session,
     ListItem,

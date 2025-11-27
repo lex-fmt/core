@@ -87,8 +87,16 @@ pub(super) static LIST_ITEM_REGEX: Lazy<Regex> =
 /// - `<container>` represents a nested indented block
 /// - Quantifiers like `+` (one or more) and `{2,}` (two or more) enforce grammar rules
 pub(super) const GRAMMAR_PATTERNS: &[(&str, &str)] = &[
+    // Document title: DocumentStart + single title line + blank line(s) + NOT followed by container
+    // Must be tried BEFORE document_start to capture titles
+    // The negative lookahead (?!<container>) ensures we don't match sessions (subject + blank + indented content)
+    // Title accepts same line types as session: paragraph, subject, list, or subject-or-list-item
+    (
+        "document_title",
+        r"^<document-start-line>(?P<title><paragraph-line>|<subject-line>|<list-line>|<subject-or-list-item-line>)(?P<blank><blank-line>+)(?!<container>)",
+    ),
     // Document start marker: synthetic boundary between metadata and content
-    // This is matched first and consumed to establish document position
+    // Only matched when there's no document title (fallback)
     ("document_start", r"^<document-start-line>"),
     // Annotation (multi-line with markers): <annotation-start-line><container><annotation-end-line>
     (
