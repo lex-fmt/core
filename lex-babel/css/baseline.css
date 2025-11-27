@@ -8,7 +8,7 @@
 /* === CSS Variables for Palette + Rhythm === */
 :root {
   /* VSCode Light Theme inspired colors */
-  --lex-normal: #3b3b3b;
+  --lex-normal: #000000;
   --lex-muted: #808080;
   --lex-faint: #aaaaaa;
   --lex-faintest: #cccccc;
@@ -323,7 +323,7 @@ pre code {
 .seq_marker {
   color: var(--lex-faint);
   font-weight: normal;
-  margin-right: var(--lex-space-025);
+  margin-right: 0;
 }
 
 /* === Links (References) === */
