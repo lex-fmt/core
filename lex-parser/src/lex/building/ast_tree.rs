@@ -44,7 +44,7 @@ impl<'a> AstTreeBuilder<'a> {
             panic!("Expected a Document node at the root");
         }
 
-        // Extract document title if present (grammar-driven: NodeType::DocumentTitle)
+        // Extract document title if present
         let (document_title, title_skip_range) = self.extract_document_title(&root_node.children);
 
         // Build content items, filtering out structural markers and the title node
@@ -77,11 +77,7 @@ impl<'a> AstTreeBuilder<'a> {
         Ok(root.at(root_location))
     }
 
-    /// Extract document title from the parsed children if a DocumentTitle node exists.
-    ///
-    /// The grammar produces a DocumentTitle node when the document starts with
-    /// a single paragraph line followed by blank lines.
-    /// Extract document title from the parse nodes.
+    /// Extract document title from the parsed children.
     ///
     /// The document title is determined by the following pattern at the start of content (after DocumentStart):
     /// 1. A single Paragraph node
@@ -411,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_document_title_parsing() {
-        // Test that the AST builder correctly extracts title from a DocumentTitle node
+        // Test that the AST builder correctly extracts title
         let source = "My Document Title\n\nContent paragraph.\n";
         let builder = AstTreeBuilder::new(source);
 
@@ -424,7 +420,6 @@ mod tests {
             node_type: NodeType::Document,
             tokens: vec![],
             children: vec![
-                // DocumentTitle node (produced by grammar rule)
                 ParseNode {
                     node_type: NodeType::Paragraph,
                     tokens: vec![(Token::Text("My Document Title".to_string()), 0..17)],

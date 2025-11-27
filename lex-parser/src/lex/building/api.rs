@@ -435,7 +435,7 @@ pub fn blank_line_group_from_tokens(
 /// Build a TextContent from already-normalized tokens.
 ///
 /// This extracts the text and location from tokens without wrapping in a ContentItem.
-/// Used for extracting document titles from DocumentTitle nodes.
+/// Used for extracting document titles.
 ///
 /// # Arguments
 ///

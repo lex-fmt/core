@@ -97,7 +97,7 @@ end
 -- Check highlight groups
 print("\n=== HIGHLIGHT GROUP STATUS ===")
 local hl_groups = {
-  "@lsp.type.SessionTitle",
+  "@lsp.type.DocumentTitle",
   "@lsp.type.SessionMarker",
   "@lsp.type.SessionTitleText",
   "@lsp.type.DefinitionSubject",

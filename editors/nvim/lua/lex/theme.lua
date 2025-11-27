@@ -22,7 +22,7 @@ function M.apply_native()
   vim.api.nvim_set_hl(0, "@lsp.type.ListItemText", { link = "@markup", default = true })
 
   -- Structural elements - use punctuation/delimiter groups
-  vim.api.nvim_set_hl(0, "@lsp.type.SessionTitle", { link = "@markup.heading", default = true })
+  vim.api.nvim_set_hl(0, "@lsp.type.DocumentTitle", { link = "@markup.heading", default = true })
   vim.api.nvim_set_hl(0, "@lsp.type.SessionMarker", { link = "@punctuation.special", default = true })
   vim.api.nvim_set_hl(0, "@lsp.type.ListMarker", { link = "@markup.list", default = true })
 
@@ -87,7 +87,7 @@ function M.apply_monochrome()
   vim.api.nvim_set_hl(0, "@lsp.type.ListItemText", { fg = colors.normal })
 
   -- MUTED intensity: structural elements (markers, references)
-  vim.api.nvim_set_hl(0, "@lsp.type.SessionTitle", { fg = colors.muted, bold = true })
+  vim.api.nvim_set_hl(0, "@lsp.type.DocumentTitle", { fg = colors.muted, bold = true })
   vim.api.nvim_set_hl(0, "@lsp.type.SessionMarker", { fg = colors.muted, italic = true })
   vim.api.nvim_set_hl(0, "@lsp.type.ListMarker", { fg = colors.muted, italic = true })
   vim.api.nvim_set_hl(0, "@lsp.type.Reference", { fg = colors.muted, underline = true })
