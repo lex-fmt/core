@@ -289,6 +289,50 @@ fn test_trifecta_060_nesting() {
 }
 
 // ============================================================================
+// DOCUMENT TITLE TESTS
+// ============================================================================
+
+#[test]
+fn test_document_title_from_lex_document() {
+    // Document with explicit title (first paragraph followed by blank line at document start)
+    let lex_src = "My Document Title\n\nSome content here.\n";
+    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+
+    assert!(html.contains("<title>My Document Title</title>"));
+}
+
+#[test]
+fn test_document_title_fallback() {
+    // Document without title (starts directly with content) falls back to "Lex Document"
+    // Note: A paragraph NOT followed by blank line is not a document title
+    let lex_src = "Just a paragraph.\n";
+    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+
+    assert!(html.contains("<title>Lex Document</title>"));
+}
+
+#[test]
+fn test_document_title_html_escaping() {
+    // Document title with HTML special characters should be escaped
+    let lex_src = "Title with <tags> & \"quotes\"\n\nContent.\n";
+    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+
+    // Should contain escaped title
+    assert!(html.contains("<title>Title with &lt;tags&gt; &amp; &quot;quotes&quot;</title>"));
+}
+
+#[test]
+fn test_document_title_session_without_title() {
+    // When document starts with session (no explicit document title), falls back to "Lex Document"
+    // Note: Session hoisting is not currently implemented
+    let lex_src = "1. Introduction\n\n    Content.\n";
+    let html = lex_to_html(lex_src, HtmlTheme::Modern);
+
+    // Document should fallback to default title
+    assert!(html.contains("<title>Lex Document</title>"));
+}
+
+// ============================================================================
 // KITCHENSINK TEST
 // ============================================================================
 

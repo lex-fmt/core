@@ -8,7 +8,7 @@ expression: html
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="lex-babel">
-  <title>Lex Document</title>
+  <title>Multiple Sessions Flat Test {{paragraph}}</title>
   <style>
 /* Lex HTML Export - Baseline Styles
  * Browser reset and foundational styles for Lex documents
