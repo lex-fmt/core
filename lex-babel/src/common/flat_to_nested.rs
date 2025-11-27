@@ -166,6 +166,42 @@ impl StackNode {
                 term, description, ..
             } => DocNode::Definition(Definition { term, description }),
             StackNode::Verbatim { language, content } => {
+                if let Some(lang) = &language {
+                    if let Some(label) = lang.strip_prefix("lex-metadata:") {
+                        // Convert back to Annotation
+                        // Format: " key=val key2=val2\nBody"
+
+                        let (header, body) = if let Some((h, b)) = content.split_once('\n') {
+                            (h, Some(b.to_string()))
+                        } else {
+                            (content.as_str(), None)
+                        };
+
+                        let mut parameters = vec![];
+                        for part in header.split_whitespace() {
+                            if let Some((key, value)) = part.split_once('=') {
+                                parameters.push((key.to_string(), value.to_string()));
+                            }
+                        }
+
+                        let mut content_nodes = vec![];
+                        if let Some(text) = body {
+                            let text = text.strip_suffix('\n').unwrap_or(&text);
+
+                            if !text.is_empty() {
+                                content_nodes.push(DocNode::Paragraph(Paragraph {
+                                    content: vec![InlineContent::Text(text.to_string())],
+                                }));
+                            }
+                        }
+
+                        return DocNode::Annotation(Annotation {
+                            label: label.to_string(),
+                            parameters,
+                            content: content_nodes,
+                        });
+                    }
+                }
                 DocNode::Verbatim(Verbatim { language, content })
             }
             StackNode::Annotation {

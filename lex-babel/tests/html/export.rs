@@ -35,8 +35,8 @@ fn test_heading_simple() {
     let lex_src = "1. Introduction\n\n    Some content.\n";
     let html = lex_to_html(lex_src, HtmlTheme::Modern);
 
-    assert!(html.contains("<section class=\"lex-session lex-session-1\">"));
-    assert!(html.contains("<h1>"));
+    assert!(html.contains("<section class=\"lex-session lex-session-2\">"));
+    assert!(html.contains("<h2>"));
     assert!(html.contains("Introduction"));
     assert!(html.contains("<p class=\"lex-paragraph\">"));
     assert!(html.contains("Some content."));
@@ -47,10 +47,10 @@ fn test_multiple_heading_levels() {
     let lex_src = "1. Level 1\n\n    1.1. Level 2\n\n        Content here.\n";
     let html = lex_to_html(lex_src, HtmlTheme::Modern);
 
-    assert!(html.contains("<section class=\"lex-session lex-session-1\">"));
     assert!(html.contains("<section class=\"lex-session lex-session-2\">"));
-    assert!(html.contains("<h1>"));
+    assert!(html.contains("<section class=\"lex-session lex-session-3\">"));
     assert!(html.contains("<h2>"));
+    assert!(html.contains("<h3>"));
 }
 
 #[test]
@@ -267,7 +267,7 @@ fn test_trifecta_020_paragraphs_sessions_flat_multiple() {
     let html = lex_to_html(&lex_src, HtmlTheme::Modern);
 
     // Verify multiple sessions exist
-    assert!(html.contains("<section class=\"lex-session lex-session-1\">"));
+    assert!(html.contains("<section class=\"lex-session lex-session-2\">"));
 
     // Snapshot test
     assert_snapshot!(html);
@@ -281,8 +281,8 @@ fn test_trifecta_060_nesting() {
     let html = lex_to_html(&lex_src, HtmlTheme::Modern);
 
     // Verify nested sessions
-    assert!(html.contains("<section class=\"lex-session lex-session-1\">"));
     assert!(html.contains("<section class=\"lex-session lex-session-2\">"));
+    assert!(html.contains("<section class=\"lex-session lex-session-3\">"));
 
     // Snapshot test
     assert_snapshot!(html);

@@ -130,9 +130,20 @@ fn collect_events_from_node<'a>(
 
         NodeValue::HtmlBlock(html) => {
             // Try to parse as Lex annotation
-            if let Some((label, parameters)) = parse_lex_annotation(&html.literal) {
-                events.push(Event::StartAnnotation { label, parameters });
-                // Note: Closing annotation will be found when parsing closing comment
+            if let Some((label, parameters, content)) = parse_lex_annotation(&html.literal) {
+                events.push(Event::StartAnnotation {
+                    label: label.clone(),
+                    parameters,
+                });
+
+                if let Some(text) = content {
+                    events.push(Event::StartParagraph);
+                    events.push(Event::Inline(InlineContent::Text(text)));
+                    events.push(Event::EndParagraph);
+                    // If it had content, it's a self-contained annotation block, so we close it immediately
+                    events.push(Event::EndAnnotation { label });
+                }
+                // If no content, it's a start tag, closing tag will be found later
             } else if let Some(label) = parse_lex_annotation_close(&html.literal) {
                 events.push(Event::EndAnnotation { label });
             }
@@ -506,20 +517,33 @@ where
 
 /// Parse Lex annotation from HTML comment
 /// Format: <!-- lex:label key1=val1 key2=val2 -->
-fn parse_lex_annotation(html: &str) -> Option<(String, Vec<(String, String)>)> {
+/// Or multi-line:
+/// <!-- lex:label key=val
+/// Content
+/// -->
+#[allow(clippy::type_complexity)]
+fn parse_lex_annotation(html: &str) -> Option<(String, Vec<(String, String)>, Option<String>)> {
     let trimmed = html.trim();
     if !trimmed.starts_with("<!-- lex:") || !trimmed.ends_with("-->") {
         return None;
     }
 
     // Remove <!-- lex: prefix and --> suffix
-    let content = trimmed
+    let content_block = trimmed
         .strip_prefix("<!-- lex:")?
         .strip_suffix("-->")?
         .trim();
 
-    // Split on whitespace
-    let parts: Vec<&str> = content.split_whitespace().collect();
+    // Split into header (label + params) and body (content)
+    // If there is a newline, everything after is content
+    let (header, body) = if let Some((h, b)) = content_block.split_once('\n') {
+        (h, Some(b.trim().to_string()))
+    } else {
+        (content_block, None)
+    };
+
+    // Split header on whitespace
+    let parts: Vec<&str> = header.split_whitespace().collect();
     if parts.is_empty() {
         return None;
     }
@@ -533,7 +557,7 @@ fn parse_lex_annotation(html: &str) -> Option<(String, Vec<(String, String)>)> {
         }
     }
 
-    Some((label, parameters))
+    Some((label, parameters, body))
 }
 
 /// Parse Lex annotation closing tag from HTML comment

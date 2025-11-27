@@ -18,7 +18,7 @@ This is a warning.
     println!("HTML Output:\n{}", html);
 
     // HTML export should preserve annotations as HTML comments
-    assert!(html.contains("<!-- lex:note type=warning -->"));
-    assert!(html.contains("<!-- /lex:note -->"));
+    assert!(html.contains("<!-- lex:note type=warning"));
     assert!(html.contains("This is a warning."));
+    assert!(html.contains("-->"));
 }

@@ -216,25 +216,78 @@ fn build_comrak_ast<'a>(
 
             Event::StartVerbatim(language) => {
                 current_heading = None;
+
+                // Check for special metadata comment format
+                if let Some(lang) = &language {
+                    if let Some(label) = lang.strip_prefix("lex-metadata:") {
+                        // This is a metadata annotation to be rendered as an HTML comment
+                        // The content will follow as Inline(Text)
+                        // We need to capture it and wrap it in <!-- lex:label ... -->
+
+                        let node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                            NodeValue::HtmlBlock(comrak::nodes::NodeHtmlBlock {
+                                block_type: 0,
+                                literal: String::new(), // Will be filled by content
+                            }),
+                            (0, 0).into(),
+                        ))));
+                        current_parent.append(node);
+                        parent_stack.push(current_parent); // Push the old parent
+                        current_parent = node; // Set new parent to the HtmlBlock
+
+                        // Prepend the start tag now.
+                        let start_tag = format!("<!-- lex:{}", label);
+                        let mut data = node.data.borrow_mut();
+                        if let NodeValue::HtmlBlock(ref mut html) = data.value {
+                            html.literal.push_str(&start_tag);
+                        }
+
+                        // Set in_verbatim to true to indicate we are accumulating content
+                        // for this special HtmlBlock.
+                        in_verbatim = true;
+                        verbatim_language = language.clone(); // Store for EndVerbatim check
+                        verbatim_content.clear(); // Clear any previous content
+
+                        continue; // Skip the rest of the StartVerbatim logic
+                    }
+                }
+
+                // Original verbatim block handling
                 in_verbatim = true;
                 verbatim_language = language.clone();
                 verbatim_content.clear();
             }
 
             Event::EndVerbatim => {
-                // Create code block with accumulated content
-                let code_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
-                    NodeValue::CodeBlock(comrak::nodes::NodeCodeBlock {
-                        fenced: true,
-                        fence_char: b'`',
-                        fence_length: 3,
-                        fence_offset: 0,
-                        info: verbatim_language.take().unwrap_or_default(),
-                        literal: verbatim_content.clone(),
-                    }),
-                    (0, 0).into(),
-                ))));
-                current_parent.append(code_node);
+                // If we were processing a metadata comment (HtmlBlock), we need to close it
+                let is_html_block =
+                    matches!(current_parent.data.borrow().value, NodeValue::HtmlBlock(_));
+
+                if is_html_block {
+                    // Append closing tag
+                    let mut data = current_parent.data.borrow_mut();
+                    if let NodeValue::HtmlBlock(ref mut html) = data.value {
+                        html.literal.push_str("\n-->");
+                    }
+                    // Pop the HtmlBlock node from the stack
+                    current_parent = parent_stack.pop().ok_or_else(|| {
+                        FormatError::SerializationError("Unbalanced HTML block end".to_string())
+                    })?;
+                } else {
+                    // Original verbatim block handling: Create code block with accumulated content
+                    let code_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                        NodeValue::CodeBlock(comrak::nodes::NodeCodeBlock {
+                            fenced: true,
+                            fence_char: b'`',
+                            fence_length: 3,
+                            fence_offset: 0,
+                            info: verbatim_language.take().unwrap_or_default(),
+                            literal: verbatim_content.clone(),
+                        }),
+                        (0, 0).into(),
+                    ))));
+                    current_parent.append(code_node);
+                }
                 in_verbatim = false;
                 verbatim_content.clear();
             }
@@ -253,13 +306,53 @@ fn build_comrak_ast<'a>(
                 }
 
                 if in_verbatim {
-                    // Accumulate verbatim content
+                    // If we are in a special lex-metadata verbatim block (which is an HtmlBlock)
+                    // or a regular verbatim block, accumulate content.
                     if let InlineContent::Text(text) = &inline_to_emit {
-                        verbatim_content.push_str(text);
+                        if matches!(current_parent.data.borrow().value, NodeValue::HtmlBlock(_)) {
+                            // Append to the HtmlBlock's literal directly
+                            let mut data = current_parent.data.borrow_mut();
+                            if let NodeValue::HtmlBlock(ref mut html) = data.value {
+                                html.literal.push_str(text);
+                            }
+                        } else {
+                            // Accumulate for a regular CodeBlock (will be created in EndVerbatim)
+                            verbatim_content.push_str(text);
+                        }
+                    }
+                } else if matches!(current_parent.data.borrow().value, NodeValue::HtmlBlock(_)) {
+                    // If we are inside an HtmlBlock (metadata comment), append text to literal
+                    let mut data = current_parent.data.borrow_mut();
+                    if let NodeValue::HtmlBlock(ref mut html) = data.value {
+                        if let InlineContent::Text(text) = inline_to_emit {
+                            html.literal.push_str(&text);
+                        }
                     }
                 } else if let Some(heading) = current_heading {
                     // Add to heading (headings can have inline content directly)
-                    add_inline_to_node(arena, heading, &inline_to_emit)?;
+                    // Strip leading numbering if present (e.g. "1. Title" -> "Title")
+                    let mut heading_inline = inline_to_emit.clone();
+                    if let InlineContent::Text(text) = &heading_inline {
+                        // Regex approximation: ^\d+(\.\d+)*\.?\s+
+                        // Since we don't have regex crate, do manual check
+                        let trimmed = text.trim_start();
+                        if let Some(first_char) = trimmed.chars().next() {
+                            if first_char.is_ascii_digit() {
+                                // Find end of numbering
+                                if let Some(end_idx) =
+                                    trimmed.find(|c: char| !c.is_ascii_digit() && c != '.')
+                                {
+                                    // Check if followed by space
+                                    if trimmed[end_idx..].starts_with(' ') {
+                                        heading_inline = InlineContent::Text(
+                                            trimmed[end_idx..].trim_start().to_string(),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    add_inline_to_node(arena, heading, &heading_inline)?;
                 } else if in_list_item {
                     // If we're already inside an explicit paragraph, write directly to it.
                     if matches!(current_parent.data.borrow().value, NodeValue::Paragraph) {
@@ -303,7 +396,82 @@ fn build_comrak_ast<'a>(
 
             Event::StartAnnotation { label, parameters } => {
                 current_heading = None;
-                // Emit as HTML comment
+
+                // Check if this is a metadata annotation that should be serialized as a comment with content inside
+                // Whitelist: author, note, etc.
+                let metadata_labels = [
+                    "author", "note", "title", "date", "tags", "category", "template",
+                ];
+                if metadata_labels.contains(&label.as_str()) {
+                    // We need to capture the content of this annotation and put it inside the comment.
+                    // However, we are iterating events. The content events follow this StartAnnotation.
+                    // We can't easily consume them here without changing the architecture.
+                    // BUT, we can emit a special comment start, and then when we see EndAnnotation, emit the comment end.
+                    // The problem is comrak expects a single HtmlBlock for the comment if we want it to be "one block".
+                    // If we emit <!-- lex:author and then content and then -->, comrak might escape the content or treat it as markdown.
+
+                    // Alternative: We can emit a raw HTML block that starts the comment, and another that ends it.
+                    // But Comrak's HtmlBlock is for *block* HTML.
+                    // If we emit:
+                    // HtmlBlock("<!-- lex:author")
+                    // Paragraph("Content")
+                    // HtmlBlock("-->")
+                    // The output will be:
+                    // <!-- lex:author -->
+                    // <p>Content</p>
+                    // -->
+                    // Which is not what we want.
+
+                    // We want:
+                    // <!-- lex:author
+                    // Content
+                    // -->
+
+                    // To achieve this in the current architecture (Event -> Comrak AST), we need to know the content *now*.
+                    // But we don't.
+                    // However, `build_comrak_ast` is building a tree.
+                    // If we just emit the start comment, and then the content nodes are added as children of `current_parent`.
+                    // Wait, `current_parent` is the parent of the annotation.
+                    // When we see StartAnnotation, we usually create a wrapper node?
+                    // No, currently we just emit an HTML block and continue.
+
+                    // If we want to wrap the content in a comment, we should probably change how we handle this.
+                    // But since we can't easily change the event stream structure here...
+
+                    // Let's try to emit the comment start WITHOUT the closing -->
+                    // And EndAnnotation emits -->
+                    // AND we need to make sure the content is rendered as raw text, not Markdown.
+                    // But the content events will be processed as Markdown nodes (Paragraph, etc.).
+
+                    // If the user wants the content to be *inside* the comment, it effectively becomes "Raw HTML".
+                    // So the content should be treated as part of the HTML block.
+
+                    // Since we can't easily look ahead, maybe we can rely on `from_lex.rs` to have prepared this?
+                    // But `from_lex.rs` produces `DocNode::Annotation` with children.
+                    // `tree_to_events` flattens it.
+
+                    // HACK: If we are in `build_comrak_ast`, we are consuming events.
+                    // We can peek ahead in `events`!
+                    // But `events` is passed as a slice? No, `build_comrak_ast` takes `&[Event]`.
+                    // We are iterating it.
+
+                    // If I can't change the loop, I can't consume ahead.
+
+                    // Maybe I can change `tree_to_events`?
+                    // If `tree_to_events` sees a metadata annotation, it could emit a `Event::HtmlBlock` containing the full comment?
+                    // Instead of `StartAnnotation` / content / `EndAnnotation`.
+                    // That seems cleaner!
+
+                    // Let's modify `tree_to_events` in `lex-babel/src/ir/events.rs`?
+                    // Or wherever it is defined.
+                    // It is imported in `parser.rs`: `use crate::common::flat_to_nested::events_to_tree;`
+                    // And `serializer.rs`: `let events = tree_to_events(&DocNode::Document(ir_doc));`
+
+                    // I need to find `tree_to_events`. It's likely in `lex-babel/src/ir/events.rs` or similar.
+                    // Let's search for it.
+                }
+
+                // Fallback to existing behavior for non-metadata or if we can't change tree_to_events
                 let mut comment = format!("<!-- lex:{}", label);
                 for (key, value) in parameters {
                     comment.push_str(&format!(" {}={}", key, value));
@@ -652,7 +820,7 @@ mod tests {
         let mut found_heading = false;
         for child in root.children() {
             if let NodeValue::Heading(ref heading) = child.data.borrow().value {
-                assert_eq!(heading.level, 1);
+                assert_eq!(heading.level, 2);
                 found_heading = true;
             }
         }

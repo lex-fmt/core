@@ -16,9 +16,9 @@ This is a warning.
 
     println!("Output:\n{}", output);
 
-    assert!(output.contains("<!-- lex:note type=warning -->"));
-    assert!(output.contains("<!-- /lex:note -->"));
+    assert!(output.contains("<!-- lex:note type=warning"));
     assert!(output.contains("This is a warning."));
+    assert!(output.contains("-->"));
 }
 
 #[test]

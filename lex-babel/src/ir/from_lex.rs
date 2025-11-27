@@ -13,7 +13,99 @@ use super::nodes::{
 
 /// Converts a lex document to the IR.
 pub fn from_lex_document(doc: &LexDocument) -> Document {
-    let children = convert_children(&doc.root.children, 1);
+    let mut children = convert_children(&doc.root.children, 2);
+
+    let mut parameters = Vec::new();
+
+    // 1. Process document-level annotations
+    for ann in &doc.annotations {
+        let key = ann.data.label.value.clone();
+        let value = if !ann.children.is_empty() {
+            let mut text = String::new();
+            for child in &ann.children {
+                if let LexContentItem::Paragraph(p) = child {
+                    text.push_str(&p.text());
+                }
+            }
+            text
+        } else {
+            String::new()
+        };
+
+        if !value.is_empty() {
+            parameters.push((key, value));
+        } else {
+            for param in &ann.data.parameters {
+                parameters.push((format!("{}.{}", key, param.key), param.value.clone()));
+            }
+        }
+    }
+
+    // 2. Scan children for metadata annotations (e.g. attached to first element)
+    let mut indices_to_remove = Vec::new();
+
+    // Whitelist of labels to treat as frontmatter
+    let metadata_labels = [
+        "author",
+        "publishing-date",
+        "title",
+        "date",
+        "tags",
+        "category",
+        "template",
+        "front-matter",
+    ];
+
+    for (i, child) in children.iter().enumerate() {
+        if let DocNode::Annotation(ann) = child {
+            if metadata_labels.contains(&ann.label.as_str()) {
+                // It's metadata!
+                let key = ann.label.clone();
+                // Extract value (content or params)
+                let value = if !ann.content.is_empty() {
+                    // Flatten content
+                    let mut text = String::new();
+                    for c in &ann.content {
+                        if let DocNode::Paragraph(p) = c {
+                            for ic in &p.content {
+                                if let InlineContent::Text(t) = ic {
+                                    text.push_str(t);
+                                }
+                            }
+                        }
+                    }
+                    text
+                } else {
+                    String::new()
+                };
+
+                if !value.is_empty() {
+                    parameters.push((key, value));
+                } else {
+                    for (k, v) in &ann.parameters {
+                        parameters.push((format!("{}.{}", key, k), v.clone()));
+                    }
+                }
+
+                indices_to_remove.push(i);
+            }
+        }
+    }
+
+    // Remove promoted annotations (in reverse order to keep indices valid)
+    for i in indices_to_remove.iter().rev() {
+        children.remove(*i);
+    }
+
+    if !parameters.is_empty() {
+        let frontmatter = DocNode::Annotation(Annotation {
+            label: "frontmatter".to_string(),
+            parameters,
+            content: vec![],
+        });
+        children.insert(0, frontmatter);
+    }
+
     Document { children }
 }
 
@@ -24,9 +116,8 @@ fn convert_children(items: &[LexContentItem], level: usize) -> Vec<DocNode> {
         .iter()
         .filter(|item| !matches!(item, LexContentItem::BlankLineGroup(_)))
         .flat_map(|item| {
-            let mut nodes = vec![from_lex_content_item_with_level(item, level)];
-            // Add any annotations attached to this element
-            nodes.extend(extract_attached_annotations(item, level));
+            let mut nodes = extract_attached_annotations(item, level);
+            nodes.push(from_lex_content_item_with_level(item, level));
             nodes
         })
         .collect()
@@ -188,7 +279,115 @@ fn from_lex_verbatim(verbatim: &LexVerbatim) -> DocNode {
         })
         .collect::<Vec<_>>()
         .join("\n");
+
+    if verbatim.closing_data.label.value == "doc.table"
+        || verbatim.closing_data.label.value == "table"
+    {
+        return parse_pipe_table(&content);
+    }
+
     DocNode::Verbatim(Verbatim { language, content })
+}
+
+fn parse_pipe_table(content: &str) -> DocNode {
+    let mut header = Vec::new();
+    let mut rows = Vec::new();
+    let mut alignments = Vec::new();
+
+    let lines: Vec<&str> = content
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    if lines.is_empty() {
+        return DocNode::Table(Table {
+            rows,
+            header,
+            caption: None,
+        });
+    }
+
+    // Parse header
+    if let Some(header_line) = lines.first() {
+        let cells = parse_table_row(header_line);
+        let mut header_row = TableRow { cells: Vec::new() };
+        for cell_content in cells {
+            header_row.cells.push(TableCell {
+                content: vec![DocNode::Paragraph(Paragraph {
+                    content: vec![InlineContent::Text(cell_content)],
+                })],
+                header: true,
+                align: TableCellAlignment::None,
+            });
+        }
+        header.push(header_row);
+    }
+
+    // Parse separator line to determine alignments
+    if lines.len() > 1 {
+        let separator = lines[1];
+        if separator.contains(['-', '|']) {
+            let parts = parse_table_row(separator);
+            for part in parts {
+                let trimmed = part.trim();
+                if trimmed.starts_with(':') && trimmed.ends_with(':') {
+                    alignments.push(TableCellAlignment::Center);
+                } else if trimmed.ends_with(':') {
+                    alignments.push(TableCellAlignment::Right);
+                } else if trimmed.starts_with(':') {
+                    alignments.push(TableCellAlignment::Left);
+                } else {
+                    alignments.push(TableCellAlignment::None);
+                }
+            }
+        }
+    }
+
+    // Parse body rows
+    for line in lines.iter().skip(2) {
+        let cells = parse_table_row(line);
+        let mut row = TableRow { cells: Vec::new() };
+        for (i, cell_content) in cells.into_iter().enumerate() {
+            let align = if i < alignments.len() {
+                alignments[i]
+            } else {
+                TableCellAlignment::None
+            };
+
+            row.cells.push(TableCell {
+                content: vec![DocNode::Paragraph(Paragraph {
+                    content: vec![InlineContent::Text(cell_content)],
+                })],
+                header: false,
+                align,
+            });
+        }
+        rows.push(row);
+    }
+
+    // Apply alignments to header
+    if !header.is_empty() {
+        for (i, cell) in header[0].cells.iter_mut().enumerate() {
+            if i < alignments.len() {
+                cell.align = alignments[i];
+            }
+        }
+    }
+
+    DocNode::Table(Table {
+        rows,
+        header,
+        caption: None,
+    })
+}
+
+fn parse_table_row(line: &str) -> Vec<String> {
+    let line = line.trim();
+    let line = line.strip_prefix('|').unwrap_or(line);
+    let line = line.strip_suffix('|').unwrap_or(line);
+
+    line.split('|').map(|s| s.trim().to_string()).collect()
 }
 
 /// Converts a lex annotation to an IR annotation.
