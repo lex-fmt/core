@@ -141,19 +141,28 @@ fn test_trifecta_010_paragraphs_sessions_flat_single() {
 
     assert!(paragraphs > 0, "Should have paragraphs");
     assert!(
-        headings >= 2,
-        "Should have at least 2 headings (sessions), found {}",
+        headings >= 3,
+        "Should have at least 3 headings (1 title + 2 sessions), found {}",
         headings
     );
 
-    // All sessions at root level should be h2 (since h1 is reserved for doc title)
-    for level in &heading_levels {
+    // Document title is H1, sessions at root level should be H2
+    assert!(
+        heading_levels.contains(&1),
+        "Should have H1 for document title"
+    );
+    let session_levels: Vec<_> = heading_levels
+        .iter()
+        .filter(|&&l| l != 1)
+        .copied()
+        .collect();
+    for level in &session_levels {
         assert_eq!(*level, 2, "Root-level sessions should be h2");
     }
 
     println!(
-        "Trifecta 010: {} paragraphs, {} headings",
-        paragraphs, headings
+        "Trifecta 010: {} paragraphs, {} headings (levels: {:?})",
+        paragraphs, headings, heading_levels
     );
 }
 
@@ -401,4 +410,60 @@ fn test_list_with_multi_paragraph_items() {
     assert!(md.contains("- "), "Should have list markers");
     assert!(md.contains("Item one"));
     assert!(md.contains("Item two"));
+}
+
+// ============================================================================
+// DOCUMENT TITLE TESTS
+// ============================================================================
+
+#[test]
+fn test_document_title_exported_as_h1() {
+    // Use spec file: document with explicit title should export with H1 heading
+    let lex_src = std::fs::read_to_string(
+        "../specs/v1/elements/document.docs/document-01-title-explicit.lex",
+    )
+    .expect("document-01 spec file should exist");
+    let lex_doc = STRING_TO_AST.run(lex_src).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // Should start with H1 heading containing the title
+    assert!(
+        md.starts_with("# My Document Title\n"),
+        "Should start with H1 title heading"
+    );
+}
+
+#[test]
+fn test_document_first_paragraph_as_title() {
+    // Use spec file: first paragraph followed by blank line becomes document title
+    let lex_src =
+        std::fs::read_to_string("../specs/v1/elements/document.docs/document-06-title-empty.lex")
+            .expect("document-06 spec file should exist");
+    let lex_doc = STRING_TO_AST.run(lex_src).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // First paragraph "Just a paragraph with no title." becomes the H1 title
+    assert!(
+        md.starts_with("# Just a paragraph with no title.\n"),
+        "First paragraph should become H1 title"
+    );
+}
+
+#[test]
+fn test_document_session_only_no_h1_title() {
+    // Use spec file: document starts with session (no explicit document title)
+    let lex_src = std::fs::read_to_string(
+        "../specs/v1/elements/document.docs/document-05-title-session-hoist.lex",
+    )
+    .expect("document-05 spec file should exist");
+    let lex_doc = STRING_TO_AST.run(lex_src).unwrap();
+    let md = MarkdownFormat.serialize(&lex_doc).unwrap();
+
+    // Should not have H1 title when document starts with session
+    assert!(
+        !md.starts_with("# "),
+        "Session-only doc should not have H1 title"
+    );
+    // Session should be H2
+    assert!(md.contains("## "), "Session should be exported as H2");
 }

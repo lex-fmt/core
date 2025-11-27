@@ -14,6 +14,17 @@
 //!     arbitrarily. This creates powerful addressing capabilities as one can target any sub-session
 //!     from an index.
 //!
+//!     Document Title:
+//!     The document title is determined during the AST assembly phase (not by the grammar).
+//!     If the first element of the document content (after any document-level annotations) is a
+//!     single paragraph followed by blank lines, it is promoted to be the document title.
+//!     This title is stored in the root session's title field.
+//!
+//!     Document Start:
+//!     A synthetic `DocumentStart` token is used to mark the boundary between document-level
+//!     annotations (metadata) and the actual document content. This allows the parser and
+//!     assembly logic to correctly identify where the body begins.
+//!
 //!     This structure makes the entire AST homogeneous - the document's content is accessed through
 //!     the standard Session interface, making traversal and transformation logic consistent
 //!     throughout the tree.

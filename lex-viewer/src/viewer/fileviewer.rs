@@ -186,26 +186,21 @@ impl FileViewer {
 
     /// Move cursor to start of next element/paragraph (} key)
     fn move_to_next_element(&mut self, model: &Model) {
-        // Get current node
-        let current_node = model.get_node_at_position(self.cursor_row, self.cursor_col);
-
-        // Get flattened tree
+        let current_pos = (self.cursor_row, self.cursor_col);
         let flattened = model.flattened_tree();
 
-        // Find next node in flattened tree
-        let next_node = if let Some(current) = current_node {
-            // Find current node index
-            flattened
-                .iter()
-                .position(|n| n.node_id == current)
-                .and_then(|idx| flattened.get(idx + 1))
-        } else {
-            // No current node, just get first
-            flattened.first()
-        };
+        // Find first node that starts after current position
+        let target = flattened.iter().find(|node| {
+            if let Some(range) = model.get_location_for_node(node.node_id) {
+                let node_pos = (range.start.line, range.start.column);
+                node_pos > current_pos
+            } else {
+                false
+            }
+        });
 
         // Move to start of next node's location
-        if let Some(node) = next_node {
+        if let Some(node) = target {
             if let Some(range) = model.get_location_for_node(node.node_id) {
                 self.cursor_row = range.start.line;
                 self.cursor_col = range.start.column;
@@ -216,32 +211,21 @@ impl FileViewer {
 
     /// Move cursor to start of previous element/paragraph ({ key)
     fn move_to_previous_element(&mut self, model: &Model) {
-        // Get current node
-        let current_node = model.get_node_at_position(self.cursor_row, self.cursor_col);
-
-        // Get flattened tree
+        let current_pos = (self.cursor_row, self.cursor_col);
         let flattened = model.flattened_tree();
 
-        // Find previous node in flattened tree
-        let prev_node = if let Some(current) = current_node {
-            // Find current node index
-            flattened
-                .iter()
-                .position(|n| n.node_id == current)
-                .and_then(|idx| {
-                    if idx > 0 {
-                        flattened.get(idx - 1)
-                    } else {
-                        None
-                    }
-                })
-        } else {
-            // No current node, just get last
-            flattened.last()
-        };
+        // Find last node that starts before current position
+        let target = flattened.iter().rev().find(|node| {
+            if let Some(range) = model.get_location_for_node(node.node_id) {
+                let node_pos = (range.start.line, range.start.column);
+                node_pos < current_pos
+            } else {
+                false
+            }
+        });
 
         // Move to start of previous node's location
-        if let Some(node) = prev_node {
+        if let Some(node) = target {
             if let Some(range) = model.get_location_for_node(node.node_id) {
                 self.cursor_row = range.start.line;
                 self.cursor_col = range.start.column;
@@ -811,7 +795,7 @@ mod tests {
     fn test_vim_element_navigation_round_trip() {
         // Test that we can navigate forward and backward through elements
 
-        let content = "Title\n====\n\nPara 1\n\nPara 2".to_string();
+        let content = "\n# Title\n\n# Para 1\n\n# Para 2".to_string();
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
         let model = Model::new(doc, content.clone());
         let mut viewer = FileViewer::new(content);

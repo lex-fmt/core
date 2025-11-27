@@ -97,7 +97,7 @@ end
 -- Check if debug_theme highlights are set
 print("\n=== DEBUG THEME HIGHLIGHTS ===")
 local hl_checks = {
-  "@lsp.type.SessionTitle",
+  "@lsp.type.DocumentTitle",
   "@lsp.type.InlineStrong",
   "@lsp.type.InlineEmphasis",
 }

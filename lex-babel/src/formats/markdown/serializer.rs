@@ -14,6 +14,14 @@ use std::cell::RefCell;
 
 /// Serialize a Lex document to Markdown
 pub fn serialize_to_markdown(doc: &Document) -> Result<String, FormatError> {
+    // Extract document title before IR conversion (which loses it)
+    let document_title = doc.root.title.as_string();
+    let document_title = if document_title.is_empty() {
+        None
+    } else {
+        Some(document_title.to_string())
+    };
+
     // Step 1: Lex AST → IR
     let ir_doc = crate::to_ir(doc);
 
@@ -37,7 +45,21 @@ pub fn serialize_to_markdown(doc: &Document) -> Result<String, FormatError> {
     // Remove Comrak's "end list" HTML comments which appear between consecutive lists
     let cleaned = markdown.replace("<!-- end list -->\n\n", "");
 
-    Ok(cleaned)
+    // Prepend document title as H1 heading if present
+    let with_title = prepend_title_as_h1(&cleaned, document_title);
+
+    Ok(with_title)
+}
+
+/// Prepend document title as an H1 heading
+///
+/// If the document has a title, prepend `# Title` at the beginning.
+/// This makes the document title visible in the rendered Markdown output.
+fn prepend_title_as_h1(markdown: &str, title: Option<String>) -> String {
+    match title {
+        Some(t) => format!("# {}\n\n{}", t, markdown),
+        None => markdown.to_string(),
+    }
 }
 
 fn default_comrak_options() -> ComrakOptions<'static> {
