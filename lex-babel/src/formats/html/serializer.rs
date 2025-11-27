@@ -20,6 +20,14 @@ use std::rc::Rc;
 
 /// Serialize a Lex document to HTML with the given theme
 pub fn serialize_to_html(doc: &Document, theme: HtmlTheme) -> Result<String, FormatError> {
+    // Extract document title from root session (before IR conversion loses it)
+    let title = doc.root.title.as_string();
+    let title = if title.is_empty() {
+        "Lex Document".to_string()
+    } else {
+        title.to_string()
+    };
+
     // Step 1: Lex AST → IR
     let ir_doc = crate::to_ir(doc);
 
@@ -33,7 +41,7 @@ pub fn serialize_to_html(doc: &Document, theme: HtmlTheme) -> Result<String, For
     let html_string = serialize_dom(&dom)?;
 
     // Step 5: Wrap in complete HTML document with CSS
-    let complete_html = wrap_in_document(&html_string, theme)?;
+    let complete_html = wrap_in_document(&html_string, &title, theme)?;
 
     Ok(complete_html)
 }
@@ -470,12 +478,15 @@ fn serialize_dom(dom: &RcDom) -> Result<String, FormatError> {
 }
 
 /// Wrap the content in a complete HTML document with embedded CSS
-fn wrap_in_document(body_html: &str, theme: HtmlTheme) -> Result<String, FormatError> {
+fn wrap_in_document(body_html: &str, title: &str, theme: HtmlTheme) -> Result<String, FormatError> {
     let baseline_css = include_str!("../../../css/baseline.css");
     let theme_css = match theme {
         HtmlTheme::FancySerif => include_str!("../../../css/themes/theme-fancy-serif.css"),
         HtmlTheme::Modern => include_str!("../../../css/themes/theme-modern.css"),
     };
+
+    // Escape HTML entities in title for safety
+    let escaped_title = html_escape(title);
 
     let html = format!(
         r#"<!DOCTYPE html>
@@ -484,7 +495,7 @@ fn wrap_in_document(body_html: &str, theme: HtmlTheme) -> Result<String, FormatE
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="lex-babel">
-  <title>Lex Document</title>
+  <title>{}</title>
   <style>
 {}
 {}
@@ -496,10 +507,18 @@ fn wrap_in_document(body_html: &str, theme: HtmlTheme) -> Result<String, FormatE
 </div>
 </body>
 </html>"#,
-        baseline_css, theme_css, body_html
+        escaped_title, baseline_css, theme_css, body_html
     );
 
     Ok(html)
+}
+
+/// Escape HTML special characters in text
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 #[cfg(test)]
