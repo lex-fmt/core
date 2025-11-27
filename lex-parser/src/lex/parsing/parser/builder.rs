@@ -57,11 +57,6 @@ pub(super) enum PatternMatch {
     BlankLineGroup,
     /// Document start marker: synthetic boundary between metadata and content
     DocumentStart,
-    /// Document title: single paragraph line after DocumentStart, followed by blank lines
-    DocumentTitle {
-        /// Index of the title line (paragraph line after DocumentStart)
-        title_idx: usize,
-    },
 }
 
 /// Convert a matched pattern to a ParseNode.
@@ -129,9 +124,6 @@ pub(super) fn convert_pattern_to_node(
         }
         PatternMatch::BlankLineGroup => build_blank_line_group(tokens, pattern_range.clone()),
         PatternMatch::DocumentStart => build_document_start(),
-        PatternMatch::DocumentTitle { title_idx } => {
-            build_document_title(tokens, pattern_offset + title_idx)
-        }
     }
 }
 
@@ -142,25 +134,6 @@ fn build_document_start() -> Result<ParseNode, String> {
         vec![],
         vec![],
     ))
-}
-
-/// Build a DocumentTitle node from the title line
-fn build_document_title(tokens: &[LineContainer], title_idx: usize) -> Result<ParseNode, String> {
-    use crate::lex::parsing::ir::NodeType;
-
-    let title_tokens = match &tokens[title_idx] {
-        LineContainer::Token(line_token) => line_token
-            .source_tokens
-            .iter()
-            .zip(line_token.token_spans.iter())
-            .map(|(t, span)| (t.clone(), span.clone()))
-            .collect(),
-        LineContainer::Container { .. } => {
-            return Err("Expected title line, found container".to_string());
-        }
-    };
-
-    Ok(ParseNode::new(NodeType::DocumentTitle, title_tokens, vec![]))
 }
 
 pub(super) fn blank_line_node_from_range(

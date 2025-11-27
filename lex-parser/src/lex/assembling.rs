@@ -18,6 +18,11 @@
 //!     - `attach_root`: Wraps the built session tree in a [`Document`].
 //!     - `attach_annotations`: Attaches annotations from content to AST nodes as metadata.
 //!       See [attach_annotations](stages::attach_annotations) for details.
+//!
+//!     Note on Document Title:
+//!     The document title is extracted during the AST building phase (in `AstTreeBuilder`),
+//!     just before the assembling stages begin. It promotes the first paragraph (if followed
+//!     by blank lines) to be the document title.
 
 pub mod stages;
 
