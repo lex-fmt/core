@@ -332,7 +332,10 @@ fn test_annotations_overview_document_debug() {
         let text_preview = match child {
             ContentItem::Paragraph(p) => p.text().chars().take(50).collect::<String>(),
             ContentItem::Session(s) => {
-                format!("title: {}", s.title.as_string().chars().take(50).collect::<String>())
+                format!(
+                    "title: {}",
+                    s.title.as_string().chars().take(50).collect::<String>()
+                )
             }
             _ => String::new(),
         };

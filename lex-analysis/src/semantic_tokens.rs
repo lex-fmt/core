@@ -47,7 +47,7 @@ use lex_parser::lex::inlines::ReferenceType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LexSemanticTokenKind {
-    SessionTitle,
+    DocumentTitle,
     SessionMarker,
     SessionTitleText,
     DefinitionSubject,
@@ -99,7 +99,7 @@ impl LexSemanticTokenKind {
     /// - ListMarker → - or 1. → maps to "punctuation.definition.list"
     pub fn as_str(self) -> &'static str {
         match self {
-            LexSemanticTokenKind::SessionTitle => "SessionTitle",
+            LexSemanticTokenKind::DocumentTitle => "DocumentTitle",
             LexSemanticTokenKind::SessionMarker => "SessionMarker",
             LexSemanticTokenKind::SessionTitleText => "SessionTitleText",
             LexSemanticTokenKind::DefinitionSubject => "DefinitionSubject",
@@ -135,7 +135,7 @@ impl LexSemanticTokenKind {
 }
 
 pub const SEMANTIC_TOKEN_KINDS: &[LexSemanticTokenKind] = &[
-    LexSemanticTokenKind::SessionTitle,
+    LexSemanticTokenKind::DocumentTitle,
     LexSemanticTokenKind::SessionMarker,
     LexSemanticTokenKind::SessionTitleText,
     LexSemanticTokenKind::DefinitionSubject,
@@ -225,10 +225,10 @@ impl TokenCollector {
 
     fn process_document(&mut self, document: &Document) {
         self.process_annotations(document.annotations());
-        self.process_session(&document.root);
+        self.process_session(&document.root, LexSemanticTokenKind::DocumentTitle);
     }
 
-    fn process_session(&mut self, session: &Session) {
+    fn process_session(&mut self, session: &Session, title_kind: LexSemanticTokenKind) {
         // Emit separate tokens for marker and title text
         if let Some(marker) = &session.marker {
             // Emit SessionMarker token for the sequence marker
@@ -262,12 +262,12 @@ impl TokenCollector {
                             Position::new(header.start.line, header.start.column + title_start),
                             header.end,
                         );
-                        self.push_range(&title_text_range, LexSemanticTokenKind::SessionTitleText);
+                        self.push_range(&title_text_range, title_kind);
                     }
                 }
             } else {
                 // No marker, the entire header is title text
-                self.push_range(header, LexSemanticTokenKind::SessionTitleText);
+                self.push_range(header, title_kind);
             }
         }
 
@@ -282,7 +282,9 @@ impl TokenCollector {
     fn process_content_item(&mut self, item: &ContentItem) {
         match item {
             ContentItem::Paragraph(paragraph) => self.process_paragraph(paragraph),
-            ContentItem::Session(session) => self.process_session(session),
+            ContentItem::Session(session) => {
+                self.process_session(session, LexSemanticTokenKind::SessionTitleText)
+            }
             ContentItem::List(list) => self.process_list(list),
             ContentItem::ListItem(list_item) => self.process_list_item(list_item),
             ContentItem::Definition(definition) => self.process_definition(definition),

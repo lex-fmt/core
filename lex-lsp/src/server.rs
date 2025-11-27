@@ -685,7 +685,7 @@ mod tests {
         fn semantic_tokens(&self, _: &Document) -> Vec<LexSemanticToken> {
             self.semantic_tokens_called.fetch_add(1, Ordering::SeqCst);
             vec![LexSemanticToken {
-                kind: LexSemanticTokenKind::SessionTitle,
+                kind: LexSemanticTokenKind::DocumentTitle,
                 range: AstRange::new(0..5, AstPosition::new(0, 0), AstPosition::new(0, 5)),
             }]
         }
@@ -840,7 +840,7 @@ mod tests {
         let snippet = "    CLI Example:\n        lex build\n        lex serve";
         let range = range_for_snippet(snippet);
         let tokens = vec![LexSemanticToken {
-            kind: LexSemanticTokenKind::SessionTitle,
+            kind: LexSemanticTokenKind::DocumentTitle,
             range,
         }];
         let source = sample_source();

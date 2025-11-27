@@ -409,7 +409,7 @@ fn parse_with_declarative_grammar_internal(
                 (
                     matches!(last_node.node_type, NodeType::BlankLineGroup),
                     // A node with children indicates we just closed a container; this counts as a boundary.
-                    // DocumentStart and DocumentTitle also count as boundaries - they mark the start of document content.
+                    // DocumentStart also counts as a boundary - it marks the start of document content.
                     !last_node.children.is_empty()
                         || matches!(last_node.node_type, NodeType::DocumentStart),
                     matches!(last_node.node_type, NodeType::Session),
