@@ -936,6 +936,8 @@ dependencies = [
  "insta",
  "lex-parser",
  "markup5ever_rcdom",
+ "once_cell",
+ "regex",
  "serde",
  "tempfile",
  "url",
