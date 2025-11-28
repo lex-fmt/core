@@ -8,3 +8,6 @@ mod html;
 
 #[cfg(test)]
 mod markdown;
+
+#[cfg(test)]
+mod pdf;
