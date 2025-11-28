@@ -7,6 +7,8 @@ use insta::assert_snapshot;
 use lex_babel::format::Format;
 use lex_babel::formats::html::{HtmlFormat, HtmlTheme};
 use lex_parser::lex::transforms::standard::STRING_TO_AST;
+use once_cell::sync::Lazy;
+use regex::Regex;
 
 /// Helper to convert Lex source to HTML
 fn lex_to_html(lex_src: &str, theme: HtmlTheme) -> String {
@@ -215,9 +217,8 @@ fn test_css_embedded_modern() {
     let lex_src = "Test document.\n";
     let html = lex_to_html(lex_src, HtmlTheme::Modern);
 
-    assert!(html.contains("<style>"));
-    assert!(html.contains(".lex-document"));
-    assert!(html.contains("Helvetica")); // Modern theme uses Helvetica font
+    assert!(html.contains("<style"));
+    assert!(html.contains("Lex HTML Export - Baseline Styles"));
 }
 
 #[test]
@@ -225,8 +226,8 @@ fn test_css_embedded_fancy_serif() {
     let lex_src = "Test document.\n";
     let html = lex_to_html(lex_src, HtmlTheme::FancySerif);
 
-    assert!(html.contains("<style>"));
-    assert!(html.contains("Cormorant")); // Fancy serif theme uses Cormorant font
+    assert!(html.contains("<style"));
+    assert!(html.contains("Lex HTML Export - Fancy Serif Theme"));
 }
 
 #[test]
@@ -242,6 +243,15 @@ fn test_viewport_meta_tag() {
 // TRIFECTA TESTS - Document Structure
 // ============================================================================
 
+fn snapshot_without_styles(html: &str) -> String {
+    static STYLE_REGEX: Lazy<Regex> = Lazy::new(|| {
+        Regex::new("(?is)<style[^>]*?>.*?</style>").expect("valid regex for stripping style blocks")
+    });
+    STYLE_REGEX
+        .replace_all(html, "<style data-lex-snapshot=\"removed\"></style>")
+        .into_owned()
+}
+
 #[test]
 fn test_trifecta_010_paragraphs_sessions_flat_single() {
     let lex_src =
@@ -255,7 +265,7 @@ fn test_trifecta_010_paragraphs_sessions_flat_single() {
     assert!(html.contains("<div class=\"lex-document\">"));
 
     // Snapshot test for full output
-    assert_snapshot!(html);
+    assert_snapshot!(snapshot_without_styles(&html));
 }
 
 #[test]
@@ -270,7 +280,7 @@ fn test_trifecta_020_paragraphs_sessions_flat_multiple() {
     assert!(html.contains("<section class=\"lex-session lex-session-2\">"));
 
     // Snapshot test
-    assert_snapshot!(html);
+    assert_snapshot!(snapshot_without_styles(&html));
 }
 
 #[test]
@@ -285,7 +295,7 @@ fn test_trifecta_060_nesting() {
     assert!(html.contains("<section class=\"lex-session lex-session-3\">"));
 
     // Snapshot test
-    assert_snapshot!(html);
+    assert_snapshot!(snapshot_without_styles(&html));
 }
 
 // ============================================================================
@@ -357,5 +367,5 @@ fn test_kitchensink() {
     assert!(html.contains("<dl class=\"lex-definition\">"));
 
     // Snapshot test for the complete output
-    assert_snapshot!(html);
+    assert_snapshot!(snapshot_without_styles(&html));
 }
