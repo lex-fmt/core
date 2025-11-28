@@ -26,7 +26,10 @@
 mod transforms;
 
 use clap::{Arg, ArgAction, Command, ValueHint};
-use lex_babel::{FormatRegistry, SerializedDocument};
+use lex_babel::{
+    formats::lex::formatting_rules::FormattingRules, transforms::serialize_to_lex_with_rules,
+    FormatRegistry, SerializedDocument,
+};
 use lex_config::{LexConfig, Loader, PdfPageSize};
 use lex_parser::lex::ast::{find_node_path_at_position, Position};
 use std::collections::HashMap;
@@ -410,7 +413,7 @@ fn handle_convert_command(
     to: &str,
     output: Option<&str>,
     extra_params: &HashMap<String, String>,
-    _config: &LexConfig,
+    config: &LexConfig,
 ) {
     let registry = FormatRegistry::default();
 
@@ -437,12 +440,23 @@ fn handle_convert_command(
     });
 
     // Serialize (format-specific parameters allowed via --extra-*)
-    let result = registry
-        .serialize_with_options(&doc, to, extra_params)
-        .unwrap_or_else(|e| {
-            eprintln!("Serialization error: {}", e);
-            std::process::exit(1);
-        });
+    let result = if to == "lex" {
+        let rules = formatting_rules_from_config(config);
+        match serialize_to_lex_with_rules(&doc, rules) {
+            Ok(text) => SerializedDocument::Text(text),
+            Err(err) => {
+                eprintln!("Serialization error: {}", err);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        registry
+            .serialize_with_options(&doc, to, extra_params)
+            .unwrap_or_else(|e| {
+                eprintln!("Serialization error: {}", e);
+                std::process::exit(1);
+            })
+    };
 
     // Output
     match (output, result) {
@@ -539,6 +553,20 @@ fn load_cli_config(explicit_path: Option<&str>) -> LexConfig {
         eprintln!("Failed to load configuration: {}", err);
         std::process::exit(1);
     })
+}
+
+fn formatting_rules_from_config(config: &LexConfig) -> FormattingRules {
+    let cfg = &config.formatting.rules;
+    FormattingRules {
+        session_blank_lines_before: cfg.session_blank_lines_before,
+        session_blank_lines_after: cfg.session_blank_lines_after,
+        normalize_seq_markers: cfg.normalize_seq_markers,
+        unordered_seq_marker: cfg.unordered_seq_marker,
+        max_blank_lines: cfg.max_blank_lines,
+        indent_string: cfg.indent_string.clone(),
+        preserve_trailing_blanks: cfg.preserve_trailing_blanks,
+        normalize_verbatim_markers: cfg.normalize_verbatim_markers,
+    }
 }
 
 fn apply_config_overrides(config: &mut LexConfig, extra_params: &HashMap<String, String>) {
