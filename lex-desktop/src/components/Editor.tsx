@@ -118,6 +118,74 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
             }
         });
 
+        // Register Hover Provider
+        monaco.languages.registerHoverProvider('lex', {
+            provideHover: async function (model, position) {
+                const response = await lspClient.sendRequest('textDocument/hover', {
+                    textDocument: { uri: model.uri.toString() },
+                    position: { line: position.lineNumber - 1, character: position.column - 1 }
+                });
+
+                if (response && response.contents) {
+                    return {
+                        range: new monaco.Range(
+                            position.lineNumber, position.column,
+                            position.lineNumber, position.column
+                        ),
+                        contents: Array.isArray(response.contents)
+                            ? response.contents.map((c: any) => ({ value: c.value || c }))
+                            : [{ value: response.contents.value || response.contents }]
+                    };
+                }
+                return null;
+            }
+        });
+
+        // Register Definition Provider
+        monaco.languages.registerDefinitionProvider('lex', {
+            provideDefinition: async function (model, position) {
+                const response = await lspClient.sendRequest('textDocument/definition', {
+                    textDocument: { uri: model.uri.toString() },
+                    position: { line: position.lineNumber - 1, character: position.column - 1 }
+                });
+
+                if (response) {
+                    const locations = Array.isArray(response) ? response : [response];
+                    return locations.map((loc: any) => ({
+                        uri: monaco.Uri.parse(loc.uri),
+                        range: {
+                            startLineNumber: loc.range.start.line + 1,
+                            startColumn: loc.range.start.character + 1,
+                            endLineNumber: loc.range.end.line + 1,
+                            endColumn: loc.range.end.character + 1
+                        }
+                    }));
+                }
+                return null;
+            }
+        });
+
+        // Listen for Diagnostics
+        lspClient.onNotification('textDocument/publishDiagnostics', (params: any) => {
+            // params: { uri: string, diagnostics: Diagnostic[] }
+            // We need to match the URI to the current model
+            if (editorRef.current) {
+                const model = editorRef.current.getModel();
+                if (model && model.uri.toString() === params.uri) {
+                    const markers = params.diagnostics.map((diag: any) => ({
+                        severity: diag.severity === 1 ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+                        startLineNumber: diag.range.start.line + 1,
+                        startColumn: diag.range.start.character + 1,
+                        endLineNumber: diag.range.end.line + 1,
+                        endColumn: diag.range.end.character + 1,
+                        message: diag.message,
+                        source: 'Lex LSP'
+                    }));
+                    monaco.editor.setModelMarkers(model, 'lex', markers);
+                }
+            }
+        });
+
         // Define Theme (Lex Monochrome)
         monaco.editor.defineTheme('lex-dark', {
             base: 'vs-dark',
@@ -228,6 +296,7 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
         if (result && editorRef.current) {
             const { filePath, content } = result;
             setCurrentFile(filePath);
+            if (onFileLoaded) onFileLoaded(filePath);
             const model = editorRef.current.getModel();
             if (model) {
                 model.setValue(content);
@@ -254,11 +323,30 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
         }
     };
 
+    const handleMockDiagnostics = () => {
+        if (editorRef.current) {
+            const model = editorRef.current.getModel();
+            if (model) {
+                const markers = [{
+                    severity: monaco.MarkerSeverity.Error,
+                    startLineNumber: 1,
+                    startColumn: 1,
+                    endLineNumber: 1,
+                    endColumn: 5,
+                    message: 'Mock Error: Invalid syntax',
+                    source: 'Mock LSP'
+                }];
+                monaco.editor.setModelMarkers(model, 'lex', markers);
+            }
+        }
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ padding: '5px', background: '#333', display: 'flex', gap: '10px' }}>
                 <button onClick={handleOpen}>Open File</button>
                 <button onClick={handleSave} disabled={!currentFile}>Save</button>
+                <button onClick={handleMockDiagnostics} style={{ marginLeft: 'auto', background: '#555' }}>Mock Diagnostics</button>
                 <span style={{ color: '#fff', alignSelf: 'center' }}>{currentFile || 'Untitled'}</span>
             </div>
             <div ref={containerRef} style={{ flex: 1 }} />
