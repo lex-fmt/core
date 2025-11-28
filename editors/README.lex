@@ -24,6 +24,10 @@ Editor Tooling
     Being a markup document format, there is a set of features that are table stakes: 
     
     1. Interop:
+        - Convert :
+          - Lex <> Markdown (both ways). This should open a new editor buffer window with the converted text, the path should be the same as the file converted from, but with the new extension . Ex: say the file is foo/bar/readme.lex on convert to markdown, it should be foo/bar/readme.md . 
+        - lEX <> HTML
+        - Export to pdf
     2. Content Management:
 
 
