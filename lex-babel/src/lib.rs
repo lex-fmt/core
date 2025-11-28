@@ -117,7 +117,7 @@ pub mod common;
 pub mod ir;
 
 pub use error::FormatError;
-pub use format::Format;
+pub use format::{Format, SerializedDocument};
 pub use registry::FormatRegistry;
 
 /// Converts a lex document to the Intermediate Representation (IR).

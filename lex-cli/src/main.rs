@@ -26,7 +26,7 @@
 mod transforms;
 
 use clap::{Arg, ArgAction, Command, ValueHint};
-use lex_babel::FormatRegistry;
+use lex_babel::{FormatRegistry, SerializedDocument};
 use lex_parser::lex::ast::{find_node_path_at_position, Position};
 use std::collections::HashMap;
 use std::fs;
@@ -418,26 +418,28 @@ fn handle_convert_command(
         std::process::exit(1);
     });
 
-    // Serialize
-    // TODO: Pass extra_params to serialize when the API supports it
-    if !extra_params.is_empty() {
-        eprintln!("Warning: extra parameters are not yet supported for convert command");
-    }
-    let result = registry.serialize(&doc, to).unwrap_or_else(|e| {
-        eprintln!("Serialization error: {}", e);
-        std::process::exit(1);
-    });
+    // Serialize (format-specific parameters allowed via --extra-*)
+    let result = registry
+        .serialize_with_options(&doc, to, extra_params)
+        .unwrap_or_else(|e| {
+            eprintln!("Serialization error: {}", e);
+            std::process::exit(1);
+        });
 
     // Output
-    match output {
-        Some(path) => {
-            fs::write(path, &result).unwrap_or_else(|e| {
+    match (output, result) {
+        (Some(path), data) => {
+            fs::write(path, data.into_bytes()).unwrap_or_else(|e| {
                 eprintln!("Error writing file '{}': {}", path, e);
                 std::process::exit(1);
             });
         }
-        None => {
-            print!("{}", result);
+        (None, SerializedDocument::Text(text)) => {
+            print!("{}", text);
+        }
+        (None, SerializedDocument::Binary(_)) => {
+            eprintln!("Binary formats (like PDF) require an output file. Use -o <path>.");
+            std::process::exit(1);
         }
     }
 }
