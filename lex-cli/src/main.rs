@@ -27,6 +27,7 @@ mod transforms;
 
 use clap::{Arg, ArgAction, Command, ValueHint};
 use lex_babel::{FormatRegistry, SerializedDocument};
+use lex_config::{LexConfig, Loader, PdfPageSize};
 use lex_parser::lex::ast::{find_node_path_at_position, Position};
 use std::collections::HashMap;
 use std::fs;
@@ -100,6 +101,14 @@ fn build_cli() -> Command {
                 .long("list-transforms")
                 .help("List available transforms")
                 .action(ArgAction::SetTrue)
+                .global(true),
+        )
+        .arg(
+            Arg::new("config")
+                .long("config")
+                .value_name("PATH")
+                .help("Path to a lex.toml configuration file")
+                .value_hint(ValueHint::FilePath)
                 .global(true),
         )
         .subcommand(
@@ -307,6 +316,9 @@ fn main() {
         return;
     }
 
+    let mut config = load_cli_config(matches.get_one::<String>("config").map(|s| s.as_str()));
+    apply_config_overrides(&mut config, &extra_params);
+
     match matches.subcommand() {
         Some(("inspect", sub_matches)) => {
             let path = sub_matches
@@ -316,7 +328,7 @@ fn main() {
                 .get_one::<String>("transform")
                 .map(|s| s.as_str())
                 .unwrap_or("ast-treeviz");
-            handle_inspect_command(path, transform, &extra_params);
+            handle_inspect_command(path, transform, &extra_params, &config);
         }
         Some(("convert", sub_matches)) => {
             let input = sub_matches
@@ -341,14 +353,14 @@ fn main() {
             };
 
             let output = sub_matches.get_one::<String>("output").map(|s| s.as_str());
-            handle_convert_command(input, &from, to, output, &extra_params);
+            handle_convert_command(input, &from, to, output, &extra_params, &config);
         }
         Some(("format", sub_matches)) => {
             let input = sub_matches
                 .get_one::<String>("input")
                 .expect("input is required");
             // Format command always outputs to stdout (no -o flag)
-            handle_convert_command(input, "lex", "lex", None, &extra_params);
+            handle_convert_command(input, "lex", "lex", None, &extra_params, &config);
         }
         Some(("element-at", sub_matches)) => {
             let path = sub_matches
@@ -371,7 +383,12 @@ fn main() {
 }
 
 /// Handle the inspect command (old execute command)
-fn handle_inspect_command(path: &str, transform: &str, extra_params: &HashMap<String, String>) {
+fn handle_inspect_command(
+    path: &str,
+    transform: &str,
+    extra_params: &HashMap<String, String>,
+    _config: &LexConfig,
+) {
     let source = fs::read_to_string(path).unwrap_or_else(|e| {
         eprintln!("Error reading file '{}': {}", path, e);
         std::process::exit(1);
@@ -393,6 +410,7 @@ fn handle_convert_command(
     to: &str,
     output: Option<&str>,
     extra_params: &HashMap<String, String>,
+    _config: &LexConfig,
 ) {
     let registry = FormatRegistry::default();
 
@@ -506,6 +524,82 @@ fn handle_list_transforms_command() {
     let registry = FormatRegistry::default();
     for format_name in registry.list_formats() {
         println!("  {}", format_name);
+    }
+}
+
+fn load_cli_config(explicit_path: Option<&str>) -> LexConfig {
+    let loader = Loader::new().with_optional_file("lex.toml");
+    let loader = if let Some(path) = explicit_path {
+        loader.with_file(path)
+    } else {
+        loader
+    };
+
+    loader.build().unwrap_or_else(|err| {
+        eprintln!("Failed to load configuration: {}", err);
+        std::process::exit(1);
+    })
+}
+
+fn apply_config_overrides(config: &mut LexConfig, extra_params: &HashMap<String, String>) {
+    if let Some(raw) = extra_params.get("ast-full") {
+        config.inspect.ast.include_all_properties = parse_bool_arg("ast-full", raw);
+    }
+    if let Some(raw) = extra_params.get("show-linum") {
+        config.inspect.ast.show_line_numbers = parse_bool_arg("show-linum", raw);
+    }
+
+    if let Some(raw) = take_override(extra_params, &["color"]) {
+        config.inspect.nodemap.color_blocks = parse_bool_arg("color", &raw);
+    }
+    if let Some(raw) = take_override(extra_params, &["colorchar", "color-char"]) {
+        config.inspect.nodemap.color_characters = parse_bool_arg("color-char", &raw);
+    }
+    if let Some(raw) = take_override(extra_params, &["nodesummary", "node-summary"]) {
+        config.inspect.nodemap.show_summary = parse_bool_arg("nodesummary", &raw);
+    }
+
+    let mut pdf_override = None;
+    if let Some(raw) = extra_params.get("size-mobile") {
+        if parse_bool_arg("size-mobile", raw) {
+            pdf_override = Some(PdfPageSize::Mobile);
+        }
+    }
+    if let Some(raw) = extra_params.get("size-desktop") {
+        if parse_bool_arg("size-desktop", raw) {
+            if let Some(existing) = pdf_override {
+                eprintln!(
+                    "Conflicting PDF profile overrides: {:?} and desktop",
+                    existing
+                );
+                std::process::exit(1);
+            }
+            pdf_override = Some(PdfPageSize::Desktop);
+        }
+    }
+
+    if let Some(size) = pdf_override {
+        config.convert.pdf.size = size;
+    }
+}
+
+fn take_override(map: &HashMap<String, String>, keys: &[&str]) -> Option<String> {
+    for key in keys {
+        if let Some(value) = map.get(*key) {
+            return Some(value.clone());
+        }
+    }
+    None
+}
+
+fn parse_bool_arg(flag: &str, raw: &str) -> bool {
+    match raw.to_lowercase().as_str() {
+        "true" | "1" | "yes" | "y" => true,
+        "false" | "0" | "no" | "n" => false,
+        other => {
+            eprintln!("Invalid boolean value '{}' for --extra-{}", other, flag);
+            std::process::exit(1);
+        }
     }
 }
 
@@ -679,5 +773,21 @@ mod tests {
         assert_eq!(extra.get("verbose"), Some(&"true".to_string()));
         assert_eq!(extra.get("max-depth"), Some(&"5".to_string()));
         assert_eq!(extra.get("compact"), Some(&"true".to_string()));
+    }
+
+    #[test]
+    fn apply_config_overrides_updates_known_flags() {
+        let mut config = load_cli_config(None);
+        let mut extras = HashMap::new();
+        extras.insert("ast-full".to_string(), "true".to_string());
+        extras.insert("color".to_string(), "false".to_string());
+        extras.insert("size-mobile".to_string(), "true".to_string());
+
+        apply_config_overrides(&mut config, &extras);
+
+        assert!(config.inspect.ast.include_all_properties);
+        assert!(!config.inspect.nodemap.color_blocks);
+        assert_eq!(config.convert.pdf.size, PdfPageSize::Mobile);
+        assert_eq!(extras.len(), 3);
     }
 }
