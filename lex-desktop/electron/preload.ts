@@ -24,5 +24,6 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   },
 
   // You can expose other APTs you need here.
-  // ...
+  fileOpen: () => ipcRenderer.invoke('file-open'),
+  fileSave: (filePath: string, content: string) => ipcRenderer.invoke('file-save', filePath, content),
 })

@@ -1,6 +1,7 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import * as fs from 'fs/promises';
 import { LspManager } from './lsp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -49,6 +50,25 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
 }
+
+ipcMain.handle('file-open', async () => {
+  if (!win) return null;
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    properties: ['openFile'],
+    filters: [{ name: 'Lex Files', extensions: ['lex'] }]
+  });
+  if (canceled || filePaths.length === 0) {
+    return null;
+  }
+  const filePath = filePaths[0];
+  const content = await fs.readFile(filePath, 'utf-8');
+  return { filePath, content };
+});
+
+ipcMain.handle('file-save', async (_, filePath: string, content: string) => {
+  await fs.writeFile(filePath, content, 'utf-8');
+  return true;
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
