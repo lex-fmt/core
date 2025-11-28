@@ -1,5 +1,5 @@
+use super::normalize_path;
 use crate::formats::lex::formatting_rules::FormattingRules;
-use pathdiff::diff_paths;
 use std::path::Path;
 
 /// Classification for generated asset snippets.
@@ -95,29 +95,6 @@ pub fn build_asset_snippet(request: &AssetSnippetRequest<'_>) -> AssetSnippet {
         cursor_offset: text.len(),
         text,
     }
-}
-
-fn normalize_path(path: &Path, document_dir: Option<&Path>) -> String {
-    let candidate = if let Some(base) = document_dir {
-        diff_paths(path, base).unwrap_or_else(|| path.to_path_buf())
-    } else {
-        path.to_path_buf()
-    };
-
-    let converted = to_forward_slashes(&candidate);
-    if converted.starts_with("./")
-        || converted.starts_with("../")
-        || converted.starts_with('/')
-        || converted.contains(':')
-    {
-        converted
-    } else {
-        format!("./{}", converted)
-    }
-}
-
-fn to_forward_slashes(path: &Path) -> String {
-    path.to_string_lossy().replace("\\", "/")
 }
 
 #[cfg(test)]
