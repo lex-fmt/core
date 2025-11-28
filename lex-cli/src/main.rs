@@ -284,7 +284,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     // Parse extra-* arguments before clap processing
-    let (cleaned_args, extra_params) = parse_extra_args(&args);
+    let (cleaned_args, mut extra_params) = parse_extra_args(&args);
 
     // First, try normal parsing with cleaned args
     let cli = build_cli();
@@ -320,7 +320,7 @@ fn main() {
     }
 
     let mut config = load_cli_config(matches.get_one::<String>("config").map(|s| s.as_str()));
-    apply_config_overrides(&mut config, &extra_params);
+    apply_config_overrides(&mut config, &mut extra_params);
 
     match matches.subcommand() {
         Some(("inspect", sub_matches)) => {
@@ -390,18 +390,19 @@ fn handle_inspect_command(
     path: &str,
     transform: &str,
     extra_params: &HashMap<String, String>,
-    _config: &LexConfig,
+    config: &LexConfig,
 ) {
     let source = fs::read_to_string(path).unwrap_or_else(|e| {
         eprintln!("Error reading file '{}': {}", path, e);
         std::process::exit(1);
     });
 
-    let output =
-        transforms::execute_transform(&source, transform, extra_params).unwrap_or_else(|e| {
-            eprintln!("Execution error: {}", e);
-            std::process::exit(1);
-        });
+    let params = build_inspect_params(config, extra_params);
+
+    let output = transforms::execute_transform(&source, transform, &params).unwrap_or_else(|e| {
+        eprintln!("Execution error: {}", e);
+        std::process::exit(1);
+    });
 
     print!("{}", output);
 }
@@ -439,6 +440,8 @@ fn handle_convert_command(
         std::process::exit(1);
     });
 
+    let mut format_options = HashMap::new();
+
     // Serialize (format-specific parameters allowed via --extra-*)
     let result = if to == "lex" {
         let rules = formatting_rules_from_config(config);
@@ -450,8 +453,14 @@ fn handle_convert_command(
             }
         }
     } else {
+        if to == "pdf" {
+            format_options = pdf_params_from_config(config);
+        }
+        for (key, value) in extra_params {
+            format_options.insert(key.clone(), value.clone());
+        }
         registry
-            .serialize_with_options(&doc, to, extra_params)
+            .serialize_with_options(&doc, to, &format_options)
             .unwrap_or_else(|e| {
                 eprintln!("Serialization error: {}", e);
                 std::process::exit(1);
@@ -569,12 +578,12 @@ fn formatting_rules_from_config(config: &LexConfig) -> FormattingRules {
     }
 }
 
-fn apply_config_overrides(config: &mut LexConfig, extra_params: &HashMap<String, String>) {
-    if let Some(raw) = extra_params.get("ast-full") {
-        config.inspect.ast.include_all_properties = parse_bool_arg("ast-full", raw);
+fn apply_config_overrides(config: &mut LexConfig, extra_params: &mut HashMap<String, String>) {
+    if let Some(raw) = extra_params.remove("ast-full") {
+        config.inspect.ast.include_all_properties = parse_bool_arg("ast-full", &raw);
     }
-    if let Some(raw) = extra_params.get("show-linum") {
-        config.inspect.ast.show_line_numbers = parse_bool_arg("show-linum", raw);
+    if let Some(raw) = extra_params.remove("show-linum") {
+        config.inspect.ast.show_line_numbers = parse_bool_arg("show-linum", &raw);
     }
 
     if let Some(raw) = take_override(extra_params, &["color"]) {
@@ -588,13 +597,13 @@ fn apply_config_overrides(config: &mut LexConfig, extra_params: &HashMap<String,
     }
 
     let mut pdf_override = None;
-    if let Some(raw) = extra_params.get("size-mobile") {
-        if parse_bool_arg("size-mobile", raw) {
+    if let Some(raw) = extra_params.remove("size-mobile") {
+        if parse_bool_arg("size-mobile", &raw) {
             pdf_override = Some(PdfPageSize::Mobile);
         }
     }
-    if let Some(raw) = extra_params.get("size-desktop") {
-        if parse_bool_arg("size-desktop", raw) {
+    if let Some(raw) = extra_params.remove("size-desktop") {
+        if parse_bool_arg("size-desktop", &raw) {
             if let Some(existing) = pdf_override {
                 eprintln!(
                     "Conflicting PDF profile overrides: {:?} and desktop",
@@ -611,10 +620,59 @@ fn apply_config_overrides(config: &mut LexConfig, extra_params: &HashMap<String,
     }
 }
 
-fn take_override(map: &HashMap<String, String>, keys: &[&str]) -> Option<String> {
+fn build_inspect_params(
+    config: &LexConfig,
+    overrides: &HashMap<String, String>,
+) -> HashMap<String, String> {
+    let mut params = HashMap::new();
+
+    if config.inspect.ast.include_all_properties {
+        params.insert("ast-full".to_string(), "true".to_string());
+    }
+
+    params.insert(
+        "show-linum".to_string(),
+        if config.inspect.ast.show_line_numbers {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        },
+    );
+
+    if config.inspect.nodemap.color_blocks {
+        params.insert("color".to_string(), "true".to_string());
+    }
+    if config.inspect.nodemap.color_characters {
+        params.insert("color-char".to_string(), "true".to_string());
+    }
+    if config.inspect.nodemap.show_summary {
+        params.insert("nodesummary".to_string(), "true".to_string());
+    }
+
+    for (key, value) in overrides {
+        params.insert(key.clone(), value.clone());
+    }
+
+    params
+}
+
+fn pdf_params_from_config(config: &LexConfig) -> HashMap<String, String> {
+    let mut params = HashMap::new();
+    match config.convert.pdf.size {
+        PdfPageSize::Desktop => {
+            params.insert("size-desktop".to_string(), "true".to_string());
+        }
+        PdfPageSize::Mobile => {
+            params.insert("size-mobile".to_string(), "true".to_string());
+        }
+    }
+    params
+}
+
+fn take_override(map: &mut HashMap<String, String>, keys: &[&str]) -> Option<String> {
     for key in keys {
-        if let Some(value) = map.get(*key) {
-            return Some(value.clone());
+        if let Some(value) = map.remove(*key) {
+            return Some(value);
         }
     }
     None
@@ -811,11 +869,31 @@ mod tests {
         extras.insert("color".to_string(), "false".to_string());
         extras.insert("size-mobile".to_string(), "true".to_string());
 
-        apply_config_overrides(&mut config, &extras);
+        apply_config_overrides(&mut config, &mut extras);
 
         assert!(config.inspect.ast.include_all_properties);
         assert!(!config.inspect.nodemap.color_blocks);
         assert_eq!(config.convert.pdf.size, PdfPageSize::Mobile);
-        assert_eq!(extras.len(), 3);
+        assert!(extras.is_empty());
+    }
+
+    #[test]
+    fn inspect_params_include_configured_defaults() {
+        let config = load_cli_config(None);
+        let mut overrides = HashMap::new();
+        overrides.insert("custom".to_string(), "value".to_string());
+
+        let params = build_inspect_params(&config, &overrides);
+        assert_eq!(params.get("show-linum"), Some(&"true".to_string()));
+        assert_eq!(params.get("custom"), Some(&"value".to_string()));
+    }
+
+    #[test]
+    fn pdf_params_follow_configured_profile() {
+        let mut config = load_cli_config(None);
+        config.convert.pdf.size = PdfPageSize::Mobile;
+        let params = pdf_params_from_config(&config);
+        assert_eq!(params.get("size-mobile"), Some(&"true".to_string()));
+        assert!(!params.contains_key("size-desktop"));
     }
 }
