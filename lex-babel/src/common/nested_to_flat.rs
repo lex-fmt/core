@@ -183,6 +183,9 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
             }
             events.push(Event::EndTable);
         }
+        DocNode::Image(image) => events.push(Event::Image(image.clone())),
+        DocNode::Video(video) => events.push(Event::Video(video.clone())),
+        DocNode::Audio(audio) => events.push(Event::Audio(audio.clone())),
         DocNode::Inline(inline) => events.push(Event::Inline(inline.clone())),
     }
 }

@@ -46,6 +46,7 @@ fn to_lex_content_items(node: &DocNode, level: usize) -> Vec<LexContentItem> {
         DocNode::Verbatim(verb) => vec![to_lex_verbatim(verb)],
         DocNode::Annotation(ann) => vec![to_lex_annotation(ann, level)],
         DocNode::Table(table) => vec![to_lex_table(table, level)],
+        DocNode::Image(_) | DocNode::Video(_) | DocNode::Audio(_) => vec![to_lex_media(node)],
         DocNode::Inline(_) => {
             // Inline content should not appear at block level
             vec![]
@@ -296,6 +297,13 @@ fn inline_content_to_text(content: &[InlineContent]) -> String {
             InlineContent::Math(math) => format!("#{}#", math),
             InlineContent::Reference(ref_text) => format!("[{}]", ref_text),
             InlineContent::Marker(marker) => marker.clone(),
+            InlineContent::Image(image) => {
+                let mut text = format!("![{}]({})", image.alt, image.src);
+                if let Some(title) = &image.title {
+                    text.push_str(&format!(" \"{}\"", title));
+                }
+                text
+            }
         })
         .collect()
 }
@@ -311,6 +319,48 @@ fn to_content_elements(items: Vec<LexContentItem>) -> Vec<ContentElement> {
 /// Helper to create a default Range
 fn default_range() -> Range {
     Range::new(0..0, Position::new(0, 0), Position::new(0, 0))
+}
+
+fn to_lex_media(node: &DocNode) -> LexContentItem {
+    let registry = crate::common::verbatim::VerbatimRegistry::default_with_standard();
+
+    let label = match node {
+        DocNode::Image(_) => "doc.image",
+        DocNode::Video(_) => "doc.video",
+        DocNode::Audio(_) => "doc.audio",
+        _ => return LexContentItem::Paragraph(LexParagraph::new(vec![])),
+    };
+
+    if let Some(handler) = registry.get(label) {
+        if let Some((content, params)) = handler.convert_from_ir(node) {
+            let label = Label::new(label.to_string());
+            let parameters = params
+                .into_iter()
+                .map(|(k, v)| Parameter {
+                    key: k,
+                    value: v,
+                    location: default_range(),
+                })
+                .collect();
+
+            let subject = TextContent::from_string("".to_string(), None);
+            let lines = content
+                .lines()
+                .map(|l| VerbatimContent::VerbatimLine(LexVerbatimLine::new(l.to_string())))
+                .collect();
+
+            let closing_data = Data::new(label, parameters);
+
+            return LexContentItem::VerbatimBlock(Box::new(LexVerbatim::new(
+                subject,
+                lines,
+                closing_data,
+                VerbatimBlockMode::Inflow,
+            )));
+        }
+    }
+
+    LexContentItem::Paragraph(LexParagraph::new(vec![]))
 }
 
 #[cfg(test)]
