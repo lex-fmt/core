@@ -64,7 +64,7 @@ pub enum InlineKind {
     Code,
     /// Mathematical notation: #formula# (literal, no nested inlines)
     Math,
-    /// Reference (link, citation, footnote): [target] (literal, no nested inlines)
+    /// Reference (link, citation, footnote): \[target\] (literal, no nested inlines)
     Reference,
 }
 
