@@ -1,7 +1,5 @@
-use crate::utils::find_annotation_at_position;
-use lex_parser::lex::ast::{
-    Annotation, AstNode, ContentItem, Document, Parameter, Position, Range, Session,
-};
+use crate::utils::{collect_all_annotations, find_annotation_at_position};
+use lex_parser::lex::ast::{Annotation, AstNode, Document, Parameter, Position, Range};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnnotationDirection {
@@ -146,73 +144,7 @@ fn containing_index(entries: &[&Annotation], position: Position) -> Option<usize
 }
 
 pub(crate) fn collect_annotations(document: &Document) -> Vec<&Annotation> {
-    let mut entries = Vec::new();
-    for annotation in document.annotations() {
-        entries.push(annotation);
-    }
-    collect_from_session(&document.root, &mut entries);
-    entries
-}
-
-fn collect_from_session<'a>(session: &'a Session, entries: &mut Vec<&'a Annotation>) {
-    for annotation in session.annotations() {
-        entries.push(annotation);
-    }
-    for item in session.iter_items() {
-        collect_from_item(item, entries);
-    }
-}
-
-fn collect_from_item<'a>(item: &'a ContentItem, entries: &mut Vec<&'a Annotation>) {
-    match item {
-        ContentItem::Annotation(annotation) => {
-            entries.push(annotation);
-            for child in annotation.children.iter() {
-                collect_from_item(child, entries);
-            }
-        }
-        ContentItem::Paragraph(paragraph) => {
-            for annotation in paragraph.annotations() {
-                entries.push(annotation);
-            }
-            for line in &paragraph.lines {
-                collect_from_item(line, entries);
-            }
-        }
-        ContentItem::List(list) => {
-            for annotation in list.annotations() {
-                entries.push(annotation);
-            }
-            for item in list.items.iter() {
-                collect_from_item(item, entries);
-            }
-        }
-        ContentItem::ListItem(list_item) => {
-            for annotation in list_item.annotations() {
-                entries.push(annotation);
-            }
-            for child in list_item.children.iter() {
-                collect_from_item(child, entries);
-            }
-        }
-        ContentItem::Definition(definition) => {
-            for annotation in definition.annotations() {
-                entries.push(annotation);
-            }
-            for child in definition.children.iter() {
-                collect_from_item(child, entries);
-            }
-        }
-        ContentItem::Session(session) => collect_from_session(session, entries),
-        ContentItem::VerbatimBlock(verbatim) => {
-            for annotation in verbatim.annotations() {
-                entries.push(annotation);
-            }
-        }
-        ContentItem::TextLine(_)
-        | ContentItem::VerbatimLine(_)
-        | ContentItem::BlankLineGroup(_) => {}
-    }
+    collect_all_annotations(document)
 }
 
 fn format_header(label: &str, params: &[Parameter]) -> String {

@@ -4,6 +4,11 @@ use lex_parser::lex::ast::{
     Annotation, ContentItem, Definition, Document, Position, Session, TextContent,
 };
 
+/// Visits every text content node in the document, invoking the callback for each.
+///
+/// Traverses the full document tree including session titles, paragraph lines,
+/// list item text, definition subjects, and annotation bodies. Useful for
+/// extracting inline references or performing text-level analysis.
 pub fn for_each_text_content<F>(document: &Document, f: &mut F)
 where
     F: FnMut(&TextContent),
@@ -12,6 +17,179 @@ where
         visit_annotation_text(annotation, f);
     }
     visit_session_text(&document.root, true, f);
+}
+
+/// Visits every annotation in the document, invoking the callback for each.
+///
+/// Traverses the full document tree to find annotations at all levels:
+/// document-level, session-level, and nested within content items like
+/// paragraphs, lists, definitions, and verbatim blocks. Annotations are
+/// visited in document order (top to bottom).
+///
+/// Use this for annotation-related features like navigation, resolution
+/// toggling, or collecting annotation labels for completion.
+pub fn for_each_annotation<F>(document: &Document, f: &mut F)
+where
+    F: FnMut(&Annotation),
+{
+    for annotation in document.annotations() {
+        visit_annotation_recursive(annotation, f);
+    }
+    visit_session_annotations(&document.root, f);
+}
+
+/// Collects all annotations in the document into a vector.
+///
+/// Returns annotations in document order (top to bottom), including those
+/// at document-level, session-level, and nested within content items.
+/// This is a convenience wrapper around [`for_each_annotation`] for cases
+/// where you need a collected result rather than a streaming callback.
+pub fn collect_all_annotations(document: &Document) -> Vec<&Annotation> {
+    let mut annotations = Vec::new();
+    for annotation in document.annotations() {
+        collect_annotation_recursive(annotation, &mut annotations);
+    }
+    collect_annotations_into(&document.root, &mut annotations);
+    annotations
+}
+
+fn collect_annotations_into<'a>(session: &'a Session, out: &mut Vec<&'a Annotation>) {
+    for annotation in session.annotations() {
+        collect_annotation_recursive(annotation, out);
+    }
+    for child in session.children.iter() {
+        collect_content_annotations(child, out);
+    }
+}
+
+fn collect_annotation_recursive<'a>(annotation: &'a Annotation, out: &mut Vec<&'a Annotation>) {
+    out.push(annotation);
+    for child in annotation.children.iter() {
+        collect_content_annotations(child, out);
+    }
+}
+
+fn collect_content_annotations<'a>(item: &'a ContentItem, out: &mut Vec<&'a Annotation>) {
+    match item {
+        ContentItem::Annotation(annotation) => {
+            collect_annotation_recursive(annotation, out);
+        }
+        ContentItem::Paragraph(paragraph) => {
+            for annotation in paragraph.annotations() {
+                collect_annotation_recursive(annotation, out);
+            }
+            for line in &paragraph.lines {
+                collect_content_annotations(line, out);
+            }
+        }
+        ContentItem::List(list) => {
+            for annotation in list.annotations() {
+                collect_annotation_recursive(annotation, out);
+            }
+            for entry in &list.items {
+                collect_content_annotations(entry, out);
+            }
+        }
+        ContentItem::ListItem(list_item) => {
+            for annotation in list_item.annotations() {
+                collect_annotation_recursive(annotation, out);
+            }
+            for child in list_item.children.iter() {
+                collect_content_annotations(child, out);
+            }
+        }
+        ContentItem::Definition(definition) => {
+            for annotation in definition.annotations() {
+                collect_annotation_recursive(annotation, out);
+            }
+            for child in definition.children.iter() {
+                collect_content_annotations(child, out);
+            }
+        }
+        ContentItem::Session(session) => collect_annotations_into(session, out),
+        ContentItem::VerbatimBlock(verbatim) => {
+            for annotation in verbatim.annotations() {
+                collect_annotation_recursive(annotation, out);
+            }
+        }
+        ContentItem::TextLine(_)
+        | ContentItem::VerbatimLine(_)
+        | ContentItem::BlankLineGroup(_) => {}
+    }
+}
+
+fn visit_annotation_recursive<F>(annotation: &Annotation, f: &mut F)
+where
+    F: FnMut(&Annotation),
+{
+    f(annotation);
+    for child in annotation.children.iter() {
+        visit_content_annotations(child, f);
+    }
+}
+
+fn visit_session_annotations<F>(session: &Session, f: &mut F)
+where
+    F: FnMut(&Annotation),
+{
+    for annotation in session.annotations() {
+        visit_annotation_recursive(annotation, f);
+    }
+    for child in session.children.iter() {
+        visit_content_annotations(child, f);
+    }
+}
+
+fn visit_content_annotations<F>(item: &ContentItem, f: &mut F)
+where
+    F: FnMut(&Annotation),
+{
+    match item {
+        ContentItem::Annotation(annotation) => {
+            visit_annotation_recursive(annotation, f);
+        }
+        ContentItem::Paragraph(paragraph) => {
+            for annotation in paragraph.annotations() {
+                visit_annotation_recursive(annotation, f);
+            }
+            for line in &paragraph.lines {
+                visit_content_annotations(line, f);
+            }
+        }
+        ContentItem::List(list) => {
+            for annotation in list.annotations() {
+                visit_annotation_recursive(annotation, f);
+            }
+            for entry in &list.items {
+                visit_content_annotations(entry, f);
+            }
+        }
+        ContentItem::ListItem(list_item) => {
+            for annotation in list_item.annotations() {
+                visit_annotation_recursive(annotation, f);
+            }
+            for child in list_item.children.iter() {
+                visit_content_annotations(child, f);
+            }
+        }
+        ContentItem::Definition(definition) => {
+            for annotation in definition.annotations() {
+                visit_annotation_recursive(annotation, f);
+            }
+            for child in definition.children.iter() {
+                visit_content_annotations(child, f);
+            }
+        }
+        ContentItem::Session(session) => visit_session_annotations(session, f),
+        ContentItem::VerbatimBlock(verbatim) => {
+            for annotation in verbatim.annotations() {
+                visit_annotation_recursive(annotation, f);
+            }
+        }
+        ContentItem::TextLine(_)
+        | ContentItem::VerbatimLine(_)
+        | ContentItem::BlankLineGroup(_) => {}
+    }
 }
 
 pub fn find_definition_by_subject<'a>(

@@ -1,7 +1,7 @@
 use crate::inline::InlineSpanKind;
-use crate::utils::{reference_span_at_position, session_identifier};
+use crate::utils::{for_each_annotation, reference_span_at_position, session_identifier};
 use lex_parser::lex::ast::links::LinkType;
-use lex_parser::lex::ast::{Annotation, ContentItem, Document, Position, Session};
+use lex_parser::lex::ast::{ContentItem, Document, Position, Session};
 use lsp_types::CompletionItemKind;
 use std::collections::BTreeSet;
 
@@ -138,81 +138,10 @@ fn verbatim_path_completions(document: &Document) -> Vec<CompletionCandidate> {
 
 fn collect_annotation_labels(document: &Document) -> BTreeSet<String> {
     let mut labels = BTreeSet::new();
-    for annotation in document.annotations() {
-        collect_annotation(annotation, &mut labels);
-    }
-    collect_annotations_from_session(&document.root, &mut labels);
+    for_each_annotation(document, &mut |annotation| {
+        labels.insert(annotation.data.label.value.clone());
+    });
     labels
-}
-
-fn collect_annotations_from_session(session: &Session, labels: &mut BTreeSet<String>) {
-    for annotation in session.annotations() {
-        collect_annotation(annotation, labels);
-    }
-    for item in session.iter_items() {
-        collect_annotations_from_item(item, labels);
-    }
-}
-
-fn collect_annotations_from_item(item: &ContentItem, labels: &mut BTreeSet<String>) {
-    match item {
-        ContentItem::Annotation(annotation) => {
-            collect_annotation(annotation, labels);
-            for child in annotation.children.iter() {
-                collect_annotations_from_item(child, labels);
-            }
-        }
-        ContentItem::Paragraph(paragraph) => {
-            for annotation in paragraph.annotations() {
-                collect_annotation(annotation, labels);
-            }
-            for line in &paragraph.lines {
-                collect_annotations_from_item(line, labels);
-            }
-        }
-        ContentItem::List(list) => {
-            for annotation in list.annotations() {
-                collect_annotation(annotation, labels);
-            }
-            for item in list.items.iter() {
-                collect_annotations_from_item(item, labels);
-            }
-        }
-        ContentItem::ListItem(list_item) => {
-            for annotation in list_item.annotations() {
-                collect_annotation(annotation, labels);
-            }
-            for child in list_item.children.iter() {
-                collect_annotations_from_item(child, labels);
-            }
-        }
-        ContentItem::Definition(definition) => {
-            for annotation in definition.annotations() {
-                collect_annotation(annotation, labels);
-            }
-            for child in definition.children.iter() {
-                collect_annotations_from_item(child, labels);
-            }
-        }
-        ContentItem::Session(child_session) => {
-            collect_annotations_from_session(child_session, labels)
-        }
-        ContentItem::VerbatimBlock(verbatim) => {
-            for annotation in verbatim.annotations() {
-                collect_annotation(annotation, labels);
-            }
-        }
-        ContentItem::TextLine(_)
-        | ContentItem::VerbatimLine(_)
-        | ContentItem::BlankLineGroup(_) => {}
-    }
-}
-
-fn collect_annotation(annotation: &Annotation, labels: &mut BTreeSet<String>) {
-    labels.insert(annotation.data.label.value.clone());
-    for child in annotation.children.iter() {
-        collect_annotations_from_item(child, labels);
-    }
 }
 
 fn collect_definition_subjects(document: &Document) -> BTreeSet<String> {
