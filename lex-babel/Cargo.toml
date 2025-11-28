@@ -12,6 +12,9 @@ comrak = "0.29"
 html5ever = "0.35"
 markup5ever_rcdom = "0.35"
 serde = { workspace = true, features = ["derive"] }
+tempfile = "3"
+which = "4"
+url = "2.4"
 
 [dev-dependencies]
 insta = { workspace = true }

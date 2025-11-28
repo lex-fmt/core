@@ -4,7 +4,7 @@
 //! Formats can be registered and retrieved by name.
 
 use crate::error::FormatError;
-use crate::format::Format;
+use crate::format::{Format, SerializedDocument};
 use lex_parser::lex::ast::Document;
 use std::collections::HashMap;
 
@@ -104,6 +104,23 @@ impl FormatRegistry {
 
     /// Serialize a document using the specified format
     pub fn serialize(&self, doc: &Document, format: &str) -> Result<String, FormatError> {
+        let empty = HashMap::new();
+        match self.serialize_with_options(doc, format, &empty)? {
+            SerializedDocument::Text(text) => Ok(text),
+            SerializedDocument::Binary(_) => Err(FormatError::SerializationError(format!(
+                "Format '{}' produced binary output when text was expected",
+                format
+            ))),
+        }
+    }
+
+    /// Serialize a document using the specified format and options
+    pub fn serialize_with_options(
+        &self,
+        doc: &Document,
+        format: &str,
+        options: &HashMap<String, String>,
+    ) -> Result<SerializedDocument, FormatError> {
         let fmt = self.get(format)?;
         if !fmt.supports_serialization() {
             return Err(FormatError::NotSupported(format!(
@@ -111,7 +128,7 @@ impl FormatRegistry {
                 format
             )));
         }
-        fmt.serialize(doc)
+        fmt.serialize_with_options(doc, options)
     }
 
     /// Create a registry with default formats
@@ -121,6 +138,7 @@ impl FormatRegistry {
         // Register built-in formats
         registry.register(crate::formats::lex::LexFormat::default());
         registry.register(crate::formats::html::HtmlFormat::default());
+        registry.register(crate::formats::pdf::PdfFormat::default());
         registry.register(crate::formats::markdown::MarkdownFormat);
         registry.register(crate::formats::tag::TagFormat);
         registry.register(crate::formats::treeviz::TreevizFormat);
@@ -254,6 +272,21 @@ mod tests {
             FormatError::FormatNotFound(name) => assert_eq!(name, "nonexistent"),
             _ => panic!("Expected FormatNotFound error"),
         }
+    }
+
+    #[test]
+    fn test_registry_serialize_with_options_default_behavior() {
+        let mut registry = FormatRegistry::new();
+        registry.register(TestFormat);
+
+        let doc = Document::with_content(vec![ContentItem::Paragraph(Paragraph::from_line(
+            "Hello".to_string(),
+        ))]);
+        let mut options = HashMap::new();
+        options.insert("unused".to_string(), "true".to_string());
+
+        let result = registry.serialize_with_options(&doc, "test", &options);
+        assert!(result.is_err());
     }
 
     #[test]
