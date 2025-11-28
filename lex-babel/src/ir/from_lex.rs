@@ -316,114 +316,21 @@ fn from_lex_verbatim(verbatim: &LexVerbatim) -> DocNode {
         .collect::<Vec<_>>()
         .join("\n");
 
-    if verbatim.closing_data.label.value == "doc.table"
-        || verbatim.closing_data.label.value == "table"
-    {
-        return parse_pipe_table(&content);
+    let registry = crate::common::verbatim::VerbatimRegistry::default_with_standard();
+
+    if let Some(handler) = registry.get(&verbatim.closing_data.label.value) {
+        let params = verbatim
+            .closing_data
+            .parameters
+            .iter()
+            .map(|p| (p.key.clone(), p.value.clone()))
+            .collect();
+        if let Some(node) = handler.to_ir(&content, &params) {
+            return node;
+        }
     }
 
     DocNode::Verbatim(Verbatim { language, content })
-}
-
-fn parse_pipe_table(content: &str) -> DocNode {
-    let mut header = Vec::new();
-    let mut rows = Vec::new();
-    let mut alignments = Vec::new();
-
-    let lines: Vec<&str> = content
-        .lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty())
-        .collect();
-
-    if lines.is_empty() {
-        return DocNode::Table(Table {
-            rows,
-            header,
-            caption: None,
-        });
-    }
-
-    // Parse header
-    if let Some(header_line) = lines.first() {
-        let cells = parse_table_row(header_line);
-        let mut header_row = TableRow { cells: Vec::new() };
-        for cell_content in cells {
-            header_row.cells.push(TableCell {
-                content: vec![DocNode::Paragraph(Paragraph {
-                    content: vec![InlineContent::Text(cell_content)],
-                })],
-                header: true,
-                align: TableCellAlignment::None,
-            });
-        }
-        header.push(header_row);
-    }
-
-    // Parse separator line to determine alignments
-    if lines.len() > 1 {
-        let separator = lines[1];
-        if separator.contains(['-', '|']) {
-            let parts = parse_table_row(separator);
-            for part in parts {
-                let trimmed = part.trim();
-                if trimmed.starts_with(':') && trimmed.ends_with(':') {
-                    alignments.push(TableCellAlignment::Center);
-                } else if trimmed.ends_with(':') {
-                    alignments.push(TableCellAlignment::Right);
-                } else if trimmed.starts_with(':') {
-                    alignments.push(TableCellAlignment::Left);
-                } else {
-                    alignments.push(TableCellAlignment::None);
-                }
-            }
-        }
-    }
-
-    // Parse body rows
-    for line in lines.iter().skip(2) {
-        let cells = parse_table_row(line);
-        let mut row = TableRow { cells: Vec::new() };
-        for (i, cell_content) in cells.into_iter().enumerate() {
-            let align = if i < alignments.len() {
-                alignments[i]
-            } else {
-                TableCellAlignment::None
-            };
-
-            row.cells.push(TableCell {
-                content: vec![DocNode::Paragraph(Paragraph {
-                    content: vec![InlineContent::Text(cell_content)],
-                })],
-                header: false,
-                align,
-            });
-        }
-        rows.push(row);
-    }
-
-    // Apply alignments to header
-    if !header.is_empty() {
-        for (i, cell) in header[0].cells.iter_mut().enumerate() {
-            if i < alignments.len() {
-                cell.align = alignments[i];
-            }
-        }
-    }
-
-    DocNode::Table(Table {
-        rows,
-        header,
-        caption: None,
-    })
-}
-
-fn parse_table_row(line: &str) -> Vec<String> {
-    let line = line.trim();
-    let line = line.strip_prefix('|').unwrap_or(line);
-    let line = line.strip_suffix('|').unwrap_or(line);
-
-    line.split('|').map(|s| s.trim().to_string()).collect()
 }
 
 /// Converts a lex annotation to an IR annotation.
