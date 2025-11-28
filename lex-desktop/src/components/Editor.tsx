@@ -21,10 +21,52 @@ const LEGEND = {
     tokenModifiers: TOKEN_MODIFIERS
 };
 
-export function Editor() {
+interface EditorProps {
+    fileToOpen?: string | null;
+    onFileLoaded?: (path: string) => void;
+}
+
+export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
     const [currentFile, setCurrentFile] = useState<string | null>(null);
+
+    // Handle fileToOpen prop change
+    useEffect(() => {
+        if (fileToOpen && fileToOpen !== currentFile) {
+            handleOpenFile(fileToOpen);
+        }
+    }, [fileToOpen, currentFile]); // Added currentFile to dependency array
+
+    const handleOpenFile = async (path: string) => {
+        // We need a way to read file content by path.
+        // We can reuse fileOpen logic but we need a new IPC or just use fs in main.
+        // Wait, we have fileOpen which opens a dialog. We need fileRead(path).
+        // Let's add fileRead to IPC.
+        // For now, let's assume we can read it.
+        // Actually, we can just use the existing fileOpen logic but passing a path?
+        // No, fileOpen opens a dialog.
+
+        // Let's assume we implement 'file-read' IPC.
+        const content = await window.ipcRenderer.invoke('file-read', path);
+        if (content !== null && editorRef.current) {
+            setCurrentFile(path);
+            if (onFileLoaded) onFileLoaded(path);
+            const model = editorRef.current.getModel();
+            if (model) {
+                model.setValue(content);
+                const uri = 'file://' + path;
+                lspClient.sendNotification('textDocument/didOpen', {
+                    textDocument: {
+                        uri: uri,
+                        languageId: 'lex',
+                        version: 1,
+                        text: content
+                    }
+                });
+            }
+        }
+    };
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -76,17 +118,57 @@ export function Editor() {
             }
         });
 
-        // Define Theme
+        // Define Theme (Lex Monochrome)
         monaco.editor.defineTheme('lex-dark', {
             base: 'vs-dark',
             inherit: true,
             rules: [
-                { token: 'DocumentTitle', foreground: 'FF0000', fontStyle: 'bold' }, // Example colors
-                { token: 'SessionTitleText', foreground: '00FF00', fontStyle: 'bold' },
-                { token: 'AnnotationLabel', foreground: '888888' },
-                // Add more mappings based on VSCode theme
+                // Normal (#e0e0e0)
+                { token: 'SessionTitleText', foreground: 'e0e0e0', fontStyle: 'bold' },
+                { token: 'DefinitionSubject', foreground: 'e0e0e0', fontStyle: 'italic' },
+                { token: 'DefinitionContent', foreground: 'e0e0e0' },
+                { token: 'InlineStrong', foreground: 'e0e0e0', fontStyle: 'bold' },
+                { token: 'InlineEmphasis', foreground: 'e0e0e0', fontStyle: 'italic' },
+                { token: 'InlineCode', foreground: 'e0e0e0' },
+                { token: 'InlineMath', foreground: 'e0e0e0', fontStyle: 'italic' },
+                { token: 'VerbatimContent', foreground: 'e0e0e0' },
+                { token: 'ListItemText', foreground: 'e0e0e0' },
+
+                // Muted (#888888)
+                { token: 'DocumentTitle', foreground: '888888', fontStyle: 'bold' },
+                { token: 'SessionMarker', foreground: '888888', fontStyle: 'italic' },
+                { token: 'ListMarker', foreground: '888888', fontStyle: 'italic' },
+                { token: 'Reference', foreground: '888888', fontStyle: 'underline' },
+                { token: 'ReferenceCitation', foreground: '888888', fontStyle: 'underline' },
+                { token: 'ReferenceFootnote', foreground: '888888', fontStyle: 'underline' },
+
+                // Faint (#666666)
+                { token: 'AnnotationLabel', foreground: '666666' },
+                { token: 'AnnotationParameter', foreground: '666666' },
+                { token: 'AnnotationContent', foreground: '666666' },
+                { token: 'VerbatimSubject', foreground: '666666' },
+                { token: 'VerbatimLanguage', foreground: '666666' },
+                { token: 'VerbatimAttribute', foreground: '666666' },
+
+                // Faintest (#555555)
+                { token: 'InlineMarker_strong_start', foreground: '555555', fontStyle: 'italic' },
+                { token: 'InlineMarker_strong_end', foreground: '555555', fontStyle: 'italic' },
+                { token: 'InlineMarker_emphasis_start', foreground: '555555', fontStyle: 'italic' },
+                { token: 'InlineMarker_emphasis_end', foreground: '555555', fontStyle: 'italic' },
+                { token: 'InlineMarker_code_start', foreground: '555555', fontStyle: 'italic' },
+                { token: 'InlineMarker_code_end', foreground: '555555', fontStyle: 'italic' },
+                { token: 'InlineMarker_math_start', foreground: '555555', fontStyle: 'italic' },
+                { token: 'InlineMarker_math_end', foreground: '555555', fontStyle: 'italic' },
+                { token: 'InlineMarker_ref_start', foreground: '555555', fontStyle: 'italic' },
+                { token: 'InlineMarker_ref_end', foreground: '555555', fontStyle: 'italic' },
             ],
-            colors: {}
+            colors: {
+                'editor.background': '#1e1e1e',
+                'editor.foreground': '#cccccc',
+                'editorLineNumber.foreground': '#858585',
+                'editor.selectionBackground': '#264f78',
+                'editor.inactiveSelectionBackground': '#3a3d41',
+            }
         });
 
         // Initialize Editor
@@ -95,7 +177,10 @@ export function Editor() {
             language: 'lex',
             theme: 'lex-dark',
             automaticLayout: true,
-            minimap: { enabled: false }
+            minimap: { enabled: false },
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            fontSize: 14,
+            lineHeight: 22,
         });
         editorRef.current = editor;
 
@@ -170,7 +255,7 @@ export function Editor() {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ padding: '5px', background: '#333', display: 'flex', gap: '10px' }}>
                 <button onClick={handleOpen}>Open File</button>
                 <button onClick={handleSave} disabled={!currentFile}>Save</button>
