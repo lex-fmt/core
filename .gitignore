@@ -46,3 +46,5 @@ local
 specs/**/*.ast.*
 specs/**/*.treeviz
 specs/**/*.treeviz.*
+*.dmg
+*.dmg.blockmap
