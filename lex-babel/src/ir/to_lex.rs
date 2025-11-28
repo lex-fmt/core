@@ -70,6 +70,39 @@ fn to_lex_session(heading: &Heading, level: usize) -> LexContentItem {
 
 /// Converts an IR Table to a Lex Annotation (nested).
 fn to_lex_table(table: &Table, level: usize) -> LexContentItem {
+    let registry = crate::common::verbatim::VerbatimRegistry::default_with_standard();
+    let node = DocNode::Table(table.clone());
+
+    if let Some(handler) = registry.get("doc.table") {
+        if let Some((content, params)) = handler.convert_from_ir(&node) {
+            let label = Label::new("doc.table".to_string());
+            let parameters = params
+                .into_iter()
+                .map(|(k, v)| Parameter {
+                    key: k,
+                    value: v,
+                    location: default_range(),
+                })
+                .collect();
+
+            let subject = TextContent::from_string("".to_string(), None);
+            let lines = content
+                .lines()
+                .map(|l| VerbatimContent::VerbatimLine(LexVerbatimLine::new(l.to_string())))
+                .collect();
+
+            let closing_data = Data::new(label, parameters);
+
+            return LexContentItem::VerbatimBlock(Box::new(LexVerbatim::new(
+                subject,
+                lines,
+                closing_data,
+                VerbatimBlockMode::Inflow,
+            )));
+        }
+    }
+
+    // Fallback to annotation if registry fails (though TableHandler should handle it)
     let label = Label::new("table".to_string());
     let parameters = Vec::new(); // Could add caption here if needed
 
