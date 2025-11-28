@@ -323,6 +323,52 @@ fn build_html_dom(events: &[Event]) -> Result<RcDom, FormatError> {
                 let comment_node = create_comment(&comment);
                 current_parent.children.borrow_mut().push(comment_node);
             }
+
+            Event::Image(image) => {
+                let figure = create_element("figure", vec![("class", "lex-image")]);
+                current_parent.children.borrow_mut().push(figure.clone());
+
+                let mut attrs = vec![("src", image.src.as_str()), ("alt", image.alt.as_str())];
+                if let Some(title) = &image.title {
+                    attrs.push(("title", title.as_str()));
+                }
+                let img = create_element("img", attrs);
+                figure.children.borrow_mut().push(img);
+
+                if !image.alt.is_empty() {
+                    let caption = create_element("figcaption", vec![]);
+                    let text = create_text(&image.alt);
+                    caption.children.borrow_mut().push(text);
+                    figure.children.borrow_mut().push(caption);
+                }
+            }
+
+            Event::Video(video) => {
+                let figure = create_element("figure", vec![("class", "lex-video")]);
+                current_parent.children.borrow_mut().push(figure.clone());
+
+                let mut attrs = vec![("src", video.src.as_str()), ("controls", "")];
+                if let Some(poster) = &video.poster {
+                    attrs.push(("poster", poster.as_str()));
+                }
+                if let Some(title) = &video.title {
+                    attrs.push(("title", title.as_str()));
+                }
+                let vid = create_element("video", attrs);
+                figure.children.borrow_mut().push(vid);
+            }
+
+            Event::Audio(audio) => {
+                let figure = create_element("figure", vec![("class", "lex-audio")]);
+                current_parent.children.borrow_mut().push(figure.clone());
+
+                let mut attrs = vec![("src", audio.src.as_str()), ("controls", "")];
+                if let Some(title) = &audio.title {
+                    attrs.push(("title", title.as_str()));
+                }
+                let aud = create_element("audio", attrs);
+                figure.children.borrow_mut().push(aud);
+            }
         }
     }
 
@@ -390,11 +436,20 @@ fn add_inline_to_node(parent: &Handle, inline: &InlineContent) -> Result<(), For
             parent.children.borrow_mut().push(anchor);
         }
 
-        InlineContent::Marker(marker_text) => {
+        InlineContent::Marker(marker) => {
             let span = create_element("span", vec![("class", "seq_marker")]);
-            let text = create_text(marker_text);
+            let text = create_text(marker);
             span.children.borrow_mut().push(text);
             parent.children.borrow_mut().push(span);
+        }
+
+        InlineContent::Image(image) => {
+            let mut attrs = vec![("src", image.src.as_str()), ("alt", image.alt.as_str())];
+            if let Some(title) = &image.title {
+                attrs.push(("title", title.as_str()));
+            }
+            let img = create_element("img", attrs);
+            parent.children.borrow_mut().push(img);
         }
     }
 

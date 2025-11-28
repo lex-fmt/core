@@ -680,6 +680,69 @@ fn build_comrak_ast<'a>(
                     FormatError::SerializationError("Unbalanced table cell end".to_string())
                 })?;
             }
+
+            Event::Image(image) => {
+                // Render as paragraph with image
+                let para_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Paragraph,
+                    (0, 0).into(),
+                ))));
+                current_parent.append(para_node);
+
+                let image_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Image(comrak::nodes::NodeLink {
+                        url: image.src.clone(),
+                        title: image.title.clone().unwrap_or_default(),
+                    }),
+                    (0, 0).into(),
+                ))));
+                para_node.append(image_node);
+
+                let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::Text(image.alt.clone()),
+                    (0, 0).into(),
+                ))));
+                image_node.append(text_node);
+            }
+
+            Event::Video(video) => {
+                // Render as HTML <video>
+                let mut html = format!(r#"<video src="{}""#, video.src);
+                if let Some(poster) = &video.poster {
+                    html.push_str(&format!(r#" poster="{}""#, poster));
+                }
+                if let Some(title) = &video.title {
+                    html.push_str(&format!(r#" title="{}""#, title));
+                }
+                html.push_str(" controls></video>");
+
+                let html_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::HtmlBlock(comrak::nodes::NodeHtmlBlock {
+                        block_type: 0,
+                        literal: html,
+                    }),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(html_node);
+            }
+
+            Event::Audio(audio) => {
+                // Render as HTML <audio>
+                let mut html = format!(r#"<audio src="{}""#, audio.src);
+                if let Some(title) = &audio.title {
+                    html.push_str(&format!(r#" title="{}""#, title));
+                }
+                html.push_str(" controls></audio>");
+
+                let html_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                    NodeValue::HtmlBlock(comrak::nodes::NodeHtmlBlock {
+                        block_type: 0,
+                        literal: html,
+                    }),
+                    (0, 0).into(),
+                ))));
+                current_parent.append(html_node);
+            }
         }
     }
 
@@ -798,6 +861,23 @@ fn add_inline_to_node<'a>(
                 (0, 0).into(),
             ))));
             parent.append(dollar_close);
+        }
+
+        InlineContent::Image(image) => {
+            let image_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Image(comrak::nodes::NodeLink {
+                    url: image.src.clone(),
+                    title: image.title.clone().unwrap_or_default(),
+                }),
+                (0, 0).into(),
+            ))));
+            parent.append(image_node);
+
+            let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
+                NodeValue::Text(image.alt.clone()),
+                (0, 0).into(),
+            ))));
+            image_node.append(text_node);
         }
 
         InlineContent::Marker(marker_text) => {

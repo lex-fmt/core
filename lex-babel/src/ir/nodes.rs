@@ -13,6 +13,9 @@ pub enum DocNode {
     Annotation(Annotation),
     Inline(InlineContent),
     Table(Table),
+    Image(Image),
+    Video(Video),
+    Audio(Audio),
 }
 
 /// Represents the root of a document.
@@ -112,4 +115,28 @@ pub enum InlineContent {
     Math(String),
     Reference(String),
     Marker(String),
+    Image(Image),
+}
+
+/// Represents an image.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Image {
+    pub src: String,
+    pub alt: String,
+    pub title: Option<String>,
+}
+
+/// Represents a video.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Video {
+    pub src: String,
+    pub title: Option<String>,
+    pub poster: Option<String>,
+}
+
+/// Represents an audio file.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Audio {
+    pub src: String,
+    pub title: Option<String>,
 }

@@ -65,6 +65,7 @@
 use crate::ir::nodes::DocNode;
 use std::collections::HashMap;
 
+pub mod media;
 pub mod table;
 
 /// A handler for a specific verbatim block type.
@@ -103,6 +104,9 @@ impl VerbatimRegistry {
     pub fn default_with_standard() -> Self {
         let mut registry = Self::new();
         registry.register("doc.table", Box::new(table::TableHandler));
+        registry.register("doc.image", Box::new(media::ImageHandler));
+        registry.register("doc.video", Box::new(media::VideoHandler));
+        registry.register("doc.audio", Box::new(media::AudioHandler));
         registry
     }
 
