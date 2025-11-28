@@ -51,9 +51,11 @@ A Place For Ideas
                 1. Principle: Invisible Structure via indentation.
                 2. Benefit: Scales from simple to complex.
 
+
         3.2.3. The Draft
 
             The core benefit of Lex is its ability to scale. An idea can start as a simple sentence, grow into a *structured outline*, and then be fleshed out with detailed paragraphs, code examples, and even #mathematical formulas# without ever leaving the same file or learning a new syntax.
+
 
         3.2.4. The Paper
 
