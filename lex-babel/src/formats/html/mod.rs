@@ -182,4 +182,25 @@ impl Format for HtmlFormat {
     fn serialize(&self, doc: &Document) -> Result<String, FormatError> {
         serializer::serialize_to_html(doc, self.theme)
     }
+
+    fn serialize_with_options(
+        &self,
+        doc: &Document,
+        options: &std::collections::HashMap<String, String>,
+    ) -> Result<crate::format::SerializedDocument, FormatError> {
+        let mut theme = self.theme;
+        if let Some(theme_str) = options.get("theme") {
+            theme = match theme_str.as_str() {
+                "fancy-serif" => HtmlTheme::FancySerif,
+                "modern" | "default" => HtmlTheme::Modern,
+                _ => {
+                    // Fallback to default for unknown themes, or could error.
+                    // For now, let's fallback to Modern to be safe.
+                    HtmlTheme::Modern
+                }
+            };
+        }
+
+        serializer::serialize_to_html(doc, theme).map(crate::format::SerializedDocument::Text)
+    }
 }
