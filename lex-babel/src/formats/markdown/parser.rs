@@ -366,12 +366,35 @@ fn collect_inline_events<'a>(
             events.push(Event::Inline(InlineContent::Text(" ".to_string())));
         }
 
+        NodeValue::Image(link) => {
+            let alt = collect_text_from_children(node);
+            events.push(Event::Inline(InlineContent::Image(
+                crate::ir::nodes::Image {
+                    src: link.url.clone(),
+                    alt,
+                    title: if link.title.is_empty() {
+                        None
+                    } else {
+                        Some(link.title.clone())
+                    },
+                },
+            )));
+        }
+
         _ => {
             // Skip unknown inline types
         }
     }
 
     Ok(())
+}
+
+fn collect_text_from_children<'a>(node: &'a AstNode<'a>) -> String {
+    let mut text = String::new();
+    for child in node.children() {
+        collect_text_content(child, &mut text);
+    }
+    text
 }
 
 /// Recursively collect inline content (for nested inlines like bold/italic)

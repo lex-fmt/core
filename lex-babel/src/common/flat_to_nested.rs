@@ -812,7 +812,7 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
             }
 
             Event::EndTableCell => {
-                // TableCell is special: it's not a DocNode
+                // TableCell is special:            Event::EndTableCell => {
                 let node = stack.pop().ok_or_else(|| {
                     ConversionError::UnexpectedEnd("EndTableCell with empty stack".to_string())
                 })?;
@@ -850,6 +850,27 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
                         })
                     }
                 }
+            }
+
+            Event::Image(image) => {
+                let parent = stack.last_mut().ok_or_else(|| {
+                    ConversionError::UnexpectedEnd("Image event with empty stack".to_string())
+                })?;
+                parent.add_child(DocNode::Image(image.clone()))?;
+            }
+
+            Event::Video(video) => {
+                let parent = stack.last_mut().ok_or_else(|| {
+                    ConversionError::UnexpectedEnd("Video event with empty stack".to_string())
+                })?;
+                parent.add_child(DocNode::Video(video.clone()))?;
+            }
+
+            Event::Audio(audio) => {
+                let parent = stack.last_mut().ok_or_else(|| {
+                    ConversionError::UnexpectedEnd("Audio event with empty stack".to_string())
+                })?;
+                parent.add_child(DocNode::Audio(audio.clone()))?;
             }
 
             Event::Inline(inline) => {

@@ -50,5 +50,8 @@ pub enum Event {
         align: crate::ir::nodes::TableCellAlignment,
     },
     EndTableCell,
+    Image(crate::ir::nodes::Image),
+    Video(crate::ir::nodes::Video),
+    Audio(crate::ir::nodes::Audio),
     Inline(InlineContent),
 }
