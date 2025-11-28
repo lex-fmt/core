@@ -93,7 +93,7 @@ impl LexSemanticTokenKind {
     /// - InlineEmphasis → *italic* → maps to "markup.italic"
     /// - InlineCode → `code` → maps to "markup.inline.raw"
     /// - InlineMath → $math$ → maps to "constant.numeric"
-    /// - Reference → [citation] → maps to "markup.underline.link"
+    /// - Reference → \[citation\] → maps to "markup.underline.link"
     /// - Verbatim → ```block``` → maps to "markup.raw.block"
     /// - Annotation → <!-- comment --> → maps to "comment.block"
     /// - ListMarker → - or 1. → maps to "punctuation.definition.list"
