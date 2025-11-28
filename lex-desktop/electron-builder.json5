@@ -1,21 +1,22 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  "appId": "com.lex.desktop",
   "asar": true,
-  "productName": "YourAppName",
+  "productName": "Lex Editor",
   "directories": {
-    "output": "release/${version}"
+    "output": "release"
   },
   "files": [
     "dist",
     "dist-electron"
   ],
   "mac": {
+    "icon": "public/icon.png",
     "target": [
       "dmg"
     ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   },
   "win": {
     "target": [

@@ -349,7 +349,7 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
                 <button onClick={handleMockDiagnostics} style={{ marginLeft: 'auto', background: '#555' }}>Mock Diagnostics</button>
                 <span style={{ color: '#fff', alignSelf: 'center' }}>{currentFile || 'Untitled'}</span>
             </div>
-            <div ref={containerRef} style={{ flex: 1 }} />
+            <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', position: 'relative' }} />
         </div>
     );
 }
