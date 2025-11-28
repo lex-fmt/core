@@ -13,20 +13,16 @@ A Place For Ideas
     What if a format could be a habitat, not a cage? A place where an idea could grow organically, from a single seed of thought into a forest of interconnected concepts, without ever needing to be transplanted.
 
     This ideal format would be:
-
-    Simple at the Start: As easy and immediate as a plain text note.
-
-    Structured as it Grows: Able to gain rich, hierarchical structure as the idea develops.
-
-    Readable by Anyone: Intuitively understandable in its source form by any human, without special training.
-
-    Parsable by Anything: Unambiguously structured for any machine, ensuring reliability.
-
-    Durable for All Time: Built on the bedrock of Unicode text, independent of any company, software, or era.
+    - Simple at the Start: As easy and immediate as a plain text note.
+    - Structured as it Grows: Able to gain rich, hierarchical structure as the idea develops.
+    - Readable by Anyone: Intuitively understandable in its source form by any human, without special training.
+    - Parsable by Anything: Unambiguously structured for any machine, ensuring reliability.
+    -Durable for All Time: Built on the bedrock of Unicode text, independent of any company, software, or era.
 
 3. Lex: Ideas, Uncaged
 
     Lex is this habitat. It is a plain text document format designed for the complete lifecycle of an idea. It scales from a fleeting thought to a finished thesis, from a line of code to a novel. It is built on a single, powerful principle: structure should be visible, intuitive, and effortless.
+
 
     3.1. The Lex Philosophy: Invisible Structure
 
@@ -35,13 +31,16 @@ A Place For Ideas
 
         Lex achieves this by trusting the traditions of written language. We already understand that indented text is subordinate. We know that numbered lines form a sequence. Lex formalizes this intuition, making it both human-readable and machine-parsable.
 
+
     3.2. From Seed to Forest: The Lifecycle of an Idea
 
         An idea does not spring into existence fully formed. It grows, branches, and connects. Lex is designed to grow with it.
 
+
         3.2.1. The Spark
 
             What if we could represent knowledge structurally without complex syntax?
+
 
         3.2.2. The Outline
 
