@@ -455,6 +455,8 @@ fn handle_convert_command(
     } else {
         if to == "pdf" {
             format_options = pdf_params_from_config(config);
+        } else if to == "html" {
+            format_options.insert("theme".to_string(), config.convert.html.theme.clone());
         }
         for (key, value) in extra_params {
             format_options.insert(key.clone(), value.clone());
@@ -617,6 +619,10 @@ fn apply_config_overrides(config: &mut LexConfig, extra_params: &mut HashMap<Str
 
     if let Some(size) = pdf_override {
         config.convert.pdf.size = size;
+    }
+
+    if let Some(raw) = take_override(extra_params, &["theme"]) {
+        config.convert.html.theme = raw;
     }
 }
 

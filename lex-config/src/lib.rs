@@ -62,6 +62,7 @@ pub struct NodemapConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ConvertConfig {
     pub pdf: PdfConfig,
+    pub html: HtmlConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -74,6 +75,11 @@ pub struct PdfConfig {
 pub enum PdfPageSize {
     Desktop,
     Mobile,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HtmlConfig {
+    pub theme: String,
 }
 
 /// Helper for layering user overrides over the built-in defaults.

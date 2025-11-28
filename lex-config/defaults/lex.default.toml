@@ -38,3 +38,6 @@ show_summary = false
 [convert.pdf]
 # Page profile used when exporting to PDF. Accepted values: "desktop" or "mobile".
 size = "desktop"
+
+[convert.html]
+theme = "default"
