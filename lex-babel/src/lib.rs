@@ -110,6 +110,7 @@
 pub mod error;
 pub mod format;
 pub mod formats;
+pub mod publish;
 pub mod registry;
 pub mod templates;
 pub mod transforms;
