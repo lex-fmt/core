@@ -1,18 +1,18 @@
 var L = Object.defineProperty;
-var _ = (t, e, s) => e in t ? L(t, e, { enumerable: !0, configurable: !0, writable: !0, value: s }) : t[e] = s;
-var u = (t, e, s) => _(t, typeof e != "symbol" ? e + "" : e, s);
+var _ = (s, e, t) => e in s ? L(s, e, { enumerable: !0, configurable: !0, writable: !0, value: t }) : s[e] = t;
+var u = (s, e, t) => _(s, typeof e != "symbol" ? e + "" : e, t);
 import { ipcMain as l, app as c, BrowserWindow as P, dialog as w } from "electron";
 import { fileURLToPath as R } from "node:url";
 import r from "node:path";
 import * as d from "fs/promises";
-import { spawn as v } from "child_process";
-import * as E from "fs";
-const O = "/tmp/lex-desktop-lsp.log";
-function p(t) {
-  E.appendFileSync(O, `${(/* @__PURE__ */ new Date()).toISOString()} - ${t}
+import { spawn as E } from "child_process";
+import * as O from "fs";
+const I = "/tmp/lex-desktop-lsp.log";
+function p(s) {
+  O.appendFileSync(I, `${(/* @__PURE__ */ new Date()).toISOString()} - ${s}
 `);
 }
-class I {
+class b {
   constructor() {
     u(this, "lspProcess", null);
     u(this, "webContents", null);
@@ -22,12 +22,12 @@ class I {
     this.webContents = e;
   }
   start() {
-    var s, i;
+    var t, i;
     if (this.lspProcess) return;
     const e = "/private/tmp/lex/desktop-app/target/debug/lex-lsp";
-    console.log(`Spawning LSP from: ${e}`), p(`Spawning LSP from: ${e}`), this.lspProcess = v(e, [], {
+    console.log(`Spawning LSP from: ${e}`), p(`Spawning LSP from: ${e}`), this.lspProcess = E(e, [], {
       env: process.env
-    }), (s = this.lspProcess.stdout) == null || s.on("data", (o) => {
+    }), (t = this.lspProcess.stdout) == null || t.on("data", (o) => {
       const a = o.toString();
       console.log(`LSP Output: ${a}`), p(`LSP Output: ${a}`), this.webContents && this.webContents.send("lsp-output", o);
     }), (i = this.lspProcess.stderr) == null || i.on("data", (o) => {
@@ -40,8 +40,8 @@ class I {
     });
   }
   setupIpc() {
-    l.on("lsp-input", (e, s) => {
-      this.lspProcess && this.lspProcess.stdin && this.lspProcess.stdin.write(s);
+    l.on("lsp-input", (e, t) => {
+      this.lspProcess && this.lspProcess.stdin && this.lspProcess.stdin.write(t);
     });
   }
   stop() {
@@ -50,13 +50,14 @@ class I {
 }
 const m = r.dirname(R(import.meta.url));
 process.env.APP_ROOT = r.join(m, "..");
-const h = process.env.VITE_DEV_SERVER_URL, $ = r.join(process.env.APP_ROOT, "dist-electron"), g = r.join(process.env.APP_ROOT, "dist");
+const h = process.env.VITE_DEV_SERVER_URL, T = r.join(process.env.APP_ROOT, "dist-electron"), g = r.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = h ? r.join(process.env.APP_ROOT, "public") : g;
 let n;
-const f = new I();
+const f = new b();
 function S() {
   n = new P({
-    icon: r.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+    title: "Lex Editor",
+    icon: r.join(process.env.VITE_PUBLIC, "icon.png"),
     webPreferences: {
       preload: r.join(m, "preload.mjs")
     }
@@ -66,40 +67,40 @@ function S() {
 }
 l.handle("file-open", async () => {
   if (!n) return null;
-  const { canceled: t, filePaths: e } = await w.showOpenDialog(n, {
+  const { canceled: s, filePaths: e } = await w.showOpenDialog(n, {
     properties: ["openFile"],
     filters: [{ name: "Lex Files", extensions: ["lex"] }]
   });
-  if (t || e.length === 0)
+  if (s || e.length === 0)
     return null;
-  const s = e[0], i = await d.readFile(s, "utf-8");
-  return { filePath: s, content: i };
+  const t = e[0], i = await d.readFile(t, "utf-8");
+  return { filePath: t, content: i };
 });
-l.handle("file-save", async (t, e, s) => (await d.writeFile(e, s, "utf-8"), !0));
-l.handle("file-read-dir", async (t, e) => {
+l.handle("file-save", async (s, e, t) => (await d.writeFile(e, t, "utf-8"), !0));
+l.handle("file-read-dir", async (s, e) => {
   try {
     return (await d.readdir(e, { withFileTypes: !0 })).map((i) => ({
       name: i.name,
       isDirectory: i.isDirectory(),
       path: r.join(e, i.name)
     }));
-  } catch (s) {
-    return console.error("Failed to read directory:", s), [];
+  } catch (t) {
+    return console.error("Failed to read directory:", t), [];
   }
 });
-l.handle("file-read", async (t, e) => {
+l.handle("file-read", async (s, e) => {
   try {
     return await d.readFile(e, "utf-8");
-  } catch (s) {
-    return console.error("Failed to read file:", s), null;
+  } catch (t) {
+    return console.error("Failed to read file:", t), null;
   }
 });
 l.handle("folder-open", async () => {
   if (!n) return null;
-  const { canceled: t, filePaths: e } = await w.showOpenDialog(n, {
+  const { canceled: s, filePaths: e } = await w.showOpenDialog(n, {
     properties: ["openDirectory"]
   });
-  return t || e.length === 0 ? null : e[0];
+  return s || e.length === 0 ? null : e[0];
 });
 c.on("window-all-closed", () => {
   f.stop(), process.platform !== "darwin" && (c.quit(), n = null);
@@ -109,7 +110,7 @@ c.on("activate", () => {
 });
 c.whenReady().then(S);
 export {
-  $ as MAIN_DIST,
+  T as MAIN_DIST,
   g as RENDERER_DIST,
   h as VITE_DEV_SERVER_URL
 };
