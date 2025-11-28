@@ -19,5 +19,6 @@ pub use html::HtmlFormat;
 pub use lex::LexFormat;
 pub use linetreeviz::LinetreevizFormat;
 pub use markdown::MarkdownFormat;
+pub use pdf::PdfFormat;
 pub use tag::TagFormat;
 pub use treeviz::TreevizFormat;

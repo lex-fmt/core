@@ -5,6 +5,25 @@
 
 use crate::error::FormatError;
 use lex_parser::lex::ast::Document;
+use std::collections::HashMap;
+
+/// Serialized output produced by a [`Format`] implementation.
+pub enum SerializedDocument {
+    /// UTF-8 text output (e.g., lex, markdown, HTML)
+    Text(String),
+    /// Binary output (e.g., PDF)
+    Binary(Vec<u8>),
+}
+
+impl SerializedDocument {
+    /// Consume the serialized output and return the underlying bytes.
+    pub fn into_bytes(self) -> Vec<u8> {
+        match self {
+            SerializedDocument::Text(text) => text.into_bytes(),
+            SerializedDocument::Binary(bytes) => bytes,
+        }
+    }
+}
 
 /// Trait for document formats
 ///
@@ -87,5 +106,25 @@ pub trait Format: Send + Sync {
             "Format '{}' does not support serialization",
             self.name()
         )))
+    }
+
+    /// Serialize a Document, optionally using extra parameters.
+    ///
+    /// Formats that only emit textual output can rely on the default implementation,
+    /// which delegates to [`Format::serialize`]. Binary formats should override this
+    /// method to return [`SerializedDocument::Binary`].
+    fn serialize_with_options(
+        &self,
+        doc: &Document,
+        options: &HashMap<String, String>,
+    ) -> Result<SerializedDocument, FormatError> {
+        if options.is_empty() {
+            self.serialize(doc).map(SerializedDocument::Text)
+        } else {
+            Err(FormatError::NotSupported(format!(
+                "Format '{}' does not support extra parameters",
+                self.name()
+            )))
+        }
     }
 }
