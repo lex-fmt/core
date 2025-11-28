@@ -3,7 +3,7 @@
  * Mobile-first, semantic HTML approach
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400;1,600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Source+Sans+3:ital,wght@0,200,400;0,600;0,700;1,400,200;1,600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* === CSS Variables for Palette + Rhythm === */
 :root {
@@ -25,13 +25,19 @@
   --lex-space-200: 2rem;
 
   /* Layout tokens derived from legacy pixel values */
-  --lex-width-document: 50rem; /* 800px */
+  --lex-width-document: 50rem;
+  /* 800px */
   --lex-indent-content: var(--lex-space-100);
-  --lex-radius-sm: 0.1875rem; /* 3px */
-  --lex-radius-md: 0.25rem; /* 4px */
-  --lex-outline-width: 0.125rem; /* 2px */
-  --lex-border-thin: 0.0625rem; /* 1px */
-  --lex-breakpoint-sm: 40rem; /* 640px */
+  --lex-radius-sm: 0.1875rem;
+  /* 3px */
+  --lex-radius-md: 0.25rem;
+  /* 4px */
+  --lex-outline-width: 0.125rem;
+  /* 2px */
+  --lex-border-thin: 0.0625rem;
+  /* 1px */
+  --lex-breakpoint-sm: 40rem;
+  /* 640px */
 }
 
 /* === Box Model Reset === */
@@ -54,8 +60,8 @@ html {
 body {
   margin: 0;
   padding: 0;
-  min-height: 100vh;
-  font-family: 'Helvetica Neue', 'Geist', Helvetica, 'Source Sans 3', Arial, sans-serif;
+  min-height: 90vh;
+  font-family: 'Geist', Helvetica, 'Source Sans 3', Arial, sans-serif;
   color: var(--lex-normal);
   background: var(--lex-bg);
   font-size: 1rem;
@@ -79,11 +85,11 @@ section.lex-session:first-child {
   margin-top: 0;
 }
 
-.lex-document > section.lex-session {
+.lex-document>section.lex-session {
   margin: var(--lex-space-200) 0;
 }
 
-.lex-document > section.lex-session:first-child {
+.lex-document>section.lex-session:first-child {
   margin-top: 0;
 }
 
@@ -101,31 +107,31 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'Helvetica Neue', 'Geist', Helvetica, 'Source Sans 3', Arial, sans-serif;
-  font-weight: 600;
+  font-family: 'Geist', Helvetica, 'Source Sans 3', Arial, sans-serif;
+  font-weight: 700;
   color: var(--lex-normal);
   line-height: 1.25;
-  margin: var(--lex-space-125) 0 var(--lex-space-075);
+  margin: var(--lex-space-150) 0 var(--lex-space-150);
 }
 
 h1 {
-  font-size: 1.3em;
+  font-size: 1em;
   margin-top: 0;
   margin-bottom: var(--lex-space-100);
 }
 
 h2 {
-  font-size: 1.225em;
+  font-size: 1em;
   margin-top: var(--lex-space-150);
 }
 
 h3 {
-  font-size: 1.15em;
+  font-size: 1em;
   margin-top: var(--lex-space-125);
 }
 
 h4 {
-  font-size: 1.075em;
+  font-size: 1;
   margin-top: var(--lex-space-100);
 }
 
@@ -140,12 +146,12 @@ h6 {
   font-weight: 600;
 }
 
-section.lex-session > h1:first-child,
-section.lex-session > h2:first-child,
-section.lex-session > h3:first-child,
-section.lex-session > h4:first-child,
-section.lex-session > h5:first-child,
-section.lex-session > h6:first-child {
+section.lex-session>h1:first-child,
+section.lex-session>h2:first-child,
+section.lex-session>h3:first-child,
+section.lex-session>h4:first-child,
+section.lex-session>h5:first-child,
+section.lex-session>h6:first-child {
   margin-top: 0;
 }
 
@@ -160,12 +166,12 @@ section.lex-session > h6:first-child {
   margin-top: 0;
 }
 
-h1 + .lex-paragraph,
-h2 + .lex-paragraph,
-h3 + .lex-paragraph,
-h4 + .lex-paragraph,
-h5 + .lex-paragraph,
-h6 + .lex-paragraph {
+h1+.lex-paragraph,
+h2+.lex-paragraph,
+h3+.lex-paragraph,
+h4+.lex-paragraph,
+h5+.lex-paragraph,
+h6+.lex-paragraph {
   margin-top: 0;
 }
 
@@ -247,7 +253,8 @@ h6 + .lex-paragraph {
 
 @media (max-width: var(--lex-breakpoint-sm)) {
   body {
-    font-size: 1.067rem; /* 16px */
+    font-size: 1.067rem;
+    /* 16px */
   }
 
   .lex-document {
@@ -269,21 +276,21 @@ h6 + .lex-paragraph {
   }
 
   h1 {
-    font-size: 1.225em;
+    font-size: 1.25em;
   }
 
   h2 {
-    font-size: 1.15em;
+    font-size: 1.2em;
   }
 
   h3 {
-    font-size: 1.075em;
+    font-size: 1.15em;
   }
 
   h4,
   h5,
   h6 {
-    font-size: 1em;
+    font-size: 10em;
   }
 }
 
@@ -322,8 +329,8 @@ pre code {
 
 /* === Sequence Markers === */
 .seq_marker {
-  color: var(--lex-faint);
-  font-weight: normal;
+  color: var(--lex-muted);
+  font-weight: 400;
   margin-right: 0;
 }
 
