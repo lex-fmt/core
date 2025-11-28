@@ -1,4 +1,7 @@
-use lex_parser::lex::ast::{Annotation, AstNode, ContentItem, Document, Position, Range, Session};
+use crate::utils::find_annotation_at_position;
+use lex_parser::lex::ast::{
+    Annotation, AstNode, ContentItem, Document, Parameter, Position, Range, Session,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnnotationDirection {
@@ -12,6 +15,12 @@ pub struct AnnotationNavigationResult {
     pub parameters: Vec<(String, String)>,
     pub header: Range,
     pub body: Option<Range>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnnotationEdit {
+    pub range: Range,
+    pub new_text: String,
 }
 
 pub fn next_annotation(
@@ -46,6 +55,39 @@ pub fn navigate(
     annotations
         .get(idx)
         .map(|annotation| annotation_to_result(annotation))
+}
+
+pub fn toggle_annotation_resolution(
+    document: &Document,
+    position: Position,
+    resolved: bool,
+) -> Option<AnnotationEdit> {
+    let annotation = find_annotation_at_position(document, position)?;
+    resolution_edit(annotation, resolved)
+}
+
+pub fn resolution_edit(annotation: &Annotation, resolved: bool) -> Option<AnnotationEdit> {
+    let mut params = annotation.data.parameters.clone();
+    let status_index = params
+        .iter()
+        .position(|param| param.key.eq_ignore_ascii_case("status"));
+
+    if resolved {
+        match status_index {
+            Some(idx) if params[idx].value.eq_ignore_ascii_case("resolved") => return None,
+            Some(idx) => params[idx].value = "resolved".to_string(),
+            None => params.push(Parameter::new("status".to_string(), "resolved".to_string())),
+        }
+    } else if let Some(idx) = status_index {
+        params.remove(idx);
+    } else {
+        return None;
+    }
+
+    Some(AnnotationEdit {
+        range: annotation.header_location().clone(),
+        new_text: format_header(&annotation.data.label.value, &params),
+    })
 }
 
 fn annotation_to_result(annotation: &Annotation) -> AnnotationNavigationResult {
@@ -92,7 +134,7 @@ fn previous_index(entries: &[&Annotation], position: Position) -> usize {
             .enumerate()
             .filter(|(_, annotation)| annotation.header_location().start < position)
             .map(|(idx, _)| idx)
-            .last()
+            .next_back()
             .unwrap_or(entries.len() - 1)
     }
 }
@@ -173,6 +215,18 @@ fn collect_from_item<'a>(item: &'a ContentItem, entries: &mut Vec<&'a Annotation
     }
 }
 
+fn format_header(label: &str, params: &[Parameter]) -> String {
+    let mut header = format!(":: {}", label);
+    for param in params {
+        header.push(' ');
+        header.push_str(&param.key);
+        header.push('=');
+        header.push_str(&param.value);
+    }
+    header.push_str(" ::");
+    header
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -230,5 +284,33 @@ Paragraph text.
 
         let wrap = previous_annotation(&document, position_of(":: note")).expect("wrap");
         assert_eq!(wrap.label, "info");
+    }
+
+    #[test]
+    fn adds_status_parameter_when_resolving() {
+        let source = ":: note ::\n";
+        let document = parsing::parse_document(source).unwrap();
+        let position = SourceLocation::new(source).byte_to_position(source.find("note").unwrap());
+        let edit = toggle_annotation_resolution(&document, position, true).expect("edit");
+        assert_eq!(edit.new_text, ":: note status=resolved ::");
+    }
+
+    #[test]
+    fn removes_status_parameter_when_unresolving() {
+        use lex_parser::lex::ast::{Data, Label};
+        let data = Data::new(
+            Label::new("note".to_string()),
+            vec![
+                Parameter::new("priority".to_string(), "high".to_string()),
+                Parameter::new("status".to_string(), "resolved".to_string()),
+            ],
+        );
+        let annotation = Annotation::from_data(data, Vec::new()).at(Range::new(
+            0..0,
+            Position::new(0, 0),
+            Position::new(0, 0),
+        ));
+        let edit = resolution_edit(&annotation, false).expect("edit");
+        assert_eq!(edit.new_text, ":: note priority=high ::");
     }
 }
