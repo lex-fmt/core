@@ -1,54 +1,69 @@
 # Required Rust APIs for Editor Features
 
-    This document lists the Rust APIs required to support the features outlined in @[editors/README.lex].
-    It tracks the status of each API, its signature, and the crate/module where it resides.
+    This document lists the Rust APIs required to support the features outlined in @editors/README.md.
+    It maps the editor roadmap to the existing crates so we reuse the code already in place and keep
+    the plugins as thin UI layers.
 
-    Status Legend:
-    - Live: Implemented and integrated into `lex-lsp`.
-    - Rust Ready: Implemented in a crate but not yet exposed via LSP.
-    - Planned: Not yet implemented.
+1. Workspace Architecture (see src/lib.rs)
 
-2. Core & Navigation (LSP Standard)
+    | Crate | Responsibilities | Shared By |
+    |-------|-----------------|-----------|
+    | `lex-parser` | Parse Lex text into ASTs, track ranges, resolve intra-document links | `lex-lsp`, `lex-cli`, tests |
+    | `lex-analysis` | Document symbols, folding, hover previews, references, semantic tokens | `lex-lsp`, future commands |
+    | `lex-babel` | Canonical Lex serialization + Markdown/HTML/PDF conversions | `lex-lsp` formatting, publishing commands, CLI |
+    | `lex-lsp` | LSP server, TextEdit diffs, document links, executeCommand bridge | VSCode + Neovim plugins |
 
-    These features use standard LSP methods.
+2. Core & Navigation (Standard LSP Methods)
 
-    | Feature | API / Command | Crate / Module | Signature (Approx) | Status |
-    |---------|---------------|----------------|--------------------|--------|
-    | Syntax Highlighting | N/A (Tree-sitter) | `lex-syntax` | N/A (Grammar) | Live |
-    | Formatting | `textDocument/formatting` | `lex-lsp/src/features/formatting.rs` | `format_document(doc, source) -> Vec<TextEdit>` | Live |
-    | Diagnostics | `textDocument/publishDiagnostics` | `lex-lsp/src/server.rs` | `parse_document(text) -> Result<Document, Vec<Error>>` | Live (Minimal) |
-    | Document Symbols | `textDocument/documentSymbol` | `lex-lsp/src/features/document_symbols.rs` | `collect_document_symbols(doc) -> Vec<DocumentSymbol>` | Live |
-    | Hover | `textDocument/hover` | `lex-lsp/src/features/hover.rs` | `hover(doc, pos) -> Option<HoverResult>` | Live |
-    | Folding | `textDocument/foldingRange` | `lex-lsp/src/features/folding_ranges.rs` | `folding_ranges(doc) -> Vec<FoldingRange>` | Live |
-    | Definition | `textDocument/definition` | `lex-lsp/src/features/go_to_definition.rs` | `goto_definition(doc, pos) -> Vec<Range>` | Live |
-    | References | `textDocument/references` | `lex-lsp/src/features/references.rs` | `find_references(doc, pos) -> Vec<Range>` | Live |
-    | Semantic Tokens | `textDocument/semanticTokens` | `lex-lsp/src/features/semantic_tokens.rs` | `collect_semantic_tokens(doc) -> Vec<SemanticToken>` | Live |
-    | Completion | `textDocument/completion` | `lex-lsp/src/features/completion.rs` | `completion(doc, pos) -> Vec<CompletionItem>` | Planned |
+    These features use standard LSP requests. All logic lives in reusable crates so new editor
+    integrations only need to hook up `lex-lsp`.
+
+    | Feature | LSP Method | Implementation | Status |
+    |---------|-----------|----------------|--------|
+    | Syntax Highlighting | `textDocument/semanticTokens` | `lex-analysis/src/semantic_tokens.rs` | Live |
+    | Document Symbols | `textDocument/documentSymbol` | `lex-analysis/src/document_symbols.rs` | Live |
+    | Folding | `textDocument/foldingRange` | `lex-analysis/src/folding_ranges.rs` | Live |
+    | Hover | `textDocument/hover` | `lex-analysis/src/hover.rs` | Live |
+    | Go to Definition | `textDocument/definition` | `lex-analysis/src/go_to_definition.rs` | Live |
+    | References | `textDocument/references` | `lex-analysis/src/references.rs` | Live |
+    | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` (+ `lex_parser::lex::ast::links`) | Live |
+    | Formatting | `textDocument/formatting` + `/rangeFormatting` | `lex-lsp/src/features/formatting.rs` (uses `lex-babel`) | Live |
+    | Semantic Tokens | `textDocument/semanticTokens/full` | `lex-analysis/src/semantic_tokens.rs` | Live |
+    | Completion | `textDocument/completion` | (needs new module reusing `lex_parser::lex::ast::links` + `lex-analysis::reference_targets`) | Planned |
+    | Diagnostics | `textDocument/publishDiagnostics` | **Postponed** – Lex never hard-fails parsing, need better design | Postponed |
 
 3. Command-Based Features (`workspace/executeCommand`)
 
-    These features rely on custom commands exposed by `lex-lsp`.
+    Only the `lex.echo` placeholder is wired today. The table below lists the planned commands along
+    with the internal APIs they should wrap.
 
-    | Feature | Command | Crate / Module | Signature (Arguments -> Result) | Status |
-    |---------|---------|----------------|---------------------------------|--------|
-    | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | `(path: String) -> TextEdit` | Planned |
-    | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | `(path: String) -> TextEdit` | Planned |
-    | Convert Doc | `lex.convert` | `lex-lsp/src/features/commands.rs` | `(format: "markdown" | "html") -> PathBuf` | Planned |
-    | Export Doc | `lex.export` | `lex-lsp/src/features/commands.rs` | `(format: "pdf") -> PathBuf` | Planned |
-    | Next Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | `(current_pos: Position) -> Position` | Planned |
-    | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | `(id: String) -> TextEdit` | Planned |
-    | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | `(enable: bool) -> void` | Planned |
-    | Help | `lex.help` | `lex-lsp/src/features/commands.rs` | `(topic: Option<String>) -> String` | Planned |
+    | Feature | Command | Implementation Notes | Status |
+    |---------|---------|----------------------|--------|
+    | Insert Asset | `lex.insert_asset` | Use `lex_parser::lex::ast::links` helpers to resolve relative paths and emit a TextEdit via formatter | Planned |
+    | Insert Verbatim | `lex.insert_verbatim` | Similar to assets but template verbatim fences backed by `lex-babel` serializer | Planned |
+    | Convert Doc | `lex.convert` | Invoke Babel’s format registry (`lex-babel/src/registry.rs`) and stream artifact paths back to the client | Planned |
+    | Export Doc | `lex.export` | Same as convert but fixed templates (HTML → PDF) managed by Babel | Planned |
+    | Next Annotation | `lex.next_annotation` | Use `lex-analysis::utils::find_annotation_at_position` to iterate and return a Position | Planned |
+    | Resolve Annotation | `lex.resolve_annotation` | Use formatter + `lex-analysis` metadata to mark resolved/unresolved annotations | Planned |
+    | Toggle Annotations | `lex.toggle_annotations` | Pure editor UX toggle; no new Rust logic needed (documented for completeness) | Planned |
+    | Help | `lex.help` | Surface snippets from `docs/specs` and `docs/dev/guides` | Planned |
 
-4. Backend Support
+4. Backend Building Blocks
 
-    Underlying logic required by the above commands.
+    Underlying logic required by the above commands already exists. When planning work, prefer
+    plugging these modules in instead of re-implementing them in editor-specific code.
 
-    | Logic | Crate | Description | Status |
-    |-------|-------|-------------|--------|
-    | Markdown Conversion | `lex-babel` | Convert Lex AST to Markdown | Live |
-    | HTML Conversion | `lex-babel` | Convert Lex AST to HTML | Live |
-    | PDF Export | `lex-babel` | Convert Lex AST to PDF (via HTML/Headless Chrome?) | Planned |
-    | Asset Resolution | `lex-core` | Resolve relative paths for assets | Rust Ready |
-    | Annotation Index | `lex-analysis` | Index and query annotations | Rust Ready |
+    | Capability | Module | Notes |
+    |------------|--------|-------|
+    | Markdown / HTML conversion | `lex-babel/src/formats/{markdown,html}` | Bidirectional, exercised via CLI |
+    | PDF export (experimental) | `lex-babel/src/formats/pdf` | Uses HTML bridge; still evolving |
+    | Canonical Lex formatting | `lex-babel/src/transforms.rs` + `lex-lsp/src/features/formatting.rs` | Shared between CLI and LSP |
+    | Asset resolution | `lex_parser::lex::ast::links` | Generates file/document links for annotations and verbatim blocks |
+    | Annotation index | `lex-analysis/src/utils.rs` | Find annotations/definitions/sessions by position or label |
 
+5. Next Steps
+
+    * Wire completion and command handlers inside `lex-lsp` so editors can call into the shared logic.
+    * Keep adding tests in the Rust crates; editor repos should stay as thin as possible.
+    * Revisit diagnostics once we define a meaningful signal for "structural issues" despite
+      parser fallbacks.
