@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu, shell } from 'e
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import { spawn } from 'child_process';
 import { LspManager } from './lsp-manager'
 
@@ -30,8 +31,22 @@ const DEFAULT_WINDOW_STATE: WindowState = {
   height: 800,
 };
 
-async function getSettingsPath(): Promise<string> {
+function getSettingsPathSync(): string {
   return path.join(app.getPath('userData'), SETTINGS_FILE);
+}
+
+async function getSettingsPath(): Promise<string> {
+  return getSettingsPathSync();
+}
+
+function loadSettingsSync(): AppSettings {
+  try {
+    const settingsPath = getSettingsPathSync();
+    const data = fsSync.readFileSync(settingsPath, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return {};
+  }
 }
 
 async function loadSettings(): Promise<AppSettings> {
@@ -42,6 +57,11 @@ async function loadSettings(): Promise<AppSettings> {
   } catch {
     return {};
   }
+}
+
+function saveSettingsSync(settings: AppSettings): void {
+  const settingsPath = getSettingsPathSync();
+  fsSync.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
 }
 
 async function saveSettings(settings: AppSettings): Promise<void> {
@@ -95,9 +115,23 @@ let win: BrowserWindow | null
 const lspManager = new LspManager()
 
 async function createWindow() {
-  // Load saved window state
-  const settings = await loadSettings();
-  const windowState = settings.windowState || DEFAULT_WINDOW_STATE;
+  // Load saved window state with fallback to defaults
+  let windowState = DEFAULT_WINDOW_STATE;
+  try {
+    const settings = await loadSettings();
+    if (settings.windowState) {
+      // Validate window state has required properties
+      const ws = settings.windowState;
+      if (typeof ws.width === 'number' && typeof ws.height === 'number') {
+        windowState = {
+          ...DEFAULT_WINDOW_STATE,
+          ...ws,
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load window state, using defaults:', error);
+  }
 
   win = new BrowserWindow({
     title: 'Lex Editor',
@@ -112,31 +146,61 @@ async function createWindow() {
   })
 
   // Restore maximized state
-  if (windowState.isMaximized) {
-    win.maximize();
+  try {
+    if (windowState.isMaximized) {
+      win.maximize();
+    }
+  } catch (error) {
+    console.error('Failed to restore maximized state:', error);
   }
 
-  // Save window state on changes
-  const saveWindowState = async () => {
-    if (!win || win.isDestroyed()) return;
+  // Save window state synchronously (used for close event to ensure it completes)
+  const saveWindowStateSync = () => {
+    try {
+      if (!win || win.isDestroyed()) return;
 
-    const isMaximized = win.isMaximized();
-    const bounds = win.getBounds();
+      const isMaximized = win.isMaximized();
+      const bounds = win.getBounds();
 
-    const settings = await loadSettings();
-    settings.windowState = {
-      x: isMaximized ? settings.windowState?.x : bounds.x,
-      y: isMaximized ? settings.windowState?.y : bounds.y,
-      width: isMaximized ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width : bounds.width,
-      height: isMaximized ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height : bounds.height,
-      isMaximized,
-    };
-    await saveSettings(settings);
+      const settings = loadSettingsSync();
+      settings.windowState = {
+        x: isMaximized ? settings.windowState?.x : bounds.x,
+        y: isMaximized ? settings.windowState?.y : bounds.y,
+        width: isMaximized ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width : bounds.width,
+        height: isMaximized ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height : bounds.height,
+        isMaximized,
+      };
+      saveSettingsSync(settings);
+    } catch (error) {
+      console.error('Failed to save window state:', error);
+    }
   };
 
-  win.on('close', saveWindowState);
-  win.on('resize', saveWindowState);
-  win.on('move', saveWindowState);
+  // Save window state asynchronously (used for resize/move to avoid blocking UI)
+  const saveWindowStateAsync = async () => {
+    try {
+      if (!win || win.isDestroyed()) return;
+
+      const isMaximized = win.isMaximized();
+      const bounds = win.getBounds();
+
+      const settings = await loadSettings();
+      settings.windowState = {
+        x: isMaximized ? settings.windowState?.x : bounds.x,
+        y: isMaximized ? settings.windowState?.y : bounds.y,
+        width: isMaximized ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width : bounds.width,
+        height: isMaximized ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height : bounds.height,
+        isMaximized,
+      };
+      await saveSettings(settings);
+    } catch (error) {
+      console.error('Failed to save window state:', error);
+    }
+  };
+
+  win.on('close', saveWindowStateSync);
+  win.on('resize', saveWindowStateAsync);
+  win.on('move', saveWindowStateAsync);
 
   lspManager.setWebContents(win.webContents)
   lspManager.start()
