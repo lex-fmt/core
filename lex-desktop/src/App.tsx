@@ -9,6 +9,7 @@ initDebugMonaco();
 function App() {
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
+  const [cursorLine, setCursorLine] = useState<number>(0);
   const editorPaneRef = useRef<EditorPaneHandle>(null);
 
   const handleOpenFolder = async () => {
@@ -60,11 +61,18 @@ function App() {
       onOpenFile={handleOpenFile}
       onSave={handleSave}
       currentFile={currentFile}
-      panel={<Outline currentFile={currentFile} />}
+      panel={
+        <Outline
+          currentFile={currentFile}
+          editor={editorPaneRef.current?.getEditor()}
+          cursorLine={cursorLine}
+        />
+      }
     >
       <EditorPane
         ref={editorPaneRef}
         onFileLoaded={(path) => setCurrentFile(path)}
+        onCursorChange={setCursorLine}
       />
     </Layout>
   )

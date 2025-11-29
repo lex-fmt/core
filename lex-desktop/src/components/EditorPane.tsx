@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState, useCallback } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState, useCallback, useEffect } from 'react';
 import { Editor, EditorHandle } from './Editor';
 import { TabBar, Tab } from './TabBar';
 import { StatusBar } from './StatusBar';
@@ -13,10 +13,11 @@ export interface EditorPaneHandle {
 
 interface EditorPaneProps {
     onFileLoaded?: (path: string | null) => void;
+    onCursorChange?: (line: number) => void;
 }
 
 export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function EditorPane(
-    { onFileLoaded },
+    { onFileLoaded, onCursorChange },
     ref
 ) {
     const [tabs, setTabs] = useState<Tab[]>([]);
@@ -88,6 +89,24 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     const handleSave = useCallback(async () => {
         await editorRef.current?.save();
     }, []);
+
+    // Listen for cursor position changes
+    useEffect(() => {
+        if (!editor || !onCursorChange) return;
+
+        const disposable = editor.onDidChangeCursorPosition((e) => {
+            // Monaco uses 1-based lines, LSP uses 0-based
+            onCursorChange(e.position.lineNumber - 1);
+        });
+
+        // Emit initial position
+        const pos = editor.getPosition();
+        if (pos) {
+            onCursorChange(pos.lineNumber - 1);
+        }
+
+        return () => disposable.dispose();
+    }, [editor, onCursorChange]);
 
     useImperativeHandle(ref, () => ({
         openFile,
