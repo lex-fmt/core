@@ -110,7 +110,7 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
             <>
               {/* File Tree Section */}
               <div className="flex-1 min-h-0 overflow-auto">
-                <FileTree rootPath={rootPath} onFileSelect={onFileSelect} />
+                <FileTree rootPath={rootPath} selectedFile={currentFile} onFileSelect={onFileSelect} />
               </div>
 
               {/* Outline Section */}

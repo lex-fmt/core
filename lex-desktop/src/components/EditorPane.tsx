@@ -54,6 +54,12 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     }, [tabs]);
 
     const handleTabClose = useCallback((tabId: string) => {
+        // Dispose the model in the editor
+        const tab = tabs.find(t => t.id === tabId);
+        if (tab) {
+            editorRef.current?.closeFile(tab.path);
+        }
+
         setTabs(prev => {
             const newTabs = prev.filter(t => t.id !== tabId);
 
@@ -70,7 +76,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
 
             return newTabs;
         });
-    }, [activeTabId]);
+    }, [activeTabId, tabs]);
 
     const handleFileLoaded = useCallback((path: string) => {
         // Update editor reference

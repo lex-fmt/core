@@ -82,6 +82,61 @@ function defineMonacoTheme(themeName: string, mode: ThemeMode) {
     });
 }
 
+// Model cache - stores models by file path
+const modelCache = new Map<string, monaco.editor.ITextModel>();
+
+function getOrCreateModel(path: string, content: string): monaco.editor.ITextModel {
+    const cached = modelCache.get(path);
+    if (cached && !cached.isDisposed()) {
+        return cached;
+    }
+
+    const uri = monaco.Uri.file(path);
+    // Check if Monaco already has this model
+    let model = monaco.editor.getModel(uri);
+    if (model) {
+        modelCache.set(path, model);
+        return model;
+    }
+
+    model = monaco.editor.createModel(content, 'lex', uri);
+    modelCache.set(path, model);
+
+    // Notify LSP
+    lspClient.sendNotification('textDocument/didOpen', {
+        textDocument: {
+            uri: uri.toString(),
+            languageId: 'lex',
+            version: 1,
+            text: content
+        }
+    });
+
+    // Handle changes for LSP
+    model.onDidChangeContent(() => {
+        lspClient.sendNotification('textDocument/didChange', {
+            textDocument: {
+                uri: uri.toString(),
+                version: 2, // Should increment properly
+            },
+            contentChanges: [{ text: model!.getValue() }]
+        });
+    });
+
+    return model;
+}
+
+function disposeModel(path: string) {
+    const model = modelCache.get(path);
+    if (model && !model.isDisposed()) {
+        lspClient.sendNotification('textDocument/didClose', {
+            textDocument: { uri: model.uri.toString() }
+        });
+        model.dispose();
+    }
+    modelCache.delete(path);
+}
+
 interface EditorProps {
     fileToOpen?: string | null;
     onFileLoaded?: (path: string) => void;
@@ -92,6 +147,8 @@ export interface EditorHandle {
     save: () => Promise<void>;
     getCurrentFile: () => string | null;
     getEditor: () => monaco.editor.IStandaloneCodeEditor | null;
+    switchToFile: (path: string) => Promise<void>;
+    closeFile: (path: string) => void;
 }
 
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fileToOpen, onFileLoaded }, ref) {
@@ -99,59 +156,44 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
     const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
     const [currentFile, setCurrentFile] = useState<string | null>(null);
 
+    // Switch to a file - loads from disk if new, otherwise uses cached model
+    const switchToFile = async (path: string) => {
+        if (!editorRef.current) return;
+
+        let model = modelCache.get(path);
+
+        if (!model || model.isDisposed()) {
+            // Load from disk
+            const content = await window.ipcRenderer.invoke('file-read', path);
+            if (content === null) return;
+            model = getOrCreateModel(path, content);
+        }
+
+        editorRef.current.setModel(model);
+        setCurrentFile(path);
+        onFileLoaded?.(path);
+    };
+
+    const closeFile = (path: string) => {
+        disposeModel(path);
+    };
+
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
         openFile: handleOpen,
         save: handleSave,
         getCurrentFile: () => currentFile,
         getEditor: () => editorRef.current,
+        switchToFile,
+        closeFile,
     }));
 
     // Handle fileToOpen prop change
     useEffect(() => {
-        if (fileToOpen && fileToOpen !== currentFile) {
-            handleOpenFile(fileToOpen);
+        if (fileToOpen) {
+            switchToFile(fileToOpen);
         }
-    }, [fileToOpen, currentFile]); // Added currentFile to dependency array
-
-    const handleOpenFile = async (path: string) => {
-        const content = await window.ipcRenderer.invoke('file-read', path);
-        if (content !== null && editorRef.current) {
-            setCurrentFile(path);
-            if (onFileLoaded) onFileLoaded(path);
-
-            // Dispose old model if it exists and is not the initial one (optional optimization)
-            // const oldModel = editorRef.current.getModel();
-            // if (oldModel) {
-            //     oldModel.dispose();
-            // }
-
-            const uri = monaco.Uri.file(path);
-            const model = monaco.editor.createModel(content, 'lex', uri);
-            editorRef.current.setModel(model);
-
-            lspClient.sendNotification('textDocument/didOpen', {
-                textDocument: {
-                    uri: uri.toString(),
-                    languageId: 'lex',
-                    version: 1,
-                    text: content
-                }
-            });
-
-            // Handle changes for the new model
-            model.onDidChangeContent((_e) => {
-                lspClient.sendNotification('textDocument/didChange', {
-                    textDocument: {
-                        uri: uri.toString(),
-                        version: 2, // Should increment
-                    },
-                    contentChanges: [{ text: model.getValue() }]
-                });
-            });
-
-        }
-    };
+    }, [fileToOpen]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -189,7 +231,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
         let lspReady = false;
 
         // Register semantic tokens provider IMMEDIATELY (before editor creation)
-        // This ensures Monaco knows about the provider when the model is attached
         console.log('[Editor] Registering semantic tokens provider with legend:', semanticTokensLegend);
         const providerDisposable = monaco.languages.registerDocumentSemanticTokensProvider(DEBUG_LANG, {
             getLegend: function () {
@@ -220,24 +261,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
             releaseDocumentSemanticTokens: function () { }
         });
 
-        // 3. Define theme with initial mode (will be updated when we get OS theme)
-        // Start with dark mode as default, will be updated after we get the actual OS theme
+        // 3. Define theme with initial mode
         defineMonacoTheme(DEBUG_THEME, 'dark');
 
-        // 5. Create Model & Editor
-        const uri = monaco.Uri.parse('file:///test.lex');
-        let lspModel = monaco.editor.getModel(uri);
-        if (lspModel) {
-            lspModel.dispose();
-        }
-        lspModel = monaco.editor.createModel(
-            '# Hello Lex\n\nThis is a test document.\nSession Title',
-            DEBUG_LANG,
-            uri
-        );
-
+        // Create editor without a model initially
         const editor = monaco.editor.create(containerRef.current, {
-            model: lspModel,
+            model: null,
             theme: DEBUG_THEME,
             automaticLayout: true,
             minimap: { enabled: false },
@@ -256,7 +285,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
         // @ts-ignore
         window.editor = editor;
 
-        console.log('Editor created. Model language:', editor.getModel()?.getLanguageId());
+        console.log('Editor created.');
 
         // 4. Initialize theme based on OS preference and listen for changes
         const applyTheme = (mode: ThemeMode) => {
@@ -277,68 +306,16 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
             applyTheme(mode);
         });
 
-        // Debug: Log token info on click
-        editor.onMouseDown((e) => {
-            const position = e.target.position;
-            if (position) {
-                const model = editor.getModel();
-                if (model) {
-                    const word = model.getWordAtPosition(position);
-                    const offset = model.getOffsetAt(position);
-
-                    console.log('--- Click Debug (Simulated) ---');
-                    console.log('Position:', position);
-                    console.log('Word:', word);
-                    console.log('Offset:', offset);
-                }
-            }
+        // Initialize LSP
+        lspClient.initialize().then(() => {
+            lspReady = true;
+            console.log('[Editor] LSP ready');
+        }).catch(err => {
+            console.error('LSP initialization failed in Editor:', err);
         });
-
-        if (lspModel) {
-            // Initialize LSP
-            const uriStr = lspModel.uri.toString();
-            lspClient.initialize().then(() => {
-                // Open Document
-                lspClient.sendNotification('textDocument/didOpen', {
-                    textDocument: {
-                        uri: uriStr,
-                        languageId: 'lex',
-                        version: 1,
-                        text: lspModel.getValue()
-                    }
-                });
-
-                // Mark LSP as ready so the semantic tokens provider will work
-                lspReady = true;
-                console.log('[Editor] LSP ready, triggering semantic tokens refresh');
-
-                // Force Monaco to re-query semantic tokens by simulating a model change
-                // We do this by adding a space and removing it, which triggers the provider
-                const currentValue = lspModel.getValue();
-                lspModel.setValue(currentValue + ' ');
-                lspModel.setValue(currentValue);
-
-            }).catch(err => {
-                console.error('LSP initialization failed in Editor:', err);
-            });
-
-            // Handle Changes
-            lspModel.onDidChangeContent((_e) => {
-                lspClient.sendNotification('textDocument/didChange', {
-                    textDocument: {
-                        uri: lspModel.uri.toString(),
-                        version: 2, // Should increment
-                    },
-                    contentChanges: [{ text: lspModel.getValue() }]
-                });
-            });
-        }
 
         return () => {
             editor.dispose();
-            if (lspModel) {
-                lspModel.dispose();
-            }
             providerDisposable.dispose();
             unsubscribeTheme();
         };
@@ -348,25 +325,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
         const result = await window.ipcRenderer.fileOpen();
         if (result && editorRef.current) {
             const { filePath, content } = result;
+            const model = getOrCreateModel(filePath, content);
+            editorRef.current.setModel(model);
             setCurrentFile(filePath);
-            if (onFileLoaded) onFileLoaded(filePath);
-            const model = editorRef.current.getModel();
-            if (model) {
-                model.setValue(content);
-                // Notify LSP of new file
-                // Note: In a real app we should handle closing the old file
-                const uri = 'file://' + filePath;
-                // Update model URI (Monaco doesn't easily allow changing model URI, usually we create a new model)
-                // For simplicity, we just send didOpen with the new URI
-                lspClient.sendNotification('textDocument/didOpen', {
-                    textDocument: {
-                        uri: uri,
-                        languageId: 'lex',
-                        version: 1,
-                        text: content
-                    }
-                });
-            }
+            onFileLoaded?.(filePath);
         }
     };
 

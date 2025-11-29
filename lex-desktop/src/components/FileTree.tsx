@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 interface FileEntry {
     name: string;
@@ -10,10 +11,11 @@ interface FileEntry {
 
 interface FileTreeProps {
     rootPath?: string;
+    selectedFile?: string | null;
     onFileSelect: (path: string) => void;
 }
 
-export function FileTree({ rootPath, onFileSelect }: FileTreeProps) {
+export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps) {
     const [files, setFiles] = useState<FileEntry[]>([]);
 
     useEffect(() => {
@@ -71,26 +73,35 @@ export function FileTree({ rootPath, onFileSelect }: FileTreeProps) {
     };
 
     const renderTree = (entries: FileEntry[], depth = 0) => {
-        return entries.map(entry => (
-            <div key={entry.path}>
-                <div
-                    className="cursor-pointer py-0.5 text-foreground hover:bg-panel-hover flex items-center text-[13px]"
-                    style={{ paddingLeft: `${depth * 10 + 10}px` }}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        toggleDir(entry);
-                    }}
-                >
-                    <span className="mr-1.5 w-4 inline-block text-center">
-                        {entry.isDirectory ? (entry.isOpen ? 'v' : '>') : ''}
-                    </span>
-                    {entry.name}
+        return entries.map(entry => {
+            const isSelected = !entry.isDirectory && entry.path === selectedFile;
+            return (
+                <div key={entry.path}>
+                    <div
+                        className={cn(
+                            "cursor-pointer py-0.5 flex items-center text-[13px]",
+                            "hover:bg-panel-hover",
+                            isSelected
+                                ? "bg-accent text-accent-foreground"
+                                : "text-foreground"
+                        )}
+                        style={{ paddingLeft: `${depth * 10 + 10}px` }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleDir(entry);
+                        }}
+                    >
+                        <span className="mr-1.5 w-4 inline-block text-center">
+                            {entry.isDirectory ? (entry.isOpen ? 'v' : '>') : ''}
+                        </span>
+                        {entry.name}
+                    </div>
+                    {entry.isOpen && entry.children && (
+                        <div>{renderTree(entry.children, depth + 1)}</div>
+                    )}
                 </div>
-                {entry.isOpen && entry.children && (
-                    <div>{renderTree(entry.children, depth + 1)}</div>
-                )}
-            </div>
-        ));
+            );
+        });
     };
 
     return (
