@@ -148,6 +148,9 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
                                 : "text-foreground",
                             canOpen ? "cursor-pointer" : "cursor-default opacity-50"
                         )}
+                        data-testid="file-tree-item"
+                        data-path={entry.path}
+                        data-selected={isSelected}
                         style={{
                             paddingLeft: `calc(var(--panel-item-padding) + ${depth * 12}px)`,
                             paddingRight: 'var(--panel-item-padding)',
@@ -197,6 +200,7 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
 
     return (
         <div className="h-full bg-panel overflow-y-auto text-foreground relative"
+            data-testid="file-tree"
             style={{ fontFamily: 'system-ui, sans-serif' }}
         >
             <div

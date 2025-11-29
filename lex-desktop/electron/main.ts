@@ -4,6 +4,7 @@ import path from 'node:path'
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import { spawn } from 'child_process';
+import { randomUUID } from 'crypto';
 import { LspManager } from './lsp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -19,10 +20,18 @@ interface WindowState {
   isMaximized?: boolean;
 }
 
+interface PaneLayoutSettings {
+  id: string;
+  tabs: string[];
+  activeTab?: string | null;
+}
+
 interface AppSettings {
   lastFolder?: string;
   openTabs?: string[];
   activeTab?: string;
+  paneLayout?: PaneLayoutSettings[];
+  activePaneId?: string;
   windowState?: WindowState;
 }
 
@@ -333,30 +342,60 @@ ipcMain.handle('set-last-folder', async (_, folderPath: string) => {
 
 ipcMain.handle('get-open-tabs', async () => {
   const settings = await loadSettings();
-  const tabs = settings.openTabs || [];
-  const activeTab = settings.activeTab;
+  const savedPanes = settings.paneLayout && settings.paneLayout.length > 0
+    ? settings.paneLayout
+    : [{
+        id: settings.activePaneId || randomUUID(),
+        tabs: settings.openTabs || [],
+        activeTab: settings.activeTab || null,
+      }];
 
-  // Filter out tabs whose files no longer exist
-  const existingTabs: string[] = [];
-  for (const tab of tabs) {
-    try {
-      await fs.access(tab);
-      existingTabs.push(tab);
-    } catch {
-      // File no longer exists, skip it
+  const panes: PaneLayoutSettings[] = [];
+  for (const pane of savedPanes) {
+    const paneId = pane.id || randomUUID();
+    const filteredTabs: string[] = [];
+    for (const tab of pane.tabs || []) {
+      try {
+        await fs.access(tab);
+        filteredTabs.push(tab);
+      } catch {
+        // Ignore missing files
+      }
     }
+
+    panes.push({
+      id: paneId,
+      tabs: filteredTabs,
+      activeTab: pane.activeTab && filteredTabs.includes(pane.activeTab)
+        ? pane.activeTab
+        : filteredTabs[0] || null,
+    });
   }
 
+  if (panes.length === 0) {
+    panes.push({ id: randomUUID(), tabs: [], activeTab: null });
+  }
+
+  const activePaneId = settings.activePaneId && panes.some(p => p.id === settings.activePaneId)
+    ? settings.activePaneId
+    : panes[0]?.id || null;
+
   return {
-    tabs: existingTabs,
-    activeTab: activeTab && existingTabs.includes(activeTab) ? activeTab : existingTabs[0] || null
+    panes,
+    activePaneId,
   };
 });
 
-ipcMain.handle('set-open-tabs', async (_, tabs: string[], activeTab: string | null) => {
+ipcMain.handle('set-open-tabs', async (_, panes: PaneLayoutSettings[], activePaneId: string | null) => {
   const settings = await loadSettings();
-  settings.openTabs = tabs;
-  settings.activeTab = activeTab || undefined;
+  settings.paneLayout = panes.map(pane => ({
+    id: pane.id || randomUUID(),
+    tabs: pane.tabs || [],
+    activeTab: pane.activeTab ?? null,
+  }));
+  settings.activePaneId = activePaneId || undefined;
+  settings.openTabs = undefined;
+  settings.activeTab = undefined;
   await saveSettings(settings);
   return true;
 });

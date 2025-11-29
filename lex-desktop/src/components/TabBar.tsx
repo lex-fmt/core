@@ -31,6 +31,10 @@ export function TabBar({ tabs, activeTabId, onTabSelect, onTabClose }: TabBarPro
             {tabs.map(tab => (
                 <div
                     key={tab.id}
+                    data-testid="editor-tab"
+                    data-tab-id={tab.id}
+                    data-tab-path={tab.path}
+                    data-active={activeTabId === tab.id}
                     className={cn(
                         "group flex items-center gap-1.5 h-8 px-3 cursor-pointer border-r border-border",
                         "hover:bg-panel-hover transition-colors",
