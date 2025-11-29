@@ -30,25 +30,25 @@ export class LspManager {
     if (this.lspProcess) return;
 
     let lspPath: string;
-    
+
     if (app.isPackaged) {
       // In production, the binary is in Resources/lex-lsp
       lspPath = path.join(process.resourcesPath, 'lex-lsp');
     } else {
       // Hardcoded path for dev environment
-      lspPath = '/private/tmp/lex/desktop-app/target/debug/lex-lsp';
+      lspPath = '/Users/adebert/h/lex/target/debug/lex-lsp';
     }
 
-    console.log(`Spawning LSP from: ${lspPath}`);
-    log(`Spawning LSP from: ${lspPath}`);
     this.lspProcess = spawn(lspPath, [], {
       env: process.env,
     });
 
     this.lspProcess.stdout?.on('data', (data: Buffer) => {
       const msg = data.toString();
-      console.log(`LSP Output: ${msg}`);
-      log(`LSP Output: ${msg}`);
+      // Truncate large LSP messages for cleaner logs
+      const truncated = msg.length > 200 ? msg.slice(0, 200) + '... [truncated]' : msg;
+      console.log(`LSP Output: ${truncated}`);
+      log(`LSP Output: ${truncated}`);
       // Check if webContents exists and is not destroyed before sending
       if (this.webContents && !this.webContents.isDestroyed()) {
         this.webContents.send('lsp-output', data);
@@ -66,9 +66,9 @@ export class LspManager {
       log(`LSP exited with code ${code}`);
       this.lspProcess = null;
     });
-    
+
     this.lspProcess.on('error', (err) => {
-        console.error('Failed to start LSP process:', err);
+      console.error('Failed to start LSP process:', err);
     });
   }
 

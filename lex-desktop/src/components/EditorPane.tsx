@@ -1,5 +1,6 @@
-import { forwardRef, useImperativeHandle, useRef, useState, useCallback, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Editor, EditorHandle } from './Editor';
+import { PreviewPane } from './PreviewPane';
 import { TabBar, Tab, TabDropData } from './TabBar';
 import { StatusBar, ExportStatus } from './StatusBar';
 import type * as Monaco from 'monaco-editor';
@@ -56,6 +57,12 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     const editorRef = useRef<EditorHandle>(null);
     const previousTabsRef = useRef<Tab[]>(tabs);
 
+    const activeTab = useMemo(() => {
+        return tabs.find(tab => tab.id === activeTabId) ?? null;
+    }, [tabs, activeTabId]);
+
+    const isPreviewTab = activeTab?.type === 'preview';
+
     /**
      * AUTO-SAVE SYSTEM
      *
@@ -86,14 +93,21 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     useEffect(() => {
         const activeTab = tabs.find(tab => tab.id === activeTabId);
         if (activeTab) {
-            setFileToOpen(activeTab.path);
+            // Don't set fileToOpen for preview tabs - they don't have a real file path
+            if (activeTab.type !== 'preview') {
+                setFileToOpen(activeTab.path);
+            } else {
+                setFileToOpen(null);
+            }
         } else {
             setFileToOpen(null);
             if (tabs.length === 0) {
                 onFileLoaded?.(null);
             }
         }
-    }, [tabs, activeTabId, onFileLoaded]);
+    // Note: onFileLoaded intentionally excluded from deps to prevent infinite loops
+    // when it's passed as an inline arrow function from parent
+    }, [tabs, activeTabId]);
 
     useEffect(() => {
         const previous = previousTabsRef.current;
@@ -250,7 +264,9 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         }
 
         return () => disposable.dispose();
-    }, [editor, onCursorChange]);
+    // Note: onCursorChange intentionally excluded from deps to prevent infinite loops
+    // when it's passed as an inline arrow function from parent
+    }, [editor]);
 
     const handleFind = useCallback(() => {
         editorRef.current?.find();
@@ -280,13 +296,17 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
                 onTabDrop={onTabDrop}
             />
             <div className="flex-1 min-h-0">
-                <Editor
-                    ref={editorRef}
-                    fileToOpen={fileToOpen}
-                    onFileLoaded={handleFileLoaded}
-                />
+                {isPreviewTab && activeTab?.previewContent ? (
+                    <PreviewPane content={activeTab.previewContent} />
+                ) : (
+                    <Editor
+                        ref={editorRef}
+                        fileToOpen={fileToOpen}
+                        onFileLoaded={handleFileLoaded}
+                    />
+                )}
             </div>
-            <StatusBar editor={editor} exportStatus={exportStatus} />
+            {!isPreviewTab && <StatusBar editor={editor} exportStatus={exportStatus} />}
         </div>
     );
 });

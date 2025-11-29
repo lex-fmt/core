@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle, FileType, Search, Replace, SplitSquareVertical, SplitSquareHorizontal } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle, FileType, Search, Replace, SplitSquareVertical, SplitSquareHorizontal, Eye } from 'lucide-react';
 import { isLexFile } from './Editor';
 
 interface LayoutProps {
@@ -23,12 +23,13 @@ interface LayoutProps {
   onReplace?: () => void;
   onSplitVertical?: () => void;
   onSplitHorizontal?: () => void;
+  onPreview?: () => void;
 }
 
 const MIN_OUTLINE_HEIGHT = 100;
 const DEFAULT_OUTLINE_HEIGHT = 200;
 
-export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace, onSplitVertical, onSplitHorizontal }: LayoutProps) {
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace, onSplitVertical, onSplitHorizontal, onPreview }: LayoutProps) {
   const isCurrentFileLex = isLexFile(currentFile ?? null);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
@@ -242,6 +243,19 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
                   title="Replace (⌘H)"
                 >
                   <Replace size={16} />
+                </button>
+                <ButtonGroupSeparator />
+                <button
+                  onClick={onPreview}
+                  disabled={!currentFile}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                    "hover:bg-panel-hover transition-colors",
+                    !currentFile && "opacity-50 cursor-not-allowed"
+                  )}
+                  title="Preview"
+                >
+                  <Eye size={16} />
                 </button>
               </>
             ) : (

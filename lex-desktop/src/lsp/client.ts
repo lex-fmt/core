@@ -30,7 +30,6 @@ export class LspClient {
 
     // @ts-ignore
     window.ipcRenderer.on('lsp-output', (_event, data: Uint8Array) => {
-        console.log(`[LspClient] Received data bytes: ${data.length}`);
         this.appendBuffer(data);
         this.processBuffer();
     });
@@ -134,8 +133,10 @@ export class LspClient {
   }
 
   private handleMessage(message: LspMessage) {
-    const resultStr = JSON.stringify(message.result);
-    console.log(`[LspClient] Handling message: id=${message.id}, method=${message.method}, error=${JSON.stringify(message.error)}, result=${resultStr ? resultStr.substring(0, 100) : 'undefined'}...`);
+    // Only log errors, not every message
+    if (message.error) {
+      console.log(`[LspClient] Error response id=${message.id}: ${JSON.stringify(message.error)}`);
+    }
     if (message.id !== undefined) {
         // Response to a request
         if (this.pendingRequests.has(message.id)) {

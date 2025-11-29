@@ -33,6 +33,7 @@ interface Window {
     onMenuSave: (callback: () => void) => () => void;
     onMenuFormat: (callback: () => void) => () => void;
     fileExport: (sourcePath: string, format: string) => Promise<string>;
+    lexPreview: (sourcePath: string) => Promise<string>;
     onMenuExport: (callback: (format: string) => void) => () => void;
     shareWhatsApp: (content: string) => Promise<void>;
     showItemInFolder: (fullPath: string) => Promise<void>;
@@ -40,5 +41,6 @@ interface Window {
     onMenuReplace: (callback: () => void) => () => void;
     onMenuSplitVertical: (callback: () => void) => () => void;
     onMenuSplitHorizontal: (callback: () => void) => () => void;
+    onMenuPreview: (callback: () => void) => () => void;
   }
 }

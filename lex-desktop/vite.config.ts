@@ -33,4 +33,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    watch: {
+      // Ignore .lex files and welcome directory - these are user documents, not source code
+      ignored: ['**/*.lex', '**/welcome/**'],
+    },
+  },
 })
