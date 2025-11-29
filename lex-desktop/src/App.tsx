@@ -4,6 +4,13 @@ import { Editor } from './components/Editor'
 import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
 
+// import { initMonaco } from './monaco-init'
+import { initDebugMonaco } from './debug-monaco'
+
+// Initialize Monaco (Language, Theme, Providers)
+// initMonaco();
+initDebugMonaco();
+
 function App() {
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
   const [fileToOpen, setFileToOpen] = useState<string | null>(null);
