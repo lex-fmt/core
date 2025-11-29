@@ -808,17 +808,14 @@ useEffect(() => {
   }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal]);
 
   const renderPanes = () => {
-    const totalRowSize = paneRows.reduce((sum, row) => sum + getRowSize(row), 0) || 1;
     return (
       <div className="flex flex-1 flex-col min-h-0" ref={workspaceRef}>
         {paneRows.map((row, rowIndex) => {
-          const rowBasis = (getRowSize(row) / totalRowSize) * 100;
-          const paneWeights = row.paneIds.map(paneId => getPaneWeight(row, paneId));
-          const paneWeightSum = paneWeights.reduce((sum, weight) => sum + weight, 0) || 1;
+          const rowWeight = getRowSize(row);
           return (
-            <div key={row.id} className="flex flex-col min-h-0" style={{ flexBasis: `${rowBasis}%` }}>
+            <div key={row.id} className="flex flex-col min-h-0 min-w-0" style={{ flex: `${rowWeight} 1 0` }}>
               <div
-                className="flex flex-1 min-h-0"
+                className="flex flex-1 min-h-0 min-w-0"
                 ref={(element) => {
                   if (element) {
                     rowRefs.current.set(row.id, element);
@@ -833,9 +830,9 @@ useEffect(() => {
                 {row.paneIds.map((paneId, paneIndex) => {
                   const pane = paneMap.get(paneId);
                   if (!pane) return null;
-                  const widthPercent = (getPaneWeight(row, paneId) / paneWeightSum) * 100;
+                  const paneWeight = getPaneWeight(row, paneId);
                   return (
-                    <div key={pane.id} className="flex h-full" style={{ flexBasis: `${widthPercent}%` }}>
+                    <div key={pane.id} className="flex h-full min-w-0" style={{ flex: `${paneWeight} 1 0` }}>
                       <div
                         data-testid="editor-pane"
                         data-pane-index={paneIndex}
