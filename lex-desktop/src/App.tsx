@@ -127,6 +127,10 @@ useEffect(() => {
             cursorLine: 0,
           }));
 
+          if (hydrated.length === 1) {
+            hydrated.push(createEmptyPane());
+          }
+
           const paneIdSet = new Set(hydrated.map(p => p.id));
           const rowData = Array.isArray(layout.rows) ? layout.rows : [];
           let rows = rowData
@@ -170,39 +174,6 @@ useEffect(() => {
     };
     loadLayout();
   }, []);
-
-  useEffect(() => {
-    setPaneRows(prevRows => {
-      const paneIdSet = new Set(panes.map(p => p.id));
-      let changed = false;
-      let rows = prevRows
-        .map(row => {
-          const filtered = row.paneIds.filter(id => paneIdSet.has(id));
-          if (filtered.length !== row.paneIds.length) {
-            changed = true;
-          }
-          return { ...row, paneIds: filtered };
-        })
-        .filter(row => row.paneIds.length > 0);
-
-      if (rows.length === 0 && panes.length > 0) {
-        rows = [{ id: createRowId(), paneIds: panes.map(p => p.id) }];
-        changed = true;
-      } else {
-        const referenced = new Set(rows.flatMap(row => row.paneIds));
-        const missing = panes.map(p => p.id).filter(id => !referenced.has(id));
-        if (missing.length > 0 && rows.length > 0) {
-          rows = [
-            { ...rows[0], paneIds: [...rows[0].paneIds, ...missing] },
-            ...rows.slice(1),
-          ];
-          changed = true;
-        }
-      }
-
-      return changed ? rows : prevRows;
-    });
-  }, [panes]);
 
   useEffect(() => {
     if (!layoutInitialized) return;
@@ -315,6 +286,23 @@ const handleSplitHorizontal = useCallback(() => {
   });
   setActivePaneId(newPane.id);
 }, [activePaneIdValue]);
+
+  const handleClosePane = useCallback((paneId: string) => {
+    setPanes(prev => {
+      if (prev.length <= 1) {
+        return prev;
+      }
+      const filtered = prev.filter(pane => pane.id !== paneId);
+      if (filtered.length === prev.length) {
+        return prev;
+      }
+      updateRowsAfterPaneRemoval(paneId, filtered.map(p => p.id));
+      if (!filtered.some(pane => pane.id === activePaneId)) {
+        setActivePaneId(filtered[0]?.id ?? null);
+      }
+      return filtered;
+    });
+  }, [activePaneId, updateRowsAfterPaneRemoval]);
 
   const openFileInPane = useCallback((paneId: string, path: string) => {
     let resolvedId: string | null = null;
@@ -553,9 +541,22 @@ const handleSplitHorizontal = useCallback(() => {
                 data-pane-index={paneIndex}
                 data-pane-id={pane.id}
                 data-active={pane.id === activePaneIdValue}
-                className={`flex flex-col flex-1 min-w-0 ${paneIndex > 0 ? 'border-l border-border' : ''}`}
+                className={`relative flex flex-col flex-1 min-w-0 ${paneIndex > 0 ? 'border-l border-border' : ''}`}
                 onMouseDown={() => focusPane(pane.id)}
               >
+                <button
+                  className="absolute top-1 right-1 z-10 px-1 text-xs text-muted-foreground hover:text-foreground"
+                  title="Close pane"
+                  disabled={panes.length <= 1}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (panes.length > 1) {
+                      handleClosePane(pane.id);
+                    }
+                  }}
+                >
+                  ×
+                </button>
                 <EditorPane
                   ref={registerPaneHandle(pane.id)}
                   tabs={pane.tabs}

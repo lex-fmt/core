@@ -67,6 +67,14 @@ test.describe('Split Panes', () => {
     await splitHorizontal.click();
     await expect(window.locator('[data-testid="pane-row"]')).toHaveCount(2);
 
+    const closeButtons = () => window.locator('[data-pane-id] button[title="Close pane"]');
+    await closeButtons().last().click();
+    await expect(window.locator('[data-testid="pane-row"]')).toHaveCount(1);
+    await expect(window.locator('[data-testid="editor-pane"]')).toHaveCount(3);
+
+    await closeButtons().last().click();
+    await expect(window.locator('[data-testid="editor-pane"]')).toHaveCount(2);
+
     await electronApp.close();
   });
 });
