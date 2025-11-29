@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle, FileType, Search, Replace } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle, FileType, Search, Replace, SplitSquareVertical, SplitSquareHorizontal } from 'lucide-react';
 import { isLexFile } from './Editor';
 
 interface LayoutProps {
@@ -21,12 +21,14 @@ interface LayoutProps {
   onConvertToLex?: () => void;
   onFind?: () => void;
   onReplace?: () => void;
+  onSplitVertical?: () => void;
+  onSplitHorizontal?: () => void;
 }
 
 const MIN_OUTLINE_HEIGHT = 100;
 const DEFAULT_OUTLINE_HEIGHT = 200;
 
-export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace }: LayoutProps) {
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace, onSplitVertical, onSplitHorizontal }: LayoutProps) {
   const isCurrentFileLex = isLexFile(currentFile ?? null);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
@@ -256,6 +258,37 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
                 <FileType size={16} />
               </button>
             )}
+          </ButtonGroup>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground">Pane</span>
+          <ButtonGroup>
+            <button
+              onClick={onSplitVertical}
+              disabled={!onSplitVertical}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !onSplitVertical && "opacity-50 cursor-not-allowed"
+              )}
+              title="Split vertically"
+            >
+              <SplitSquareVertical size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onSplitHorizontal}
+              disabled={!onSplitHorizontal}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !onSplitHorizontal && "opacity-50 cursor-not-allowed"
+              )}
+              title="Split horizontally"
+            >
+              <SplitSquareHorizontal size={16} />
+            </button>
           </ButtonGroup>
         </div>
 

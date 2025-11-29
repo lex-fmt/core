@@ -20,9 +20,11 @@ interface Window {
     getOpenTabs: () => Promise<{
       panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>;
       activePaneId: string | null;
+      rows: Array<{ id: string; paneIds: string[] }>;
     }>;
     setOpenTabs: (
       panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>,
+      rows: Array<{ id: string; paneIds: string[] }>,
       activePaneId: string | null
     ) => Promise<boolean>;
     onMenuNewFile: (callback: () => void) => () => void;
@@ -36,5 +38,7 @@ interface Window {
     showItemInFolder: (fullPath: string) => Promise<void>;
     onMenuFind: (callback: () => void) => () => void;
     onMenuReplace: (callback: () => void) => () => void;
+    onMenuSplitVertical: (callback: () => void) => () => void;
+    onMenuSplitHorizontal: (callback: () => void) => () => void;
   }
 }

@@ -26,11 +26,17 @@ interface PaneLayoutSettings {
   activeTab?: string | null;
 }
 
+interface PaneRowLayout {
+  id: string;
+  paneIds: string[];
+}
+
 interface AppSettings {
   lastFolder?: string;
   openTabs?: string[];
   activeTab?: string;
   paneLayout?: PaneLayoutSettings[];
+  paneRows?: PaneRowLayout[];
   activePaneId?: string;
   windowState?: WindowState;
 }
@@ -376,6 +382,24 @@ ipcMain.handle('get-open-tabs', async () => {
     panes.push({ id: randomUUID(), tabs: [], activeTab: null });
   }
 
+  const paneIdSet = new Set(panes.map(p => p.id));
+  let rows = settings.paneRows && settings.paneRows.length > 0
+    ? settings.paneRows.map(row => ({
+        id: row.id || randomUUID(),
+        paneIds: (row.paneIds || []).filter(id => paneIdSet.has(id)),
+      })).filter(row => row.paneIds.length > 0)
+    : [];
+
+  if (rows.length === 0) {
+    rows = [{ id: randomUUID(), paneIds: panes.map(p => p.id) }];
+  } else {
+    const referenced = new Set(rows.flatMap(row => row.paneIds));
+    const missing = panes.map(p => p.id).filter(id => !referenced.has(id));
+    if (missing.length > 0) {
+      rows[0] = { ...rows[0], paneIds: [...rows[0].paneIds, ...missing] };
+    }
+  }
+
   const activePaneId = settings.activePaneId && panes.some(p => p.id === settings.activePaneId)
     ? settings.activePaneId
     : panes[0]?.id || null;
@@ -383,15 +407,20 @@ ipcMain.handle('get-open-tabs', async () => {
   return {
     panes,
     activePaneId,
+    rows,
   };
 });
 
-ipcMain.handle('set-open-tabs', async (_, panes: PaneLayoutSettings[], activePaneId: string | null) => {
+ipcMain.handle('set-open-tabs', async (_, panes: PaneLayoutSettings[], rows: PaneRowLayout[], activePaneId: string | null) => {
   const settings = await loadSettings();
   settings.paneLayout = panes.map(pane => ({
     id: pane.id || randomUUID(),
     tabs: pane.tabs || [],
     activeTab: pane.activeTab ?? null,
+  }));
+  settings.paneRows = rows.map(row => ({
+    id: row.id || randomUUID(),
+    paneIds: row.paneIds || [],
   }));
   settings.activePaneId = activePaneId || undefined;
   settings.openTabs = undefined;
@@ -578,6 +607,21 @@ function createMenu() {
           label: 'Replace',
           accelerator: 'CmdOrCtrl+H',
           click: () => win?.webContents.send('menu-replace')
+        }
+      ]
+    },
+    {
+      label: 'Pane',
+      submenu: [
+        {
+          label: 'Split Vertically',
+          accelerator: 'CmdOrCtrl+\\',
+          click: () => win?.webContents.send('menu-split-vertical')
+        },
+        {
+          label: 'Split Horizontally',
+          accelerator: 'CmdOrCtrl+Shift+\\',
+          click: () => win?.webContents.send('menu-split-horizontal')
         }
       ]
     },

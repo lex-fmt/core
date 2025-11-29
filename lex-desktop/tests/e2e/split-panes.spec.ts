@@ -59,6 +59,14 @@ test.describe('Split Panes', () => {
     await window.waitForTimeout(1500);
     await expect(outline.locator('text="Ideas, Naked"')).toBeVisible();
 
+    const splitVertical = window.locator('button[title="Split vertically"]');
+    await splitVertical.click();
+    await expect(window.locator('[data-testid="editor-pane"]')).toHaveCount(3);
+
+    const splitHorizontal = window.locator('button[title="Split horizontally"]');
+    await splitHorizontal.click();
+    await expect(window.locator('[data-testid="pane-row"]')).toHaveCount(2);
+
     await electronApp.close();
   });
 });

@@ -17,11 +17,23 @@ interface PaneState {
   cursorLine: number;
 }
 
+interface PaneRowState {
+  id: string;
+  paneIds: string[];
+}
+
 const createPaneId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
   }
   return `pane-${Math.random().toString(36).slice(2, 9)}`;
+};
+
+const createRowId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `row-${Math.random().toString(36).slice(2, 9)}`;
 };
 
 const createTabFromPath = (path: string): Tab => ({
@@ -39,14 +51,20 @@ const createEmptyPane = (id?: string): PaneState => ({
 });
 
 function App() {
-  const defaultLayoutRef = useRef<{ panes: PaneState[]; activePaneId: string } | null>(null);
+  const defaultLayoutRef = useRef<{ panes: PaneState[]; rows: PaneRowState[]; activePaneId: string } | null>(null);
   if (!defaultLayoutRef.current) {
     const first = createEmptyPane();
     const second = createEmptyPane();
-    defaultLayoutRef.current = { panes: [first, second], activePaneId: first.id };
+    const initialRowId = createRowId();
+    defaultLayoutRef.current = {
+      panes: [first, second],
+      rows: [{ id: initialRowId, paneIds: [first.id, second.id] }],
+      activePaneId: first.id,
+    };
   }
 
   const [panes, setPanes] = useState<PaneState[]>(() => defaultLayoutRef.current!.panes);
+  const [paneRows, setPaneRows] = useState<PaneRowState[]>(() => defaultLayoutRef.current!.rows);
   const [activePaneId, setActivePaneId] = useState<string>(() => defaultLayoutRef.current!.activePaneId);
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
   const [exportStatus, setExportStatus] = useState<ExportStatus>({ isExporting: false, format: null });
@@ -56,6 +74,12 @@ function App() {
   const resolvedActivePane = useMemo(() => {
     return panes.find(pane => pane.id === activePaneId) ?? panes[0] ?? null;
   }, [panes, activePaneId]);
+
+  const paneMap = useMemo(() => {
+    const map = new Map<string, PaneState>();
+    panes.forEach(pane => map.set(pane.id, pane));
+    return map;
+  }, [panes]);
 
   const activePaneIdValue = resolvedActivePane?.id ?? null;
   const activePaneFile = resolvedActivePane?.currentFile ?? null;
@@ -88,12 +112,12 @@ function App() {
   }, [panes]);
 
 
-  useEffect(() => {
-    const loadLayout = async () => {
+useEffect(() => {
+  const loadLayout = async () => {
       try {
         const layout = await window.ipcRenderer.getOpenTabs();
         if (layout && Array.isArray(layout.panes) && layout.panes.length > 0) {
-          let hydrated = layout.panes.map<PaneState>((pane) => ({
+          const hydrated = layout.panes.map<PaneState>((pane) => ({
             id: pane.id || createPaneId(),
             tabs: pane.tabs.map(createTabFromPath),
             activeTabId: pane.activeTab && pane.tabs.includes(pane.activeTab)
@@ -102,13 +126,38 @@ function App() {
             currentFile: null,
             cursorLine: 0,
           }));
-          if (hydrated.length === 1) {
-            hydrated = [...hydrated, createEmptyPane()];
+
+          const paneIdSet = new Set(hydrated.map(p => p.id));
+          const rowData = Array.isArray(layout.rows) ? layout.rows : [];
+          let rows = rowData
+            .map((row: any) => ({
+              id: row.id || createRowId(),
+              paneIds: Array.isArray(row.paneIds)
+                ? row.paneIds.filter((id: string) => paneIdSet.has(id))
+                : [],
+            }))
+            .filter(row => row.paneIds.length > 0);
+
+          const referencedIds = new Set(rows.flatMap(row => row.paneIds));
+          const unreferenced = hydrated
+            .map(p => p.id)
+            .filter(id => !referencedIds.has(id));
+
+          if (rows.length === 0) {
+            rows = [{ id: createRowId(), paneIds: hydrated.map(p => p.id) }];
+          } else if (unreferenced.length > 0) {
+            rows[0] = {
+              ...rows[0],
+              paneIds: [...rows[0].paneIds, ...unreferenced],
+            };
           }
+
           setPanes(hydrated);
+          setPaneRows(rows);
+
           const savedActiveId = layout.activePaneId && hydrated.some(p => p.id === layout.activePaneId)
             ? layout.activePaneId
-            : hydrated[0]?.id;
+            : rows[0]?.paneIds[0] ?? hydrated[0]?.id;
           if (savedActiveId) {
             setActivePaneId(savedActiveId);
           }
@@ -123,6 +172,39 @@ function App() {
   }, []);
 
   useEffect(() => {
+    setPaneRows(prevRows => {
+      const paneIdSet = new Set(panes.map(p => p.id));
+      let changed = false;
+      let rows = prevRows
+        .map(row => {
+          const filtered = row.paneIds.filter(id => paneIdSet.has(id));
+          if (filtered.length !== row.paneIds.length) {
+            changed = true;
+          }
+          return { ...row, paneIds: filtered };
+        })
+        .filter(row => row.paneIds.length > 0);
+
+      if (rows.length === 0 && panes.length > 0) {
+        rows = [{ id: createRowId(), paneIds: panes.map(p => p.id) }];
+        changed = true;
+      } else {
+        const referenced = new Set(rows.flatMap(row => row.paneIds));
+        const missing = panes.map(p => p.id).filter(id => !referenced.has(id));
+        if (missing.length > 0 && rows.length > 0) {
+          rows = [
+            { ...rows[0], paneIds: [...rows[0].paneIds, ...missing] },
+            ...rows.slice(1),
+          ];
+          changed = true;
+        }
+      }
+
+      return changed ? rows : prevRows;
+    });
+  }, [panes]);
+
+  useEffect(() => {
     if (!layoutInitialized) return;
     const persist = async () => {
       try {
@@ -131,13 +213,17 @@ function App() {
           tabs: pane.tabs.map(tab => tab.path),
           activeTab: pane.activeTabId,
         }));
-        await window.ipcRenderer.setOpenTabs(payload, resolvedActivePane?.id ?? null);
+        const rowsPayload = paneRows.map(row => ({
+          id: row.id,
+          paneIds: row.paneIds.filter(id => panes.some(p => p.id === id)),
+        }));
+        await window.ipcRenderer.setOpenTabs(payload, rowsPayload, activePaneIdValue);
       } catch (error) {
         console.error('Failed to persist pane layout:', error);
       }
     };
     persist();
-  }, [panes, resolvedActivePane?.id, layoutInitialized]);
+  }, [panes, paneRows, activePaneIdValue, layoutInitialized]);
 
   useEffect(() => {
     if (!panes.length) return;
@@ -160,9 +246,75 @@ function App() {
     loadInitialFolder();
   }, []);
 
-  const focusPane = useCallback((paneId: string) => {
-    setActivePaneId(paneId);
-  }, []);
+const focusPane = useCallback((paneId: string) => {
+  setActivePaneId(paneId);
+}, []);
+
+const updateRowsAfterPaneRemoval = useCallback((paneId: string, remainingPaneIds: string[]) => {
+  setPaneRows(prevRows => {
+    let next = prevRows
+      .map(row => ({ ...row, paneIds: row.paneIds.filter(id => id !== paneId) }))
+      .filter(row => row.paneIds.length > 0);
+
+    if (next.length === 0) {
+      if (remainingPaneIds.length > 0) {
+        next = [{ id: createRowId(), paneIds: [remainingPaneIds[0]] }];
+      } else {
+        next = [{ id: createRowId(), paneIds: [] }];
+      }
+    }
+
+    return next;
+  });
+}, []);
+
+const handleSplitVertical = useCallback(() => {
+  if (!activePaneIdValue) return;
+  const newPane = createEmptyPane();
+  setPanes(prev => [...prev, newPane]);
+  setPaneRows(prevRows => {
+    if (prevRows.length === 0) {
+      return [{ id: createRowId(), paneIds: [newPane.id] }];
+    }
+    let found = false;
+    const next = prevRows.map(row => {
+      if (!row.paneIds.includes(activePaneIdValue)) return row;
+      found = true;
+      const insertIndex = row.paneIds.indexOf(activePaneIdValue);
+      const paneIds = [...row.paneIds];
+      paneIds.splice(insertIndex + 1, 0, newPane.id);
+      return { ...row, paneIds };
+    });
+    if (!found) {
+      return [...next, { id: createRowId(), paneIds: [newPane.id] }];
+    }
+    return next;
+  });
+  setActivePaneId(newPane.id);
+}, [activePaneIdValue]);
+
+const handleSplitHorizontal = useCallback(() => {
+  if (!activePaneIdValue) return;
+  const newPane = createEmptyPane();
+  setPanes(prev => [...prev, newPane]);
+  setPaneRows(prevRows => {
+    if (prevRows.length === 0) {
+      return [
+        { id: createRowId(), paneIds: [activePaneIdValue] },
+        { id: createRowId(), paneIds: [newPane.id] },
+      ];
+    }
+    const rowIndex = prevRows.findIndex(row => row.paneIds.includes(activePaneIdValue));
+    const newRow = { id: createRowId(), paneIds: [newPane.id] };
+    if (rowIndex === -1) {
+      return [...prevRows, newRow];
+    }
+    const next = [...prevRows];
+    next.splice(rowIndex + 1, 0, newRow);
+    return next;
+  });
+  setActivePaneId(newPane.id);
+}, [activePaneIdValue]);
 
   const openFileInPane = useCallback((paneId: string, path: string) => {
     let resolvedId: string | null = null;
@@ -223,11 +375,13 @@ function App() {
         return updatedPane;
       });
       if (removePane) {
-        return next.filter(pane => pane.id !== paneId);
+        const filtered = next.filter(pane => pane.id !== paneId);
+        updateRowsAfterPaneRemoval(paneId, filtered.map(p => p.id));
+        return filtered;
       }
       return next;
     });
-  }, []);
+  }, [updateRowsAfterPaneRemoval]);
 
   const handlePaneFileLoaded = useCallback((paneId: string, path: string | null) => {
     setPanes(prev => prev.map(pane => (
@@ -362,6 +516,8 @@ function App() {
     const unsubExport = window.ipcRenderer.onMenuExport(handleExport);
     const unsubFind = window.ipcRenderer.onMenuFind(handleFind);
     const unsubReplace = window.ipcRenderer.onMenuReplace(handleReplace);
+    const unsubSplitVertical = window.ipcRenderer.onMenuSplitVertical(handleSplitVertical);
+    const unsubSplitHorizontal = window.ipcRenderer.onMenuSplitHorizontal(handleSplitHorizontal);
 
     return () => {
       unsubNewFile();
@@ -372,32 +528,48 @@ function App() {
       unsubExport();
       unsubFind();
       unsubReplace();
+      unsubSplitVertical();
+      unsubSplitHorizontal();
     };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace]);
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal]);
 
   const renderPanes = () => (
-    <div className="flex flex-1 min-h-0">
-      {panes.map((pane, index) => (
+    <div className="flex flex-1 flex-col min-h-0">
+      {paneRows.map((row, rowIndex) => (
         <div
-          key={pane.id}
-          data-testid="editor-pane"
-          data-pane-index={index}
-          data-pane-id={pane.id}
-          data-active={pane.id === activePaneIdValue}
-          className={`flex flex-col flex-1 min-w-0 ${index > 0 ? 'border-l border-border' : ''}`}
-          onMouseDown={() => focusPane(pane.id)}
+          key={row.id}
+          data-testid="pane-row"
+          data-row-id={row.id}
+          data-row-index={rowIndex}
+          className={`flex flex-1 min-h-0 ${rowIndex > 0 ? 'border-t border-border' : ''}`}
         >
-          <EditorPane
-            ref={registerPaneHandle(pane.id)}
-            tabs={pane.tabs}
-            activeTabId={pane.activeTabId}
-            onTabSelect={(tabId) => handleTabSelect(pane.id, tabId)}
-            onTabClose={(tabId) => handleTabClose(pane.id, tabId)}
-            onFileLoaded={(path) => handlePaneFileLoaded(pane.id, path)}
-            onCursorChange={(line) => handlePaneCursorChange(pane.id, line)}
-            onActivate={() => focusPane(pane.id)}
-            exportStatus={exportStatus}
-          />
+          {row.paneIds.map((paneId, paneIndex) => {
+            const pane = paneMap.get(paneId);
+            if (!pane) return null;
+            return (
+              <div
+                key={pane.id}
+                data-testid="editor-pane"
+                data-pane-index={paneIndex}
+                data-pane-id={pane.id}
+                data-active={pane.id === activePaneIdValue}
+                className={`flex flex-col flex-1 min-w-0 ${paneIndex > 0 ? 'border-l border-border' : ''}`}
+                onMouseDown={() => focusPane(pane.id)}
+              >
+                <EditorPane
+                  ref={registerPaneHandle(pane.id)}
+                  tabs={pane.tabs}
+                  activeTabId={pane.activeTabId}
+                  onTabSelect={(tabId) => handleTabSelect(pane.id, tabId)}
+                  onTabClose={(tabId) => handleTabClose(pane.id, tabId)}
+                  onFileLoaded={(path) => handlePaneFileLoaded(pane.id, path)}
+                  onCursorChange={(line) => handlePaneCursorChange(pane.id, line)}
+                  onActivate={() => focusPane(pane.id)}
+                  exportStatus={exportStatus}
+                />
+              </div>
+            );
+          })}
         </div>
       ))}
     </div>
@@ -417,6 +589,8 @@ function App() {
       onConvertToLex={handleConvertToLex}
       onFind={handleFind}
       onReplace={handleReplace}
+      onSplitVertical={handleSplitVertical}
+      onSplitHorizontal={handleSplitHorizontal}
       currentFile={activePaneFile}
       panel={
         <Outline

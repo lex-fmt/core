@@ -40,11 +40,13 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   getOpenTabs: () => ipcRenderer.invoke('get-open-tabs') as Promise<{
     panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>;
     activePaneId: string | null;
+    rows: Array<{ id: string; paneIds: string[] }>;
   }>,
   setOpenTabs: (
     panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>,
+    rows: Array<{ id: string; paneIds: string[] }>,
     activePaneId: string | null
-  ) => ipcRenderer.invoke('set-open-tabs', panes, activePaneId),
+  ) => ipcRenderer.invoke('set-open-tabs', panes, rows, activePaneId),
   onMenuNewFile: (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on('menu-new-file', handler);
@@ -87,5 +89,15 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const handler = () => callback();
     ipcRenderer.on('menu-replace', handler);
     return () => ipcRenderer.removeListener('menu-replace', handler);
+  },
+  onMenuSplitVertical: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-split-vertical', handler);
+    return () => ipcRenderer.removeListener('menu-split-vertical', handler);
+  },
+  onMenuSplitHorizontal: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-split-horizontal', handler);
+    return () => ipcRenderer.removeListener('menu-split-horizontal', handler);
   },
 })
