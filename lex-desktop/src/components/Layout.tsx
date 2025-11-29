@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle, FileType } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle, FileType, Search, Replace } from 'lucide-react';
 import { isLexFile } from './Editor';
 
 interface LayoutProps {
@@ -19,12 +19,14 @@ interface LayoutProps {
   onExport?: (format: string) => void;
   onShareWhatsApp?: () => void;
   onConvertToLex?: () => void;
+  onFind?: () => void;
+  onReplace?: () => void;
 }
 
 const MIN_OUTLINE_HEIGHT = 100;
 const DEFAULT_OUTLINE_HEIGHT = 200;
 
-export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex }: LayoutProps) {
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace }: LayoutProps) {
   const isCurrentFileLex = isLexFile(currentFile ?? null);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
@@ -103,7 +105,8 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
         <div className="w-px h-5 bg-border mx-1" />
 
         {/* File Actions Button Group */}
-        <div className="flex flex-col items-center gap-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground">File</span>
           <ButtonGroup>
             <button
               onClick={onNewFile}
@@ -151,13 +154,13 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
               <Save size={16} />
             </button>
           </ButtonGroup>
-          <span className="text-[10px] text-muted-foreground">File</span>
         </div>
 
         <div className="w-px h-5 bg-border mx-1" />
 
         {/* Lex Button Group - shows different buttons based on file type */}
-        <div className="flex flex-col items-center gap-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground">Lex</span>
           <ButtonGroup>
             {isCurrentFileLex ? (
               <>
@@ -212,6 +215,32 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
                 >
                   <MessageCircle size={16} />
                 </button>
+                <ButtonGroupSeparator />
+                <button
+                  onClick={onFind}
+                  disabled={!currentFile}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                    "hover:bg-panel-hover transition-colors",
+                    !currentFile && "opacity-50 cursor-not-allowed"
+                  )}
+                  title="Find (⌘F)"
+                >
+                  <Search size={16} />
+                </button>
+                <ButtonGroupSeparator />
+                <button
+                  onClick={onReplace}
+                  disabled={!currentFile}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                    "hover:bg-panel-hover transition-colors",
+                    !currentFile && "opacity-50 cursor-not-allowed"
+                  )}
+                  title="Replace (⌘H)"
+                >
+                  <Replace size={16} />
+                </button>
               </>
             ) : (
               <button
@@ -228,7 +257,6 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
               </button>
             )}
           </ButtonGroup>
-          <span className="text-[10px] text-muted-foreground">Lex</span>
         </div>
 
         <div className="flex-1" />

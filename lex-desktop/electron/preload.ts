@@ -72,4 +72,14 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   },
   shareWhatsApp: (content: string) => ipcRenderer.invoke('share-whatsapp', content) as Promise<void>,
   showItemInFolder: (fullPath: string) => ipcRenderer.invoke('show-item-in-folder', fullPath),
+  onMenuFind: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-find', handler);
+    return () => ipcRenderer.removeListener('menu-find', handler);
+  },
+  onMenuReplace: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-replace', handler);
+    return () => ipcRenderer.removeListener('menu-replace', handler);
+  },
 })

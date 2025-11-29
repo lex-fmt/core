@@ -16,6 +16,8 @@ export interface EditorPaneHandle {
     format: () => Promise<void>;
     getCurrentFile: () => string | null;
     getEditor: () => Monaco.editor.IStandaloneCodeEditor | null;
+    find: () => void;
+    replace: () => void;
 }
 
 interface EditorPaneProps {
@@ -305,13 +307,23 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         return () => disposable.dispose();
     }, [editor, onCursorChange]);
 
+    const handleFind = useCallback(() => {
+        editorRef.current?.find();
+    }, []);
+
+    const handleReplace = useCallback(() => {
+        editorRef.current?.replace();
+    }, []);
+
     useImperativeHandle(ref, () => ({
         openFile,
         save: handleSave,
         format: handleFormat,
         getCurrentFile: () => editorRef.current?.getCurrentFile() ?? null,
         getEditor: () => editorRef.current?.getEditor() ?? null,
-    }), [openFile, handleSave, handleFormat]);
+        find: handleFind,
+        replace: handleReplace,
+    }), [openFile, handleSave, handleFormat, handleFind, handleReplace]);
 
     return (
         <div className="flex flex-col flex-1 min-h-0">

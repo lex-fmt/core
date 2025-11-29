@@ -179,6 +179,8 @@ export interface EditorHandle {
     getEditor: () => monaco.editor.IStandaloneCodeEditor | null;
     switchToFile: (path: string) => Promise<void>;
     closeFile: (path: string) => void;
+    find: () => void;
+    replace: () => void;
 }
 
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fileToOpen, onFileLoaded }, ref) {
@@ -217,6 +219,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
         getEditor: () => editorRef.current,
         switchToFile,
         closeFile,
+        find: () => {
+            editorRef.current?.trigger('menu', 'actions.find', null);
+        },
+        replace: () => {
+            editorRef.current?.trigger('menu', 'editor.action.startFindReplaceAction', null);
+        },
     }));
 
     // Handle fileToOpen prop change
