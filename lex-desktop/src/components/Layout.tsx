@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
+import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
 import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface LayoutProps {
@@ -95,48 +96,54 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        <button
-          onClick={onNewFile}
-          className={cn(
-            "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-            "hover:bg-panel-hover transition-colors"
-          )}
-          title="New File"
-        >
-          <FilePlus size={16} />
-        </button>
-        <button
-          onClick={onOpenFolder}
-          className={cn(
-            "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-            "hover:bg-panel-hover transition-colors"
-          )}
-          title="Open Folder"
-        >
-          <FolderOpen size={16} />
-        </button>
-        <button
-          onClick={onOpenFile}
-          className={cn(
-            "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-            "hover:bg-panel-hover transition-colors"
-          )}
-          title="Open File"
-        >
-          <FileText size={16} />
-        </button>
-        <button
-          onClick={onSave}
-          disabled={!currentFile}
-          className={cn(
-            "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-            "hover:bg-panel-hover transition-colors",
-            !currentFile && "opacity-50 cursor-not-allowed"
-          )}
-          title="Save"
-        >
-          <Save size={16} />
-        </button>
+        {/* File Actions Button Group */}
+        <ButtonGroup>
+          <button
+            onClick={onNewFile}
+            className={cn(
+              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+              "hover:bg-panel-hover transition-colors"
+            )}
+            title="New File"
+          >
+            <FilePlus size={16} />
+          </button>
+          <ButtonGroupSeparator />
+          <button
+            onClick={onOpenFile}
+            className={cn(
+              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+              "hover:bg-panel-hover transition-colors"
+            )}
+            title="Open File"
+          >
+            <FileText size={16} />
+          </button>
+          <ButtonGroupSeparator />
+          <button
+            onClick={onOpenFolder}
+            className={cn(
+              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+              "hover:bg-panel-hover transition-colors"
+            )}
+            title="Open Folder"
+          >
+            <FolderOpen size={16} />
+          </button>
+          <ButtonGroupSeparator />
+          <button
+            onClick={onSave}
+            disabled={!currentFile}
+            className={cn(
+              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+              "hover:bg-panel-hover transition-colors",
+              !currentFile && "opacity-50 cursor-not-allowed"
+            )}
+            title="Save"
+          >
+            <Save size={16} />
+          </button>
+        </ButtonGroup>
 
         <div className="flex-1" />
 
