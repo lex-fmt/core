@@ -2,6 +2,21 @@ import { useState, useEffect } from 'react';
 import { Uri } from 'monaco-editor';
 import { lspClient } from '../lsp/client';
 
+type ThemeMode = 'dark' | 'light';
+
+const THEME_COLORS = {
+    dark: {
+        text: '#cccccc',
+        textMuted: '#888',
+        border: '#1e1e1e',
+    },
+    light: {
+        text: '#333333',
+        textMuted: '#888',
+        border: '#e0e0e0',
+    },
+};
+
 interface DocumentSymbol {
     name: string;
     kind: number;
@@ -21,6 +36,21 @@ interface OutlineProps {
 
 export function Outline({ currentFile }: OutlineProps) {
     const [symbols, setSymbols] = useState<DocumentSymbol[]>([]);
+    const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
+
+    useEffect(() => {
+        // Get initial theme
+        window.ipcRenderer.getNativeTheme().then((mode: ThemeMode) => {
+            setThemeMode(mode);
+        });
+
+        // Listen for theme changes
+        const unsubscribe = window.ipcRenderer.onNativeThemeChanged((mode: ThemeMode) => {
+            setThemeMode(mode);
+        });
+
+        return unsubscribe;
+    }, []);
 
     useEffect(() => {
         if (!currentFile) {
@@ -60,6 +90,8 @@ export function Outline({ currentFile }: OutlineProps) {
 
     }, [currentFile]);
 
+    const colors = THEME_COLORS[themeMode];
+
     const renderSymbols = (items: DocumentSymbol[], depth = 0) => {
         return items.map((item, index) => (
             <div key={index}>
@@ -69,7 +101,7 @@ export function Outline({ currentFile }: OutlineProps) {
                         paddingLeft: `${depth * 10 + 10}px`,
                         paddingTop: '2px',
                         paddingBottom: '2px',
-                        color: '#cccccc',
+                        color: colors.text,
                         fontSize: '12px',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -77,7 +109,6 @@ export function Outline({ currentFile }: OutlineProps) {
                     }}
                     title={item.name}
                 >
-                    {/* We could add icons based on item.kind */}
                     {item.name}
                 </div>
                 {item.children && renderSymbols(item.children, depth + 1)}
@@ -86,19 +117,19 @@ export function Outline({ currentFile }: OutlineProps) {
     };
 
     return (
-        <div data-testid="outline-view" style={{ height: '100%', overflowY: 'auto', color: '#cccccc', fontFamily: 'system-ui, sans-serif' }}>
+        <div data-testid="outline-view" style={{ height: '100%', overflowY: 'auto', color: colors.text, fontFamily: 'system-ui, sans-serif' }}>
             <div style={{
                 padding: '10px',
                 fontSize: '11px',
                 fontWeight: 'bold',
                 textTransform: 'uppercase',
                 letterSpacing: '1px',
-                borderBottom: '1px solid #1e1e1e'
+                borderBottom: `1px solid ${colors.border}`
             }}>
                 Outline
             </div>
             {symbols.length > 0 ? renderSymbols(symbols) : (
-                <div style={{ padding: '10px', fontSize: '13px', color: '#888' }}>
+                <div style={{ padding: '10px', fontSize: '13px', color: colors.textMuted }}>
                     {currentFile ? 'No symbols found' : 'No file open'}
                 </div>
             )}

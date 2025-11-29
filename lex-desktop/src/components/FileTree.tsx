@@ -1,5 +1,24 @@
 import { useState, useEffect } from 'react';
 
+type ThemeMode = 'dark' | 'light';
+
+const THEME_COLORS = {
+    dark: {
+        bg: '#252526',
+        text: '#cccccc',
+        textMuted: '#888',
+        border: '#1e1e1e',
+        hover: '#2a2d2e',
+    },
+    light: {
+        bg: '#f3f3f3',
+        text: '#333333',
+        textMuted: '#888',
+        border: '#e0e0e0',
+        hover: '#e8e8e8',
+    },
+};
+
 interface FileEntry {
     name: string;
     isDirectory: boolean;
@@ -11,9 +30,10 @@ interface FileEntry {
 interface FileTreeProps {
     rootPath?: string;
     onFileSelect: (path: string) => void;
+    themeMode?: ThemeMode;
 }
 
-export function FileTree({ rootPath, onFileSelect }: FileTreeProps) {
+export function FileTree({ rootPath, onFileSelect, themeMode = 'dark' }: FileTreeProps) {
     const [files, setFiles] = useState<FileEntry[]>([]);
 
     useEffect(() => {
@@ -70,6 +90,8 @@ export function FileTree({ rootPath, onFileSelect }: FileTreeProps) {
         }
     };
 
+    const colors = THEME_COLORS[themeMode];
+
     const renderTree = (entries: FileEntry[], depth = 0) => {
         return entries.map(entry => (
             <div key={entry.path}>
@@ -79,7 +101,7 @@ export function FileTree({ rootPath, onFileSelect }: FileTreeProps) {
                         cursor: 'pointer',
                         paddingTop: '2px',
                         paddingBottom: '2px',
-                        color: '#cccccc',
+                        color: colors.text,
                         backgroundColor: 'transparent',
                         display: 'flex',
                         alignItems: 'center',
@@ -89,7 +111,7 @@ export function FileTree({ rootPath, onFileSelect }: FileTreeProps) {
                         e.stopPropagation();
                         toggleDir(entry);
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2a2d2e'}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.hover}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                     <span style={{ marginRight: '5px', width: '16px', display: 'inline-block', textAlign: 'center' }}>
@@ -108,10 +130,10 @@ export function FileTree({ rootPath, onFileSelect }: FileTreeProps) {
         <div style={{
             width: '250px',
             height: '100%',
-            backgroundColor: '#252526',
+            backgroundColor: colors.bg,
             overflowY: 'auto',
-            borderRight: '1px solid #1e1e1e',
-            color: '#cccccc',
+            borderRight: `1px solid ${colors.border}`,
+            color: colors.text,
             fontFamily: 'system-ui, sans-serif'
         }}>
             <div style={{
@@ -124,7 +146,7 @@ export function FileTree({ rootPath, onFileSelect }: FileTreeProps) {
                 Explorer
             </div>
             {files.length > 0 ? renderTree(files) : (
-                <div style={{ padding: '10px', fontSize: '13px', color: '#888' }}>
+                <div style={{ padding: '10px', fontSize: '13px', color: colors.textMuted }}>
                     {rootPath ? 'Loading...' : 'No folder opened'}
                 </div>
             )}

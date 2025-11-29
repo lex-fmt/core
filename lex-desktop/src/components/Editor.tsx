@@ -3,6 +3,82 @@ import * as monaco from 'monaco-editor';
 import 'monaco-editor/esm/vs/editor/editor.main'; // Ensure full editor is loaded
 import { lspClient } from '../lsp/client';
 
+// Lex Monochrome Theme Colors (from editors/vscode/src/theme.ts)
+const LIGHT_COLORS = {
+    normal: '#000000',
+    muted: '#808080',
+    faint: '#b3b3b3',
+    faintest: '#cacaca',
+    background: '#ffffff',
+};
+
+const DARK_COLORS = {
+    normal: '#e0e0e0',
+    muted: '#888888',
+    faint: '#666666',
+    faintest: '#555555',
+    background: '#1e1e1e',
+};
+
+type ThemeMode = 'dark' | 'light';
+
+function getThemeColors(mode: ThemeMode) {
+    return mode === 'dark' ? DARK_COLORS : LIGHT_COLORS;
+}
+
+function defineMonacoTheme(themeName: string, mode: ThemeMode) {
+    const colors = getThemeColors(mode);
+    const baseTheme = mode === 'dark' ? 'vs-dark' : 'vs';
+
+    monaco.editor.defineTheme(themeName, {
+        base: baseTheme,
+        inherit: true,
+        rules: [
+            // Normal (full contrast) - primary content
+            { token: 'SessionTitleText', foreground: colors.normal.replace('#', ''), fontStyle: 'bold' },
+            { token: 'DefinitionSubject', foreground: colors.normal.replace('#', ''), fontStyle: 'italic' },
+            { token: 'DefinitionContent', foreground: colors.normal.replace('#', '') },
+            { token: 'InlineStrong', foreground: colors.normal.replace('#', ''), fontStyle: 'bold' },
+            { token: 'InlineEmphasis', foreground: colors.normal.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineCode', foreground: colors.normal.replace('#', '') },
+            { token: 'InlineMath', foreground: colors.normal.replace('#', ''), fontStyle: 'italic' },
+            { token: 'VerbatimContent', foreground: colors.normal.replace('#', '') },
+            { token: 'ListItemText', foreground: colors.normal.replace('#', '') },
+
+            // Muted (medium gray) - structural elements
+            { token: 'DocumentTitle', foreground: colors.muted.replace('#', ''), fontStyle: 'bold' },
+            { token: 'SessionMarker', foreground: colors.muted.replace('#', ''), fontStyle: 'italic' },
+            { token: 'ListMarker', foreground: colors.muted.replace('#', ''), fontStyle: 'italic' },
+            { token: 'Reference', foreground: colors.muted.replace('#', ''), fontStyle: 'underline' },
+            { token: 'ReferenceCitation', foreground: colors.muted.replace('#', ''), fontStyle: 'underline' },
+            { token: 'ReferenceFootnote', foreground: colors.muted.replace('#', ''), fontStyle: 'underline' },
+
+            // Faint (light gray) - meta-information
+            { token: 'AnnotationLabel', foreground: colors.faint.replace('#', '') },
+            { token: 'AnnotationParameter', foreground: colors.faint.replace('#', '') },
+            { token: 'AnnotationContent', foreground: colors.faint.replace('#', '') },
+            { token: 'VerbatimSubject', foreground: colors.faint.replace('#', '') },
+            { token: 'VerbatimLanguage', foreground: colors.faint.replace('#', '') },
+            { token: 'VerbatimAttribute', foreground: colors.faint.replace('#', '') },
+
+            // Faintest (barely visible) - inline markers
+            { token: 'InlineMarker_strong_start', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineMarker_strong_end', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineMarker_emphasis_start', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineMarker_emphasis_end', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineMarker_code_start', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineMarker_code_end', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineMarker_math_start', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineMarker_math_end', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineMarker_ref_start', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+            { token: 'InlineMarker_ref_end', foreground: colors.faintest.replace('#', ''), fontStyle: 'italic' },
+        ],
+        colors: {
+            'editor.foreground': colors.normal,
+            'editor.background': colors.background,
+        },
+    });
+}
 
 interface EditorProps {
     fileToOpen?: string | null;
@@ -13,6 +89,7 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
     const [currentFile, setCurrentFile] = useState<string | null>(null);
+    const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
 
     // Handle fileToOpen prop change
     useEffect(() => {
@@ -127,63 +204,9 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
             releaseDocumentSemanticTokens: function () { }
         });
 
-        // 4. Define Theme (Lex Monochrome - Dark Mode)
-        // Source: editors/vscode/src/theme.ts
-        const COLORS = {
-            normal: '#e0e0e0',   // Full contrast
-            muted: '#888888',    // Medium gray
-            faint: '#666666',    // Light gray
-            faintest: '#555555'  // Barely visible
-        };
-
-        monaco.editor.defineTheme(DEBUG_THEME, {
-            base: 'vs-dark',
-            inherit: true,
-            rules: [
-                // Semantic Token Rules (Matching VSCode Theme)
-                { token: 'SessionTitleText', foreground: COLORS.normal, fontStyle: 'bold' },
-                { token: 'DefinitionSubject', foreground: COLORS.normal, fontStyle: 'italic' },
-                { token: 'DefinitionContent', foreground: COLORS.normal },
-                { token: 'InlineStrong', foreground: COLORS.normal, fontStyle: 'bold' },
-                { token: 'InlineEmphasis', foreground: COLORS.normal, fontStyle: 'italic' },
-                { token: 'InlineCode', foreground: COLORS.normal },
-                { token: 'InlineMath', foreground: COLORS.normal, fontStyle: 'italic' },
-                { token: 'VerbatimContent', foreground: COLORS.normal },
-                { token: 'ListItemText', foreground: COLORS.normal },
-
-                { token: 'DocumentTitle', foreground: COLORS.muted, fontStyle: 'bold' },
-                { token: 'SessionMarker', foreground: COLORS.muted, fontStyle: 'italic' },
-                { token: 'ListMarker', foreground: COLORS.muted, fontStyle: 'italic' },
-                { token: 'Reference', foreground: COLORS.muted, fontStyle: 'underline' },
-                { token: 'ReferenceCitation', foreground: COLORS.muted, fontStyle: 'underline' },
-                { token: 'ReferenceFootnote', foreground: COLORS.muted, fontStyle: 'underline' },
-
-                { token: 'AnnotationLabel', foreground: COLORS.faint },
-                { token: 'AnnotationParameter', foreground: COLORS.faint },
-                { token: 'AnnotationContent', foreground: COLORS.faint },
-                { token: 'VerbatimSubject', foreground: COLORS.faint },
-                { token: 'VerbatimLanguage', foreground: COLORS.faint },
-                { token: 'VerbatimAttribute', foreground: COLORS.faint },
-
-                // Faintest (Markers)
-                { token: 'InlineMarker_strong_start', foreground: COLORS.faintest, fontStyle: 'italic' },
-                { token: 'InlineMarker_strong_end', foreground: COLORS.faintest, fontStyle: 'italic' },
-                { token: 'InlineMarker_emphasis_start', foreground: COLORS.faintest, fontStyle: 'italic' },
-                { token: 'InlineMarker_emphasis_end', foreground: COLORS.faintest, fontStyle: 'italic' },
-                { token: 'InlineMarker_code_start', foreground: COLORS.faintest, fontStyle: 'italic' },
-                { token: 'InlineMarker_code_end', foreground: COLORS.faintest, fontStyle: 'italic' },
-                { token: 'InlineMarker_math_start', foreground: COLORS.faintest, fontStyle: 'italic' },
-                { token: 'InlineMarker_math_end', foreground: COLORS.faintest, fontStyle: 'italic' },
-                { token: 'InlineMarker_ref_start', foreground: COLORS.faintest, fontStyle: 'italic' },
-                { token: 'InlineMarker_ref_end', foreground: COLORS.faintest, fontStyle: 'italic' },
-            ],
-            colors: {
-                'editor.foreground': COLORS.normal,
-                'editor.background': '#1e1e1e', // Standard VS Dark background
-            },
-            // @ts-ignore
-            semanticHighlighting: true
-        });
+        // 3. Define theme with initial mode (will be updated when we get OS theme)
+        // Start with dark mode as default, will be updated after we get the actual OS theme
+        defineMonacoTheme(DEBUG_THEME, 'dark');
 
         // 5. Create Model & Editor
         const uri = monaco.Uri.parse('file:///test.lex');
@@ -218,6 +241,26 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
         window.editor = editor;
 
         console.log('Editor created. Model language:', editor.getModel()?.getLanguageId());
+
+        // 4. Initialize theme based on OS preference and listen for changes
+        const applyTheme = (mode: ThemeMode) => {
+            console.log('[Editor] Applying theme:', mode);
+            defineMonacoTheme(DEBUG_THEME, mode);
+            monaco.editor.setTheme(DEBUG_THEME);
+            setThemeMode(mode);
+        };
+
+        // Get initial theme from OS
+        window.ipcRenderer.getNativeTheme().then((mode: ThemeMode) => {
+            console.log('[Editor] Initial OS theme:', mode);
+            applyTheme(mode);
+        });
+
+        // Listen for OS theme changes
+        const unsubscribeTheme = window.ipcRenderer.onNativeThemeChanged((mode: ThemeMode) => {
+            console.log('[Editor] OS theme changed to:', mode);
+            applyTheme(mode);
+        });
 
         // Debug: Log token info on click
         editor.onMouseDown((e) => {
@@ -282,6 +325,7 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
                 lspModel.dispose();
             }
             providerDisposable.dispose();
+            unsubscribeTheme();
         };
     }, []);
 
@@ -352,12 +396,16 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
         }
     };
 
+    const toolbarColors = themeMode === 'dark'
+        ? { bg: '#333', border: '#555', text: '#ccc', textStrong: '#fff', buttonBg: '#555' }
+        : { bg: '#e8e8e8', border: '#ccc', text: '#666', textStrong: '#000', buttonBg: '#d0d0d0' };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ padding: '5px', background: '#333', display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ padding: '5px', background: toolbarColors.bg, display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <button onClick={handleOpen}>Open File</button>
                 <button onClick={handleSave} disabled={!currentFile}>Save</button>
-                <button onClick={handleMockDiagnostics} style={{ marginLeft: 'auto', background: '#555' }}>Mock Diagnostics</button>
+                <button onClick={handleMockDiagnostics} style={{ marginLeft: 'auto', background: toolbarColors.buttonBg }}>Mock Diagnostics</button>
 
                 {/* LSP Status Indicator */}
                 <div style={{
@@ -365,8 +413,8 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
                     alignItems: 'center',
                     gap: '5px',
                     fontSize: '12px',
-                    color: '#ccc',
-                    borderLeft: '1px solid #555',
+                    color: toolbarColors.text,
+                    borderLeft: `1px solid ${toolbarColors.border}`,
                     paddingLeft: '10px',
                     marginLeft: '10px'
                 }}>
@@ -379,7 +427,7 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
                     <span>LSP: {lspStatus}</span>
                 </div>
 
-                <span style={{ color: '#fff', marginLeft: '10px' }}>{currentFile || 'Untitled'}</span>
+                <span style={{ color: toolbarColors.textStrong, marginLeft: '10px' }}>{currentFile || 'Untitled'}</span>
             </div>
             <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', position: 'relative' }} />
         </div>

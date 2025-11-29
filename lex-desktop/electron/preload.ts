@@ -28,4 +28,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   fileRead: (filePath: string) => ipcRenderer.invoke('file-read', filePath),
   folderOpen: () => ipcRenderer.invoke('folder-open'),
   getBenchmarkFile: () => ipcRenderer.invoke('get-benchmark-file'),
+  getNativeTheme: () => ipcRenderer.invoke('get-native-theme'),
+  onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => {
+    const handler = (_event: any, theme: 'dark' | 'light') => callback(theme);
+    ipcRenderer.on('native-theme-changed', handler);
+    return () => ipcRenderer.removeListener('native-theme-changed', handler);
+  },
 })

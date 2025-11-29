@@ -12,5 +12,7 @@ interface Window {
     fileRead(filePath: string): Promise<string | null>;
     folderOpen(): Promise<string | null>;
     getBenchmarkFile: () => Promise<string>;
+    getNativeTheme: () => Promise<'dark' | 'light'>;
+    onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => () => void;
   }
 }

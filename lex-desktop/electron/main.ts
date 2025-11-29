@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, nativeTheme } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as fs from 'fs/promises';
@@ -110,6 +110,19 @@ ipcMain.handle('get-benchmark-file', async () => {
     return path.join(process.resourcesPath, 'specs/v1/benchmark/30-a-place-for-ideas.lex');
   }
   return path.join(process.env.APP_ROOT, '../specs/v1/benchmark/30-a-place-for-ideas.lex');
+});
+
+// Theme detection
+ipcMain.handle('get-native-theme', () => {
+  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+});
+
+// Listen for OS theme changes and notify renderer
+nativeTheme.on('updated', () => {
+  const theme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('native-theme-changed', theme);
+  }
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
