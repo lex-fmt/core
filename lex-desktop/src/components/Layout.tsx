@@ -127,11 +127,7 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
           <Save size={16} />
         </button>
 
-        <div className="flex-1 min-w-0 px-2">
-          <span className="text-sm text-muted-foreground truncate block">
-            {currentFile ? currentFile.split('/').pop() : 'Untitled'}
-          </span>
-        </div>
+        <div className="flex-1" />
 
         <button
           className={cn(
