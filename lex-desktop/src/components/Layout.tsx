@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, Save, ChevronDown, ChevronRight } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -9,6 +9,7 @@ interface LayoutProps {
   rootPath?: string;
   currentFile?: string | null;
   onFileSelect: (path: string) => void;
+  onNewFile?: () => void;
   onOpenFolder?: () => void;
   onOpenFile?: () => void;
   onSave?: () => void;
@@ -17,7 +18,7 @@ interface LayoutProps {
 const MIN_OUTLINE_HEIGHT = 100;
 const DEFAULT_OUTLINE_HEIGHT = 200;
 
-export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onOpenFolder, onOpenFile, onSave }: LayoutProps) {
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave }: LayoutProps) {
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
   const [outlineHeight, setOutlineHeight] = useState(DEFAULT_OUTLINE_HEIGHT);
@@ -94,6 +95,16 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
 
         <div className="w-px h-5 bg-border mx-1" />
 
+        <button
+          onClick={onNewFile}
+          className={cn(
+            "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+            "hover:bg-panel-hover transition-colors"
+          )}
+          title="New File"
+        >
+          <FilePlus size={16} />
+        </button>
         <button
           onClick={onOpenFolder}
           className={cn(

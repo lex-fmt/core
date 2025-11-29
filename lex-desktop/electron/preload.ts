@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const [channel, ...omit] = args
     return ipcRenderer.invoke(channel, ...omit)
   },
+  fileNew: (defaultPath?: string) => ipcRenderer.invoke('file-new', defaultPath) as Promise<{ filePath: string, content: string } | null>,
   fileOpen: () => ipcRenderer.invoke('file-open'),
   fileSave: (filePath: string, content: string) => ipcRenderer.invoke('file-save', filePath, content),
   fileReadDir: (dirPath: string) => ipcRenderer.invoke('file-read-dir', dirPath),
@@ -37,4 +38,24 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   },
   getOpenTabs: () => ipcRenderer.invoke('get-open-tabs') as Promise<{ tabs: string[]; activeTab: string | null }>,
   setOpenTabs: (tabs: string[], activeTab: string | null) => ipcRenderer.invoke('set-open-tabs', tabs, activeTab),
+  onMenuNewFile: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-new-file', handler);
+    return () => ipcRenderer.removeListener('menu-new-file', handler);
+  },
+  onMenuOpenFile: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-open-file', handler);
+    return () => ipcRenderer.removeListener('menu-open-file', handler);
+  },
+  onMenuOpenFolder: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-open-folder', handler);
+    return () => ipcRenderer.removeListener('menu-open-folder', handler);
+  },
+  onMenuSave: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-save', handler);
+    return () => ipcRenderer.removeListener('menu-save', handler);
+  },
 })
