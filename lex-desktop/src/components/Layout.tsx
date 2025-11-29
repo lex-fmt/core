@@ -3,8 +3,6 @@ import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, Save } from 'lucide-react';
 
-type ThemeMode = 'dark' | 'light';
-
 interface LayoutProps {
   children: ReactNode;
   panel?: ReactNode;
@@ -17,12 +15,10 @@ interface LayoutProps {
 }
 
 export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onOpenFolder, onOpenFile, onSave }: LayoutProps) {
-  const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
 
   useEffect(() => {
-    const applyTheme = (mode: ThemeMode) => {
-      setThemeMode(mode);
+    const applyTheme = (mode: 'dark' | 'light') => {
       // Set data-theme attribute on document root for CSS variable switching
       document.documentElement.setAttribute('data-theme', mode);
     };
@@ -114,7 +110,7 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
             <>
               {/* File Tree Section */}
               <div className="flex-1 min-h-0 overflow-auto">
-                <FileTree rootPath={rootPath} onFileSelect={onFileSelect} themeMode={themeMode} />
+                <FileTree rootPath={rootPath} onFileSelect={onFileSelect} />
               </div>
 
               {/* Outline Section */}
