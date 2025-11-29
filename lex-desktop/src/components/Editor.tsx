@@ -275,7 +275,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
             scrollBeyondLastLine: false,
             wordWrap: 'on',
             padding: { top: 10, bottom: 10 },
-            fontFamily: 'JetBrains Mono, monospace',
+            fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, sans-serif',
             'semanticHighlighting.enabled': true,
         } as any);
         editorRef.current = editor;
