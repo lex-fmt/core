@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState, useCallback, useEffect } from 'react';
 import { Editor, EditorHandle } from './Editor';
-import { TabBar, Tab } from './TabBar';
+import { TabBar, Tab, TabDropData } from './TabBar';
 import { StatusBar, ExportStatus } from './StatusBar';
 import type * as Monaco from 'monaco-editor';
 
@@ -22,8 +22,10 @@ export interface EditorPaneHandle {
 interface EditorPaneProps {
     tabs: Tab[];
     activeTabId: string | null;
+    paneId: string;
     onTabSelect: (tabId: string) => void;
     onTabClose: (tabId: string) => void;
+    onTabDrop?: (data: TabDropData) => void;
     onFileLoaded?: (path: string | null) => void;
     onCursorChange?: (line: number) => void;
     exportStatus?: ExportStatus;
@@ -46,7 +48,7 @@ function computeChecksum(content: string): string {
 }
 
 export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function EditorPane(
-    { tabs, activeTabId, onTabSelect, onTabClose, onFileLoaded, onCursorChange, exportStatus, onActivate },
+    { tabs, activeTabId, paneId, onTabSelect, onTabClose, onTabDrop, onFileLoaded, onCursorChange, exportStatus, onActivate },
     ref
 ) {
     const [fileToOpen, setFileToOpen] = useState<string | null>(null);
@@ -272,8 +274,10 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
             <TabBar
                 tabs={tabs}
                 activeTabId={activeTabId}
+                paneId={paneId}
                 onTabSelect={handleTabSelect}
                 onTabClose={handleTabClose}
+                onTabDrop={onTabDrop}
             />
             <div className="flex-1 min-h-0">
                 <Editor

@@ -5,7 +5,7 @@ import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
 import { ExportStatus } from './components/StatusBar'
 import { initDebugMonaco } from './debug-monaco'
-import type { Tab } from './components/TabBar'
+import type { Tab, TabDropData } from './components/TabBar'
 
 initDebugMonaco();
 
@@ -586,6 +586,77 @@ useEffect(() => {
     });
   }, [updateRowsAfterPaneRemoval]);
 
+  const handleTabDrop = useCallback((targetPaneId: string, data: TabDropData) => {
+    const { tabPath, sourcePaneId, duplicate } = data;
+
+    setPanes(prev => {
+      const targetPane = prev.find(p => p.id === targetPaneId);
+      const sourcePane = prev.find(p => p.id === sourcePaneId);
+      if (!targetPane || !sourcePane) return prev;
+
+      // Check if target pane already has this tab
+      const existingTab = targetPane.tabs.find(t => t.path === tabPath);
+      if (existingTab) {
+        // Just focus the existing tab
+        return prev.map(pane =>
+          pane.id === targetPaneId
+            ? { ...pane, activeTabId: existingTab.id }
+            : pane
+        );
+      }
+
+      // Find the tab in source pane
+      const sourceTab = sourcePane.tabs.find(t => t.path === tabPath);
+      if (!sourceTab) return prev;
+
+      // Create new tab for target
+      const newTab = createTabFromPath(tabPath);
+
+      let result = prev.map(pane => {
+        if (pane.id === targetPaneId) {
+          // Add tab to target pane
+          return {
+            ...pane,
+            tabs: [...pane.tabs, newTab],
+            activeTabId: newTab.id,
+          };
+        }
+        if (pane.id === sourcePaneId && !duplicate) {
+          // Remove tab from source pane (unless duplicating)
+          const remainingTabs = pane.tabs.filter(t => t.path !== tabPath);
+          let nextActiveId = pane.activeTabId;
+          if (pane.activeTabId === sourceTab.id) {
+            const tabIndex = pane.tabs.findIndex(t => t.id === sourceTab.id);
+            nextActiveId = remainingTabs.length > 0
+              ? remainingTabs[Math.min(tabIndex, remainingTabs.length - 1)].id
+              : null;
+          }
+          return {
+            ...pane,
+            tabs: remainingTabs,
+            activeTabId: nextActiveId,
+            currentFile: remainingTabs.length === 0 ? null : pane.currentFile,
+            cursorLine: remainingTabs.length === 0 ? 0 : pane.cursorLine,
+          };
+        }
+        return pane;
+      });
+
+      // If source pane is now empty and we have more than 1 pane, remove it
+      if (!duplicate) {
+        const updatedSource = result.find(p => p.id === sourcePaneId);
+        if (updatedSource && updatedSource.tabs.length === 0 && result.length > 1) {
+          result = result.filter(p => p.id !== sourcePaneId);
+          updateRowsAfterPaneRemoval(sourcePaneId, result.map(p => p.id));
+        }
+      }
+
+      return result;
+    });
+
+    setActivePaneId(targetPaneId);
+  }, [updateRowsAfterPaneRemoval]);
+
   const handlePaneFileLoaded = useCallback((paneId: string, path: string | null) => {
     setPanes(prev => prev.map(pane => (
       pane.id === paneId ? { ...pane, currentFile: path } : pane
@@ -790,8 +861,10 @@ useEffect(() => {
                           ref={registerPaneHandle(pane.id)}
                           tabs={pane.tabs}
                           activeTabId={pane.activeTabId}
+                          paneId={pane.id}
                           onTabSelect={(tabId) => handleTabSelect(pane.id, tabId)}
                           onTabClose={(tabId) => handleTabClose(pane.id, tabId)}
+                          onTabDrop={(data) => handleTabDrop(pane.id, data)}
                           onFileLoaded={(path) => handlePaneFileLoaded(pane.id, path)}
                           onCursorChange={(line) => handlePaneCursorChange(pane.id, line)}
                           onActivate={() => focusPane(pane.id)}
