@@ -1,0 +1,18 @@
+/// <reference types="vite/client" />
+
+interface Window {
+  ipcRenderer: {
+    on(channel: string, func: (...args: any[]) => void): () => void;
+    off(channel: string, func: (...args: any[]) => void): void;
+    send(channel: string, ...args: any[]): void;
+    invoke(channel: string, ...args: any[]): Promise<any>;
+    fileOpen(): Promise<{ filePath: string, content: string } | null>;
+    fileSave(filePath: string, content: string): Promise<boolean>;
+    fileReadDir(dirPath: string): Promise<Array<{ name: string, isDirectory: boolean, path: string }>>;
+    fileRead(filePath: string): Promise<string | null>;
+    folderOpen(): Promise<string | null>;
+    getBenchmarkFile: () => Promise<string>;
+    getNativeTheme: () => Promise<'dark' | 'light'>;
+    onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => () => void;
+  }
+}
