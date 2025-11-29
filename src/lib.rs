@@ -27,20 +27,22 @@
 //!
 //!     AST → Insights extraction
 //!
-//!     - Document analysis and navigation utilities
+//!     - Document analysis and navigation utilities (symbols, folding, hovers)
 //!     - Reference resolution: go-to-definition, find-references
-//!     - Symbol extraction and hierarchy building
+//!     - Completion provider for references, sessions, paths, and verbatim labels
+//!     - Annotation helpers: navigation and resolution edits
 //!     - Token classification for syntax highlighting
 //!     - Preview text extraction for hover tooltips
-//!     - Foldable range detection
 //!     - Protocol-agnostic: reusable across LSP, CLI, editor plugins
 //!
 //! lex-babel: Format Transformation
 //!
 //!     AST → Multiple output formats
 //!
-//!     - Multi-format conversion: Lex ↔ Markdown, HTML, LaTeX
+//!     - Multi-format conversion: Lex ↔ Markdown, HTML, LaTeX, PDF
+//!     - Publish pipeline returning on-disk artifacts or in-memory strings
 //!     - Document serialization with formatting rules
+//!     - Shared snippet templates for assets and verbatim blocks
 //!     - Format-specific transformations and normalization
 //!     - Pretty-printing with configurable indentation, blank lines, list markers
 //!
@@ -60,6 +62,7 @@
 //!     Terminal-based document processing
 //!
 //!     - Format documents, convert between formats, validate documents, query AST
+//!     - `lex help` style documentation lookup over docs/ and specs/
 //!     - Designed for scripting, CI/CD pipelines, manual document processing
 //!
 //! lex-viewer: TUI Viewer
