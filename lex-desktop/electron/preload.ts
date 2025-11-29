@@ -22,10 +22,12 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const [channel, ...omit] = args
     return ipcRenderer.invoke(channel, ...omit)
   },
+  fileNew: (defaultPath?: string) => ipcRenderer.invoke('file-new', defaultPath) as Promise<{ filePath: string, content: string } | null>,
   fileOpen: () => ipcRenderer.invoke('file-open'),
   fileSave: (filePath: string, content: string) => ipcRenderer.invoke('file-save', filePath, content),
   fileReadDir: (dirPath: string) => ipcRenderer.invoke('file-read-dir', dirPath),
   fileRead: (filePath: string) => ipcRenderer.invoke('file-read', filePath),
+  fileChecksum: (filePath: string) => ipcRenderer.invoke('file-checksum', filePath) as Promise<string | null>,
   folderOpen: () => ipcRenderer.invoke('folder-open'),
   getInitialFolder: () => ipcRenderer.invoke('get-initial-folder'),
   setLastFolder: (folderPath: string) => ipcRenderer.invoke('set-last-folder', folderPath),
@@ -35,4 +37,39 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     ipcRenderer.on('native-theme-changed', handler);
     return () => ipcRenderer.removeListener('native-theme-changed', handler);
   },
+  getOpenTabs: () => ipcRenderer.invoke('get-open-tabs') as Promise<{ tabs: string[]; activeTab: string | null }>,
+  setOpenTabs: (tabs: string[], activeTab: string | null) => ipcRenderer.invoke('set-open-tabs', tabs, activeTab),
+  onMenuNewFile: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-new-file', handler);
+    return () => ipcRenderer.removeListener('menu-new-file', handler);
+  },
+  onMenuOpenFile: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-open-file', handler);
+    return () => ipcRenderer.removeListener('menu-open-file', handler);
+  },
+  onMenuOpenFolder: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-open-folder', handler);
+    return () => ipcRenderer.removeListener('menu-open-folder', handler);
+  },
+  onMenuSave: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-save', handler);
+    return () => ipcRenderer.removeListener('menu-save', handler);
+  },
+  onMenuFormat: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-format', handler);
+    return () => ipcRenderer.removeListener('menu-format', handler);
+  },
+  fileExport: (sourcePath: string, format: string) => ipcRenderer.invoke('file-export', sourcePath, format) as Promise<string>,
+  onMenuExport: (callback: (format: string) => void) => {
+    const handler = (_event: any, format: string) => callback(format);
+    ipcRenderer.on('menu-export', handler);
+    return () => ipcRenderer.removeListener('menu-export', handler);
+  },
+  shareWhatsApp: (content: string) => ipcRenderer.invoke('share-whatsapp', content) as Promise<void>,
+  showItemInFolder: (fullPath: string) => ipcRenderer.invoke('show-item-in-folder', fullPath),
 })

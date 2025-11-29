@@ -1,36 +1,134 @@
-import { useState, useEffect, useRef } from 'react'
-import { Editor, EditorHandle } from './components/Editor'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { toast } from 'sonner'
+import { EditorPane, EditorPaneHandle } from './components/EditorPane'
 import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
-import { StatusBar } from './components/StatusBar'
+import { ExportStatus } from './components/StatusBar'
 import { initDebugMonaco } from './debug-monaco'
-import type * as Monaco from 'monaco-editor'
 
 initDebugMonaco();
 
 function App() {
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
-  const [fileToOpen, setFileToOpen] = useState<string | null>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
-  const [editor, setEditor] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
-  const editorRef = useRef<EditorHandle>(null);
+  const [cursorLine, setCursorLine] = useState<number>(0);
+  const [exportStatus, setExportStatus] = useState<ExportStatus>({ isExporting: false, format: null });
+  const editorPaneRef = useRef<EditorPaneHandle>(null);
 
-  const handleOpenFolder = async () => {
+  const handleNewFile = useCallback(async () => {
+    // Use rootPath as the default directory for the save dialog
+    const result = await window.ipcRenderer.fileNew(rootPath);
+    if (result) {
+      await editorPaneRef.current?.openFile(result.filePath);
+    }
+  }, [rootPath]);
+
+  const handleOpenFolder = useCallback(async () => {
     const result = await window.ipcRenderer.invoke('folder-open');
     if (result) {
       setRootPath(result);
       // Persist the selected folder
       await window.ipcRenderer.setLastFolder(result);
     }
-  };
+  }, []);
 
-  const handleOpenFile = async () => {
-    await editorRef.current?.openFile();
-  };
+  const handleOpenFile = useCallback(async () => {
+    const result = await window.ipcRenderer.fileOpen();
+    if (result) {
+      await editorPaneRef.current?.openFile(result.filePath);
+    }
+  }, []);
 
-  const handleSave = async () => {
-    await editorRef.current?.save();
-  };
+  const handleSave = useCallback(async () => {
+    await editorPaneRef.current?.save();
+  }, []);
+
+  const handleFormat = useCallback(async () => {
+    await editorPaneRef.current?.format();
+  }, []);
+
+  const handleShareWhatsApp = useCallback(async () => {
+    const editor = editorPaneRef.current?.getEditor();
+    if (!editor) {
+      toast.error('No document to share');
+      return;
+    }
+    const content = editor.getValue();
+    if (!content.trim()) {
+      toast.error('Document is empty');
+      return;
+    }
+    await window.ipcRenderer.shareWhatsApp(content);
+  }, []);
+
+  /**
+   * Converts the current non-lex file to lex format.
+   *
+   * Uses the lex CLI to convert markdown/html/txt to lex format,
+   * then opens the new .lex file.
+   */
+  const handleConvertToLex = useCallback(async () => {
+    const filePath = editorPaneRef.current?.getCurrentFile();
+    if (!filePath) {
+      toast.error('No file open to convert');
+      return;
+    }
+
+    // Save before conversion - CLI uses the file on disk
+    await editorPaneRef.current?.save();
+
+    setExportStatus({ isExporting: true, format: 'lex' });
+
+    try {
+      const outputPath = await window.ipcRenderer.fileExport(filePath, 'lex');
+      const fileName = outputPath.split('/').pop() || outputPath;
+      toast.success(`Converted to ${fileName}`);
+      // Open the newly created lex file
+      await editorPaneRef.current?.openFile(outputPath);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Conversion failed';
+      toast.error(message);
+    } finally {
+      setExportStatus({ isExporting: false, format: null });
+    }
+  }, []);
+
+  /**
+   * Exports the current file to the specified format.
+   *
+   * Export flow:
+   * 1. Save the current editor content to disk (export uses the file on disk)
+   * 2. Show spinner in status bar
+   * 3. Call the lex CLI to convert the file
+   * 4. Show success/error toast
+   */
+  const handleExport = useCallback(async (format: string) => {
+    const filePath = editorPaneRef.current?.getCurrentFile();
+    if (!filePath) {
+      toast.error('No file open to export');
+      return;
+    }
+
+    // Save before export - export uses the file on disk
+    await editorPaneRef.current?.save();
+
+    setExportStatus({ isExporting: true, format });
+
+    try {
+      const outputPath = await window.ipcRenderer.fileExport(filePath, format);
+      const fileName = outputPath.split('/').pop() || outputPath;
+      toast.success(`Exported to ${fileName}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Export failed';
+      toast.error(message);
+    } finally {
+      setExportStatus({ isExporting: false, format: null });
+    }
+  }, []);
+
+  const handleFileSelect = useCallback(async (path: string) => {
+    await editorPaneRef.current?.openFile(path);
+  }, []);
 
   useEffect(() => {
     console.log('App mounted, initializing Monaco...');
@@ -47,33 +145,54 @@ function App() {
       }
     };
     loadInitialFolder();
-
-    // Set editor reference after a short delay to ensure it's initialized
-    const timer = setTimeout(() => {
-      setEditor(editorRef.current?.getEditor() ?? null);
-    }, 100);
-    return () => clearTimeout(timer);
   }, []);
+
+  // Listen for menu events
+  useEffect(() => {
+    const unsubNewFile = window.ipcRenderer.onMenuNewFile(handleNewFile);
+    const unsubOpenFile = window.ipcRenderer.onMenuOpenFile(handleOpenFile);
+    const unsubOpenFolder = window.ipcRenderer.onMenuOpenFolder(handleOpenFolder);
+    const unsubSave = window.ipcRenderer.onMenuSave(handleSave);
+    const unsubFormat = window.ipcRenderer.onMenuFormat(handleFormat);
+    const unsubExport = window.ipcRenderer.onMenuExport(handleExport);
+
+    return () => {
+      unsubNewFile();
+      unsubOpenFile();
+      unsubOpenFolder();
+      unsubSave();
+      unsubFormat();
+      unsubExport();
+    };
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport]);
 
   return (
     <Layout
       rootPath={rootPath}
-      onFileSelect={(path) => setFileToOpen(path)}
+      onFileSelect={handleFileSelect}
+      onNewFile={handleNewFile}
       onOpenFolder={handleOpenFolder}
       onOpenFile={handleOpenFile}
       onSave={handleSave}
+      onFormat={handleFormat}
+      onExport={handleExport}
+      onShareWhatsApp={handleShareWhatsApp}
+      onConvertToLex={handleConvertToLex}
       currentFile={currentFile}
-      panel={<Outline currentFile={currentFile} />}
+      panel={
+        <Outline
+          currentFile={currentFile}
+          editor={editorPaneRef.current?.getEditor()}
+          cursorLine={cursorLine}
+        />
+      }
     >
-      <Editor
-        ref={editorRef}
-        fileToOpen={fileToOpen}
-        onFileLoaded={(path) => {
-          setCurrentFile(path);
-          setEditor(editorRef.current?.getEditor() ?? null);
-        }}
+      <EditorPane
+        ref={editorPaneRef}
+        onFileLoaded={(path) => setCurrentFile(path)}
+        onCursorChange={setCursorLine}
+        exportStatus={exportStatus}
       />
-      <StatusBar editor={editor} />
     </Layout>
   )
 }
