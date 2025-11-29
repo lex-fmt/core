@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState, useCallback, useEffect } from 'react';
 import { Editor, EditorHandle } from './Editor';
 import { TabBar, Tab } from './TabBar';
-import { StatusBar } from './StatusBar';
+import { StatusBar, ExportStatus } from './StatusBar';
 import type * as Monaco from 'monaco-editor';
 
 /**
@@ -20,6 +20,7 @@ export interface EditorPaneHandle {
 interface EditorPaneProps {
     onFileLoaded?: (path: string | null) => void;
     onCursorChange?: (line: number) => void;
+    exportStatus?: ExportStatus;
 }
 
 /**
@@ -38,7 +39,7 @@ function computeChecksum(content: string): string {
 }
 
 export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function EditorPane(
-    { onFileLoaded, onCursorChange },
+    { onFileLoaded, onCursorChange, exportStatus },
     ref
 ) {
     const [tabs, setTabs] = useState<Tab[]>([]);
@@ -321,7 +322,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
                     onFileLoaded={handleFileLoaded}
                 />
             </div>
-            <StatusBar editor={editor} />
+            <StatusBar editor={editor} exportStatus={exportStatus} />
         </div>
     );
 });

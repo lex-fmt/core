@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import type * as Monaco from 'monaco-editor';
+
+export interface ExportStatus {
+    isExporting: boolean;
+    format: string | null;
+}
 
 interface StatusBarProps {
     editor: Monaco.editor.IStandaloneCodeEditor | null;
+    exportStatus?: ExportStatus;
 }
 
 interface CursorInfo {
@@ -12,7 +19,7 @@ interface CursorInfo {
     selectedLines: number;
 }
 
-export function StatusBar({ editor }: StatusBarProps) {
+export function StatusBar({ editor, exportStatus }: StatusBarProps) {
     const [cursor, setCursor] = useState<CursorInfo>({ line: 1, column: 1, selected: 0, selectedLines: 0 });
 
     useEffect(() => {
@@ -61,6 +68,12 @@ export function StatusBar({ editor }: StatusBarProps) {
             {cursor.selected > 0 && (
                 <span>
                     ({cursor.selected} selected{cursor.selectedLines > 1 ? `, ${cursor.selectedLines} lines` : ''})
+                </span>
+            )}
+            {exportStatus?.isExporting && (
+                <span className="flex items-center gap-1.5">
+                    <Loader2 size={12} className="animate-spin" />
+                    Exporting to {exportStatus.format}
                 </span>
             )}
             <span className="ml-auto">Lex</span>

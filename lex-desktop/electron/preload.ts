@@ -59,4 +59,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     ipcRenderer.on('menu-save', handler);
     return () => ipcRenderer.removeListener('menu-save', handler);
   },
+  fileExport: (sourcePath: string, format: string) => ipcRenderer.invoke('file-export', sourcePath, format) as Promise<string>,
+  onMenuExport: (callback: (format: string) => void) => {
+    const handler = (_event: any, format: string) => callback(format);
+    ipcRenderer.on('menu-export', handler);
+    return () => ipcRenderer.removeListener('menu-export', handler);
+  },
 })

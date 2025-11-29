@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { toast } from 'sonner'
 import { EditorPane, EditorPaneHandle } from './components/EditorPane'
 import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
+import { ExportStatus } from './components/StatusBar'
 import { initDebugMonaco } from './debug-monaco'
 
 initDebugMonaco();
@@ -10,6 +12,7 @@ function App() {
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [cursorLine, setCursorLine] = useState<number>(0);
+  const [exportStatus, setExportStatus] = useState<ExportStatus>({ isExporting: false, format: null });
   const editorPaneRef = useRef<EditorPaneHandle>(null);
 
   const handleNewFile = useCallback(async () => {
@@ -40,6 +43,39 @@ function App() {
     await editorPaneRef.current?.save();
   }, []);
 
+  /**
+   * Exports the current file to the specified format.
+   *
+   * Export flow:
+   * 1. Save the current editor content to disk (export uses the file on disk)
+   * 2. Show spinner in status bar
+   * 3. Call the lex CLI to convert the file
+   * 4. Show success/error toast
+   */
+  const handleExport = useCallback(async (format: string) => {
+    const filePath = editorPaneRef.current?.getCurrentFile();
+    if (!filePath) {
+      toast.error('No file open to export');
+      return;
+    }
+
+    // Save before export - export uses the file on disk
+    await editorPaneRef.current?.save();
+
+    setExportStatus({ isExporting: true, format });
+
+    try {
+      const outputPath = await window.ipcRenderer.fileExport(filePath, format);
+      const fileName = outputPath.split('/').pop() || outputPath;
+      toast.success(`Exported to ${fileName}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Export failed';
+      toast.error(message);
+    } finally {
+      setExportStatus({ isExporting: false, format: null });
+    }
+  }, []);
+
   const handleFileSelect = useCallback(async (path: string) => {
     await editorPaneRef.current?.openFile(path);
   }, []);
@@ -67,14 +103,16 @@ function App() {
     const unsubOpenFile = window.ipcRenderer.onMenuOpenFile(handleOpenFile);
     const unsubOpenFolder = window.ipcRenderer.onMenuOpenFolder(handleOpenFolder);
     const unsubSave = window.ipcRenderer.onMenuSave(handleSave);
+    const unsubExport = window.ipcRenderer.onMenuExport(handleExport);
 
     return () => {
       unsubNewFile();
       unsubOpenFile();
       unsubOpenFolder();
       unsubSave();
+      unsubExport();
     };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave]);
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleExport]);
 
   return (
     <Layout
@@ -97,6 +135,7 @@ function App() {
         ref={editorPaneRef}
         onFileLoaded={(path) => setCurrentFile(path)}
         onCursorChange={setCursorLine}
+        exportStatus={exportStatus}
       />
     </Layout>
   )

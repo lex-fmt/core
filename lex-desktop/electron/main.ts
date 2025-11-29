@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu } from 'electron
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as fs from 'fs/promises';
+import { spawn } from 'child_process';
 import { LspManager } from './lsp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -40,6 +41,22 @@ function getWelcomeFolderPath(): string {
   }
   return path.join(process.env.APP_ROOT!, 'welcome');
 }
+
+function getLexCliPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'lex');
+  }
+  // Hardcoded path for dev environment (same pattern as lsp-manager.ts)
+  return '/private/tmp/lex/desktop-app/target/debug/lex';
+}
+
+/**
+ * Maps export format names to file extensions.
+ */
+const FORMAT_EXTENSIONS: Record<string, string> = {
+  markdown: 'md',
+  html: 'html',
+};
 
 // The built directory structure
 //
@@ -230,6 +247,51 @@ ipcMain.handle('set-open-tabs', async (_, tabs: string[], activeTab: string | nu
   return true;
 });
 
+/**
+ * Exports a lex document to another format using the lex CLI.
+ *
+ * The export process:
+ * 1. Takes the source lex file path and target format
+ * 2. Computes the output path by replacing .lex extension with format extension
+ * 3. Spawns `lex convert <source> --to <format> -o <output>`
+ * 4. Returns the output path on success, or throws on error
+ *
+ * @param sourcePath - Path to the .lex file to export
+ * @param format - Target format ('markdown' or 'html')
+ * @returns The path to the exported file
+ */
+ipcMain.handle('file-export', async (_, sourcePath: string, format: string): Promise<string> => {
+  const ext = FORMAT_EXTENSIONS[format];
+  if (!ext) {
+    throw new Error(`Unsupported export format: ${format}`);
+  }
+
+  // Compute output path: replace .lex extension with target format extension
+  const outputPath = sourcePath.replace(/\.lex$/, `.${ext}`);
+  const lexPath = getLexCliPath();
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn(lexPath, ['convert', sourcePath, '--to', format, '-o', outputPath]);
+
+    let stderr = '';
+    proc.stderr.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    proc.on('error', (err) => {
+      reject(new Error(`Failed to spawn lex CLI: ${err.message}`));
+    });
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve(outputPath);
+      } else {
+        reject(new Error(stderr || `lex CLI exited with code ${code}`));
+      }
+    });
+  });
+});
+
 // Theme detection
 ipcMain.handle('get-native-theme', () => {
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
@@ -303,6 +365,20 @@ function createMenu() {
           label: 'Save',
           accelerator: 'CmdOrCtrl+S',
           click: () => win?.webContents.send('menu-save')
+        },
+        { type: 'separator' },
+        {
+          label: 'Export',
+          submenu: [
+            {
+              label: 'Export to Markdown',
+              click: () => win?.webContents.send('menu-export', 'markdown')
+            },
+            {
+              label: 'Export to HTML',
+              click: () => win?.webContents.send('menu-export', 'html')
+            }
+          ]
         },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' }
