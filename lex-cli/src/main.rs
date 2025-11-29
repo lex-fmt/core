@@ -23,7 +23,7 @@
 // Example:
 //  lex inspect file.lex --extra-all-nodes true --extra-max-depth 5
 
-mod transforms;
+use lex_cli::transforms;
 
 use clap::{Arg, ArgAction, Command, ValueHint};
 use lex_babel::{

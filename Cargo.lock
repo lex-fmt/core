@@ -1119,6 +1119,7 @@ dependencies = [
  "lex-parser",
  "markup5ever_rcdom",
  "once_cell",
+ "pathdiff",
  "regex",
  "serde",
  "tempfile",
