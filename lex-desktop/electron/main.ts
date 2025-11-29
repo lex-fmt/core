@@ -10,11 +10,25 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Settings persistence
 const SETTINGS_FILE = 'settings.json';
 
+interface WindowState {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+  isMaximized?: boolean;
+}
+
 interface AppSettings {
   lastFolder?: string;
   openTabs?: string[];
   activeTab?: string;
+  windowState?: WindowState;
 }
+
+const DEFAULT_WINDOW_STATE: WindowState = {
+  width: 1200,
+  height: 800,
+};
 
 async function getSettingsPath(): Promise<string> {
   return path.join(app.getPath('userData'), SETTINGS_FILE);
@@ -80,14 +94,49 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 const lspManager = new LspManager()
 
-function createWindow() {
+async function createWindow() {
+  // Load saved window state
+  const settings = await loadSettings();
+  const windowState = settings.windowState || DEFAULT_WINDOW_STATE;
+
   win = new BrowserWindow({
     title: 'Lex Editor',
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
+    x: windowState.x,
+    y: windowState.y,
+    width: windowState.width,
+    height: windowState.height,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
   })
+
+  // Restore maximized state
+  if (windowState.isMaximized) {
+    win.maximize();
+  }
+
+  // Save window state on changes
+  const saveWindowState = async () => {
+    if (!win || win.isDestroyed()) return;
+
+    const isMaximized = win.isMaximized();
+    const bounds = win.getBounds();
+
+    const settings = await loadSettings();
+    settings.windowState = {
+      x: isMaximized ? settings.windowState?.x : bounds.x,
+      y: isMaximized ? settings.windowState?.y : bounds.y,
+      width: isMaximized ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width : bounds.width,
+      height: isMaximized ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height : bounds.height,
+      isMaximized,
+    };
+    await saveSettings(settings);
+  };
+
+  win.on('close', saveWindowState);
+  win.on('resize', saveWindowState);
+  win.on('move', saveWindowState);
 
   lspManager.setWebContents(win.webContents)
   lspManager.start()
