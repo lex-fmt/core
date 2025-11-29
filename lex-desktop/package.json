@@ -53,6 +53,16 @@
       "dist/**/*",
       "dist-electron/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../target/debug/lex-lsp",
+        "to": "lex-lsp"
+      },
+      {
+        "from": "../specs",
+        "to": "specs"
+      }
     ]
   }
 }

@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
-import { ipcMain, WebContents } from 'electron';
+import { ipcMain, WebContents, app } from 'electron';
 import * as fs from 'fs';
+import * as path from 'path';
 
 const LOG_FILE = '/tmp/lex-desktop-lsp.log';
 
@@ -24,8 +25,15 @@ export class LspManager {
   start() {
     if (this.lspProcess) return;
 
-    // Hardcoded path for dev environment
-    const lspPath = '/private/tmp/lex/desktop-app/target/debug/lex-lsp';
+    let lspPath: string;
+    
+    if (app.isPackaged) {
+      // In production, the binary is in Resources/lex-lsp
+      lspPath = path.join(process.resourcesPath, 'lex-lsp');
+    } else {
+      // Hardcoded path for dev environment
+      lspPath = '/private/tmp/lex/desktop-app/target/debug/lex-lsp';
+    }
 
     console.log(`Spawning LSP from: ${lspPath}`);
     log(`Spawning LSP from: ${lspPath}`);

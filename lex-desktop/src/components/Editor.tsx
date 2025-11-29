@@ -39,32 +39,40 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
     }, [fileToOpen, currentFile]); // Added currentFile to dependency array
 
     const handleOpenFile = async (path: string) => {
-        // We need a way to read file content by path.
-        // We can reuse fileOpen logic but we need a new IPC or just use fs in main.
-        // Wait, we have fileOpen which opens a dialog. We need fileRead(path).
-        // Let's add fileRead to IPC.
-        // For now, let's assume we can read it.
-        // Actually, we can just use the existing fileOpen logic but passing a path?
-        // No, fileOpen opens a dialog.
-
-        // Let's assume we implement 'file-read' IPC.
         const content = await window.ipcRenderer.invoke('file-read', path);
         if (content !== null && editorRef.current) {
             setCurrentFile(path);
             if (onFileLoaded) onFileLoaded(path);
-            const model = editorRef.current.getModel();
-            if (model) {
-                model.setValue(content);
-                const uri = 'file://' + path;
-                lspClient.sendNotification('textDocument/didOpen', {
+
+            // Dispose old model if it exists and is not the initial one (optional optimization)
+            // const oldModel = editorRef.current.getModel();
+            // if (oldModel) {
+            //     oldModel.dispose();
+            // }
+
+            const uri = monaco.Uri.file(path);
+            const model = monaco.editor.createModel(content, 'lex', uri);
+            editorRef.current.setModel(model);
+
+            lspClient.sendNotification('textDocument/didOpen', {
+                textDocument: {
+                    uri: uri.toString(),
+                    languageId: 'lex',
+                    version: 1,
+                    text: content
+                }
+            });
+
+            // Handle changes for the new model
+            model.onDidChangeContent((_e) => {
+                lspClient.sendNotification('textDocument/didChange', {
                     textDocument: {
-                        uri: uri,
-                        languageId: 'lex',
-                        version: 1,
-                        text: content
-                    }
+                        uri: uri.toString(),
+                        version: 2, // Should increment
+                    },
+                    contentChanges: [{ text: model.getValue() }]
                 });
-            }
+            });
         }
     };
 

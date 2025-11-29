@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 interface Window {
   ipcRenderer: {
     on(channel: string, func: (...args: any[]) => void): () => void;
@@ -9,5 +11,6 @@ interface Window {
     fileReadDir(dirPath: string): Promise<Array<{ name: string, isDirectory: boolean, path: string }>>;
     fileRead(filePath: string): Promise<string | null>;
     folderOpen(): Promise<string | null>;
+    getBenchmarkFile: () => Promise<string>;
   }
 }

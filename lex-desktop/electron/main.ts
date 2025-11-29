@@ -105,6 +105,13 @@ ipcMain.handle('folder-open', async () => {
   return filePaths[0];
 });
 
+ipcMain.handle('get-benchmark-file', async () => {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'specs/v1/benchmark/30-a-place-for-ideas.lex');
+  }
+  return path.join(process.env.APP_ROOT, '../specs/v1/benchmark/30-a-place-for-ideas.lex');
+});
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.

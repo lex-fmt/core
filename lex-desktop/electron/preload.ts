@@ -22,11 +22,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const [channel, ...omit] = args
     return ipcRenderer.invoke(channel, ...omit)
   },
-
-  // You can expose other APTs you need here.
   fileOpen: () => ipcRenderer.invoke('file-open'),
   fileSave: (filePath: string, content: string) => ipcRenderer.invoke('file-save', filePath, content),
   fileReadDir: (dirPath: string) => ipcRenderer.invoke('file-read-dir', dirPath),
   fileRead: (filePath: string) => ipcRenderer.invoke('file-read', filePath),
   folderOpen: () => ipcRenderer.invoke('folder-open'),
+  getBenchmarkFile: () => ipcRenderer.invoke('get-benchmark-file'),
 })

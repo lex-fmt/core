@@ -1,5 +1,5 @@
 import './App.css'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Editor } from './components/Editor'
 import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
@@ -15,6 +15,20 @@ function App() {
       setRootPath(result);
     }
   };
+
+  useEffect(() => {
+    const loadBenchmark = async () => {
+      try {
+        const path = await window.ipcRenderer.getBenchmarkFile();
+        if (path) {
+          setFileToOpen(path);
+        }
+      } catch (e) {
+        console.error('App: Error loading benchmark file:', e);
+      }
+    };
+    loadBenchmark();
+  }, []);
 
   return (
     <Layout

@@ -11,6 +11,16 @@
     "dist",
     "dist-electron"
   ],
+  "extraResources": [
+    {
+      "from": "../target/debug/lex-lsp",
+      "to": "lex-lsp"
+    },
+    {
+      "from": "../specs",
+      "to": "specs"
+    }
+  ],
   "mac": {
     "icon": "public/icon.png",
     "target": [

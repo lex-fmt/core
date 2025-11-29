@@ -12,50 +12,82 @@ export class LspClient {
   private pendingRequests = new Map<number | string, { resolve: (val: any) => void; reject: (err: any) => void }>();
   private notificationHandlers = new Map<string, (params: any) => void>();
 
+  private buffer: Uint8Array = new Uint8Array(0);
+
   constructor() {
     // @ts-ignore
-    window.ipcRenderer.on('lsp-output', (_event, data) => {
-      this.handleMessage(data);
+    window.ipcRenderer.on('lsp-output', (_event, data: Uint8Array) => {
+      this.appendBuffer(data);
+      this.processBuffer();
     });
   }
 
-  private handleMessage(data: Uint8Array) {
-    const text = new TextDecoder().decode(data);
-    // The LSP output might contain headers (Content-Length: ...).
-    // For simplicity in this manual adapter, we assume the server sends well-formed JSON-RPC
-    // but we might need to strip headers if the server sends them.
-    // lex-lsp uses tower-lsp which sends headers.
-    
-    // Simple header parsing strategy:
-    // 1. Split by \r\n\r\n to separate headers from body.
-    // 2. Parse body.
-    // Note: This is a naive implementation. A robust one would buffer chunks.
-    
-    const parts = text.split('\r\n\r\n');
-    if (parts.length < 2) return; // Incomplete or just headers?
-    
-    const body = parts[1];
-    try {
-      const message: LspMessage = JSON.parse(body);
-      
-      if (message.id !== undefined && this.pendingRequests.has(message.id)) {
-        // Response to a request
-        const { resolve, reject } = this.pendingRequests.get(message.id)!;
-        this.pendingRequests.delete(message.id);
-        if (message.error) {
-          reject(message.error);
-        } else {
-          resolve(message.result);
-        }
-      } else if (message.method) {
-        // Notification or Request from server
-        const handler = this.notificationHandlers.get(message.method);
-        if (handler) {
-          handler(message.params);
+  private appendBuffer(data: Uint8Array) {
+    const newBuffer = new Uint8Array(this.buffer.length + data.length);
+    newBuffer.set(this.buffer);
+    newBuffer.set(data, this.buffer.length);
+    this.buffer = newBuffer;
+  }
+
+  private processBuffer() {
+    while (true) {
+      // Find header end (\r\n\r\n = 13 10 13 10)
+      let headerEndIndex = -1;
+      for (let i = 0; i < this.buffer.length - 3; i++) {
+        if (this.buffer[i] === 13 && this.buffer[i+1] === 10 && this.buffer[i+2] === 13 && this.buffer[i+3] === 10) {
+          headerEndIndex = i + 4;
+          break;
         }
       }
-    } catch (e) {
-      console.error('Failed to parse LSP message', e);
+
+      if (headerEndIndex === -1) return;
+
+      const headerBytes = this.buffer.slice(0, headerEndIndex);
+      const headerString = new TextDecoder().decode(headerBytes);
+      const match = headerString.match(/Content-Length: (\d+)/);
+      
+      if (!match) {
+        // Invalid header, discard? Or maybe wait for more data?
+        // If we found \r\n\r\n but no Content-Length, it's bad.
+        // For now, assume it's there.
+        console.error('Invalid LSP header', headerString);
+        this.buffer = this.buffer.slice(headerEndIndex);
+        continue;
+      }
+
+      const contentLength = parseInt(match[1], 10);
+      
+      if (this.buffer.length < headerEndIndex + contentLength) return;
+
+      const bodyBytes = this.buffer.slice(headerEndIndex, headerEndIndex + contentLength);
+      this.buffer = this.buffer.slice(headerEndIndex + contentLength);
+
+      try {
+        const bodyString = new TextDecoder().decode(bodyBytes);
+        const message: LspMessage = JSON.parse(bodyString);
+        this.handleMessage(message);
+      } catch (e) {
+        console.error('Failed to parse LSP message', e);
+      }
+    }
+  }
+
+  private handleMessage(message: LspMessage) {
+    if (message.id !== undefined && this.pendingRequests.has(message.id)) {
+      // Response to a request
+      const { resolve, reject } = this.pendingRequests.get(message.id)!;
+      this.pendingRequests.delete(message.id);
+      if (message.error) {
+        reject(message.error);
+      } else {
+        resolve(message.result);
+      }
+    } else if (message.method) {
+      // Notification or Request from server
+      const handler = this.notificationHandlers.get(message.method);
+      if (handler) {
+        handler(message.params);
+      }
     }
   }
 
@@ -86,7 +118,9 @@ export class LspClient {
 
   private send(message: any) {
     const json = JSON.stringify(message);
-    const payload = `Content-Length: ${json.length}\r\n\r\n${json}`;
+    const encoder = new TextEncoder();
+    const encoded = encoder.encode(json);
+    const payload = `Content-Length: ${encoded.length}\r\n\r\n${json}`;
     // @ts-ignore
     window.ipcRenderer.send('lsp-input', payload);
   }

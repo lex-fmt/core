@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Uri } from 'monaco-editor';
 import { lspClient } from '../lsp/client';
 
 interface DocumentSymbol {
@@ -29,7 +30,7 @@ export function Outline({ currentFile }: OutlineProps) {
 
         const fetchSymbols = async () => {
             try {
-                const uri = 'file://' + currentFile;
+                const uri = Uri.file(currentFile).toString();
                 // We might need to wait for the document to be opened in the LSP server.
                 // A simple retry or delay might be needed if this runs too fast.
                 // But since Editor opens it first, it should be fine if we are reactive to currentFile.
@@ -84,7 +85,7 @@ export function Outline({ currentFile }: OutlineProps) {
     };
 
     return (
-        <div style={{ height: '100%', overflowY: 'auto', color: '#cccccc', fontFamily: 'system-ui, sans-serif' }}>
+        <div data-testid="outline-view" style={{ height: '100%', overflowY: 'auto', color: '#cccccc', fontFamily: 'system-ui, sans-serif' }}>
             <div style={{
                 padding: '10px',
                 fontSize: '11px',
