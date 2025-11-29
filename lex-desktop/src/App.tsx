@@ -20,7 +20,14 @@ interface PaneState {
 interface PaneRowState {
   id: string;
   paneIds: string[];
+  size?: number;
+  paneSizes?: Record<string, number>;
 }
+
+const DEFAULT_ROW_SIZE = 1;
+const DEFAULT_PANE_SIZE = 1;
+const MIN_ROW_SIZE = 0.1;
+const MIN_PANE_SIZE = 0.1;
 
 const createPaneId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -50,6 +57,50 @@ const createEmptyPane = (id?: string): PaneState => ({
   cursorLine: 0,
 });
 
+const getRowSize = (row: PaneRowState): number => (row.size && row.size > 0 ? row.size : DEFAULT_ROW_SIZE);
+
+const normalizePaneSizes = (row: PaneRowState, overridePaneIds?: string[]): Record<string, number> => {
+  const normalized: Record<string, number> = {};
+  const paneIds = overridePaneIds ?? row.paneIds;
+  paneIds.forEach(id => {
+    const value = row.paneSizes?.[id];
+    normalized[id] = value && value > 0 ? value : DEFAULT_PANE_SIZE;
+  });
+  return normalized;
+};
+
+const getPaneWeight = (row: PaneRowState, paneId: string): number => {
+  const value = row.paneSizes?.[paneId];
+  return value && value > 0 ? value : DEFAULT_PANE_SIZE;
+};
+
+const withRowDefaults = (row: PaneRowState): PaneRowState => ({
+  id: row.id,
+  paneIds: [...row.paneIds],
+  size: row.size && row.size > 0 ? row.size : DEFAULT_ROW_SIZE,
+  paneSizes: normalizePaneSizes(row),
+});
+
+interface RowResizeState {
+  rowId: string;
+  nextRowId: string;
+  startY: number;
+  initialFirstSize: number;
+  initialSecondSize: number;
+  totalRowSize: number;
+  containerHeight: number;
+}
+
+interface ColumnResizeState {
+  rowId: string;
+  leftPaneId: string;
+  rightPaneId: string;
+  startX: number;
+  rowWidth: number;
+  initialLeftSize: number;
+  initialRightSize: number;
+}
+
 function App() {
   const defaultLayoutRef = useRef<{ panes: PaneState[]; rows: PaneRowState[]; activePaneId: string } | null>(null);
   if (!defaultLayoutRef.current) {
@@ -58,18 +109,30 @@ function App() {
     const initialRowId = createRowId();
     defaultLayoutRef.current = {
       panes: [first, second],
-      rows: [{ id: initialRowId, paneIds: [first.id, second.id] }],
+      rows: [{
+        id: initialRowId,
+        paneIds: [first.id, second.id],
+        size: DEFAULT_ROW_SIZE,
+        paneSizes: {
+          [first.id]: DEFAULT_PANE_SIZE,
+          [second.id]: DEFAULT_PANE_SIZE,
+        },
+      }],
       activePaneId: first.id,
     };
   }
 
   const [panes, setPanes] = useState<PaneState[]>(() => defaultLayoutRef.current!.panes);
-  const [paneRows, setPaneRows] = useState<PaneRowState[]>(() => defaultLayoutRef.current!.rows);
+  const [paneRows, setPaneRows] = useState<PaneRowState[]>(() => defaultLayoutRef.current!.rows.map(withRowDefaults));
   const [activePaneId, setActivePaneId] = useState<string>(() => defaultLayoutRef.current!.activePaneId);
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
   const [exportStatus, setExportStatus] = useState<ExportStatus>({ isExporting: false, format: null });
   const [layoutInitialized, setLayoutInitialized] = useState(false);
   const paneHandles = useRef(new Map<string, EditorPaneHandle | null>());
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef(new Map<string, HTMLDivElement | null>());
+  const [rowResize, setRowResize] = useState<RowResizeState | null>(null);
+  const [columnResize, setColumnResize] = useState<ColumnResizeState | null>(null);
 
   const resolvedActivePane = useMemo(() => {
     return panes.find(pane => pane.id === activePaneId) ?? panes[0] ?? null;
@@ -133,12 +196,14 @@ useEffect(() => {
 
           const paneIdSet = new Set(hydrated.map(p => p.id));
           const rowData = Array.isArray(layout.rows) ? layout.rows : [];
-          let rows = rowData
+          let rows: PaneRowState[] = rowData
             .map((row: any) => ({
               id: row.id || createRowId(),
               paneIds: Array.isArray(row.paneIds)
                 ? row.paneIds.filter((id: string) => paneIdSet.has(id))
                 : [],
+              size: typeof row.size === 'number' ? row.size : undefined,
+              paneSizes: row.paneSizes && typeof row.paneSizes === 'object' ? row.paneSizes : undefined,
             }))
             .filter(row => row.paneIds.length > 0);
 
@@ -148,7 +213,7 @@ useEffect(() => {
             .filter(id => !referencedIds.has(id));
 
           if (rows.length === 0) {
-            rows = [{ id: createRowId(), paneIds: hydrated.map(p => p.id) }];
+            rows = [withRowDefaults({ id: createRowId(), paneIds: hydrated.map(p => p.id) })];
           } else if (unreferenced.length > 0) {
             rows[0] = {
               ...rows[0],
@@ -157,7 +222,7 @@ useEffect(() => {
           }
 
           setPanes(hydrated);
-          setPaneRows(rows);
+          setPaneRows(rows.map(withRowDefaults));
 
           const savedActiveId = layout.activePaneId && hydrated.some(p => p.id === layout.activePaneId)
             ? layout.activePaneId
@@ -187,6 +252,8 @@ useEffect(() => {
         const rowsPayload = paneRows.map(row => ({
           id: row.id,
           paneIds: row.paneIds.filter(id => panes.some(p => p.id === id)),
+          size: row.size,
+          paneSizes: row.paneSizes,
         }));
         await window.ipcRenderer.setOpenTabs(payload, rowsPayload, activePaneIdValue);
       } catch (error) {
@@ -223,21 +290,84 @@ const focusPane = useCallback((paneId: string) => {
 
 const updateRowsAfterPaneRemoval = useCallback((paneId: string, remainingPaneIds: string[]) => {
   setPaneRows(prevRows => {
-    let next = prevRows
-      .map(row => ({ ...row, paneIds: row.paneIds.filter(id => id !== paneId) }))
-      .filter(row => row.paneIds.length > 0);
+    let removedRowSize = 0;
+    let removedIndex = -1;
+    const updatedRows: PaneRowState[] = [];
 
-    if (next.length === 0) {
+    prevRows.forEach((row, index) => {
+      if (!row.paneIds.includes(paneId)) {
+        updatedRows.push(row);
+        return;
+      }
+
+      const paneIds = row.paneIds.filter(id => id !== paneId);
+      if (paneIds.length === 0) {
+        removedRowSize += getRowSize(row);
+        removedIndex = index;
+        return;
+      }
+
+      const paneSizes = normalizePaneSizes(row, paneIds);
+      updatedRows.push({ ...row, paneIds, paneSizes });
+    });
+
+    let rows = updatedRows;
+
+    if (rows.length === 0) {
       if (remainingPaneIds.length > 0) {
-        next = [{ id: createRowId(), paneIds: [remainingPaneIds[0]] }];
+        rows = [withRowDefaults({ id: createRowId(), paneIds: [remainingPaneIds[0]] })];
       } else {
-        next = [{ id: createRowId(), paneIds: [] }];
+        rows = [withRowDefaults({ id: createRowId(), paneIds: [] })];
       }
     }
 
-    return next;
+    if (removedRowSize > 0 && rows.length > 0) {
+      const targetIndex = Math.min(
+        removedIndex >= 0 ? Math.min(removedIndex, rows.length - 1) : rows.length - 1,
+        rows.length - 1
+      );
+      rows = rows.map((row, idx) => (
+        idx === targetIndex ? { ...row, size: getRowSize(row) + removedRowSize } : row
+      ));
+    }
+
+    return rows.map(withRowDefaults);
   });
 }, []);
+
+const startRowResize = useCallback((rowId: string, nextRowId: string, clientY: number) => {
+  const row = paneRows.find(r => r.id === rowId);
+  const nextRow = paneRows.find(r => r.id === nextRowId);
+  if (!row || !nextRow || !workspaceRef.current) return;
+  const containerHeight = workspaceRef.current.getBoundingClientRect().height || 1;
+  const totalRowSize = paneRows.reduce((sum, current) => sum + getRowSize(current), 0);
+  setRowResize({
+    rowId,
+    nextRowId,
+    startY: clientY,
+    initialFirstSize: getRowSize(row),
+    initialSecondSize: getRowSize(nextRow),
+    totalRowSize,
+    containerHeight,
+  });
+}, [paneRows]);
+
+const startColumnResize = useCallback((rowId: string, leftPaneId: string, rightPaneId: string, clientX: number) => {
+  const row = paneRows.find(r => r.id === rowId);
+  const rowElement = rowRefs.current.get(rowId);
+  if (!row || !rowElement) return;
+  const rowWidth = rowElement.getBoundingClientRect().width || 1;
+  const paneSizes = normalizePaneSizes(row);
+  setColumnResize({
+    rowId,
+    leftPaneId,
+    rightPaneId,
+    startX: clientX,
+    rowWidth,
+    initialLeftSize: paneSizes[leftPaneId] ?? DEFAULT_PANE_SIZE,
+    initialRightSize: paneSizes[rightPaneId] ?? DEFAULT_PANE_SIZE,
+  });
+}, [paneRows]);
 
 const handleSplitVertical = useCallback(() => {
   if (!activePaneIdValue) return;
@@ -245,19 +375,26 @@ const handleSplitVertical = useCallback(() => {
   setPanes(prev => [...prev, newPane]);
   setPaneRows(prevRows => {
     if (prevRows.length === 0) {
-      return [{ id: createRowId(), paneIds: [newPane.id] }];
+      return [withRowDefaults({ id: createRowId(), paneIds: [newPane.id] })];
     }
-    let found = false;
+    let handled = false;
     const next = prevRows.map(row => {
-      if (!row.paneIds.includes(activePaneIdValue)) return row;
-      found = true;
-      const insertIndex = row.paneIds.indexOf(activePaneIdValue);
+      if (!row.paneIds.includes(activePaneIdValue)) {
+        return row;
+      }
+      handled = true;
       const paneIds = [...row.paneIds];
+      const insertIndex = paneIds.indexOf(activePaneIdValue);
       paneIds.splice(insertIndex + 1, 0, newPane.id);
-      return { ...row, paneIds };
+      const paneSizes = normalizePaneSizes(row, paneIds);
+      const currentWeight = paneSizes[activePaneIdValue];
+      const splitWeight = Math.max(currentWeight / 2, MIN_PANE_SIZE);
+      paneSizes[activePaneIdValue] = splitWeight;
+      paneSizes[newPane.id] = splitWeight;
+      return { ...row, paneIds, paneSizes };
     });
-    if (!found) {
-      return [...next, { id: createRowId(), paneIds: [newPane.id] }];
+    if (!handled) {
+      return [...next, withRowDefaults({ id: createRowId(), paneIds: [newPane.id] })];
     }
     return next;
   });
@@ -271,21 +408,99 @@ const handleSplitHorizontal = useCallback(() => {
   setPaneRows(prevRows => {
     if (prevRows.length === 0) {
       return [
-        { id: createRowId(), paneIds: [activePaneIdValue] },
-        { id: createRowId(), paneIds: [newPane.id] },
+        withRowDefaults({ id: createRowId(), paneIds: [activePaneIdValue] }),
+        withRowDefaults({ id: createRowId(), paneIds: [newPane.id] }),
       ];
     }
-    const rowIndex = prevRows.findIndex(row => row.paneIds.includes(activePaneIdValue));
-    const newRow = { id: createRowId(), paneIds: [newPane.id] };
-    if (rowIndex === -1) {
-      return [...prevRows, newRow];
+    let handled = false;
+    const next: PaneRowState[] = [];
+    prevRows.forEach(row => {
+      if (!row.paneIds.includes(activePaneIdValue) || handled) {
+        next.push(row);
+        return;
+      }
+      handled = true;
+      const rowSize = Math.max(getRowSize(row) / 2, MIN_ROW_SIZE);
+      const paneSizes = normalizePaneSizes(row);
+      next.push({ ...row, size: rowSize, paneSizes });
+      next.push(
+        withRowDefaults({
+          id: createRowId(),
+          paneIds: [newPane.id],
+          size: rowSize,
+          paneSizes: { [newPane.id]: DEFAULT_PANE_SIZE },
+        })
+      );
+    });
+    if (!handled) {
+      next.push(withRowDefaults({ id: createRowId(), paneIds: [newPane.id] }));
     }
-    const next = [...prevRows];
-    next.splice(rowIndex + 1, 0, newRow);
     return next;
   });
   setActivePaneId(newPane.id);
 }, [activePaneIdValue]);
+
+useEffect(() => {
+  if (!rowResize) return;
+  const handleMouseMove = (event: MouseEvent) => {
+    const delta = event.clientY - rowResize.startY;
+    const deltaSize = (delta / rowResize.containerHeight) * rowResize.totalRowSize;
+    const pairSum = rowResize.initialFirstSize + rowResize.initialSecondSize;
+    let newFirst = rowResize.initialFirstSize + deltaSize;
+    newFirst = Math.max(MIN_ROW_SIZE, Math.min(newFirst, pairSum - MIN_ROW_SIZE));
+    const newSecond = pairSum - newFirst;
+    setPaneRows(prev => prev.map(row => {
+      if (row.id === rowResize.rowId) {
+        return { ...row, size: newFirst };
+      }
+      if (row.id === rowResize.nextRowId) {
+        return { ...row, size: newSecond };
+      }
+      return row;
+    }));
+  };
+  const handleMouseUp = () => setRowResize(null);
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = 'row-resize';
+  return () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+  };
+}, [rowResize]);
+
+useEffect(() => {
+  if (!columnResize) return;
+  const handleMouseMove = (event: MouseEvent) => {
+    const delta = event.clientX - columnResize.startX;
+    const total = columnResize.initialLeftSize + columnResize.initialRightSize;
+    const deltaSize = (delta / columnResize.rowWidth) * total;
+    let newLeft = columnResize.initialLeftSize + deltaSize;
+    newLeft = Math.max(MIN_PANE_SIZE, Math.min(newLeft, total - MIN_PANE_SIZE));
+    const newRight = total - newLeft;
+    setPaneRows(prev => prev.map(row => {
+      if (row.id !== columnResize.rowId) return row;
+      const paneSizes = { ...normalizePaneSizes(row) };
+      paneSizes[columnResize.leftPaneId] = newLeft;
+      paneSizes[columnResize.rightPaneId] = newRight;
+      return { ...row, paneSizes };
+    }));
+  };
+  const handleMouseUp = () => setColumnResize(null);
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = 'col-resize';
+  return () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+  };
+}, [columnResize]);
 
   const handleClosePane = useCallback((paneId: string) => {
     setPanes(prev => {
@@ -521,60 +736,98 @@ const handleSplitHorizontal = useCallback(() => {
     };
   }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal]);
 
-  const renderPanes = () => (
-    <div className="flex flex-1 flex-col min-h-0">
-      {paneRows.map((row, rowIndex) => (
-        <div
-          key={row.id}
-          data-testid="pane-row"
-          data-row-id={row.id}
-          data-row-index={rowIndex}
-          className={`flex flex-1 min-h-0 ${rowIndex > 0 ? 'border-t border-border' : ''}`}
-        >
-          {row.paneIds.map((paneId, paneIndex) => {
-            const pane = paneMap.get(paneId);
-            if (!pane) return null;
-            return (
+  const renderPanes = () => {
+    const totalRowSize = paneRows.reduce((sum, row) => sum + getRowSize(row), 0) || 1;
+    return (
+      <div className="flex flex-1 flex-col min-h-0" ref={workspaceRef}>
+        {paneRows.map((row, rowIndex) => {
+          const rowBasis = (getRowSize(row) / totalRowSize) * 100;
+          const paneWeights = row.paneIds.map(paneId => getPaneWeight(row, paneId));
+          const paneWeightSum = paneWeights.reduce((sum, weight) => sum + weight, 0) || 1;
+          return (
+            <div key={row.id} className="flex flex-col min-h-0" style={{ flexBasis: `${rowBasis}%` }}>
               <div
-                key={pane.id}
-                data-testid="editor-pane"
-                data-pane-index={paneIndex}
-                data-pane-id={pane.id}
-                data-active={pane.id === activePaneIdValue}
-                className={`relative flex flex-col flex-1 min-w-0 ${paneIndex > 0 ? 'border-l border-border' : ''}`}
-                onMouseDown={() => focusPane(pane.id)}
+                className="flex flex-1 min-h-0"
+                ref={(element) => {
+                  if (element) {
+                    rowRefs.current.set(row.id, element);
+                  } else {
+                    rowRefs.current.delete(row.id);
+                  }
+                }}
+                data-testid="pane-row"
+                data-row-id={row.id}
+                data-row-index={rowIndex}
               >
-                <button
-                  className="absolute top-1 right-1 z-10 px-1 text-xs text-muted-foreground hover:text-foreground"
-                  title="Close pane"
-                  disabled={panes.length <= 1}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (panes.length > 1) {
-                      handleClosePane(pane.id);
-                    }
-                  }}
-                >
-                  ×
-                </button>
-                <EditorPane
-                  ref={registerPaneHandle(pane.id)}
-                  tabs={pane.tabs}
-                  activeTabId={pane.activeTabId}
-                  onTabSelect={(tabId) => handleTabSelect(pane.id, tabId)}
-                  onTabClose={(tabId) => handleTabClose(pane.id, tabId)}
-                  onFileLoaded={(path) => handlePaneFileLoaded(pane.id, path)}
-                  onCursorChange={(line) => handlePaneCursorChange(pane.id, line)}
-                  onActivate={() => focusPane(pane.id)}
-                  exportStatus={exportStatus}
-                />
+                {row.paneIds.map((paneId, paneIndex) => {
+                  const pane = paneMap.get(paneId);
+                  if (!pane) return null;
+                  const widthPercent = (getPaneWeight(row, paneId) / paneWeightSum) * 100;
+                  return (
+                    <div key={pane.id} className="flex h-full" style={{ flexBasis: `${widthPercent}%` }}>
+                      <div
+                        data-testid="editor-pane"
+                        data-pane-index={paneIndex}
+                        data-pane-id={pane.id}
+                        data-active={pane.id === activePaneIdValue}
+                        className="relative flex flex-1 flex-col min-w-0"
+                        onMouseDown={() => focusPane(pane.id)}
+                      >
+                        <button
+                          className="absolute top-1 right-1 z-10 px-1 text-xs text-muted-foreground hover:text-foreground"
+                          title="Close pane"
+                          disabled={panes.length <= 1}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (panes.length > 1) {
+                              handleClosePane(pane.id);
+                            }
+                          }}
+                        >
+                          ×
+                        </button>
+                        <EditorPane
+                          ref={registerPaneHandle(pane.id)}
+                          tabs={pane.tabs}
+                          activeTabId={pane.activeTabId}
+                          onTabSelect={(tabId) => handleTabSelect(pane.id, tabId)}
+                          onTabClose={(tabId) => handleTabClose(pane.id, tabId)}
+                          onFileLoaded={(path) => handlePaneFileLoaded(pane.id, path)}
+                          onCursorChange={(line) => handlePaneCursorChange(pane.id, line)}
+                          onActivate={() => focusPane(pane.id)}
+                          exportStatus={exportStatus}
+                        />
+                      </div>
+                      {paneIndex < row.paneIds.length - 1 && (
+                        <div
+                          className="w-1 cursor-col-resize bg-border hover:bg-accent"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            startColumnResize(row.id, pane.id, row.paneIds[paneIndex + 1], event.clientX);
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
+              {rowIndex < paneRows.length - 1 && (
+                <div
+                  className="h-1 cursor-row-resize bg-border hover:bg-accent"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    startRowResize(row.id, paneRows[rowIndex + 1].id, event.clientY);
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <Layout

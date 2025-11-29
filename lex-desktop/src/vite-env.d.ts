@@ -20,11 +20,11 @@ interface Window {
     getOpenTabs: () => Promise<{
       panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>;
       activePaneId: string | null;
-      rows: Array<{ id: string; paneIds: string[] }>;
+      rows: Array<{ id: string; paneIds: string[]; size?: number; paneSizes?: Record<string, number> }>;
     }>;
     setOpenTabs: (
       panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>,
-      rows: Array<{ id: string; paneIds: string[] }>,
+      rows: Array<{ id: string; paneIds: string[]; size?: number; paneSizes?: Record<string, number> }>,
       activePaneId: string | null
     ) => Promise<boolean>;
     onMenuNewFile: (callback: () => void) => () => void;

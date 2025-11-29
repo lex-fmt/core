@@ -29,6 +29,8 @@ interface PaneLayoutSettings {
 interface PaneRowLayout {
   id: string;
   paneIds: string[];
+  size?: number;
+  paneSizes?: Record<string, number>;
 }
 
 interface AppSettings {
@@ -384,14 +386,26 @@ ipcMain.handle('get-open-tabs', async () => {
 
   const paneIdSet = new Set(panes.map(p => p.id));
   let rows = settings.paneRows && settings.paneRows.length > 0
-    ? settings.paneRows.map(row => ({
-        id: row.id || randomUUID(),
-        paneIds: (row.paneIds || []).filter(id => paneIdSet.has(id)),
-      })).filter(row => row.paneIds.length > 0)
+    ? settings.paneRows.map(row => {
+        const paneIds = (row.paneIds || []).filter(id => paneIdSet.has(id));
+        const paneSizes: Record<string, number> = {};
+        paneIds.forEach(id => {
+          const value = row.paneSizes?.[id];
+          if (typeof value === 'number') {
+            paneSizes[id] = value;
+          }
+        });
+        return {
+          id: row.id || randomUUID(),
+          paneIds,
+          size: typeof row.size === 'number' ? row.size : undefined,
+          paneSizes,
+        };
+      }).filter(row => row.paneIds.length > 0)
     : [];
 
   if (rows.length === 0) {
-    rows = [{ id: randomUUID(), paneIds: panes.map(p => p.id) }];
+    rows = [{ id: randomUUID(), paneIds: panes.map(p => p.id), size: undefined, paneSizes: {} }];
   } else {
     const referenced = new Set(rows.flatMap(row => row.paneIds));
     const missing = panes.map(p => p.id).filter(id => !referenced.has(id));
@@ -421,6 +435,8 @@ ipcMain.handle('set-open-tabs', async (_, panes: PaneLayoutSettings[], rows: Pan
   settings.paneRows = rows.map(row => ({
     id: row.id || randomUUID(),
     paneIds: row.paneIds || [],
+    size: row.size,
+    paneSizes: row.paneSizes,
   }));
   settings.activePaneId = activePaneId || undefined;
   settings.openTabs = undefined;

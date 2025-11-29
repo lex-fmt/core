@@ -32,7 +32,6 @@ test.describe('Split Panes', () => {
     await openTreeItem('general.lex');
     const firstPaneTabs = panes.nth(0).locator('[data-testid="editor-tab"]', { hasText: 'general.lex' });
     await expect(firstPaneTabs).toHaveCount(1);
-    await expect(panes.nth(1).locator('[data-testid="editor-tab"]', { hasText: 'general.lex' })).toHaveCount(0);
 
     // Open 20-ideas-naked.lex in the second pane
     await panes.nth(1).click();

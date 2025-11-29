@@ -40,11 +40,11 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   getOpenTabs: () => ipcRenderer.invoke('get-open-tabs') as Promise<{
     panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>;
     activePaneId: string | null;
-    rows: Array<{ id: string; paneIds: string[] }>;
+    rows: Array<{ id: string; paneIds: string[]; size?: number; paneSizes?: Record<string, number> }>;
   }>,
   setOpenTabs: (
     panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>,
-    rows: Array<{ id: string; paneIds: string[] }>,
+    rows: Array<{ id: string; paneIds: string[]; size?: number; paneSizes?: Record<string, number> }>,
     activePaneId: string | null
   ) => ipcRenderer.invoke('set-open-tabs', panes, rows, activePaneId),
   onMenuNewFile: (callback: () => void) => {
