@@ -18,7 +18,7 @@ export class LspClient {
   private pendingRequests = new Map<number | string, { resolve: (val: any) => void; reject: (err: any) => void }>();
   private notificationHandlers = new Map<string, (params: any) => void>();
   private statusHandlers: ((status: LspStatus) => void)[] = [];
-  private currentStatus: LspStatus = 'Initializing';
+  public currentStatus: LspStatus = 'Initializing';
 
   private buffer: Uint8Array = new Uint8Array(0);
 
@@ -52,6 +52,8 @@ export class LspClient {
       handler(this.currentStatus); // Emit current status immediately
   }
 
+  public serverCapabilities: any = {};
+
   public async initialize() {
     console.log('[LspClient] Initializing LSP session...');
     try {
@@ -65,6 +67,9 @@ export class LspClient {
             }
         });
         console.log('[LspClient] Initialization response:', JSON.stringify(response, null, 2));
+        if (response && response.capabilities) {
+            this.serverCapabilities = response.capabilities;
+        }
         this.sendNotification('initialized', {});
         this.setStatus('Ready');
     } catch (error: any) {

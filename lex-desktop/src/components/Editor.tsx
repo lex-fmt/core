@@ -63,24 +63,172 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
     useEffect(() => {
         if (!containerRef.current) return;
 
-        // ISOLATED SETUP MOVED TO debug-monaco.ts
+        // --- Language & Provider Setup ---
         const DEBUG_LANG = 'lex';
         const DEBUG_THEME = 'lex-theme';
 
-        // Create Model with DEBUG_LANG
+        // 1. Register Language (Idempotent check)
+        const languages = monaco.languages.getLanguages();
+        const langExists = languages.some(l => l.id === DEBUG_LANG);
+        if (!langExists) {
+            console.log('[Editor] Registering language:', DEBUG_LANG);
+            monaco.languages.register({ id: DEBUG_LANG, extensions: ['.lex'] });
+            monaco.languages.setLanguageConfiguration(DEBUG_LANG, {
+                comments: { lineComment: '#' }
+            });
+        }
+
+        // 2. Register Monarch Provider (Fallback)
+        // We register this every time because it's cheap and ensures it's active
+        const monarchDisposable = monaco.languages.setMonarchTokensProvider(DEBUG_LANG, {
+            tokenizer: {
+                root: [
+                    [/^Session Title.*/, 'sessionTitle'],
+                    [/^#.*/, 'comment'],
+                    [/[a-z]+/, 'string'],
+                ]
+            }
+        });
+
+        // 3. Register Semantic Tokens Provider (Dynamic)
+        // We wait for LSP to be ready to get the correct legend
+        let providerDisposable: monaco.IDisposable | undefined;
+
+        const registerSemanticTokens = async () => {
+            // Wait for LSP to be ready (simple polling for now, or rely on status)
+            if (lspClient.currentStatus !== 'Ready') {
+                console.log('[Editor] Waiting for LSP to be ready...');
+                // In a real app, we'd use an event or promise. 
+                // For now, we'll assume initialize() is called below and we can check capabilities after a short delay or when status changes.
+                return;
+            }
+
+            const caps = lspClient.serverCapabilities;
+            let legend = caps?.semanticTokensProvider?.legend;
+
+            if (!legend) {
+                console.warn('[Editor] No semantic tokens legend found in capabilities (likely already initialized). Using static fallback.');
+                legend = {
+                    tokenTypes: [
+                        "DocumentTitle", "SessionMarker", "SessionTitleText", "DefinitionSubject", "DefinitionContent",
+                        "ListMarker", "ListItemText", "AnnotationLabel", "AnnotationParameter", "AnnotationContent",
+                        "InlineStrong", "InlineEmphasis", "InlineCode", "InlineMath", "Reference", "ReferenceCitation",
+                        "ReferenceFootnote", "VerbatimSubject", "VerbatimLanguage", "VerbatimAttribute", "VerbatimContent",
+                        "InlineMarker_strong_start", "InlineMarker_strong_end", "InlineMarker_emphasis_start",
+                        "InlineMarker_emphasis_end", "InlineMarker_code_start", "InlineMarker_code_end",
+                        "InlineMarker_math_start", "InlineMarker_math_end", "InlineMarker_ref_start", "InlineMarker_ref_end"
+                    ],
+                    tokenModifiers: []
+                };
+            }
+
+            if (legend) {
+                console.log('[Editor] Registering dynamic semantic tokens provider with legend:', legend);
+
+                // Dispose previous if any
+                if (providerDisposable) providerDisposable.dispose();
+
+                providerDisposable = monaco.languages.registerDocumentSemanticTokensProvider(DEBUG_LANG, {
+                    getLegend: function () {
+                        return legend;
+                    },
+                    provideDocumentSemanticTokens: async function (model, _lastResultId, _token) {
+                        const uri = model.uri.toString();
+                        console.log('[Editor] Provider triggered for:', uri);
+                        try {
+                            const result = await lspClient.sendRequest('textDocument/semanticTokens/full', {
+                                textDocument: { uri }
+                            });
+                            console.log('[Editor] Received tokens:', result);
+                            if (result && result.data) {
+                                return { data: new Uint32Array(result.data) };
+                            }
+                        } catch (e) {
+                            console.error('[Editor] Failed to get tokens:', e);
+                        }
+                        return { data: new Uint32Array([]) };
+                    },
+                    releaseDocumentSemanticTokens: function () { }
+                });
+            } else {
+                console.warn('[Editor] No semantic tokens legend found in server capabilities.');
+            }
+        };
+
+        // 4. Define Theme (Lex Monochrome - Dark Mode)
+        // Source: editors/vscode/src/theme.ts
+        const COLORS = {
+            normal: '#e0e0e0',   // Full contrast
+            muted: '#888888',    // Medium gray
+            faint: '#666666',    // Light gray
+            faintest: '#555555'  // Barely visible
+        };
+
+        monaco.editor.defineTheme(DEBUG_THEME, {
+            base: 'vs-dark',
+            inherit: true,
+            rules: [
+                // Monarch Fallback Rules
+                { token: 'sessionTitle', foreground: COLORS.normal, fontStyle: 'bold' },
+                { token: 'comment', foreground: COLORS.muted },
+                { token: 'string', foreground: COLORS.normal },
+
+                // Semantic Token Rules (Matching VSCode Theme)
+                { token: 'SessionTitleText', foreground: COLORS.normal, fontStyle: 'bold' },
+                { token: 'DefinitionSubject', foreground: COLORS.normal, fontStyle: 'italic' },
+                { token: 'DefinitionContent', foreground: COLORS.normal },
+                { token: 'InlineStrong', foreground: COLORS.normal, fontStyle: 'bold' },
+                { token: 'InlineEmphasis', foreground: COLORS.normal, fontStyle: 'italic' },
+                { token: 'InlineCode', foreground: COLORS.normal },
+                { token: 'InlineMath', foreground: COLORS.normal, fontStyle: 'italic' },
+                { token: 'VerbatimContent', foreground: COLORS.normal },
+                { token: 'ListItemText', foreground: COLORS.normal },
+
+                { token: 'DocumentTitle', foreground: COLORS.muted, fontStyle: 'bold' },
+                { token: 'SessionMarker', foreground: COLORS.muted, fontStyle: 'italic' },
+                { token: 'ListMarker', foreground: COLORS.muted, fontStyle: 'italic' },
+                { token: 'Reference', foreground: COLORS.muted, fontStyle: 'underline' },
+                { token: 'ReferenceCitation', foreground: COLORS.muted, fontStyle: 'underline' },
+                { token: 'ReferenceFootnote', foreground: COLORS.muted, fontStyle: 'underline' },
+
+                { token: 'AnnotationLabel', foreground: COLORS.faint },
+                { token: 'AnnotationParameter', foreground: COLORS.faint },
+                { token: 'AnnotationContent', foreground: COLORS.faint },
+                { token: 'VerbatimSubject', foreground: COLORS.faint },
+                { token: 'VerbatimLanguage', foreground: COLORS.faint },
+                { token: 'VerbatimAttribute', foreground: COLORS.faint },
+
+                // Faintest (Markers)
+                { token: 'InlineMarker_strong_start', foreground: COLORS.faintest, fontStyle: 'italic' },
+                { token: 'InlineMarker_strong_end', foreground: COLORS.faintest, fontStyle: 'italic' },
+                { token: 'InlineMarker_emphasis_start', foreground: COLORS.faintest, fontStyle: 'italic' },
+                { token: 'InlineMarker_emphasis_end', foreground: COLORS.faintest, fontStyle: 'italic' },
+                { token: 'InlineMarker_code_start', foreground: COLORS.faintest, fontStyle: 'italic' },
+                { token: 'InlineMarker_code_end', foreground: COLORS.faintest, fontStyle: 'italic' },
+                { token: 'InlineMarker_math_start', foreground: COLORS.faintest, fontStyle: 'italic' },
+                { token: 'InlineMarker_math_end', foreground: COLORS.faintest, fontStyle: 'italic' },
+                { token: 'InlineMarker_ref_start', foreground: COLORS.faintest, fontStyle: 'italic' },
+                { token: 'InlineMarker_ref_end', foreground: COLORS.faintest, fontStyle: 'italic' },
+            ],
+            colors: {
+                'editor.foreground': COLORS.normal,
+                'editor.background': '#1e1e1e', // Standard VS Dark background
+            },
+            // @ts-ignore
+            semanticHighlighting: true
+        });
+
+        // 5. Create Model & Editor
         const uri = monaco.Uri.parse('file:///test.lex');
         let lspModel = monaco.editor.getModel(uri);
         if (lspModel) {
-            lspModel.dispose(); // Dispose existing model to force recreation
+            lspModel.dispose();
         }
         lspModel = monaco.editor.createModel(
             '# Hello Lex\n\nThis is a test document.\nSession Title',
             DEBUG_LANG,
             uri
         );
-
-        // Force language set
-        monaco.editor.setModelLanguage(lspModel, DEBUG_LANG);
 
         const editor = monaco.editor.create(containerRef.current, {
             model: lspModel,
@@ -115,25 +263,11 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
                 if (model) {
                     const word = model.getWordAtPosition(position);
                     const offset = model.getOffsetAt(position);
-                    console.log('--- Click Debug ---');
+
+                    console.log('--- Click Debug (Simulated) ---');
                     console.log('Position:', position);
                     console.log('Word:', word);
                     console.log('Offset:', offset);
-
-                    // Log DOM element if available
-                    console.log('DOM Target:', e.target.element);
-
-                    // Attempt to get token info (Monarch)
-                    // @ts-ignore
-                    const tokens = monaco.editor.tokenize(model.getValue(), model.getLanguageId());
-                    if (tokens && tokens[position.lineNumber - 1]) {
-                        const lineTokens = tokens[position.lineNumber - 1];
-                        const token = lineTokens.find(t => t.offset <= position.column - 1); // approximate
-                        console.log('Monarch Token (Line):', token);
-                    }
-
-                    // Log full line tokens for context
-                    console.log('All Line Tokens:', tokens[position.lineNumber - 1]);
                 }
             }
         });
@@ -151,6 +285,10 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
                         text: lspModel.getValue()
                     }
                 });
+
+                // Attempt to register semantic tokens now that LSP is ready
+                registerSemanticTokens();
+
             }).catch(err => {
                 console.error('LSP initialization failed in Editor:', err);
             });
@@ -172,6 +310,8 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
             if (lspModel) {
                 lspModel.dispose();
             }
+            monarchDisposable.dispose();
+            if (providerDisposable) providerDisposable.dispose();
         };
     }, []);
 
