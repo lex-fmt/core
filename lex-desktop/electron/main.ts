@@ -6,6 +6,39 @@ import { LspManager } from './lsp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Settings persistence
+const SETTINGS_FILE = 'settings.json';
+
+interface AppSettings {
+  lastFolder?: string;
+}
+
+async function getSettingsPath(): Promise<string> {
+  return path.join(app.getPath('userData'), SETTINGS_FILE);
+}
+
+async function loadSettings(): Promise<AppSettings> {
+  try {
+    const settingsPath = await getSettingsPath();
+    const data = await fs.readFile(settingsPath, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return {};
+  }
+}
+
+async function saveSettings(settings: AppSettings): Promise<void> {
+  const settingsPath = await getSettingsPath();
+  await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+}
+
+function getWelcomeFolderPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'welcome');
+  }
+  return path.join(process.env.APP_ROOT!, 'welcome');
+}
+
 // The built directory structure
 //
 // ├─┬─┬ dist
@@ -105,11 +138,25 @@ ipcMain.handle('folder-open', async () => {
   return filePaths[0];
 });
 
-ipcMain.handle('get-benchmark-file', async () => {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'specs/v1/benchmark/30-a-place-for-ideas.lex');
+ipcMain.handle('get-initial-folder', async () => {
+  const settings = await loadSettings();
+  if (settings.lastFolder) {
+    // Verify the folder still exists
+    try {
+      await fs.access(settings.lastFolder);
+      return settings.lastFolder;
+    } catch {
+      // Folder no longer exists, fall through to welcome folder
+    }
   }
-  return path.join(process.env.APP_ROOT, '../specs/v1/benchmark/30-a-place-for-ideas.lex');
+  return getWelcomeFolderPath();
+});
+
+ipcMain.handle('set-last-folder', async (_, folderPath: string) => {
+  const settings = await loadSettings();
+  settings.lastFolder = folderPath;
+  await saveSettings(settings);
+  return true;
 });
 
 // Theme detection

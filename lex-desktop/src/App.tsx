@@ -16,6 +16,8 @@ function App() {
     const result = await window.ipcRenderer.invoke('folder-open');
     if (result) {
       setRootPath(result);
+      // Persist the selected folder
+      await window.ipcRenderer.setLastFolder(result);
     }
   };
 
@@ -31,17 +33,17 @@ function App() {
     console.log('App mounted, initializing Monaco...');
     initDebugMonaco();
 
-    const loadBenchmark = async () => {
+    const loadInitialFolder = async () => {
       try {
-        const path = await window.ipcRenderer.getBenchmarkFile();
-        if (path) {
-          setFileToOpen(path);
+        const folder = await window.ipcRenderer.getInitialFolder();
+        if (folder) {
+          setRootPath(folder);
         }
       } catch (e) {
-        console.error('App: Error loading benchmark file:', e);
+        console.error('App: Error loading initial folder:', e);
       }
     };
-    loadBenchmark();
+    loadInitialFolder();
   }, []);
 
   return (
