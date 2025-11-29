@@ -5,6 +5,7 @@ import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
 import { ExportStatus } from './components/StatusBar'
 import { initDebugMonaco } from './debug-monaco'
+import { isLexFile } from './components/Editor'
 import type { Tab, TabDropData } from './components/TabBar'
 
 initDebugMonaco();
@@ -48,6 +49,19 @@ const createTabFromPath = (path: string): Tab => ({
   path,
   name: path.split('/').pop() || path,
 });
+
+const createPreviewTab = (sourceFile: string, content: string): Tab => {
+  const fileName = sourceFile.split('/').pop() || sourceFile;
+  const previewId = `preview:${sourceFile}`;
+  return {
+    id: previewId,
+    path: previewId,
+    name: `Preview: ${fileName}`,
+    type: 'preview',
+    previewContent: content,
+    sourceFile,
+  };
+};
 
 const createEmptyPane = (id?: string): PaneState => ({
   id: id || createPaneId(),
@@ -776,6 +790,84 @@ useEffect(() => {
     }
   }, [activePaneFile, activePaneIdValue]);
 
+  const handlePreview = useCallback(async () => {
+    if (!activePaneFile || !isLexFile(activePaneFile)) {
+      toast.error('Preview requires a .lex file');
+      return;
+    }
+
+    if (!activePaneIdValue) return;
+
+    // Save the file first
+    const handle = paneHandles.current.get(activePaneIdValue);
+    await handle?.save();
+
+    try {
+      // Export to HTML and read the content
+      const htmlPath = await window.ipcRenderer.fileExport(activePaneFile, 'html');
+      const htmlContent = await window.ipcRenderer.fileRead(htmlPath);
+
+      if (!htmlContent) {
+        toast.error('Failed to load preview content');
+        return;
+      }
+
+      const previewTab = createPreviewTab(activePaneFile, htmlContent);
+
+      // If only one pane, split vertically first
+      if (panes.length === 1) {
+        const newPane = createEmptyPane();
+        setPanes(prev => [...prev, { ...newPane, tabs: [previewTab], activeTabId: previewTab.id }]);
+        setPaneRows(prevRows => {
+          if (prevRows.length === 0) {
+            return [withRowDefaults({ id: createRowId(), paneIds: [activePaneIdValue, newPane.id] })];
+          }
+          return prevRows.map(row => {
+            if (!row.paneIds.includes(activePaneIdValue)) return row;
+            const paneIds = [...row.paneIds];
+            const insertIndex = paneIds.indexOf(activePaneIdValue);
+            paneIds.splice(insertIndex + 1, 0, newPane.id);
+            const paneSizes = normalizePaneSizes(row, paneIds);
+            const currentWeight = paneSizes[activePaneIdValue];
+            const splitWeight = Math.max(currentWeight / 2, MIN_PANE_SIZE);
+            paneSizes[activePaneIdValue] = splitWeight;
+            paneSizes[newPane.id] = splitWeight;
+            return { ...row, paneIds, paneSizes };
+          });
+        });
+        setActivePaneId(newPane.id);
+      } else {
+        // Open preview in the next pane (not the active one)
+        const activeIndex = panes.findIndex(p => p.id === activePaneIdValue);
+        const targetIndex = activeIndex === panes.length - 1 ? 0 : activeIndex + 1;
+        const targetPaneId = panes[targetIndex].id;
+
+        setPanes(prev => prev.map(pane => {
+          if (pane.id !== targetPaneId) return pane;
+          // Check if preview tab already exists for this file
+          const existingPreview = pane.tabs.find(t => t.id === previewTab.id);
+          if (existingPreview) {
+            // Update content and focus
+            return {
+              ...pane,
+              tabs: pane.tabs.map(t => t.id === previewTab.id ? previewTab : t),
+              activeTabId: previewTab.id,
+            };
+          }
+          return {
+            ...pane,
+            tabs: [...pane.tabs, previewTab],
+            activeTabId: previewTab.id,
+          };
+        }));
+        setActivePaneId(targetPaneId);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Preview failed';
+      toast.error(message);
+    }
+  }, [activePaneFile, activePaneIdValue, panes]);
+
   const handleFileSelect = useCallback((path: string) => {
     if (!activePaneIdValue) return;
     openFileInPane(activePaneIdValue, path);
@@ -792,6 +884,7 @@ useEffect(() => {
     const unsubReplace = window.ipcRenderer.onMenuReplace(handleReplace);
     const unsubSplitVertical = window.ipcRenderer.onMenuSplitVertical(handleSplitVertical);
     const unsubSplitHorizontal = window.ipcRenderer.onMenuSplitHorizontal(handleSplitHorizontal);
+    const unsubPreview = window.ipcRenderer.onMenuPreview(handlePreview);
 
     return () => {
       unsubNewFile();
@@ -804,8 +897,9 @@ useEffect(() => {
       unsubReplace();
       unsubSplitVertical();
       unsubSplitHorizontal();
+      unsubPreview();
     };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal]);
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal, handlePreview]);
 
   const renderPanes = () => {
     return (
@@ -915,6 +1009,7 @@ useEffect(() => {
       onReplace={handleReplace}
       onSplitVertical={handleSplitVertical}
       onSplitHorizontal={handleSplitHorizontal}
+      onPreview={handlePreview}
       currentFile={activePaneFile}
       panel={
         <Outline

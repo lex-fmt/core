@@ -1,5 +1,6 @@
-import { forwardRef, useImperativeHandle, useRef, useState, useCallback, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Editor, EditorHandle } from './Editor';
+import { PreviewPane } from './PreviewPane';
 import { TabBar, Tab, TabDropData } from './TabBar';
 import { StatusBar, ExportStatus } from './StatusBar';
 import type * as Monaco from 'monaco-editor';
@@ -55,6 +56,12 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     const [editor, setEditor] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
     const editorRef = useRef<EditorHandle>(null);
     const previousTabsRef = useRef<Tab[]>(tabs);
+
+    const activeTab = useMemo(() => {
+        return tabs.find(tab => tab.id === activeTabId) ?? null;
+    }, [tabs, activeTabId]);
+
+    const isPreviewTab = activeTab?.type === 'preview';
 
     /**
      * AUTO-SAVE SYSTEM
@@ -280,13 +287,17 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
                 onTabDrop={onTabDrop}
             />
             <div className="flex-1 min-h-0">
-                <Editor
-                    ref={editorRef}
-                    fileToOpen={fileToOpen}
-                    onFileLoaded={handleFileLoaded}
-                />
+                {isPreviewTab && activeTab?.previewContent ? (
+                    <PreviewPane content={activeTab.previewContent} />
+                ) : (
+                    <Editor
+                        ref={editorRef}
+                        fileToOpen={fileToOpen}
+                        onFileLoaded={handleFileLoaded}
+                    />
+                )}
             </div>
-            <StatusBar editor={editor} exportStatus={exportStatus} />
+            {!isPreviewTab && <StatusBar editor={editor} exportStatus={exportStatus} />}
         </div>
     );
 });

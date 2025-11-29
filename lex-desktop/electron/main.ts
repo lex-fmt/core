@@ -644,6 +644,12 @@ function createMenu() {
     {
       label: 'View',
       submenu: [
+        {
+          label: 'Preview',
+          accelerator: 'CmdOrCtrl+Shift+P',
+          click: () => win?.webContents.send('menu-preview')
+        },
+        { type: 'separator' },
         { role: 'reload' },
         { role: 'forceReload' },
         { role: 'toggleDevTools' },

@@ -40,5 +40,6 @@ interface Window {
     onMenuReplace: (callback: () => void) => () => void;
     onMenuSplitVertical: (callback: () => void) => () => void;
     onMenuSplitHorizontal: (callback: () => void) => () => void;
+    onMenuPreview: (callback: () => void) => () => void;
   }
 }

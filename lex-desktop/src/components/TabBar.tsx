@@ -6,6 +6,9 @@ export interface Tab {
     id: string;
     path: string;
     name: string;
+    type?: 'file' | 'preview';
+    previewContent?: string;
+    sourceFile?: string;
 }
 
 export interface TabDropData {

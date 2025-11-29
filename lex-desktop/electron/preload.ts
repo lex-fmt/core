@@ -100,4 +100,9 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     ipcRenderer.on('menu-split-horizontal', handler);
     return () => ipcRenderer.removeListener('menu-split-horizontal', handler);
   },
+  onMenuPreview: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('menu-preview', handler);
+    return () => ipcRenderer.removeListener('menu-preview', handler);
+  },
 })
