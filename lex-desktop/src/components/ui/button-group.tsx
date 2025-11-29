@@ -2,11 +2,10 @@ import { cn } from '@/lib/utils';
 import { forwardRef, HTMLAttributes } from 'react';
 
 /**
- * ButtonGroup - visually groups buttons together with connected borders.
+ * ButtonGroup - visually groups buttons together with a shared border.
  *
- * Children should be buttons or ButtonGroupSeparator components.
- * The first button gets rounded left corners, the last gets rounded right corners,
- * and middle buttons have no corner rounding for a seamless connected appearance.
+ * Creates an outlined container with rounded corners that wraps child buttons.
+ * Internal separators divide buttons while maintaining the cohesive group appearance.
  */
 export const ButtonGroup = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
     ({ className, ...props }, ref) => (
@@ -14,12 +13,16 @@ export const ButtonGroup = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElem
             ref={ref}
             className={cn(
                 "inline-flex items-center",
-                // Remove border-radius from middle children via CSS
-                "[&>*:not(:first-child):not(:last-child)]:rounded-none",
-                "[&>*:first-child]:rounded-r-none",
-                "[&>*:last-child]:rounded-l-none",
-                // Handle separators - they shouldn't affect the rounding logic
-                "[&>*:first-child:has(+[data-separator])]:rounded-r-none",
+                "border border-border rounded-md",
+                // Remove border-radius from all children - the container handles rounding
+                "[&>button]:rounded-none",
+                "[&>button]:border-0",
+                // First and last buttons get appropriate rounding to match container
+                "[&>button:first-child]:rounded-l-[5px]",
+                "[&>button:last-child]:rounded-r-[5px]",
+                // Handle case where separator is first/last child
+                "[&>button:first-of-type]:rounded-l-[5px]",
+                "[&>button:last-of-type]:rounded-r-[5px]",
                 className
             )}
             {...props}
@@ -30,14 +33,14 @@ ButtonGroup.displayName = 'ButtonGroup';
 
 /**
  * Visual separator between buttons in a ButtonGroup.
- * Renders as a thin vertical line.
+ * Renders as a thin vertical line that spans the full height.
  */
 export const ButtonGroupSeparator = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
     ({ className, ...props }, ref) => (
         <div
             ref={ref}
             data-separator
-            className={cn("w-px h-5 bg-border", className)}
+            className={cn("w-px self-stretch bg-border", className)}
             {...props}
         />
     )
