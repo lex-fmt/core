@@ -91,6 +91,7 @@ export interface EditorHandle {
     openFile: () => Promise<void>;
     save: () => Promise<void>;
     getCurrentFile: () => string | null;
+    getEditor: () => monaco.editor.IStandaloneCodeEditor | null;
 }
 
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fileToOpen, onFileLoaded }, ref) {
@@ -103,6 +104,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
         openFile: handleOpen,
         save: handleSave,
         getCurrentFile: () => currentFile,
+        getEditor: () => editorRef.current,
     }));
 
     // Handle fileToOpen prop change

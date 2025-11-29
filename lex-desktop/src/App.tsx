@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { Editor, EditorHandle } from './components/Editor'
 import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
+import { StatusBar } from './components/StatusBar'
 import { initDebugMonaco } from './debug-monaco'
+import type * as Monaco from 'monaco-editor'
 
 initDebugMonaco();
 
@@ -10,6 +12,7 @@ function App() {
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
   const [fileToOpen, setFileToOpen] = useState<string | null>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
+  const [editor, setEditor] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const editorRef = useRef<EditorHandle>(null);
 
   const handleOpenFolder = async () => {
@@ -44,6 +47,12 @@ function App() {
       }
     };
     loadInitialFolder();
+
+    // Set editor reference after a short delay to ensure it's initialized
+    const timer = setTimeout(() => {
+      setEditor(editorRef.current?.getEditor() ?? null);
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -59,8 +68,12 @@ function App() {
       <Editor
         ref={editorRef}
         fileToOpen={fileToOpen}
-        onFileLoaded={(path) => setCurrentFile(path)}
+        onFileLoaded={(path) => {
+          setCurrentFile(path);
+          setEditor(editorRef.current?.getEditor() ?? null);
+        }}
       />
+      <StatusBar editor={editor} />
     </Layout>
   )
 }
