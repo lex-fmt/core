@@ -270,7 +270,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
             theme: DEBUG_THEME,
             automaticLayout: true,
             minimap: { enabled: false },
-            fontSize: 14,
+            fontSize: 13,
             lineNumbers: 'on',
             scrollBeyondLastLine: false,
             wordWrap: 'on',
