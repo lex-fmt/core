@@ -108,7 +108,7 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
         <div className="h-full bg-panel overflow-y-auto text-foreground"
             style={{ fontFamily: 'system-ui, sans-serif' }}
         >
-            <div className="p-2.5 text-xs font-bold uppercase tracking-wider border-b border-border">
+            <div className="p-2.5 text-xs font-semibold border-b border-border">
                 Explorer
             </div>
             {files.length > 0 ? renderTree(files) : (

@@ -1,7 +1,7 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, Save } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, Save, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -14,8 +14,55 @@ interface LayoutProps {
   onSave?: () => void;
 }
 
+const MIN_OUTLINE_HEIGHT = 100;
+const DEFAULT_OUTLINE_HEIGHT = 200;
+
 export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onOpenFolder, onOpenFile, onSave }: LayoutProps) {
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
+  const [outlineCollapsed, setOutlineCollapsed] = useState(false);
+  const [outlineHeight, setOutlineHeight] = useState(DEFAULT_OUTLINE_HEIGHT);
+  const [isDragging, setIsDragging] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging || !sidebarRef.current) return;
+
+    const sidebarRect = sidebarRef.current.getBoundingClientRect();
+    const newHeight = sidebarRect.bottom - e.clientY;
+    const maxHeight = sidebarRect.height - MIN_OUTLINE_HEIGHT;
+
+    setOutlineHeight(Math.max(MIN_OUTLINE_HEIGHT, Math.min(newHeight, maxHeight)));
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   useEffect(() => {
     const applyTheme = (mode: 'dark' | 'light') => {
@@ -101,6 +148,7 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
       <div className="flex flex-1 min-h-0">
         {/* Left Panel - File Tree & Outline */}
         <div
+          ref={sidebarRef}
           className={cn(
             "flex flex-col border-r border-border bg-panel transition-all",
             leftPanelCollapsed ? "w-0" : "w-64"
@@ -115,8 +163,29 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
 
               {/* Outline Section */}
               {panel && (
-                <div className="h-64 border-t border-border overflow-auto shrink-0">
-                  {panel}
+                <div className="shrink-0 flex flex-col">
+                  {/* Drag Handle */}
+                  <div
+                    className="h-1 cursor-ns-resize hover:bg-accent/50 active:bg-accent border-t border-border"
+                    onMouseDown={handleMouseDown}
+                  />
+                  {/* Outline Header (collapsible) */}
+                  <div
+                    className="flex items-center gap-1 px-2.5 py-2 text-xs font-semibold border-b border-border cursor-pointer hover:bg-panel-hover"
+                    onClick={() => setOutlineCollapsed(!outlineCollapsed)}
+                  >
+                    {outlineCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                    <span>Outline</span>
+                  </div>
+                  {/* Outline Content */}
+                  {!outlineCollapsed && (
+                    <div
+                      className="overflow-auto"
+                      style={{ height: outlineHeight }}
+                    >
+                      {panel}
+                    </div>
+                  )}
                 </div>
               )}
             </>

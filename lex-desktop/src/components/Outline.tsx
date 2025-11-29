@@ -81,9 +81,6 @@ export function Outline({ currentFile }: OutlineProps) {
             className="h-full overflow-y-auto text-foreground bg-panel"
             style={{ fontFamily: 'system-ui, sans-serif' }}
         >
-            <div className="p-2.5 text-xs font-bold uppercase tracking-wider border-b border-border">
-                Outline
-            </div>
             {symbols.length > 0 ? renderSymbols(symbols) : (
                 <div className="p-2.5 text-sm text-muted-foreground">
                     {currentFile ? 'No symbols found' : 'No file open'}
