@@ -36,7 +36,7 @@ export function TabBar({ tabs, activeTabId, onTabSelect, onTabClose }: TabBarPro
                         "hover:bg-panel-hover transition-colors",
                         activeTabId === tab.id
                             ? "bg-background text-foreground"
-                            : "bg-panel text-muted-foreground"
+                            : "bg-faintest text-muted-foreground"
                     )}
                     onClick={() => onTabSelect(tab.id)}
                 >

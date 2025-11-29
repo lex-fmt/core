@@ -6,6 +6,7 @@
   --color-foreground: #cccccc;
   --color-muted: #6e6e6e;
   --color-muted-foreground: #999999;
+  --color-faintest: #555555;
   --color-border: #3c3c3c;
   --color-panel: #252526;
   --color-panel-hover: #2a2d2e;
@@ -19,6 +20,7 @@
   --color-foreground: #333333;
   --color-muted: #999999;
   --color-muted-foreground: #666666;
+  --color-faintest: #cacaca;
   --color-border: #e0e0e0;
   --color-panel: #ffffff;
   --color-panel-hover: #e8e8e8;
@@ -31,6 +33,7 @@
   --color-foreground: var(--color-foreground);
   --color-muted: var(--color-muted);
   --color-muted-foreground: var(--color-muted-foreground);
+  --color-faintest: var(--color-faintest);
   --color-border: var(--color-border);
   --color-panel: var(--color-panel);
   --color-panel-hover: var(--color-panel-hover);
