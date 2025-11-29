@@ -122,6 +122,7 @@ function App() {
       onOpenFolder={handleOpenFolder}
       onOpenFile={handleOpenFile}
       onSave={handleSave}
+      onExport={handleExport}
       currentFile={currentFile}
       panel={
         <Outline
