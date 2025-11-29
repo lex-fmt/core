@@ -1,26 +1,30 @@
-import './App.css'
-import { useState, useEffect } from 'react'
-import { Editor } from './components/Editor'
+import { useState, useEffect, useRef } from 'react'
+import { Editor, EditorHandle } from './components/Editor'
 import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
-
-// import { initMonaco } from './monaco-init'
 import { initDebugMonaco } from './debug-monaco'
 
-// Initialize Monaco (Language, Theme, Providers)
-// initMonaco();
 initDebugMonaco();
 
 function App() {
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
   const [fileToOpen, setFileToOpen] = useState<string | null>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
+  const editorRef = useRef<EditorHandle>(null);
 
   const handleOpenFolder = async () => {
     const result = await window.ipcRenderer.invoke('folder-open');
     if (result) {
       setRootPath(result);
     }
+  };
+
+  const handleOpenFile = async () => {
+    await editorRef.current?.openFile();
+  };
+
+  const handleSave = async () => {
+    await editorRef.current?.save();
   };
 
   useEffect(() => {
@@ -44,21 +48,17 @@ function App() {
     <Layout
       rootPath={rootPath}
       onFileSelect={(path) => setFileToOpen(path)}
+      onOpenFolder={handleOpenFolder}
+      onOpenFile={handleOpenFile}
+      onSave={handleSave}
+      currentFile={currentFile}
       panel={<Outline currentFile={currentFile} />}
     >
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        {!rootPath && (
-          <div style={{ padding: '10px', background: '#333', color: '#fff' }}>
-            <button onClick={handleOpenFolder}>Open Folder</button>
-          </div>
-        )}
-        <div style={{ flex: 1 }}>
-          <Editor
-            fileToOpen={fileToOpen}
-            onFileLoaded={(path) => setCurrentFile(path)}
-          />
-        </div>
-      </div>
+      <Editor
+        ref={editorRef}
+        fileToOpen={fileToOpen}
+        onFileLoaded={(path) => setCurrentFile(path)}
+      />
     </Layout>
   )
 }

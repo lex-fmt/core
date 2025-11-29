@@ -2,21 +2,6 @@ import { useState, useEffect } from 'react';
 import { Uri } from 'monaco-editor';
 import { lspClient } from '../lsp/client';
 
-type ThemeMode = 'dark' | 'light';
-
-const THEME_COLORS = {
-    dark: {
-        text: '#cccccc',
-        textMuted: '#888',
-        border: '#1e1e1e',
-    },
-    light: {
-        text: '#333333',
-        textMuted: '#888',
-        border: '#e0e0e0',
-    },
-};
-
 interface DocumentSymbol {
     name: string;
     kind: number;
@@ -36,21 +21,6 @@ interface OutlineProps {
 
 export function Outline({ currentFile }: OutlineProps) {
     const [symbols, setSymbols] = useState<DocumentSymbol[]>([]);
-    const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
-
-    useEffect(() => {
-        // Get initial theme
-        window.ipcRenderer.getNativeTheme().then((mode: ThemeMode) => {
-            setThemeMode(mode);
-        });
-
-        // Listen for theme changes
-        const unsubscribe = window.ipcRenderer.onNativeThemeChanged((mode: ThemeMode) => {
-            setThemeMode(mode);
-        });
-
-        return unsubscribe;
-    }, []);
 
     useEffect(() => {
         if (!currentFile) {
@@ -61,10 +31,6 @@ export function Outline({ currentFile }: OutlineProps) {
         const fetchSymbols = async () => {
             try {
                 const uri = Uri.file(currentFile).toString();
-                // We might need to wait for the document to be opened in the LSP server.
-                // A simple retry or delay might be needed if this runs too fast.
-                // But since Editor opens it first, it should be fine if we are reactive to currentFile.
-
                 const response = await lspClient.sendRequest('textDocument/documentSymbol', {
                     textDocument: { uri }
                 });
@@ -81,27 +47,20 @@ export function Outline({ currentFile }: OutlineProps) {
         };
 
         fetchSymbols();
-
-        // Poll for updates? Or listen to an event?
-        // For now, let's just fetch once on file change. 
-        // Ideally we'd re-fetch on save or debounce on change.
         const interval = setInterval(fetchSymbols, 2000);
         return () => clearInterval(interval);
 
     }, [currentFile]);
 
-    const colors = THEME_COLORS[themeMode];
-
     const renderSymbols = (items: DocumentSymbol[], depth = 0) => {
         return items.map((item, index) => (
             <div key={index}>
                 <div
-                    className="outline-node"
+                    className="text-foreground hover:bg-panel-hover cursor-pointer"
                     style={{
                         paddingLeft: `${depth * 10 + 10}px`,
                         paddingTop: '2px',
                         paddingBottom: '2px',
-                        color: colors.text,
                         fontSize: '12px',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -117,19 +76,16 @@ export function Outline({ currentFile }: OutlineProps) {
     };
 
     return (
-        <div data-testid="outline-view" style={{ height: '100%', overflowY: 'auto', color: colors.text, fontFamily: 'system-ui, sans-serif' }}>
-            <div style={{
-                padding: '10px',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                borderBottom: `1px solid ${colors.border}`
-            }}>
+        <div
+            data-testid="outline-view"
+            className="h-full overflow-y-auto text-foreground bg-panel"
+            style={{ fontFamily: 'system-ui, sans-serif' }}
+        >
+            <div className="p-2.5 text-xs font-bold uppercase tracking-wider border-b border-border">
                 Outline
             </div>
             {symbols.length > 0 ? renderSymbols(symbols) : (
-                <div style={{ padding: '10px', fontSize: '13px', color: colors.textMuted }}>
+                <div className="p-2.5 text-sm text-muted-foreground">
                     {currentFile ? 'No symbols found' : 'No file open'}
                 </div>
             )}
