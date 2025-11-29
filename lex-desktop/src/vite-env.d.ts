@@ -11,6 +11,7 @@ interface Window {
     fileSave(filePath: string, content: string): Promise<boolean>;
     fileReadDir(dirPath: string): Promise<Array<{ name: string, isDirectory: boolean, path: string }>>;
     fileRead(filePath: string): Promise<string | null>;
+    fileChecksum(filePath: string): Promise<string | null>;
     folderOpen(): Promise<string | null>;
     getInitialFolder: () => Promise<string>;
     setLastFolder: (folderPath: string) => Promise<boolean>;

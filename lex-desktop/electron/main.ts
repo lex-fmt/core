@@ -143,6 +143,21 @@ ipcMain.handle('file-read', async (_, filePath: string) => {
   }
 });
 
+ipcMain.handle('file-checksum', async (_, filePath: string) => {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    // Simple hash: sum of char codes (fast, collision-resistant enough for this use case)
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      hash = ((hash << 5) - hash + content.charCodeAt(i)) | 0;
+    }
+    return hash.toString(16);
+  } catch (error) {
+    console.error('Failed to compute checksum:', error);
+    return null;
+  }
+});
+
 ipcMain.handle('folder-open', async () => {
   if (!win) return null;
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {

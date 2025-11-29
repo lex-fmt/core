@@ -4,6 +4,8 @@ import { TabBar, Tab } from './TabBar';
 import { StatusBar } from './StatusBar';
 import type * as Monaco from 'monaco-editor';
 
+const AUTO_SAVE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
 export interface EditorPaneHandle {
     openFile: (path: string) => Promise<void>;
     save: () => Promise<void>;
@@ -16,6 +18,15 @@ interface EditorPaneProps {
     onCursorChange?: (line: number) => void;
 }
 
+// Compute checksum of content (same algorithm as backend)
+function computeChecksum(content: string): string {
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+        hash = ((hash << 5) - hash + content.charCodeAt(i)) | 0;
+    }
+    return hash.toString(16);
+}
+
 export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function EditorPane(
     { onFileLoaded, onCursorChange },
     ref
@@ -26,6 +37,10 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     const [editor, setEditor] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const editorRef = useRef<EditorHandle>(null);
+
+    // Auto-save state
+    const autoSaveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const autoSaveChecksumRef = useRef<string | null>(null);
 
     const getTabIdFromPath = (path: string) => path;
 
@@ -120,9 +135,84 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         onFileLoaded?.(path);
     }, [onFileLoaded]);
 
+    // Start auto-save interval - captures current file checksum from disk
+    const startAutoSaveInterval = useCallback(async () => {
+        // Clear any existing interval
+        if (autoSaveIntervalRef.current) {
+            clearInterval(autoSaveIntervalRef.current);
+            autoSaveIntervalRef.current = null;
+        }
+
+        const currentFile = editorRef.current?.getCurrentFile();
+        if (!currentFile) return;
+
+        // Get checksum of file on disk when starting interval
+        const diskChecksum = await window.ipcRenderer.fileChecksum(currentFile);
+        autoSaveChecksumRef.current = diskChecksum;
+
+        autoSaveIntervalRef.current = setInterval(async () => {
+            const filePath = editorRef.current?.getCurrentFile();
+            const editorInstance = editorRef.current?.getEditor();
+            if (!filePath || !editorInstance) return;
+
+            // Get current checksum from disk
+            const currentDiskChecksum = await window.ipcRenderer.fileChecksum(filePath);
+
+            // Only save if disk checksum matches what we captured
+            if (currentDiskChecksum === autoSaveChecksumRef.current) {
+                const content = editorInstance.getValue();
+                await window.ipcRenderer.fileSave(filePath, content);
+                // Update checksum to new content
+                autoSaveChecksumRef.current = computeChecksum(content);
+                console.log('[AutoSave] Saved file:', filePath);
+            } else {
+                // File was modified externally - take new checksum for next interval
+                autoSaveChecksumRef.current = currentDiskChecksum;
+                console.log('[AutoSave] File modified externally, skipping save:', filePath);
+            }
+        }, AUTO_SAVE_INTERVAL_MS);
+    }, []);
+
+    // Stop auto-save interval
+    const stopAutoSaveInterval = useCallback(() => {
+        if (autoSaveIntervalRef.current) {
+            clearInterval(autoSaveIntervalRef.current);
+            autoSaveIntervalRef.current = null;
+        }
+        autoSaveChecksumRef.current = null;
+    }, []);
+
+    // Manual save - also resets the auto-save interval
     const handleSave = useCallback(async () => {
         await editorRef.current?.save();
-    }, []);
+        // Reset auto-save interval after manual save
+        await startAutoSaveInterval();
+    }, [startAutoSaveInterval]);
+
+    // Auto-save: track window focus
+    useEffect(() => {
+        const handleFocus = () => {
+            startAutoSaveInterval();
+        };
+
+        const handleBlur = () => {
+            stopAutoSaveInterval();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        window.addEventListener('blur', handleBlur);
+
+        // Start interval if window is already focused
+        if (document.hasFocus()) {
+            startAutoSaveInterval();
+        }
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('blur', handleBlur);
+            stopAutoSaveInterval();
+        };
+    }, [startAutoSaveInterval, stopAutoSaveInterval]);
 
     // Listen for cursor position changes
     useEffect(() => {

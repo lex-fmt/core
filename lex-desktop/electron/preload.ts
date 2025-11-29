@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   fileSave: (filePath: string, content: string) => ipcRenderer.invoke('file-save', filePath, content),
   fileReadDir: (dirPath: string) => ipcRenderer.invoke('file-read-dir', dirPath),
   fileRead: (filePath: string) => ipcRenderer.invoke('file-read', filePath),
+  fileChecksum: (filePath: string) => ipcRenderer.invoke('file-checksum', filePath) as Promise<string | null>,
   folderOpen: () => ipcRenderer.invoke('folder-open'),
   getInitialFolder: () => ipcRenderer.invoke('get-initial-folder'),
   setLastFolder: (folderPath: string) => ipcRenderer.invoke('set-last-folder', folderPath),
