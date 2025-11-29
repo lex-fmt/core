@@ -17,8 +17,16 @@ interface Window {
     setLastFolder: (folderPath: string) => Promise<boolean>;
     getNativeTheme: () => Promise<'dark' | 'light'>;
     onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => () => void;
-    getOpenTabs: () => Promise<{ tabs: string[]; activeTab: string | null }>;
-    setOpenTabs: (tabs: string[], activeTab: string | null) => Promise<boolean>;
+    getOpenTabs: () => Promise<{
+      panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>;
+      activePaneId: string | null;
+      rows: Array<{ id: string; paneIds: string[]; size?: number; paneSizes?: Record<string, number> }>;
+    }>;
+    setOpenTabs: (
+      panes: Array<{ id: string; tabs: string[]; activeTab: string | null }>,
+      rows: Array<{ id: string; paneIds: string[]; size?: number; paneSizes?: Record<string, number> }>,
+      activePaneId: string | null
+    ) => Promise<boolean>;
     onMenuNewFile: (callback: () => void) => () => void;
     onMenuOpenFile: (callback: () => void) => () => void;
     onMenuOpenFolder: (callback: () => void) => () => void;
@@ -30,5 +38,7 @@ interface Window {
     showItemInFolder: (fullPath: string) => Promise<void>;
     onMenuFind: (callback: () => void) => () => void;
     onMenuReplace: (callback: () => void) => () => void;
+    onMenuSplitVertical: (callback: () => void) => () => void;
+    onMenuSplitHorizontal: (callback: () => void) => () => void;
   }
 }

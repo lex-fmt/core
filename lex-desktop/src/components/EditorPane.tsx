@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState, useCallback, useEffect } from 'react';
 import { Editor, EditorHandle } from './Editor';
-import { TabBar, Tab } from './TabBar';
+import { TabBar, Tab, TabDropData } from './TabBar';
 import { StatusBar, ExportStatus } from './StatusBar';
 import type * as Monaco from 'monaco-editor';
 
@@ -11,7 +11,6 @@ import type * as Monaco from 'monaco-editor';
 const AUTO_SAVE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 export interface EditorPaneHandle {
-    openFile: (path: string) => Promise<void>;
     save: () => Promise<void>;
     format: () => Promise<void>;
     getCurrentFile: () => string | null;
@@ -21,9 +20,16 @@ export interface EditorPaneHandle {
 }
 
 interface EditorPaneProps {
+    tabs: Tab[];
+    activeTabId: string | null;
+    paneId: string;
+    onTabSelect: (tabId: string) => void;
+    onTabClose: (tabId: string) => void;
+    onTabDrop?: (data: TabDropData) => void;
     onFileLoaded?: (path: string | null) => void;
     onCursorChange?: (line: number) => void;
     exportStatus?: ExportStatus;
+    onActivate?: () => void;
 }
 
 /**
@@ -42,15 +48,13 @@ function computeChecksum(content: string): string {
 }
 
 export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function EditorPane(
-    { onFileLoaded, onCursorChange, exportStatus },
+    { tabs, activeTabId, paneId, onTabSelect, onTabClose, onTabDrop, onFileLoaded, onCursorChange, exportStatus, onActivate },
     ref
 ) {
-    const [tabs, setTabs] = useState<Tab[]>([]);
-    const [activeTabId, setActiveTabId] = useState<string | null>(null);
     const [fileToOpen, setFileToOpen] = useState<string | null>(null);
     const [editor, setEditor] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
-    const [isInitialized, setIsInitialized] = useState(false);
     const editorRef = useRef<EditorHandle>(null);
+    const previousTabsRef = useRef<Tab[]>(tabs);
 
     /**
      * AUTO-SAVE SYSTEM
@@ -79,92 +83,33 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     /** Checksum of file on disk when interval started. Used to detect external modifications. */
     const autoSaveChecksumRef = useRef<string | null>(null);
 
-    const getTabIdFromPath = (path: string) => path;
-
-    // Load persisted tabs on mount
     useEffect(() => {
-        const loadPersistedTabs = async () => {
-            try {
-                const { tabs: savedTabs, activeTab } = await window.ipcRenderer.getOpenTabs();
-                if (savedTabs.length > 0) {
-                    const newTabs: Tab[] = savedTabs.map(path => ({
-                        id: path,
-                        path,
-                        name: path.split('/').pop() || path
-                    }));
-                    setTabs(newTabs);
-                    if (activeTab) {
-                        setActiveTabId(activeTab);
-                        setFileToOpen(activeTab);
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to load persisted tabs:', e);
-            } finally {
-                setIsInitialized(true);
-            }
-        };
-        loadPersistedTabs();
-    }, []);
-
-    // Persist tabs whenever they change (after initial load)
-    useEffect(() => {
-        if (!isInitialized) return;
-        const tabPaths = tabs.map(t => t.path);
-        window.ipcRenderer.setOpenTabs(tabPaths, activeTabId);
-    }, [tabs, activeTabId, isInitialized]);
-
-    const openFile = useCallback(async (path: string) => {
-        const tabId = getTabIdFromPath(path);
-        const existingTab = tabs.find(t => t.id === tabId);
-
-        if (existingTab) {
-            // Tab already exists, just activate it
-            setActiveTabId(tabId);
-            setFileToOpen(path);
+        const activeTab = tabs.find(tab => tab.id === activeTabId);
+        if (activeTab) {
+            setFileToOpen(activeTab.path);
         } else {
-            // Create new tab
-            const name = path.split('/').pop() || path;
-            const newTab: Tab = { id: tabId, path, name };
-            setTabs(prev => [...prev, newTab]);
-            setActiveTabId(tabId);
-            setFileToOpen(path);
+            setFileToOpen(null);
+            if (tabs.length === 0) {
+                onFileLoaded?.(null);
+            }
         }
+    }, [tabs, activeTabId, onFileLoaded]);
+
+    useEffect(() => {
+        const previous = previousTabsRef.current;
+        const removedTabs = previous.filter(prevTab => !tabs.some(tab => tab.id === prevTab.id));
+        removedTabs.forEach(tab => editorRef.current?.closeFile(tab.path));
+        previousTabsRef.current = tabs;
     }, [tabs]);
 
     const handleTabSelect = useCallback((tabId: string) => {
-        const tab = tabs.find(t => t.id === tabId);
-        if (tab) {
-            setActiveTabId(tabId);
-            setFileToOpen(tab.path);
-        }
-    }, [tabs]);
+        onActivate?.();
+        onTabSelect(tabId);
+    }, [onTabSelect, onActivate]);
 
     const handleTabClose = useCallback((tabId: string) => {
-        // Dispose the model in the editor
-        const tab = tabs.find(t => t.id === tabId);
-        if (tab) {
-            editorRef.current?.closeFile(tab.path);
-        }
-
-        setTabs(prev => {
-            const newTabs = prev.filter(t => t.id !== tabId);
-
-            // If we're closing the active tab, switch to another
-            if (activeTabId === tabId && newTabs.length > 0) {
-                const closedIndex = prev.findIndex(t => t.id === tabId);
-                const newActiveIndex = Math.min(closedIndex, newTabs.length - 1);
-                setActiveTabId(newTabs[newActiveIndex].id);
-                setFileToOpen(newTabs[newActiveIndex].path);
-            } else if (newTabs.length === 0) {
-                setActiveTabId(null);
-                setFileToOpen(null);
-                onFileLoaded?.(null);
-            }
-
-            return newTabs;
-        });
-    }, [activeTabId, tabs, onFileLoaded]);
+        onTabClose(tabId);
+    }, [onTabClose]);
 
     const handleFileLoaded = useCallback((path: string) => {
         // Update editor reference
@@ -316,22 +261,23 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     }, []);
 
     useImperativeHandle(ref, () => ({
-        openFile,
         save: handleSave,
         format: handleFormat,
         getCurrentFile: () => editorRef.current?.getCurrentFile() ?? null,
         getEditor: () => editorRef.current?.getEditor() ?? null,
         find: handleFind,
         replace: handleReplace,
-    }), [openFile, handleSave, handleFormat, handleFind, handleReplace]);
+    }), [handleSave, handleFormat, handleFind, handleReplace]);
 
     return (
-        <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-h-0" onMouseDown={() => onActivate?.()}>
             <TabBar
                 tabs={tabs}
                 activeTabId={activeTabId}
+                paneId={paneId}
                 onTabSelect={handleTabSelect}
                 onTabClose={handleTabClose}
+                onTabDrop={onTabDrop}
             />
             <div className="flex-1 min-h-0">
                 <Editor
