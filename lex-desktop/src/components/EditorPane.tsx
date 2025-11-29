@@ -4,6 +4,10 @@ import { TabBar, Tab } from './TabBar';
 import { StatusBar } from './StatusBar';
 import type * as Monaco from 'monaco-editor';
 
+/**
+ * Auto-save interval in milliseconds.
+ * Files are automatically saved every 5 minutes while the window has focus.
+ */
 const AUTO_SAVE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 export interface EditorPaneHandle {
@@ -18,7 +22,13 @@ interface EditorPaneProps {
     onCursorChange?: (line: number) => void;
 }
 
-// Compute checksum of content (same algorithm as backend)
+/**
+ * Computes a simple hash checksum of the given content.
+ * Uses the same algorithm as the backend (main.ts) to ensure consistency.
+ *
+ * This is a fast, non-cryptographic hash suitable for detecting file changes.
+ * It's used by auto-save to detect if a file was modified externally.
+ */
 function computeChecksum(content: string): string {
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
@@ -38,8 +48,31 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     const [isInitialized, setIsInitialized] = useState(false);
     const editorRef = useRef<EditorHandle>(null);
 
-    // Auto-save state
+    /**
+     * AUTO-SAVE SYSTEM
+     *
+     * Design goals:
+     * 1. Automatically save user work to prevent data loss
+     * 2. Never overwrite external changes (e.g., if another editor modifies the file)
+     * 3. Only save when the user is actively using the editor (window focused)
+     *
+     * How it works:
+     * - When window gains focus: start a 5-minute interval timer and capture file checksum
+     * - When window loses focus: stop the timer (prevents saving stale content)
+     * - On each interval tick: compare disk checksum with captured checksum
+     *   - If match: safe to save, update checksum to new content
+     *   - If mismatch: file was modified externally, take new checksum but don't save
+     * - On manual save (Cmd+S): reset interval and checksum
+     *
+     * The checksum comparison prevents a common scenario:
+     * 1. User opens file in Lex, makes edits
+     * 2. User switches to another app (auto-save stops)
+     * 3. User edits the same file in another editor and saves
+     * 4. User returns to Lex (auto-save resumes with fresh checksum)
+     * 5. Auto-save won't overwrite because checksums don't match
+     */
     const autoSaveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    /** Checksum of file on disk when interval started. Used to detect external modifications. */
     const autoSaveChecksumRef = useRef<string | null>(null);
 
     const getTabIdFromPath = (path: string) => path;
@@ -135,9 +168,18 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         onFileLoaded?.(path);
     }, [onFileLoaded]);
 
-    // Start auto-save interval - captures current file checksum from disk
+    /**
+     * Starts the auto-save interval timer.
+     *
+     * Called when:
+     * - Window gains focus
+     * - After a manual save (to reset the timer)
+     *
+     * Captures the current file's checksum from disk as the baseline for
+     * detecting external modifications.
+     */
     const startAutoSaveInterval = useCallback(async () => {
-        // Clear any existing interval
+        // Clear any existing interval to avoid duplicates
         if (autoSaveIntervalRef.current) {
             clearInterval(autoSaveIntervalRef.current);
             autoSaveIntervalRef.current = null;
@@ -146,7 +188,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         const currentFile = editorRef.current?.getCurrentFile();
         if (!currentFile) return;
 
-        // Get checksum of file on disk when starting interval
+        // Capture checksum of file on disk - this is our baseline for detecting external changes
         const diskChecksum = await window.ipcRenderer.fileChecksum(currentFile);
         autoSaveChecksumRef.current = diskChecksum;
 
@@ -155,25 +197,37 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
             const editorInstance = editorRef.current?.getEditor();
             if (!filePath || !editorInstance) return;
 
-            // Get current checksum from disk
+            // Read current checksum from disk to check for external modifications
             const currentDiskChecksum = await window.ipcRenderer.fileChecksum(filePath);
 
-            // Only save if disk checksum matches what we captured
             if (currentDiskChecksum === autoSaveChecksumRef.current) {
+                // Checksum matches - file hasn't been modified externally, safe to save
                 const content = editorInstance.getValue();
                 await window.ipcRenderer.fileSave(filePath, content);
-                // Update checksum to new content
+                // Update our baseline checksum to the new content we just saved
                 autoSaveChecksumRef.current = computeChecksum(content);
                 console.log('[AutoSave] Saved file:', filePath);
             } else {
-                // File was modified externally - take new checksum for next interval
+                // Checksum mismatch - file was modified by another program.
+                // Don't overwrite! Instead, update our baseline to the new checksum.
+                // This breaks potential infinite loops where we'd never save because
+                // checksums keep mismatching.
                 autoSaveChecksumRef.current = currentDiskChecksum;
                 console.log('[AutoSave] File modified externally, skipping save:', filePath);
             }
         }, AUTO_SAVE_INTERVAL_MS);
     }, []);
 
-    // Stop auto-save interval
+    /**
+     * Stops the auto-save interval timer.
+     *
+     * Called when:
+     * - Window loses focus (user switched to another app)
+     * - Component unmounts
+     *
+     * Stopping on blur is critical: if the user switches apps and edits the file
+     * elsewhere, we don't want a stale auto-save to overwrite their changes.
+     */
     const stopAutoSaveInterval = useCallback(() => {
         if (autoSaveIntervalRef.current) {
             clearInterval(autoSaveIntervalRef.current);
@@ -182,14 +236,27 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         autoSaveChecksumRef.current = null;
     }, []);
 
-    // Manual save - also resets the auto-save interval
+    /**
+     * Manual save handler.
+     *
+     * After saving, resets the auto-save interval. This ensures:
+     * 1. The timer restarts from zero (user gets full 5 minutes before next auto-save)
+     * 2. The checksum is updated to reflect the just-saved content
+     */
     const handleSave = useCallback(async () => {
         await editorRef.current?.save();
         // Reset auto-save interval after manual save
         await startAutoSaveInterval();
     }, [startAutoSaveInterval]);
 
-    // Auto-save: track window focus
+    /**
+     * Window focus tracking for auto-save.
+     *
+     * Why focus-based?
+     * - Only save when user is actively using the editor
+     * - Prevents saving stale content when user is away
+     * - Allows safe editing of the same file in other applications
+     */
     useEffect(() => {
         const handleFocus = () => {
             startAutoSaveInterval();
@@ -202,7 +269,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         window.addEventListener('focus', handleFocus);
         window.addEventListener('blur', handleBlur);
 
-        // Start interval if window is already focused
+        // Start interval if window is already focused on mount
         if (document.hasFocus()) {
             startAutoSaveInterval();
         }

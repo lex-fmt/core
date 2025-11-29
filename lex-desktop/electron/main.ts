@@ -143,10 +143,20 @@ ipcMain.handle('file-read', async (_, filePath: string) => {
   }
 });
 
+/**
+ * Computes a checksum of a file's content for auto-save conflict detection.
+ *
+ * Used by the auto-save system to detect if a file was modified externally
+ * (by another editor or process) since the last save.
+ *
+ * Algorithm: Simple djb2-style hash - fast and collision-resistant enough
+ * for this use case. Same algorithm is used in EditorPane.tsx for consistency.
+ *
+ * @returns Hex string checksum, or null if file doesn't exist/can't be read
+ */
 ipcMain.handle('file-checksum', async (_, filePath: string) => {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
-    // Simple hash: sum of char codes (fast, collision-resistant enough for this use case)
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
       hash = ((hash << 5) - hash + content.charCodeAt(i)) | 0;
