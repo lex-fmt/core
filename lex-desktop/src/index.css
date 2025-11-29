@@ -43,6 +43,20 @@
     border-color: var(--color-border);
   }
 
+  /* Monaco editor gutter border */
+  .monaco-editor .margin {
+    border-right: 1px solid #cacaca;
+  }
+
+  [data-theme="dark"] .monaco-editor .margin {
+    border-right: 1px solid #555555;
+  }
+
+  /* Monaco editor content left margin */
+  .monaco-editor .lines-content {
+    padding-left: 2rem;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);

@@ -76,6 +76,8 @@ function defineMonacoTheme(themeName: string, mode: ThemeMode) {
         colors: {
             'editor.foreground': colors.normal,
             'editor.background': colors.background,
+            'editorLineNumber.foreground': colors.faint,
+            'editorLineNumber.activeForeground': colors.normal,
         },
     });
 }
