@@ -791,32 +791,41 @@ useEffect(() => {
   }, [activePaneFile, activePaneIdValue]);
 
   const handlePreview = useCallback(async () => {
+    console.log('[Preview] handlePreview called');
+    console.log('[Preview] activePaneFile:', activePaneFile);
+    console.log('[Preview] activePaneIdValue:', activePaneIdValue);
+
     if (!activePaneFile || !isLexFile(activePaneFile)) {
+      console.log('[Preview] ABORT: not a lex file or no file');
       toast.error('Preview requires a .lex file');
       return;
     }
 
-    if (!activePaneIdValue) return;
+    if (!activePaneIdValue) {
+      console.log('[Preview] ABORT: no active pane');
+      return;
+    }
 
     // Save the file first
     const handle = paneHandles.current.get(activePaneIdValue);
+    console.log('[Preview] Saving file first...');
     await handle?.save();
 
     try {
-      // Export to HTML and read the content
-      const htmlPath = await window.ipcRenderer.fileExport(activePaneFile, 'html');
-      const htmlContent = await window.ipcRenderer.fileRead(htmlPath);
-
-      if (!htmlContent) {
-        toast.error('Failed to load preview content');
-        return;
-      }
+      // Convert to HTML in-memory (no file written to disk)
+      console.log('[Preview] Calling lexPreview IPC...');
+      const htmlContent = await window.ipcRenderer.lexPreview(activePaneFile);
+      console.log('[Preview] Got HTML content, length:', htmlContent?.length);
 
       const previewTab = createPreviewTab(activePaneFile, htmlContent);
+      console.log('[Preview] Created preview tab:', previewTab.id, previewTab.name);
 
       // If only one pane, split vertically first
+      console.log('[Preview] panes.length:', panes.length);
       if (panes.length === 1) {
+        console.log('[Preview] Creating new pane for preview (single pane mode)');
         const newPane = createEmptyPane();
+        console.log('[Preview] New pane id:', newPane.id);
         setPanes(prev => [...prev, { ...newPane, tabs: [previewTab], activeTabId: previewTab.id }]);
         setPaneRows(prevRows => {
           if (prevRows.length === 0) {
@@ -836,11 +845,14 @@ useEffect(() => {
           });
         });
         setActivePaneId(newPane.id);
+        console.log('[Preview] Done - new pane created and activated');
       } else {
         // Open preview in the next pane (not the active one)
+        console.log('[Preview] Using existing pane for preview (multi-pane mode)');
         const activeIndex = panes.findIndex(p => p.id === activePaneIdValue);
         const targetIndex = activeIndex === panes.length - 1 ? 0 : activeIndex + 1;
         const targetPaneId = panes[targetIndex].id;
+        console.log('[Preview] Target pane id:', targetPaneId);
 
         setPanes(prev => prev.map(pane => {
           if (pane.id !== targetPaneId) return pane;
@@ -861,8 +873,10 @@ useEffect(() => {
           };
         }));
         setActivePaneId(targetPaneId);
+        console.log('[Preview] Done - preview added to existing pane');
       }
     } catch (error) {
+      console.error('[Preview] ERROR:', error);
       const message = error instanceof Error ? error.message : 'Preview failed';
       toast.error(message);
     }

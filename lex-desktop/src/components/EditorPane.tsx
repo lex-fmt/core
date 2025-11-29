@@ -93,14 +93,21 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     useEffect(() => {
         const activeTab = tabs.find(tab => tab.id === activeTabId);
         if (activeTab) {
-            setFileToOpen(activeTab.path);
+            // Don't set fileToOpen for preview tabs - they don't have a real file path
+            if (activeTab.type !== 'preview') {
+                setFileToOpen(activeTab.path);
+            } else {
+                setFileToOpen(null);
+            }
         } else {
             setFileToOpen(null);
             if (tabs.length === 0) {
                 onFileLoaded?.(null);
             }
         }
-    }, [tabs, activeTabId, onFileLoaded]);
+    // Note: onFileLoaded intentionally excluded from deps to prevent infinite loops
+    // when it's passed as an inline arrow function from parent
+    }, [tabs, activeTabId]);
 
     useEffect(() => {
         const previous = previousTabsRef.current;
@@ -257,7 +264,9 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         }
 
         return () => disposable.dispose();
-    }, [editor, onCursorChange]);
+    // Note: onCursorChange intentionally excluded from deps to prevent infinite loops
+    // when it's passed as an inline arrow function from parent
+    }, [editor]);
 
     const handleFind = useCallback(() => {
         editorRef.current?.find();

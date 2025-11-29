@@ -277,10 +277,8 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
             },
             provideDocumentSemanticTokens: async function (model, _lastResultId, _token) {
                 const uri = model.uri.toString();
-                console.log('[Editor] Provider triggered for:', uri, 'LSP Ready:', lspReady);
 
                 if (!lspReady) {
-                    console.log('[Editor] LSP not ready yet, returning empty tokens');
                     return { data: new Uint32Array([]) };
                 }
 
@@ -288,7 +286,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
                     const result = await lspClient.sendRequest('textDocument/semanticTokens/full', {
                         textDocument: { uri }
                     });
-                    console.log('[Editor] Received tokens:', result?.data?.length, 'tokens');
                     if (result && result.data) {
                         return { data: new Uint32Array(result.data) };
                     }

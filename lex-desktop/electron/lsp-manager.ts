@@ -45,8 +45,10 @@ export class LspManager {
 
     this.lspProcess.stdout?.on('data', (data: Buffer) => {
       const msg = data.toString();
-      console.log(`LSP Output: ${msg}`);
-      log(`LSP Output: ${msg}`);
+      // Truncate large LSP messages for cleaner logs
+      const truncated = msg.length > 200 ? msg.slice(0, 200) + '... [truncated]' : msg;
+      console.log(`LSP Output: ${truncated}`);
+      log(`LSP Output: ${truncated}`);
       // Check if webContents exists and is not destroyed before sending
       if (this.webContents && !this.webContents.isDestroyed()) {
         this.webContents.send('lsp-output', data);

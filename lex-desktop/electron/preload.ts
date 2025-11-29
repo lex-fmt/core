@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     return () => ipcRenderer.removeListener('menu-format', handler);
   },
   fileExport: (sourcePath: string, format: string) => ipcRenderer.invoke('file-export', sourcePath, format) as Promise<string>,
+  lexPreview: (sourcePath: string) => ipcRenderer.invoke('lex-preview', sourcePath) as Promise<string>,
   onMenuExport: (callback: (format: string) => void) => {
     const handler = (_event: any, format: string) => callback(format);
     ipcRenderer.on('menu-export', handler);

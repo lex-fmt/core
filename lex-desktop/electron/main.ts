@@ -98,7 +98,7 @@ function getLexCliPath(): string {
     return path.join(process.resourcesPath, 'lex');
   }
   // Hardcoded path for dev environment (same pattern as lsp-manager.ts)
-  return '/private/tmp/lex/desktop-app/target/debug/lex';
+  return '/Users/adebert/h/lex/target/debug/lex';
 }
 
 /**
@@ -485,6 +485,56 @@ ipcMain.handle('file-export', async (_, sourcePath: string, format: string): Pro
         resolve(outputPath);
       } else {
         reject(new Error(stderr || `lex CLI exited with code ${code}`));
+      }
+    });
+  });
+});
+
+/**
+ * Converts a lex file to HTML and returns the content as a string.
+ * Uses a temp file to avoid triggering Vite file watching.
+ *
+ * @param sourcePath - Path to the source .lex file
+ * @returns The HTML content as a string
+ */
+ipcMain.handle('lex-preview', async (_, sourcePath: string): Promise<string> => {
+  console.log('[lex-preview] IPC called with:', sourcePath);
+  const lexPath = getLexCliPath();
+  const tmpDir = app.getPath('temp');
+  const tmpFile = path.join(tmpDir, `lex-preview-${Date.now()}.html`);
+  console.log('[lex-preview] Using temp file:', tmpFile);
+
+  return new Promise((resolve, reject) => {
+    console.log('[lex-preview] Spawning:', lexPath, 'convert', sourcePath, '--to', 'html', '-o', tmpFile);
+    const proc = spawn(lexPath, ['convert', sourcePath, '--to', 'html', '-o', tmpFile]);
+
+    let stderr = '';
+    proc.stderr.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    proc.on('error', (err) => {
+      console.error('[lex-preview] Spawn error:', err);
+      reject(new Error(`Failed to spawn lex CLI: ${err.message}`));
+    });
+
+    proc.on('close', async (code) => {
+      console.log('[lex-preview] Process exited with code:', code);
+      if (code !== 0) {
+        console.error('[lex-preview] stderr:', stderr);
+        reject(new Error(stderr || `lex CLI exited with code ${code}`));
+        return;
+      }
+
+      try {
+        const content = await fs.readFile(tmpFile, 'utf-8');
+        console.log('[lex-preview] Read content, length:', content.length);
+        // Clean up temp file
+        await fs.unlink(tmpFile).catch(() => {});
+        resolve(content);
+      } catch (err) {
+        console.error('[lex-preview] Read error:', err);
+        reject(new Error(`Failed to read preview: ${err instanceof Error ? err.message : String(err)}`));
       }
     });
   });
