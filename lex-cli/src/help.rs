@@ -1,18 +1,49 @@
+//! In-editor help system for Lex format documentation.
+//!
+//! Provides access to the Lex specification and guide documents from within
+//! editors. This enables features like `:LexHelp` commands that display
+//! contextual documentation without leaving the editor.
+//!
+//! The help system discovers `.lex` files in the `docs/` and `specs/` directories
+//! of the Lex repository and returns their contents filtered by topic.
+//!
+//! # Compile-time Dependency
+//!
+//! This module uses `CARGO_MANIFEST_DIR` to locate documentation files at compile
+//! time. This works for development builds but requires the documentation to be
+//! bundled with the binary for distribution. For CLI usage, the docs are typically
+//! available; for LSP commands, consider alternative discovery mechanisms.
+
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+/// A single help document with its title and content.
 #[derive(Debug, Clone, PartialEq)]
 pub struct HelpEntry {
+    /// Display title derived from the file path (e.g., "specs/grammar.lex").
     pub title: String,
+    /// The full content of the documentation file.
     pub content: String,
 }
 
+/// Response containing matching help entries.
 #[derive(Debug, Clone, PartialEq)]
 pub struct HelpResponse {
+    /// Matching documentation entries, possibly empty if no matches found.
     pub entries: Vec<HelpEntry>,
 }
 
+/// Queries the documentation for help on a topic.
+///
+/// If `topic` is `Some`, filters entries to those whose paths contain the topic
+/// string (case-insensitive). If `None`, returns default entries: the main
+/// overview document and general reference, or up to 3 arbitrary docs if those
+/// aren't found.
+///
+/// # Errors
+///
+/// Returns `io::Error` if the documentation directories cannot be read.
 pub fn query_help(topic: Option<&str>) -> io::Result<HelpResponse> {
     let files = discover_files(&["docs", "specs"])?;
     let matches = match topic {

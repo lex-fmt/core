@@ -1,26 +1,60 @@
+//! Annotation navigation and resolution editing.
+//!
+//! This module provides editor-oriented utilities for working with annotations:
+//!
+//! - **Navigation**: Jump between annotations in document order with circular wrapping.
+//!   Useful for implementing "next annotation" / "previous annotation" commands.
+//!
+//! - **Resolution**: Toggle the `status=resolved` parameter on annotations, enabling
+//!   review workflows where annotations mark items needing attention.
+//!
+//! All functions are stateless and operate on the parsed document AST. They return
+//! enough information for editors to apply changes (ranges, text edits) without
+//! needing to understand the Lex format internals.
+
 use crate::utils::{collect_all_annotations, find_annotation_at_position};
 use lex_parser::lex::ast::{Annotation, AstNode, Document, Parameter, Position, Range};
 
+/// Direction for annotation navigation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnnotationDirection {
     Forward,
     Backward,
 }
 
+/// Result of navigating to an annotation.
+///
+/// Contains the annotation's metadata and location information so editors
+/// can display context and position the cursor appropriately.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnnotationNavigationResult {
+    /// The annotation label (e.g., "note", "todo", "warning").
     pub label: String,
+    /// Key-value parameters from the annotation header.
     pub parameters: Vec<(String, String)>,
+    /// Range covering the annotation header line (for cursor positioning).
     pub header: Range,
+    /// Range covering the annotation body, if present.
     pub body: Option<Range>,
 }
 
+/// A text edit that modifies an annotation's header.
+///
+/// Used by [`toggle_annotation_resolution`] to add or remove the `status=resolved`
+/// parameter. Editors should replace the text at `range` with `new_text`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnnotationEdit {
+    /// The range to replace (the annotation header line).
     pub range: Range,
+    /// The new header text with updated parameters.
     pub new_text: String,
 }
 
+/// Finds the next annotation after the current position, wrapping to the first if needed.
+///
+/// Navigation wraps circularly: if the cursor is at or after the last annotation,
+/// returns the first annotation in the document. Returns `None` only if the document
+/// has no annotations.
 pub fn next_annotation(
     document: &Document,
     position: Position,
@@ -28,6 +62,11 @@ pub fn next_annotation(
     navigate(document, position, AnnotationDirection::Forward)
 }
 
+/// Finds the previous annotation before the current position, wrapping to the last if needed.
+///
+/// Navigation wraps circularly: if the cursor is at or before the first annotation,
+/// returns the last annotation in the document. Returns `None` only if the document
+/// has no annotations.
 pub fn previous_annotation(
     document: &Document,
     position: Position,
@@ -35,6 +74,11 @@ pub fn previous_annotation(
     navigate(document, position, AnnotationDirection::Backward)
 }
 
+/// Navigates to an annotation in the specified direction.
+///
+/// This is the lower-level function used by [`next_annotation`] and [`previous_annotation`].
+/// Annotations are sorted by their header position, and navigation wraps at document
+/// boundaries.
 pub fn navigate(
     document: &Document,
     position: Position,
@@ -55,6 +99,17 @@ pub fn navigate(
         .map(|annotation| annotation_to_result(annotation))
 }
 
+/// Toggles the resolution status of the annotation at the given position.
+///
+/// When `resolved` is `true`, adds or updates `status=resolved` in the annotation header.
+/// When `resolved` is `false`, removes the `status` parameter if present.
+///
+/// Returns `None` if:
+/// - No annotation exists at the position
+/// - The annotation already has the requested status (no change needed)
+///
+/// The returned [`AnnotationEdit`] contains the header range and new text, which
+/// the editor should apply as a text replacement.
 pub fn toggle_annotation_resolution(
     document: &Document,
     position: Position,
@@ -64,6 +119,10 @@ pub fn toggle_annotation_resolution(
     resolution_edit(annotation, resolved)
 }
 
+/// Computes the edit needed to change an annotation's resolution status.
+///
+/// This is the lower-level function that works directly on an [`Annotation`] reference.
+/// Use [`toggle_annotation_resolution`] for position-based lookup.
 pub fn resolution_edit(annotation: &Annotation, resolved: bool) -> Option<AnnotationEdit> {
     let mut params = annotation.data.parameters.clone();
     let status_index = params

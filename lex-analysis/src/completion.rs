@@ -1,3 +1,20 @@
+//! Context-aware completion for Lex documents.
+//!
+//! Provides intelligent completion suggestions based on cursor position:
+//!
+//! - **Reference context**: Inside `[...]` brackets, offers annotation labels,
+//!   definition subjects, session identifiers, and file paths found in the document.
+//!
+//! - **Verbatim label context**: At a verbatim block's closing label, offers
+//!   standard labels (`doc.image`, `doc.code`, etc.) and common programming languages.
+//!
+//! - **Verbatim src context**: Inside a `src=` parameter, offers file paths
+//!   referenced elsewhere in the document.
+//!
+//! The completion provider is document-scoped: it only suggests items that exist
+//! in the current document. For cross-document completion (e.g., bibliography
+//! entries), the LSP layer would need to aggregate from multiple sources.
+
 use crate::inline::InlineSpanKind;
 use crate::utils::{for_each_annotation, reference_span_at_position, session_identifier};
 use lex_parser::lex::ast::links::LinkType;
@@ -5,12 +22,20 @@ use lex_parser::lex::ast::{ContentItem, Document, Position, Session};
 use lsp_types::CompletionItemKind;
 use std::collections::BTreeSet;
 
-/// Describes a semantic completion candidate that can be translated into protocol specific items.
+/// A completion suggestion with display metadata.
+///
+/// Maps to LSP `CompletionItem` but remains protocol-agnostic. The LSP layer
+/// converts these to the wire format. Uses [`lsp_types::CompletionItemKind`]
+/// directly for semantic classification (reference, file, module, etc.).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompletionCandidate {
+    /// The text shown in the completion menu and inserted by default.
     pub label: String,
+    /// Optional description shown alongside the label (e.g., "annotation label").
     pub detail: Option<String>,
+    /// Semantic category for icon display and sorting.
     pub kind: CompletionItemKind,
+    /// Alternative text to insert if different from label (e.g., quoted paths).
     pub insert_text: Option<String>,
 }
 
@@ -35,7 +60,7 @@ impl CompletionCandidate {
     }
 }
 
-/// High level context for completion suggestions.
+/// Internal classification of completion trigger context.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CompletionContext {
     Reference,
@@ -44,7 +69,13 @@ enum CompletionContext {
     General,
 }
 
-/// Produce semantic completion candidates for the document at the provided position.
+/// Returns completion candidates appropriate for the cursor position.
+///
+/// Analyzes the position to determine context (reference, verbatim label, etc.)
+/// and returns relevant suggestions. The candidates are deduplicated but not
+/// sorted—the LSP layer may apply additional ordering based on user preferences.
+///
+/// Returns an empty vector if no completions are available.
 pub fn completion_items(document: &Document, position: Position) -> Vec<CompletionCandidate> {
     match detect_context(document, position) {
         CompletionContext::VerbatimLabel => verbatim_label_completions(document),
