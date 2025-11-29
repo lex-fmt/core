@@ -83,7 +83,7 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-background text-foreground">
       {/* Top Toolbar */}
-      <div className="h-10 flex items-center px-3 bg-panel border-b border-border shrink-0 gap-1">
+      <div className="h-14 flex items-center px-3 bg-panel border-b border-border shrink-0 gap-1">
         <button
           onClick={() => setLeftPanelCollapsed(!leftPanelCollapsed)}
           className={cn(
@@ -98,84 +98,90 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
         <div className="w-px h-5 bg-border mx-1" />
 
         {/* File Actions Button Group */}
-        <ButtonGroup>
-          <button
-            onClick={onNewFile}
-            className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-              "hover:bg-panel-hover transition-colors"
-            )}
-            title="New File"
-          >
-            <FilePlus size={16} />
-          </button>
-          <ButtonGroupSeparator />
-          <button
-            onClick={onOpenFile}
-            className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-              "hover:bg-panel-hover transition-colors"
-            )}
-            title="Open File"
-          >
-            <FileText size={16} />
-          </button>
-          <ButtonGroupSeparator />
-          <button
-            onClick={onOpenFolder}
-            className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-              "hover:bg-panel-hover transition-colors"
-            )}
-            title="Open Folder"
-          >
-            <FolderOpen size={16} />
-          </button>
-          <ButtonGroupSeparator />
-          <button
-            onClick={onSave}
-            disabled={!currentFile}
-            className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-              "hover:bg-panel-hover transition-colors",
-              !currentFile && "opacity-50 cursor-not-allowed"
-            )}
-            title="Save"
-          >
-            <Save size={16} />
-          </button>
-        </ButtonGroup>
+        <div className="flex flex-col items-center gap-0.5">
+          <ButtonGroup>
+            <button
+              onClick={onNewFile}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors"
+              )}
+              title="New File"
+            >
+              <FilePlus size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onOpenFile}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors"
+              )}
+              title="Open File"
+            >
+              <FileText size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onOpenFolder}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors"
+              )}
+              title="Open Folder"
+            >
+              <FolderOpen size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onSave}
+              disabled={!currentFile}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !currentFile && "opacity-50 cursor-not-allowed"
+              )}
+              title="Save"
+            >
+              <Save size={16} />
+            </button>
+          </ButtonGroup>
+          <span className="text-[10px] text-muted-foreground">File</span>
+        </div>
 
         <div className="w-px h-5 bg-border mx-1" />
 
         {/* Export Button Group */}
-        <ButtonGroup>
-          <button
-            onClick={() => onExport?.('markdown')}
-            disabled={!currentFile}
-            className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-              "hover:bg-panel-hover transition-colors",
-              !currentFile && "opacity-50 cursor-not-allowed"
-            )}
-            title="Export to Markdown"
-          >
-            <FileText size={16} />
-          </button>
-          <ButtonGroupSeparator />
-          <button
-            onClick={() => onExport?.('html')}
-            disabled={!currentFile}
-            className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-              "hover:bg-panel-hover transition-colors",
-              !currentFile && "opacity-50 cursor-not-allowed"
-            )}
-            title="Export to HTML"
-          >
-            <FileCode size={16} />
-          </button>
-        </ButtonGroup>
+        <div className="flex flex-col items-center gap-0.5">
+          <ButtonGroup>
+            <button
+              onClick={() => onExport?.('markdown')}
+              disabled={!currentFile}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !currentFile && "opacity-50 cursor-not-allowed"
+              )}
+              title="Export to Markdown"
+            >
+              <FileText size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={() => onExport?.('html')}
+              disabled={!currentFile}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !currentFile && "opacity-50 cursor-not-allowed"
+              )}
+              title="Export to HTML"
+            >
+              <FileCode size={16} />
+            </button>
+          </ButtonGroup>
+          <span className="text-[10px] text-muted-foreground">Export</span>
+        </div>
 
         <div className="flex-1" />
 
