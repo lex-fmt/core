@@ -12,7 +12,7 @@ export interface EditorPaneHandle {
 }
 
 interface EditorPaneProps {
-    onFileLoaded?: (path: string) => void;
+    onFileLoaded?: (path: string | null) => void;
 }
 
 export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function EditorPane(
@@ -72,11 +72,12 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
             } else if (newTabs.length === 0) {
                 setActiveTabId(null);
                 setFileToOpen(null);
+                onFileLoaded?.(null);
             }
 
             return newTabs;
         });
-    }, [activeTabId, tabs]);
+    }, [activeTabId, tabs, onFileLoaded]);
 
     const handleFileLoaded = useCallback((path: string) => {
         // Update editor reference
