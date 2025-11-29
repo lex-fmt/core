@@ -48,3 +48,4 @@ specs/**/*.treeviz
 specs/**/*.treeviz.*
 *.dmg
 *.dmg.blockmap
+*.app
