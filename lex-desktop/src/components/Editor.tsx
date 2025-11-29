@@ -56,6 +56,7 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
                     contentChanges: [{ text: model.getValue() }]
                 });
             });
+
         }
     };
 
@@ -106,16 +107,41 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
         // @ts-ignore
         editor.updateOptions({ semanticHighlighting: { enabled: true } });
 
+        // Debug: Log token info on click
+        editor.onMouseDown((e) => {
+            const position = e.target.position;
+            if (position) {
+                const model = editor.getModel();
+                if (model) {
+                    const word = model.getWordAtPosition(position);
+                    const offset = model.getOffsetAt(position);
+                    console.log('--- Click Debug ---');
+                    console.log('Position:', position);
+                    console.log('Word:', word);
+                    console.log('Offset:', offset);
+
+                    // Log DOM element if available
+                    console.log('DOM Target:', e.target.element);
+
+                    // Attempt to get token info (Monarch)
+                    // @ts-ignore
+                    const tokens = monaco.editor.tokenize(model.getValue(), model.getLanguageId());
+                    if (tokens && tokens[position.lineNumber - 1]) {
+                        const lineTokens = tokens[position.lineNumber - 1];
+                        const token = lineTokens.find(t => t.offset <= position.column - 1); // approximate
+                        console.log('Monarch Token (Line):', token);
+                    }
+
+                    // Log full line tokens for context
+                    console.log('All Line Tokens:', tokens[position.lineNumber - 1]);
+                }
+            }
+        });
+
         if (lspModel) {
             // Initialize LSP
             const uriStr = lspModel.uri.toString();
-            lspClient.sendRequest('initialize', {
-                processId: null,
-                rootUri: null,
-                capabilities: {}
-            }).then(() => {
-                lspClient.sendNotification('initialized', {});
-
+            lspClient.initialize().then(() => {
                 // Open Document
                 lspClient.sendNotification('textDocument/didOpen', {
                     textDocument: {
@@ -125,6 +151,8 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
                         text: lspModel.getValue()
                     }
                 });
+            }).catch(err => {
+                console.error('LSP initialization failed in Editor:', err);
             });
 
             // Handle Changes
@@ -198,13 +226,50 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
         }
     };
 
+    const [lspStatus, setLspStatus] = useState<any>('Initializing');
+
+    useEffect(() => {
+        lspClient.onStatusChange((status) => {
+            setLspStatus(status);
+        });
+    }, []);
+
+    const getStatusColor = () => {
+        switch (lspStatus) {
+            case 'Ready': return '#4caf50'; // Green
+            case 'Error': return '#f44336'; // Red
+            default: return '#ff9800'; // Orange
+        }
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ padding: '5px', background: '#333', display: 'flex', gap: '10px' }}>
+            <div style={{ padding: '5px', background: '#333', display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <button onClick={handleOpen}>Open File</button>
                 <button onClick={handleSave} disabled={!currentFile}>Save</button>
                 <button onClick={handleMockDiagnostics} style={{ marginLeft: 'auto', background: '#555' }}>Mock Diagnostics</button>
-                <span style={{ color: '#fff', alignSelf: 'center' }}>{currentFile || 'Untitled'}</span>
+
+                {/* LSP Status Indicator */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '12px',
+                    color: '#ccc',
+                    borderLeft: '1px solid #555',
+                    paddingLeft: '10px',
+                    marginLeft: '10px'
+                }}>
+                    <div style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: getStatusColor()
+                    }} />
+                    <span>LSP: {lspStatus}</span>
+                </div>
+
+                <span style={{ color: '#fff', marginLeft: '10px' }}>{currentFile || 'Untitled'}</span>
             </div>
             <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', position: 'relative' }} />
         </div>

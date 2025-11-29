@@ -24,6 +24,9 @@ function App() {
   };
 
   useEffect(() => {
+    console.log('App mounted, initializing Monaco...');
+    initDebugMonaco();
+
     const loadBenchmark = async () => {
       try {
         const path = await window.ipcRenderer.getBenchmarkFile();

@@ -1,0 +1,74 @@
+
+Running 1 test using 1 worker
+
+[Browser Console] log: [LspClient] Initializing for language: lex
+[Browser Console] log: Editor created. Model language: lex
+[Browser Console] log: [LspClient] Initializing LSP session...
+[Browser Console] log: App mounted, initializing Monaco...
+[Browser Console] log: 11/29/2025, 1:08:35 AM
+[Browser Console] log: [LspClient] Initializing for language: lex
+[Browser Console] log: Editor created. Model language: lex
+[Browser Console] log: [LspClient] Initializing LSP session...
+[Browser Console] log: App mounted, initializing Monaco...
+[Browser Console] log: 11/29/2025, 1:08:36 AM
+[Browser Console] log: [LspClient] Received data bytes: 22
+[Browser Console] log: [LspClient] Received data bytes: 76
+[Browser Console] log: [LspClient] Handling message: id=0, method=undefined, error={"code":-32600,"message":"Invalid request"}, result=undefined...
+[Browser Console] error: [LspClient] Initialization failed: {code: -32600, message: Invalid request}
+[Browser Console] log: [LspClient] Server returned Invalid Request for initialize. Assuming already initialized.
+[Browser Console] log: [LspClient] Received data bytes: 8192
+[Browser Console] log: [LspClient] Received data bytes: 2839
+[Browser Console] log: [LspClient] Handling message: id=1, method=undefined, error=undefined, result=[{"children":[{"kind":15,"name":"We know of nothing more powerful than an idea, and no denser medium...
+[Browser Console] log: [Editor] Manually requesting semantic tokens for: file:///private/tmp/lex/desktop-app/lex-desktop/release/mac-arm64/Lex%20Editor.app/Contents/Resources/specs/v1/benchmark/30-a-place-for-ideas.lex
+[Browser Console] log: [LspClient] Received data bytes: 23
+[Browser Console] log: [LspClient] Received data bytes: 8192
+[Browser Console] log: [LspClient] Handling message: id=2, method=undefined, error=undefined, result={"data":[0,0,17,0,0,2,0,2,1,0,0,3,22,2,0,8,0,2,1,0,0,3,26,2,0,11,0,2,1,0,0,3,19,2,0,5,4,4,1,0,0,5,39...
+[Browser Console] log: [Editor] Manual semantic tokens result: {"data":[0,0,17,0,0,2,0,2,1,0,0,3,22,2,0,8,0,2,1,0,0,3,26,2,0,11,0,2,1,0,0,3,19,2,0,5,4,4,1,0,0,5,39,2,0,2,8,19,3,0,6,4,4,1,0,0,5,45,2,0,5,8,6,1,0,0,7,9,2,0,5,8,6,1,0,0,7,11,2,0,2,12,1,5,0,0,2,45,6,0,1,12,1,5,0,0,2,52,6,0,1,12,1,5,0,0,2,17,6,0,1,16,2,5,0,0,3,47,6,0,1,16,2,5,0,0,3,39,6,0,3,8,6,1,0,0,7,9,2,0,2,113,1,21,0,0,1,18,10,0,0,18,1,22,0,0,77,1,27,0,0,1,21,13,0,0,21,1,28,0,3,8,6,1,0,0,7,9,2,0,4,12,14,17,0,1,16,20,20,0,1,20,28,20,0,1,20,53,20,0,1,20,27,20,0,1,20,29,20,0,1,20,27,20,0,1,20,27,20,0,1,14,7,18,0,2,162,1,29,0,0,1,4,14,0,0,4,1,30,0,2,0,26,2,0]}
+[Browser Console] log: [LspClient] Received data bytes: 3437
+[Browser Console] log: [LspClient] Handling message: id=3, method=undefined, error=undefined, result=[{"children":[{"kind":15,"name":"We know of nothing more powerful than an idea, and no denser medium...
+
+--- Clicking: Session Title (The) ---
+[Browser Console] log: --- Click Debug (Simulated) ---
+[Browser Console] log: Position: {lineNumber: 3, column: 5}
+[Browser Console] log: Word: {word: The, startColumn: 4, endColumn: 7}
+[Browser Console] log: Offset: 23
+[Browser Console] log: Monarch Token (Line): {"offset":4,"type":"string.lex","language":"lex"}
+[Browser Console] log: All Line Tokens: [{"offset":0,"type":"source.lex","language":"lex"},{"offset":4,"type":"string.lex","language":"lex"},{"offset":6,"type":"source.lex","language":"lex"},{"offset":8,"type":"string.lex","language":"lex"},{"offset":11,"type":"source.lex","language":"lex"},{"offset":12,"type":"string.lex","language":"lex"},{"offset":14,"type":"source.lex","language":"lex"},{"offset":16,"type":"string.lex","language":"lex"}]
+
+--- Clicking: Seq Marker (1) ---
+[Browser Console] log: --- Click Debug (Simulated) ---
+[Browser Console] log: Position: {lineNumber: 3, column: 1}
+[Browser Console] log: Word: {word: 1, startColumn: 1, endColumn: 2}
+[Browser Console] log: Offset: 19
+[Browser Console] log: Monarch Token (Line): {"offset":0,"type":"source.lex","language":"lex"}
+[Browser Console] log: All Line Tokens: [{"offset":0,"type":"source.lex","language":"lex"},{"offset":4,"type":"string.lex","language":"lex"},{"offset":6,"type":"source.lex","language":"lex"},{"offset":8,"type":"string.lex","language":"lex"},{"offset":11,"type":"source.lex","language":"lex"},{"offset":12,"type":"string.lex","language":"lex"},{"offset":14,"type":"source.lex","language":"lex"},{"offset":16,"type":"string.lex","language":"lex"}]
+
+--- Clicking: Paragraph (know) ---
+[Browser Console] log: --- Click Debug (Simulated) ---
+[Browser Console] log: Position: {lineNumber: 5, column: 9}
+[Browser Console] log: Word: {word: know, startColumn: 8, endColumn: 12}
+[Browser Console] log: Offset: 54
+[Browser Console] log: Monarch Token (Line): {"offset":7,"type":"string.lex","language":"lex"}
+[Browser Console] log: All Line Tokens: [{"offset":0,"type":"source.lex","language":"lex"},{"offset":5,"type":"string.lex","language":"lex"},{"offset":6,"type":"source.lex","language":"lex"},{"offset":7,"type":"string.lex","language":"lex"},{"offset":11,"type":"source.lex","language":"lex"},{"offset":12,"type":"string.lex","language":"lex"},{"offset":14,"type":"source.lex","language":"lex"},{"offset":15,"type":"string.lex","language":"lex"},{"offset":22,"type":"source.lex","language":"lex"},{"offset":23,"type":"string.lex","language":"lex"},{"offset":27,"type":"source.lex","language":"lex"},{"offset":28,"type":"string.lex","language":"lex"},{"offset":36,"type":"source.lex","language":"lex"},{"offset":37,"type":"string.lex","language":"lex"},{"offset":41,"type":"source.lex","language":"lex"},{"offset":42,"type":"string.lex","language":"lex"},{"offset":44,"type":"source.lex","language":"lex"},{"offset":45,"type":"string.lex","language":"lex"},{"offset":49,"type":"source.lex","language":"lex"},{"offset":51,"type":"string.lex","language":"lex"},{"offset":54,"type":"source.lex","language":"lex"},{"offset":55,"type":"string.lex","language":"lex"},{"offset":57,"type":"source.lex","language":"lex"},{"offset":58,"type":"string.lex","language":"lex"},{"offset":64,"type":"source.lex","language":"lex"},{"offset":65,"type":"string.lex","language":"lex"},{"offset":71,"type":"source.lex","language":"lex"},{"offset":72,"type":"string.lex","language":"lex"},{"offset":75,"type":"source.lex","language":"lex"},{"offset":76,"type":"string.lex","language":"lex"},{"offset":78,"type":"source.lex","language":"lex"},{"offset":79,"type":"string.lex","language":"lex"},{"offset":83,"type":"source.lex","language":"lex"},{"offset":84,"type":"string.lex","language":"lex"},{"offset":91,"type":"source.lex","language":"lex"},{"offset":92,"type":"string.lex","language":"lex"},{"offset":100,"type":"source.lex","language":"lex"},{"offset":103,"type":"string.lex","language":"lex"},{"offset":105,"type":"source.lex","language":"lex"},{"offset":107,"type":"string.lex","language":"lex"},{"offset":110,"type":"source.lex","language":"lex"},{"offset":111,"type":"string.lex","language":"lex"},{"offset":116,"type":"source.lex","language":"lex"},{"offset":117,"type":"string.lex","language":"lex"},{"offset":120,"type":"source.lex","language":"lex"},{"offset":121,"type":"string.lex","language":"lex"},{"offset":125,"type":"source.lex","language":"lex"},{"offset":126,"type":"string.lex","language":"lex"},{"offset":130,"type":"source.lex","language":"lex"},{"offset":131,"type":"string.lex","language":"lex"},{"offset":132,"type":"source.lex","language":"lex"},{"offset":133,"type":"string.lex","language":"lex"},{"offset":138,"type":"source.lex","language":"lex"},{"offset":139,"type":"string.lex","language":"lex"},{"offset":141,"type":"source.lex","language":"lex"},{"offset":142,"type":"string.lex","language":"lex"},{"offset":152,"type":"source.lex","language":"lex"},{"offset":154,"type":"string.lex","language":"lex"},{"offset":160,"type":"source.lex","language":"lex"},{"offset":161,"type":"string.lex","language":"lex"},{"offset":165,"type":"source.lex","language":"lex"},{"offset":166,"type":"string.lex","language":"lex"},{"offset":173,"type":"source.lex","language":"lex"},{"offset":174,"type":"string.lex","language":"lex"},{"offset":178,"type":"source.lex","language":"lex"},{"offset":179,"type":"string.lex","language":"lex"},{"offset":183,"type":"source.lex","language":"lex"},{"offset":184,"type":"string.lex","language":"lex"},{"offset":189,"type":"source.lex","language":"lex"},{"offset":190,"type":"string.lex","language":"lex"},{"offset":198,"type":"source.lex","language":"lex"},{"offset":199,"type":"string.lex","language":"lex"},{"offset":201,"type":"source.lex","language":"lex"},{"offset":202,"type":"string.lex","language":"lex"},{"offset":209,"type":"source.lex","language":"lex"},{"offset":210,"type":"string.lex","language":"lex"},{"offset":214,"type":"source.lex","language":"lex"}]
+
+--- Clicking: Verbatim Label (python) ---
+[Browser Console] log: --- Click Debug (Simulated) ---
+[Browser Console] log: Position: {lineNumber: 71, column: 17}
+[Browser Console] log: Word: {word: python, startColumn: 16, endColumn: 22}
+[Browser Console] log: Offset: 4127
+[Browser Console] log: Monarch Token (Line): {"offset":15,"type":"string.lex","language":"lex"}
+[Browser Console] log: All Line Tokens: [{"offset":0,"type":"source.lex","language":"lex"},{"offset":15,"type":"string.lex","language":"lex"}]
+
+--- Clicking: Verbatim Content (parse) ---
+[Browser Console] log: --- Click Debug (Simulated) ---
+[Browser Console] log: Position: {lineNumber: 64, column: 20}
+[Browser Console] log: Word: {word: def, startColumn: 17, endColumn: 20}
+[Browser Console] log: Offset: 3776
+[Browser Console] log: Monarch Token (Line): {"offset":19,"type":"source.lex","language":"lex"}
+[Browser Console] log: All Line Tokens: [{"offset":0,"type":"source.lex","language":"lex"},{"offset":16,"type":"string.lex","language":"lex"},{"offset":19,"type":"source.lex","language":"lex"},{"offset":20,"type":"string.lex","language":"lex"},{"offset":25,"type":"source.lex","language":"lex"},{"offset":26,"type":"string.lex","language":"lex"},{"offset":34,"type":"source.lex","language":"lex"}]
+[Browser Console] log: [LspClient] Received data bytes: 8192
+[Browser Console] log: [LspClient] Received data bytes: 2839
+[Browser Console] log: [LspClient] Handling message: id=4, method=undefined, error=undefined, result=[{"children":[{"kind":15,"name":"We know of nothing more powerful than an idea, and no denser medium...
+  ✓  1 tests/e2e/debug_clicks.spec.ts:4:3 › Debug Clicks › should log token info on clicks (8.2s)
+
+  1 passed (8.6s)

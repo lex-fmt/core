@@ -7,6 +7,8 @@ export type LspMessage = {
   params?: any;
 };
 
+export type LspStatus = 'Initializing' | 'Ready' | 'Error';
+
 export class LspClient {
   // @ts-ignore
   private ipcRenderer: any;
@@ -15,6 +17,8 @@ export class LspClient {
   private requestId = 0;
   private pendingRequests = new Map<number | string, { resolve: (val: any) => void; reject: (err: any) => void }>();
   private notificationHandlers = new Map<string, (params: any) => void>();
+  private statusHandlers: ((status: LspStatus) => void)[] = [];
+  private currentStatus: LspStatus = 'Initializing';
 
   private buffer: Uint8Array = new Uint8Array(0);
 
@@ -22,6 +26,7 @@ export class LspClient {
     this.ipcRenderer = ipcRenderer;
     this.languageId = languageId;
     console.log(`[LspClient] Initializing for language: ${languageId}`);
+    this.setStatus('Initializing');
 
     // @ts-ignore
     window.ipcRenderer.on('lsp-output', (_event, data: Uint8Array) => {
@@ -37,23 +42,42 @@ export class LspClient {
     this.initialize();
   }
 
-  private initialize() {
-    // Placeholder for actual LSP initialization logic
+  private setStatus(status: LspStatus) {
+      this.currentStatus = status;
+      this.statusHandlers.forEach(h => h(status));
+  }
+
+  public onStatusChange(handler: (status: LspStatus) => void) {
+      this.statusHandlers.push(handler);
+      handler(this.currentStatus); // Emit current status immediately
+  }
+
+  public async initialize() {
     console.log('[LspClient] Initializing LSP session...');
-    // Example: send an initialize request
-    this.sendRequest('initialize', {
-      processId: null,
-      rootUri: null,
-      capabilities: {},
-      clientInfo: {
-        name: 'CodeMirror LSP Client',
-        version: '1.0.0'
-      }
-    }).then(response => {
-      console.log('[LspClient] Initialization response:', response);
-    }).catch(error => {
-      console.error('[LspClient] Initialization failed:', error);
-    });
+    try {
+        const response = await this.sendRequest('initialize', {
+            processId: null,
+            rootUri: null,
+            capabilities: {},
+            clientInfo: {
+                name: 'Lex Editor',
+                version: '1.0.0'
+            }
+        });
+        console.log('[LspClient] Initialization response:', JSON.stringify(response, null, 2));
+        this.sendNotification('initialized', {});
+        this.setStatus('Ready');
+    } catch (error: any) {
+        console.error('[LspClient] Initialization failed:', error);
+        // If error code is -32600 (Invalid Request), it likely means the server is already initialized.
+        if (error && error.code === -32600) {
+            console.log('[LspClient] Server returned Invalid Request for initialize. Assuming already initialized.');
+            this.setStatus('Ready');
+        } else {
+            this.setStatus('Error');
+            throw error;
+        }
+    }
   }
 
   private appendBuffer(data: Uint8Array) {
