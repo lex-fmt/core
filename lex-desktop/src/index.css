@@ -29,6 +29,7 @@
   --color-panel-hover: #2a2d2e;
   --color-accent: #0e639c;
   --color-accent-foreground: #ffffff;
+  --panel-item-padding: 6px;
 }
 
 /* Light theme */
@@ -43,6 +44,7 @@
   --color-panel-hover: #e8e8e8;
   --color-accent: #0066b8;
   --color-accent-foreground: #ffffff;
+  --panel-item-padding: 6px;
 }
 
 @theme {

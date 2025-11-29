@@ -148,7 +148,10 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
                                 : "text-foreground",
                             canOpen ? "cursor-pointer" : "cursor-default opacity-50"
                         )}
-                        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+                        style={{
+                            paddingLeft: `calc(var(--panel-item-padding) + ${depth * 12}px)`,
+                            paddingRight: 'var(--panel-item-padding)',
+                        }}
                         onClick={(e) => {
                             e.stopPropagation();
                             toggleDir(entry);
@@ -196,11 +199,21 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
         <div className="h-full bg-panel overflow-y-auto text-foreground relative"
             style={{ fontFamily: 'system-ui, sans-serif' }}
         >
-            <div className="p-2.5 text-xs font-semibold border-b border-border">
+            <div
+                className="text-xs font-semibold border-b border-border"
+                style={{ padding: 'var(--panel-item-padding)' }}
+            >
                 Explorer
             </div>
-            {files.length > 0 ? renderTree(files) : (
-                <div className="p-2.5 text-[13px] text-muted-foreground">
+            {files.length > 0 ? (
+                <div style={{ paddingTop: 'var(--panel-item-padding)', paddingBottom: 'var(--panel-item-padding)' }}>
+                    {renderTree(files)}
+                </div>
+            ) : (
+                <div
+                    className="text-[13px] text-muted-foreground"
+                    style={{ padding: 'var(--panel-item-padding)' }}
+                >
                     {rootPath ? 'Loading...' : 'No folder opened'}
                 </div>
             )}

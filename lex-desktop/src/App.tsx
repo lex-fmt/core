@@ -47,6 +47,14 @@ function App() {
     await editorPaneRef.current?.format();
   }, []);
 
+  const handleFind = useCallback(() => {
+    editorPaneRef.current?.find();
+  }, []);
+
+  const handleReplace = useCallback(() => {
+    editorPaneRef.current?.replace();
+  }, []);
+
   const handleShareWhatsApp = useCallback(async () => {
     const editor = editorPaneRef.current?.getEditor();
     if (!editor) {
@@ -155,6 +163,8 @@ function App() {
     const unsubSave = window.ipcRenderer.onMenuSave(handleSave);
     const unsubFormat = window.ipcRenderer.onMenuFormat(handleFormat);
     const unsubExport = window.ipcRenderer.onMenuExport(handleExport);
+    const unsubFind = window.ipcRenderer.onMenuFind(handleFind);
+    const unsubReplace = window.ipcRenderer.onMenuReplace(handleReplace);
 
     return () => {
       unsubNewFile();
@@ -163,8 +173,10 @@ function App() {
       unsubSave();
       unsubFormat();
       unsubExport();
+      unsubFind();
+      unsubReplace();
     };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport]);
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace]);
 
   return (
     <Layout
@@ -178,6 +190,8 @@ function App() {
       onExport={handleExport}
       onShareWhatsApp={handleShareWhatsApp}
       onConvertToLex={handleConvertToLex}
+      onFind={handleFind}
+      onReplace={handleReplace}
       currentFile={currentFile}
       panel={
         <Outline

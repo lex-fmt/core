@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu, shell } from 'e
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import { spawn } from 'child_process';
 import { LspManager } from './lsp-manager'
 
@@ -10,14 +11,42 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Settings persistence
 const SETTINGS_FILE = 'settings.json';
 
+interface WindowState {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+  isMaximized?: boolean;
+}
+
 interface AppSettings {
   lastFolder?: string;
   openTabs?: string[];
   activeTab?: string;
+  windowState?: WindowState;
+}
+
+const DEFAULT_WINDOW_STATE: WindowState = {
+  width: 1200,
+  height: 800,
+};
+
+function getSettingsPathSync(): string {
+  return path.join(app.getPath('userData'), SETTINGS_FILE);
 }
 
 async function getSettingsPath(): Promise<string> {
-  return path.join(app.getPath('userData'), SETTINGS_FILE);
+  return getSettingsPathSync();
+}
+
+function loadSettingsSync(): AppSettings {
+  try {
+    const settingsPath = getSettingsPathSync();
+    const data = fsSync.readFileSync(settingsPath, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return {};
+  }
 }
 
 async function loadSettings(): Promise<AppSettings> {
@@ -28,6 +57,11 @@ async function loadSettings(): Promise<AppSettings> {
   } catch {
     return {};
   }
+}
+
+function saveSettingsSync(settings: AppSettings): void {
+  const settingsPath = getSettingsPathSync();
+  fsSync.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
 }
 
 async function saveSettings(settings: AppSettings): Promise<void> {
@@ -80,14 +114,93 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 const lspManager = new LspManager()
 
-function createWindow() {
+async function createWindow() {
+  // Load saved window state with fallback to defaults
+  let windowState = DEFAULT_WINDOW_STATE;
+  try {
+    const settings = await loadSettings();
+    if (settings.windowState) {
+      // Validate window state has required properties
+      const ws = settings.windowState;
+      if (typeof ws.width === 'number' && typeof ws.height === 'number') {
+        windowState = {
+          ...DEFAULT_WINDOW_STATE,
+          ...ws,
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load window state, using defaults:', error);
+  }
+
   win = new BrowserWindow({
     title: 'Lex Editor',
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
+    x: windowState.x,
+    y: windowState.y,
+    width: windowState.width,
+    height: windowState.height,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
   })
+
+  // Restore maximized state
+  try {
+    if (windowState.isMaximized) {
+      win.maximize();
+    }
+  } catch (error) {
+    console.error('Failed to restore maximized state:', error);
+  }
+
+  // Save window state synchronously (used for close event to ensure it completes)
+  const saveWindowStateSync = () => {
+    try {
+      if (!win || win.isDestroyed()) return;
+
+      const isMaximized = win.isMaximized();
+      const bounds = win.getBounds();
+
+      const settings = loadSettingsSync();
+      settings.windowState = {
+        x: isMaximized ? settings.windowState?.x : bounds.x,
+        y: isMaximized ? settings.windowState?.y : bounds.y,
+        width: isMaximized ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width : bounds.width,
+        height: isMaximized ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height : bounds.height,
+        isMaximized,
+      };
+      saveSettingsSync(settings);
+    } catch (error) {
+      console.error('Failed to save window state:', error);
+    }
+  };
+
+  // Save window state asynchronously (used for resize/move to avoid blocking UI)
+  const saveWindowStateAsync = async () => {
+    try {
+      if (!win || win.isDestroyed()) return;
+
+      const isMaximized = win.isMaximized();
+      const bounds = win.getBounds();
+
+      const settings = await loadSettings();
+      settings.windowState = {
+        x: isMaximized ? settings.windowState?.x : bounds.x,
+        y: isMaximized ? settings.windowState?.y : bounds.y,
+        width: isMaximized ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width : bounds.width,
+        height: isMaximized ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height : bounds.height,
+        isMaximized,
+      };
+      await saveSettings(settings);
+    } catch (error) {
+      console.error('Failed to save window state:', error);
+    }
+  };
+
+  win.on('close', saveWindowStateSync);
+  win.on('resize', saveWindowStateAsync);
+  win.on('move', saveWindowStateAsync);
 
   lspManager.setWebContents(win.webContents)
   lspManager.start()
@@ -415,7 +528,18 @@ function createMenu() {
         { role: 'cut' },
         { role: 'copy' },
         { role: 'paste' },
-        { role: 'selectAll' }
+        { role: 'selectAll' },
+        { type: 'separator' },
+        {
+          label: 'Find',
+          accelerator: 'CmdOrCtrl+F',
+          click: () => win?.webContents.send('menu-find')
+        },
+        {
+          label: 'Replace',
+          accelerator: 'CmdOrCtrl+H',
+          click: () => win?.webContents.send('menu-replace')
+        }
       ]
     },
     {

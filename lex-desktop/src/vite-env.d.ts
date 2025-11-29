@@ -28,5 +28,7 @@ interface Window {
     onMenuExport: (callback: (format: string) => void) => () => void;
     shareWhatsApp: (content: string) => Promise<void>;
     showItemInFolder: (fullPath: string) => Promise<void>;
+    onMenuFind: (callback: () => void) => () => void;
+    onMenuReplace: (callback: () => void) => () => void;
   }
 }
