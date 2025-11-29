@@ -18,43 +18,80 @@ Bellow the work in progress to be done, and at the documents very end the work a
 
 ## 2\. Document Handling
 
-Being a markup document format, there is a set of features that are table stakes:
+Being a markup document format, there is a set of features that are table stakes. Most of the
+heavy lifting is already implemented in the workspace – editor integrations should focus on
+discoverability and UX wrappers over those existing capabilities:
 
-1. Interop:
-2. Content Management:
+1. **Interop:** `lex-babel` ships conversions between Lex, Markdown, HTML and experimental PDF
+   backends (see `lex-babel/src/formats`). Editors can either shell out to `lex-cli convert` or call
+   future `workspace/executeCommand` endpoints that reuse Babel’s registry. No new parser logic is
+   required inside the plugins.
+2. **Content Management:** Document structure queries (sessions, annotations, definitions, links)
+   live in `lex-analysis` and are already used by `lex-lsp` for document symbols, navigation and
+   hover. Plugins should reuse those APIs via the LSP instead of keeping parallel indices.
 
 ## 3\. Editing
 
-While the minimal featureset covered some of these, we have left out a few useful features related to editing:
+While the minimal featureset covered some of these, we have left out a few useful features related to
+editing. The good news is that most of the primitives live in `lex-analysis`, so the new work is
+mostly wiring them through LSP commands or standard requests:
 
-1. Completion for paths, urls, citations.
+1. Completion for paths, URLs, citations → build on top of `lex_parser::links` +
+   `lex_analysis::reference_targets` once the LSP completion provider lands.
 2. Inserting Images / Files.
 3. Inserting Verbatim Blocks from files.
 4. Annotation management:
-    1. Iterating through annotations
-    2. Resolving, unresolving.
-    3. Show Hide Annotations
-5. Indenting on paste.
+    1. Iterating through annotations (reuse `lex_analysis::utils::find_annotation_at_position`).
+    2. Resolving, unresolving via TextEdits that wrap formatter rules.
+    3. Show/Hide annotations via editor UI toggles.
+5. Indenting on paste → handled inside editor settings, but follow formatter defaults.
 6. Tab shifting.
-7. Ordering lists: fix the list orderings (even for nested lists)
+7. Ordering lists: fix the list ordering (even for nested lists) using formatter helpers already in
+   `lex-babel`.
 
 ## 4\. Publishing
 
-While the interop features will generate various formats, the publishing workflow can be more detailed, alowing template selection, image sizing, previews, and so on.
+While the interop features generate the base artifacts, the publishing workflow can be more detailed,
+allowing template selection, image sizing, previews, and so on. The current building blocks are:
 
-This will be a core part of Lex, as it's value proposition is a single format from note to publication.
+1. `lex-babel` format registry → renders Markdown, HTML, LaTeX, and experimental PDF targets.
+2. `lex-cli publish --format <target>` → batch entry point suitable for custom editor commands.
+3. Planned LSP commands (see `editors/required-apis.lex`) → wrap Babel conversions and stream
+   results back to editors for quick previews.
+
+This will be a core part of Lex, as its value proposition is a single format from note to publication.
 
 ## 6\. Help / Documentation
 
-Being a novel format, it would be very welcome to be able to offer help and documetation for the format itself. I'm not very sure how to best achieve this, but it's worth carving out the mental model for this.
+Being a novel format, it is very welcome to offer help and documentation for the format itself. The
+plan is to surface `docs/specs` and `specs/v*/general.lex` content through a generic `lex.help`
+command so every editor can show contextual help without bundling duplicated assets.
+
+Diagnostics are intentionally postponed. Lex is designed to never fail parsing and to fall back to
+paragraphs no matter what, which makes traditional diagnostics less meaningful. We will revisit this
+once we have a principled design for surfacing structural issues.
 
 ## 7\. Shared Architecture
 
-To avoid duplicating logic across plugins, we use the LSP `workspace/executeCommand` capability. This allows plugins to delegate complex tasks to the `lex-lsp` server.
+To avoid duplicating logic across plugins, we keep all parsing, semantics, and conversions inside the
+Rust crates and expose them through LSP features or thin CLI wrappers.
+
+| Layer | Responsibilities | Crate(s) |
+| --- | --- | --- |
+| Parsing & AST | Turn text into structured documents, track ranges, resolve links | `lex-parser` |
+| Analysis | Sessions, annotations, navigation, semantic tokens, folding | `lex-analysis` (re-exported by `lex-lsp`) |
+| Formatting & Conversions | Canonical Lex serialization, Markdown/HTML/PDF transforms | `lex-babel` |
+| Protocol adapters | LSP server, TextEdit diffs, document links, executeCommand bridge | `lex-lsp` |
+| UX wrappers | Editor specific bindings (commands, menus, keymaps) | `editors/vscode`, `editors/nvim` |
+
+Whenever a feature fits a standard LSP method (semantic tokens, hover, symbols, etc.) we rely on the
+built-in request rather than inventing a command. For everything else we use the
+`workspace/executeCommand` capability so plugins can delegate complex tasks to the `lex-lsp` server.
 
 **Mechanism**:
 
-The server exposes a set of commands (e.g., `lex.echo`). Plugins invoke these commands using their editor's LSP client API.
+The server exposes a set of commands (currently `lex.echo` while the real commands are under
+development). Plugins invoke these commands using their editor's LSP client API.
 
 **Usage**:
 
@@ -82,7 +119,9 @@ These are the initial launch features for both editors:
 6. Comment / Uncomment
 7. Symbol Navigation (mostly references in Lex's context)
 
-While diagnostics surely would make sense, given's Lex modus operandi of "never fails" and worst case scenario "parse as paragraphs", we don't have a useful , working implementation that would offer any value. This will be tackled later, but it is to be left out for now.
+Diagnostics are intentionally postponed. Lex never fails parsing and always falls back to paragraphs,
+so traditional error surfacing needs a more principled design than we currently have. We will revisit
+the feature once we land on a meaningful signal we can expose to users.
 
 These are currently working in the Neovim plugin. All of these are built over the LSP protocol, with the lex-lsp binary being the server.
 

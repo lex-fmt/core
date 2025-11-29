@@ -15,6 +15,7 @@ serde = { workspace = true, features = ["derive"] }
 tempfile = "3"
 which = "4"
 url = "2.4"
+pathdiff = "0.2"
 
 [dev-dependencies]
 insta = { workspace = true }
