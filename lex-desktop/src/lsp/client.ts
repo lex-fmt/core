@@ -21,21 +21,25 @@ export class LspClient {
   constructor(ipcRenderer: any, languageId: string) {
     this.ipcRenderer = ipcRenderer;
     this.languageId = languageId;
+    console.log(`[LspClient] Initializing for language: ${languageId}`);
 
     // @ts-ignore
     window.ipcRenderer.on('lsp-output', (_event, data: Uint8Array) => {
+        console.log(`[LspClient] Received data bytes: ${data.length}`);
         this.appendBuffer(data);
         this.processBuffer();
     });
   }
 
   async start() {
+    console.log('[LspClient] Starting...');
     // await this.ipcRenderer.invoke('start-lsp'); // Assuming start-lsp is handled by main process automatically or elsewhere
     this.initialize();
   }
 
   private initialize() {
     // Placeholder for actual LSP initialization logic
+    console.log('[LspClient] Initializing LSP session...');
     // Example: send an initialize request
     this.sendRequest('initialize', {
       processId: null,
@@ -46,7 +50,7 @@ export class LspClient {
         version: '1.0.0'
       }
     }).then(response => {
-      // console.log('[LspClient] Initialization response:', response);
+      console.log('[LspClient] Initialization response:', response);
     }).catch(error => {
       console.error('[LspClient] Initialization failed:', error);
     });
@@ -101,6 +105,8 @@ export class LspClient {
   }
 
   private handleMessage(message: LspMessage) {
+    const resultStr = JSON.stringify(message.result);
+    console.log(`[LspClient] Handling message: id=${message.id}, method=${message.method}, error=${JSON.stringify(message.error)}, result=${resultStr ? resultStr.substring(0, 100) : 'undefined'}...`);
     if (message.id !== undefined) {
         // Response to a request
         if (this.pendingRequests.has(message.id)) {
