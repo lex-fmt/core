@@ -71,4 +71,5 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     return () => ipcRenderer.removeListener('menu-export', handler);
   },
   shareWhatsApp: (content: string) => ipcRenderer.invoke('share-whatsapp', content) as Promise<void>,
+  showItemInFolder: (fullPath: string) => ipcRenderer.invoke('show-item-in-folder', fullPath),
 })

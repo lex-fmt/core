@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { Folder, FolderOpen, FileText, FileCode, File, FileType, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface FileEntry {
     name: string;
@@ -15,14 +16,57 @@ interface FileTreeProps {
     onFileSelect: (path: string) => void;
 }
 
+/** File extensions that can be opened in the editor */
+const OPENABLE_EXTENSIONS = ['.lex', '.txt', '.md', '.html'];
+
+/** Check if a file can be opened in the editor */
+function isOpenable(filename: string): boolean {
+    const lower = filename.toLowerCase();
+    return OPENABLE_EXTENSIONS.some(ext => lower.endsWith(ext));
+}
+
+/** Get the file extension */
+function getExtension(filename: string): string {
+    const idx = filename.lastIndexOf('.');
+    return idx >= 0 ? filename.slice(idx).toLowerCase() : '';
+}
+
+/** Get the appropriate icon for a file */
+function getFileIcon(filename: string, size: number = 14) {
+    const ext = getExtension(filename);
+    switch (ext) {
+        case '.lex':
+            return <FileType size={size} className="shrink-0" />;
+        case '.md':
+            return <FileText size={size} className="shrink-0" />;
+        case '.html':
+        case '.htm':
+            return <FileCode size={size} className="shrink-0" />;
+        case '.txt':
+            return <FileText size={size} className="shrink-0" />;
+        default:
+            return <File size={size} className="shrink-0" />;
+    }
+}
+
 export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps) {
     const [files, setFiles] = useState<FileEntry[]>([]);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
 
     useEffect(() => {
         if (rootPath) {
             loadDir(rootPath).then(setFiles);
         }
     }, [rootPath]);
+
+    // Close context menu when clicking outside
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        if (contextMenu) {
+            document.addEventListener('click', handleClick);
+            return () => document.removeEventListener('click', handleClick);
+        }
+    }, [contextMenu]);
 
     const loadDir = async (path: string): Promise<FileEntry[]> => {
         const entries = await window.ipcRenderer.fileReadDir(path);
@@ -36,7 +80,10 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
 
     const toggleDir = async (entry: FileEntry) => {
         if (!entry.isDirectory) {
-            onFileSelect(entry.path);
+            // Only open if file is openable
+            if (isOpenable(entry.name)) {
+                onFileSelect(entry.path);
+            }
             return;
         }
 
@@ -72,29 +119,60 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
         }
     };
 
+    const handleContextMenu = useCallback((e: React.MouseEvent, path: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ x: e.clientX, y: e.clientY, path });
+    }, []);
+
+    const handleShowInFinder = useCallback(() => {
+        if (contextMenu) {
+            window.ipcRenderer.showItemInFolder(contextMenu.path);
+            setContextMenu(null);
+        }
+    }, [contextMenu]);
+
     const renderTree = (entries: FileEntry[], depth = 0) => {
         return entries.map(entry => {
             const isSelected = !entry.isDirectory && entry.path === selectedFile;
+            const canOpen = entry.isDirectory || isOpenable(entry.name);
+
             return (
                 <div key={entry.path}>
                     <div
                         className={cn(
-                            "cursor-pointer py-0.5 flex items-center text-[13px]",
+                            "py-0.5 flex items-center text-[13px] gap-1",
                             "hover:bg-panel-hover",
                             isSelected
                                 ? "bg-accent text-accent-foreground"
-                                : "text-foreground"
+                                : "text-foreground",
+                            canOpen ? "cursor-pointer" : "cursor-default opacity-50"
                         )}
-                        style={{ paddingLeft: `${depth * 10 + 10}px` }}
+                        style={{ paddingLeft: `${depth * 12 + 8}px` }}
                         onClick={(e) => {
                             e.stopPropagation();
                             toggleDir(entry);
                         }}
+                        onContextMenu={(e) => handleContextMenu(e, entry.path)}
                     >
-                        <span className="mr-1.5 w-4 inline-block text-center">
-                            {entry.isDirectory ? (entry.isOpen ? 'v' : '>') : ''}
-                        </span>
-                        {entry.name}
+                        {entry.isDirectory ? (
+                            <>
+                                <span className="w-4 flex items-center justify-center shrink-0">
+                                    {entry.isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                </span>
+                                {entry.isOpen ? (
+                                    <FolderOpen size={14} className="shrink-0 text-muted-foreground" />
+                                ) : (
+                                    <Folder size={14} className="shrink-0 text-muted-foreground" />
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <span className="w-4 shrink-0" />
+                                {getFileIcon(entry.name)}
+                            </>
+                        )}
+                        <span className="truncate">{entry.name}</span>
                     </div>
                     {entry.isOpen && entry.children && (
                         <div>{renderTree(entry.children, depth + 1)}</div>
@@ -104,8 +182,18 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
         });
     };
 
+    // Platform-specific label for "Show in Finder"
+    // Use navigator.platform to detect OS in browser context
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isWindows = navigator.platform.toUpperCase().indexOf('WIN') >= 0;
+    const showInFolderLabel = isMac
+        ? 'Reveal in Finder'
+        : isWindows
+            ? 'Show in Explorer'
+            : 'Show in File Manager';
+
     return (
-        <div className="h-full bg-panel overflow-y-auto text-foreground"
+        <div className="h-full bg-panel overflow-y-auto text-foreground relative"
             style={{ fontFamily: 'system-ui, sans-serif' }}
         >
             <div className="p-2.5 text-xs font-semibold border-b border-border">
@@ -114,6 +202,21 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
             {files.length > 0 ? renderTree(files) : (
                 <div className="p-2.5 text-[13px] text-muted-foreground">
                     {rootPath ? 'Loading...' : 'No folder opened'}
+                </div>
+            )}
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <div
+                    className="fixed bg-panel border border-border rounded-md shadow-lg py-1 z-50 min-w-[160px]"
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                >
+                    <button
+                        className="w-full px-3 py-1.5 text-left text-sm hover:bg-panel-hover"
+                        onClick={handleShowInFinder}
+                    >
+                        {showInFolderLabel}
+                    </button>
                 </div>
             )}
         </div>

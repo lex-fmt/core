@@ -27,5 +27,6 @@ interface Window {
     fileExport: (sourcePath: string, format: string) => Promise<string>;
     onMenuExport: (callback: (format: string) => void) => () => void;
     shareWhatsApp: (content: string) => Promise<void>;
+    showItemInFolder: (fullPath: string) => Promise<void>;
   }
 }

@@ -302,6 +302,11 @@ ipcMain.handle('share-whatsapp', async (_, content: string): Promise<void> => {
   await shell.openExternal(whatsappUrl);
 });
 
+// Show item in system file manager
+ipcMain.handle('show-item-in-folder', (_, fullPath: string) => {
+  shell.showItemInFolder(fullPath);
+});
+
 // Theme detection
 ipcMain.handle('get-native-theme', () => {
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
