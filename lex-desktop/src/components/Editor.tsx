@@ -34,13 +34,13 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
             // }
 
             const uri = monaco.Uri.file(path);
-            const model = monaco.editor.createModel(content, 'lex-debug', uri);
+            const model = monaco.editor.createModel(content, 'lex', uri);
             editorRef.current.setModel(model);
 
             lspClient.sendNotification('textDocument/didOpen', {
                 textDocument: {
                     uri: uri.toString(),
-                    languageId: 'lex-debug',
+                    languageId: 'lex',
                     version: 1,
                     text: content
                 }

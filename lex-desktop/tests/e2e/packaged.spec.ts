@@ -47,10 +47,10 @@ test.describe('Packaged Application', () => {
         // Wait for editor content to load (look for specific text from the file)
         await page.waitForSelector('.view-lines', { timeout: 10000 });
         
-        // Check for outline (TODO: Fix LSP connection in packaged app)
-        // await page.waitForSelector('.outline-node', { timeout: 20000 });
-        // const outlineNodes = await page.locator('.outline-node').count();
-        // expect(outlineNodes).toBeGreaterThan(0);
+        // Check for outline
+        await page.waitForSelector('.outline-node', { timeout: 20000 });
+        const outlineNodes = await page.locator('.outline-node').count();
+        expect(outlineNodes).toBeGreaterThan(0);
 
     } catch (e) {
         console.error('Test failed. Dumping page content...');

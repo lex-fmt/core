@@ -64,6 +64,7 @@ export function Outline({ currentFile }: OutlineProps) {
         return items.map((item, index) => (
             <div key={index}>
                 <div
+                    className="outline-node"
                     style={{
                         paddingLeft: `${depth * 10 + 10}px`,
                         paddingTop: '2px',
