@@ -249,17 +249,17 @@ ipcMain.handle('set-open-tabs', async (_, tabs: string[], activeTab: string | nu
 });
 
 /**
- * Exports a lex document to another format using the lex CLI.
+ * Converts a document to another format using the lex CLI.
  *
- * The export process:
- * 1. Takes the source lex file path and target format
- * 2. Computes the output path by replacing .lex extension with format extension
+ * The conversion process:
+ * 1. Takes the source file path and target format
+ * 2. Computes the output path by replacing the source extension with target format extension
  * 3. Spawns `lex convert <source> --to <format> -o <output>`
  * 4. Returns the output path on success, or throws on error
  *
- * @param sourcePath - Path to the .lex file to export
- * @param format - Target format ('markdown' or 'html')
- * @returns The path to the exported file
+ * @param sourcePath - Path to the source file
+ * @param format - Target format ('markdown', 'html', or 'lex')
+ * @returns The path to the converted file
  */
 ipcMain.handle('file-export', async (_, sourcePath: string, format: string): Promise<string> => {
   const ext = FORMAT_EXTENSIONS[format];
@@ -267,8 +267,8 @@ ipcMain.handle('file-export', async (_, sourcePath: string, format: string): Pro
     throw new Error(`Unsupported export format: ${format}`);
   }
 
-  // Compute output path: replace .lex extension with target format extension
-  const outputPath = sourcePath.replace(/\.lex$/, `.${ext}`);
+  // Compute output path: replace any supported extension with target format extension
+  const outputPath = sourcePath.replace(/\.(lex|md|html|htm|txt)$/i, `.${ext}`);
   const lexPath = getLexCliPath();
 
   return new Promise((resolve, reject) => {
