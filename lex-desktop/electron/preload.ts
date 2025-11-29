@@ -27,7 +27,8 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   fileReadDir: (dirPath: string) => ipcRenderer.invoke('file-read-dir', dirPath),
   fileRead: (filePath: string) => ipcRenderer.invoke('file-read', filePath),
   folderOpen: () => ipcRenderer.invoke('folder-open'),
-  getBenchmarkFile: () => ipcRenderer.invoke('get-benchmark-file'),
+  getInitialFolder: () => ipcRenderer.invoke('get-initial-folder'),
+  setLastFolder: (folderPath: string) => ipcRenderer.invoke('set-last-folder', folderPath),
   getNativeTheme: () => ipcRenderer.invoke('get-native-theme'),
   onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => {
     const handler = (_event: any, theme: 'dark' | 'light') => callback(theme);

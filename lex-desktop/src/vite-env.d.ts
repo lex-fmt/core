@@ -11,7 +11,8 @@ interface Window {
     fileReadDir(dirPath: string): Promise<Array<{ name: string, isDirectory: boolean, path: string }>>;
     fileRead(filePath: string): Promise<string | null>;
     folderOpen(): Promise<string | null>;
-    getBenchmarkFile: () => Promise<string>;
+    getInitialFolder: () => Promise<string>;
+    setLastFolder: (folderPath: string) => Promise<boolean>;
     getNativeTheme: () => Promise<'dark' | 'light'>;
     onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => () => void;
   }

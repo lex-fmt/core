@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import * as monaco from 'monaco-editor';
 import 'monaco-editor/esm/vs/editor/editor.main'; // Ensure full editor is loaded
 import { lspClient } from '../lsp/client';
@@ -76,6 +76,8 @@ function defineMonacoTheme(themeName: string, mode: ThemeMode) {
         colors: {
             'editor.foreground': colors.normal,
             'editor.background': colors.background,
+            'editorLineNumber.foreground': colors.faint,
+            'editorLineNumber.activeForeground': colors.normal,
         },
     });
 }
@@ -85,11 +87,25 @@ interface EditorProps {
     onFileLoaded?: (path: string) => void;
 }
 
-export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
+export interface EditorHandle {
+    openFile: () => Promise<void>;
+    save: () => Promise<void>;
+    getCurrentFile: () => string | null;
+    getEditor: () => monaco.editor.IStandaloneCodeEditor | null;
+}
+
+export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fileToOpen, onFileLoaded }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
     const [currentFile, setCurrentFile] = useState<string | null>(null);
-    const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
+
+    // Expose methods to parent
+    useImperativeHandle(ref, () => ({
+        openFile: handleOpen,
+        save: handleSave,
+        getCurrentFile: () => currentFile,
+        getEditor: () => editorRef.current,
+    }));
 
     // Handle fileToOpen prop change
     useEffect(() => {
@@ -247,7 +263,6 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
             console.log('[Editor] Applying theme:', mode);
             defineMonacoTheme(DEBUG_THEME, mode);
             monaco.editor.setTheme(DEBUG_THEME);
-            setThemeMode(mode);
         };
 
         // Get initial theme from OS
@@ -361,75 +376,7 @@ export function Editor({ fileToOpen, onFileLoaded }: EditorProps) {
         }
     };
 
-    const handleMockDiagnostics = () => {
-        if (editorRef.current) {
-            const model = editorRef.current.getModel();
-            if (model) {
-                const markers = [{
-                    severity: monaco.MarkerSeverity.Error,
-                    startLineNumber: 1,
-                    startColumn: 1,
-                    endLineNumber: 1,
-                    endColumn: 5,
-                    message: 'Mock Error: Invalid syntax',
-                    source: 'Mock LSP'
-                }];
-                monaco.editor.setModelLanguage(model, 'lex'); // Ensure language is set for markers
-                monaco.editor.setModelMarkers(model, 'lex', markers);
-            }
-        }
-    };
-
-    const [lspStatus, setLspStatus] = useState<any>('Initializing');
-
-    useEffect(() => {
-        lspClient.onStatusChange((status) => {
-            setLspStatus(status);
-        });
-    }, []);
-
-    const getStatusColor = () => {
-        switch (lspStatus) {
-            case 'Ready': return '#4caf50'; // Green
-            case 'Error': return '#f44336'; // Red
-            default: return '#ff9800'; // Orange
-        }
-    };
-
-    const toolbarColors = themeMode === 'dark'
-        ? { bg: '#333', border: '#555', text: '#ccc', textStrong: '#fff', buttonBg: '#555' }
-        : { bg: '#e8e8e8', border: '#ccc', text: '#666', textStrong: '#000', buttonBg: '#d0d0d0' };
-
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ padding: '5px', background: toolbarColors.bg, display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <button onClick={handleOpen}>Open File</button>
-                <button onClick={handleSave} disabled={!currentFile}>Save</button>
-                <button onClick={handleMockDiagnostics} style={{ marginLeft: 'auto', background: toolbarColors.buttonBg }}>Mock Diagnostics</button>
-
-                {/* LSP Status Indicator */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    fontSize: '12px',
-                    color: toolbarColors.text,
-                    borderLeft: `1px solid ${toolbarColors.border}`,
-                    paddingLeft: '10px',
-                    marginLeft: '10px'
-                }}>
-                    <div style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: getStatusColor()
-                    }} />
-                    <span>LSP: {lspStatus}</span>
-                </div>
-
-                <span style={{ color: toolbarColors.textStrong, marginLeft: '10px' }}>{currentFile || 'Untitled'}</span>
-            </div>
-            <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', position: 'relative' }} />
-        </div>
+        <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden' }} />
     );
-}
+});

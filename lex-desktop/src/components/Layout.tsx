@@ -1,70 +1,133 @@
 import { ReactNode, useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
-
-type ThemeMode = 'dark' | 'light';
-
-const THEME_COLORS = {
-    dark: {
-        bg: '#1e1e1e',
-        text: '#cccccc',
-        panelBg: '#252526',
-        border: '#1e1e1e',
-    },
-    light: {
-        bg: '#ffffff',
-        text: '#333333',
-        panelBg: '#f3f3f3',
-        border: '#e0e0e0',
-    },
-};
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, Save } from 'lucide-react';
 
 interface LayoutProps {
-    children: ReactNode;
-    sidebar?: ReactNode;
-    panel?: ReactNode;
-    rootPath?: string;
-    onFileSelect: (path: string) => void;
+  children: ReactNode;
+  panel?: ReactNode;
+  rootPath?: string;
+  currentFile?: string | null;
+  onFileSelect: (path: string) => void;
+  onOpenFolder?: () => void;
+  onOpenFile?: () => void;
+  onSave?: () => void;
 }
 
-export function Layout({ children, panel, rootPath, onFileSelect }: LayoutProps) {
-    const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onOpenFolder, onOpenFile, onSave }: LayoutProps) {
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
 
-    useEffect(() => {
-        // Get initial theme
-        window.ipcRenderer.getNativeTheme().then((mode: ThemeMode) => {
-            setThemeMode(mode);
-        });
+  useEffect(() => {
+    const applyTheme = (mode: 'dark' | 'light') => {
+      // Set data-theme attribute on document root for CSS variable switching
+      document.documentElement.setAttribute('data-theme', mode);
+    };
 
-        // Listen for theme changes
-        const unsubscribe = window.ipcRenderer.onNativeThemeChanged((mode: ThemeMode) => {
-            setThemeMode(mode);
-        });
+    window.ipcRenderer.getNativeTheme().then(applyTheme);
 
-        return unsubscribe;
-    }, []);
+    const unsubscribe = window.ipcRenderer.onNativeThemeChanged(applyTheme);
 
-    const colors = THEME_COLORS[themeMode];
+    return unsubscribe;
+  }, []);
 
-    return (
-        <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: colors.bg, color: colors.text }}>
-            {/* Sidebar */}
-            <FileTree rootPath={rootPath} onFileSelect={onFileSelect} themeMode={themeMode} />
+  return (
+    <div className="flex flex-col w-screen h-screen overflow-hidden bg-background text-foreground">
+      {/* Top Toolbar */}
+      <div className="h-10 flex items-center px-3 bg-panel border-b border-border shrink-0 gap-1">
+        <button
+          onClick={() => setLeftPanelCollapsed(!leftPanelCollapsed)}
+          className={cn(
+            "p-1.5 rounded",
+            "hover:bg-panel-hover transition-colors"
+          )}
+          title={leftPanelCollapsed ? "Show sidebar" : "Hide sidebar"}
+        >
+          {leftPanelCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
+        </button>
 
-            {/* Main Content */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                {children}
-            </div>
+        <div className="w-px h-5 bg-border mx-1" />
 
-            {/* Right Panel (Outline) */}
-            {panel && (
-                <div style={{
-                    width: '200px',
-                    borderLeft: `1px solid ${colors.border}`,
-                    backgroundColor: colors.panelBg
-                }}>
-                    {panel}
-                </div>
-            )}
+        <button
+          onClick={onOpenFolder}
+          className={cn(
+            "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+            "hover:bg-panel-hover transition-colors"
+          )}
+          title="Open Folder"
+        >
+          <FolderOpen size={16} />
+        </button>
+        <button
+          onClick={onOpenFile}
+          className={cn(
+            "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+            "hover:bg-panel-hover transition-colors"
+          )}
+          title="Open File"
+        >
+          <FileText size={16} />
+        </button>
+        <button
+          onClick={onSave}
+          disabled={!currentFile}
+          className={cn(
+            "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+            "hover:bg-panel-hover transition-colors",
+            !currentFile && "opacity-50 cursor-not-allowed"
+          )}
+          title="Save"
+        >
+          <Save size={16} />
+        </button>
+
+        <div className="flex-1 min-w-0 px-2">
+          <span className="text-sm text-muted-foreground truncate block">
+            {currentFile ? currentFile.split('/').pop() : 'Untitled'}
+          </span>
         </div>
-    );
+
+        <button
+          className={cn(
+            "p-1.5 rounded",
+            "hover:bg-panel-hover transition-colors"
+          )}
+          title="Settings"
+        >
+          <Settings size={16} />
+        </button>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex flex-1 min-h-0">
+        {/* Left Panel - File Tree & Outline */}
+        <div
+          className={cn(
+            "flex flex-col border-r border-border bg-panel transition-all",
+            leftPanelCollapsed ? "w-0" : "w-64"
+          )}
+        >
+          {!leftPanelCollapsed && (
+            <>
+              {/* File Tree Section */}
+              <div className="flex-1 min-h-0 overflow-auto">
+                <FileTree rootPath={rootPath} onFileSelect={onFileSelect} />
+              </div>
+
+              {/* Outline Section */}
+              {panel && (
+                <div className="h-64 border-t border-border overflow-auto shrink-0">
+                  {panel}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Editor Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 }
