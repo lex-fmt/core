@@ -62,6 +62,38 @@ function App() {
   }, []);
 
   /**
+   * Converts the current non-lex file to lex format.
+   *
+   * Uses the lex CLI to convert markdown/html/txt to lex format,
+   * then opens the new .lex file.
+   */
+  const handleConvertToLex = useCallback(async () => {
+    const filePath = editorPaneRef.current?.getCurrentFile();
+    if (!filePath) {
+      toast.error('No file open to convert');
+      return;
+    }
+
+    // Save before conversion - CLI uses the file on disk
+    await editorPaneRef.current?.save();
+
+    setExportStatus({ isExporting: true, format: 'lex' });
+
+    try {
+      const outputPath = await window.ipcRenderer.fileExport(filePath, 'lex');
+      const fileName = outputPath.split('/').pop() || outputPath;
+      toast.success(`Converted to ${fileName}`);
+      // Open the newly created lex file
+      await editorPaneRef.current?.openFile(outputPath);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Conversion failed';
+      toast.error(message);
+    } finally {
+      setExportStatus({ isExporting: false, format: null });
+    }
+  }, []);
+
+  /**
    * Exports the current file to the specified format.
    *
    * Export flow:
@@ -145,6 +177,7 @@ function App() {
       onFormat={handleFormat}
       onExport={handleExport}
       onShareWhatsApp={handleShareWhatsApp}
+      onConvertToLex={handleConvertToLex}
       currentFile={currentFile}
       panel={
         <Outline

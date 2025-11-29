@@ -56,6 +56,7 @@ function getLexCliPath(): string {
 const FORMAT_EXTENSIONS: Record<string, string> = {
   markdown: 'md',
   html: 'html',
+  lex: 'lex',
 };
 
 // The built directory structure

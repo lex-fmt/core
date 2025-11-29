@@ -2,7 +2,8 @@ import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle, FileType } from 'lucide-react';
+import { isLexFile } from './Editor';
 
 interface LayoutProps {
   children: ReactNode;
@@ -17,12 +18,14 @@ interface LayoutProps {
   onFormat?: () => void;
   onExport?: (format: string) => void;
   onShareWhatsApp?: () => void;
+  onConvertToLex?: () => void;
 }
 
 const MIN_OUTLINE_HEIGHT = 100;
 const DEFAULT_OUTLINE_HEIGHT = 200;
 
-export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp }: LayoutProps) {
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex }: LayoutProps) {
+  const isCurrentFileLex = isLexFile(currentFile ?? null);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
   const [outlineHeight, setOutlineHeight] = useState(DEFAULT_OUTLINE_HEIGHT);
@@ -153,60 +156,77 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        {/* Lex Button Group */}
+        {/* Lex Button Group - shows different buttons based on file type */}
         <div className="flex flex-col items-center gap-0.5">
           <ButtonGroup>
-            <button
-              onClick={onFormat}
-              disabled={!currentFile}
-              className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                "hover:bg-panel-hover transition-colors",
-                !currentFile && "opacity-50 cursor-not-allowed"
-              )}
-              title="Format Document"
-            >
-              <AlignLeft size={16} />
-            </button>
-            <ButtonGroupSeparator />
-            <button
-              onClick={() => onExport?.('markdown')}
-              disabled={!currentFile}
-              className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                "hover:bg-panel-hover transition-colors",
-                !currentFile && "opacity-50 cursor-not-allowed"
-              )}
-              title="Export to Markdown"
-            >
-              <FileText size={16} />
-            </button>
-            <ButtonGroupSeparator />
-            <button
-              onClick={() => onExport?.('html')}
-              disabled={!currentFile}
-              className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                "hover:bg-panel-hover transition-colors",
-                !currentFile && "opacity-50 cursor-not-allowed"
-              )}
-              title="Export to HTML"
-            >
-              <FileCode size={16} />
-            </button>
-            <ButtonGroupSeparator />
-            <button
-              onClick={onShareWhatsApp}
-              disabled={!currentFile}
-              className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                "hover:bg-panel-hover transition-colors",
-                !currentFile && "opacity-50 cursor-not-allowed"
-              )}
-              title="Share via WhatsApp"
-            >
-              <MessageCircle size={16} />
-            </button>
+            {isCurrentFileLex ? (
+              <>
+                <button
+                  onClick={onFormat}
+                  disabled={!currentFile}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                    "hover:bg-panel-hover transition-colors",
+                    !currentFile && "opacity-50 cursor-not-allowed"
+                  )}
+                  title="Format Document"
+                >
+                  <AlignLeft size={16} />
+                </button>
+                <ButtonGroupSeparator />
+                <button
+                  onClick={() => onExport?.('markdown')}
+                  disabled={!currentFile}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                    "hover:bg-panel-hover transition-colors",
+                    !currentFile && "opacity-50 cursor-not-allowed"
+                  )}
+                  title="Export to Markdown"
+                >
+                  <FileText size={16} />
+                </button>
+                <ButtonGroupSeparator />
+                <button
+                  onClick={() => onExport?.('html')}
+                  disabled={!currentFile}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                    "hover:bg-panel-hover transition-colors",
+                    !currentFile && "opacity-50 cursor-not-allowed"
+                  )}
+                  title="Export to HTML"
+                >
+                  <FileCode size={16} />
+                </button>
+                <ButtonGroupSeparator />
+                <button
+                  onClick={onShareWhatsApp}
+                  disabled={!currentFile}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                    "hover:bg-panel-hover transition-colors",
+                    !currentFile && "opacity-50 cursor-not-allowed"
+                  )}
+                  title="Share via WhatsApp"
+                >
+                  <MessageCircle size={16} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={onConvertToLex}
+                disabled={!currentFile}
+                className={cn(
+                  "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                  "hover:bg-panel-hover transition-colors",
+                  !currentFile && "opacity-50 cursor-not-allowed"
+                )}
+                title="Convert to Lex"
+              >
+                <FileType size={16} />
+              </button>
+            )}
           </ButtonGroup>
           <span className="text-[10px] text-muted-foreground">Lex</span>
         </div>

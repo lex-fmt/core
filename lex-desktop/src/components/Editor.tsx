@@ -85,6 +85,29 @@ function defineMonacoTheme(themeName: string, mode: ThemeMode) {
 // Model cache - stores models by file path
 const modelCache = new Map<string, monaco.editor.ITextModel>();
 
+/** Get Monaco language ID based on file extension */
+function getLanguageForFile(path: string): string {
+    const ext = path.toLowerCase().split('.').pop();
+    switch (ext) {
+        case 'lex':
+            return 'lex';
+        case 'md':
+            return 'markdown';
+        case 'html':
+        case 'htm':
+            return 'html';
+        case 'txt':
+        default:
+            return 'plaintext';
+    }
+}
+
+/** Check if a file is a .lex file */
+export function isLexFile(path: string | null): boolean {
+    if (!path) return false;
+    return path.toLowerCase().endsWith('.lex');
+}
+
 function getOrCreateModel(path: string, content: string): monaco.editor.ITextModel {
     const cached = modelCache.get(path);
     if (cached && !cached.isDisposed()) {
@@ -99,29 +122,32 @@ function getOrCreateModel(path: string, content: string): monaco.editor.ITextMod
         return model;
     }
 
-    model = monaco.editor.createModel(content, 'lex', uri);
+    const language = getLanguageForFile(path);
+    model = monaco.editor.createModel(content, language, uri);
     modelCache.set(path, model);
 
-    // Notify LSP
-    lspClient.sendNotification('textDocument/didOpen', {
-        textDocument: {
-            uri: uri.toString(),
-            languageId: 'lex',
-            version: 1,
-            text: content
-        }
-    });
-
-    // Handle changes for LSP
-    model.onDidChangeContent(() => {
-        lspClient.sendNotification('textDocument/didChange', {
+    // Only notify LSP for lex files
+    if (language === 'lex') {
+        lspClient.sendNotification('textDocument/didOpen', {
             textDocument: {
                 uri: uri.toString(),
-                version: 2, // Should increment properly
-            },
-            contentChanges: [{ text: model!.getValue() }]
+                languageId: 'lex',
+                version: 1,
+                text: content
+            }
         });
-    });
+
+        // Handle changes for LSP
+        model.onDidChangeContent(() => {
+            lspClient.sendNotification('textDocument/didChange', {
+                textDocument: {
+                    uri: uri.toString(),
+                    version: 2, // Should increment properly
+                },
+                contentChanges: [{ text: model!.getValue() }]
+            });
+        });
+    }
 
     return model;
 }
@@ -129,9 +155,12 @@ function getOrCreateModel(path: string, content: string): monaco.editor.ITextMod
 function disposeModel(path: string) {
     const model = modelCache.get(path);
     if (model && !model.isDisposed()) {
-        lspClient.sendNotification('textDocument/didClose', {
-            textDocument: { uri: model.uri.toString() }
-        });
+        // Only notify LSP for lex files
+        if (isLexFile(path)) {
+            lspClient.sendNotification('textDocument/didClose', {
+                textDocument: { uri: model.uri.toString() }
+            });
+        }
         model.dispose();
     }
     modelCache.delete(path);
