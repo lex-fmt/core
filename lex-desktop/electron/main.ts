@@ -11,6 +11,8 @@ const SETTINGS_FILE = 'settings.json';
 
 interface AppSettings {
   lastFolder?: string;
+  openTabs?: string[];
+  activeTab?: string;
 }
 
 async function getSettingsPath(): Promise<string> {
@@ -155,6 +157,36 @@ ipcMain.handle('get-initial-folder', async () => {
 ipcMain.handle('set-last-folder', async (_, folderPath: string) => {
   const settings = await loadSettings();
   settings.lastFolder = folderPath;
+  await saveSettings(settings);
+  return true;
+});
+
+ipcMain.handle('get-open-tabs', async () => {
+  const settings = await loadSettings();
+  const tabs = settings.openTabs || [];
+  const activeTab = settings.activeTab;
+
+  // Filter out tabs whose files no longer exist
+  const existingTabs: string[] = [];
+  for (const tab of tabs) {
+    try {
+      await fs.access(tab);
+      existingTabs.push(tab);
+    } catch {
+      // File no longer exists, skip it
+    }
+  }
+
+  return {
+    tabs: existingTabs,
+    activeTab: activeTab && existingTabs.includes(activeTab) ? activeTab : existingTabs[0] || null
+  };
+});
+
+ipcMain.handle('set-open-tabs', async (_, tabs: string[], activeTab: string | null) => {
+  const settings = await loadSettings();
+  settings.openTabs = tabs;
+  settings.activeTab = activeTab || undefined;
   await saveSettings(settings);
   return true;
 });

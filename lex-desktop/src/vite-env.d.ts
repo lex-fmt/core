@@ -15,5 +15,7 @@ interface Window {
     setLastFolder: (folderPath: string) => Promise<boolean>;
     getNativeTheme: () => Promise<'dark' | 'light'>;
     onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => () => void;
+    getOpenTabs: () => Promise<{ tabs: string[]; activeTab: string | null }>;
+    setOpenTabs: (tabs: string[], activeTab: string | null) => Promise<boolean>;
   }
 }

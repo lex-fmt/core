@@ -24,9 +24,43 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     const [activeTabId, setActiveTabId] = useState<string | null>(null);
     const [fileToOpen, setFileToOpen] = useState<string | null>(null);
     const [editor, setEditor] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
     const editorRef = useRef<EditorHandle>(null);
 
     const getTabIdFromPath = (path: string) => path;
+
+    // Load persisted tabs on mount
+    useEffect(() => {
+        const loadPersistedTabs = async () => {
+            try {
+                const { tabs: savedTabs, activeTab } = await window.ipcRenderer.getOpenTabs();
+                if (savedTabs.length > 0) {
+                    const newTabs: Tab[] = savedTabs.map(path => ({
+                        id: path,
+                        path,
+                        name: path.split('/').pop() || path
+                    }));
+                    setTabs(newTabs);
+                    if (activeTab) {
+                        setActiveTabId(activeTab);
+                        setFileToOpen(activeTab);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load persisted tabs:', e);
+            } finally {
+                setIsInitialized(true);
+            }
+        };
+        loadPersistedTabs();
+    }, []);
+
+    // Persist tabs whenever they change (after initial load)
+    useEffect(() => {
+        if (!isInitialized) return;
+        const tabPaths = tabs.map(t => t.path);
+        window.ipcRenderer.setOpenTabs(tabPaths, activeTabId);
+    }, [tabs, activeTabId, isInitialized]);
 
     const openFile = useCallback(async (path: string) => {
         const tabId = getTabIdFromPath(path);

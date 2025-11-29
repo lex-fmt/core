@@ -35,4 +35,6 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     ipcRenderer.on('native-theme-changed', handler);
     return () => ipcRenderer.removeListener('native-theme-changed', handler);
   },
+  getOpenTabs: () => ipcRenderer.invoke('get-open-tabs') as Promise<{ tabs: string[]; activeTab: string | null }>,
+  setOpenTabs: (tabs: string[], activeTab: string | null) => ipcRenderer.invoke('set-open-tabs', tabs, activeTab),
 })
