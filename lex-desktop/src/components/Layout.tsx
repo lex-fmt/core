@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,12 +16,13 @@ interface LayoutProps {
   onSave?: () => void;
   onFormat?: () => void;
   onExport?: (format: string) => void;
+  onShareWhatsApp?: () => void;
 }
 
 const MIN_OUTLINE_HEIGHT = 100;
 const DEFAULT_OUTLINE_HEIGHT = 200;
 
-export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport }: LayoutProps) {
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp }: LayoutProps) {
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
   const [outlineHeight, setOutlineHeight] = useState(DEFAULT_OUTLINE_HEIGHT);
@@ -192,6 +193,19 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
               title="Export to HTML"
             >
               <FileCode size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onShareWhatsApp}
+              disabled={!currentFile}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !currentFile && "opacity-50 cursor-not-allowed"
+              )}
+              title="Share via WhatsApp"
+            >
+              <MessageCircle size={16} />
             </button>
           </ButtonGroup>
           <span className="text-[10px] text-muted-foreground">Lex</span>

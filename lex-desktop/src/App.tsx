@@ -47,6 +47,20 @@ function App() {
     await editorPaneRef.current?.format();
   }, []);
 
+  const handleShareWhatsApp = useCallback(async () => {
+    const editor = editorPaneRef.current?.getEditor();
+    if (!editor) {
+      toast.error('No document to share');
+      return;
+    }
+    const content = editor.getValue();
+    if (!content.trim()) {
+      toast.error('Document is empty');
+      return;
+    }
+    await window.ipcRenderer.shareWhatsApp(content);
+  }, []);
+
   /**
    * Exports the current file to the specified format.
    *
@@ -130,6 +144,7 @@ function App() {
       onSave={handleSave}
       onFormat={handleFormat}
       onExport={handleExport}
+      onShareWhatsApp={handleShareWhatsApp}
       currentFile={currentFile}
       panel={
         <Outline

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu, shell } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as fs from 'fs/promises';
@@ -290,6 +290,16 @@ ipcMain.handle('file-export', async (_, sourcePath: string, format: string): Pro
       }
     });
   });
+});
+
+/**
+ * Shares document content via WhatsApp using the URL scheme.
+ * Opens WhatsApp with the document text pre-filled in a new message.
+ */
+ipcMain.handle('share-whatsapp', async (_, content: string): Promise<void> => {
+  const encodedText = encodeURIComponent(content);
+  const whatsappUrl = `whatsapp://send?text=${encodedText}`;
+  await shell.openExternal(whatsappUrl);
 });
 
 // Theme detection
