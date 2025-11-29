@@ -195,7 +195,5 @@ export class LspClient {
   }
 }
 
-// Export a singleton instance for backward compatibility
-// Note: This instance might not be fully initialized if used before Editor.tsx sets it up
-// Ideally, we should refactor to dependency injection or context
+// Export a singleton instance
 export const lspClient = new LspClient((window as any).ipcRenderer || {}, 'lex');

@@ -20,6 +20,10 @@ export class LspManager {
 
   setWebContents(webContents: WebContents) {
     this.webContents = webContents;
+    // Clear reference when webContents is destroyed to prevent errors
+    webContents.on('destroyed', () => {
+      this.webContents = null;
+    });
   }
 
   start() {
@@ -45,8 +49,8 @@ export class LspManager {
       const msg = data.toString();
       console.log(`LSP Output: ${msg}`);
       log(`LSP Output: ${msg}`);
-      if (this.webContents) {
-        // Send raw buffer to renderer
+      // Check if webContents exists and is not destroyed before sending
+      if (this.webContents && !this.webContents.isDestroyed()) {
         this.webContents.send('lsp-output', data);
       }
     });
