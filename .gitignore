@@ -49,3 +49,4 @@ specs/**/*.treeviz.*
 *.dmg
 *.dmg.blockmap
 *.app
+.vite

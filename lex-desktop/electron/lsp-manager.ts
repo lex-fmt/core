@@ -30,17 +30,15 @@ export class LspManager {
     if (this.lspProcess) return;
 
     let lspPath: string;
-    
+
     if (app.isPackaged) {
       // In production, the binary is in Resources/lex-lsp
       lspPath = path.join(process.resourcesPath, 'lex-lsp');
     } else {
       // Hardcoded path for dev environment
-      lspPath = '/private/tmp/lex/desktop-app/target/debug/lex-lsp';
+      lspPath = '/Users/adebert/h/lex/target/debug/lex-lsp';
     }
 
-    console.log(`Spawning LSP from: ${lspPath}`);
-    log(`Spawning LSP from: ${lspPath}`);
     this.lspProcess = spawn(lspPath, [], {
       env: process.env,
     });
@@ -66,9 +64,9 @@ export class LspManager {
       log(`LSP exited with code ${code}`);
       this.lspProcess = null;
     });
-    
+
     this.lspProcess.on('error', (err) => {
-        console.error('Failed to start LSP process:', err);
+      console.error('Failed to start LSP process:', err);
     });
   }
 
