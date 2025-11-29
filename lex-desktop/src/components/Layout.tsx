@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -14,13 +14,14 @@ interface LayoutProps {
   onOpenFolder?: () => void;
   onOpenFile?: () => void;
   onSave?: () => void;
+  onFormat?: () => void;
   onExport?: (format: string) => void;
 }
 
 const MIN_OUTLINE_HEIGHT = 100;
 const DEFAULT_OUTLINE_HEIGHT = 200;
 
-export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onExport }: LayoutProps) {
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport }: LayoutProps) {
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
   const [outlineHeight, setOutlineHeight] = useState(DEFAULT_OUTLINE_HEIGHT);
@@ -151,9 +152,22 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        {/* Export Button Group */}
+        {/* Lex Button Group */}
         <div className="flex flex-col items-center gap-0.5">
           <ButtonGroup>
+            <button
+              onClick={onFormat}
+              disabled={!currentFile}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !currentFile && "opacity-50 cursor-not-allowed"
+              )}
+              title="Format Document"
+            >
+              <AlignLeft size={16} />
+            </button>
+            <ButtonGroupSeparator />
             <button
               onClick={() => onExport?.('markdown')}
               disabled={!currentFile}
@@ -180,7 +194,7 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
               <FileCode size={16} />
             </button>
           </ButtonGroup>
-          <span className="text-[10px] text-muted-foreground">Export</span>
+          <span className="text-[10px] text-muted-foreground">Lex</span>
         </div>
 
         <div className="flex-1" />

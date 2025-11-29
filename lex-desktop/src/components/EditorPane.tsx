@@ -13,6 +13,7 @@ const AUTO_SAVE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 export interface EditorPaneHandle {
     openFile: (path: string) => Promise<void>;
     save: () => Promise<void>;
+    format: () => Promise<void>;
     getCurrentFile: () => string | null;
     getEditor: () => Monaco.editor.IStandaloneCodeEditor | null;
 }
@@ -250,6 +251,10 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         await startAutoSaveInterval();
     }, [startAutoSaveInterval]);
 
+    const handleFormat = useCallback(async () => {
+        await editorRef.current?.format();
+    }, []);
+
     /**
      * Window focus tracking for auto-save.
      *
@@ -303,9 +308,10 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     useImperativeHandle(ref, () => ({
         openFile,
         save: handleSave,
+        format: handleFormat,
         getCurrentFile: () => editorRef.current?.getCurrentFile() ?? null,
         getEditor: () => editorRef.current?.getEditor() ?? null,
-    }), [openFile, handleSave]);
+    }), [openFile, handleSave, handleFormat]);
 
     return (
         <div className="flex flex-col flex-1 min-h-0">

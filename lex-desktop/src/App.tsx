@@ -43,6 +43,10 @@ function App() {
     await editorPaneRef.current?.save();
   }, []);
 
+  const handleFormat = useCallback(async () => {
+    await editorPaneRef.current?.format();
+  }, []);
+
   /**
    * Exports the current file to the specified format.
    *
@@ -103,6 +107,7 @@ function App() {
     const unsubOpenFile = window.ipcRenderer.onMenuOpenFile(handleOpenFile);
     const unsubOpenFolder = window.ipcRenderer.onMenuOpenFolder(handleOpenFolder);
     const unsubSave = window.ipcRenderer.onMenuSave(handleSave);
+    const unsubFormat = window.ipcRenderer.onMenuFormat(handleFormat);
     const unsubExport = window.ipcRenderer.onMenuExport(handleExport);
 
     return () => {
@@ -110,9 +115,10 @@ function App() {
       unsubOpenFile();
       unsubOpenFolder();
       unsubSave();
+      unsubFormat();
       unsubExport();
     };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleExport]);
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport]);
 
   return (
     <Layout
@@ -122,6 +128,7 @@ function App() {
       onOpenFolder={handleOpenFolder}
       onOpenFile={handleOpenFile}
       onSave={handleSave}
+      onFormat={handleFormat}
       onExport={handleExport}
       currentFile={currentFile}
       panel={

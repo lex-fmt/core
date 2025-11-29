@@ -23,6 +23,7 @@ interface Window {
     onMenuOpenFile: (callback: () => void) => () => void;
     onMenuOpenFolder: (callback: () => void) => () => void;
     onMenuSave: (callback: () => void) => () => void;
+    onMenuFormat: (callback: () => void) => () => void;
     fileExport: (sourcePath: string, format: string) => Promise<string>;
     onMenuExport: (callback: (format: string) => void) => () => void;
   }

@@ -145,6 +145,7 @@ interface EditorProps {
 export interface EditorHandle {
     openFile: () => Promise<void>;
     save: () => Promise<void>;
+    format: () => Promise<void>;
     getCurrentFile: () => string | null;
     getEditor: () => monaco.editor.IStandaloneCodeEditor | null;
     switchToFile: (path: string) => Promise<void>;
@@ -182,6 +183,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
     useImperativeHandle(ref, () => ({
         openFile: handleOpen,
         save: handleSave,
+        format: handleFormat,
         getCurrentFile: () => currentFile,
         getEditor: () => editorRef.current,
         switchToFile,
@@ -335,6 +337,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
     const handleSave = async () => {
         if (currentFile && editorRef.current) {
             await window.ipcRenderer.fileSave(currentFile, editorRef.current.getValue());
+        }
+    };
+
+    const handleFormat = async () => {
+        if (editorRef.current) {
+            await editorRef.current.getAction('editor.action.formatDocument')?.run();
         }
     };
 

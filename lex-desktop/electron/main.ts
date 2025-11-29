@@ -368,6 +368,12 @@ function createMenu() {
         },
         { type: 'separator' },
         {
+          label: 'Format Document',
+          accelerator: 'CmdOrCtrl+Shift+F',
+          click: () => win?.webContents.send('menu-format')
+        },
+        { type: 'separator' },
+        {
           label: 'Export',
           submenu: [
             {
