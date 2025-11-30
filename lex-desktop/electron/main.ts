@@ -171,6 +171,8 @@ async function createWindow() {
     console.error('Failed to load window state, using defaults:', error);
   }
 
+  const hideWindow = process.env.LEX_HIDE_WINDOW === '1';
+
   win = new BrowserWindow({
     title: 'Lex Editor',
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
@@ -178,6 +180,7 @@ async function createWindow() {
     y: windowState.y,
     width: windowState.width,
     height: windowState.height,
+    show: !hideWindow,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },

@@ -14,7 +14,8 @@
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "LEX_HIDE_WINDOW=1 PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test tests/e2e"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
