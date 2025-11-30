@@ -43,8 +43,8 @@ test.describe('File Operations', () => {
     });
     
     // For now, let's just verify the UI elements for file operations exist.
-    await expect(window.locator('button:has-text("Open File")')).toBeVisible();
-    await expect(window.locator('button:has-text("Save")')).toBeVisible();
+    await expect(window.locator('button[title="Open File"]')).toBeVisible();
+    await expect(window.locator('button[title="Save"]')).toBeVisible();
 
     // Clean up
     fs.unlinkSync(testFilePath);

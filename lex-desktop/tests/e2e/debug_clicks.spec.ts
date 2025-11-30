@@ -1,5 +1,6 @@
-import { test, expect, _electron as electron } from '@playwright/test';
+import { test, _electron as electron } from '@playwright/test';
 import * as path from 'path';
+import { openFixture } from './helpers';
 
 test.describe('Debug Clicks', () => {
   test('should log token info on clicks', async () => {
@@ -8,16 +9,18 @@ test.describe('Debug Clicks', () => {
     const app = await electron.launch({
       executablePath: appPath,
       args: [path.join(process.cwd(), 'specs/v1/benchmark/30-a-place-for-ideas.lex')],
+      env: {
+        ...process.env,
+        LEX_TEST_FIXTURES: path.join(process.cwd(), 'tests/fixtures'),
+      },
     });
 
     const page = await app.firstWindow();
     page.on('console', msg => console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`));
     await page.waitForLoadState('domcontentloaded');
-    
-    // Reload to capture startup logs
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
-    
+
+    await openFixture(page, 'benchmark.lex');
+
     // Wait for editor to be ready
     await page.waitForSelector('.monaco-editor');
     await page.waitForTimeout(2000); // Give LSP time to initialize

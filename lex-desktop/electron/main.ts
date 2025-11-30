@@ -48,7 +48,15 @@ const DEFAULT_WINDOW_STATE: WindowState = {
   height: 800,
 };
 
-const TEST_FIXTURES_DIR = path.join(process.env.APP_ROOT ?? path.join(__dirname, '..'), 'tests', 'fixtures');
+const resolveFixtureRoot = () => {
+  const override = process.env.LEX_TEST_FIXTURES;
+  if (override) {
+    return path.resolve(override);
+  }
+  return path.join(process.env.APP_ROOT ?? path.join(__dirname, '..'), 'tests', 'fixtures');
+};
+
+const TEST_FIXTURES_DIR = resolveFixtureRoot();
 
 async function loadTestFixture(fixtureName: string): Promise<{ path: string; content: string }> {
   const safeName = path.basename(fixtureName);

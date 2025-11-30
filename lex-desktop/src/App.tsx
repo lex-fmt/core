@@ -6,17 +6,9 @@ import { Outline } from './components/Outline'
 import { ExportStatus } from './components/StatusBar'
 import { initDebugMonaco } from './debug-monaco'
 import { isLexFile } from './components/Editor'
-import type { Tab, TabDropData } from './components/TabBar'
-import type { PaneState, PaneRowState } from '@/panes/types'
-import {
-  DEFAULT_PANE_SIZE,
-  MIN_PANE_SIZE,
-  MIN_ROW_SIZE,
-  getRowSize,
-  normalizePaneSizes,
-  withRowDefaults,
-} from '@/panes/layout'
+import type { Tab } from './components/TabBar'
 import { PaneWorkspace } from './components/PaneWorkspace'
+import { MIN_PANE_SIZE, normalizePaneSizes, withRowDefaults } from '@/panes/layout'
 import { createEmptyPane, createRowId, usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
 import { usePaneManager } from '@/panes/usePaneManager'
 
@@ -45,7 +37,6 @@ function App() {
   const {
     panes,
     paneRows,
-    activePaneId,
     setPanes,
     setPaneRows,
     setActivePaneId,
@@ -159,6 +150,34 @@ function App() {
         }
         const editorInstance = paneHandles.current.get(target)?.getEditor();
         return editorInstance?.getValue() ?? '';
+      },
+      triggerMockDiagnostics: () => {
+        const target = activePaneIdValue ?? panesRef.current[0]?.id ?? null;
+        if (!target) {
+          return false;
+        }
+        const editorInstance = paneHandles.current.get(target)?.getEditor();
+        const model = editorInstance?.getModel?.();
+        if (!model) {
+          return false;
+        }
+        const monacoInstance = (window as any).monaco;
+        if (!monacoInstance?.editor) {
+          return false;
+        }
+        const lastColumn = model.getLineLength(1) + 1;
+        monacoInstance.editor.setModelMarkers(model, 'lex-test', [
+          {
+            severity: monacoInstance.MarkerSeverity.Error,
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: lastColumn,
+            message: 'Mock diagnostic for testing',
+            source: 'lex-test',
+          },
+        ]);
+        return true;
       },
     };
     window.lexTest = api;

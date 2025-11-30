@@ -48,5 +48,6 @@ interface Window {
     openFixture: (fixtureName: string, paneId?: string | null) => Promise<{ path: string; content: string }>;
     readFixture: (fixtureName: string) => Promise<{ path: string; content: string }>;
     getActiveEditorValue: () => string;
+    triggerMockDiagnostics: () => boolean;
   };
 }

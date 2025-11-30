@@ -18,6 +18,7 @@ export function usePaneManager({
   setActivePaneId,
   setPanes,
   setPaneRows,
+  createTabFromPath,
 }: UsePaneManagerOptions) {
   const focusPane = useCallback((paneId: string) => {
     setActivePaneId(paneId);

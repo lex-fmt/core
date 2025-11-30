@@ -30,12 +30,12 @@ test.describe('Semantic Tokens', () => {
     await window.waitForTimeout(5000);
 
     // Check if semantic tokens provider was triggered and received tokens
-    const providerTriggered = logs.some(log => log.includes('Provider triggered'));
-    const tokensReceived = logs.some(log => log.includes('Received tokens'));
+    const providerTriggered = logs.some(log => log.includes('[SemanticTokens] Provider triggered'));
+    const tokensReceived = logs.some(log => log.includes('[SemanticTokens] Received tokens:'));
 
     // Extract the number of tokens received
-    const tokenCountLog = logs.find(log => log.includes('Received tokens:'));
-    const tokenCount = tokenCountLog ? parseInt(tokenCountLog.match(/(\d+) tokens/)?.[1] || '0', 10) : 0;
+    const tokenCountLog = logs.find(log => log.includes('[SemanticTokens] Received tokens:'));
+    const tokenCount = tokenCountLog ? parseInt(tokenCountLog.replace(/[^0-9]/g, '') || '0', 10) : 0;
 
     console.log('Provider triggered:', providerTriggered);
     console.log('Tokens received:', tokensReceived);
