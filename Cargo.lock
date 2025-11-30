@@ -1103,7 +1103,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lex-analysis"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "lex-parser",
  "lsp-types",
@@ -1111,7 +1111,7 @@ dependencies = [
 
 [[package]]
 name = "lex-babel"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "comrak",
  "html5ever",
@@ -1129,7 +1129,7 @@ dependencies = [
 
 [[package]]
 name = "lex-cli"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -1144,7 +1144,7 @@ dependencies = [
 
 [[package]]
 name = "lex-config"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "config",
  "serde",
@@ -1152,7 +1152,7 @@ dependencies = [
 
 [[package]]
 name = "lex-lsp"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "lex-analysis",
  "lex-babel",
@@ -1167,7 +1167,7 @@ dependencies = [
 
 [[package]]
 name = "lex-parser"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "insta",
  "logos",
@@ -1183,7 +1183,7 @@ dependencies = [
 
 [[package]]
 name = "lex-viewer"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "clap_complete",
