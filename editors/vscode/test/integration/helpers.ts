@@ -6,6 +6,8 @@ export const SEMANTIC_TOKENS_DOCUMENT_PATH = 'documents/semantic-tokens.lex';
 export const HOVER_DOCUMENT_PATH = 'documents/semantic-tokens.lex';
 export const NAVIGATION_DOCUMENT_PATH = 'documents/semantic-tokens.lex';
 export const FORMATTING_DOCUMENT_PATH = 'documents/formatting.lex';
+export const EXPORT_DOCUMENT_PATH = 'documents/getting-started.lex';
+export const IMPORT_DOCUMENT_PATH = 'documents/sample.md';
 
 export interface PositionMatch {
   line: number;

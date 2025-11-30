@@ -42,6 +42,44 @@ dark mode.
 
 See `src/theme.ts` for implementation details and the rationale behind this approach.
 
+Import & Export Commands
+------------------------
+The extension provides commands to convert between Lex and other formats.
+These commands shell out to the `lex` CLI binary and open results in new editors.
+
+### Commands
+
+`Lex: Export to Markdown`
+  - Appears in: Command palette (when .lex file is active), editor context menu, editor title context menu
+  - Behavior: Converts the active .lex document to Markdown and opens in a new untitled editor
+  - Works with: Saved files and unsaved editors (uses buffer content)
+
+`Lex: Import from Markdown`
+  - Appears in: Command palette (when .md file is active), editor context menu, editor title context menu
+  - Behavior: Converts the active Markdown document to Lex format and opens in a new untitled editor
+  - Works with: Saved files and unsaved editors (uses buffer content)
+
+### Configuration
+
+`lex.cliBinaryPath`
+  - Path to the `lex` CLI binary used for conversions
+  - Default: `./resources/lex` (bundled with extension)
+  - Can be absolute or relative to extension directory
+
+### Implementation Details
+
+Commands use temporary files for conversion (lex CLI doesn't support stdin). The flow:
+1. Get active editor content (works for unsaved buffers)
+2. Write content to a temp file with appropriate extension (.lex or .md)
+3. Run `lex convert --to <target> <temp-file>` and capture stdout
+4. Clean up temp files and open result as untitled document with appropriate language
+
+Context menu visibility is controlled via `when` clauses:
+- Export: shown only when `resourceExtname == .lex` or `editorLangId == lex`
+- Import: shown only when `resourceExtname == .md` or `editorLangId == markdown`
+
+See `src/commands.ts` for the full implementation.
+
 Implementation Notes
 --------------------
 - `@vscode/test-electron` drives headless VS Code; fixtures live in `test/fixtures/sample-workspace/`.
