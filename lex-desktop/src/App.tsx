@@ -18,6 +18,7 @@ import {
 } from '@/panes/layout'
 import { PaneWorkspace } from './components/PaneWorkspace'
 import { createEmptyPane, createRowId, usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
+import { usePaneManager } from '@/panes/usePaneManager'
 
 initDebugMonaco();
 
@@ -104,169 +105,24 @@ function App() {
     loadInitialFolder();
   }, []);
 
-const focusPane = useCallback((paneId: string) => {
-  setActivePaneId(paneId);
-}, []);
-
-const updateRowsAfterPaneRemoval = useCallback((paneId: string, remainingPaneIds: string[]) => {
-  setPaneRows(prevRows => {
-    let removedRowSize = 0;
-    let removedIndex = -1;
-    const updatedRows: PaneRowState[] = [];
-
-    prevRows.forEach((row, index) => {
-      if (!row.paneIds.includes(paneId)) {
-        updatedRows.push(row);
-        return;
-      }
-
-      const paneIds = row.paneIds.filter(id => id !== paneId);
-      if (paneIds.length === 0) {
-        removedRowSize += getRowSize(row);
-        removedIndex = index;
-        return;
-      }
-
-      const paneSizes = normalizePaneSizes(row, paneIds);
-      updatedRows.push({ ...row, paneIds, paneSizes });
-    });
-
-    let rows = updatedRows;
-
-    if (rows.length === 0) {
-      if (remainingPaneIds.length > 0) {
-        rows = [withRowDefaults({ id: createRowId(), paneIds: [remainingPaneIds[0]] })];
-      } else {
-        rows = [withRowDefaults({ id: createRowId(), paneIds: [] })];
-      }
-    }
-
-    if (removedRowSize > 0 && rows.length > 0) {
-      const targetIndex = Math.min(
-        removedIndex >= 0 ? Math.min(removedIndex, rows.length - 1) : rows.length - 1,
-        rows.length - 1
-      );
-      rows = rows.map((row, idx) => (
-        idx === targetIndex ? { ...row, size: getRowSize(row) + removedRowSize } : row
-      ));
-    }
-
-    return rows.map(withRowDefaults);
+  const {
+    focusPane,
+    handleSplitVertical,
+    handleSplitHorizontal,
+    handleClosePane,
+    openFileInPane,
+    handleTabSelect,
+    handleTabClose,
+    handleTabDrop,
+    handlePaneFileLoaded,
+    handlePaneCursorChange,
+  } = usePaneManager({
+    activePaneId: activePaneIdValue,
+    setActivePaneId,
+    setPanes,
+    setPaneRows,
+    createTabFromPath,
   });
-}, []);
-
-const handleSplitVertical = useCallback(() => {
-  if (!activePaneIdValue) return;
-  const newPane = createEmptyPane();
-  setPanes(prev => [...prev, newPane]);
-  setPaneRows(prevRows => {
-    if (prevRows.length === 0) {
-      return [withRowDefaults({ id: createRowId(), paneIds: [newPane.id] })];
-    }
-    let handled = false;
-    const next = prevRows.map(row => {
-      if (!row.paneIds.includes(activePaneIdValue)) {
-        return row;
-      }
-      handled = true;
-      const paneIds = [...row.paneIds];
-      const insertIndex = paneIds.indexOf(activePaneIdValue);
-      paneIds.splice(insertIndex + 1, 0, newPane.id);
-      const paneSizes = normalizePaneSizes(row, paneIds);
-      const currentWeight = paneSizes[activePaneIdValue];
-      const splitWeight = Math.max(currentWeight / 2, MIN_PANE_SIZE);
-      paneSizes[activePaneIdValue] = splitWeight;
-      paneSizes[newPane.id] = splitWeight;
-      return { ...row, paneIds, paneSizes };
-    });
-    if (!handled) {
-      return [...next, withRowDefaults({ id: createRowId(), paneIds: [newPane.id] })];
-    }
-    return next;
-  });
-  setActivePaneId(newPane.id);
-}, [activePaneIdValue]);
-
-const handleSplitHorizontal = useCallback(() => {
-  if (!activePaneIdValue) return;
-  const newPane = createEmptyPane();
-  setPanes(prev => [...prev, newPane]);
-  setPaneRows(prevRows => {
-    if (prevRows.length === 0) {
-      return [
-        withRowDefaults({ id: createRowId(), paneIds: [activePaneIdValue] }),
-        withRowDefaults({ id: createRowId(), paneIds: [newPane.id] }),
-      ];
-    }
-    let handled = false;
-    const next: PaneRowState[] = [];
-    prevRows.forEach(row => {
-      if (!row.paneIds.includes(activePaneIdValue) || handled) {
-        next.push(row);
-        return;
-      }
-      handled = true;
-      const rowSize = Math.max(getRowSize(row) / 2, MIN_ROW_SIZE);
-      const paneSizes = normalizePaneSizes(row);
-      next.push({ ...row, size: rowSize, paneSizes });
-      next.push(
-        withRowDefaults({
-          id: createRowId(),
-          paneIds: [newPane.id],
-          size: rowSize,
-          paneSizes: { [newPane.id]: DEFAULT_PANE_SIZE },
-        })
-      );
-    });
-    if (!handled) {
-      next.push(withRowDefaults({ id: createRowId(), paneIds: [newPane.id] }));
-    }
-    return next;
-  });
-  setActivePaneId(newPane.id);
-}, [activePaneIdValue]);
-
-  const handleClosePane = useCallback((paneId: string) => {
-    setPanes(prev => {
-      if (prev.length <= 1) {
-        return prev;
-      }
-      const filtered = prev.filter(pane => pane.id !== paneId);
-      if (filtered.length === prev.length) {
-        return prev;
-      }
-      updateRowsAfterPaneRemoval(paneId, filtered.map(p => p.id));
-      if (!filtered.some(pane => pane.id === activePaneId)) {
-        setActivePaneId(filtered[0]?.id ?? null);
-      }
-      return filtered;
-    });
-  }, [activePaneId, updateRowsAfterPaneRemoval]);
-
-  const openFileInPane = useCallback((paneId: string, path: string) => {
-    let resolvedId: string | null = null;
-    setPanes(prev => {
-      if (prev.length === 0) {
-        const newPane = createEmptyPane();
-        const newTab = createTabFromPath(path);
-        resolvedId = newPane.id;
-        return [{ ...newPane, tabs: [newTab], activeTabId: newTab.id }];
-      }
-      resolvedId = prev.some(pane => pane.id === paneId) ? paneId : prev[0].id;
-      return prev.map(pane => {
-        if (pane.id !== resolvedId) return pane;
-        const existingTab = pane.tabs.find(tab => tab.path === path);
-        if (existingTab) {
-          return { ...pane, activeTabId: existingTab.id };
-        }
-        const newTab = createTabFromPath(path);
-        return { ...pane, tabs: [...pane.tabs, newTab], activeTabId: newTab.id };
-      });
-    });
-    if (resolvedId) {
-      setActivePaneId(resolvedId);
-    }
-  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -312,131 +168,6 @@ const handleSplitHorizontal = useCallback(() => {
       }
     };
   }, [activePaneIdValue, openFileInPane, panes]);
-
-  const handleTabSelect = useCallback((paneId: string, tabId: string) => {
-    setPanes(prev => prev.map(pane => (
-      pane.id === paneId ? { ...pane, activeTabId: tabId } : pane
-    )));
-    setActivePaneId(paneId);
-  }, []);
-
-  const handleTabClose = useCallback((paneId: string, tabId: string) => {
-    setPanes(prev => {
-      let removePane = false;
-      const next = prev.map(pane => {
-        if (pane.id !== paneId) return pane;
-        const tabIndex = pane.tabs.findIndex(tab => tab.id === tabId);
-        if (tabIndex === -1) return pane;
-        const remainingTabs = pane.tabs.filter(tab => tab.id !== tabId);
-        let nextActiveId = pane.activeTabId;
-        if (pane.activeTabId === tabId) {
-          nextActiveId = remainingTabs.length > 0
-            ? remainingTabs[Math.min(tabIndex, remainingTabs.length - 1)].id
-            : null;
-        }
-        const updatedPane: PaneState = {
-          ...pane,
-          tabs: remainingTabs,
-          activeTabId: nextActiveId,
-          currentFile: remainingTabs.length === 0 ? null : pane.currentFile,
-          cursorLine: remainingTabs.length === 0 ? 0 : pane.cursorLine,
-        };
-        if (remainingTabs.length === 0 && prev.length > 1) {
-          removePane = true;
-        }
-        return updatedPane;
-      });
-      if (removePane) {
-        const filtered = next.filter(pane => pane.id !== paneId);
-        updateRowsAfterPaneRemoval(paneId, filtered.map(p => p.id));
-        return filtered;
-      }
-      return next;
-    });
-  }, [updateRowsAfterPaneRemoval]);
-
-  const handleTabDrop = useCallback((targetPaneId: string, data: TabDropData) => {
-    const { tabPath, sourcePaneId, duplicate } = data;
-
-    setPanes(prev => {
-      const targetPane = prev.find(p => p.id === targetPaneId);
-      const sourcePane = prev.find(p => p.id === sourcePaneId);
-      if (!targetPane || !sourcePane) return prev;
-
-      // Check if target pane already has this tab
-      const existingTab = targetPane.tabs.find(t => t.path === tabPath);
-      if (existingTab) {
-        // Just focus the existing tab
-        return prev.map(pane =>
-          pane.id === targetPaneId
-            ? { ...pane, activeTabId: existingTab.id }
-            : pane
-        );
-      }
-
-      // Find the tab in source pane
-      const sourceTab = sourcePane.tabs.find(t => t.path === tabPath);
-      if (!sourceTab) return prev;
-
-      // Create new tab for target
-      const newTab = createTabFromPath(tabPath);
-
-      let result = prev.map(pane => {
-        if (pane.id === targetPaneId) {
-          // Add tab to target pane
-          return {
-            ...pane,
-            tabs: [...pane.tabs, newTab],
-            activeTabId: newTab.id,
-          };
-        }
-        if (pane.id === sourcePaneId && !duplicate) {
-          // Remove tab from source pane (unless duplicating)
-          const remainingTabs = pane.tabs.filter(t => t.path !== tabPath);
-          let nextActiveId = pane.activeTabId;
-          if (pane.activeTabId === sourceTab.id) {
-            const tabIndex = pane.tabs.findIndex(t => t.id === sourceTab.id);
-            nextActiveId = remainingTabs.length > 0
-              ? remainingTabs[Math.min(tabIndex, remainingTabs.length - 1)].id
-              : null;
-          }
-          return {
-            ...pane,
-            tabs: remainingTabs,
-            activeTabId: nextActiveId,
-            currentFile: remainingTabs.length === 0 ? null : pane.currentFile,
-            cursorLine: remainingTabs.length === 0 ? 0 : pane.cursorLine,
-          };
-        }
-        return pane;
-      });
-
-      // If source pane is now empty and we have more than 1 pane, remove it
-      if (!duplicate) {
-        const updatedSource = result.find(p => p.id === sourcePaneId);
-        if (updatedSource && updatedSource.tabs.length === 0 && result.length > 1) {
-          result = result.filter(p => p.id !== sourcePaneId);
-          updateRowsAfterPaneRemoval(sourcePaneId, result.map(p => p.id));
-        }
-      }
-
-      return result;
-    });
-
-    setActivePaneId(targetPaneId);
-  }, [updateRowsAfterPaneRemoval]);
-
-  const handlePaneFileLoaded = useCallback((paneId: string, path: string | null) => {
-    setPanes(prev => prev.map(pane => (
-      pane.id === paneId ? { ...pane, currentFile: path } : pane
-    )));
-  }, []);
-
-  const handlePaneCursorChange = useCallback((paneId: string, line: number) => {
-    setPanes(prev => prev.map(pane => (
-      pane.id === paneId ? { ...pane, cursorLine: line } : pane
-    )));
-  }, []);
 
   const handleNewFile = useCallback(async () => {
     if (!activePaneIdValue) return;
