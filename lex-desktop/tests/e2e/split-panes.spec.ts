@@ -30,13 +30,13 @@ test.describe('Split Panes', () => {
     // Open general.lex in the first pane
     await panes.nth(0).click();
     await openTreeItem('general.lex');
-    const firstPaneTabs = panes.nth(0).locator('[data-testid="editor-tab"]', { hasText: 'general.lex' });
+    const firstPaneTabs = panes.nth(0).locator('[data-testid="editor-tab"]', { hasText: /^general\.lex$/ });
     await expect(firstPaneTabs).toHaveCount(1);
 
     // Open 20-ideas-naked.lex in the second pane
     await panes.nth(1).click();
     await openTreeItem('20-ideas-naked.lex');
-    await expect(panes.nth(1).locator('[data-testid="editor-tab"]', { hasText: '20-ideas-naked.lex' })).toHaveCount(1);
+    await expect(panes.nth(1).locator('[data-testid="editor-tab"]', { hasText: /^20-ideas-naked\.lex$/ })).toHaveCount(1);
 
     // File tree selection should follow the active pane
     const generalEntry = window.locator('[data-testid="file-tree-item"][data-path$="general.lex"]');

@@ -31,6 +31,15 @@ const DEFAULT_OUTLINE_HEIGHT = 200;
 
 export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace, onSplitVertical, onSplitHorizontal, onPreview }: LayoutProps) {
   const isCurrentFileLex = isLexFile(currentFile ?? null);
+  const hasCurrentFile = Boolean(currentFile);
+  const canLexActions = hasCurrentFile && isCurrentFileLex;
+  const canFormat = canLexActions && Boolean(onFormat);
+  const canExport = canLexActions && Boolean(onExport);
+  const canShare = canLexActions && Boolean(onShareWhatsApp);
+  const canFind = hasCurrentFile && Boolean(onFind);
+  const canReplace = hasCurrentFile && Boolean(onReplace);
+  const canPreview = canLexActions && Boolean(onPreview);
+  const canConvertToLex = hasCurrentFile && !isCurrentFileLex && Boolean(onConvertToLex);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
   const [outlineHeight, setOutlineHeight] = useState(DEFAULT_OUTLINE_HEIGHT);
@@ -161,117 +170,113 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        {/* Lex Button Group - shows different buttons based on file type */}
+        {/* Lex Button Group - actions enable/disable based on file type */}
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-muted-foreground">Lex</span>
           <ButtonGroup>
-            {isCurrentFileLex ? (
-              <>
-                <button
-                  onClick={onFormat}
-                  disabled={!currentFile}
-                  className={cn(
-                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                    "hover:bg-panel-hover transition-colors",
-                    !currentFile && "opacity-50 cursor-not-allowed"
-                  )}
-                  title="Format Document"
-                >
-                  <AlignLeft size={16} />
-                </button>
-                <ButtonGroupSeparator />
-                <button
-                  onClick={() => onExport?.('markdown')}
-                  disabled={!currentFile}
-                  className={cn(
-                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                    "hover:bg-panel-hover transition-colors",
-                    !currentFile && "opacity-50 cursor-not-allowed"
-                  )}
-                  title="Export to Markdown"
-                >
-                  <FileText size={16} />
-                </button>
-                <ButtonGroupSeparator />
-                <button
-                  onClick={() => onExport?.('html')}
-                  disabled={!currentFile}
-                  className={cn(
-                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                    "hover:bg-panel-hover transition-colors",
-                    !currentFile && "opacity-50 cursor-not-allowed"
-                  )}
-                  title="Export to HTML"
-                >
-                  <FileCode size={16} />
-                </button>
-                <ButtonGroupSeparator />
-                <button
-                  onClick={onShareWhatsApp}
-                  disabled={!currentFile}
-                  className={cn(
-                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                    "hover:bg-panel-hover transition-colors",
-                    !currentFile && "opacity-50 cursor-not-allowed"
-                  )}
-                  title="Share via WhatsApp"
-                >
-                  <MessageCircle size={16} />
-                </button>
-                <ButtonGroupSeparator />
-                <button
-                  onClick={onFind}
-                  disabled={!currentFile}
-                  className={cn(
-                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                    "hover:bg-panel-hover transition-colors",
-                    !currentFile && "opacity-50 cursor-not-allowed"
-                  )}
-                  title="Find (⌘F)"
-                >
-                  <Search size={16} />
-                </button>
-                <ButtonGroupSeparator />
-                <button
-                  onClick={onReplace}
-                  disabled={!currentFile}
-                  className={cn(
-                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                    "hover:bg-panel-hover transition-colors",
-                    !currentFile && "opacity-50 cursor-not-allowed"
-                  )}
-                  title="Replace (⌘H)"
-                >
-                  <Replace size={16} />
-                </button>
-                <ButtonGroupSeparator />
-                <button
-                  onClick={onPreview}
-                  disabled={!currentFile}
-                  className={cn(
-                    "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                    "hover:bg-panel-hover transition-colors",
-                    !currentFile && "opacity-50 cursor-not-allowed"
-                  )}
-                  title="Preview"
-                >
-                  <Eye size={16} />
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={onConvertToLex}
-                disabled={!currentFile}
-                className={cn(
-                  "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                  "hover:bg-panel-hover transition-colors",
-                  !currentFile && "opacity-50 cursor-not-allowed"
-                )}
-                title="Convert to Lex"
-              >
-                <FileType size={16} />
-              </button>
-            )}
+            <button
+              onClick={onFormat}
+              disabled={!canFormat}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canFormat && "opacity-50 cursor-not-allowed"
+              )}
+              title="Format Document"
+            >
+              <AlignLeft size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={() => onExport?.('markdown')}
+              disabled={!canExport}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canExport && "opacity-50 cursor-not-allowed"
+              )}
+              title="Export to Markdown"
+            >
+              <FileText size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={() => onExport?.('html')}
+              disabled={!canExport}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canExport && "opacity-50 cursor-not-allowed"
+              )}
+              title="Export to HTML"
+            >
+              <FileCode size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onShareWhatsApp}
+              disabled={!canShare}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canShare && "opacity-50 cursor-not-allowed"
+              )}
+              title="Share via WhatsApp"
+            >
+              <MessageCircle size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onFind}
+              disabled={!canFind}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canFind && "opacity-50 cursor-not-allowed"
+              )}
+              title="Find (⌘F)"
+            >
+              <Search size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onReplace}
+              disabled={!canReplace}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canReplace && "opacity-50 cursor-not-allowed"
+              )}
+              title="Replace (⌘H)"
+            >
+              <Replace size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onPreview}
+              disabled={!canPreview}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canPreview && "opacity-50 cursor-not-allowed"
+              )}
+              title="Preview"
+            >
+              <Eye size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onConvertToLex}
+              disabled={!canConvertToLex}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canConvertToLex && "opacity-50 cursor-not-allowed"
+              )}
+              title="Convert to Lex"
+            >
+              <FileType size={16} />
+            </button>
           </ButtonGroup>
         </div>
 

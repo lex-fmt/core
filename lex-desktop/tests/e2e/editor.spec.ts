@@ -1,4 +1,5 @@
 import { test, expect, _electron as electron } from '@playwright/test';
+import { openFixture } from './helpers';
 
 test.describe('Editor', () => {
   test('should load editor and apply syntax highlighting', async () => {
@@ -12,6 +13,8 @@ test.describe('Editor', () => {
 
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
+
+    await openFixture(window, 'format-basic.lex');
 
     // Wait for Monaco editor to be visible
     const editor = window.locator('.monaco-editor').first();
