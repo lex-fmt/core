@@ -101,6 +101,7 @@ jobs:
         working-directory: lex-desktop
         env:
           LEX_HIDE_WINDOW: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build
       - name: Upload Electron artifacts
         uses: actions/upload-artifact@v4
