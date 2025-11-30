@@ -45,7 +45,9 @@ on:
       - '**[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
-  # Run 'dist plan' (or host) to determine what tasks we need to do
+  # This first job is the brains of the release: cargo-dist tells us what needs to
+  # be built (per-target matrices, installer tasks, etc.). All later jobs simply
+  # consume the manifest produced here.
   plan:
     runs-on: "ubuntu-22.04"
     outputs:
@@ -87,7 +89,10 @@ jobs:
           name: artifacts-plan-dist-manifest
           path: plan-dist-manifest.json
 
-  # Build and packages all the platform-specific things
+  # Build every target that dist asked for. Each matrix entry spins up on the
+  # appropriate runner/OS and does the full Rust build + packaging for that
+  # platform (archives, installers, checksums, ...). The resulting artifacts are
+  # stashed for later global steps and for upload to the release.
   build-local-artifacts:
     name: build-local-artifacts (${{ join(matrix.targets, ', ') }})
     # Let the initial task tell us to not run (currently very blunt)
@@ -165,7 +170,9 @@ jobs:
             ${{ steps.cargo-dist.outputs.paths }}
             ${{ env.BUILD_MANIFEST_NAME }}
 
-  # Build and package all the platform-agnostic(ish) things
+  # Some outputs (checksums, combined manifests) depend on the full set of
+  # platform builds. This job runs once on Linux after all local builds finish
+  # and produces those global artifacts before everything is uploaded.
   build-global-artifacts:
     needs:
       - plan
