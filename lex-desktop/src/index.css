@@ -30,7 +30,7 @@
   --color-accent: #0e639c;
   --color-accent-foreground: #ffffff;
   --panel-item-padding: 6px;
-  --lex-monaco-tab-size: 8;
+  --lex-monaco-tab-size: 32;
 }
 
 /* Light theme */
@@ -76,8 +76,8 @@
   }
 
   /* Monaco editor content left margin */
-  .monaco-editor .lines-content {
-    padding-left: 2rem;
+  .lines-content {
+    padding-left: 40px;
   }
 
   /* Visual tab/indent width inside Monaco (4 spaces base * 2) */
