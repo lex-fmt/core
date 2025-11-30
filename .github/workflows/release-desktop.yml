@@ -1,5 +1,9 @@
 name: Release Desktop
 
+defaults:
+  run:
+    shell: bash
+
 on:
   workflow_run:
     workflows: ["Release"]
@@ -24,7 +28,44 @@ env:
 jobs:
   build-desktop:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux-x64, macos-x64, macos-arm64, windows-x64]
+        include:
+          - platform: linux-x64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive_ext: tar.xz
+            artifact_suffix: linux-x64
+            lsp_name: lex-lsp
+          - platform: macos-x64
+            runner: macos-13
+            target: x86_64-apple-darwin
+            archive_ext: tar.xz
+            artifact_suffix: macos-x64
+            lsp_name: lex-lsp
+          - platform: macos-arm64
+            runner: macos-14
+            target: aarch64-apple-darwin
+            archive_ext: tar.xz
+            artifact_suffix: macos-arm64
+            lsp_name: lex-lsp
+          - platform: windows-x64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive_ext: zip
+            artifact_suffix: windows-x64
+            lsp_name: lex-lsp.exe
+    runs-on: ${{ matrix.runner }}
+    env:
+      REPO_NAME: ${{ github.repository }}
+      MANUAL_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}
+      MANUAL_TARGET: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target || '' }}
+      BUILD_TARGET: ${{ matrix.target }}
+      ARCHIVE_EXT: ${{ matrix.archive_ext }}
+      ARTIFACT_SUFFIX: ${{ matrix.artifact_suffix }}
+      LSP_NAME: ${{ matrix.lsp_name }}
     steps:
       - name: Resolve release tag
         env:
@@ -44,29 +85,24 @@ jobs:
             exit 1
           fi
           echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
-      - name: Resolve build target
+      - name: Evaluate target filter
+        id: filter
         run: |
-          TARGET_INPUT="$MANUAL_TARGET"
-          if [ -z "$TARGET_INPUT" ]; then
-            TARGET_INPUT="x86_64-unknown-linux-gnu"
+          if [[ -n "$MANUAL_TARGET" && "$MANUAL_TARGET" != "$BUILD_TARGET" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-          case "$TARGET_INPUT" in
-            *-pc-windows-msvc)
-              EXT="zip"
-              ;;
-            *)
-              EXT="tar.xz"
-              ;;
-          esac
-          echo "BUILD_TARGET=$TARGET_INPUT" >> "$GITHUB_ENV"
-          echo "ARCHIVE_EXT=$EXT" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
+        if: ${{ steps.filter.outputs.skip == 'false' }}
       - uses: actions/setup-node@v4
+        if: ${{ steps.filter.outputs.skip == 'false' }}
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: lex-desktop/package-lock.json
       - name: Download lex-lsp artifact
+        if: ${{ steps.filter.outputs.skip == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -92,12 +128,15 @@ jobs:
             echo "lex-lsp binary not found in $ARCHIVE" >&2
             exit 1
           fi
-          cp "$BIN_PATH" target/debug/lex-lsp
-          chmod +x target/debug/lex-lsp || true
+          DEST="target/debug/${LSP_NAME}"
+          cp "$BIN_PATH" "$DEST"
+          chmod +x "$DEST" || true
       - name: Install dependencies
+        if: ${{ steps.filter.outputs.skip == 'false' }}
         working-directory: lex-desktop
         run: npm ci
       - name: Build Electron package
+        if: ${{ steps.filter.outputs.skip == 'false' }}
         working-directory: lex-desktop
         env:
           LEX_HIDE_WINDOW: "1"
@@ -105,8 +144,9 @@ jobs:
         run: npm run build
       - name: Upload Electron artifacts
         uses: actions/upload-artifact@v4
+        if: ${{ steps.filter.outputs.skip == 'false' }}
         with:
-          name: lex-desktop-${{ env.BUILD_TARGET }}
+          name: lex-desktop-${{ env.ARTIFACT_SUFFIX }}
           path: |
             lex-desktop/release/**
             lex-desktop/dist/**

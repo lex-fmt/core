@@ -66,6 +66,13 @@
         "dmg"
       ]
     },
+    "win": {
+      "icon": "public/icon.png",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
     "linux": {
       "icon": "public/icon.png",
       "target": [
