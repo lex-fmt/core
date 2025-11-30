@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
 import type { EditorPaneHandle } from './components/EditorPane'
 import { Layout } from './components/Layout'
@@ -10,7 +10,6 @@ import type { Tab, TabDropData } from './components/TabBar'
 import type { PaneState, PaneRowState } from '@/panes/types'
 import {
   DEFAULT_PANE_SIZE,
-  DEFAULT_ROW_SIZE,
   MIN_PANE_SIZE,
   MIN_ROW_SIZE,
   getRowSize,
@@ -18,22 +17,9 @@ import {
   withRowDefaults,
 } from '@/panes/layout'
 import { PaneWorkspace } from './components/PaneWorkspace'
+import { createEmptyPane, createRowId, usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
 
 initDebugMonaco();
-
-const createPaneId = () => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `pane-${Math.random().toString(36).slice(2, 9)}`;
-};
-
-const createRowId = () => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `row-${Math.random().toString(36).slice(2, 9)}`;
-};
 
 const createTabFromPath = (path: string): Tab => ({
   id: path,
@@ -54,48 +40,22 @@ const createPreviewTab = (sourceFile: string, content: string): Tab => {
   };
 };
 
-const createEmptyPane = (id?: string): PaneState => ({
-  id: id || createPaneId(),
-  tabs: [],
-  activeTabId: null,
-  currentFile: null,
-  cursorLine: 0,
-});
-
 function App() {
-  const defaultLayoutRef = useRef<{ panes: PaneState[]; rows: PaneRowState[]; activePaneId: string } | null>(null);
-  if (!defaultLayoutRef.current) {
-    const first = createEmptyPane();
-    const second = createEmptyPane();
-    const initialRowId = createRowId();
-    defaultLayoutRef.current = {
-      panes: [first, second],
-      rows: [{
-        id: initialRowId,
-        paneIds: [first.id, second.id],
-        size: DEFAULT_ROW_SIZE,
-        paneSizes: {
-          [first.id]: DEFAULT_PANE_SIZE,
-          [second.id]: DEFAULT_PANE_SIZE,
-        },
-      }],
-      activePaneId: first.id,
-    };
-  }
-
-  const [panes, setPanes] = useState<PaneState[]>(() => defaultLayoutRef.current!.panes);
-  const [paneRows, setPaneRows] = useState<PaneRowState[]>(() => defaultLayoutRef.current!.rows.map(withRowDefaults));
-  const [activePaneId, setActivePaneId] = useState<string>(() => defaultLayoutRef.current!.activePaneId);
+  const {
+    panes,
+    paneRows,
+    activePaneId,
+    setPanes,
+    setPaneRows,
+    setActivePaneId,
+    resolvedActivePane,
+    resolvedActivePaneId,
+  } = usePersistedPaneLayout(createTabFromPath);
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
   const [exportStatus, setExportStatus] = useState<ExportStatus>({ isExporting: false, format: null });
-  const [layoutInitialized, setLayoutInitialized] = useState(false);
   const paneHandles = useRef(new Map<string, EditorPaneHandle | null>());
 
-  const resolvedActivePane = useMemo(() => {
-    return panes.find(pane => pane.id === activePaneId) ?? panes[0] ?? null;
-  }, [panes, activePaneId]);
-
-  const activePaneIdValue = resolvedActivePane?.id ?? null;
+  const activePaneIdValue = resolvedActivePaneId;
   const activePaneFile = resolvedActivePane?.currentFile ?? null;
   const activeCursorLine = resolvedActivePane?.cursorLine ?? 0;
   const activeEditor = activePaneIdValue
@@ -124,102 +84,6 @@ function App() {
       }
     }
   }, [panes]);
-
-
-useEffect(() => {
-  const loadLayout = async () => {
-      try {
-        const layout = await window.ipcRenderer.getOpenTabs();
-        if (layout && Array.isArray(layout.panes) && layout.panes.length > 0) {
-          const hydrated = layout.panes.map<PaneState>((pane) => ({
-            id: pane.id || createPaneId(),
-            tabs: pane.tabs.map(createTabFromPath),
-            activeTabId: pane.activeTab && pane.tabs.includes(pane.activeTab)
-              ? pane.activeTab
-              : pane.tabs[0] || null,
-            currentFile: null,
-            cursorLine: 0,
-          }));
-
-          if (hydrated.length === 1) {
-            hydrated.push(createEmptyPane());
-          }
-
-          const paneIdSet = new Set(hydrated.map(p => p.id));
-          const rowData = Array.isArray(layout.rows) ? layout.rows : [];
-          let rows: PaneRowState[] = rowData
-            .map((row: any) => ({
-              id: row.id || createRowId(),
-              paneIds: Array.isArray(row.paneIds)
-                ? row.paneIds.filter((id: string) => paneIdSet.has(id))
-                : [],
-              size: typeof row.size === 'number' ? row.size : undefined,
-              paneSizes: row.paneSizes && typeof row.paneSizes === 'object' ? row.paneSizes : undefined,
-            }))
-            .filter(row => row.paneIds.length > 0);
-
-          const referencedIds = new Set(rows.flatMap(row => row.paneIds));
-          const unreferenced = hydrated
-            .map(p => p.id)
-            .filter(id => !referencedIds.has(id));
-
-          if (rows.length === 0) {
-            rows = [withRowDefaults({ id: createRowId(), paneIds: hydrated.map(p => p.id) })];
-          } else if (unreferenced.length > 0) {
-            rows[0] = {
-              ...rows[0],
-              paneIds: [...rows[0].paneIds, ...unreferenced],
-            };
-          }
-
-          setPanes(hydrated);
-          setPaneRows(rows.map(withRowDefaults));
-
-          const savedActiveId = layout.activePaneId && hydrated.some(p => p.id === layout.activePaneId)
-            ? layout.activePaneId
-            : rows[0]?.paneIds[0] ?? hydrated[0]?.id;
-          if (savedActiveId) {
-            setActivePaneId(savedActiveId);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load pane layout:', error);
-      } finally {
-        setLayoutInitialized(true);
-      }
-    };
-    loadLayout();
-  }, []);
-
-  useEffect(() => {
-    if (!layoutInitialized) return;
-    const persist = async () => {
-      try {
-        const payload = panes.map(pane => ({
-          id: pane.id,
-          tabs: pane.tabs.map(tab => tab.path),
-          activeTab: pane.activeTabId,
-        }));
-        const rowsPayload = paneRows.map(row => ({
-          id: row.id,
-          paneIds: row.paneIds.filter(id => panes.some(p => p.id === id)),
-          size: row.size,
-          paneSizes: row.paneSizes,
-        }));
-        await window.ipcRenderer.setOpenTabs(payload, rowsPayload, activePaneIdValue);
-      } catch (error) {
-        console.error('Failed to persist pane layout:', error);
-      }
-    };
-    persist();
-  }, [panes, paneRows, activePaneIdValue, layoutInitialized]);
-
-  useEffect(() => {
-    if (!panes.length) return;
-    if (!panes.some(pane => pane.id === activePaneId)) {
-      setActivePaneId(panes[0].id);
-    }
-  }, [panes, activePaneId]);
 
   useEffect(() => {
     const loadInitialFolder = async () => {
