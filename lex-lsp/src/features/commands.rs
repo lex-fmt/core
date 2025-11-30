@@ -85,7 +85,7 @@ pub fn execute_command(command: &str, arguments: &[Value]) -> Result<Option<Valu
                         ));
                     };
 
-                    fs::write(&path, bytes).map_err(|e| Error::internal_error())?;
+                    fs::write(&path, bytes).map_err(|_e| Error::internal_error())?;
                     Ok(Some(Value::String(path.to_string_lossy().to_string())))
                 }
             }
