@@ -40,13 +40,13 @@ jobs:
             artifact_suffix: linux-x64
             lsp_name: lex-lsp
           - platform: macos-x64
-            runner: macos-13
+            runner: macos-15-intel
             target: x86_64-apple-darwin
             archive_ext: tar.xz
             artifact_suffix: macos-x64
             lsp_name: lex-lsp
           - platform: macos-arm64
-            runner: macos-14
+            runner: macos-latest
             target: aarch64-apple-darwin
             archive_ext: tar.xz
             artifact_suffix: macos-arm64
@@ -140,6 +140,7 @@ jobs:
         working-directory: lex-desktop
         env:
           LEX_HIDE_WINDOW: "1"
+          NODE_OPTIONS: --max-old-space-size=4096
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build
       - name: Upload Electron artifacts
