@@ -1,6 +1,6 @@
 [package]
 name = "lex-viewer"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["lex contributors"]
 description = "Interactive terminal viewer for the lex document format"
