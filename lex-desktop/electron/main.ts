@@ -48,6 +48,19 @@ const DEFAULT_WINDOW_STATE: WindowState = {
   height: 800,
 };
 
+const TEST_FIXTURES_DIR = path.join(process.env.APP_ROOT ?? path.join(__dirname, '..'), 'tests', 'fixtures');
+
+async function loadTestFixture(fixtureName: string): Promise<{ path: string; content: string }> {
+  const safeName = path.basename(fixtureName);
+  const fixturePath = path.join(TEST_FIXTURES_DIR, safeName);
+  const resolved = path.resolve(fixturePath);
+  if (!resolved.startsWith(path.resolve(TEST_FIXTURES_DIR))) {
+    throw new Error('Invalid fixture path');
+  }
+  const content = await fs.readFile(resolved, 'utf-8');
+  return { path: resolved, content };
+}
+
 function getSettingsPathSync(): string {
   return path.join(app.getPath('userData'), SETTINGS_FILE);
 }
@@ -261,6 +274,25 @@ ipcMain.handle('file-open', async () => {
   const filePath = filePaths[0];
   const content = await fs.readFile(filePath, 'utf-8');
   return { filePath, content };
+});
+
+ipcMain.handle('test-load-fixture', async (_event, fixtureName: string) => {
+  try {
+    return await loadTestFixture(fixtureName);
+  } catch (error) {
+    console.error('Failed to load test fixture:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('get-benchmark-file', async () => {
+  try {
+    const fixture = await loadTestFixture('benchmark.lex');
+    return fixture.path;
+  } catch (error) {
+    console.error('Failed to resolve benchmark fixture:', error);
+    return null;
+  }
 });
 
 ipcMain.handle('file-save', async (_, filePath: string, content: string) => {

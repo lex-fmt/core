@@ -1,4 +1,5 @@
 import { test, expect, _electron as electron } from '@playwright/test';
+import { openFixture } from './helpers';
 
 test.describe('Format Document', () => {
   test('should format document via toolbar button', async () => {
@@ -12,6 +13,7 @@ test.describe('Format Document', () => {
 
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
+    await openFixture(window, 'format-basic.lex');
 
     // Wait for Monaco editor to be visible
     const editor = window.locator('.monaco-editor').first();
@@ -33,10 +35,7 @@ test.describe('Format Document', () => {
     await window.waitForTimeout(500);
 
     // Get the content before formatting
-    const contentBefore = await window.evaluate(() => {
-      // @ts-ignore - window.editor is exposed for debugging
-      return window.editor?.getValue();
-    });
+    const contentBefore = await window.evaluate(() => window.lexTest?.getActiveEditorValue() ?? '');
 
     expect(contentBefore).toContain('# Title');
 
@@ -50,10 +49,7 @@ test.describe('Format Document', () => {
     await window.waitForTimeout(1000);
 
     // Get the content after formatting
-    const contentAfter = await window.evaluate(() => {
-      // @ts-ignore - window.editor is exposed for debugging
-      return window.editor?.getValue();
-    });
+    const contentAfter = await window.evaluate(() => window.lexTest?.getActiveEditorValue() ?? '');
 
     // The content should still contain our text (formatting shouldn't delete it)
     expect(contentAfter).toContain('Title');
@@ -77,6 +73,7 @@ test.describe('Format Document', () => {
 
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
+    await openFixture(window, 'format-basic.lex');
 
     // Wait for Monaco editor to be visible
     const editor = window.locator('.monaco-editor').first();
@@ -97,10 +94,7 @@ test.describe('Format Document', () => {
     await window.waitForTimeout(500);
 
     // Get content before
-    const contentBefore = await window.evaluate(() => {
-      // @ts-ignore
-      return window.editor?.getValue();
-    });
+    const contentBefore = await window.evaluate(() => window.lexTest?.getActiveEditorValue() ?? '');
 
     // Use keyboard shortcut Cmd+Shift+F (Mac) or Ctrl+Shift+F (others)
     const isMac = process.platform === 'darwin';
@@ -114,10 +108,7 @@ test.describe('Format Document', () => {
     await window.waitForTimeout(1000);
 
     // Get content after
-    const contentAfter = await window.evaluate(() => {
-      // @ts-ignore
-      return window.editor?.getValue();
-    });
+    const contentAfter = await window.evaluate(() => window.lexTest?.getActiveEditorValue() ?? '');
 
     // Content should still be present
     expect(contentAfter).toContain('Test Document');

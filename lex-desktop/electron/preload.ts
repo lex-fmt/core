@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   folderOpen: () => ipcRenderer.invoke('folder-open'),
   getInitialFolder: () => ipcRenderer.invoke('get-initial-folder'),
   setLastFolder: (folderPath: string) => ipcRenderer.invoke('set-last-folder', folderPath),
+  loadTestFixture: (fixtureName: string) => ipcRenderer.invoke('test-load-fixture', fixtureName) as Promise<{ path: string; content: string }>,
   getNativeTheme: () => ipcRenderer.invoke('get-native-theme'),
   onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => {
     const handler = (_event: any, theme: 'dark' | 'light') => callback(theme);

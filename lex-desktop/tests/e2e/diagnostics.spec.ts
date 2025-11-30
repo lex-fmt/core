@@ -1,4 +1,5 @@
 import { test, expect, _electron as electron } from '@playwright/test';
+import { openFixture } from './helpers';
 
 test.describe('Diagnostics', () => {
   test('should show mock diagnostics', async () => {
@@ -12,6 +13,7 @@ test.describe('Diagnostics', () => {
 
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
+    await openFixture(window, 'format-basic.lex');
 
     // Wait for editor
     const editor = window.locator('.monaco-editor').first();

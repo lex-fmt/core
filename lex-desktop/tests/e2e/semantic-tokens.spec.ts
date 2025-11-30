@@ -1,4 +1,5 @@
 import { test, expect, _electron as electron } from '@playwright/test';
+import { openFixture } from './helpers';
 
 test.describe('Semantic Tokens', () => {
   test('should request and apply semantic tokens from LSP', async () => {
@@ -22,7 +23,8 @@ test.describe('Semantic Tokens', () => {
     });
 
     await window.waitForLoadState('domcontentloaded');
-    await expect(window.locator('.monaco-editor')).toBeVisible();
+    await openFixture(window, 'semantic-basic.lex');
+    await expect(window.locator('.monaco-editor').first()).toBeVisible();
 
     // Wait for semantic tokens to be received
     await window.waitForTimeout(5000);

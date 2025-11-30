@@ -54,6 +54,11 @@ function App() {
   const [rootPath, setRootPath] = useState<string | undefined>(undefined);
   const [exportStatus, setExportStatus] = useState<ExportStatus>({ isExporting: false, format: null });
   const paneHandles = useRef(new Map<string, EditorPaneHandle | null>());
+  const panesRef = useRef(panes);
+
+  useEffect(() => {
+    panesRef.current = panes;
+  }, [panes]);
 
   const activePaneIdValue = resolvedActivePaneId;
   const activePaneFile = resolvedActivePane?.currentFile ?? null;
@@ -262,6 +267,51 @@ const handleSplitHorizontal = useCallback(() => {
       setActivePaneId(resolvedId);
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!window.ipcRenderer?.loadTestFixture) return;
+
+    const waitForPaneFile = async (paneId: string, filePath: string, timeoutMs = 5000) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const pane = panesRef.current.find(p => p.id === paneId);
+        if (pane?.currentFile === filePath) {
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      throw new Error(`Timed out opening fixture ${filePath}`);
+    };
+
+    const api = {
+      openFixture: async (fixtureName: string, targetPaneId?: string | null) => {
+        const fixture = await window.ipcRenderer.loadTestFixture(fixtureName);
+        const target = targetPaneId ?? activePaneIdValue ?? panes[0]?.id ?? null;
+        if (!target) {
+          throw new Error('No pane available for fixture');
+        }
+        openFileInPane(target, fixture.path);
+        await waitForPaneFile(target, fixture.path);
+        return fixture;
+      },
+      readFixture: (fixtureName: string) => window.ipcRenderer.loadTestFixture(fixtureName),
+      getActiveEditorValue: () => {
+        const target = activePaneIdValue ?? panesRef.current[0]?.id ?? null;
+        if (!target) {
+          return '';
+        }
+        const editorInstance = paneHandles.current.get(target)?.getEditor();
+        return editorInstance?.getValue() ?? '';
+      },
+    };
+    window.lexTest = api;
+    return () => {
+      if (window.lexTest === api) {
+        delete window.lexTest;
+      }
+    };
+  }, [activePaneIdValue, openFileInPane, panes]);
 
   const handleTabSelect = useCallback((paneId: string, tabId: string) => {
     setPanes(prev => prev.map(pane => (
