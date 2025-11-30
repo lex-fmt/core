@@ -15,6 +15,7 @@ use crate::features::references::find_references;
 use crate::features::semantic_tokens::{
     collect_semantic_tokens, LexSemanticToken, SEMANTIC_TOKEN_KINDS,
 };
+use lex_analysis::completion::{completion_items, CompletionCandidate};
 use lex_parser::lex::ast::links::{DocumentLink as AstDocumentLink, LinkType};
 use lex_parser::lex::ast::range::SourceLocation;
 use lex_parser::lex::ast::{Document, Position as AstPosition, Range as AstRange};
@@ -24,6 +25,7 @@ use tokio::sync::RwLock;
 use tower_lsp::async_trait;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
+    CompletionItem, CompletionOptions, CompletionParams, CompletionResponse,
     DocumentFormattingParams, DocumentLink, DocumentLinkOptions, DocumentLinkParams,
     DocumentRangeFormattingParams, DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse,
     ExecuteCommandOptions, ExecuteCommandParams, FoldingRange, FoldingRangeParams,
@@ -60,6 +62,7 @@ pub trait FeatureProvider: Send + Sync + 'static {
         source: &str,
         range: FormattingLineRange,
     ) -> Vec<TextEditSpan>;
+    fn completion(&self, document: &Document, position: AstPosition) -> Vec<CompletionCandidate>;
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>>;
 }
 
@@ -117,6 +120,10 @@ impl FeatureProvider for DefaultFeatureProvider {
         range: FormattingLineRange,
     ) -> Vec<TextEditSpan> {
         formatting::format_range(document, source, range)
+    }
+
+    fn completion(&self, document: &Document, position: AstPosition) -> Vec<CompletionCandidate> {
+        completion_items(document, position)
     }
 
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>> {
@@ -375,6 +382,16 @@ fn to_lsp_folding_range(range: &LexFoldingRange) -> FoldingRange {
     }
 }
 
+fn to_lsp_completion_item(candidate: &CompletionCandidate) -> CompletionItem {
+    CompletionItem {
+        label: candidate.label.clone(),
+        kind: Some(candidate.kind),
+        detail: candidate.detail.clone(),
+        insert_text: candidate.insert_text.clone(),
+        ..Default::default()
+    }
+}
+
 fn build_document_link(uri: &Url, link: &AstDocumentLink) -> Option<DocumentLink> {
     let target = link_target_uri(uri, link)?;
     Some(DocumentLink {
@@ -444,6 +461,13 @@ where
                 work_done_progress_options: WorkDoneProgressOptions::default(),
                 resolve_provider: Some(false),
             }),
+            completion_provider: Some(CompletionOptions {
+                resolve_provider: Some(false),
+                trigger_characters: Some(vec!["[".to_string(), ":".to_string(), "=".to_string()]),
+                work_done_progress_options: WorkDoneProgressOptions::default(),
+                all_commit_characters: None,
+                ..Default::default()
+            }),
             document_formatting_provider: Some(OneOf::Left(true)),
             document_range_formatting_provider: Some(OneOf::Left(true)),
             semantic_tokens_provider: Some(
@@ -457,7 +481,16 @@ where
                 ),
             ),
             execute_command_provider: Some(ExecuteCommandOptions {
-                commands: vec![commands::COMMAND_ECHO.to_string()],
+                commands: vec![
+                    commands::COMMAND_ECHO.to_string(),
+                    commands::COMMAND_IMPORT.to_string(),
+                    commands::COMMAND_EXPORT.to_string(),
+                    commands::COMMAND_NEXT_ANNOTATION.to_string(),
+                    commands::COMMAND_RESOLVE_ANNOTATION.to_string(),
+                    commands::COMMAND_TOGGLE_ANNOTATIONS.to_string(),
+                    commands::COMMAND_INSERT_ASSET.to_string(),
+                    commands::COMMAND_INSERT_VERBATIM.to_string(),
+                ],
                 work_done_progress_options: WorkDoneProgressOptions::default(),
             }),
             ..ServerCapabilities::default()
@@ -639,9 +672,167 @@ where
         }
     }
 
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let uri = params.text_document_position.text_document.uri;
+        if let Some(document) = self.document(&uri).await {
+            let position = from_lsp_position(params.text_document_position.position);
+            let candidates = self.features.completion(&document, position);
+            let items: Vec<CompletionItem> =
+                candidates.iter().map(to_lsp_completion_item).collect();
+            Ok(Some(CompletionResponse::Array(items)))
+        } else {
+            Ok(None)
+        }
+    }
+
     async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
-        self.features
-            .execute_command(&params.command, &params.arguments)
+        let command = params.command.as_str();
+        match command {
+            commands::COMMAND_NEXT_ANNOTATION => {
+                let uri_str = params.arguments.first().and_then(|v| v.as_str());
+                let pos_val = params.arguments.get(1);
+
+                if let (Some(uri_str), Some(pos_val)) = (uri_str, pos_val) {
+                    if let Ok(uri) = Url::parse(uri_str) {
+                        if let Ok(position) = serde_json::from_value::<Position>(pos_val.clone()) {
+                            if let Some(document) = self.document(&uri).await {
+                                let ast_pos = from_lsp_position(position);
+                                if let Some(result) =
+                                    lex_analysis::annotations::next_annotation(&document, ast_pos)
+                                {
+                                    let location = to_lsp_location(&uri, &result.header);
+                                    return Ok(Some(serde_json::to_value(location).unwrap()));
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(None)
+            }
+            commands::COMMAND_RESOLVE_ANNOTATION | commands::COMMAND_TOGGLE_ANNOTATIONS => {
+                let uri_str = params.arguments.first().and_then(|v| v.as_str());
+                let pos_val = params.arguments.get(1);
+
+                if let (Some(uri_str), Some(pos_val)) = (uri_str, pos_val) {
+                    if let Ok(uri) = Url::parse(uri_str) {
+                        if let Ok(position) = serde_json::from_value::<Position>(pos_val.clone()) {
+                            if let Some(document) = self.document(&uri).await {
+                                let ast_pos = from_lsp_position(position);
+                                let _resolved = command == commands::COMMAND_RESOLVE_ANNOTATION;
+
+                                // For toggle, we need to check current status, but lex-analysis toggle takes a boolean "resolved".
+                                // Wait, lex-analysis toggle_annotation_resolution takes "resolved: bool".
+                                // If we want to toggle, we need to know current state.
+                                // But the command name "toggle_annotations" implies switching.
+                                // Let's check lex-analysis signature again.
+                                // toggle_annotation_resolution(doc, pos, resolved) -> Option<Edit>
+                                // It sets status=resolved if resolved=true, removes it if false.
+                                // So "resolve" command should pass true.
+                                // "toggle" command needs to check if it's currently resolved and flip it.
+
+                                let target_state =
+                                    if command == commands::COMMAND_RESOLVE_ANNOTATION {
+                                        true
+                                    } else {
+                                        // Check if currently resolved
+                                        if let Some(annotation) =
+                                            lex_analysis::utils::find_annotation_at_position(
+                                                &document, ast_pos,
+                                            )
+                                        {
+                                            let is_resolved =
+                                                annotation.data.parameters.iter().any(|p| {
+                                                    p.key == "status" && p.value == "resolved"
+                                                });
+                                            !is_resolved
+                                        } else {
+                                            return Ok(None);
+                                        }
+                                    };
+
+                                if let Some(edit) =
+                                    lex_analysis::annotations::toggle_annotation_resolution(
+                                        &document,
+                                        ast_pos,
+                                        target_state,
+                                    )
+                                {
+                                    let text_edit = TextEdit {
+                                        range: to_lsp_range(&edit.range),
+                                        new_text: edit.new_text,
+                                    };
+                                    let mut changes = HashMap::new();
+                                    changes.insert(uri, vec![text_edit]);
+                                    let workspace_edit = tower_lsp::lsp_types::WorkspaceEdit {
+                                        changes: Some(changes),
+                                        ..Default::default()
+                                    };
+                                    return Ok(Some(serde_json::to_value(workspace_edit).unwrap()));
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(None)
+            }
+            commands::COMMAND_INSERT_ASSET => {
+                let uri_str = params.arguments.first().and_then(|v| v.as_str());
+                let pos_val = params.arguments.get(1);
+                let path_val = params.arguments.get(2).and_then(|v| v.as_str());
+
+                if let (Some(uri_str), Some(pos_val), Some(path)) = (uri_str, pos_val, path_val) {
+                    if let Ok(uri) = Url::parse(uri_str) {
+                        if let Ok(position) = serde_json::from_value::<Position>(pos_val.clone()) {
+                            let text_edit = TextEdit {
+                                range: Range {
+                                    start: position,
+                                    end: position,
+                                },
+                                new_text: format!("[{}]", path),
+                            };
+                            let mut changes = HashMap::new();
+                            changes.insert(uri, vec![text_edit]);
+                            let workspace_edit = tower_lsp::lsp_types::WorkspaceEdit {
+                                changes: Some(changes),
+                                ..Default::default()
+                            };
+                            return Ok(Some(serde_json::to_value(workspace_edit).unwrap()));
+                        }
+                    }
+                }
+                Ok(None)
+            }
+            commands::COMMAND_INSERT_VERBATIM => {
+                let uri_str = params.arguments.first().and_then(|v| v.as_str());
+                let pos_val = params.arguments.get(1);
+                let label_val = params.arguments.get(2).and_then(|v| v.as_str());
+
+                if let (Some(uri_str), Some(pos_val), Some(label)) = (uri_str, pos_val, label_val) {
+                    if let Ok(uri) = Url::parse(uri_str) {
+                        if let Ok(position) = serde_json::from_value::<Position>(pos_val.clone()) {
+                            let text_edit = TextEdit {
+                                range: Range {
+                                    start: position,
+                                    end: position,
+                                },
+                                new_text: format!(":: {} ::\n\n::", label),
+                            };
+                            let mut changes = HashMap::new();
+                            changes.insert(uri, vec![text_edit]);
+                            let workspace_edit = tower_lsp::lsp_types::WorkspaceEdit {
+                                changes: Some(changes),
+                                ..Default::default()
+                            };
+                            return Ok(Some(serde_json::to_value(workspace_edit).unwrap()));
+                        }
+                    }
+                }
+                Ok(None)
+            }
+            _ => self
+                .features
+                .execute_command(&params.command, &params.arguments),
+        }
     }
 }
 
@@ -653,11 +844,11 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
     use tower_lsp::lsp_types::{
-        DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLinkParams,
-        DocumentRangeFormattingParams, DocumentSymbolParams, FoldingRangeKind, FoldingRangeParams,
-        FormattingOptions, GotoDefinitionParams, HoverParams, Position, Range, ReferenceContext,
-        ReferenceParams, SemanticTokensParams, SymbolKind, TextDocumentIdentifier,
-        TextDocumentItem, TextDocumentPositionParams,
+        CompletionItemKind, DidOpenTextDocumentParams, DocumentFormattingParams,
+        DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams, FoldingRangeKind,
+        FoldingRangeParams, FormattingOptions, GotoDefinitionParams, HoverParams, Position, Range,
+        ReferenceContext, ReferenceParams, SemanticTokensParams, SymbolKind,
+        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
     };
     use tower_lsp::LanguageServer;
 
@@ -678,6 +869,7 @@ mod tests {
         last_references_include: Mutex<Option<bool>>,
         formatting_called: AtomicUsize,
         range_formatting_called: AtomicUsize,
+        completion_called: AtomicUsize,
         execute_command_called: AtomicUsize,
     }
 
@@ -774,6 +966,16 @@ mod tests {
                 start: 0,
                 end: 0,
                 new_text: "range".into(),
+            }]
+        }
+
+        fn completion(&self, _: &Document, _: AstPosition) -> Vec<CompletionCandidate> {
+            self.completion_called.fetch_add(1, Ordering::SeqCst);
+            vec![CompletionCandidate {
+                label: "completion".into(),
+                detail: None,
+                kind: CompletionItemKind::TEXT,
+                insert_text: None,
             }]
         }
 
@@ -998,6 +1200,50 @@ mod tests {
             GotoDefinitionResponse::Array(locations) => assert_eq!(locations.len(), 1),
             _ => panic!("unexpected goto definition response"),
         }
+    }
+
+    #[tokio::test]
+    async fn execute_insert_commands() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider.clone());
+        open_sample_document(&server).await;
+
+        // Test lex.insert_asset
+        let params = ExecuteCommandParams {
+            command: commands::COMMAND_INSERT_ASSET.to_string(),
+            arguments: vec![
+                serde_json::to_value(sample_uri().to_string()).unwrap(),
+                serde_json::to_value(Position::new(0, 0)).unwrap(),
+                serde_json::to_value("./image.png").unwrap(),
+            ],
+            work_done_progress_params: Default::default(),
+        };
+        let result = server.execute_command(params).await.unwrap();
+        assert!(result.is_some());
+        let edit: tower_lsp::lsp_types::WorkspaceEdit =
+            serde_json::from_value(result.unwrap()).unwrap();
+        assert!(edit.changes.is_some());
+        let changes = edit.changes.unwrap();
+        let edits = changes.get(&sample_uri()).unwrap();
+        assert_eq!(edits[0].new_text, "[./image.png]");
+
+        // Test lex.insert_verbatim
+        let params = ExecuteCommandParams {
+            command: commands::COMMAND_INSERT_VERBATIM.to_string(),
+            arguments: vec![
+                serde_json::to_value(sample_uri().to_string()).unwrap(),
+                serde_json::to_value(Position::new(0, 0)).unwrap(),
+                serde_json::to_value("note").unwrap(),
+            ],
+            work_done_progress_params: Default::default(),
+        };
+        let result = server.execute_command(params).await.unwrap();
+        assert!(result.is_some());
+        let edit: tower_lsp::lsp_types::WorkspaceEdit =
+            serde_json::from_value(result.unwrap()).unwrap();
+        let changes = edit.changes.unwrap();
+        let edits = changes.get(&sample_uri()).unwrap();
+        assert_eq!(edits[0].new_text, ":: note ::\n\n::");
     }
 
     #[tokio::test]
