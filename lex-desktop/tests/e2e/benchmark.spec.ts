@@ -1,4 +1,5 @@
 import { test, expect, _electron as electron } from '@playwright/test';
+import { openFixture } from './helpers';
 
 test.describe('Benchmark File', () => {
   test('should open benchmark file on startup and display correct content and outline', async () => {
@@ -18,38 +19,21 @@ test.describe('Benchmark File', () => {
     window.on('pageerror', err => console.log(`[Browser Error]: ${err}`));
 
     await window.waitForLoadState('domcontentloaded');
-    
-    // Wait for the editor to be ready
-    await expect(window.locator('.monaco-editor')).toBeVisible();
 
-    // Debug: Check if the file path is displayed in the toolbar
-    // The toolbar displays {currentFile || 'Untitled'}
-    // We expect it to contain "30-a-place-for-ideas.lex"
-    const filePathDisplay = window.locator('span', { hasText: '30-a-place-for-ideas.lex' });
-    
-    // Take a screenshot if it fails
-    try {
-        await expect(filePathDisplay).toBeVisible({ timeout: 5000 });
-    } catch (e) {
-        console.log('File path not found. Taking screenshot...');
-        await window.screenshot({ path: 'benchmark-failure.png' });
-        // Log the actual text in the toolbar
-        const toolbarText = await window.locator('div[style*="background: #333"]').textContent();
-        console.log('Toolbar text:', toolbarText);
-        throw e;
-    }
+    await openFixture(window, 'benchmark.lex');
+
+    const editor = window.locator('.monaco-editor').first();
+    await expect(editor).toBeVisible();
 
     // 1. Verify Editor Content
-    const editorText = window.locator('.monaco-editor').getByText('Compromise');
-    await expect(editorText.first()).toBeVisible({ timeout: 5000 });
+    await expect(editor).toContainText('Compromise');
 
     // 2. Verify Syntax Highlighting
-    const markerText = window.locator('.monaco-editor').getByText('1.');
-    await expect(markerText.first()).toBeVisible();
+    await expect(editor).toContainText('1.');
 
     // 3. Verify Outline
-    const outlineItem = window.locator('text="1. The Cage of Compromise"');
-    await expect(outlineItem).toBeVisible();
+    const outline = window.locator('[data-testid="outline-view"]');
+    await expect(outline).toContainText('1. The Cage of Compromise');
 
     // Note: Nested items might not be visible or rendered immediately, 
     // but verifying the first item confirms the outline component is working and receiving data.

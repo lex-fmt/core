@@ -15,6 +15,7 @@ interface Window {
     folderOpen(): Promise<string | null>;
     getInitialFolder: () => Promise<string>;
     setLastFolder: (folderPath: string) => Promise<boolean>;
+    loadTestFixture: (fixtureName: string) => Promise<{ path: string; content: string }>;
     getNativeTheme: () => Promise<'dark' | 'light'>;
     onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => () => void;
     getOpenTabs: () => Promise<{
@@ -43,4 +44,10 @@ interface Window {
     onMenuSplitHorizontal: (callback: () => void) => () => void;
     onMenuPreview: (callback: () => void) => () => void;
   }
+  lexTest?: {
+    openFixture: (fixtureName: string, paneId?: string | null) => Promise<{ path: string; content: string }>;
+    readFixture: (fixtureName: string) => Promise<{ path: string; content: string }>;
+    getActiveEditorValue: () => string;
+    triggerMockDiagnostics: () => boolean;
+  };
 }
