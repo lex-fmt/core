@@ -31,12 +31,14 @@ export class LspManager {
 
     let lspPath: string;
 
+    const binaryName = process.platform === 'win32' ? 'lex-lsp.exe' : 'lex-lsp';
+
     if (app.isPackaged) {
-      // In production, the binary is in Resources/lex-lsp
-      lspPath = path.join(process.resourcesPath, 'lex-lsp');
+      // In production, the binary is in Resources
+      lspPath = path.join(process.resourcesPath, binaryName);
     } else {
       // Hardcoded path for dev environment
-      lspPath = '/Users/adebert/h/lex/target/debug/lex-lsp';
+      lspPath = path.join('/Users/adebert/h/lex/target/debug', binaryName);
     }
 
     this.lspProcess = spawn(lspPath, [], {
