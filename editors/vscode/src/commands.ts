@@ -11,13 +11,14 @@ import { join } from 'node:path';
 export interface ConvertOptions {
   cliBinaryPath: string;
   fromFormat: 'lex' | 'markdown';
-  toFormat: 'lex' | 'markdown';
+  toFormat: 'lex' | 'markdown' | 'html';
   targetLanguageId: string;
 }
 
 const FORMAT_EXTENSIONS: Record<string, string> = {
   lex: '.lex',
-  markdown: '.md'
+  markdown: '.md',
+  html: '.html'
 };
 
 async function convertDocument(
@@ -170,6 +171,38 @@ export function createImportFromMarkdownCommand(
   };
 }
 
+export function createExportToHtmlCommand(
+  cliBinaryPath: string
+): () => Promise<void> {
+  return async () => {
+    const editorInfo = getActiveEditorContent();
+    if (!editorInfo) {
+      vscode.window.showErrorMessage('No active editor with content to export.');
+      return;
+    }
+
+    if (editorInfo.languageId !== 'lex') {
+      vscode.window.showErrorMessage(
+        'Export to HTML is only available for .lex files.'
+      );
+      return;
+    }
+
+    try {
+      const html = await convertDocument(editorInfo.content, {
+        cliBinaryPath,
+        fromFormat: 'lex',
+        toFormat: 'html',
+        targetLanguageId: 'html'
+      });
+      await openConvertedDocument(html, 'html');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`Export failed: ${message}`);
+    }
+  };
+}
+
 export function registerCommands(
   context: vscode.ExtensionContext,
   cliBinaryPath: string
@@ -178,6 +211,10 @@ export function registerCommands(
     vscode.commands.registerCommand(
       'lex.exportToMarkdown',
       createExportToMarkdownCommand(cliBinaryPath)
+    ),
+    vscode.commands.registerCommand(
+      'lex.exportToHtml',
+      createExportToHtmlCommand(cliBinaryPath)
     ),
     vscode.commands.registerCommand(
       'lex.importFromMarkdown',

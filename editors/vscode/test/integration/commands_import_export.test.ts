@@ -106,3 +106,40 @@ integrationTest('import from markdown produces valid lex output', async () => {
     await closeAllEditors();
   }
 });
+
+integrationTest('export to html produces valid html output', async () => {
+  const extension = vscode.extensions.getExtension<LexExtensionApi>('lex.lex-vscode');
+  assert.ok(extension, 'Lex extension should be discoverable by VS Code');
+
+  const api = await extension.activate();
+  await api?.clientReady();
+
+  const document = await openWorkspaceDocument(EXPORT_DOCUMENT_PATH);
+  assert.strictEqual(document.languageId, 'lex', 'Document should be recognized as lex');
+
+  try {
+    await vscode.commands.executeCommand('lex.exportToHtml');
+
+    // Wait for new untitled document to appear
+    const newDoc = await waitForNewUntitledDocument('html');
+
+    // Debug: log all documents if not found
+    if (!newDoc) {
+      const allDocs = vscode.workspace.textDocuments;
+      console.log('All open documents:', allDocs.map(d => ({
+        uri: d.uri.toString(),
+        languageId: d.languageId,
+        scheme: d.uri.scheme
+      })));
+    }
+
+    assert.ok(newDoc, 'Export should open a new untitled html document');
+
+    const content = newDoc.getText();
+    assert.ok(content.length > 0, 'Exported content should not be empty');
+    // HTML output should contain typical HTML tags
+    assert.ok(content.includes('<'), 'HTML output should contain HTML tags');
+  } finally {
+    await closeAllEditors();
+  }
+});
