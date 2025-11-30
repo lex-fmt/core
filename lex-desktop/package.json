@@ -66,6 +66,13 @@
         "dmg"
       ]
     },
+    "linux": {
+      "icon": "public/icon.png",
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    },
     "files": [
       "dist/**/*",
       "dist-electron/**/*",

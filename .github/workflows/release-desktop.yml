@@ -1,0 +1,112 @@
+name: Release Desktop
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to package (e.g. v0.1.12). Leave blank to use the latest release
+        required: false
+      target:
+        description: Rust target triple to use as the source artifact (e.g. x86_64-unknown-linux-gnu)
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  REPO_NAME: ${{ github.repository }}
+  MANUAL_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}
+  MANUAL_TARGET: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target || '' }}
+
+jobs:
+  build-desktop:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG_INPUT="$MANUAL_TAG"
+          if [ -n "$TAG_INPUT" ]; then
+            TAG="$TAG_INPUT"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            TAG="${{ github.event.workflow_run.head_branch }}"
+          else
+            TAG=$(gh release list --repo "$REPO_NAME" --limit 1 --json tagName -q '.[0].tagName')
+          fi
+          if [ -z "$TAG" ]; then
+            echo "Unable to resolve release tag" >&2
+            exit 1
+          fi
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+      - name: Resolve build target
+        run: |
+          TARGET_INPUT="$MANUAL_TARGET"
+          if [ -z "$TARGET_INPUT" ]; then
+            TARGET_INPUT="x86_64-unknown-linux-gnu"
+          fi
+          case "$TARGET_INPUT" in
+            *-pc-windows-msvc)
+              EXT="zip"
+              ;;
+            *)
+              EXT="tar.xz"
+              ;;
+          esac
+          echo "BUILD_TARGET=$TARGET_INPUT" >> "$GITHUB_ENV"
+          echo "ARCHIVE_EXT=$EXT" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: lex-desktop/package-lock.json
+      - name: Download lex-lsp artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts extracted target/debug
+          ARCHIVE="lex-lsp-${BUILD_TARGET}.${ARCHIVE_EXT}"
+          gh release download "$RELEASE_TAG" \
+            --repo "$REPO_NAME" \
+            --pattern "$ARCHIVE" \
+            --dir artifacts
+          ASSET="artifacts/$ARCHIVE"
+          if [ ! -f "$ASSET" ]; then
+            echo "Artifact $ARCHIVE not found in release $RELEASE_TAG" >&2
+            exit 1
+          fi
+          if [[ "$ASSET" == *.zip ]]; then
+            unzip -q "$ASSET" -d extracted
+          else
+            tar -xf "$ASSET" -C extracted
+          fi
+          BIN_PATH=$(find extracted -type f -name 'lex-lsp*' ! -name '*README*' | head -n 1)
+          if [ -z "$BIN_PATH" ]; then
+            echo "lex-lsp binary not found in $ARCHIVE" >&2
+            exit 1
+          fi
+          cp "$BIN_PATH" target/debug/lex-lsp
+          chmod +x target/debug/lex-lsp || true
+      - name: Install dependencies
+        working-directory: lex-desktop
+        run: npm ci
+      - name: Build Electron package
+        working-directory: lex-desktop
+        env:
+          LEX_HIDE_WINDOW: "1"
+        run: npm run build
+      - name: Upload Electron artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lex-desktop-${{ env.BUILD_TARGET }}
+          path: |
+            lex-desktop/release/**
+            lex-desktop/dist/**
+          if-no-files-found: error
