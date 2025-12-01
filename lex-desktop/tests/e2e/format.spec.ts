@@ -131,23 +131,10 @@ test.describe('Format Document', () => {
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
 
-    // Wait for editor to be visible
-    const editor = window.locator('.monaco-editor').first();
-    await expect(editor).toBeVisible();
-
-    // The format button should exist
+    // The format button should exist and be disabled without an open file
     const formatButton = window.locator('button[title="Format Document"]');
     await expect(formatButton).toBeVisible();
-
-    // Check if the button has the disabled styling (opacity-50)
-    // When no file is open, the button should be disabled
-    const isDisabled = await formatButton.evaluate((el) => {
-      return el.hasAttribute('disabled') || el.classList.contains('opacity-50');
-    });
-
-    // Note: The welcome folder might auto-open a file, so this test might need adjustment
-    // depending on the initial state of the app
-    console.log('Format button disabled state:', isDisabled);
+    await expect(formatButton).toBeDisabled();
 
     await electronApp.close();
   });

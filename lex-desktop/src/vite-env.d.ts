@@ -28,6 +28,7 @@ interface Window {
       rows: Array<{ id: string; paneIds: string[]; size?: number; paneSizes?: Record<string, number> }>,
       activePaneId: string | null
     ) => Promise<boolean>;
+    updateMenuState: (state: { hasOpenFile: boolean; isLexFile: boolean }) => void;
     onMenuNewFile: (callback: () => void) => () => void;
     onMenuOpenFile: (callback: () => void) => () => void;
     onMenuOpenFolder: (callback: () => void) => () => void;

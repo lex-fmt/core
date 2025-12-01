@@ -52,7 +52,7 @@ test.describe('Preview Feature', () => {
     await electronApp.close();
   });
 
-  test('preview button only shows for lex files', async () => {
+  test('preview button enables only for lex files', async () => {
     const electronApp = await electron.launch({
       args: ['.'],
       env: {
@@ -63,6 +63,12 @@ test.describe('Preview Feature', () => {
 
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
+
+    const getPreviewMenuEnabled = () =>
+      electronApp.evaluate(({ Menu }) => {
+        const item = Menu.getApplicationMenu()?.getMenuItemById('menu-preview');
+        return Boolean(item?.enabled);
+      });
 
     // Wait for editor pane to appear
     await window.waitForSelector('[data-testid="editor-pane"]', { timeout: 15000 });
@@ -78,9 +84,11 @@ test.describe('Preview Feature', () => {
       await mdFile.click();
       await window.waitForTimeout(500);
 
-      // Preview button should not be visible (it's in the Lex button group which only shows for .lex files)
+      // Preview button should stay visible but disabled
       const previewButton = window.locator('button[title="Preview"]');
-      await expect(previewButton).not.toBeVisible();
+      await expect(previewButton).toBeVisible();
+      await expect(previewButton).toBeDisabled();
+      expect(await getPreviewMenuEnabled()).toBe(false);
     }
 
     // Now open a .lex file
@@ -91,6 +99,8 @@ test.describe('Preview Feature', () => {
     // Preview button should be visible
     const previewButton = window.locator('button[title="Preview"]');
     await expect(previewButton).toBeVisible();
+    await expect(previewButton).toBeEnabled();
+    expect(await getPreviewMenuEnabled()).toBe(true);
 
     await electronApp.close();
   });

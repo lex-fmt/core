@@ -15,10 +15,30 @@ export const normalizePaneSizes = (
 ): Record<string, number> => {
   const normalized: Record<string, number> = {};
   const paneIds = overridePaneIds ?? row.paneIds;
+  if (paneIds.length === 0) {
+    return normalized;
+  }
+
+  let total = 0;
   paneIds.forEach(id => {
     const value = row.paneSizes?.[id];
-    normalized[id] = value && value > 0 ? value : DEFAULT_PANE_SIZE;
+    const safeValue = value && value > 0 ? value : DEFAULT_PANE_SIZE;
+    normalized[id] = safeValue;
+    total += safeValue;
   });
+
+  if (total <= 0) {
+    paneIds.forEach(id => {
+      normalized[id] = DEFAULT_PANE_SIZE;
+    });
+    total = paneIds.length * DEFAULT_PANE_SIZE;
+  }
+
+  const targetTotal = paneIds.length * DEFAULT_PANE_SIZE;
+  paneIds.forEach(id => {
+    normalized[id] = (normalized[id] / total) * targetTotal;
+  });
+
   return normalized;
 };
 

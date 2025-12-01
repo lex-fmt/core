@@ -40,13 +40,21 @@ test.describe('Debug Clicks', () => {
       // We use executeJavaScript to access the Monaco editor instance directly
       await page.evaluate(({ line, column }) => {
         const editor = (window as any).editor;
+        if (!editor) {
+          console.warn('Editor instance not available');
+          return;
+        }
         const position = { lineNumber: line, column: column };
         editor.setPosition(position);
         editor.revealPosition(position);
         
         // Trigger the mouse down handler we added
         // We need to simulate the event object structure expected by our handler
-        const model = editor.getModel();
+        const model = typeof editor.getModel === 'function' ? editor.getModel() : null;
+        if (!model) {
+          console.warn('Editor model not ready');
+          return;
+        }
         const word = model.getWordAtPosition(position);
         const offset = model.getOffsetAt(position);
         

@@ -48,16 +48,27 @@ function App() {
   const paneHandles = useRef(new Map<string, EditorPaneHandle | null>());
   const panesRef = useRef(panes);
 
-  useEffect(() => {
-    panesRef.current = panes;
-  }, [panes]);
-
   const activePaneIdValue = resolvedActivePaneId;
   const activePaneFile = resolvedActivePane?.currentFile ?? null;
+  const isActiveFileLex = isLexFile(activePaneFile ?? null);
   const activeCursorLine = resolvedActivePane?.cursorLine ?? 0;
   const activeEditor = activePaneIdValue
     ? paneHandles.current.get(activePaneIdValue)?.getEditor() ?? null
     : null;
+
+  useEffect(() => {
+    panesRef.current = panes;
+  }, [panes]);
+
+  useEffect(() => {
+    if (!window?.ipcRenderer?.updateMenuState) {
+      return;
+    }
+    window.ipcRenderer.updateMenuState({
+      hasOpenFile: Boolean(activePaneFile),
+      isLexFile: isActiveFileLex,
+    });
+  }, [activePaneFile, isActiveFileLex]);
 
   const registerPaneHandle = useCallback(
     (paneId: string) => (instance: EditorPaneHandle | null) => {

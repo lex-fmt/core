@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     rows: Array<{ id: string; paneIds: string[]; size?: number; paneSizes?: Record<string, number> }>,
     activePaneId: string | null
   ) => ipcRenderer.invoke('set-open-tabs', panes, rows, activePaneId),
+  updateMenuState: (state: { hasOpenFile: boolean; isLexFile: boolean }) => ipcRenderer.send('update-menu-state', state),
   onMenuNewFile: (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on('menu-new-file', handler);

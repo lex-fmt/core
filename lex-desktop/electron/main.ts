@@ -48,6 +48,11 @@ const DEFAULT_WINDOW_STATE: WindowState = {
   height: 800,
 };
 
+interface MenuState {
+  hasOpenFile: boolean;
+  isLexFile: boolean;
+}
+
 const resolveFixtureRoot = () => {
   const override = process.env.LEX_TEST_FIXTURES;
   if (override) {
@@ -78,6 +83,9 @@ async function getSettingsPath(): Promise<string> {
 }
 
 function loadSettingsSync(): AppSettings {
+  if (PERSISTENCE_DISABLED) {
+    return {};
+  }
   try {
     const settingsPath = getSettingsPathSync();
     const data = fsSync.readFileSync(settingsPath, 'utf-8');
@@ -88,6 +96,9 @@ function loadSettingsSync(): AppSettings {
 }
 
 async function loadSettings(): Promise<AppSettings> {
+  if (PERSISTENCE_DISABLED) {
+    return {};
+  }
   try {
     const settingsPath = await getSettingsPath();
     const data = await fs.readFile(settingsPath, 'utf-8');
@@ -98,11 +109,17 @@ async function loadSettings(): Promise<AppSettings> {
 }
 
 function saveSettingsSync(settings: AppSettings): void {
+  if (PERSISTENCE_DISABLED) {
+    return;
+  }
   const settingsPath = getSettingsPathSync();
   fsSync.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
 }
 
 async function saveSettings(settings: AppSettings): Promise<void> {
+  if (PERSISTENCE_DISABLED) {
+    return;
+  }
   const settingsPath = await getSettingsPath();
   await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
 }
@@ -151,6 +168,37 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null
 const lspManager = new LspManager()
+const PERSISTENCE_DISABLED = process.env.LEX_DISABLE_PERSISTENCE === '1';
+let applicationMenu: Electron.Menu | null = null;
+let currentMenuState: MenuState = {
+  hasOpenFile: false,
+  isLexFile: false,
+};
+
+function applyMenuState(state: MenuState) {
+  currentMenuState = state;
+  if (!applicationMenu) {
+    return;
+  }
+
+  const setEnabled = (id: string, enabled: boolean) => {
+    const item = applicationMenu?.getMenuItemById(id);
+    if (item) {
+      item.enabled = enabled;
+    }
+  };
+
+  const hasOpenFile = !!state.hasOpenFile;
+  const isLexFileOpen = !!state.isLexFile;
+
+  setEnabled('menu-save', hasOpenFile);
+  setEnabled('menu-format', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-export-markdown', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-export-html', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-find', hasOpenFile);
+  setEnabled('menu-replace', hasOpenFile);
+  setEnabled('menu-preview', hasOpenFile && isLexFileOpen);
+}
 
 async function createWindow() {
   // Load saved window state with fallback to defaults
@@ -603,6 +651,13 @@ ipcMain.handle('get-native-theme', () => {
   return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
 });
 
+ipcMain.on('update-menu-state', (_event, state: MenuState) => {
+  applyMenuState({
+    hasOpenFile: !!state?.hasOpenFile,
+    isLexFile: !!state?.isLexFile,
+  });
+});
+
 // Listen for OS theme changes and notify renderer
 nativeTheme.on('updated', () => {
   const theme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
@@ -670,12 +725,16 @@ function createMenu() {
         {
           label: 'Save',
           accelerator: 'CmdOrCtrl+S',
+          id: 'menu-save',
+          enabled: false,
           click: () => win?.webContents.send('menu-save')
         },
         { type: 'separator' },
         {
           label: 'Format Document',
           accelerator: 'CmdOrCtrl+Shift+F',
+          id: 'menu-format',
+          enabled: false,
           click: () => win?.webContents.send('menu-format')
         },
         { type: 'separator' },
@@ -684,10 +743,14 @@ function createMenu() {
           submenu: [
             {
               label: 'Export to Markdown',
+              id: 'menu-export-markdown',
+              enabled: false,
               click: () => win?.webContents.send('menu-export', 'markdown')
             },
             {
               label: 'Export to HTML',
+              id: 'menu-export-html',
+              enabled: false,
               click: () => win?.webContents.send('menu-export', 'html')
             }
           ]
@@ -710,11 +773,15 @@ function createMenu() {
         {
           label: 'Find',
           accelerator: 'CmdOrCtrl+F',
+          id: 'menu-find',
+          enabled: false,
           click: () => win?.webContents.send('menu-find')
         },
         {
           label: 'Replace',
           accelerator: 'CmdOrCtrl+H',
+          id: 'menu-replace',
+          enabled: false,
           click: () => win?.webContents.send('menu-replace')
         }
       ]
@@ -740,6 +807,8 @@ function createMenu() {
         {
           label: 'Preview',
           accelerator: 'CmdOrCtrl+Shift+P',
+          id: 'menu-preview',
+          enabled: false,
           click: () => win?.webContents.send('menu-preview')
         },
         { type: 'separator' },
@@ -769,8 +838,9 @@ function createMenu() {
     }
   ];
 
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+  applicationMenu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(applicationMenu);
+  applyMenuState(currentMenuState);
 }
 
 app.whenReady().then(() => {

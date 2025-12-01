@@ -12,10 +12,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "icons": "node ./scripts/generate-icons.mjs",
+    "prebuild": "npm run icons",
+    "build": "cargo build --manifest-path ../Cargo.toml --package lex-lsp && tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test:e2e": "LEX_HIDE_WINDOW=1 PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test tests/e2e"
+    "pretest:e2e": "npm run icons",
+    "test:e2e": "LEX_HIDE_WINDOW=1 PLAYWRIGHT_BROWSERS_PATH=0 LEX_DISABLE_PERSISTENCE=1 npx playwright test tests/e2e"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -38,11 +41,13 @@
     "autoprefixer": "^10.4.22",
     "electron": "^30.0.1",
     "electron-builder": "^24.13.3",
+    "electron-icon-builder": "^2.0.1",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "playwright": "^1.57.0",
     "postcss": "^8.5.6",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.17",
     "typescript": "^5.2.2",
     "vite": "^5.1.6",
@@ -61,20 +66,20 @@
       "output": "release"
     },
     "mac": {
-      "icon": "public/icon.png",
+      "icon": "build/icons/icons/icon.icns",
       "target": [
         "dmg"
       ]
     },
     "win": {
-      "icon": "public/icon.png",
+      "icon": "build/icons/icons/icon.ico",
       "target": [
         "nsis",
         "zip"
       ]
     },
     "linux": {
-      "icon": "public/icon.png",
+      "icon": "build/icons/icons",
       "target": [
         "AppImage"
       ],
