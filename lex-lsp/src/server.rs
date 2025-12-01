@@ -1,7 +1,7 @@
 //! Main language server implementation
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::features::commands::{self, execute_command};
@@ -16,14 +16,18 @@ use crate::features::semantic_tokens::{
     collect_semantic_tokens, LexSemanticToken, SEMANTIC_TOKEN_KINDS,
 };
 use lex_analysis::completion::{completion_items, CompletionCandidate};
+use lex_babel::formats::lex::formatting_rules::FormattingRules;
+use lex_babel::templates::{
+    build_asset_snippet, build_verbatim_snippet, AssetSnippetRequest, VerbatimSnippetRequest,
+};
 use lex_parser::lex::ast::links::{DocumentLink as AstDocumentLink, LinkType};
 use lex_parser::lex::ast::range::SourceLocation;
 use lex_parser::lex::ast::{Document, Position as AstPosition, Range as AstRange};
 use lex_parser::lex::parsing;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use tower_lsp::async_trait;
-use tower_lsp::jsonrpc::Result;
+use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionOptions, CompletionParams, CompletionResponse,
     DocumentFormattingParams, DocumentLink, DocumentLinkOptions, DocumentLinkParams,
@@ -162,6 +166,33 @@ impl DocumentStore {
     async fn remove(&self, uri: &Url) {
         self.entries.write().await.remove(uri);
     }
+}
+
+fn document_directory_from_uri(uri: &Url) -> Option<PathBuf> {
+    uri.to_file_path()
+        .ok()
+        .and_then(|path| path.parent().map(|parent| parent.to_path_buf()))
+}
+
+fn indent_level_from_position(
+    entry: &DocumentEntry,
+    position: &Position,
+    rules: &FormattingRules,
+) -> usize {
+    let indent_unit = rules.indent_string.as_str();
+    if indent_unit.is_empty() {
+        return 0;
+    }
+    let indent_len = indent_unit.len();
+    let line = entry.text.lines().nth(position.line as usize).unwrap_or("");
+    let prefix: String = line.chars().take(position.character as usize).collect();
+    let mut level = 0;
+    let mut remainder = prefix.as_str();
+    while remainder.starts_with(indent_unit) {
+        level += 1;
+        remainder = &remainder[indent_len..];
+    }
+    level
 }
 
 fn semantic_tokens_legend() -> SemanticTokensLegend {
@@ -783,20 +814,28 @@ where
                 if let (Some(uri_str), Some(pos_val), Some(path)) = (uri_str, pos_val, path_val) {
                     if let Ok(uri) = Url::parse(uri_str) {
                         if let Ok(position) = serde_json::from_value::<Position>(pos_val.clone()) {
-                            let text_edit = TextEdit {
-                                range: Range {
-                                    start: position,
-                                    end: position,
-                                },
-                                new_text: format!("[{}]", path),
+                            let file_path = PathBuf::from(path);
+                            let rules = FormattingRules::default();
+                            let entry = self.document_entry(&uri).await;
+                            let indent_level = entry
+                                .as_ref()
+                                .map(|entry| indent_level_from_position(entry, &position, &rules))
+                                .unwrap_or(0);
+                            let document_directory = document_directory_from_uri(&uri);
+                            let snippet = {
+                                let request = AssetSnippetRequest {
+                                    asset_path: file_path.as_path(),
+                                    document_directory: document_directory.as_deref(),
+                                    formatting: &rules,
+                                    indent_level,
+                                };
+                                build_asset_snippet(&request)
                             };
-                            let mut changes = HashMap::new();
-                            changes.insert(uri, vec![text_edit]);
-                            let workspace_edit = tower_lsp::lsp_types::WorkspaceEdit {
-                                changes: Some(changes),
-                                ..Default::default()
-                            };
-                            return Ok(Some(serde_json::to_value(workspace_edit).unwrap()));
+
+                            return Ok(Some(json!({
+                                "text": snippet.text,
+                                "cursorOffset": snippet.cursor_offset,
+                            })));
                         }
                     }
                 }
@@ -805,25 +844,41 @@ where
             commands::COMMAND_INSERT_VERBATIM => {
                 let uri_str = params.arguments.first().and_then(|v| v.as_str());
                 let pos_val = params.arguments.get(1);
-                let label_val = params.arguments.get(2).and_then(|v| v.as_str());
+                let path_val = params.arguments.get(2).and_then(|v| v.as_str());
 
-                if let (Some(uri_str), Some(pos_val), Some(label)) = (uri_str, pos_val, label_val) {
+                if let (Some(uri_str), Some(pos_val), Some(path)) = (uri_str, pos_val, path_val) {
                     if let Ok(uri) = Url::parse(uri_str) {
                         if let Ok(position) = serde_json::from_value::<Position>(pos_val.clone()) {
-                            let text_edit = TextEdit {
-                                range: Range {
-                                    start: position,
-                                    end: position,
-                                },
-                                new_text: format!(":: {} ::\n\n::", label),
+                            let file_path = PathBuf::from(path);
+                            let rules = FormattingRules::default();
+                            let entry = self.document_entry(&uri).await;
+                            let indent_level = entry
+                                .as_ref()
+                                .map(|entry| indent_level_from_position(entry, &position, &rules))
+                                .unwrap_or(0);
+                            let document_directory = document_directory_from_uri(&uri);
+                            let snippet_result = {
+                                let mut request =
+                                    VerbatimSnippetRequest::new(file_path.as_path(), &rules);
+                                request.document_directory = document_directory.as_deref();
+                                request.indent_level = indent_level;
+                                build_verbatim_snippet(&request)
                             };
-                            let mut changes = HashMap::new();
-                            changes.insert(uri, vec![text_edit]);
-                            let workspace_edit = tower_lsp::lsp_types::WorkspaceEdit {
-                                changes: Some(changes),
-                                ..Default::default()
-                            };
-                            return Ok(Some(serde_json::to_value(workspace_edit).unwrap()));
+
+                            match snippet_result {
+                                Ok(snippet) => {
+                                    return Ok(Some(json!({
+                                        "text": snippet.text,
+                                        "cursorOffset": snippet.cursor_offset,
+                                    })));
+                                }
+                                Err(err) => {
+                                    return Err(Error::invalid_params(format!(
+                                        "Failed to insert verbatim block: {}",
+                                        err
+                                    )));
+                                }
+                            }
                         }
                     }
                 }
@@ -841,8 +896,11 @@ mod tests {
     use super::*;
     use crate::features::semantic_tokens::LexSemanticTokenKind;
     use lex_analysis::test_support::sample_source;
+    use serde::Deserialize;
+    use std::fs;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
+    use tempfile::tempdir;
     use tower_lsp::lsp_types::{
         CompletionItemKind, DidOpenTextDocumentParams, DocumentFormattingParams,
         DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams, FoldingRangeKind,
@@ -1202,48 +1260,54 @@ mod tests {
         }
     }
 
+    #[derive(Deserialize)]
+    struct SnippetResponse {
+        text: String,
+        #[serde(rename = "cursorOffset")]
+        cursor_offset: usize,
+    }
+
     #[tokio::test]
     async fn execute_insert_commands() {
         let provider = Arc::new(MockFeatureProvider::default());
         let server = LexLanguageServer::with_features(NoopClient, provider.clone());
         open_sample_document(&server).await;
 
-        // Test lex.insert_asset
+        let temp_dir = tempdir().unwrap();
+        let asset_file = temp_dir.path().join("diagram.png");
+        fs::write(&asset_file, [0u8, 159u8, 146u8, 150u8]).unwrap();
+
         let params = ExecuteCommandParams {
             command: commands::COMMAND_INSERT_ASSET.to_string(),
             arguments: vec![
                 serde_json::to_value(sample_uri().to_string()).unwrap(),
                 serde_json::to_value(Position::new(0, 0)).unwrap(),
-                serde_json::to_value("./image.png").unwrap(),
+                serde_json::to_value(asset_file.to_string_lossy()).unwrap(),
             ],
             work_done_progress_params: Default::default(),
         };
         let result = server.execute_command(params).await.unwrap();
-        assert!(result.is_some());
-        let edit: tower_lsp::lsp_types::WorkspaceEdit =
-            serde_json::from_value(result.unwrap()).unwrap();
-        assert!(edit.changes.is_some());
-        let changes = edit.changes.unwrap();
-        let edits = changes.get(&sample_uri()).unwrap();
-        assert_eq!(edits[0].new_text, "[./image.png]");
+        let snippet: SnippetResponse = serde_json::from_value(result.unwrap()).unwrap();
+        assert!(snippet.text.contains(":: doc.image"));
+        assert!(snippet.text.contains(asset_file.to_string_lossy().as_ref()));
 
-        // Test lex.insert_verbatim
+        let verbatim_file = temp_dir.path().join("example.py");
+        fs::write(&verbatim_file, "print('hi')\n").unwrap();
+
         let params = ExecuteCommandParams {
             command: commands::COMMAND_INSERT_VERBATIM.to_string(),
             arguments: vec![
                 serde_json::to_value(sample_uri().to_string()).unwrap(),
                 serde_json::to_value(Position::new(0, 0)).unwrap(),
-                serde_json::to_value("note").unwrap(),
+                serde_json::to_value(verbatim_file.to_string_lossy()).unwrap(),
             ],
             work_done_progress_params: Default::default(),
         };
         let result = server.execute_command(params).await.unwrap();
-        assert!(result.is_some());
-        let edit: tower_lsp::lsp_types::WorkspaceEdit =
-            serde_json::from_value(result.unwrap()).unwrap();
-        let changes = edit.changes.unwrap();
-        let edits = changes.get(&sample_uri()).unwrap();
-        assert_eq!(edits[0].new_text, ":: note ::\n\n::");
+        let snippet: SnippetResponse = serde_json::from_value(result.unwrap()).unwrap();
+        assert!(snippet.text.contains(":: python"));
+        assert!(snippet.text.contains("print('hi')"));
+        assert_eq!(snippet.cursor_offset, 0);
     }
 
     #[tokio::test]

@@ -12,7 +12,7 @@ pub enum AssetKind {
 }
 
 impl AssetKind {
-    fn from_extension(ext: Option<&str>) -> Self {
+    pub fn from_extension(ext: Option<&str>) -> Self {
         let ext = ext.unwrap_or("").to_ascii_lowercase();
         if matches!(
             ext.as_str(),
@@ -28,7 +28,7 @@ impl AssetKind {
         }
     }
 
-    fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             AssetKind::Image => "doc.image",
             AssetKind::Video => "doc.video",

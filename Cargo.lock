@@ -1161,6 +1161,7 @@ dependencies = [
  "serde",
  "serde_json",
  "similar",
+ "tempfile",
  "tokio",
  "tower-lsp",
 ]

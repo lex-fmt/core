@@ -19,3 +19,4 @@ similar = { version = "2", features = ["text"] }
 
 [dev-dependencies]
 lex-analysis = { path = "../lex-analysis", features = ["test-support"] }
+tempfile = "3"
