@@ -24,6 +24,11 @@ This document lists the commands supported by the Lex Language Server (`lex-lsp`
 **Category:** Lex
 **Description:** Navigate to the next annotation in the document.
 
+### `lex.previous_annotation`
+**Title:** Previous Annotation
+**Category:** Lex
+**Description:** Navigate to the previous annotation in the document.
+
 ### `lex.resolve_annotation`
 **Title:** Resolve Annotation
 **Category:** Lex
@@ -37,9 +42,13 @@ This document lists the commands supported by the Lex Language Server (`lex-lsp`
 ### `lex.insert_asset`
 **Title:** Insert Asset
 **Category:** Lex
-**Description:** Insert a reference to an external asset (file) at the current cursor position.
+**Description:** Build a verbatim-style reference to an external asset (image, video, audio, or generic data) based on the selected file path.
+**Arguments:** `[sourceUri: string, position: Position, assetPath: string]`
+**Response:** `{ "text": string, "cursorOffset": number }` – `text` contains the formatted Lex snippet, `cursorOffset` indicates where the editor should place the caret after insertion.
 
 ### `lex.insert_verbatim`
 **Title:** Insert Verbatim Block
 **Category:** Lex
-**Description:** Insert a new verbatim block with a specified label at the current cursor position.
+**Description:** Insert a verbatim block whose subject, label, `src` parameter, and body are inferred from the chosen file path. Text files are inlined with proper indentation, while binary files fall back to media/data labels.
+**Arguments:** `[sourceUri: string, position: Position, filePath: string]`
+**Response:** `{ "text": string, "cursorOffset": number }` – caret offset always targets the first character of the subject line so editors can immediately rename it.

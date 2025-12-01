@@ -1,4 +1,4 @@
-use super::normalize_path;
+use super::{asset::AssetKind, normalize_path};
 use crate::formats::lex::formatting_rules::FormattingRules;
 use std::fs;
 use std::io;
@@ -39,12 +39,17 @@ pub struct VerbatimSnippet {
 
 pub fn build_verbatim_snippet(request: &VerbatimSnippetRequest<'_>) -> io::Result<VerbatimSnippet> {
     let raw = fs::read(request.file_path)?;
-    let contents = String::from_utf8_lossy(&raw).replace("\r\n", "\n");
+    let (contents, language) = match String::from_utf8(raw) {
+        Ok(text) => {
+            let normalized = text.replace("\r\n", "\n");
+            (Some(normalized), language_label(request))
+        }
+        Err(_) => (None, media_label(request.file_path)),
+    };
 
     let indent = request.indentation();
     let inner_indent = format!("{}{}", indent, request.formatting.indent_string);
     let subject = subject_line(request);
-    let language = language_label(request);
     let normalized_path = normalize_path(request.file_path, request.document_directory);
 
     let mut text = String::new();
@@ -53,13 +58,21 @@ pub fn build_verbatim_snippet(request: &VerbatimSnippetRequest<'_>) -> io::Resul
     text.push('\n');
     text.push('\n');
 
-    if contents.is_empty() {
-        text.push_str(&inner_indent);
-        text.push('\n');
-    } else {
-        for line in contents.split('\n') {
+    match contents {
+        Some(body) => {
+            if body.is_empty() {
+                text.push_str(&inner_indent);
+                text.push('\n');
+            } else {
+                for line in body.split('\n') {
+                    text.push_str(&inner_indent);
+                    text.push_str(line);
+                    text.push('\n');
+                }
+            }
+        }
+        None => {
             text.push_str(&inner_indent);
-            text.push_str(line);
             text.push('\n');
         }
     }
@@ -74,7 +87,7 @@ pub fn build_verbatim_snippet(request: &VerbatimSnippetRequest<'_>) -> io::Resul
 
     Ok(VerbatimSnippet {
         language,
-        cursor_offset: text.len(),
+        cursor_offset: indent.len(),
         text,
     })
 }
@@ -102,15 +115,61 @@ fn ensure_trailing_colon(value: &str) -> String {
 
 fn language_label(request: &VerbatimSnippetRequest<'_>) -> String {
     if let Some(lang) = request.language {
-        return lang.trim().to_ascii_lowercase();
+        return canonical_language(lang);
     }
     request
         .file_path
         .extension()
         .and_then(|ext| ext.to_str())
-        .map(|ext| ext.trim().to_ascii_lowercase())
-        .filter(|ext| !ext.is_empty())
+        .map(canonical_language)
         .unwrap_or_else(|| "text".to_string())
+}
+
+fn canonical_language(value: &str) -> String {
+    let token = value.trim().to_ascii_lowercase();
+    language_from_token(&token)
+        .map(str::to_string)
+        .unwrap_or(token)
+}
+
+fn language_from_token(token: &str) -> Option<&'static str> {
+    match token {
+        "bash" | "sh" | "zsh" | "shell" => Some("bash"),
+        "bat" | "cmd" => Some("batch"),
+        "c" | "h" => Some("c"),
+        "cpp" | "cxx" | "cc" | "hpp" | "hh" | "hxx" => Some("cpp"),
+        "cs" | "csharp" => Some("csharp"),
+        "css" => Some("css"),
+        "go" => Some("go"),
+        "hs" | "haskell" => Some("haskell"),
+        "html" | "htm" => Some("html"),
+        "java" => Some("java"),
+        "js" | "mjs" | "cjs" | "jsx" => Some("javascript"),
+        "json" => Some("json"),
+        "kt" | "kts" => Some("kotlin"),
+        "latex" | "tex" => Some("latex"),
+        "lua" => Some("lua"),
+        "md" | "markdown" => Some("markdown"),
+        "php" => Some("php"),
+        "ps1" | "psm1" | "powershell" => Some("powershell"),
+        "py" | "pyw" | "python" => Some("python"),
+        "rb" => Some("ruby"),
+        "rs" => Some("rust"),
+        "scala" => Some("scala"),
+        "sql" => Some("sql"),
+        "swift" => Some("swift"),
+        "toml" => Some("toml"),
+        "ts" | "tsx" => Some("typescript"),
+        "vue" => Some("vue"),
+        "xml" => Some("xml"),
+        "yaml" | "yml" => Some("yaml"),
+        _ => None,
+    }
+}
+
+fn media_label(path: &Path) -> String {
+    let kind = AssetKind::from_extension(path.extension().and_then(|ext| ext.to_str()));
+    kind.label().to_string()
 }
 
 #[cfg(test)]
@@ -126,8 +185,8 @@ mod tests {
         let rules = FormattingRules::default();
         let request = VerbatimSnippetRequest::new(file.as_path(), &rules);
         let snippet = build_verbatim_snippet(&request).unwrap();
-        assert!(snippet.text.contains(":: rs"));
-        assert_eq!(snippet.language, "rs");
+        assert!(snippet.text.contains(":: rust"));
+        assert_eq!(snippet.language, "rust");
     }
 
     #[test]
@@ -157,5 +216,29 @@ mod tests {
         let snippet = build_verbatim_snippet(&request).unwrap();
         let expected = "        line1";
         assert!(snippet.text.contains(expected));
+    }
+
+    #[test]
+    fn cursor_offset_points_to_subject_start() {
+        let dir = tempdir().unwrap();
+        let file = dir.path().join("snippet.py");
+        fs::write(&file, "print('hi')\n").unwrap();
+        let rules = FormattingRules::default();
+        let mut request = VerbatimSnippetRequest::new(file.as_path(), &rules);
+        request.indent_level = 1;
+        let snippet = build_verbatim_snippet(&request).unwrap();
+        assert_eq!(snippet.cursor_offset, rules.indent_string.len());
+    }
+
+    #[test]
+    fn binary_files_use_media_labels() {
+        let dir = tempdir().unwrap();
+        let file = dir.path().join("image.png");
+        fs::write(&file, [0u8, 159, 146, 150]).unwrap();
+        let rules = FormattingRules::default();
+        let request = VerbatimSnippetRequest::new(file.as_path(), &rules);
+        let snippet = build_verbatim_snippet(&request).unwrap();
+        assert_eq!(snippet.language, "doc.image");
+        assert!(snippet.text.contains(":: doc.image"));
     }
 }

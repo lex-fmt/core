@@ -1,5 +1,6 @@
 import path from 'node:path';
 import * as vscode from 'vscode';
+import { Buffer } from 'node:buffer';
 
 export const TEST_DOCUMENT_PATH = 'documents/getting-started.lex';
 export const SEMANTIC_TOKENS_DOCUMENT_PATH = 'documents/semantic-tokens.lex';
@@ -54,6 +55,52 @@ export async function openWorkspaceDocument(
 
 export async function closeAllEditors(): Promise<void> {
   await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+}
+
+export async function delay(ms: number): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export async function typeText(text: string): Promise<void> {
+  for (const char of text) {
+    await vscode.commands.executeCommand('default:type', { text: char });
+  }
+}
+
+function splitRelativePath(relativePath: string): string[] {
+  return relativePath
+    .split('/')
+    .filter(segment => segment.length > 0);
+}
+
+export async function writeWorkspaceFile(
+  relativePath: string,
+  contents: Uint8Array | string
+): Promise<vscode.Uri> {
+  const folder = requireWorkspaceFolder();
+  const segments = splitRelativePath(relativePath);
+  const fileUri = vscode.Uri.joinPath(folder.uri, ...segments);
+  const dirUri = segments.length > 1
+    ? vscode.Uri.joinPath(folder.uri, ...segments.slice(0, -1))
+    : folder.uri;
+  await vscode.workspace.fs.createDirectory(dirUri);
+  const data = typeof contents === 'string' ? Buffer.from(contents) : contents;
+  await vscode.workspace.fs.writeFile(fileUri, data);
+  return fileUri;
+}
+
+export async function removeWorkspacePath(relativePath: string): Promise<void> {
+  const folder = requireWorkspaceFolder();
+  const segments = splitRelativePath(relativePath);
+  if (segments.length === 0) {
+    return;
+  }
+  const targetUri = vscode.Uri.joinPath(folder.uri, ...segments);
+  try {
+    await vscode.workspace.fs.delete(targetUri, { recursive: true, useTrash: false });
+  } catch {
+    // ignore missing paths
+  }
 }
 
 export async function waitForExtensionActivation<T>(

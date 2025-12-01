@@ -132,11 +132,17 @@ function getWelcomeFolderPath(): string {
 }
 
 function getLexCliPath(): string {
+  const binaryName = process.platform === 'win32' ? 'lex.exe' : 'lex';
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'lex');
+    return path.join(process.resourcesPath, binaryName);
   }
-  // Hardcoded path for dev environment (same pattern as lsp-manager.ts)
-  return '/Users/adebert/h/lex/target/debug/lex';
+  const override = process.env.LEX_CLI_PATH;
+  if (override) {
+    return path.resolve(override);
+  }
+  const workspaceRoot =
+    process.env.LEX_WORKSPACE_ROOT ?? path.resolve(process.cwd(), '..');
+  return path.join(workspaceRoot, 'target', 'debug', binaryName);
 }
 
 /**

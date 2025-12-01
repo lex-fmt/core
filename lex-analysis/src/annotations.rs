@@ -115,8 +115,16 @@ pub fn toggle_annotation_resolution(
     position: Position,
     resolved: bool,
 ) -> Option<AnnotationEdit> {
-    let annotation = find_annotation_at_position(document, position)?;
+    let annotation = find_annotation_at_position(document, position)
+        .or_else(|| annotation_by_line(document, position))?;
     resolution_edit(annotation, resolved)
+}
+
+fn annotation_by_line(document: &Document, position: Position) -> Option<&Annotation> {
+    let line = position.line;
+    collect_all_annotations(document)
+        .into_iter()
+        .find(|annotation| annotation.header_location().start.line == line)
 }
 
 /// Computes the edit needed to change an annotation's resolution status.
@@ -303,5 +311,14 @@ Paragraph text.
         ));
         let edit = resolution_edit(&annotation, false).expect("edit");
         assert_eq!(edit.new_text, ":: note priority=high ::");
+    }
+
+    #[test]
+    fn resolves_when_cursor_at_line_start() {
+        let source = ":: note ::\n";
+        let document = parsing::parse_document(source).unwrap();
+        let edit =
+            toggle_annotation_resolution(&document, Position::new(0, 0), true).expect("edit");
+        assert_eq!(edit.new_text, ":: note status=resolved ::");
     }
 }

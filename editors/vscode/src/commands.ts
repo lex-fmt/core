@@ -7,6 +7,11 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, writeFileSync, unlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { ExecuteCommandRequest, LanguageClient } from 'vscode-languageclient/node.js';
+import type {
+  Location as LspLocation,
+  WorkspaceEdit as LspWorkspaceEdit
+} from 'vscode-languageserver-types';
 
 export interface ConvertOptions {
   cliBinaryPath: string;
@@ -331,7 +336,9 @@ export function createExportToPdfCommand(
 
 export function registerCommands(
   context: vscode.ExtensionContext,
-  cliBinaryPath: string
+  cliBinaryPath: string,
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -349,6 +356,254 @@ export function registerCommands(
     vscode.commands.registerCommand(
       'lex.importFromMarkdown',
       createImportFromMarkdownCommand(cliBinaryPath)
+    ),
+    vscode.commands.registerCommand('lex.insertAssetReference', (uri?: vscode.Uri) =>
+      insertAssetReference(getClient, waitForClientReady, uri)
+    ),
+    vscode.commands.registerCommand('lex.insertVerbatimBlock', (uri?: vscode.Uri) =>
+      insertVerbatimBlock(getClient, waitForClientReady, uri)
+    ),
+    vscode.commands.registerCommand('lex.goToNextAnnotation', () =>
+      navigateAnnotation('lex.next_annotation', getClient, waitForClientReady)
+    ),
+    vscode.commands.registerCommand('lex.goToPreviousAnnotation', () =>
+      navigateAnnotation('lex.previous_annotation', getClient, waitForClientReady)
+    ),
+    vscode.commands.registerCommand('lex.resolveAnnotation', () =>
+      applyAnnotationEditCommand('lex.resolve_annotation', getClient, waitForClientReady)
+    ),
+    vscode.commands.registerCommand('lex.toggleAnnotationResolution', () =>
+      applyAnnotationEditCommand('lex.toggle_annotations', getClient, waitForClientReady)
     )
   );
+}
+
+interface SnippetInsertionPayload {
+  text: string;
+  cursorOffset: number;
+}
+
+function isSnippetInsertionPayload(value: unknown): value is SnippetInsertionPayload {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { text?: unknown }).text === 'string' &&
+    typeof (value as { cursorOffset?: unknown }).cursorOffset === 'number'
+  );
+}
+
+async function getReadyClient(
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
+): Promise<LanguageClient> {
+  await waitForClientReady();
+  const client = getClient();
+  if (!client) {
+    throw new Error('Lex language server is not running.');
+  }
+  return client;
+}
+
+async function insertAssetReference(
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>,
+  providedUri?: vscode.Uri
+): Promise<void> {
+  const fileUri = providedUri ?? (await pickWorkspaceFile('Select asset to insert'));
+  if (!fileUri) {
+    return;
+  }
+
+  await invokeInsertCommand('lex.insert_asset', fileUri, getClient, waitForClientReady);
+}
+
+async function insertVerbatimBlock(
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>,
+  providedUri?: vscode.Uri
+): Promise<void> {
+  const fileUri = providedUri ?? (await pickWorkspaceFile('Select file to embed as verbatim block'));
+  if (!fileUri) {
+    return;
+  }
+
+  await invokeInsertCommand('lex.insert_verbatim', fileUri, getClient, waitForClientReady);
+}
+
+async function invokeInsertCommand(
+  command: string,
+  fileUri: vscode.Uri,
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('Open a Lex document before running this command.');
+    return;
+  }
+
+  if (editor.document.languageId !== 'lex') {
+    vscode.window.showErrorMessage('Insert commands are only available for .lex documents.');
+    return;
+  }
+
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+  if (!workspaceFolder) {
+    vscode.window.showErrorMessage('Active document is not inside a workspace folder.');
+    return;
+  }
+
+  const fileWorkspace = vscode.workspace.getWorkspaceFolder(fileUri);
+  if (!fileWorkspace || fileWorkspace.uri.toString() !== workspaceFolder.uri.toString()) {
+    vscode.window.showErrorMessage('Please select a file within the current workspace.');
+    return;
+  }
+
+  try {
+    const client = await getReadyClient(getClient, waitForClientReady);
+    const position = editor.selection.active;
+    const protocolPosition = client.code2ProtocolConverter.asPosition(position);
+    const response = (await client.sendRequest(ExecuteCommandRequest.type, {
+      command,
+      arguments: [editor.document.uri.toString(), protocolPosition, fileUri.fsPath]
+    })) as unknown;
+
+    if (!response) {
+      vscode.window.showErrorMessage('Command did not return a snippet payload.');
+      return;
+    }
+
+    if (!isSnippetInsertionPayload(response)) {
+      vscode.window.showErrorMessage('Command returned an invalid snippet payload.');
+      return;
+    }
+
+    await insertSnippet(editor, position, response);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    vscode.window.showErrorMessage(`Failed to insert content: ${message}`);
+  }
+}
+
+async function insertSnippet(
+  editor: vscode.TextEditor,
+  position: vscode.Position,
+  payload: SnippetInsertionPayload
+): Promise<void> {
+  const prefix = position.line === 0 && position.character === 0 ? '' : '\n';
+  const suffix = '\n';
+  const textToInsert = `${prefix}${payload.text}${suffix}`;
+
+  const inserted = await editor.edit(builder => builder.insert(position, textToInsert));
+  if (!inserted) {
+    throw new Error('Unable to update editor with snippet text.');
+  }
+
+  const baseOffset = editor.document.offsetAt(position);
+  const cursorPosition = editor.document.positionAt(
+    baseOffset + prefix.length + payload.cursorOffset
+  );
+  editor.selection = new vscode.Selection(cursorPosition, cursorPosition);
+  editor.revealRange(new vscode.Range(cursorPosition, cursorPosition));
+}
+
+async function navigateAnnotation(
+  lspCommand: string,
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('Open a Lex document before running this command.');
+    return;
+  }
+
+  if (editor.document.languageId !== 'lex') {
+    vscode.window.showErrorMessage('Annotation navigation works only inside Lex documents.');
+    return;
+  }
+
+  try {
+    const client = await getReadyClient(getClient, waitForClientReady);
+    const protocolPosition = client.code2ProtocolConverter.asPosition(editor.selection.active);
+    const response = (await client.sendRequest(ExecuteCommandRequest.type, {
+      command: lspCommand,
+      arguments: [editor.document.uri.toString(), protocolPosition]
+    })) as unknown;
+
+    if (!response) {
+      vscode.window.showInformationMessage('No annotations were found in this document.');
+      return;
+    }
+
+    const targetLocation = client.protocol2CodeConverter.asLocation(response as LspLocation);
+    const targetDocument = await vscode.workspace.openTextDocument(targetLocation.uri);
+    const targetEditor = await vscode.window.showTextDocument(targetDocument);
+    const targetPosition = targetLocation.range.start;
+    targetEditor.selection = new vscode.Selection(targetPosition, targetPosition);
+    targetEditor.revealRange(targetLocation.range, vscode.TextEditorRevealType.InCenter);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    vscode.window.showErrorMessage(`Failed to navigate annotations: ${message}`);
+  }
+}
+
+async function applyAnnotationEditCommand(
+  lspCommand: string,
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('Open a Lex document before running this command.');
+    return;
+  }
+
+  if (editor.document.languageId !== 'lex') {
+    vscode.window.showErrorMessage('Annotation commands are only available for .lex files.');
+    return;
+  }
+
+  try {
+    const client = await getReadyClient(getClient, waitForClientReady);
+    const protocolPosition = client.code2ProtocolConverter.asPosition(editor.selection.active);
+    const response = (await client.sendRequest(ExecuteCommandRequest.type, {
+      command: lspCommand,
+      arguments: [editor.document.uri.toString(), protocolPosition]
+    })) as unknown;
+
+    if (!response) {
+      vscode.window.showInformationMessage('No annotation was resolved at the current position.');
+      return;
+    }
+
+    const workspaceEdit = await client.protocol2CodeConverter.asWorkspaceEdit(
+      response as LspWorkspaceEdit
+    );
+    if (!workspaceEdit) {
+      throw new Error('Language server returned an invalid workspace edit.');
+    }
+
+    const applied = await vscode.workspace.applyEdit(workspaceEdit);
+    if (!applied) {
+      throw new Error('Failed to apply workspace edit.');
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    vscode.window.showErrorMessage(`Failed to update annotation: ${message}`);
+  }
+}
+
+async function pickWorkspaceFile(title: string): Promise<vscode.Uri | undefined> {
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+  const selection = await vscode.window.showOpenDialog({
+    title,
+    canSelectMany: false,
+    canSelectFolders: false,
+    canSelectFiles: true,
+    defaultUri: workspaceRoot,
+    openLabel: 'Select'
+  });
+
+  return selection?.[0];
 }

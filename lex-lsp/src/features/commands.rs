@@ -10,6 +10,7 @@ pub const COMMAND_ECHO: &str = "lex.echo";
 pub const COMMAND_IMPORT: &str = "lex.import";
 pub const COMMAND_EXPORT: &str = "lex.export";
 pub const COMMAND_NEXT_ANNOTATION: &str = "lex.next_annotation";
+pub const COMMAND_PREVIOUS_ANNOTATION: &str = "lex.previous_annotation";
 pub const COMMAND_RESOLVE_ANNOTATION: &str = "lex.resolve_annotation";
 pub const COMMAND_TOGGLE_ANNOTATIONS: &str = "lex.toggle_annotations";
 pub const COMMAND_INSERT_ASSET: &str = "lex.insert_asset";

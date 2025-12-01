@@ -49,6 +49,36 @@
         "command": "lex.exportToPdf",
         "title": "Export to PDF",
         "category": "Lex"
+      },
+      {
+        "command": "lex.insertAssetReference",
+        "title": "Insert Asset Reference",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.insertVerbatimBlock",
+        "title": "Insert Verbatim Block from File",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.goToNextAnnotation",
+        "title": "Go to Next Annotation",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.goToPreviousAnnotation",
+        "title": "Go to Previous Annotation",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.resolveAnnotation",
+        "title": "Resolve Annotation",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.toggleAnnotationResolution",
+        "title": "Toggle Annotation Resolution",
+        "category": "Lex"
       }
     ],
     "menus": {
@@ -101,6 +131,36 @@
         },
         {
           "command": "lex.exportToPdf",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.insertAssetReference",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.insertVerbatimBlock",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.goToNextAnnotation",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.goToPreviousAnnotation",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.resolveAnnotation",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.toggleAnnotationResolution",
           "when": "editorLangId == lex",
           "group": "1_modification"
         }

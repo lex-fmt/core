@@ -13,9 +13,16 @@ import { applyLexTheme, setupThemeListeners } from './theme.js';
 import { registerCommands } from './commands.js';
 // Live preview - see README.lex "Preview" for docs
 import { registerPreviewCommands } from './preview.js';
+// Path completion - triggered by @ in lex files
+import {
+  registerPathCompletion,
+  getPathCompletionDiagnostics,
+  type PathCompletionDiagnostics
+} from './pathCompletion.js';
 
 export interface LexExtensionApi {
   clientReady(): Promise<void>;
+  pathCompletionDiagnostics(): PathCompletionDiagnostics;
 }
 
 let client: LanguageClient | undefined;
@@ -34,7 +41,8 @@ function shouldSkipLanguageClient(): boolean {
 
 function createApi(): LexExtensionApi {
   return {
-    clientReady: () => clientReadyPromise
+    clientReady: () => clientReadyPromise,
+    pathCompletionDiagnostics: () => getPathCompletionDiagnostics()
   };
 }
 
@@ -55,8 +63,14 @@ export async function activate(
   );
 
   // Register import/export commands (works even without LSP)
-  registerCommands(context, resolvedConfig.cliBinaryPath);
+  registerCommands(
+    context,
+    resolvedConfig.cliBinaryPath,
+    () => client,
+    () => clientReadyPromise
+  );
   registerPreviewCommands(context, resolvedConfig.cliBinaryPath);
+  registerPathCompletion(context);
 
   if (shouldSkipLanguageClient()) {
     console.info('[lex] Skipping language client startup (LEX_VSCODE_SKIP_SERVER=1).');

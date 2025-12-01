@@ -37,6 +37,22 @@ jobs:
       - name: Build lex-lsp
         run: cargo build --bin lex-lsp
 
+      - name: Build lex CLI
+        run: cargo build --bin lex
+
+      - name: Copy lex CLI into extension resources
+        run: |
+          mkdir -p resources
+          CLI_SRC=../../target/debug/lex
+          CLI_DEST=resources/lex
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            CLI_SRC="${CLI_SRC}.exe"
+            CLI_DEST="${CLI_DEST}.exe"
+          fi
+          cp "$CLI_SRC" "$CLI_DEST"
+          chmod +x "$CLI_DEST"
+        working-directory: editors/vscode
+
       - name: Install npm dependencies
         run: npm ci
         working-directory: editors/vscode
