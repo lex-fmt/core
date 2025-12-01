@@ -71,6 +71,7 @@ pub trait FeatureProvider: Send + Sync + 'static {
         document: &Document,
         position: AstPosition,
         workspace: Option<&CompletionWorkspace>,
+        trigger_char: Option<&str>,
     ) -> Vec<CompletionCandidate>;
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>>;
 }
@@ -136,8 +137,9 @@ impl FeatureProvider for DefaultFeatureProvider {
         document: &Document,
         position: AstPosition,
         workspace: Option<&CompletionWorkspace>,
+        trigger_char: Option<&str>,
     ) -> Vec<CompletionCandidate> {
-        completion_items(document, position, workspace)
+        completion_items(document, position, workspace, trigger_char)
     }
 
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>> {
@@ -556,7 +558,12 @@ where
             }),
             completion_provider: Some(CompletionOptions {
                 resolve_provider: Some(false),
-                trigger_characters: Some(vec!["[".to_string(), ":".to_string(), "=".to_string()]),
+                trigger_characters: Some(vec![
+                    "[".to_string(),
+                    ":".to_string(),
+                    "=".to_string(),
+                    "@".to_string(),
+                ]),
                 work_done_progress_options: WorkDoneProgressOptions::default(),
                 all_commit_characters: None,
                 ..Default::default()
@@ -770,9 +777,16 @@ where
         if let Some(document) = self.document(&uri).await {
             let position = from_lsp_position(params.text_document_position.position);
             let workspace = self.workspace_context_for_uri(&uri).await;
-            let candidates = self
-                .features
-                .completion(&document, position, workspace.as_ref());
+
+            // Extract trigger character from context
+            let trigger_char = params
+                .context
+                .as_ref()
+                .and_then(|ctx| ctx.trigger_character.as_deref());
+
+            let candidates =
+                self.features
+                    .completion(&document, position, workspace.as_ref(), trigger_char);
             let items: Vec<CompletionItem> =
                 candidates.iter().map(to_lsp_completion_item).collect();
             Ok(Some(CompletionResponse::Array(items)))
@@ -1103,6 +1117,7 @@ mod tests {
             _: &Document,
             _: AstPosition,
             _: Option<&CompletionWorkspace>,
+            _: Option<&str>,
         ) -> Vec<CompletionCandidate> {
             self.completion_called.fetch_add(1, Ordering::SeqCst);
             vec![CompletionCandidate {
