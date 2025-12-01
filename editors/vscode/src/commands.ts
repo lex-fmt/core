@@ -369,7 +369,10 @@ export function registerCommands(
       navigateAnnotation('lex.previous_annotation', getClient)
     ),
     vscode.commands.registerCommand('lex.resolveAnnotation', () =>
-      resolveAnnotationCommand('lex.resolve_annotation', getClient)
+      applyAnnotationEditCommand('lex.resolve_annotation', getClient)
+    ),
+    vscode.commands.registerCommand('lex.toggleAnnotationResolution', () =>
+      applyAnnotationEditCommand('lex.toggle_annotations', getClient)
     )
   );
 }
@@ -527,7 +530,7 @@ async function navigateAnnotation(
   }
 }
 
-async function resolveAnnotationCommand(
+async function applyAnnotationEditCommand(
   lspCommand: string,
   getClient: () => LanguageClient | undefined
 ): Promise<void> {
@@ -573,7 +576,7 @@ async function resolveAnnotationCommand(
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    vscode.window.showErrorMessage(`Failed to resolve annotation: ${message}`);
+    vscode.window.showErrorMessage(`Failed to update annotation: ${message}`);
   }
 }
 

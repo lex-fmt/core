@@ -57,7 +57,7 @@
 |  | Completion (Paths) | `textDocument/completion` | VS Code: `pathCompletion.ts` | Done | Done |  |
 |  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done |
 |  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
-|  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | LSP Ready |  |  |
+|  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
 | **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
 |  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
 |  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
