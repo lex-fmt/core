@@ -4,10 +4,15 @@ import { LanguageClient } from 'vscode-languageclient/node.js';
 import {
   buildLexExtensionConfig,
   LEX_CONFIGURATION_SECTION,
-  LSP_BINARY_SETTING
+  LSP_BINARY_SETTING,
+  CLI_BINARY_SETTING
 } from './config.js';
 import { createLexClient } from './client.js';
 import { applyLexTheme, setupThemeListeners } from './theme.js';
+// Import/export commands - see README.lex "Import & Export Commands" for docs
+import { registerCommands } from './commands.js';
+// Live preview - see README.lex "Preview" for docs
+import { registerPreviewCommands } from './preview.js';
 
 export interface LexExtensionApi {
   clientReady(): Promise<void>;
@@ -42,10 +47,16 @@ export async function activate(
 
   const config = vscode.workspace.getConfiguration(LEX_CONFIGURATION_SECTION);
   const configuredLspPath = config.get<string | null>(LSP_BINARY_SETTING, null);
+  const configuredCliPath = config.get<string | null>(CLI_BINARY_SETTING, null);
   const resolvedConfig = buildLexExtensionConfig(
     context.extensionUri.fsPath,
-    configuredLspPath
+    configuredLspPath,
+    configuredCliPath
   );
+
+  // Register import/export commands (works even without LSP)
+  registerCommands(context, resolvedConfig.cliBinaryPath);
+  registerPreviewCommands(context, resolvedConfig.cliBinaryPath);
 
   if (shouldSkipLanguageClient()) {
     console.info('[lex] Skipping language client startup (LEX_VSCODE_SKIP_SERVER=1).');

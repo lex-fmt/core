@@ -19,6 +19,147 @@
     "onLanguage:lex"
   ],
   "contributes": {
+    "commands": [
+      {
+        "command": "lex.showPreview",
+        "title": "Open Preview",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.showPreviewToSide",
+        "title": "Open Preview to the Side",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.exportToMarkdown",
+        "title": "Export to Markdown",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.exportToHtml",
+        "title": "Export to HTML",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.importFromMarkdown",
+        "title": "Import from Markdown",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.exportToPdf",
+        "title": "Export to PDF",
+        "category": "Lex"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "lex.showPreview",
+          "when": "editorLangId == lex"
+        },
+        {
+          "command": "lex.showPreviewToSide",
+          "when": "editorLangId == lex"
+        },
+        {
+          "command": "lex.exportToMarkdown",
+          "when": "editorLangId == lex"
+        },
+        {
+          "command": "lex.exportToHtml",
+          "when": "editorLangId == lex"
+        },
+        {
+          "command": "lex.importFromMarkdown",
+          "when": "editorLangId == markdown"
+        },
+        {
+          "command": "lex.exportToPdf",
+          "when": "editorLangId == lex"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "lex.showPreviewToSide",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.exportToMarkdown",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.exportToHtml",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.importFromMarkdown",
+          "when": "editorLangId == markdown",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.exportToPdf",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "lex.showPreviewToSide",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.exportToMarkdown",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.exportToHtml",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.importFromMarkdown",
+          "when": "resourceExtname == .md",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.exportToPdf",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "lex.showPreviewToSide",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.exportToMarkdown",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.exportToHtml",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.importFromMarkdown",
+          "when": "resourceExtname == .md",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.exportToPdf",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        }
+      ]
+    },
     "languages": [
       {
         "id": "lex",
@@ -202,6 +343,11 @@
           "type": "string",
           "markdownDescription": "Absolute or workspace-relative path to the lex-lsp binary.",
           "default": "./resources/lex-lsp"
+        },
+        "lex.cliBinaryPath": {
+          "type": "string",
+          "markdownDescription": "Absolute or workspace-relative path to the lex CLI binary (used for import/export commands).",
+          "default": "./resources/lex"
         }
       }
     },
