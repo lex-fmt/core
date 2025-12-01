@@ -450,13 +450,19 @@ async function insertSnippet(
   position: vscode.Position,
   payload: SnippetInsertionPayload
 ): Promise<void> {
-  const inserted = await editor.edit(builder => builder.insert(position, payload.text));
+  const prefix = position.line === 0 && position.character === 0 ? '' : '\n';
+  const suffix = '\n';
+  const textToInsert = `${prefix}${payload.text}${suffix}`;
+
+  const inserted = await editor.edit(builder => builder.insert(position, textToInsert));
   if (!inserted) {
     throw new Error('Unable to update editor with snippet text.');
   }
 
   const baseOffset = editor.document.offsetAt(position);
-  const cursorPosition = editor.document.positionAt(baseOffset + payload.cursorOffset);
+  const cursorPosition = editor.document.positionAt(
+    baseOffset + prefix.length + payload.cursorOffset
+  );
   editor.selection = new vscode.Selection(cursorPosition, cursorPosition);
   editor.revealRange(new vscode.Range(cursorPosition, cursorPosition));
 }
