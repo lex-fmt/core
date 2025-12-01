@@ -125,7 +125,7 @@ mod tests {
         source: &str,
     ) -> Result<Vec<(crate::lex::token::Token, std::ops::Range<usize>)>, String> {
         let tokens = crate::lex::lexing::tokenize(source);
-        Ok(crate::lex::lexing::lex(tokens))
+        Ok(crate::lex::lexing::lex(tokens)?)
     }
 
     #[test]

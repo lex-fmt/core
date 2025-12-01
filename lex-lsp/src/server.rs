@@ -738,7 +738,10 @@ where
 
                                 if let Some(result) = navigation {
                                     let location = to_lsp_location(&uri, &result.header);
-                                    return Ok(Some(serde_json::to_value(location).unwrap()));
+                                    return Ok(Some(
+                                        serde_json::to_value(location)
+                                            .map_err(|_| Error::internal_error())?,
+                                    ));
                                 }
                             }
                         }
@@ -804,7 +807,10 @@ where
                                         changes: Some(changes),
                                         ..Default::default()
                                     };
-                                    return Ok(Some(serde_json::to_value(workspace_edit).unwrap()));
+                                    return Ok(Some(
+                                        serde_json::to_value(workspace_edit)
+                                            .map_err(|_| Error::internal_error())?,
+                                    ));
                                 }
                             }
                         }

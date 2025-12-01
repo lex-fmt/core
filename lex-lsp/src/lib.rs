@@ -118,6 +118,29 @@
 //!         - Linked Editing Range: For paired tags (HTML/XML)
 //!         - Diagnostics: we don't have a clear vision for how that would work.
 //!
+//! Error Handling and Robustness
+//!
+//!     The server is designed to be highly robust and crash-resistant, following these principles:
+//!
+//!     1. No Panics:
+//!         - We strictly avoid `unwrap()` and `expect()` in production code paths.
+//!         - All potential failure points (parsing, serialization, IO) return `Result`.
+//!         - Errors are propagated up the stack and handled gracefully.
+//!
+//!     2. Graceful Degradation:
+//!         - If a feature fails (e.g., semantic tokens calculation), we log the error and return
+//!           an empty result or `None` rather than crashing the server.
+//!         - This ensures that a bug in one feature doesn't bring down the entire editor experience.
+//!
+//!     3. Error Propagation:
+//!         - The `lex-parser` crate returns `Result` types for all parsing operations.
+//!         - The `lex-lsp` server maps these internal errors to appropriate LSP error codes
+//!           (e.g., `InternalError`, `InvalidRequest`) when communicating with the client.
+//!
+//!     4. Property-Based Testing:
+//!         - We use `proptest` to fuzz the server with random inputs (commands, document text)
+//!           to uncover edge cases and ensure stability under unexpected conditions.
+//!
 //! Usage
 //!
 //!     This crate provides both a library and binary:

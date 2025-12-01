@@ -25,7 +25,11 @@ mod lexplore_tests {
     fn detokenize_list_semantic() {
         let source = Lexplore::list(2).source();
         let raw_tokens = tokenize(&source);
-        let tokens: Vec<_> = lex(raw_tokens).into_iter().map(|(t, _)| t).collect();
+        let tokens: Vec<_> = lex(raw_tokens)
+            .unwrap()
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         insta::assert_snapshot!(detokenized);
     }
@@ -42,7 +46,11 @@ mod lexplore_tests {
     fn detokenize_session_semantic() {
         let source = Lexplore::session(1).source();
         let raw_tokens = tokenize(&source);
-        let tokens: Vec<_> = lex(raw_tokens).into_iter().map(|(t, _)| t).collect();
+        let tokens: Vec<_> = lex(raw_tokens)
+            .unwrap()
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         insta::assert_snapshot!(detokenized);
     }
@@ -75,7 +83,11 @@ mod lexplore_tests {
     fn detokenize_definition_semantic() {
         let source = Lexplore::definition(1).source();
         let raw_tokens = tokenize(&source);
-        let tokens: Vec<_> = lex(raw_tokens).into_iter().map(|(t, _)| t).collect();
+        let tokens: Vec<_> = lex(raw_tokens)
+            .unwrap()
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         insta::assert_snapshot!(detokenized);
     }
@@ -96,7 +108,11 @@ mod lexplore_document_tests {
     fn detokenize_trifecta_060_semantic() {
         let source = Lexplore::trifecta(60).source();
         let raw_tokens = tokenize(&source);
-        let tokens: Vec<_> = lex(raw_tokens).into_iter().map(|(t, _)| t).collect();
+        let tokens: Vec<_> = lex(raw_tokens)
+            .unwrap()
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         insta::assert_snapshot!(detokenized);
     }
@@ -105,7 +121,11 @@ mod lexplore_document_tests {
     fn detokenize_benchmark_010_semantic() {
         let source = Lexplore::benchmark(10).source();
         let raw_tokens = tokenize(&source);
-        let tokens: Vec<_> = lex(raw_tokens).into_iter().map(|(t, _)| t).collect();
+        let tokens: Vec<_> = lex(raw_tokens)
+            .unwrap()
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
         let detokenized = detokenize(&tokens);
         insta::assert_snapshot!(detokenized);
     }
