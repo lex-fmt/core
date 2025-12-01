@@ -78,12 +78,14 @@ pub fn ensure_source_ends_with_newline(source: &str) -> String {
     }
 }
 
-pub fn lex(tokens: Vec<(Token, std::ops::Range<usize>)>) -> Vec<(Token, std::ops::Range<usize>)> {
+pub fn lex(
+    tokens: Vec<(Token, std::ops::Range<usize>)>,
+) -> Result<Vec<(Token, std::ops::Range<usize>)>, LexError> {
     use crate::lex::lexing::transformations::semantic_indentation::SemanticIndentationMapper;
     let mut mapper = SemanticIndentationMapper::new();
     mapper
         .map(tokens)
-        .expect("SemanticIndentation transformation failed")
+        .map_err(|e| LexError::Transformation(e.to_string()))
 }
 
 #[cfg(test)]
@@ -95,7 +97,7 @@ mod tests {
     fn lex_helper(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
         let source_with_newline = ensure_source_ends_with_newline(source);
         let token_stream = base_tokenization::tokenize(&source_with_newline);
-        lex(token_stream)
+        lex(token_stream).expect("lex failed")
     }
 
     #[test]

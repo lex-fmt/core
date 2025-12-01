@@ -63,7 +63,7 @@ impl GrammarMatcher {
             }
             if let Ok(regex) = Regex::new(pattern_regex_str) {
                 if let Some(caps) = regex.captures(&token_string) {
-                    let full_match = caps.get(0).unwrap();
+                    let full_match = caps.get(0)?;
                     let consumed_count = Self::count_consumed_tokens(full_match.as_str());
 
                     // Use captures to extract indices and build the pattern
@@ -79,7 +79,7 @@ impl GrammarMatcher {
                         "annotation_single" => PatternMatch::AnnotationSingle { start_idx: 0 },
                         "list_no_blank" => {
                             // List without preceding blank line
-                            let items_str = caps.name("items").unwrap().as_str();
+                            let items_str = caps.name("items")?.as_str();
                             let mut items = Vec::new();
                             let mut token_idx = 0; // No blank line, so start at 0
                             for item_cap in LIST_ITEM_REGEX.find_iter(items_str) {
@@ -119,7 +119,7 @@ impl GrammarMatcher {
                                 .name("blank")
                                 .map(|m| Self::count_consumed_tokens(m.as_str()))
                                 .unwrap_or(0);
-                            let items_str = caps.name("items").unwrap().as_str();
+                            let items_str = caps.name("items")?.as_str();
                             let mut items = Vec::new();
                             let mut token_idx = blank_count;
                             for item_cap in LIST_ITEM_REGEX.find_iter(items_str) {
@@ -177,7 +177,7 @@ impl GrammarMatcher {
                             {
                                 continue; // Sessions need a separator or another session before them
                             }
-                            let blank_str = caps.name("blank").unwrap().as_str();
+                            let blank_str = caps.name("blank")?.as_str();
                             let blank_count = Self::count_consumed_tokens(blank_str);
                             PatternMatch::Session {
                                 subject_idx: 0,

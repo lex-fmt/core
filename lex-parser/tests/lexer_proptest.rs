@@ -13,7 +13,7 @@ use proptest::prelude::*;
 fn lex_helper(source: &str) -> Vec<(Token, std::ops::Range<usize>)> {
     let source_with_newline = lex_parser::lex::lexing::ensure_source_ends_with_newline(source);
     let token_stream = lex_parser::lex::lexing::base_tokenization::tokenize(&source_with_newline);
-    lex(token_stream)
+    lex(token_stream).expect("lex failed")
 }
 
 /// Generate valid lex text content

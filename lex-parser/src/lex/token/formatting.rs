@@ -261,7 +261,7 @@ mod tests {
             path.display()
         );
 
-        let semantic_tokens = lex(raw_with_spans);
+        let semantic_tokens = lex(raw_with_spans).unwrap();
         let semantic_only: Vec<_> = semantic_tokens.iter().map(|(t, _)| t.clone()).collect();
         assert_eq!(
             detokenize(&semantic_only),

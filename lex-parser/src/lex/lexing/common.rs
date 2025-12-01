@@ -18,17 +18,26 @@ pub enum LexerOutput {
 pub enum LexError {
     /// Generic error message
     Error(String),
+    /// Error during transformation phase
+    Transformation(String),
 }
 
 impl fmt::Display for LexError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LexError::Error(msg) => write!(f, "Lexing error: {}", msg),
+            LexError::Transformation(msg) => write!(f, "Transformation error: {}", msg),
         }
     }
 }
 
 impl std::error::Error for LexError {}
+
+impl From<LexError> for String {
+    fn from(err: LexError) -> Self {
+        err.to_string()
+    }
+}
 
 /// Trait for lexer implementations
 pub trait Lexer {
