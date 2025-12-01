@@ -49,14 +49,14 @@
 | **Navigation** | Go to Definition | `textDocument/definition` | `lex-analysis/src/go_to_definition.rs` | Done | Done | Done |
 |  | Find References | `textDocument/references` | `lex-analysis/src/references.rs` | Done | Done | Done |
 |  | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` | Done | Done | Done |
-|  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | LSP Ready |  |  |
+|  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
 | **Formatting** | Formatting | `textDocument/formatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done |
 |  | Range Formatting | `textDocument/rangeFormatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done |
-| **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | LSP Ready |  |  |
-|  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | LSP Ready |  |  |
+| **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
+|  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
 |  | Completion (Paths) | `textDocument/completion` | VS Code: `pathCompletion.ts` | Done | Done |  |
 |  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done |
-|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | LSP Ready |  |  |
+|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
 |  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | LSP Ready |  |  |
 | **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
 |  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
