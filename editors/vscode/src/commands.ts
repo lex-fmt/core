@@ -383,6 +383,15 @@ interface SnippetInsertionPayload {
   cursorOffset: number;
 }
 
+function isSnippetInsertionPayload(value: unknown): value is SnippetInsertionPayload {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { text?: unknown }).text === 'string' &&
+    typeof (value as { cursorOffset?: unknown }).cursorOffset === 'number'
+  );
+}
+
 async function getReadyClient(
   getClient: () => LanguageClient | undefined,
   waitForClientReady: () => Promise<void>
@@ -454,18 +463,22 @@ async function invokeInsertCommand(
     const client = await getReadyClient(getClient, waitForClientReady);
     const position = editor.selection.active;
     const protocolPosition = client.code2ProtocolConverter.asPosition(position);
-    const response = await client.sendRequest(ExecuteCommandRequest.type, {
+    const response = (await client.sendRequest(ExecuteCommandRequest.type, {
       command,
       arguments: [editor.document.uri.toString(), protocolPosition, fileUri.fsPath]
-    });
+    })) as unknown;
 
     if (!response) {
       vscode.window.showErrorMessage('Command did not return a snippet payload.');
       return;
     }
 
-    const snippet = response as SnippetInsertionPayload;
-    await insertSnippet(editor, position, snippet);
+    if (!isSnippetInsertionPayload(response)) {
+      vscode.window.showErrorMessage('Command returned an invalid snippet payload.');
+      return;
+    }
+
+    await insertSnippet(editor, position, response);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     vscode.window.showErrorMessage(`Failed to insert content: ${message}`);
@@ -516,14 +529,14 @@ async function navigateAnnotation(
     const response = (await client.sendRequest(ExecuteCommandRequest.type, {
       command: lspCommand,
       arguments: [editor.document.uri.toString(), protocolPosition]
-    })) as LspLocation | null;
+    })) as unknown;
 
     if (!response) {
       vscode.window.showInformationMessage('No annotations were found in this document.');
       return;
     }
 
-    const targetLocation = client.protocol2CodeConverter.asLocation(response);
+    const targetLocation = client.protocol2CodeConverter.asLocation(response as LspLocation);
     const targetDocument = await vscode.workspace.openTextDocument(targetLocation.uri);
     const targetEditor = await vscode.window.showTextDocument(targetDocument);
     const targetPosition = targetLocation.range.start;
@@ -557,14 +570,16 @@ async function applyAnnotationEditCommand(
     const response = (await client.sendRequest(ExecuteCommandRequest.type, {
       command: lspCommand,
       arguments: [editor.document.uri.toString(), protocolPosition]
-    })) as LspWorkspaceEdit | null;
+    })) as unknown;
 
     if (!response) {
       vscode.window.showInformationMessage('No annotation was resolved at the current position.');
       return;
     }
 
-    const workspaceEdit = await client.protocol2CodeConverter.asWorkspaceEdit(response);
+    const workspaceEdit = await client.protocol2CodeConverter.asWorkspaceEdit(
+      response as LspWorkspaceEdit
+    );
     if (!workspaceEdit) {
       throw new Error('Language server returned an invalid workspace edit.');
     }

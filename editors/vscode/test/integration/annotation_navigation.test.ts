@@ -13,7 +13,7 @@ const ANNOTATION_DOC = `# Annotation Navigation\n\n:: note ::\n    First\n::\n\n
 
 integrationTest('navigates between annotations using commands', async () => {
   await writeWorkspaceFile(TEMP_ANNOTATION_PATH, ANNOTATION_DOC);
-  const document = await openWorkspaceDocument(TEMP_ANNOTATION_PATH);
+  await openWorkspaceDocument(TEMP_ANNOTATION_PATH);
   const editor = vscode.window.activeTextEditor;
   assert.ok(editor, 'Editor should be active');
 
