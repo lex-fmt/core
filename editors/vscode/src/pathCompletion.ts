@@ -15,7 +15,8 @@ export function registerPathCompletion(context: vscode.ExtensionContext): void {
     { language: 'lex', scheme: 'file' },
     new PathCompletionProvider(),
     '@',
-    '/'
+    '/',
+    '.'
   );
   context.subscriptions.push(provider);
 
@@ -84,6 +85,40 @@ class PathCompletionProvider implements vscode.CompletionItemProvider {
     const items: vscode.CompletionItem[] = [];
     const partialLower = partial.toLowerCase();
 
+    // Calculate the range from @ to cursor position (used for all items)
+    const atPosition = position.character - atMatch[0].length;
+    const replaceRange = new vscode.Range(
+      position.line,
+      atPosition,
+      position.line,
+      position.character
+    );
+
+    // Add ".." for navigating to parent directory if partial matches
+    if ('..'.startsWith(partialLower) && baseDir !== '/') {
+      const parentItem = new vscode.CompletionItem('..', vscode.CompletionItemKind.Folder);
+      const pathPrefix = pathFragment.includes('/')
+        ? pathFragment.substring(0, pathFragment.lastIndexOf('/') + 1)
+        : '';
+      parentItem.insertText = '@' + pathPrefix + '../';
+      parentItem.range = replaceRange;
+      parentItem.filterText = '@' + pathPrefix + '..';
+      parentItem.sortText = '00..'; // Sort before other folders
+      parentItem.detail = 'Parent directory';
+      items.push(parentItem);
+    }
+
+    // Add "/" for absolute path when at root level (no path fragment yet)
+    if (pathFragment === '' || '/'.startsWith(pathFragment)) {
+      const rootItem = new vscode.CompletionItem('/', vscode.CompletionItemKind.Folder);
+      rootItem.insertText = '@/';
+      rootItem.range = replaceRange;
+      rootItem.filterText = '@/';
+      rootItem.sortText = '000/'; // Sort before .. and other folders
+      rootItem.detail = 'Absolute path from root';
+      items.push(rootItem);
+    }
+
     for (const entry of entries) {
       // Skip hidden files unless user is explicitly typing them
       if (entry.name.startsWith('.') && !partial.startsWith('.')) {
@@ -117,15 +152,6 @@ class PathCompletionProvider implements vscode.CompletionItemProvider {
       if (isDirectory) {
         fullPath += '/';
       }
-
-      // Calculate the range from @ to cursor position
-      const atPosition = position.character - atMatch[0].length;
-      const replaceRange = new vscode.Range(
-        position.line,
-        atPosition,
-        position.line,
-        position.character
-      );
 
       item.insertText = '@' + fullPath;
       item.range = replaceRange;
