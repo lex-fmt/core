@@ -56,6 +56,16 @@ export async function closeAllEditors(): Promise<void> {
   await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 }
 
+export async function delay(ms: number): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export async function typeText(text: string): Promise<void> {
+  for (const char of text) {
+    await vscode.commands.executeCommand('default:type', { text: char });
+  }
+}
+
 export async function waitForExtensionActivation<T>(
   extensionId: string,
   timeoutMs = 10000

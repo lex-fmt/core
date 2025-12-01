@@ -9,6 +9,14 @@
   ],
   "settings": {
     "lex.lspBinaryPath": "../../target/debug/lex-lsp",
-    "workbench.colorTheme": "Default Dark Modern"
+    "workbench.colorTheme": "Default Dark Modern",
+    "[lex]": {
+      "editor.quickSuggestions": {
+        "other": true,
+        "comments": true,
+        "strings": true
+      },
+      "editor.suggestOnTriggerCharacters": true
+    }
   }
 }
