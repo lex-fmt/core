@@ -1,147 +1,163 @@
-Lex Neovim Plugin
+Lex Neovim Plugin - Development Guide
 
-Neovim plugin for editing Lex documents with LSP-powered syntax highlighting.
+This document covers the architecture and adaptation decisions for the Neovim plugin.
+For user documentation, see README.lex.
 
-1. Installation
+1. Architecture
 
-    1.1. With lazy.nvim
+    The Neovim plugin follows the same architecture as VS Code: a thin client layer that delegates all logic to the lex-lsp server via LSP and workspace/executeCommand.
 
-        {
-            "arthur-debert/lex",
-            ft = "lex",
-            dependencies = { "neovim/nvim-lspconfig" },
-            config = function()
-                require("lex").setup()
-            end,
-        }
-    :: lua
+    Core principle: No Lua-side language logic. All features are driven by LSP.
 
-    1.2. With packer.nvim
+2. VS Code to Neovim Adaptations
 
-        use {
-            "arthur-debert/lex",
-            requires = { "neovim/nvim-lspconfig" },
-            config = function()
-                require("lex").setup()
-            end,
-        }
-    :: lua
+    Some VS Code features require adaptation for Neovim's terminal-based UI.
 
-    The plugin auto-downloads the lex-lsp binary on first use.
+    2.1. File Pickers
 
-2. Configuration
+        VS Code uses native OS file dialogs via `vscode.window.showOpenDialog()`.
 
-        require("lex").setup({
-            -- Theme: "monochrome" (default) or "native"
-            theme = "monochrome",
+        Neovim approach:
+        - Primary: Telescope integration when available (de facto standard)
+        - Fallback: `vim.ui.input()` for path entry (works everywhere)
 
-            -- LSP binary version (auto-downloaded from GitHub)
-            lex_lsp_version = "v0.1.14",
-
-            -- Or use a custom binary path
-            cmd = { "/path/to/lex-lsp" },
-
-            -- Additional lspconfig options
-            lsp_config = {
-                on_attach = function(client, bufnr)
-                    -- Your custom on_attach
-                end,
-            },
-        })
-    :: lua
-
-3. Themes
-
-    3.1. Monochrome (default)
-
-        Grayscale highlighting designed to keep focus on your writing.
-        Four intensity levels adapt to your dark/light mode setting:
-
-        - Normal: Full contrast for content you read (black/white)
-        - Muted: Medium gray for structural markers (1., -, etc.)
-        - Faint: Light gray for meta-information (annotations)
-        - Faintest: Barely visible for syntax markers (*, _, `)
-
-    3.2. Native
-
-        Uses your colorscheme's colors by linking to standard treesitter groups:
-
-            require("lex").setup({
-                theme = "native",
-            })
+        Detection is automatic:
+            local has_telescope, telescope = pcall(require, 'telescope.builtin')
+            if has_telescope then
+                -- Use telescope.find_files with custom attach_mappings
+            else
+                -- Fall back to vim.ui.input with path completion
+            end
         :: lua
 
-        Mappings:
-        - Headings -> @markup.heading
-        - Bold/Italic -> @markup.strong, @markup.italic
-        - Code -> @markup.raw
-        - Links -> @markup.link
-        - Annotations -> @comment
+    2.2. Export Commands (Markdown, HTML, PDF)
 
-4. Customization
+        VS Code shows a save dialog for export destination.
 
-    Even with monochrome theme, you can override specific highlights:
+        Neovim approach:
+        - Default output path: same directory and base name as source, with new extension
+        - Example: `notes.lex` exports to `notes.md`, `notes.html`, or `notes.pdf`
+        - User can override via command argument: `:LexExportPdf ~/exports/doc.pdf`
 
-        -- After lex.setup(), add your overrides:
+    2.3. Completion UI
 
-        -- Change reference color to blue
-        vim.api.nvim_set_hl(0, "@lsp.type.Reference", {
-            fg = "#5588ff",
-            underline = true
-        })
+        VS Code uses `vscode.languages.registerCompletionItemProvider()`.
 
-        -- Make annotations green instead of gray
-        vim.api.nvim_set_hl(0, "@lsp.type.AnnotationLabel", {
-            fg = "#22aa22"
-        })
-    :: lua
+        Neovim approach:
+        - LSP-native: All completions come from lex-lsp via textDocument/completion
+        - Works automatically with any completion plugin (nvim-cmp, coq, etc.)
+        - Falls back to built-in `<C-x><C-o>` omnifunc if no plugin installed
 
-    Override base intensity groups to change all elements at that level:
+        Path completion (@-trigger) is handled server-side in lex-lsp, so it works
+        identically across all editors.
 
-        vim.api.nvim_set_hl(0, "@lex.muted", { fg = "#666666" })
-        vim.api.nvim_set_hl(0, "@lex.faint", { fg = "#999999" })
-    :: lua
+    2.4. Notifications
 
-5. Commands
+        VS Code uses `vscode.window.showInformationMessage()` etc.
 
-    :LexDebugToken
-        Inspect the semantic token under cursor. Useful for debugging
-        highlighting issues or finding the right group name to override.
+        Neovim approach:
+        - Uses `vim.notify()` which integrates with nvim-notify if installed
+        - Falls back to built-in message display otherwise
 
-6. Troubleshooting
+    2.5. Live HTML Preview
 
-    No highlighting at all:
-        1. Check LSP is attached: `:LspInfo`
-        2. Check filetype: `:set ft?` should show "lex"
-        3. Check syntax disabled: `:set syntax?` should be empty
-        4. Run `:LexDebugToken` on text that should be highlighted
+        VS Code uses WebviewPanel for inline preview.
 
-    Colors don't match expected:
-        1. Check your background setting: `:set background?`
-        2. Monochrome theme adapts to dark/light mode
-        3. Try `theme = "native"` to use your colorscheme
+        Neovim: Not available in terminal.
+        - Feature is intentionally omitted
+        - Users can use `:LexExportHtml` + external browser if needed
 
-    Still seeing colored syntax (not monochrome):
-        Built-in Neovim has a lex.vim for Unix lex/flex. The plugin
-        disables this automatically, but some plugin managers may
-        re-enable it. Check `:set syntax?` is empty.
+3. Commands
 
-7. Token Reference
+    All commands use the `:Lex` prefix for discoverability.
 
-    Content (normal intensity):
-        SessionTitleText, DefinitionSubject, DefinitionContent,
-        InlineStrong, InlineEmphasis, InlineCode, InlineMath,
-        VerbatimContent, ListItemText
+    Navigation:
+        :LexNextAnnotation      Jump to next annotation (]a mapping)
+        :LexPrevAnnotation      Jump to previous annotation ([a mapping)
 
-    Structure (muted intensity):
-        SessionMarker, ListMarker, Reference, ReferenceCitation,
-        ReferenceFootnote
+    Editing:
+        :LexInsertAsset         Insert asset reference at cursor
+        :LexInsertVerbatim      Insert verbatim block from file
+        :LexResolveAnnotation   Resolve annotation at cursor
+        :LexToggleAnnotations   Toggle all annotations resolved/unresolved
 
-    Meta (faint intensity):
-        AnnotationLabel, AnnotationParameter, AnnotationContent,
-        VerbatimSubject, VerbatimLanguage, VerbatimAttribute
+    Export/Import:
+        :LexExportMarkdown [path]   Export to Markdown
+        :LexExportHtml [path]       Export to HTML
+        :LexExportPdf [path]        Export to PDF
+        :LexImportMarkdown          Import current Markdown buffer to Lex
 
-    Markers (faintest intensity):
-        InlineMarker_strong_start, InlineMarker_emphasis_start,
-        InlineMarker_code_start, InlineMarker_math_start,
-        InlineMarker_ref_start (and corresponding _end variants)
+    Debug:
+        :LexDebugToken          Show semantic token under cursor
+
+4. Default Keymaps
+
+    The plugin sets up these buffer-local mappings for .lex files:
+
+        ]a      Go to next annotation
+        [a      Go to previous annotation
+
+    Additional mappings can be configured via lsp_config.on_attach.
+
+5. Testing
+
+    The test suite supports both minimal (no plugins) and full (Telescope + nvim-cmp) configurations.
+
+    5.1. Running Tests
+
+        cd editors/nvim
+        ./test/run_suite.sh              # Run all tests
+        ./test/run_suite.sh --minimal    # Run with bare Neovim (no plugins)
+        ./test/run_suite.sh --full       # Run with Telescope + nvim-cmp
+
+    5.2. Test Configurations
+
+        Minimal config (test/minimal_init.lua):
+        - Only nvim-lspconfig required
+        - Tests vim.ui.input fallbacks
+        - Tests built-in completion
+
+        Full config (test/full_init.lua):
+        - Includes Telescope and nvim-cmp
+        - Tests Telescope file picker integration
+        - Tests nvim-cmp completion display
+
+    5.3. Test Structure
+
+        test/
+        ├── minimal_init.lua          # Minimal Neovim config
+        ├── full_init.lua             # Full plugin config
+        ├── fixtures/                 # Test documents
+        │   ├── example.lex
+        │   └── formatting.lex
+        ├── test_*.lua                # Individual test files
+        └── run_suite.sh              # Test runner
+
+6. Plugin Structure
+
+    lua/lex/
+    ├── init.lua          # Main entry point, setup()
+    ├── binary.lua        # Binary download/management
+    ├── theme.lua         # Monochrome/native theme application
+    ├── commands.lua      # User commands (export, import, etc.)
+    ├── navigation.lua    # Annotation navigation
+    └── debug.lua         # Debug utilities
+
+7. LSP Execute Commands
+
+    These commands are invoked via vim.lsp.buf.execute_command() or client:exec_cmd():
+
+    Navigation:
+        lex.next_annotation(uri, position) -> Location | null
+        lex.previous_annotation(uri, position) -> Location | null
+
+    Editing:
+        lex.insert_asset(uri, position, assetPath) -> SnippetPayload
+        lex.insert_verbatim(uri, position, filePath) -> SnippetPayload
+        lex.resolve_annotation(uri, position) -> WorkspaceEdit | null
+        lex.toggle_annotations(uri, position) -> WorkspaceEdit | null
+
+    Conversion (via lex CLI, not LSP):
+        lex convert --to markdown <file>
+        lex convert --to html <file>
+        lex convert --to pdf --output <out> <file>
