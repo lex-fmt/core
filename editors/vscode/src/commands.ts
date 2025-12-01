@@ -95,6 +95,21 @@ async function openConvertedDocument(
   await vscode.window.showTextDocument(doc);
 }
 
+/**
+ * Convert Lex content to HTML. Used by both export command and live preview.
+ */
+export async function convertToHtml(
+  content: string,
+  cliBinaryPath: string
+): Promise<string> {
+  return convertDocument(content, {
+    cliBinaryPath,
+    fromFormat: 'lex',
+    toFormat: 'html',
+    targetLanguageId: 'html'
+  });
+}
+
 function getActiveEditorContent(): { content: string; languageId: string } | undefined {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {

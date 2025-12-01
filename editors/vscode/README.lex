@@ -85,6 +85,36 @@ Context menu visibility is controlled via `when` clauses:
 
 See `src/commands.ts` for the full implementation.
 
+Preview
+-------
+The extension provides a live HTML preview for Lex documents.
+
+### Commands
+
+`Lex: Open Preview`
+  - Opens the rendered HTML preview in the current editor column
+  - Reuses existing preview if one is already open for the same document
+
+`Lex: Open Preview to the Side`
+  - Opens the preview in a side-by-side view
+  - Appears in context menus for .lex files
+
+### Behavior
+
+- Preview updates automatically as you type (debounced at 400ms)
+- Uses VS Code's webview panel with theme-aware CSS
+- One preview per source document (opening again reveals existing preview)
+- Converts via the `lex` CLI, same as export commands
+
+### Implementation Details
+
+The preview uses VS Code's WebviewPanel API:
+1. Creates a webview with `retainContextWhenHidden` for instant reveal
+2. Listens to `onDidChangeTextDocument` for live updates
+3. Wraps CLI output in theme-aware HTML/CSS for consistent appearance
+
+See `src/preview.ts` for the full implementation.
+
 Implementation Notes
 --------------------
 - `@vscode/test-electron` drives headless VS Code; fixtures live in `test/fixtures/sample-workspace/`.

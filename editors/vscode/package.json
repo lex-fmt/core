@@ -21,6 +21,16 @@
   "contributes": {
     "commands": [
       {
+        "command": "lex.showPreview",
+        "title": "Open Preview",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.showPreviewToSide",
+        "title": "Open Preview to the Side",
+        "category": "Lex"
+      },
+      {
         "command": "lex.exportToMarkdown",
         "title": "Export to Markdown",
         "category": "Lex"
@@ -39,6 +49,14 @@
     "menus": {
       "commandPalette": [
         {
+          "command": "lex.showPreview",
+          "when": "editorLangId == lex"
+        },
+        {
+          "command": "lex.showPreviewToSide",
+          "when": "editorLangId == lex"
+        },
+        {
           "command": "lex.exportToMarkdown",
           "when": "editorLangId == lex"
         },
@@ -52,6 +70,11 @@
         }
       ],
       "editor/context": [
+        {
+          "command": "lex.showPreviewToSide",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
         {
           "command": "lex.exportToMarkdown",
           "when": "editorLangId == lex",
@@ -70,6 +93,11 @@
       ],
       "editor/title/context": [
         {
+          "command": "lex.showPreviewToSide",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        },
+        {
           "command": "lex.exportToMarkdown",
           "when": "resourceExtname == .lex",
           "group": "1_modification"
@@ -86,6 +114,11 @@
         }
       ],
       "explorer/context": [
+        {
+          "command": "lex.showPreviewToSide",
+          "when": "resourceExtname == .lex",
+          "group": "1_modification"
+        },
         {
           "command": "lex.exportToMarkdown",
           "when": "resourceExtname == .lex",

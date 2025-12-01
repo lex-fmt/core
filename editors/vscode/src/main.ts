@@ -11,6 +11,8 @@ import { createLexClient } from './client.js';
 import { applyLexTheme, setupThemeListeners } from './theme.js';
 // Import/export commands - see README.lex "Import & Export Commands" for docs
 import { registerCommands } from './commands.js';
+// Live preview - see README.lex "Preview" for docs
+import { registerPreviewCommands } from './preview.js';
 
 export interface LexExtensionApi {
   clientReady(): Promise<void>;
@@ -54,6 +56,7 @@ export async function activate(
 
   // Register import/export commands (works even without LSP)
   registerCommands(context, resolvedConfig.cliBinaryPath);
+  registerPreviewCommands(context, resolvedConfig.cliBinaryPath);
 
   if (shouldSkipLanguageClient()) {
     console.info('[lex] Skipping language client startup (LEX_VSCODE_SKIP_SERVER=1).');
