@@ -8,7 +8,10 @@ import { existsSync, mkdtempSync, writeFileSync, unlinkSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ExecuteCommandRequest, LanguageClient } from 'vscode-languageclient/node.js';
-import type { Location as LspLocation } from 'vscode-languageserver-types';
+import type {
+  Location as LspLocation,
+  WorkspaceEdit as LspWorkspaceEdit
+} from 'vscode-languageserver-types';
 
 export interface ConvertOptions {
   cliBinaryPath: string;
@@ -364,6 +367,9 @@ export function registerCommands(
     ),
     vscode.commands.registerCommand('lex.goToPreviousAnnotation', () =>
       navigateAnnotation('lex.previous_annotation', getClient)
+    ),
+    vscode.commands.registerCommand('lex.resolveAnnotation', () =>
+      resolveAnnotationCommand('lex.resolve_annotation', getClient)
     )
   );
 }
@@ -518,6 +524,56 @@ async function navigateAnnotation(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     vscode.window.showErrorMessage(`Failed to navigate annotations: ${message}`);
+  }
+}
+
+async function resolveAnnotationCommand(
+  lspCommand: string,
+  getClient: () => LanguageClient | undefined
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('Open a Lex document before running this command.');
+    return;
+  }
+
+  if (editor.document.languageId !== 'lex') {
+    vscode.window.showErrorMessage('Annotation commands are only available for .lex files.');
+    return;
+  }
+
+  const client = getClient();
+  if (!client) {
+    vscode.window.showErrorMessage('Lex language server is not running.');
+    return;
+  }
+
+  try {
+    const protocolPosition = client.code2ProtocolConverter.asPosition(
+      editor.selection.active
+    );
+    const response = (await client.sendRequest(ExecuteCommandRequest.type, {
+      command: lspCommand,
+      arguments: [editor.document.uri.toString(), protocolPosition]
+    })) as LspWorkspaceEdit | null;
+
+    if (!response) {
+      vscode.window.showInformationMessage('No annotation was resolved at the current position.');
+      return;
+    }
+
+    const workspaceEdit = await client.protocol2CodeConverter.asWorkspaceEdit(response);
+    if (!workspaceEdit) {
+      throw new Error('Language server returned an invalid workspace edit.');
+    }
+
+    const applied = await vscode.workspace.applyEdit(workspaceEdit);
+    if (!applied) {
+      throw new Error('Failed to apply workspace edit.');
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    vscode.window.showErrorMessage(`Failed to resolve annotation: ${message}`);
   }
 }
 

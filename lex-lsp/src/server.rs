@@ -1363,6 +1363,25 @@ mod tests {
         )
         .unwrap();
         assert_eq!(previous_location.range.start.line, 4);
+
+        let resolve_params = ExecuteCommandParams {
+            command: commands::COMMAND_RESOLVE_ANNOTATION.to_string(),
+            arguments: vec![
+                serde_json::to_value(uri.to_string()).unwrap(),
+                serde_json::to_value(Position::new(0, 0)).unwrap(),
+            ],
+            work_done_progress_params: Default::default(),
+        };
+        let edit_value = server
+            .execute_command(resolve_params)
+            .await
+            .unwrap()
+            .unwrap();
+        let workspace_edit: tower_lsp::lsp_types::WorkspaceEdit =
+            serde_json::from_value(edit_value).unwrap();
+        let changes = workspace_edit.changes.expect("workspace edit changes");
+        let edits = changes.get(&uri).expect("edits for document");
+        assert_eq!(edits[0].new_text, ":: note status=resolved ::");
     }
 
     #[tokio::test]

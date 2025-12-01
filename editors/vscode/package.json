@@ -69,6 +69,11 @@
         "command": "lex.goToPreviousAnnotation",
         "title": "Go to Previous Annotation",
         "category": "Lex"
+      },
+      {
+        "command": "lex.resolveAnnotation",
+        "title": "Resolve Annotation",
+        "category": "Lex"
       }
     ],
     "menus": {
@@ -141,6 +146,11 @@
         },
         {
           "command": "lex.goToPreviousAnnotation",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.resolveAnnotation",
           "when": "editorLangId == lex",
           "group": "1_modification"
         }
