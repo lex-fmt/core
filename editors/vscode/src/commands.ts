@@ -383,6 +383,18 @@ interface SnippetInsertionPayload {
   cursorOffset: number;
 }
 
+async function getReadyClient(
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
+): Promise<LanguageClient> {
+  await waitForClientReady();
+  const client = getClient();
+  if (!client) {
+    throw new Error('Lex language server is not running.');
+  }
+  return client;
+}
+
 async function insertAssetReference(
   getClient: () => LanguageClient | undefined,
   waitForClientReady: () => Promise<void>,
@@ -438,14 +450,8 @@ async function invokeInsertCommand(
     return;
   }
 
-  const client = getClient();
-  if (!client) {
-    vscode.window.showErrorMessage('Lex language server is not running.');
-    return;
-  }
-
   try {
-    await waitForClientReady();
+    const client = await getReadyClient(getClient, waitForClientReady);
     const position = editor.selection.active;
     const protocolPosition = client.code2ProtocolConverter.asPosition(position);
     const response = await client.sendRequest(ExecuteCommandRequest.type, {
@@ -504,17 +510,9 @@ async function navigateAnnotation(
     return;
   }
 
-  const client = getClient();
-  if (!client) {
-    vscode.window.showErrorMessage('Lex language server is not running.');
-    return;
-  }
-
   try {
-    await waitForClientReady();
-    const protocolPosition = client.code2ProtocolConverter.asPosition(
-      editor.selection.active
-    );
+    const client = await getReadyClient(getClient, waitForClientReady);
+    const protocolPosition = client.code2ProtocolConverter.asPosition(editor.selection.active);
     const response = (await client.sendRequest(ExecuteCommandRequest.type, {
       command: lspCommand,
       arguments: [editor.document.uri.toString(), protocolPosition]
@@ -553,17 +551,9 @@ async function applyAnnotationEditCommand(
     return;
   }
 
-  const client = getClient();
-  if (!client) {
-    vscode.window.showErrorMessage('Lex language server is not running.');
-    return;
-  }
-
   try {
-    await waitForClientReady();
-    const protocolPosition = client.code2ProtocolConverter.asPosition(
-      editor.selection.active
-    );
+    const client = await getReadyClient(getClient, waitForClientReady);
+    const protocolPosition = client.code2ProtocolConverter.asPosition(editor.selection.active);
     const response = (await client.sendRequest(ExecuteCommandRequest.type, {
       command: lspCommand,
       arguments: [editor.document.uri.toString(), protocolPosition]

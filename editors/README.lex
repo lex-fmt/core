@@ -32,6 +32,12 @@
         Neovim:
             Use `client:exec_cmd({ command = 'lex.commandName', arguments = args })` (or `vim.lsp.buf.execute_command` for older versions).
 
+    Guarding Execute Commands:
+        VS Code wraps every execute-command invocation in a helper that waits for the
+        language client to finish starting before sending the request. This avoids the
+        "connection got disposed" errors that can happen if a command is triggered as
+        soon as the extension activates.
+
 
 3. Features
 
