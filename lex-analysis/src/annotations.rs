@@ -120,7 +120,7 @@ pub fn toggle_annotation_resolution(
     resolution_edit(annotation, resolved)
 }
 
-fn annotation_by_line<'a>(document: &'a Document, position: Position) -> Option<&'a Annotation> {
+fn annotation_by_line(document: &Document, position: Position) -> Option<&Annotation> {
     let line = position.line;
     collect_all_annotations(document)
         .into_iter()
