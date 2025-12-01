@@ -70,7 +70,7 @@ export async function activate(
     () => clientReadyPromise
   );
   registerPreviewCommands(context, resolvedConfig.cliBinaryPath);
-  registerPathCompletion(context);
+  registerPathCompletion();
 
   if (shouldSkipLanguageClient()) {
     console.info('[lex] Skipping language client startup (LEX_VSCODE_SKIP_SERVER=1).');

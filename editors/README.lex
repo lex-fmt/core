@@ -55,19 +55,19 @@
 | **Navigation** | Go to Definition | `textDocument/definition` | `lex-analysis/src/go_to_definition.rs` | Done | Done | Done |
 |  | Find References | `textDocument/references` | `lex-analysis/src/references.rs` | Done | Done | Done |
 |  | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` | Done | Done | Done |
-|  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
+|  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done |
 | **Formatting** | Formatting | `textDocument/formatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done |
 |  | Range Formatting | `textDocument/rangeFormatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done |
-| **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
-|  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
-|  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done |  |
+| **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
+|  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
+|  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done |
 |  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done |
-|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
-|  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
-| **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
-|  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
-|  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
-|  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
+|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done |
+|  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done | Done |
+| **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
+|  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
+|  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
+|  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
 |  | Preview as HTML | (Client-side) | VS Code: `preview.ts` | Done | Done | N/A |
 
     * Neovim adaptations required - see `editors/nvim/README-DEV.lex` for details.
@@ -76,7 +76,12 @@
     - File pickers: Telescope integration with vim.ui.input fallback
     - Export commands: Default to same directory with new extension
     - Preview: Not available in terminal; use export + external browser
-    - Path completion: Moved to LSP for cross-editor support
+
+    Path Completion:
+    - Both VS Code and Neovim now use LSP-based path completion
+    - @ is registered as a trigger character in the LSP server
+    - When @ triggers completion, only file/path suggestions are returned
+    - VS Code removed client-side PathCompletionProvider in favor of LSP
 
 4. Configuration
 
