@@ -76,7 +76,12 @@
     - File pickers: Telescope integration with vim.ui.input fallback
     - Export commands: Default to same directory with new extension
     - Preview: Not available in terminal; use export + external browser
-    - Path completion: Moved to LSP for cross-editor support
+
+    Path Completion:
+    - Both VS Code and Neovim now use LSP-based path completion
+    - @ is registered as a trigger character in the LSP server
+    - When @ triggers completion, only file/path suggestions are returned
+    - VS Code removed client-side PathCompletionProvider in favor of LSP
 
 4. Configuration
 
