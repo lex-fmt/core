@@ -2,6 +2,9 @@
   "folders": [
     {
       "path": "./sample-workspace"
+    },
+    {
+      "path": "../../../../specs/v1"
     }
   ],
   "settings": {
