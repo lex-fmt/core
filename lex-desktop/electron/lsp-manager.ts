@@ -3,10 +3,35 @@ import { ipcMain, WebContents, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const LOG_FILE = '/tmp/lex-desktop-lsp.log';
+const DEV_WORKSPACE_ROOT =
+  process.env.LEX_WORKSPACE_ROOT ?? path.resolve(process.cwd(), '..');
 
-function log(msg: string) {
-  fs.appendFileSync(LOG_FILE, `${new Date().toISOString()} - ${msg}\n`);
+function resolveDevBinary(binaryName: string): string {
+  const override = process.env.LEX_LSP_PATH;
+  if (override) {
+    return path.resolve(override);
+  }
+  return path.join(DEV_WORKSPACE_ROOT, 'target', 'debug', binaryName);
+}
+
+function resolveLogFile(): string {
+  return path.join(app.getPath('userData'), 'lex-desktop-lsp.log');
+}
+
+function log(message: string) {
+  const write = () => {
+    const target = resolveLogFile();
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.appendFileSync(target, `${new Date().toISOString()} - ${message}\n`);
+  };
+
+  if (app.isReady()) {
+    write();
+  } else {
+    app.whenReady().then(write).catch(() => {
+      // no-op if app shuts down before logging
+    });
+  }
 }
 
 export class LspManager {
@@ -37,8 +62,7 @@ export class LspManager {
       // In production, the binary is in Resources
       lspPath = path.join(process.resourcesPath, binaryName);
     } else {
-      // Hardcoded path for dev environment
-      lspPath = path.join('/Users/adebert/h/lex/target/debug', binaryName);
+      lspPath = resolveDevBinary(binaryName);
     }
 
     this.lspProcess = spawn(lspPath, [], {
