@@ -24,6 +24,12 @@
     "description": "Navigate to the next annotation in the document."
   },
   {
+    "command": "lex.previous_annotation",
+    "title": "Previous Annotation",
+    "category": "Lex",
+    "description": "Navigate to the previous annotation in the document."
+  },
+  {
     "command": "lex.resolve_annotation",
     "title": "Resolve Annotation",
     "category": "Lex",

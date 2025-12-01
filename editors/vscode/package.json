@@ -59,6 +59,16 @@
         "command": "lex.insertVerbatimBlock",
         "title": "Insert Verbatim Block from File",
         "category": "Lex"
+      },
+      {
+        "command": "lex.goToNextAnnotation",
+        "title": "Go to Next Annotation",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.goToPreviousAnnotation",
+        "title": "Go to Previous Annotation",
+        "category": "Lex"
       }
     ],
     "menus": {
@@ -121,6 +131,16 @@
         },
         {
           "command": "lex.insertVerbatimBlock",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.goToNextAnnotation",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.goToPreviousAnnotation",
           "when": "editorLangId == lex",
           "group": "1_modification"
         }

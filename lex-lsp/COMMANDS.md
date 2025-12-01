@@ -24,6 +24,11 @@ This document lists the commands supported by the Lex Language Server (`lex-lsp`
 **Category:** Lex
 **Description:** Navigate to the next annotation in the document.
 
+### `lex.previous_annotation`
+**Title:** Previous Annotation
+**Category:** Lex
+**Description:** Navigate to the previous annotation in the document.
+
 ### `lex.resolve_annotation`
 **Title:** Resolve Annotation
 **Category:** Lex

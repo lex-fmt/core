@@ -719,7 +719,7 @@ where
     async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
         let command = params.command.as_str();
         match command {
-            commands::COMMAND_NEXT_ANNOTATION => {
+            commands::COMMAND_NEXT_ANNOTATION | commands::COMMAND_PREVIOUS_ANNOTATION => {
                 let uri_str = params.arguments.first().and_then(|v| v.as_str());
                 let pos_val = params.arguments.get(1);
 
@@ -728,9 +728,15 @@ where
                         if let Ok(position) = serde_json::from_value::<Position>(pos_val.clone()) {
                             if let Some(document) = self.document(&uri).await {
                                 let ast_pos = from_lsp_position(position);
-                                if let Some(result) =
+                                let navigation = if command == commands::COMMAND_NEXT_ANNOTATION {
                                     lex_analysis::annotations::next_annotation(&document, ast_pos)
-                                {
+                                } else {
+                                    lex_analysis::annotations::previous_annotation(
+                                        &document, ast_pos,
+                                    )
+                                };
+
+                                if let Some(result) = navigation {
                                     let location = to_lsp_location(&uri, &result.header);
                                     return Ok(Some(serde_json::to_value(location).unwrap()));
                                 }
@@ -1308,6 +1314,55 @@ mod tests {
         assert!(snippet.text.contains(":: python"));
         assert!(snippet.text.contains("print('hi')"));
         assert_eq!(snippet.cursor_offset, 0);
+    }
+
+    #[tokio::test]
+    async fn execute_annotation_navigation_commands() {
+        let provider = Arc::new(MockFeatureProvider::default());
+        let server = LexLanguageServer::with_features(NoopClient, provider.clone());
+        let uri = Url::parse("file:///annotations.lex").unwrap();
+        let text = ":: note ::\n    First\n::\n\n:: note ::\n    Second\n::\n";
+        server
+            .did_open(DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: uri.clone(),
+                    language_id: "lex".into(),
+                    version: 1,
+                    text: text.to_string(),
+                },
+            })
+            .await;
+
+        let next_params = ExecuteCommandParams {
+            command: commands::COMMAND_NEXT_ANNOTATION.to_string(),
+            arguments: vec![
+                serde_json::to_value(uri.to_string()).unwrap(),
+                serde_json::to_value(Position::new(0, 0)).unwrap(),
+            ],
+            work_done_progress_params: Default::default(),
+        };
+        let next_location: Location =
+            serde_json::from_value(server.execute_command(next_params).await.unwrap().unwrap())
+                .unwrap();
+        assert_eq!(next_location.range.start.line, 0);
+
+        let previous_params = ExecuteCommandParams {
+            command: commands::COMMAND_PREVIOUS_ANNOTATION.to_string(),
+            arguments: vec![
+                serde_json::to_value(uri.to_string()).unwrap(),
+                serde_json::to_value(Position::new(0, 0)).unwrap(),
+            ],
+            work_done_progress_params: Default::default(),
+        };
+        let previous_location: Location = serde_json::from_value(
+            server
+                .execute_command(previous_params)
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(previous_location.range.start.line, 4);
     }
 
     #[tokio::test]

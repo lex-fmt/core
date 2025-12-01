@@ -4,29 +4,10 @@ import { integrationTest } from './harness.js';
 import {
   closeAllEditors,
   openWorkspaceDocument,
-  requireWorkspaceFolder,
-  TEST_DOCUMENT_PATH
+  TEST_DOCUMENT_PATH,
+  writeWorkspaceFile,
+  removeWorkspacePath
 } from './helpers.js';
-
-async function writeWorkspaceFile(relativePath: string, contents: Uint8Array): Promise<vscode.Uri> {
-  const workspace = requireWorkspaceFolder();
-  const target = vscode.Uri.joinPath(workspace.uri, relativePath);
-  const parentPath = target.path.slice(0, target.path.lastIndexOf('/')) || '/';
-  const parent = target.with({ path: parentPath });
-  await vscode.workspace.fs.createDirectory(parent);
-  await vscode.workspace.fs.writeFile(target, contents);
-  return target;
-}
-
-async function removeWorkspacePath(relativePath: string): Promise<void> {
-  const workspace = requireWorkspaceFolder();
-  const target = vscode.Uri.joinPath(workspace.uri, relativePath);
-  try {
-    await vscode.workspace.fs.delete(target, { recursive: true, useTrash: false });
-  } catch {
-    // ignore cleanup errors
-  }
-}
 
 integrationTest('insert asset command inserts snippet from selected file', async () => {
   const document = await openWorkspaceDocument(TEST_DOCUMENT_PATH);

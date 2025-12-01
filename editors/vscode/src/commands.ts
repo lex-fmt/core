@@ -8,6 +8,7 @@ import { existsSync, mkdtempSync, writeFileSync, unlinkSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ExecuteCommandRequest, LanguageClient } from 'vscode-languageclient/node.js';
+import type { Location as LspLocation } from 'vscode-languageserver-types';
 
 export interface ConvertOptions {
   cliBinaryPath: string;
@@ -357,6 +358,12 @@ export function registerCommands(
     ),
     vscode.commands.registerCommand('lex.insertVerbatimBlock', (uri?: vscode.Uri) =>
       insertVerbatimBlock(getClient, uri)
+    ),
+    vscode.commands.registerCommand('lex.goToNextAnnotation', () =>
+      navigateAnnotation('lex.next_annotation', getClient)
+    ),
+    vscode.commands.registerCommand('lex.goToPreviousAnnotation', () =>
+      navigateAnnotation('lex.previous_annotation', getClient)
     )
   );
 }
@@ -465,6 +472,53 @@ async function insertSnippet(
   );
   editor.selection = new vscode.Selection(cursorPosition, cursorPosition);
   editor.revealRange(new vscode.Range(cursorPosition, cursorPosition));
+}
+
+async function navigateAnnotation(
+  lspCommand: string,
+  getClient: () => LanguageClient | undefined
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('Open a Lex document before running this command.');
+    return;
+  }
+
+  if (editor.document.languageId !== 'lex') {
+    vscode.window.showErrorMessage('Annotation navigation works only inside Lex documents.');
+    return;
+  }
+
+  const client = getClient();
+  if (!client) {
+    vscode.window.showErrorMessage('Lex language server is not running.');
+    return;
+  }
+
+  try {
+    const protocolPosition = client.code2ProtocolConverter.asPosition(
+      editor.selection.active
+    );
+    const response = (await client.sendRequest(ExecuteCommandRequest.type, {
+      command: lspCommand,
+      arguments: [editor.document.uri.toString(), protocolPosition]
+    })) as LspLocation | null;
+
+    if (!response) {
+      vscode.window.showInformationMessage('No annotations were found in this document.');
+      return;
+    }
+
+    const targetLocation = client.protocol2CodeConverter.asLocation(response);
+    const targetDocument = await vscode.workspace.openTextDocument(targetLocation.uri);
+    const targetEditor = await vscode.window.showTextDocument(targetDocument);
+    const targetPosition = targetLocation.range.start;
+    targetEditor.selection = new vscode.Selection(targetPosition, targetPosition);
+    targetEditor.revealRange(targetLocation.range, vscode.TextEditorRevealType.InCenter);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    vscode.window.showErrorMessage(`Failed to navigate annotations: ${message}`);
+  }
 }
 
 async function pickWorkspaceFile(title: string): Promise<vscode.Uri | undefined> {
