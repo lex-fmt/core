@@ -62,7 +62,7 @@
 |  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
 |  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done |  |
 |  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done |
-|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
+|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done |
 |  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done |  |
 | **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
 |  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
