@@ -15,7 +15,7 @@ use crate::features::references::find_references;
 use crate::features::semantic_tokens::{
     collect_semantic_tokens, LexSemanticToken, SEMANTIC_TOKEN_KINDS,
 };
-use lex_analysis::completion::{completion_items, CompletionCandidate};
+use lex_analysis::completion::{completion_items, CompletionCandidate, CompletionWorkspace};
 use lex_babel::formats::lex::formatting_rules::FormattingRules;
 use lex_babel::templates::{
     build_asset_snippet, build_verbatim_snippet, AssetSnippetRequest, VerbatimSnippetRequest,
@@ -66,7 +66,12 @@ pub trait FeatureProvider: Send + Sync + 'static {
         source: &str,
         range: FormattingLineRange,
     ) -> Vec<TextEditSpan>;
-    fn completion(&self, document: &Document, position: AstPosition) -> Vec<CompletionCandidate>;
+    fn completion(
+        &self,
+        document: &Document,
+        position: AstPosition,
+        workspace: Option<&CompletionWorkspace>,
+    ) -> Vec<CompletionCandidate>;
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>>;
 }
 
@@ -126,8 +131,13 @@ impl FeatureProvider for DefaultFeatureProvider {
         formatting::format_range(document, source, range)
     }
 
-    fn completion(&self, document: &Document, position: AstPosition) -> Vec<CompletionCandidate> {
-        completion_items(document, position)
+    fn completion(
+        &self,
+        document: &Document,
+        position: AstPosition,
+        workspace: Option<&CompletionWorkspace>,
+    ) -> Vec<CompletionCandidate> {
+        completion_items(document, position, workspace)
     }
 
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>> {
@@ -209,6 +219,7 @@ pub struct LexLanguageServer<C = Client, P = DefaultFeatureProvider> {
     _client: C,
     documents: DocumentStore,
     features: Arc<P>,
+    workspace_roots: RwLock<Vec<PathBuf>>,
 }
 
 impl LexLanguageServer<Client, DefaultFeatureProvider> {
@@ -227,6 +238,7 @@ where
             _client: client,
             documents: DocumentStore::default(),
             features,
+            workspace_roots: RwLock::new(Vec::new()),
         }
     }
 
@@ -241,6 +253,55 @@ where
     async fn document(&self, uri: &Url) -> Option<Arc<Document>> {
         self.document_entry(uri).await.map(|entry| entry.document)
     }
+
+    #[allow(deprecated)]
+    async fn update_workspace_roots(&self, params: &InitializeParams) {
+        let mut roots = Vec::new();
+
+        if let Some(folders) = params.workspace_folders.as_ref() {
+            for folder in folders {
+                if let Ok(path) = folder.uri.to_file_path() {
+                    roots.push(path);
+                }
+            }
+        }
+
+        if roots.is_empty() {
+            if let Some(root_uri) = params.root_uri.as_ref() {
+                if let Ok(path) = root_uri.to_file_path() {
+                    roots.push(path);
+                }
+            } else if let Some(root_path) = params.root_path.as_ref() {
+                roots.push(PathBuf::from(root_path));
+            } else if let Ok(current_dir) = std::env::current_dir() {
+                roots.push(current_dir);
+            }
+        }
+
+        *self.workspace_roots.write().await = roots;
+    }
+
+    async fn workspace_context_for_uri(&self, uri: &Url) -> Option<CompletionWorkspace> {
+        let document_path = uri.to_file_path().ok()?;
+        let roots = self.workspace_roots.read().await;
+        let project_root = best_matching_root(&roots, &document_path)
+            .or_else(|| document_directory_from_uri(uri))
+            .or_else(|| document_path.parent().map(|path| path.to_path_buf()))
+            .unwrap_or_else(|| document_path.clone());
+
+        Some(CompletionWorkspace {
+            project_root,
+            document_path,
+        })
+    }
+}
+
+fn best_matching_root(roots: &[PathBuf], document_path: &Path) -> Option<PathBuf> {
+    roots
+        .iter()
+        .filter(|root| document_path.starts_with(root))
+        .max_by_key(|root| root.components().count())
+        .cloned()
 }
 
 fn to_lsp_position(position: &AstPosition) -> Position {
@@ -480,7 +541,8 @@ where
     C: LspClient,
     P: FeatureProvider,
 {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        self.update_workspace_roots(&params).await;
         let capabilities = ServerCapabilities {
             text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
             hover_provider: Some(HoverProviderCapability::Simple(true)),
@@ -707,7 +769,10 @@ where
         let uri = params.text_document_position.text_document.uri;
         if let Some(document) = self.document(&uri).await {
             let position = from_lsp_position(params.text_document_position.position);
-            let candidates = self.features.completion(&document, position);
+            let workspace = self.workspace_context_for_uri(&uri).await;
+            let candidates = self
+                .features
+                .completion(&document, position, workspace.as_ref());
             let items: Vec<CompletionItem> =
                 candidates.iter().map(to_lsp_completion_item).collect();
             Ok(Some(CompletionResponse::Array(items)))
@@ -1033,7 +1098,12 @@ mod tests {
             }]
         }
 
-        fn completion(&self, _: &Document, _: AstPosition) -> Vec<CompletionCandidate> {
+        fn completion(
+            &self,
+            _: &Document,
+            _: AstPosition,
+            _: Option<&CompletionWorkspace>,
+        ) -> Vec<CompletionCandidate> {
             self.completion_called.fetch_add(1, Ordering::SeqCst);
             vec![CompletionCandidate {
                 label: "completion".into(),
