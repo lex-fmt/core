@@ -64,10 +64,10 @@
 |  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done |
 |  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done |
 |  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done | Done |
-| **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
-|  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
-|  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
-|  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | *  |
+| **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
+|  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
+|  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
+|  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
 |  | Preview as HTML | (Client-side) | VS Code: `preview.ts` | Done | Done | N/A |
 
     * Neovim adaptations required - see `editors/nvim/README-DEV.lex` for details.
