@@ -49,6 +49,16 @@
         "command": "lex.exportToPdf",
         "title": "Export to PDF",
         "category": "Lex"
+      },
+      {
+        "command": "lex.insertAssetReference",
+        "title": "Insert Asset Reference",
+        "category": "Lex"
+      },
+      {
+        "command": "lex.insertVerbatimBlock",
+        "title": "Insert Verbatim Block from File",
+        "category": "Lex"
       }
     ],
     "menus": {
@@ -101,6 +111,16 @@
         },
         {
           "command": "lex.exportToPdf",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.insertAssetReference",
+          "when": "editorLangId == lex",
+          "group": "1_modification"
+        },
+        {
+          "command": "lex.insertVerbatimBlock",
           "when": "editorLangId == lex",
           "group": "1_modification"
         }

@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, writeFileSync, unlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { ExecuteCommandRequest, LanguageClient } from 'vscode-languageclient/node.js';
 
 export interface ConvertOptions {
   cliBinaryPath: string;
@@ -331,7 +332,8 @@ export function createExportToPdfCommand(
 
 export function registerCommands(
   context: vscode.ExtensionContext,
-  cliBinaryPath: string
+  cliBinaryPath: string,
+  getClient: () => LanguageClient | undefined
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -349,6 +351,126 @@ export function registerCommands(
     vscode.commands.registerCommand(
       'lex.importFromMarkdown',
       createImportFromMarkdownCommand(cliBinaryPath)
+    ),
+    vscode.commands.registerCommand('lex.insertAssetReference', (uri?: vscode.Uri) =>
+      insertAssetReference(getClient, uri)
+    ),
+    vscode.commands.registerCommand('lex.insertVerbatimBlock', (uri?: vscode.Uri) =>
+      insertVerbatimBlock(getClient, uri)
     )
   );
+}
+
+interface SnippetInsertionPayload {
+  text: string;
+  cursorOffset: number;
+}
+
+async function insertAssetReference(
+  getClient: () => LanguageClient | undefined,
+  providedUri?: vscode.Uri
+): Promise<void> {
+  const fileUri = providedUri ?? (await pickWorkspaceFile('Select asset to insert'));
+  if (!fileUri) {
+    return;
+  }
+
+  await invokeInsertCommand('lex.insert_asset', fileUri, getClient);
+}
+
+async function insertVerbatimBlock(
+  getClient: () => LanguageClient | undefined,
+  providedUri?: vscode.Uri
+): Promise<void> {
+  const fileUri = providedUri ?? (await pickWorkspaceFile('Select file to embed as verbatim block'));
+  if (!fileUri) {
+    return;
+  }
+
+  await invokeInsertCommand('lex.insert_verbatim', fileUri, getClient);
+}
+
+async function invokeInsertCommand(
+  command: string,
+  fileUri: vscode.Uri,
+  getClient: () => LanguageClient | undefined
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('Open a Lex document before running this command.');
+    return;
+  }
+
+  if (editor.document.languageId !== 'lex') {
+    vscode.window.showErrorMessage('Insert commands are only available for .lex documents.');
+    return;
+  }
+
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+  if (!workspaceFolder) {
+    vscode.window.showErrorMessage('Active document is not inside a workspace folder.');
+    return;
+  }
+
+  const fileWorkspace = vscode.workspace.getWorkspaceFolder(fileUri);
+  if (!fileWorkspace || fileWorkspace.uri.toString() !== workspaceFolder.uri.toString()) {
+    vscode.window.showErrorMessage('Please select a file within the current workspace.');
+    return;
+  }
+
+  const client = getClient();
+  if (!client) {
+    vscode.window.showErrorMessage('Lex language server is not running.');
+    return;
+  }
+
+  try {
+    const position = editor.selection.active;
+    const protocolPosition = client.code2ProtocolConverter.asPosition(position);
+    const response = await client.sendRequest(ExecuteCommandRequest.type, {
+      command,
+      arguments: [editor.document.uri.toString(), protocolPosition, fileUri.fsPath]
+    });
+
+    if (!response) {
+      vscode.window.showErrorMessage('Command did not return a snippet payload.');
+      return;
+    }
+
+    const snippet = response as SnippetInsertionPayload;
+    await insertSnippet(editor, position, snippet);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    vscode.window.showErrorMessage(`Failed to insert content: ${message}`);
+  }
+}
+
+async function insertSnippet(
+  editor: vscode.TextEditor,
+  position: vscode.Position,
+  payload: SnippetInsertionPayload
+): Promise<void> {
+  const inserted = await editor.edit(builder => builder.insert(position, payload.text));
+  if (!inserted) {
+    throw new Error('Unable to update editor with snippet text.');
+  }
+
+  const baseOffset = editor.document.offsetAt(position);
+  const cursorPosition = editor.document.positionAt(baseOffset + payload.cursorOffset);
+  editor.selection = new vscode.Selection(cursorPosition, cursorPosition);
+  editor.revealRange(new vscode.Range(cursorPosition, cursorPosition));
+}
+
+async function pickWorkspaceFile(title: string): Promise<vscode.Uri | undefined> {
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+  const selection = await vscode.window.showOpenDialog({
+    title,
+    canSelectMany: false,
+    canSelectFolders: false,
+    canSelectFiles: true,
+    defaultUri: workspaceRoot,
+    openLabel: 'Select'
+  });
+
+  return selection?.[0];
 }
