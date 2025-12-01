@@ -63,7 +63,12 @@ export async function activate(
   );
 
   // Register import/export commands (works even without LSP)
-  registerCommands(context, resolvedConfig.cliBinaryPath, () => client);
+  registerCommands(
+    context,
+    resolvedConfig.cliBinaryPath,
+    () => client,
+    () => clientReadyPromise
+  );
   registerPreviewCommands(context, resolvedConfig.cliBinaryPath);
   registerPathCompletion(context);
 

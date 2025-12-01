@@ -337,7 +337,8 @@ export function createExportToPdfCommand(
 export function registerCommands(
   context: vscode.ExtensionContext,
   cliBinaryPath: string,
-  getClient: () => LanguageClient | undefined
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -357,22 +358,22 @@ export function registerCommands(
       createImportFromMarkdownCommand(cliBinaryPath)
     ),
     vscode.commands.registerCommand('lex.insertAssetReference', (uri?: vscode.Uri) =>
-      insertAssetReference(getClient, uri)
+      insertAssetReference(getClient, waitForClientReady, uri)
     ),
     vscode.commands.registerCommand('lex.insertVerbatimBlock', (uri?: vscode.Uri) =>
-      insertVerbatimBlock(getClient, uri)
+      insertVerbatimBlock(getClient, waitForClientReady, uri)
     ),
     vscode.commands.registerCommand('lex.goToNextAnnotation', () =>
-      navigateAnnotation('lex.next_annotation', getClient)
+      navigateAnnotation('lex.next_annotation', getClient, waitForClientReady)
     ),
     vscode.commands.registerCommand('lex.goToPreviousAnnotation', () =>
-      navigateAnnotation('lex.previous_annotation', getClient)
+      navigateAnnotation('lex.previous_annotation', getClient, waitForClientReady)
     ),
     vscode.commands.registerCommand('lex.resolveAnnotation', () =>
-      applyAnnotationEditCommand('lex.resolve_annotation', getClient)
+      applyAnnotationEditCommand('lex.resolve_annotation', getClient, waitForClientReady)
     ),
     vscode.commands.registerCommand('lex.toggleAnnotationResolution', () =>
-      applyAnnotationEditCommand('lex.toggle_annotations', getClient)
+      applyAnnotationEditCommand('lex.toggle_annotations', getClient, waitForClientReady)
     )
   );
 }
@@ -384,6 +385,7 @@ interface SnippetInsertionPayload {
 
 async function insertAssetReference(
   getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>,
   providedUri?: vscode.Uri
 ): Promise<void> {
   const fileUri = providedUri ?? (await pickWorkspaceFile('Select asset to insert'));
@@ -391,11 +393,12 @@ async function insertAssetReference(
     return;
   }
 
-  await invokeInsertCommand('lex.insert_asset', fileUri, getClient);
+  await invokeInsertCommand('lex.insert_asset', fileUri, getClient, waitForClientReady);
 }
 
 async function insertVerbatimBlock(
   getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>,
   providedUri?: vscode.Uri
 ): Promise<void> {
   const fileUri = providedUri ?? (await pickWorkspaceFile('Select file to embed as verbatim block'));
@@ -403,13 +406,14 @@ async function insertVerbatimBlock(
     return;
   }
 
-  await invokeInsertCommand('lex.insert_verbatim', fileUri, getClient);
+  await invokeInsertCommand('lex.insert_verbatim', fileUri, getClient, waitForClientReady);
 }
 
 async function invokeInsertCommand(
   command: string,
   fileUri: vscode.Uri,
-  getClient: () => LanguageClient | undefined
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
 ): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
@@ -441,6 +445,7 @@ async function invokeInsertCommand(
   }
 
   try {
+    await waitForClientReady();
     const position = editor.selection.active;
     const protocolPosition = client.code2ProtocolConverter.asPosition(position);
     const response = await client.sendRequest(ExecuteCommandRequest.type, {
@@ -485,7 +490,8 @@ async function insertSnippet(
 
 async function navigateAnnotation(
   lspCommand: string,
-  getClient: () => LanguageClient | undefined
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
 ): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
@@ -505,6 +511,7 @@ async function navigateAnnotation(
   }
 
   try {
+    await waitForClientReady();
     const protocolPosition = client.code2ProtocolConverter.asPosition(
       editor.selection.active
     );
@@ -532,7 +539,8 @@ async function navigateAnnotation(
 
 async function applyAnnotationEditCommand(
   lspCommand: string,
-  getClient: () => LanguageClient | undefined
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
 ): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
@@ -552,6 +560,7 @@ async function applyAnnotationEditCommand(
   }
 
   try {
+    await waitForClientReady();
     const protocolPosition = client.code2ProtocolConverter.asPosition(
       editor.selection.active
     );
