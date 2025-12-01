@@ -59,6 +59,12 @@ These commands shell out to the `lex` CLI binary and open results in new editors
   - Behavior: Converts the active .lex document to HTML and opens in a new untitled editor
   - Works with: Saved files and unsaved editors (uses buffer content)
 
+`Lex: Export to PDF`
+  - Appears in: Command palette (when .lex file is active), editor context menu, editor title context menu
+  - Behavior: Opens a save dialog, then converts the .lex document to PDF and writes to the selected file
+  - Works with: Saved files and unsaved editors (uses buffer content)
+  - Note: Unlike other exports, PDF is binary so it saves to a file instead of opening in an editor
+
 `Lex: Import from Markdown`
   - Appears in: Command palette (when .md file is active), editor context menu, editor title context menu
   - Behavior: Converts the active Markdown document to Lex format and opens in a new untitled editor

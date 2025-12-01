@@ -96,6 +96,66 @@ async function openConvertedDocument(
 }
 
 /**
+ * Convert a Lex document to PDF and write it to the specified output file.
+ * PDF requires file-based output since it's binary.
+ */
+async function convertToPdfFile(
+  content: string,
+  cliBinaryPath: string,
+  outputPath: string
+): Promise<void> {
+  if (!existsSync(cliBinaryPath)) {
+    throw new Error(
+      `Lex CLI binary not found at ${cliBinaryPath}. ` +
+        'Configure lex.cliBinaryPath or ensure the bundled binary is available.'
+    );
+  }
+
+  // Create a temporary file with the content
+  const tmpDir = mkdtempSync(join(tmpdir(), 'lex-vscode-'));
+  const inputPath = join(tmpDir, 'input.lex');
+
+  try {
+    writeFileSync(inputPath, content, 'utf-8');
+
+    await new Promise<void>((resolve, reject) => {
+      const args = ['convert', '--to', 'pdf', '--output', outputPath, inputPath];
+      const proc = spawn(cliBinaryPath, args, {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      let stderr = '';
+
+      proc.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      proc.on('error', (err: Error) => {
+        reject(new Error(`Failed to spawn lex CLI: ${err.message}`));
+      });
+
+      proc.on('close', (code: number | null) => {
+        if (code !== 0) {
+          reject(
+            new Error(`lex convert failed (exit ${code}): ${stderr || 'unknown error'}`)
+          );
+          return;
+        }
+        resolve();
+      });
+    });
+  } finally {
+    // Cleanup temp files
+    try {
+      unlinkSync(inputPath);
+      rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+}
+
+/**
  * Convert Lex content to HTML. Used by both export command and live preview.
  */
 export async function convertToHtml(
@@ -218,6 +278,57 @@ export function createExportToHtmlCommand(
   };
 }
 
+export function createExportToPdfCommand(
+  cliBinaryPath: string
+): () => Promise<void> {
+  return async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showErrorMessage('No active editor with content to export.');
+      return;
+    }
+
+    if (editor.document.languageId !== 'lex') {
+      vscode.window.showErrorMessage(
+        'Export to PDF is only available for .lex files.'
+      );
+      return;
+    }
+
+    // Suggest a default filename based on the source file
+    const sourceUri = editor.document.uri;
+    const sourceName = sourceUri.path.split('/').pop() || 'document';
+    const defaultName = sourceName.replace(/\.lex$/, '.pdf');
+
+    // Show save dialog
+    const saveUri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file(
+        join(sourceUri.fsPath, '..', defaultName)
+      ),
+      filters: {
+        'PDF Documents': ['pdf']
+      },
+      title: 'Export to PDF'
+    });
+
+    if (!saveUri) {
+      return; // User cancelled
+    }
+
+    try {
+      await convertToPdfFile(
+        editor.document.getText(),
+        cliBinaryPath,
+        saveUri.fsPath
+      );
+      vscode.window.showInformationMessage(`PDF exported to ${saveUri.fsPath}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`Export failed: ${message}`);
+    }
+  };
+}
+
 export function registerCommands(
   context: vscode.ExtensionContext,
   cliBinaryPath: string
@@ -230,6 +341,10 @@ export function registerCommands(
     vscode.commands.registerCommand(
       'lex.exportToHtml',
       createExportToHtmlCommand(cliBinaryPath)
+    ),
+    vscode.commands.registerCommand(
+      'lex.exportToPdf',
+      createExportToPdfCommand(cliBinaryPath)
     ),
     vscode.commands.registerCommand(
       'lex.importFromMarkdown',
