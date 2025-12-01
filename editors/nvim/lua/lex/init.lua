@@ -11,6 +11,7 @@
 local binary_manager = require("lex.binary")
 local theme = require("lex.theme")
 local debug = require("lex.debug")
+local commands = require("lex.commands")
 
 local M = {}
 
@@ -86,6 +87,9 @@ function M.setup(opts)
         theme.apply(theme_name)
       end
 
+      -- Setup buffer-local keymaps for commands
+      commands.setup_keymaps(bufnr)
+
       -- Preserve user's on_attach callback
       if user_on_attach then
         user_on_attach(client, bufnr)
@@ -97,6 +101,9 @@ function M.setup(opts)
 
   -- Setup debug commands
   debug.setup()
+
+  -- Setup user commands (global, not buffer-specific)
+  commands.setup()
 
   -- Setup autocommands for .lex files
   local augroup = vim.api.nvim_create_augroup("LexPlugin", { clear = true })
