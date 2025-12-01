@@ -101,14 +101,36 @@ class PathCompletionProvider implements vscode.CompletionItemProvider {
 
       const item = new vscode.CompletionItem(entry.name, kind);
 
-      // Calculate what to insert after the current path fragment
-      let insertSuffix = entry.name.substring(partial.length);
+      // Build the full text that will replace @...
+      let fullPath: string;
+      if (pathFragment.startsWith('/')) {
+        const dirPart = pathFragment.substring(0, pathFragment.lastIndexOf('/') + 1);
+        fullPath = dirPart + entry.name;
+      } else {
+        const lastSlash = pathFragment.lastIndexOf('/');
+        if (lastSlash === -1) {
+          fullPath = entry.name;
+        } else {
+          fullPath = pathFragment.substring(0, lastSlash + 1) + entry.name;
+        }
+      }
       if (isDirectory) {
-        insertSuffix += '/';
+        fullPath += '/';
       }
 
-      item.insertText = insertSuffix;
-      item.filterText = entry.name;
+      // Calculate the range from @ to cursor position
+      const atPosition = position.character - atMatch[0].length;
+      const replaceRange = new vscode.Range(
+        position.line,
+        atPosition,
+        position.line,
+        position.character
+      );
+
+      item.insertText = '@' + fullPath;
+      item.range = replaceRange;
+      // filterText must match what user types: @partial
+      item.filterText = '@' + (pathFragment.includes('/') ? pathFragment.substring(0, pathFragment.lastIndexOf('/') + 1) : '') + entry.name;
       item.sortText = (isDirectory ? '0' : '1') + entry.name;
 
       items.push(item);
