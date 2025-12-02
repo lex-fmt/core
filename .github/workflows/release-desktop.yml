@@ -96,7 +96,7 @@ jobs:
       - uses: actions/checkout@v4
         if: ${{ steps.filter.outputs.skip == 'false' }}
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          ref: ${{ env.RELEASE_TAG || github.event.workflow_run.head_sha || github.ref }}
       - uses: actions/setup-node@v4
         if: ${{ steps.filter.outputs.skip == 'false' }}
         with:
