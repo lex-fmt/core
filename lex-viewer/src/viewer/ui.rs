@@ -59,7 +59,7 @@ fn render_error_too_narrow(frame: &mut Frame, area: Rect) {
 }
 
 fn render_title_bar(frame: &mut Frame, area: Rect, file_name: &str) {
-    let title = format!("lex:: {}", file_name);
+    let title = format!("lex:: {file_name}");
     let paragraph = Paragraph::new(title).style(
         Style::default()
             .fg(Color::Black)
@@ -90,7 +90,7 @@ fn render_tree_viewer(frame: &mut Frame, area: Rect, app: &App) {
         ""
     };
 
-    let title = format!("Tree{}", focus_indicator);
+    let title = format!("Tree{focus_indicator}");
     let block = Block::default().borders(Borders::ALL).title(title);
 
     // Get inner area for content (inside the border)
@@ -110,7 +110,7 @@ fn render_file_viewer(frame: &mut Frame, area: Rect, app: &App) {
         ""
     };
 
-    let title = format!("File{}", focus_indicator);
+    let title = format!("File{focus_indicator}");
     let block = Block::default().borders(Borders::ALL).title(title);
 
     // Get inner area for content (inside the border)
@@ -154,7 +154,7 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
                     .map(|i| i.to_string())
                     .collect::<Vec<_>>()
                     .join("→");
-                locations.push(Span::raw(format!("[{}]", path_str)));
+                locations.push(Span::raw(format!("[{path_str}]")));
 
                 // Show if node is expanded
                 let is_expanded = app.model.is_node_expanded(node_id);
@@ -177,7 +177,7 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
             locations.push(Span::raw(" | "));
 
             locations.push(Span::styled("Cursor: ", Style::default().fg(Color::Yellow)));
-            locations.push(Span::raw(format!("Line {}, Col {}", row, col)));
+            locations.push(Span::raw(format!("Line {row}, Col {col}")));
 
             if let Some(node_id) = app.model.get_node_at_position(row, col) {
                 let path = node_id.path();
@@ -192,7 +192,7 @@ fn render_info_panel(frame: &mut Frame, area: Rect, app: &App) {
                         .map(|i| i.to_string())
                         .collect::<Vec<_>>()
                         .join("→");
-                    locations.push(Span::raw(format!("[{}]", path_str)));
+                    locations.push(Span::raw(format!("[{path_str}]")));
                 }
 
                 // Show if node is expanded

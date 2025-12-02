@@ -27,26 +27,19 @@ impl TextMatch {
             TextMatch::Exact(expected) => {
                 assert_eq!(
                     actual, expected,
-                    "{}: Expected text to be '{}', but got '{}'",
-                    context, expected, actual
+                    "{context}: Expected text to be '{expected}', but got '{actual}'"
                 );
             }
             TextMatch::StartsWith(prefix) => {
                 assert!(
                     actual.starts_with(prefix),
-                    "{}: Expected text to start with '{}', but got '{}'",
-                    context,
-                    prefix,
-                    actual
+                    "{context}: Expected text to start with '{prefix}', but got '{actual}'"
                 );
             }
             TextMatch::Contains(substring) => {
                 assert!(
                     actual.contains(substring),
-                    "{}: Expected text to contain '{}', but got '{}'",
-                    context,
-                    substring,
-                    actual
+                    "{context}: Expected text to contain '{substring}', but got '{actual}'"
                 );
             }
         }

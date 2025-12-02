@@ -122,8 +122,7 @@ fn parse_bool_flag(
             "true" | "1" | "yes" | "y" => Ok(true),
             "false" | "0" | "no" | "n" => Ok(false),
             other => Err(FormatError::SerializationError(format!(
-                "Invalid boolean value '{}' for --extra-{}",
-                other, key
+                "Invalid boolean value '{other}' for --extra-{key}"
             ))),
         }
     } else {
@@ -132,7 +131,7 @@ fn parse_bool_flag(
 }
 
 fn inject_page_css(html: &str, css: &str) -> String {
-    let style_tag = format!("<style data-lex-pdf>\n{}\n</style>", css);
+    let style_tag = format!("<style data-lex-pdf>\n{css}\n</style>");
     if let Some(idx) = html.find("</head>") {
         let mut output = String::with_capacity(html.len() + style_tag.len());
         output.push_str(&html[..idx]);
@@ -140,14 +139,14 @@ fn inject_page_css(html: &str, css: &str) -> String {
         output.push_str(&html[idx..]);
         output
     } else {
-        format!("{}{}", style_tag, html)
+        format!("{style_tag}{html}")
     }
 }
 
 fn render_html_to_pdf(html: &str, profile: PdfSizeProfile) -> Result<Vec<u8>, FormatError> {
     let chrome = resolve_chrome_binary()?;
     let temp_dir =
-        tempdir().map_err(|e| FormatError::SerializationError(format!("Temp dir error: {}", e)))?;
+        tempdir().map_err(|e| FormatError::SerializationError(format!("Temp dir error: {e}")))?;
     let html_path = temp_dir.path().join("lex-export.html");
     let mut html_file =
         fs::File::create(&html_path).map_err(|e| FormatError::SerializationError(e.to_string()))?;
@@ -165,7 +164,7 @@ fn render_html_to_pdf(html: &str, profile: PdfSizeProfile) -> Result<Vec<u8>, Fo
     let pdf_arg = format!("--print-to-pdf={}", pdf_path.display());
     let window_arg = {
         let (w, h) = profile.viewport();
-        format!("--window-size={},{}", w, h)
+        format!("--window-size={w},{h}")
     };
 
     let status = Command::new(&chrome)
@@ -188,8 +187,7 @@ fn render_html_to_pdf(html: &str, profile: PdfSizeProfile) -> Result<Vec<u8>, Fo
 
     if !status.success() {
         return Err(FormatError::SerializationError(format!(
-            "Chrome exited with status {}",
-            status
+            "Chrome exited with status {status}"
         )));
     }
 

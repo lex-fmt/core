@@ -205,7 +205,7 @@ mod tests {
         symbols
             .iter()
             .find(|symbol| symbol.name == name)
-            .unwrap_or_else(|| panic!("symbol {} not found", name))
+            .unwrap_or_else(|| panic!("symbol {name} not found"))
     }
 
     #[test]

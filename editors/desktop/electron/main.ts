@@ -3,9 +3,10 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
-import { spawn } from 'child_process';
+
 import { randomUUID } from 'crypto';
 import { LspManager } from './lsp-manager'
+import { convertFile } from '../../shared/src/index.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -170,6 +171,7 @@ const FORMAT_EXTENSIONS: Record<string, string> = {
   markdown: 'md',
   html: 'html',
   lex: 'lex',
+  pdf: 'pdf',
 };
 
 // The built directory structure
@@ -219,9 +221,16 @@ function applyMenuState(state: MenuState) {
   setEnabled('menu-format', hasOpenFile && isLexFileOpen);
   setEnabled('menu-export-markdown', hasOpenFile && isLexFileOpen);
   setEnabled('menu-export-html', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-export-pdf', hasOpenFile && isLexFileOpen);
   setEnabled('menu-find', hasOpenFile);
   setEnabled('menu-replace', hasOpenFile);
   setEnabled('menu-preview', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-insert-asset', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-insert-verbatim', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-next-annotation', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-prev-annotation', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-resolve-annotation', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-toggle-annotations', hasOpenFile && isLexFileOpen);
 }
 
 async function createWindow() {
@@ -357,6 +366,19 @@ ipcMain.handle('file-open', async () => {
   const filePath = filePaths[0];
   const content = await fs.readFile(filePath, 'utf-8');
   return { filePath, content };
+});
+
+ipcMain.handle('file-pick', async (_, options: { title?: string, filters?: Electron.FileFilter[] } = {}) => {
+  if (!win) return null;
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    title: options.title,
+    properties: ['openFile'],
+    filters: options.filters
+  });
+  if (canceled || filePaths.length === 0) {
+    return null;
+  }
+  return filePaths[0];
 });
 
 ipcMain.handle('test-load-fixture', async (_event, fixtureName: string) => {
@@ -583,26 +605,14 @@ ipcMain.handle('file-export', async (_, sourcePath: string, format: string): Pro
   const outputPath = sourcePath.replace(/\.(lex|md|html|htm|txt)$/i, `.${ext}`);
   const lexPath = getLexCliPath();
 
-  return new Promise((resolve, reject) => {
-    const proc = spawn(lexPath, ['convert', sourcePath, '--to', format, '-o', outputPath]);
-
-    let stderr = '';
-    proc.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString();
-    });
-
-    proc.on('error', (err) => {
-      reject(new Error(`Failed to spawn lex CLI: ${err.message}`));
-    });
-
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve(outputPath);
-      } else {
-        reject(new Error(stderr || `lex CLI exited with code ${code}`));
-      }
-    });
+  await convertFile({
+    cliBinaryPath: lexPath,
+    sourcePath,
+    outputPath,
+    toFormat: format as any
   });
+
+  return outputPath;
 });
 
 /**
@@ -619,40 +629,23 @@ ipcMain.handle('lex-preview', async (_, sourcePath: string): Promise<string> => 
   const tmpFile = path.join(tmpDir, `lex-preview-${Date.now()}.html`);
   console.log('[lex-preview] Using temp file:', tmpFile);
 
-  return new Promise((resolve, reject) => {
-    console.log('[lex-preview] Spawning:', lexPath, 'convert', sourcePath, '--to', 'html', '-o', tmpFile);
-    const proc = spawn(lexPath, ['convert', sourcePath, '--to', 'html', '-o', tmpFile]);
-
-    let stderr = '';
-    proc.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString();
+  try {
+    await convertFile({
+      cliBinaryPath: lexPath,
+      sourcePath,
+      outputPath: tmpFile,
+      toFormat: 'html'
     });
 
-    proc.on('error', (err) => {
-      console.error('[lex-preview] Spawn error:', err);
-      reject(new Error(`Failed to spawn lex CLI: ${err.message}`));
-    });
-
-    proc.on('close', async (code) => {
-      console.log('[lex-preview] Process exited with code:', code);
-      if (code !== 0) {
-        console.error('[lex-preview] stderr:', stderr);
-        reject(new Error(stderr || `lex CLI exited with code ${code}`));
-        return;
-      }
-
-      try {
-        const content = await fs.readFile(tmpFile, 'utf-8');
-        console.log('[lex-preview] Read content, length:', content.length);
-        // Clean up temp file
-        await fs.unlink(tmpFile).catch(() => {});
-        resolve(content);
-      } catch (err) {
-        console.error('[lex-preview] Read error:', err);
-        reject(new Error(`Failed to read preview: ${err instanceof Error ? err.message : String(err)}`));
-      }
-    });
-  });
+    const content = await fs.readFile(tmpFile, 'utf-8');
+    console.log('[lex-preview] Read content, length:', content.length);
+    // Clean up temp file
+    await fs.unlink(tmpFile).catch(() => {});
+    return content;
+  } catch (err) {
+    console.error('[lex-preview] Error:', err);
+    throw new Error(`Failed to preview: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 /**
@@ -776,6 +769,12 @@ function createMenu() {
               id: 'menu-export-html',
               enabled: false,
               click: () => win?.webContents.send('menu-export', 'html')
+            },
+            {
+              label: 'Export to PDF',
+              id: 'menu-export-pdf',
+              enabled: false,
+              click: () => win?.webContents.send('menu-export', 'pdf')
             }
           ]
         },
@@ -807,6 +806,32 @@ function createMenu() {
           id: 'menu-replace',
           enabled: false,
           click: () => win?.webContents.send('menu-replace')
+        },
+        { type: 'separator' },
+        {
+          label: 'Insert Asset...',
+          id: 'menu-insert-asset',
+          enabled: false,
+          click: () => win?.webContents.send('menu-insert-asset')
+        },
+        {
+          label: 'Insert Verbatim...',
+          id: 'menu-insert-verbatim',
+          enabled: false,
+          click: () => win?.webContents.send('menu-insert-verbatim')
+        },
+        { type: 'separator' },
+        {
+          label: 'Resolve Annotation',
+          id: 'menu-resolve-annotation',
+          enabled: false,
+          click: () => win?.webContents.send('menu-resolve-annotation')
+        },
+        {
+          label: 'Toggle Annotations',
+          id: 'menu-toggle-annotations',
+          enabled: false,
+          click: () => win?.webContents.send('menu-toggle-annotations')
         }
       ]
     },

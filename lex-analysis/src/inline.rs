@@ -152,7 +152,7 @@ fn reference_spans(text: &str, base_range: &Range) -> Vec<InlineSpan> {
 }
 
 fn classify_reference(raw: &str) -> ReferenceType {
-    let wrapped = format!("[{}]", raw);
+    let wrapped = format!("[{raw}]");
     for node in parse_inlines(&wrapped) {
         if let InlineNode::Reference { data, .. } = node {
             return data.reference_type;

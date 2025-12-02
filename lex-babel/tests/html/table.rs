@@ -17,7 +17,7 @@ fn test_table_html_export() {
         .serialize(&doc)
         .expect("Failed to serialize html");
 
-    println!("HTML Output:\n{}", html);
+    println!("HTML Output:\n{html}");
 
     assert!(html.contains("<table class=\"lex-table\">"));
     assert!(html.contains("<tr>"));

@@ -50,11 +50,11 @@ impl TagSerializer {
     fn serialize_snapshot(&mut self, snapshot: &AstSnapshot) {
         let tag = to_tag_name(&snapshot.node_type);
 
-        self.push_indent(&format!("<{}>", tag));
+        self.push_indent(&format!("<{tag}>"));
         self.output.push_str(&escape_xml(&snapshot.label));
 
         if snapshot.children.is_empty() {
-            self.output.push_str(&format!("</{}>", tag));
+            self.output.push_str(&format!("</{tag}>"));
             self.output.push('\n');
         } else {
             self.output.push('\n');
@@ -63,7 +63,7 @@ impl TagSerializer {
                 self.serialize_snapshot(child);
             }
             self.indent_level -= 1;
-            self.push_indent(&format!("</{}>", tag));
+            self.push_indent(&format!("</{tag}>"));
             self.output.push('\n');
         }
     }
@@ -157,7 +157,7 @@ mod tests {
         ))]);
 
         let result = serialize_document(&doc);
-        println!("RESULT:\n{}", result);
+        println!("RESULT:\n{result}");
         assert!(result.contains("<session>Introduction"));
         assert!(result.contains("<paragraph>"));
         assert!(result.contains("Welcome"));

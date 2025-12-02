@@ -11,7 +11,7 @@ import { defaultCachePath } from '@vscode/test-electron/out/download.js';
 async function main() {
   const currentFile = fileURLToPath(import.meta.url);
   const currentDir = path.dirname(currentFile);
-  const extensionRoot = path.resolve(currentDir, '..', '..');
+  const extensionRoot = path.resolve(currentDir, '..', '..', '..');
   const workspacePath = path.resolve(
     extensionRoot,
     'test/fixtures/sample-workspace-vsix.code-workspace'
@@ -22,7 +22,7 @@ async function main() {
   );
   const testRunnerPath = path.resolve(
     extensionRoot,
-    'out/test/vsix-smoke/index.js'
+    'out/vscode/test/vsix-smoke/index.js'
   );
 
   const keepProfile = process.env.LEX_VSIX_KEEP_PROFILE === '1';

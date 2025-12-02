@@ -112,7 +112,7 @@ pub fn parse_experimental_v2(tree: LineContainer, source: &str) -> Result<Sessio
     let content = parser::parse_with_declarative_grammar(children, source)?;
     let root_node = ParseNode::new(NodeType::Document, vec![], content);
     let builder = AstTreeBuilder::new(source);
-    builder.build(root_node).map_err(|e| format!("{}", e))
+    builder.build(root_node).map_err(|e| format!("{e}"))
 }
 
 #[cfg(test)]
@@ -248,7 +248,7 @@ Final paragraph.
                     eprintln!("  [{}] Session: {} items", i, s.children.len())
                 }
                 ContentItem::List(l) => eprintln!("  [{}] List: {} items", i, l.items.len()),
-                _ => eprintln!("  [{}] Other", i),
+                _ => eprintln!("  [{i}] Other"),
             }
         }
 

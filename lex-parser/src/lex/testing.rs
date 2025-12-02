@@ -255,7 +255,7 @@ pub fn parse_without_annotation_attachment(
     use crate::lex::transforms::Runnable;
 
     let source = if !source.is_empty() && !source.ends_with('\n') {
-        format!("{}\n", source)
+        format!("{source}\n")
     } else {
         source.to_string()
     };

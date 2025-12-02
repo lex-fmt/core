@@ -348,7 +348,7 @@ fn main() {
                 match registry.detect_format_from_filename(input) {
                     Some(detected) => detected,
                     None => {
-                        eprintln!("Error: Could not detect format from filename '{}'", input);
+                        eprintln!("Error: Could not detect format from filename '{input}'");
                         eprintln!("Please specify --from explicitly");
                         std::process::exit(1);
                     }
@@ -393,18 +393,18 @@ fn handle_inspect_command(
     config: &LexConfig,
 ) {
     let source = fs::read_to_string(path).unwrap_or_else(|e| {
-        eprintln!("Error reading file '{}': {}", path, e);
+        eprintln!("Error reading file '{path}': {e}");
         std::process::exit(1);
     });
 
     let params = build_inspect_params(config, extra_params);
 
     let output = transforms::execute_transform(&source, transform, &params).unwrap_or_else(|e| {
-        eprintln!("Execution error: {}", e);
+        eprintln!("Execution error: {e}");
         std::process::exit(1);
     });
 
-    print!("{}", output);
+    print!("{output}");
 }
 
 /// Handle the convert command
@@ -420,23 +420,23 @@ fn handle_convert_command(
 
     // Validate formats exist
     if let Err(e) = registry.get(from) {
-        eprintln!("Error: {}", e);
+        eprintln!("Error: {e}");
         std::process::exit(1);
     }
     if let Err(e) = registry.get(to) {
-        eprintln!("Error: {}", e);
+        eprintln!("Error: {e}");
         std::process::exit(1);
     }
 
     // Read input file
     let source = fs::read_to_string(input).unwrap_or_else(|e| {
-        eprintln!("Error reading file '{}': {}", input, e);
+        eprintln!("Error reading file '{input}': {e}");
         std::process::exit(1);
     });
 
     // Parse
     let doc = registry.parse(&source, from).unwrap_or_else(|e| {
-        eprintln!("Parse error: {}", e);
+        eprintln!("Parse error: {e}");
         std::process::exit(1);
     });
 
@@ -448,7 +448,7 @@ fn handle_convert_command(
         match serialize_to_lex_with_rules(&doc, rules) {
             Ok(text) => SerializedDocument::Text(text),
             Err(err) => {
-                eprintln!("Serialization error: {}", err);
+                eprintln!("Serialization error: {err}");
                 std::process::exit(1);
             }
         }
@@ -464,7 +464,7 @@ fn handle_convert_command(
         registry
             .serialize_with_options(&doc, to, &format_options)
             .unwrap_or_else(|e| {
-                eprintln!("Serialization error: {}", e);
+                eprintln!("Serialization error: {e}");
                 std::process::exit(1);
             })
     };
@@ -473,12 +473,12 @@ fn handle_convert_command(
     match (output, result) {
         (Some(path), data) => {
             fs::write(path, data.into_bytes()).unwrap_or_else(|e| {
-                eprintln!("Error writing file '{}': {}", path, e);
+                eprintln!("Error writing file '{path}': {e}");
                 std::process::exit(1);
             });
         }
         (None, SerializedDocument::Text(text)) => {
-            print!("{}", text);
+            print!("{text}");
         }
         (None, SerializedDocument::Binary(_)) => {
             eprintln!("Binary formats (like PDF) require an output file. Use -o <path>.");
@@ -490,13 +490,13 @@ fn handle_convert_command(
 /// Handle the element-at command
 fn handle_element_at_command(path: &str, row: usize, col: usize, all: bool) {
     let source = fs::read_to_string(path).unwrap_or_else(|e| {
-        eprintln!("Error reading file '{}': {}", path, e);
+        eprintln!("Error reading file '{path}': {e}");
         std::process::exit(1);
     });
 
     let registry = FormatRegistry::default();
     let doc = registry.parse(&source, "lex").unwrap_or_else(|e| {
-        eprintln!("Parse error: {}", e);
+        eprintln!("Parse error: {e}");
         std::process::exit(1);
     });
 
@@ -510,7 +510,7 @@ fn handle_element_at_command(path: &str, row: usize, col: usize, all: bool) {
         // The requirement says "returns the element name..."
         // If nothing found, maybe print nothing or error?
         // I'll print a message for now.
-        eprintln!("No element found at {}:{}", row, col);
+        eprintln!("No element found at {row}:{col}");
         return;
     }
 
@@ -542,13 +542,13 @@ fn handle_list_transforms_command() {
 
     println!("Available transform combinations:");
     for transform_name in transforms::AVAILABLE_TRANSFORMS {
-        println!("  {}", transform_name);
+        println!("  {transform_name}");
     }
 
     println!("\nConversion formats:");
     let registry = FormatRegistry::default();
     for format_name in registry.list_formats() {
-        println!("  {}", format_name);
+        println!("  {format_name}");
     }
 }
 
@@ -561,7 +561,7 @@ fn load_cli_config(explicit_path: Option<&str>) -> LexConfig {
     };
 
     loader.build().unwrap_or_else(|err| {
-        eprintln!("Failed to load configuration: {}", err);
+        eprintln!("Failed to load configuration: {err}");
         std::process::exit(1);
     })
 }
@@ -607,10 +607,7 @@ fn apply_config_overrides(config: &mut LexConfig, extra_params: &mut HashMap<Str
     if let Some(raw) = extra_params.remove("size-desktop") {
         if parse_bool_arg("size-desktop", &raw) {
             if let Some(existing) = pdf_override {
-                eprintln!(
-                    "Conflicting PDF profile overrides: {:?} and desktop",
-                    existing
-                );
+                eprintln!("Conflicting PDF profile overrides: {existing:?} and desktop");
                 std::process::exit(1);
             }
             pdf_override = Some(PdfPageSize::Desktop);
@@ -689,7 +686,7 @@ fn parse_bool_arg(flag: &str, raw: &str) -> bool {
         "true" | "1" | "yes" | "y" => true,
         "false" | "0" | "no" | "n" => false,
         other => {
-            eprintln!("Invalid boolean value '{}' for --extra-{}", other, flag);
+            eprintln!("Invalid boolean value '{other}' for --extra-{flag}");
             std::process::exit(1);
         }
     }

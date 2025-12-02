@@ -965,8 +965,7 @@ where
                                 }
                                 Err(err) => {
                                     return Err(Error::invalid_params(format!(
-                                        "Failed to insert verbatim block: {}",
-                                        err
+                                        "Failed to insert verbatim block: {err}"
                                     )));
                                 }
                             }
@@ -1171,7 +1170,7 @@ mod tests {
         let source = sample_source();
         let start = source
             .find(snippet)
-            .unwrap_or_else(|| panic!("snippet not found: {}", snippet));
+            .unwrap_or_else(|| panic!("snippet not found: {snippet}"));
         let end = start + snippet.len();
         let start_pos = offset_to_position(source, start);
         let end_pos = offset_to_position(source, end);

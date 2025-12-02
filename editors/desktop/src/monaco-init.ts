@@ -26,24 +26,9 @@ self.MonacoEnvironment = {
 
 import { lspClient } from './lsp/client';
 
-const TOKEN_TYPES = [
-    "DocumentTitle", "SessionMarker", "SessionTitleText", "DefinitionSubject",
-    "DefinitionContent", "ListMarker", "ListItemText", "AnnotationLabel",
-    "AnnotationParameter", "AnnotationContent", "InlineStrong", "InlineEmphasis",
-    "InlineCode", "InlineMath", "Reference", "ReferenceCitation", "ReferenceFootnote",
-    "VerbatimSubject", "VerbatimLanguage", "VerbatimAttribute", "VerbatimContent",
-    "InlineMarker_strong_start", "InlineMarker_strong_end", "InlineMarker_emphasis_start",
-    "InlineMarker_emphasis_end", "InlineMarker_code_start", "InlineMarker_code_end",
-    "InlineMarker_math_start", "InlineMarker_math_end", "InlineMarker_ref_start",
-    "InlineMarker_ref_end"
-];
-
-const TOKEN_MODIFIERS: string[] = [];
-
-const LEGEND = {
-    tokenTypes: TOKEN_TYPES,
-    tokenModifiers: TOKEN_MODIFIERS
-};
+import { LEGEND } from '@lex/shared';
+import { registerFormatting } from './features/formatting';
+import { registerCompletion } from './features/completion';
 
 let initialized = false;
 
@@ -55,6 +40,10 @@ export function initMonaco() {
 
     // Register Language
     monaco.languages.register({ id: 'lex', extensions: ['.lex'] });
+
+    // Register Features
+    registerFormatting();
+    registerCompletion();
 
     // Register Semantic Tokens Provider
     monaco.languages.registerDocumentSemanticTokensProvider('lex', {
@@ -111,28 +100,7 @@ export function initMonaco() {
         }
     });
 
-    // Register Formatting Provider
-    monaco.languages.registerDocumentFormattingEditProvider('lex', {
-        provideDocumentFormattingEdits: async function (model, _options, _token) {
-            const response = await lspClient.sendRequest('textDocument/formatting', {
-                textDocument: { uri: model.uri.toString() },
-                options: { tabSize: 2, insertSpaces: true } // Default options
-            });
 
-            if (response) {
-                return response.map((edit: any) => ({
-                    range: {
-                        startLineNumber: edit.range.start.line + 1,
-                        startColumn: edit.range.start.character + 1,
-                        endLineNumber: edit.range.end.line + 1,
-                        endColumn: edit.range.end.character + 1
-                    },
-                    text: edit.newText
-                }));
-            }
-            return [];
-        }
-    });
 
     // Register Hover Provider
     monaco.languages.registerHoverProvider('lex', {

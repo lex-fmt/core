@@ -18,8 +18,8 @@ fn test_table_round_trip() {
         .serialize(&doc)
         .expect("Failed to serialize markdown");
 
-    println!("Original:\n{}", md);
-    println!("Output:\n{}", output);
+    println!("Original:\n{md}");
+    println!("Output:\n{output}");
 
     // Verify content presence
     assert!(output.contains("| Header 1 | Header 2 |"));

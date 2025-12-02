@@ -124,7 +124,6 @@ fn ensure_header_has_label(
         .unwrap_or(0);
 
     Err(format!(
-        "Annotation starting at byte {} must include a label before any parameters",
-        byte
+        "Annotation starting at byte {byte} must include a label before any parameters"
     ))
 }

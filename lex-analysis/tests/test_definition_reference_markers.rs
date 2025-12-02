@@ -139,8 +139,8 @@ Cache:
         })
         .count();
 
-    println!("\nParagraph reference markers: {}", para_ref_markers);
-    println!("Definition reference markers: {}", def_ref_markers);
+    println!("\nParagraph reference markers: {para_ref_markers}");
+    println!("Definition reference markers: {def_ref_markers}");
 
     assert_eq!(para_ref_markers, 2, "Paragraph should have [ and ]");
     assert_eq!(def_ref_markers, 2, "Definition should have [ and ]");

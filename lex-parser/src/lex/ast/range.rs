@@ -288,14 +288,14 @@ mod tests {
     #[test]
     fn test_position_display() {
         let pos = Position::new(5, 10);
-        assert_eq!(format!("{}", pos), "5:10");
+        assert_eq!(format!("{pos}"), "5:10");
     }
 
     // @audit: no_source
     #[test]
     fn test_location_display() {
         let location = Range::new(0..0, Position::new(1, 0), Position::new(2, 5));
-        assert_eq!(format!("{}", location), "1:0..2:5");
+        assert_eq!(format!("{location}"), "1:0..2:5");
     }
 
     // @audit: no_source

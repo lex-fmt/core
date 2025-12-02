@@ -36,7 +36,7 @@ pub enum TransformationError {
 impl std::fmt::Display for TransformationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TransformationError::Error(msg) => write!(f, "Transformation error: {}", msg),
+            TransformationError::Error(msg) => write!(f, "Transformation error: {msg}"),
         }
     }
 }

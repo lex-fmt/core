@@ -113,8 +113,7 @@ fn format_snapshot(
     };
 
     output.push_str(&format!(
-        "{}{}{} {} {}\n",
-        linum_prefix, prefix, connector, icon, truncated_label
+        "{linum_prefix}{prefix}{connector} {icon} {truncated_label}\n"
     ));
 
     // Process children if any
@@ -139,7 +138,7 @@ fn format_snapshot(
 fn format_document_snapshot(snapshot: &AstSnapshot, show_linum: bool) -> String {
     let icon = get_icon(&snapshot.node_type);
     let truncated_label = truncate(&snapshot.label, 30);
-    let mut output = format!("{} {}\n", icon, truncated_label);
+    let mut output = format!("{icon} {truncated_label}\n");
 
     if !snapshot.children.is_empty() {
         let child_count = snapshot.children.len();

@@ -138,17 +138,14 @@ fn walk_node(node: &DocNode, events: &mut Vec<Event>) {
                 // Let's construct the full comment string here.
                 let mut comment_body = String::new();
                 for (key, value) in parameters {
-                    comment_body.push_str(&format!(" {}={}", key, value));
+                    comment_body.push_str(&format!(" {key}={value}"));
                 }
                 if !text_content.is_empty() {
                     comment_body.push('\n');
                     comment_body.push_str(&text_content);
                 }
 
-                events.push(Event::StartVerbatim(Some(format!(
-                    "lex-metadata:{}",
-                    label
-                ))));
+                events.push(Event::StartVerbatim(Some(format!("lex-metadata:{label}"))));
                 events.push(Event::Inline(InlineContent::Text(comment_body)));
                 events.push(Event::EndVerbatim);
                 return;

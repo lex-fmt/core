@@ -63,7 +63,7 @@ fn main() -> Result<(), Error> {
     // Generate completions for fish
     generate_to(Fish, &mut cmd, "lex", &outdir)?;
 
-    println!("cargo:warning=Shell completions generated in {:?}", outdir);
+    println!("cargo:warning=Shell completions generated in {outdir:?}");
 
     Ok(())
 }

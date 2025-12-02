@@ -3,8 +3,7 @@ use lex_parser::lex::testing::lexplore::Lexplore;
 fn assert_non_empty(doc: &lex_parser::lex::ast::Document, label: &str) {
     assert!(
         !doc.root.children.is_empty(),
-        "{} should produce items",
-        label
+        "{label} should produce items"
     );
 }
 

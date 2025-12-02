@@ -265,7 +265,7 @@ mod tests {
             InlineNode::Strong { content, .. } => {
                 assert_eq!(content, &vec![InlineNode::plain("world".into())]);
             }
-            other => panic!("Unexpected inline node: {:?}", other),
+            other => panic!("Unexpected inline node: {other:?}"),
         }
     }
 
@@ -284,7 +284,7 @@ mod tests {
             InlineNode::Strong { content, .. } => {
                 assert_eq!(content, &vec![InlineNode::plain("world".into())]);
             }
-            other => panic!("Unexpected inline node: {:?}", other),
+            other => panic!("Unexpected inline node: {other:?}"),
         }
 
         // inline_items should reuse the stored nodes rather than re-parse

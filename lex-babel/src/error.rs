@@ -18,10 +18,10 @@ pub enum FormatError {
 impl fmt::Display for FormatError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FormatError::FormatNotFound(name) => write!(f, "Format '{}' not found", name),
-            FormatError::ParseError(msg) => write!(f, "Parse error: {}", msg),
-            FormatError::SerializationError(msg) => write!(f, "Serialization error: {}", msg),
-            FormatError::NotSupported(msg) => write!(f, "Operation not supported: {}", msg),
+            FormatError::FormatNotFound(name) => write!(f, "Format '{name}' not found"),
+            FormatError::ParseError(msg) => write!(f, "Parse error: {msg}"),
+            FormatError::SerializationError(msg) => write!(f, "Serialization error: {msg}"),
+            FormatError::NotSupported(msg) => write!(f, "Operation not supported: {msg}"),
         }
     }
 }

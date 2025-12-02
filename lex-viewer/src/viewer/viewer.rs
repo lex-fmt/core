@@ -66,7 +66,7 @@ pub fn run_viewer(file_path: PathBuf) -> io::Result<()> {
     let document = parse_document(&content).map_err(|e| {
         io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("Failed to parse lex document: {:?}", e),
+            format!("Failed to parse lex document: {e:?}"),
         )
     })?;
 
@@ -90,7 +90,7 @@ pub fn run_viewer(file_path: PathBuf) -> io::Result<()> {
     terminal.show_cursor()?;
 
     if let Err(e) = result {
-        eprintln!("Error: {}", e);
+        eprintln!("Error: {e}");
         return Err(e);
     }
 

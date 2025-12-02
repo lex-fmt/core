@@ -3,7 +3,7 @@
  * See README.lex "Preview" section for full documentation.
  */
 import * as vscode from 'vscode';
-import { convertToHtml } from './commands.js';
+import { convertToHtml } from '@lex/shared';
 
 const PREVIEW_VIEW_TYPE = 'lexPreview';
 const DEBOUNCE_MS = 400;

@@ -109,7 +109,7 @@ fn ensure_trailing_colon(value: &str) -> String {
     if trimmed.ends_with(':') {
         trimmed.to_string()
     } else {
-        format!("{}:", trimmed)
+        format!("{trimmed}:")
     }
 }
 

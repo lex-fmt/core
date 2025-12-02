@@ -191,7 +191,7 @@ impl Viewer for TreeViewer {
                     }
                 };
 
-                let text = format!("{}{} {}", indent, icon, truncated_label);
+                let text = format!("{indent}{icon} {truncated_label}");
 
                 // Style the line based on selection and expansion state
                 let is_collapsed = !node.is_expanded && node.has_children;
@@ -329,7 +329,7 @@ mod tests {
         // Test that long labels at depth 0 are truncated to fit
         // With width 28: icon(1) + space(1) + label(max 26)
         let long_label = "A".repeat(50); // 50 chars, should be truncated to 26
-        let content = format!("# {}", long_label);
+        let content = format!("# {long_label}");
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
         let model = Model::new(doc, content.to_string());
         let viewer = TreeViewer::new();
@@ -358,10 +358,7 @@ mod tests {
             let char_count = trimmed.chars().count();
             assert!(
                 char_count <= 28,
-                "Line {} is too long: {} chars (expected <= 28): '{}'",
-                y,
-                char_count,
-                trimmed
+                "Line {y} is too long: {char_count} chars (expected <= 28): '{trimmed}'"
             );
         }
     }
@@ -373,8 +370,7 @@ mod tests {
         // With width 28: indent(10) + icon(1) + space(1) + label(max 16)
         let long_label = "B".repeat(50); // Should be truncated to 16
         let content = format!(
-            "# Level0\n  ## Level1\n    ### Level2\n      #### Level3\n        ##### Level4\n          ###### {}",
-            long_label
+            "# Level0\n  ## Level1\n    ### Level2\n      #### Level3\n        ##### Level4\n          ###### {long_label}"
         );
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
         let model = Model::new(doc, content.to_string());
@@ -404,10 +400,7 @@ mod tests {
             let char_count = trimmed.chars().count();
             assert!(
                 char_count <= 28,
-                "Line {} is too long: {} chars (expected <= 28): '{}'",
-                y,
-                char_count,
-                trimmed
+                "Line {y} is too long: {char_count} chars (expected <= 28): '{trimmed}'"
             );
         }
     }
@@ -416,7 +409,7 @@ mod tests {
     fn test_label_truncation_respects_unicode() {
         // Test that truncation works correctly with Unicode characters
         let unicode_label = "こんにちは世界".repeat(10); // Japanese characters
-        let content = format!("# {}", unicode_label);
+        let content = format!("# {unicode_label}");
         let doc = lex_parser::lex::parsing::parse_document(&content).unwrap();
         let model = Model::new(doc, content.to_string());
         let viewer = TreeViewer::new();
@@ -446,10 +439,7 @@ mod tests {
             // Note: Unicode chars may take more than one display column, but we're counting chars
             assert!(
                 char_count <= 28,
-                "Line {} is too long: {} chars (expected <= 28): '{}'",
-                y,
-                char_count,
-                trimmed
+                "Line {y} is too long: {char_count} chars (expected <= 28): '{trimmed}'"
             );
         }
     }
@@ -497,8 +487,7 @@ mod tests {
 
         assert!(
             found_line.is_some(),
-            "Did not find any line containing 'While'. Lines: {:?}",
-            all_lines
+            "Did not find any line containing 'While'. Lines: {all_lines:?}"
         );
 
         let found_line = found_line.unwrap();
@@ -508,13 +497,11 @@ mod tests {
         // (The "#", "While", and "these" are the first three whitespace-separated words)
         assert!(
             found_line.contains("# While these…"),
-            "Expected three-word truncation with ellipsis (# While these…), got: '{}'",
-            found_line
+            "Expected three-word truncation with ellipsis (# While these…), got: '{found_line}'"
         );
         assert!(
             !found_line.contains("all"),
-            "Should not contain words beyond the first three, got: '{}'",
-            found_line
+            "Should not contain words beyond the first three, got: '{found_line}'"
         );
     }
 }

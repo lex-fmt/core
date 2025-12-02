@@ -46,16 +46,16 @@ pub fn assert_text_eq(expected: &str, actual: &str) {
             }
             (Some(exp), Some(act)) => {
                 diff_lines.push(format!("Line {}: MISMATCH", i + 1));
-                diff_lines.push(format!("  Expected: {:?}", exp));
-                diff_lines.push(format!("  Actual:   {:?}", act));
+                diff_lines.push(format!("  Expected: {exp:?}"));
+                diff_lines.push(format!("  Actual:   {act:?}"));
             }
             (Some(exp), None) => {
                 diff_lines.push(format!("Line {}: MISSING in actual", i + 1));
-                diff_lines.push(format!("  Expected: {:?}", exp));
+                diff_lines.push(format!("  Expected: {exp:?}"));
             }
             (None, Some(act)) => {
                 diff_lines.push(format!("Line {}: EXTRA in actual", i + 1));
-                diff_lines.push(format!("  Actual:   {:?}", act));
+                diff_lines.push(format!("  Actual:   {act:?}"));
             }
             (None, None) => unreachable!(),
         }
@@ -97,16 +97,16 @@ pub fn diff_text(expected: &str, actual: &str) -> Option<String> {
             }
             (Some(exp), Some(act)) => {
                 diff_lines.push(format!("Line {}: MISMATCH", i + 1));
-                diff_lines.push(format!("  Expected: {:?}", exp));
-                diff_lines.push(format!("  Actual:   {:?}", act));
+                diff_lines.push(format!("  Expected: {exp:?}"));
+                diff_lines.push(format!("  Actual:   {act:?}"));
             }
             (Some(exp), None) => {
                 diff_lines.push(format!("Line {}: MISSING in actual", i + 1));
-                diff_lines.push(format!("  Expected: {:?}", exp));
+                diff_lines.push(format!("  Expected: {exp:?}"));
             }
             (None, Some(act)) => {
                 diff_lines.push(format!("Line {}: EXTRA in actual", i + 1));
-                diff_lines.push(format!("  Actual:   {:?}", act));
+                diff_lines.push(format!("  Actual:   {act:?}"));
             }
             (None, None) => unreachable!(),
         }

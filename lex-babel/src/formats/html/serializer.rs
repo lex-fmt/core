@@ -76,7 +76,7 @@ fn build_html_dom(events: &[Event]) -> Result<RcDom, FormatError> {
 
             Event::StartHeading(level) => {
                 // Create section wrapper for this session
-                let class = format!("lex-session lex-session-{}", level);
+                let class = format!("lex-session lex-session-{level}");
                 let section = create_element("section", vec![("class", &class)]);
                 current_parent.children.borrow_mut().push(section.clone());
                 parent_stack.push(current_parent.clone());
@@ -168,7 +168,7 @@ fn build_html_dom(events: &[Event]) -> Result<RcDom, FormatError> {
                 if let Some(ref lang) = verbatim_language {
                     if let Some(label) = lang.strip_prefix("lex-metadata:") {
                         // Render as comment
-                        let comment_text = format!(" lex:{}{}", label, verbatim_content);
+                        let comment_text = format!(" lex:{label}{verbatim_content}");
                         let comment_node = create_comment(&comment_text);
                         current_parent.children.borrow_mut().push(comment_node);
 
@@ -308,9 +308,9 @@ fn build_html_dom(events: &[Event]) -> Result<RcDom, FormatError> {
             Event::StartAnnotation { label, parameters } => {
                 current_heading = None;
                 // Create HTML comment
-                let mut comment = format!(" lex:{}", label);
+                let mut comment = format!(" lex:{label}");
                 for (key, value) in parameters {
-                    comment.push_str(&format!(" {}={}", key, value));
+                    comment.push_str(&format!(" {key}={value}"));
                 }
                 comment.push(' ');
                 let comment_node = create_comment(&comment);
@@ -319,7 +319,7 @@ fn build_html_dom(events: &[Event]) -> Result<RcDom, FormatError> {
 
             Event::EndAnnotation { label } => {
                 // Closing comment
-                let comment = format!(" /lex:{} ", label);
+                let comment = format!(" /lex:{label} ");
                 let comment_node = create_comment(&comment);
                 current_parent.children.borrow_mut().push(comment_node);
             }
@@ -425,7 +425,7 @@ fn add_inline_to_node(parent: &Handle, inline: &InlineContent) -> Result<(), For
             // Convert to anchor
             // Handle citations (@...) by targeting a reference ID
             let href = if let Some(citation) = ref_text.strip_prefix('@') {
-                format!("#ref-{}", citation)
+                format!("#ref-{citation}")
             } else {
                 ref_text.to_string()
             };
@@ -524,12 +524,12 @@ fn serialize_dom(dom: &RcDom) -> Result<String, FormatError> {
     for child in doc_container.children.borrow().iter() {
         let serializable = SerializableHandle::from(child.clone());
         serialize(&mut output, &serializable, opts.clone()).map_err(|e| {
-            FormatError::SerializationError(format!("HTML serialization failed: {}", e))
+            FormatError::SerializationError(format!("HTML serialization failed: {e}"))
         })?;
     }
 
     String::from_utf8(output)
-        .map_err(|e| FormatError::SerializationError(format!("UTF-8 conversion failed: {}", e)))
+        .map_err(|e| FormatError::SerializationError(format!("UTF-8 conversion failed: {e}")))
 }
 
 /// Wrap the content in a complete HTML document with embedded CSS
@@ -550,19 +550,18 @@ fn wrap_in_document(body_html: &str, title: &str, theme: HtmlTheme) -> Result<St
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="lex-babel">
-  <title>{}</title>
+  <title>{escaped_title}</title>
   <style>
-{}
-{}
+{baseline_css}
+{theme_css}
   </style>
 </head>
 <body>
 <div class="lex-document">
-{}
+{body_html}
 </div>
 </body>
-</html>"#,
-        escaped_title, baseline_css, theme_css, body_html
+</html>"#
     );
 
     Ok(html)

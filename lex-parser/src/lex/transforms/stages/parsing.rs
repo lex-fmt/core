@@ -24,7 +24,7 @@ impl Runnable<String, ParseNode> for Parsing {
     fn run(&self, input: String) -> Result<ParseNode, TransformError> {
         // Ensure source ends with newline (required for parsing)
         let source = if !input.is_empty() && !input.ends_with('\n') {
-            format!("{}\n", input)
+            format!("{input}\n")
         } else {
             input
         };

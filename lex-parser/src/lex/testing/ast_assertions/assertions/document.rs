@@ -17,8 +17,7 @@ impl<'a> DocumentAssertion<'a> {
         let actual = self.doc.title();
         assert_eq!(
             actual, expected,
-            "Expected document title \"{}\", found \"{}\"",
-            expected, actual
+            "Expected document title \"{expected}\", found \"{actual}\""
         );
         self
     }
@@ -28,9 +27,7 @@ impl<'a> DocumentAssertion<'a> {
         let actual = self.doc.title();
         assert!(
             matcher.matches(actual),
-            "Document title \"{}\" does not match pattern {:?}",
-            actual,
-            matcher
+            "Document title \"{actual}\" does not match pattern {matcher:?}"
         );
         self
     }
@@ -40,8 +37,7 @@ impl<'a> DocumentAssertion<'a> {
         let actual = self.doc.title();
         assert!(
             actual.is_empty(),
-            "Expected empty document title, found \"{}\"",
-            actual
+            "Expected empty document title, found \"{actual}\""
         );
         self
     }
@@ -80,16 +76,14 @@ impl<'a> DocumentAssertion<'a> {
         let visible_children = visible_len(&self.doc.root.children);
         assert!(
             index < visible_children,
-            "Item index {} out of bounds (document has {} items)",
-            index,
-            visible_children
+            "Item index {index} out of bounds (document has {visible_children} items)"
         );
 
         let item = visible_nth(&self.doc.root.children, index)
             .expect("visible child should exist at computed index");
         assertion(ContentItemAssertion {
             item,
-            context: format!("items[{}]", index),
+            context: format!("items[{index}]"),
         });
         self
     }
@@ -138,10 +132,7 @@ impl<'a> DocumentAssertion<'a> {
         let location = self.doc.root.location.clone();
         assert!(
             location.contains(pos),
-            "Expected root session location {} to contain position {}:{}",
-            location,
-            line,
-            column
+            "Expected root session location {location} to contain position {line}:{column}"
         );
         self
     }
@@ -154,10 +145,7 @@ impl<'a> DocumentAssertion<'a> {
         let location = self.doc.root.location.clone();
         assert!(
             !location.contains(pos),
-            "Expected root session location {} to NOT contain position {}:{}",
-            location,
-            line,
-            column
+            "Expected root session location {location} to NOT contain position {line}:{column}"
         );
         self
     }
@@ -166,8 +154,7 @@ impl<'a> DocumentAssertion<'a> {
         let actual = self.doc.annotations.len();
         assert_eq!(
             actual, expected,
-            "Expected {} document annotations, found {}",
-            expected, actual
+            "Expected {expected} document annotations, found {actual}"
         );
         self
     }
@@ -185,7 +172,7 @@ impl<'a> DocumentAssertion<'a> {
         let annotation = &self.doc.annotations[index];
         assertion(AnnotationAssertion {
             annotation,
-            context: format!("document:annotations[{}]", index),
+            context: format!("document:annotations[{index}]"),
         });
         self
     }

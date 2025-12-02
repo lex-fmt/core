@@ -72,7 +72,7 @@ pub use crate::lex::token::{LineContainer, LineToken, LineType, Token};
 /// Otherwise, appends a newline.
 pub fn ensure_source_ends_with_newline(source: &str) -> String {
     if !source.is_empty() && !source.ends_with('\n') {
-        format!("{}\n", source)
+        format!("{source}\n")
     } else {
         source.to_string()
     }
@@ -289,8 +289,7 @@ mod tests {
             let expected = ensure_source_ends_with_newline(input);
             assert_eq!(
                 detokenized, expected,
-                "Round-trip failed for input: {:?}",
-                input
+                "Round-trip failed for input: {input:?}"
             );
         }
     }

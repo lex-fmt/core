@@ -17,8 +17,7 @@ fn assert_range_in_source(range: &Range, source: &str) {
     );
     assert!(
         range.span.start < range.span.end,
-        "zero-length span for range {:?}",
-        range
+        "zero-length span for range {range:?}"
     );
 }
 

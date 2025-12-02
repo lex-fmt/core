@@ -27,8 +27,8 @@ fn snapshot_md_fixture(fixture: &str, snapshot_name: &str) {
         .join("tests")
         .join("fixtures")
         .join(fixture);
-    let md = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("Failed to read {:?}: {}", path, e));
+    let md =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read {path:?}: {e}"));
 
     let doc = md_to_lex(&md);
 
@@ -165,7 +165,7 @@ fn test_definition_imports() {
                 "Definition should have description content"
             );
         }
-        other => panic!("Expected definition, found {:?}", other),
+        other => panic!("Expected definition, found {other:?}"),
     }
 }
 
@@ -271,8 +271,7 @@ fn test_trifecta_020_round_trip() {
 
     assert!(
         session_count >= 2,
-        "Should have multiple sessions, found {}",
-        session_count
+        "Should have multiple sessions, found {session_count}"
     );
 }
 

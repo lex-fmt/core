@@ -95,8 +95,7 @@ impl FormatRegistry {
         let fmt = self.get(format)?;
         if !fmt.supports_parsing() {
             return Err(FormatError::NotSupported(format!(
-                "Format '{}' does not support parsing",
-                format
+                "Format '{format}' does not support parsing"
             )));
         }
         fmt.parse(source)
@@ -108,8 +107,7 @@ impl FormatRegistry {
         match self.serialize_with_options(doc, format, &empty)? {
             SerializedDocument::Text(text) => Ok(text),
             SerializedDocument::Binary(_) => Err(FormatError::SerializationError(format!(
-                "Format '{}' produced binary output when text was expected",
-                format
+                "Format '{format}' produced binary output when text was expected"
             ))),
         }
     }
@@ -124,8 +122,7 @@ impl FormatRegistry {
         let fmt = self.get(format)?;
         if !fmt.supports_serialization() {
             return Err(FormatError::NotSupported(format!(
-                "Format '{}' does not support serialization",
-                format
+                "Format '{format}' does not support serialization"
             )));
         }
         fmt.serialize_with_options(doc, options)

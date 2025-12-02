@@ -116,7 +116,7 @@ fn format_item(item: &ContentItem, indent: usize) -> String {
                 .filter_map(|child| child.as_verbatim_line())
                 .map(|line| line.content.as_string().len())
                 .sum();
-            format!("VerbatimBlock with {} content char(s)", total_chars)
+            format!("VerbatimBlock with {total_chars} content char(s)")
         }
         ContentItem::VerbatimLine(fl) => {
             format!("VerbatimLine: {}", fl.content.as_string())
@@ -150,7 +150,7 @@ fn format_lines(lines: &[ContentItem], indent: usize) -> String {
     }
 
     if lines.len() > 1 {
-        format!("\n{}", result)
+        format!("\n{result}")
     } else {
         result
     }

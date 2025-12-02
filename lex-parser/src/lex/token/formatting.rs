@@ -172,7 +172,7 @@ mod tests {
         ];
 
         for (token, expected) in cases {
-            assert_eq!(token.to_lex_string(), expected, "Token {:?}", token);
+            assert_eq!(token.to_lex_string(), expected, "Token {token:?}");
         }
     }
 

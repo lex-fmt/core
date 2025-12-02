@@ -19,8 +19,8 @@ pub enum FormatError {
 impl fmt::Display for FormatError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FormatError::FormatNotFound(name) => write!(f, "Format '{}' not found", name),
-            FormatError::SerializationError(msg) => write!(f, "Serialization error: {}", msg),
+            FormatError::FormatNotFound(name) => write!(f, "Format '{name}' not found"),
+            FormatError::SerializationError(msg) => write!(f, "Serialization error: {msg}"),
         }
     }
 }
@@ -223,10 +223,10 @@ mod tests {
     #[test]
     fn test_format_error_display() {
         let err1 = FormatError::FormatNotFound("test".to_string());
-        assert_eq!(format!("{}", err1), "Format 'test' not found");
+        assert_eq!(format!("{err1}"), "Format 'test' not found");
 
         let err2 = FormatError::SerializationError("error".to_string());
-        assert_eq!(format!("{}", err2), "Serialization error: error");
+        assert_eq!(format!("{err2}"), "Serialization error: error");
     }
 
     #[test]
