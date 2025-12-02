@@ -132,6 +132,11 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
+      - name: Ensure Rust 1.88 toolchain
+        if: ${{ matrix.container }}
+        run: |
+          rustup toolchain install 1.88.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.88.0
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest

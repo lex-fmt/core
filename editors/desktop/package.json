@@ -14,7 +14,7 @@
     "dev": "vite",
     "icons": "node ./scripts/generate-icons.mjs",
     "prebuild": "npm run icons",
-    "build": "cargo build --manifest-path ../Cargo.toml --package lex-lsp && tsc && vite build && electron-builder",
+    "build": "cargo build --manifest-path ../../Cargo.toml --package lex-lsp && tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "pretest:e2e": "npm run icons",
@@ -41,10 +41,10 @@
     "autoprefixer": "^10.4.22",
     "electron": "^30.0.1",
     "electron-builder": "^24.13.3",
-    "electron-icon-builder": "^2.0.1",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "icon-gen": "^5.0.0",
     "playwright": "^1.57.0",
     "postcss": "^8.5.6",
     "sharp": "^0.34.5",
@@ -92,7 +92,7 @@
     ],
     "extraResources": [
       {
-        "from": "../target/debug/lex-lsp",
+        "from": "../../target/debug/lex-lsp",
         "to": "lex-lsp"
       },
       {
