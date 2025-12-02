@@ -171,6 +171,7 @@ const FORMAT_EXTENSIONS: Record<string, string> = {
   markdown: 'md',
   html: 'html',
   lex: 'lex',
+  pdf: 'pdf',
 };
 
 // The built directory structure
@@ -220,6 +221,7 @@ function applyMenuState(state: MenuState) {
   setEnabled('menu-format', hasOpenFile && isLexFileOpen);
   setEnabled('menu-export-markdown', hasOpenFile && isLexFileOpen);
   setEnabled('menu-export-html', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-export-pdf', hasOpenFile && isLexFileOpen);
   setEnabled('menu-find', hasOpenFile);
   setEnabled('menu-replace', hasOpenFile);
   setEnabled('menu-preview', hasOpenFile && isLexFileOpen);
@@ -748,6 +750,12 @@ function createMenu() {
               id: 'menu-export-html',
               enabled: false,
               click: () => win?.webContents.send('menu-export', 'html')
+            },
+            {
+              label: 'Export to PDF',
+              id: 'menu-export-pdf',
+              enabled: false,
+              click: () => win?.webContents.send('menu-export', 'pdf')
             }
           ]
         },
