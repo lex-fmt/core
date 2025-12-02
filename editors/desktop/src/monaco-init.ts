@@ -27,6 +27,7 @@ self.MonacoEnvironment = {
 import { lspClient } from './lsp/client';
 
 import { LEGEND } from '@lex/shared';
+import { registerFormatting } from './features/formatting';
 
 let initialized = false;
 
@@ -38,6 +39,9 @@ export function initMonaco() {
 
     // Register Language
     monaco.languages.register({ id: 'lex', extensions: ['.lex'] });
+
+    // Register Features
+    registerFormatting();
 
     // Register Semantic Tokens Provider
     monaco.languages.registerDocumentSemanticTokensProvider('lex', {
@@ -94,28 +98,7 @@ export function initMonaco() {
         }
     });
 
-    // Register Formatting Provider
-    monaco.languages.registerDocumentFormattingEditProvider('lex', {
-        provideDocumentFormattingEdits: async function (model, _options, _token) {
-            const response = await lspClient.sendRequest('textDocument/formatting', {
-                textDocument: { uri: model.uri.toString() },
-                options: { tabSize: 2, insertSpaces: true } // Default options
-            });
 
-            if (response) {
-                return response.map((edit: any) => ({
-                    range: {
-                        startLineNumber: edit.range.start.line + 1,
-                        startColumn: edit.range.start.character + 1,
-                        endLineNumber: edit.range.end.line + 1,
-                        endColumn: edit.range.end.character + 1
-                    },
-                    text: edit.newText
-                }));
-            }
-            return [];
-        }
-    });
 
     // Register Hover Provider
     monaco.languages.registerHoverProvider('lex', {
