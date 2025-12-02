@@ -11,6 +11,7 @@ import { PaneWorkspace } from './components/PaneWorkspace'
 import { MIN_PANE_SIZE, normalizePaneSizes, withRowDefaults } from '@/panes/layout'
 import { createEmptyPane, createRowId, usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
 import { usePaneManager } from '@/panes/usePaneManager'
+import { insertAsset, insertVerbatim } from './features/editing'
 
 initDebugMonaco();
 
@@ -403,6 +404,28 @@ function App() {
     openFileInPane(activePaneIdValue, path);
   }, [activePaneIdValue, openFileInPane]);
 
+  const handleInsertAsset = useCallback(async () => {
+    if (!activeEditor) return;
+    const path = await window.ipcRenderer.invoke('file-pick', {
+      title: 'Select Asset',
+      filters: [{ name: 'All Files', extensions: ['*'] }]
+    });
+    if (path) {
+      await insertAsset(activeEditor, path);
+    }
+  }, [activeEditor]);
+
+  const handleInsertVerbatim = useCallback(async () => {
+    if (!activeEditor) return;
+    const path = await window.ipcRenderer.invoke('file-pick', {
+      title: 'Select File for Verbatim Block',
+      filters: [{ name: 'All Files', extensions: ['*'] }]
+    });
+    if (path) {
+      await insertVerbatim(activeEditor, path);
+    }
+  }, [activeEditor]);
+
   useEffect(() => {
     const unsubNewFile = window.ipcRenderer.onMenuNewFile(handleNewFile);
     const unsubOpenFile = window.ipcRenderer.onMenuOpenFile(handleOpenFile);
@@ -415,6 +438,8 @@ function App() {
     const unsubSplitVertical = window.ipcRenderer.onMenuSplitVertical(handleSplitVertical);
     const unsubSplitHorizontal = window.ipcRenderer.onMenuSplitHorizontal(handleSplitHorizontal);
     const unsubPreview = window.ipcRenderer.onMenuPreview(handlePreview);
+    const unsubInsertAsset = window.ipcRenderer.on('menu-insert-asset', handleInsertAsset);
+    const unsubInsertVerbatim = window.ipcRenderer.on('menu-insert-verbatim', handleInsertVerbatim);
 
     return () => {
       unsubNewFile();
@@ -428,8 +453,10 @@ function App() {
       unsubSplitVertical();
       unsubSplitHorizontal();
       unsubPreview();
+      unsubInsertAsset();
+      unsubInsertVerbatim();
     };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal, handlePreview]);
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal, handlePreview, handleInsertAsset, handleInsertVerbatim]);
 
   return (
     <Layout

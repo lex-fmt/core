@@ -225,6 +225,8 @@ function applyMenuState(state: MenuState) {
   setEnabled('menu-find', hasOpenFile);
   setEnabled('menu-replace', hasOpenFile);
   setEnabled('menu-preview', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-insert-asset', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-insert-verbatim', hasOpenFile && isLexFileOpen);
 }
 
 async function createWindow() {
@@ -360,6 +362,19 @@ ipcMain.handle('file-open', async () => {
   const filePath = filePaths[0];
   const content = await fs.readFile(filePath, 'utf-8');
   return { filePath, content };
+});
+
+ipcMain.handle('file-pick', async (_, options: { title?: string, filters?: Electron.FileFilter[] } = {}) => {
+  if (!win) return null;
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    title: options.title,
+    properties: ['openFile'],
+    filters: options.filters
+  });
+  if (canceled || filePaths.length === 0) {
+    return null;
+  }
+  return filePaths[0];
 });
 
 ipcMain.handle('test-load-fixture', async (_event, fixtureName: string) => {
@@ -787,6 +802,19 @@ function createMenu() {
           id: 'menu-replace',
           enabled: false,
           click: () => win?.webContents.send('menu-replace')
+        },
+        { type: 'separator' },
+        {
+          label: 'Insert Asset...',
+          id: 'menu-insert-asset',
+          enabled: false,
+          click: () => win?.webContents.send('menu-insert-asset')
+        },
+        {
+          label: 'Insert Verbatim...',
+          id: 'menu-insert-verbatim',
+          enabled: false,
+          click: () => win?.webContents.send('menu-insert-verbatim')
         }
       ]
     },
