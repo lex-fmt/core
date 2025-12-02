@@ -9,7 +9,7 @@ import type {
   Location as LspLocation,
   WorkspaceEdit as LspWorkspaceEdit
 } from 'vscode-languageserver-types';
-import { convertDocument, convertToPdfFile, convertToHtml } from '@lex/shared';
+import { convertDocument, convertToPdfFile } from '@lex/shared';
 
 async function openConvertedDocument(
   content: string,
