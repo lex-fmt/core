@@ -407,11 +407,16 @@ function App() {
   }, [activePaneIdValue, openFileInPane]);
 
   const handleInsertAsset = useCallback(async () => {
-    if (!activeEditor) return;
+    console.log('handleInsertAsset called');
+    if (!activeEditor) {
+      console.log('handleInsertAsset: no active editor');
+      return;
+    }
     const path = await window.ipcRenderer.invoke('file-pick', {
       title: 'Select Asset',
       filters: [{ name: 'All Files', extensions: ['*'] }]
     });
+    console.log('handleInsertAsset: path selected', path);
     if (path) {
       await insertAsset(activeEditor, path);
     }

@@ -33,6 +33,7 @@ async function invokeInsertCommand(
         });
 
         if (response && isSnippetInsertionPayload(response)) {
+            console.log('invokeInsertCommand: received snippet payload', response);
             insertSnippet(editor, position, response);
         } else {
             console.error('Invalid snippet payload received', response);
@@ -77,6 +78,7 @@ function insertSnippet(
 }
 
 export async function insertAsset(editor: monaco.editor.IStandaloneCodeEditor, assetPath: string) {
+    console.log('insertAsset called with', assetPath);
     await invokeInsertCommand(editor, 'lex.insert_asset', [assetPath]);
 }
 
