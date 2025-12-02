@@ -97,8 +97,11 @@ jobs:
           fi
       - uses: actions/checkout@v4
         if: ${{ steps.filter.outputs.skip == 'false' }}
-        with:
-          ref: ${{ steps.release_tag.outputs.value || github.event.workflow_run.head_sha || github.ref }}
+      - name: Checkout release revision
+        if: ${{ steps.filter.outputs.skip == 'false' }}
+        run: |
+          git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          git checkout "refs/tags/${RELEASE_TAG}"
       - uses: actions/setup-node@v4
         if: ${{ steps.filter.outputs.skip == 'false' }}
         with:
