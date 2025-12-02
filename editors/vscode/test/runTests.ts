@@ -6,7 +6,7 @@ import { runTests } from '@vscode/test-electron';
 
 async function main() {
   const currentDir = fileURLToPath(new URL('.', import.meta.url));
-  const extensionDevelopmentPath = path.resolve(currentDir, '..', '..');
+  const extensionDevelopmentPath = path.resolve(currentDir, '..', '..', '..');
   const extensionTestsPath = path.resolve(currentDir, 'integration/index.js');
   const workspacePath = path.resolve(
     extensionDevelopmentPath,

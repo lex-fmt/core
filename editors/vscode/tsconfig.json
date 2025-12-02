@@ -8,9 +8,12 @@
     "paths": {
       "vscode-languageclient/node": [
         "./node_modules/vscode-languageclient/lib/node/main.d.ts"
+      ],
+      "@lex/shared": [
+        "../shared/src/index.ts"
       ]
     },
-    "rootDir": ".",
+
     "outDir": "out",
     "sourceMap": true,
     "strict": true,

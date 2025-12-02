@@ -44,33 +44,31 @@
     The following sections detail the feature groups organized by functionality.
 
 ## Feature Matrix
-| Feature Group | Feature | LSP Method / Command | Implementation | Status | VS Code | Neovim |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Syntax** | Syntax Highlighting | `textDocument/semanticTokens` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done |
-|  | Document Symbols | `textDocument/documentSymbol` | `lex-analysis/src/document_symbols.rs` | Done | Done | Done |
-|  | Folding | `textDocument/foldingRange` | `lex-analysis/src/folding_ranges.rs` | Done | Done | Done |
-|  | Hover | `textDocument/hover` | `lex-analysis/src/hover.rs` | Done | Done | Done |
-|  | Semantic Tokens | `textDocument/semanticTokens/full` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done |
-|  | Diagnostics | `textDocument/publishDiagnostics` | (Postponed) | Base Rust |  |  |
-| **Navigation** | Go to Definition | `textDocument/definition` | `lex-analysis/src/go_to_definition.rs` | Done | Done | Done |
-|  | Find References | `textDocument/references` | `lex-analysis/src/references.rs` | Done | Done | Done |
-|  | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` | Done | Done | Done |
-|  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done |
-| **Formatting** | Formatting | `textDocument/formatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done |
-|  | Range Formatting | `textDocument/rangeFormatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done |
-| **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
-|  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
-|  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done |
-|  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done |
-|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done |
-|  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done | Done |
-| **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
-|  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
-|  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
-|  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* |
-|  | Preview as HTML | (Client-side) | VS Code: `preview.ts` | Done | Done | N/A |
-
-    * Neovim adaptations required - see `editors/nvim/README-DEV.lex` for details.
+| Feature Group | Feature | LSP Method / Command | Implementation | Status | VS Code | Neovim | Desktop |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **Syntax** | Syntax Highlighting | `textDocument/semanticTokens` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done | Done |
+|  | Document Symbols | `textDocument/documentSymbol` | `lex-analysis/src/document_symbols.rs` | Done | Done | Done | No |
+|  | Folding | `textDocument/foldingRange` | `lex-analysis/src/folding_ranges.rs` | Done | Done | Done | Done |
+|  | Hover | `textDocument/hover` | `lex-analysis/src/hover.rs` | Done | Done | Done | Done |
+|  | Semantic Tokens | `textDocument/semanticTokens/full` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done | Done |
+|  | Diagnostics | `textDocument/publishDiagnostics` | (Postponed) | Base Rust |  |  | Done |
+| **Navigation** | Go to Definition | `textDocument/definition` | `lex-analysis/src/go_to_definition.rs` | Done | Done | Done | Done |
+|  | Find References | `textDocument/references` | `lex-analysis/src/references.rs` | Done | Done | Done | No |
+|  | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` | Done | Done | Done | No |
+|  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | No |
+| **Formatting** | Formatting | `textDocument/formatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | Done |
+|  | Range Formatting | `textDocument/rangeFormatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | No |
+| **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | No |
+|  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | No |
+|  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | No |
+|  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | No |
+|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | No |
+|  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | No |
+| **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+|  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+|  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+|  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | No |
+|  | Preview as HTML | (Client-side) | VS Code: `preview.ts` | Done | Done | N/A | Done |    * Neovim adaptations required - see `editors/nvim/README-DEV.lex` for details.
 
     Neovim Adaptations Summary:
     - File pickers: Telescope integration with vim.ui.input fallback

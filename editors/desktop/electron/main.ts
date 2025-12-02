@@ -3,9 +3,10 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
-import { spawn } from 'child_process';
+
 import { randomUUID } from 'crypto';
 import { LspManager } from './lsp-manager'
+import { convertFile } from '../../shared/src/index.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -583,26 +584,14 @@ ipcMain.handle('file-export', async (_, sourcePath: string, format: string): Pro
   const outputPath = sourcePath.replace(/\.(lex|md|html|htm|txt)$/i, `.${ext}`);
   const lexPath = getLexCliPath();
 
-  return new Promise((resolve, reject) => {
-    const proc = spawn(lexPath, ['convert', sourcePath, '--to', format, '-o', outputPath]);
-
-    let stderr = '';
-    proc.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString();
-    });
-
-    proc.on('error', (err) => {
-      reject(new Error(`Failed to spawn lex CLI: ${err.message}`));
-    });
-
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve(outputPath);
-      } else {
-        reject(new Error(stderr || `lex CLI exited with code ${code}`));
-      }
-    });
+  await convertFile({
+    cliBinaryPath: lexPath,
+    sourcePath,
+    outputPath,
+    toFormat: format as any
   });
+
+  return outputPath;
 });
 
 /**
@@ -619,40 +608,23 @@ ipcMain.handle('lex-preview', async (_, sourcePath: string): Promise<string> => 
   const tmpFile = path.join(tmpDir, `lex-preview-${Date.now()}.html`);
   console.log('[lex-preview] Using temp file:', tmpFile);
 
-  return new Promise((resolve, reject) => {
-    console.log('[lex-preview] Spawning:', lexPath, 'convert', sourcePath, '--to', 'html', '-o', tmpFile);
-    const proc = spawn(lexPath, ['convert', sourcePath, '--to', 'html', '-o', tmpFile]);
-
-    let stderr = '';
-    proc.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString();
+  try {
+    await convertFile({
+      cliBinaryPath: lexPath,
+      sourcePath,
+      outputPath: tmpFile,
+      toFormat: 'html'
     });
 
-    proc.on('error', (err) => {
-      console.error('[lex-preview] Spawn error:', err);
-      reject(new Error(`Failed to spawn lex CLI: ${err.message}`));
-    });
-
-    proc.on('close', async (code) => {
-      console.log('[lex-preview] Process exited with code:', code);
-      if (code !== 0) {
-        console.error('[lex-preview] stderr:', stderr);
-        reject(new Error(stderr || `lex CLI exited with code ${code}`));
-        return;
-      }
-
-      try {
-        const content = await fs.readFile(tmpFile, 'utf-8');
-        console.log('[lex-preview] Read content, length:', content.length);
-        // Clean up temp file
-        await fs.unlink(tmpFile).catch(() => {});
-        resolve(content);
-      } catch (err) {
-        console.error('[lex-preview] Read error:', err);
-        reject(new Error(`Failed to read preview: ${err instanceof Error ? err.message : String(err)}`));
-      }
-    });
-  });
+    const content = await fs.readFile(tmpFile, 'utf-8');
+    console.log('[lex-preview] Read content, length:', content.length);
+    // Clean up temp file
+    await fs.unlink(tmpFile).catch(() => {});
+    return content;
+  } catch (err) {
+    console.error('[lex-preview] Error:', err);
+    throw new Error(`Failed to preview: ${err instanceof Error ? err.message : String(err)}`);
+  }
 });
 
 /**
