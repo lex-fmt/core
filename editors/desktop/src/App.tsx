@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import * as monaco from 'monaco-editor'
 import { toast } from 'sonner'
 import type { EditorPaneHandle } from './components/EditorPane'
 import { Layout } from './components/Layout'
@@ -12,6 +13,7 @@ import { MIN_PANE_SIZE, normalizePaneSizes, withRowDefaults } from '@/panes/layo
 import { createEmptyPane, createRowId, usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
 import { usePaneManager } from '@/panes/usePaneManager'
 import { insertAsset, insertVerbatim } from './features/editing'
+import { nextAnnotation, previousAnnotation } from './features/navigation'
 
 initDebugMonaco();
 
@@ -426,6 +428,50 @@ function App() {
     }
   }, [activeEditor]);
 
+  const handleNextAnnotation = useCallback(async () => {
+    if (!activeEditor) return;
+    const location = await nextAnnotation(activeEditor);
+    if (location) {
+      // If location is in another file, we might need to open it.
+      // For now, assuming same file navigation or that LSP handles file switching if we implement it fully.
+      // But monaco-editor is single model usually unless we handle it.
+      // The current implementation of nextAnnotation returns a Location.
+      // If it's the same file, we can just reveal it.
+      // If it's a different file, we need to open it.
+
+      // Check if URI matches current model
+      const currentUri = activeEditor.getModel()?.uri.toString();
+      if (location.uri === currentUri) {
+        const pos = new monaco.Position(location.range.start.line + 1, location.range.start.character + 1);
+        activeEditor.setPosition(pos);
+        activeEditor.revealPosition(pos);
+      } else {
+        // TODO: Handle navigation to other files
+        // For now, let's just log it or toast
+        toast.info('Annotation is in another file: ' + location.uri);
+      }
+    } else {
+      toast.info('No more annotations');
+    }
+  }, [activeEditor]);
+
+  const handlePrevAnnotation = useCallback(async () => {
+    if (!activeEditor) return;
+    const location = await previousAnnotation(activeEditor);
+    if (location) {
+      const currentUri = activeEditor.getModel()?.uri.toString();
+      if (location.uri === currentUri) {
+        const pos = new monaco.Position(location.range.start.line + 1, location.range.start.character + 1);
+        activeEditor.setPosition(pos);
+        activeEditor.revealPosition(pos);
+      } else {
+        toast.info('Annotation is in another file: ' + location.uri);
+      }
+    } else {
+      toast.info('No previous annotations');
+    }
+  }, [activeEditor]);
+
   useEffect(() => {
     const unsubNewFile = window.ipcRenderer.onMenuNewFile(handleNewFile);
     const unsubOpenFile = window.ipcRenderer.onMenuOpenFile(handleOpenFile);
@@ -440,6 +486,8 @@ function App() {
     const unsubPreview = window.ipcRenderer.onMenuPreview(handlePreview);
     const unsubInsertAsset = window.ipcRenderer.on('menu-insert-asset', handleInsertAsset);
     const unsubInsertVerbatim = window.ipcRenderer.on('menu-insert-verbatim', handleInsertVerbatim);
+    const unsubNextAnnotation = window.ipcRenderer.on('menu-next-annotation', handleNextAnnotation);
+    const unsubPrevAnnotation = window.ipcRenderer.on('menu-prev-annotation', handlePrevAnnotation);
 
     return () => {
       unsubNewFile();
@@ -455,8 +503,10 @@ function App() {
       unsubPreview();
       unsubInsertAsset();
       unsubInsertVerbatim();
+      unsubNextAnnotation();
+      unsubPrevAnnotation();
     };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal, handlePreview, handleInsertAsset, handleInsertVerbatim]);
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal, handlePreview, handleInsertAsset, handleInsertVerbatim, handleNextAnnotation, handlePrevAnnotation]);
 
   return (
     <Layout

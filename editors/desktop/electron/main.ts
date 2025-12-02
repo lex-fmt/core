@@ -227,6 +227,8 @@ function applyMenuState(state: MenuState) {
   setEnabled('menu-preview', hasOpenFile && isLexFileOpen);
   setEnabled('menu-insert-asset', hasOpenFile && isLexFileOpen);
   setEnabled('menu-insert-verbatim', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-next-annotation', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-prev-annotation', hasOpenFile && isLexFileOpen);
 }
 
 async function createWindow() {
