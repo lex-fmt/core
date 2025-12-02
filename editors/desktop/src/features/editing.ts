@@ -83,3 +83,11 @@ export async function insertAsset(editor: monaco.editor.IStandaloneCodeEditor, a
 export async function insertVerbatim(editor: monaco.editor.IStandaloneCodeEditor, filePath: string) {
     await invokeInsertCommand(editor, 'lex.insert_verbatim', [filePath]);
 }
+
+export async function resolveAnnotation(editor: monaco.editor.IStandaloneCodeEditor) {
+    await invokeInsertCommand(editor, 'lex.resolve_annotation', []);
+}
+
+export async function toggleAnnotations(editor: monaco.editor.IStandaloneCodeEditor) {
+    await invokeInsertCommand(editor, 'lex.toggle_annotations', []);
+}

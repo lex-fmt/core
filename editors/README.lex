@@ -57,13 +57,13 @@
 |  | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` | Done | Done | Done | No |
 |  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
 | **Formatting** | Formatting | `textDocument/formatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | Done |
-|  | Range Formatting | `textDocument/rangeFormatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | No |
+|  | Range Formatting | `textDocument/rangeFormatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | Done |
 | **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
 |  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
-|  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | No |
-|  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | No |
-|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | No |
-|  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | No |
+|  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | Done |
+|  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | Done |
+|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
+|  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
 | **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
 |  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
 |  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |

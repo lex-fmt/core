@@ -12,7 +12,7 @@ import { PaneWorkspace } from './components/PaneWorkspace'
 import { MIN_PANE_SIZE, normalizePaneSizes, withRowDefaults } from '@/panes/layout'
 import { createEmptyPane, createRowId, usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
 import { usePaneManager } from '@/panes/usePaneManager'
-import { insertAsset, insertVerbatim } from './features/editing'
+import { insertAsset, insertVerbatim, resolveAnnotation, toggleAnnotations } from './features/editing'
 import { nextAnnotation, previousAnnotation } from './features/navigation'
 
 initDebugMonaco();
@@ -472,6 +472,16 @@ function App() {
     }
   }, [activeEditor]);
 
+  const handleResolveAnnotation = useCallback(async () => {
+    if (!activeEditor) return;
+    await resolveAnnotation(activeEditor);
+  }, [activeEditor]);
+
+  const handleToggleAnnotations = useCallback(async () => {
+    if (!activeEditor) return;
+    await toggleAnnotations(activeEditor);
+  }, [activeEditor]);
+
   useEffect(() => {
     const unsubNewFile = window.ipcRenderer.onMenuNewFile(handleNewFile);
     const unsubOpenFile = window.ipcRenderer.onMenuOpenFile(handleOpenFile);
@@ -488,6 +498,8 @@ function App() {
     const unsubInsertVerbatim = window.ipcRenderer.on('menu-insert-verbatim', handleInsertVerbatim);
     const unsubNextAnnotation = window.ipcRenderer.on('menu-next-annotation', handleNextAnnotation);
     const unsubPrevAnnotation = window.ipcRenderer.on('menu-prev-annotation', handlePrevAnnotation);
+    const unsubResolveAnnotation = window.ipcRenderer.on('menu-resolve-annotation', handleResolveAnnotation);
+    const unsubToggleAnnotations = window.ipcRenderer.on('menu-toggle-annotations', handleToggleAnnotations);
 
     return () => {
       unsubNewFile();
@@ -505,8 +517,10 @@ function App() {
       unsubInsertVerbatim();
       unsubNextAnnotation();
       unsubPrevAnnotation();
+      unsubResolveAnnotation();
+      unsubToggleAnnotations();
     };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal, handlePreview, handleInsertAsset, handleInsertVerbatim, handleNextAnnotation, handlePrevAnnotation]);
+  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal, handlePreview, handleInsertAsset, handleInsertVerbatim, handleNextAnnotation, handlePrevAnnotation, handleResolveAnnotation, handleToggleAnnotations]);
 
   return (
     <Layout

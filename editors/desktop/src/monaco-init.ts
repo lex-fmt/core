@@ -28,6 +28,7 @@ import { lspClient } from './lsp/client';
 
 import { LEGEND } from '@lex/shared';
 import { registerFormatting } from './features/formatting';
+import { registerCompletion } from './features/completion';
 
 let initialized = false;
 
@@ -42,6 +43,7 @@ export function initMonaco() {
 
     // Register Features
     registerFormatting();
+    registerCompletion();
 
     // Register Semantic Tokens Provider
     monaco.languages.registerDocumentSemanticTokensProvider('lex', {

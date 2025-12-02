@@ -229,6 +229,8 @@ function applyMenuState(state: MenuState) {
   setEnabled('menu-insert-verbatim', hasOpenFile && isLexFileOpen);
   setEnabled('menu-next-annotation', hasOpenFile && isLexFileOpen);
   setEnabled('menu-prev-annotation', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-resolve-annotation', hasOpenFile && isLexFileOpen);
+  setEnabled('menu-toggle-annotations', hasOpenFile && isLexFileOpen);
 }
 
 async function createWindow() {
@@ -817,6 +819,19 @@ function createMenu() {
           id: 'menu-insert-verbatim',
           enabled: false,
           click: () => win?.webContents.send('menu-insert-verbatim')
+        },
+        { type: 'separator' },
+        {
+          label: 'Resolve Annotation',
+          id: 'menu-resolve-annotation',
+          enabled: false,
+          click: () => win?.webContents.send('menu-resolve-annotation')
+        },
+        {
+          label: 'Toggle Annotations',
+          id: 'menu-toggle-annotations',
+          enabled: false,
+          click: () => win?.webContents.send('menu-toggle-annotations')
         }
       ]
     },
