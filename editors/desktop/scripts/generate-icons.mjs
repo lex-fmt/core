@@ -7,7 +7,7 @@ import sharp from 'sharp';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');
-const workspaceRoot = path.join(projectRoot, '..');
+const workspaceRoot = path.join(projectRoot, '..', '..');
 const outputDir = path.join(projectRoot, 'build', 'icons');
 const tmpDir = path.join(projectRoot, 'build');
 const basePng = path.join(tmpDir, 'icon-1024.png');

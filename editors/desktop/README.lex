@@ -110,6 +110,6 @@ Lex Desktop Architecture
 
 ## Testing
 
-- Run `npm run test:e2e` inside `lex-desktop/` to execute the Playwright e2e suite (builds the app before running).
+- Run `npm run test:e2e` inside `editors/desktop/` to execute the Playwright e2e suite (builds the app before running).
 
 Running `npm run test:e2e` hides the Electron window via `LEX_HIDE_WINDOW=1` so tests do not steal focus; unset it to observe the UI.

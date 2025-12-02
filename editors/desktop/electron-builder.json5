@@ -13,11 +13,11 @@
   ],
   "extraResources": [
     {
-      "from": "../target/debug/lex-lsp",
+      "from": "../../target/debug/lex-lsp",
       "to": "lex-lsp"
     },
     {
-      "from": "../specs",
+      "from": "../../specs",
       "to": "specs"
     }
   ],

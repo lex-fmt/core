@@ -9,6 +9,25 @@ import { LspManager } from './lsp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+function resolveWorkspaceRoot(): string {
+  const override = process.env.LEX_WORKSPACE_ROOT;
+  if (override) {
+    return path.resolve(override);
+  }
+
+  let current = process.cwd();
+  const { root } = path.parse(current);
+  while (true) {
+    if (fsSync.existsSync(path.join(current, 'Cargo.toml'))) {
+      return current;
+    }
+    if (current === root) {
+      return process.cwd();
+    }
+    current = path.dirname(current);
+  }
+}
+
 // Settings persistence
 const SETTINGS_FILE = 'settings.json';
 
@@ -140,8 +159,7 @@ function getLexCliPath(): string {
   if (override) {
     return path.resolve(override);
   }
-  const workspaceRoot =
-    process.env.LEX_WORKSPACE_ROOT ?? path.resolve(process.cwd(), '..');
+  const workspaceRoot = resolveWorkspaceRoot();
   return path.join(workspaceRoot, 'target', 'debug', binaryName);
 }
 

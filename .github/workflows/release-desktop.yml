@@ -100,7 +100,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: lex-desktop/package-lock.json
+          cache-dependency-path: editors/desktop/package-lock.json
       - name: Download lex-lsp artifact
         if: ${{ steps.filter.outputs.skip == 'false' }}
         env:
@@ -133,11 +133,11 @@ jobs:
           chmod +x "$DEST" || true
       - name: Install dependencies
         if: ${{ steps.filter.outputs.skip == 'false' }}
-        working-directory: lex-desktop
+        working-directory: editors/desktop
         run: npm ci
       - name: Build Electron package
         if: ${{ steps.filter.outputs.skip == 'false' }}
-        working-directory: lex-desktop
+        working-directory: editors/desktop
         env:
           LEX_HIDE_WINDOW: "1"
           NODE_OPTIONS: --max-old-space-size=4096
@@ -147,8 +147,8 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ steps.filter.outputs.skip == 'false' }}
         with:
-          name: lex-desktop-${{ env.ARTIFACT_SUFFIX }}
+          name: editors/desktop-${{ env.ARTIFACT_SUFFIX }}
           path: |
-            lex-desktop/release/**
-            lex-desktop/dist/**
+            editors/desktop/release/**
+            editors/desktop/dist/**
           if-no-files-found: error

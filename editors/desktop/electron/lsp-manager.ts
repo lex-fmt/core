@@ -3,8 +3,26 @@ import { ipcMain, WebContents, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const DEV_WORKSPACE_ROOT =
-  process.env.LEX_WORKSPACE_ROOT ?? path.resolve(process.cwd(), '..');
+function detectWorkspaceRoot(): string {
+  const override = process.env.LEX_WORKSPACE_ROOT;
+  if (override) {
+    return path.resolve(override);
+  }
+
+  let current = process.cwd();
+  const { root } = path.parse(current);
+  while (true) {
+    if (fs.existsSync(path.join(current, 'Cargo.toml'))) {
+      return current;
+    }
+    if (current === root) {
+      return process.cwd();
+    }
+    current = path.dirname(current);
+  }
+}
+
+const DEV_WORKSPACE_ROOT = detectWorkspaceRoot();
 
 function resolveDevBinary(binaryName: string): string {
   const override = process.env.LEX_LSP_PATH;
