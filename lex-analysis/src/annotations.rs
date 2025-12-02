@@ -215,7 +215,7 @@ pub(crate) fn collect_annotations(document: &Document) -> Vec<&Annotation> {
 }
 
 fn format_header(label: &str, params: &[Parameter]) -> String {
-    let mut header = format!(":: {}", label);
+    let mut header = format!(":: {label}");
     for param in params {
         header.push(' ');
         header.push_str(&param.key);

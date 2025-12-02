@@ -88,9 +88,9 @@ pub enum SpecFileError {
 impl std::fmt::Display for SpecFileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SpecFileError::FileNotFound(msg) => write!(f, "File not found: {}", msg),
-            SpecFileError::IoError(msg) => write!(f, "IO error: {}", msg),
-            SpecFileError::DuplicateNumber(msg) => write!(f, "Duplicate number: {}", msg),
+            SpecFileError::FileNotFound(msg) => write!(f, "File not found: {msg}"),
+            SpecFileError::IoError(msg) => write!(f, "IO error: {msg}"),
+            SpecFileError::DuplicateNumber(msg) => write!(f, "Duplicate number: {msg}"),
         }
     }
 }
@@ -120,7 +120,7 @@ pub fn get_doc_root(category: &str, subcategory: Option<&str>) -> PathBuf {
     path.push(category);
     if let Some(subcat) = subcategory {
         if category == "elements" {
-            path.push(format!("{}.docs", subcat));
+            path.push(format!("{subcat}.docs"));
         } else {
             path.push(subcat);
         }
@@ -224,14 +224,13 @@ pub fn find_specfile_by_number(
     }
 
     let location = if let Some(subcat) = subcategory {
-        format!("{}/{}", category, subcat)
+        format!("{category}/{subcat}")
     } else {
         category.to_string()
     };
 
     Err(SpecFileError::FileNotFound(format!(
-        "No file with number {} found in {}",
-        number, location
+        "No file with number {number} found in {location}"
     )))
 }
 

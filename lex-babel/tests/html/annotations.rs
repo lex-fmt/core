@@ -15,7 +15,7 @@ This is a warning.
         .serialize(&doc)
         .expect("Failed to serialize html");
 
-    println!("HTML Output:\n{}", html);
+    println!("HTML Output:\n{html}");
 
     // HTML export should preserve annotations as HTML comments
     assert!(html.contains("<!-- lex:note type=warning"));

@@ -1,11 +1,7 @@
 use lex_parser::lex::testing::lexplore::Lexplore;
 
 fn assert_not_empty(doc: &lex_parser::lex::ast::Document, label: &str) {
-    assert!(
-        !doc.root.children.is_empty(),
-        "{} should have content",
-        label
-    );
+    assert!(!doc.root.children.is_empty(), "{label} should have content");
 }
 
 #[test]

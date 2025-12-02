@@ -70,15 +70,15 @@ fn hover_for_reference(
         }
         ReferenceType::Url { target } => Some(HoverResult {
             range: range.clone(),
-            contents: format!("**Link**\n\n{}", target),
+            contents: format!("**Link**\n\n{target}"),
         }),
         ReferenceType::File { target } => Some(HoverResult {
             range: range.clone(),
-            contents: format!("**File Reference**\n\n{}", target),
+            contents: format!("**File Reference**\n\n{target}"),
         }),
         ReferenceType::Session { target } => Some(HoverResult {
             range: range.clone(),
-            contents: format!("**Session Reference**\n\n{}", target),
+            contents: format!("**Session Reference**\n\n{target}"),
         }),
         _ => Some(generic_reference(range.clone(), raw)),
     }
@@ -140,7 +140,7 @@ fn annotation_hover_result(annotation: &Annotation) -> HoverResult {
             .map(|param| format!("{}={}", param.key, param.value))
             .collect::<Vec<_>>()
             .join(", ");
-        parts.push(format!("Parameters: {}", params));
+        parts.push(format!("Parameters: {params}"));
     }
     if let Some(preview) = preview_from_items(annotation.children.iter()) {
         parts.push(preview);
@@ -166,12 +166,12 @@ fn session_hover(document: &Document, position: Position) -> Option<HoverResult>
     let title = session.title.as_string().trim();
 
     if let Some(identifier) = session_identifier(session) {
-        parts.push(format!("Identifier: {}", identifier));
+        parts.push(format!("Identifier: {identifier}"));
     }
 
     let child_count = session.children.len();
     if child_count > 0 {
-        parts.push(format!("{} item(s)", child_count));
+        parts.push(format!("{child_count} item(s)"));
     }
 
     if let Some(preview) = preview_from_items(session.children.iter()) {
@@ -264,7 +264,7 @@ mod tests {
         let source = sample_source();
         let index = source
             .find(needle)
-            .unwrap_or_else(|| panic!("{} not found", needle));
+            .unwrap_or_else(|| panic!("{needle} not found"));
         let mut line = 0;
         let mut column = 0;
         for ch in source[..index].chars() {

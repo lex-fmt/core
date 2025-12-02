@@ -107,7 +107,7 @@ pub static STRING_TO_AST: Lazy<AstTransform> =
         Transform::from_fn(|s: String| {
             // Ensure source ends with newline (required for parsing)
             let source = if !s.is_empty() && !s.ends_with('\n') {
-                format!("{}\n", s)
+                format!("{s}\n")
             } else {
                 s
             };

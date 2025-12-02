@@ -293,14 +293,14 @@ fn inline_content_to_text(content: &[InlineContent]) -> String {
             InlineContent::Italic(children) => {
                 format!("_{}_", inline_content_to_text(children))
             }
-            InlineContent::Code(code) => format!("`{}`", code),
-            InlineContent::Math(math) => format!("#{}#", math),
-            InlineContent::Reference(ref_text) => format!("[{}]", ref_text),
+            InlineContent::Code(code) => format!("`{code}`"),
+            InlineContent::Math(math) => format!("#{math}#"),
+            InlineContent::Reference(ref_text) => format!("[{ref_text}]"),
             InlineContent::Marker(marker) => marker.clone(),
             InlineContent::Image(image) => {
                 let mut text = format!("![{}]({})", image.alt, image.src);
                 if let Some(title) = &image.title {
-                    text.push_str(&format!(" \"{}\"", title));
+                    text.push_str(&format!(" \"{title}\""));
                 }
                 text
             }

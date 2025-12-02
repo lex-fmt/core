@@ -169,7 +169,7 @@ fn serialize_pipe_table(table: &Table) -> String {
         for (i, cell) in row.cells.iter().enumerate() {
             let text = cell_text(cell);
             let width = col_widths.get(i).copied().unwrap_or(text.len());
-            output.push_str(&format!(" {:width$} |", text, width = width));
+            output.push_str(&format!(" {text:width$} |"));
         }
         output.push('\n');
     }
@@ -187,10 +187,10 @@ fn serialize_pipe_table(table: &Table) -> String {
 
             let dashes = "-".repeat(width.saturating_sub(2));
             match align {
-                TableCellAlignment::Left => output.push_str(&format!(" :{}- |", dashes)),
-                TableCellAlignment::Right => output.push_str(&format!(" -{}: |", dashes)),
-                TableCellAlignment::Center => output.push_str(&format!(" :{}: |", dashes)),
-                TableCellAlignment::None => output.push_str(&format!(" -{}- |", dashes)),
+                TableCellAlignment::Left => output.push_str(&format!(" :{dashes}- |")),
+                TableCellAlignment::Right => output.push_str(&format!(" -{dashes}: |")),
+                TableCellAlignment::Center => output.push_str(&format!(" :{dashes}: |")),
+                TableCellAlignment::None => output.push_str(&format!(" -{dashes}- |")),
             }
         }
         output.push('\n');
@@ -202,7 +202,7 @@ fn serialize_pipe_table(table: &Table) -> String {
         for (i, cell) in row.cells.iter().enumerate() {
             let text = cell_text(cell);
             let width = col_widths.get(i).copied().unwrap_or(text.len());
-            output.push_str(&format!(" {:width$} |", text, width = width));
+            output.push_str(&format!(" {text:width$} |"));
         }
         output.push('\n');
     }
@@ -219,14 +219,14 @@ fn cell_text(cell: &TableCell) -> String {
                 InlineContent::Text(t) => t.clone(),
                 InlineContent::Bold(c) => format!("*{}*", inline_content_to_text(c)),
                 InlineContent::Italic(c) => format!("_{}_", inline_content_to_text(c)),
-                InlineContent::Code(c) => format!("`{}`", c),
-                InlineContent::Math(c) => format!("${}$", c),
-                InlineContent::Reference(c) => format!("[{}]", c),
+                InlineContent::Code(c) => format!("`{c}`"),
+                InlineContent::Math(c) => format!("${c}$"),
+                InlineContent::Reference(c) => format!("[{c}]"),
                 InlineContent::Marker(c) => c.clone(),
                 InlineContent::Image(image) => {
                     let mut text = format!("![{}]({})", image.alt, image.src);
                     if let Some(title) = &image.title {
-                        text.push_str(&format!(" \"{}\"", title));
+                        text.push_str(&format!(" \"{title}\""));
                     }
                     text
                 }
@@ -248,14 +248,14 @@ fn inline_content_to_text(content: &[InlineContent]) -> String {
             InlineContent::Text(t) => t.clone(),
             InlineContent::Bold(c) => format!("*{}*", inline_content_to_text(c)),
             InlineContent::Italic(c) => format!("_{}_", inline_content_to_text(c)),
-            InlineContent::Code(c) => format!("`{}`", c),
-            InlineContent::Math(c) => format!("${}$", c),
-            InlineContent::Reference(c) => format!("[{}]", c),
+            InlineContent::Code(c) => format!("`{c}`"),
+            InlineContent::Math(c) => format!("${c}$"),
+            InlineContent::Reference(c) => format!("[{c}]"),
             InlineContent::Marker(c) => c.clone(),
             InlineContent::Image(image) => {
                 let mut text = format!("![{}]({})", image.alt, image.src);
                 if let Some(title) = &image.title {
-                    text.push_str(&format!(" \"{}\"", title));
+                    text.push_str(&format!(" \"{title}\""));
                 }
                 text
             }

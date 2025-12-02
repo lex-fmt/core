@@ -83,7 +83,7 @@ pub fn from_lex_document(doc: &LexDocument) -> Document {
                     parameters.push((key, value));
                 } else {
                     for (k, v) in &ann.parameters {
-                        parameters.push((format!("{}.{}", key, k), v.clone()));
+                        parameters.push((format!("{key}.{k}"), v.clone()));
                     }
                 }
 

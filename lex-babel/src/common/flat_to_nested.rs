@@ -72,20 +72,16 @@ pub enum ConversionError {
 impl std::fmt::Display for ConversionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ConversionError::UnexpectedEnd(msg) => write!(f, "Unexpected end event: {}", msg),
+            ConversionError::UnexpectedEnd(msg) => write!(f, "Unexpected end event: {msg}"),
             ConversionError::MismatchedEvents { expected, found } => {
-                write!(
-                    f,
-                    "Mismatched events: expected {}, found {}",
-                    expected, found
-                )
+                write!(f, "Mismatched events: expected {expected}, found {found}")
             }
             ConversionError::UnexpectedInline(msg) => {
-                write!(f, "Unexpected inline content: {}", msg)
+                write!(f, "Unexpected inline content: {msg}")
             }
             ConversionError::ExtraEvents => write!(f, "Extra events after document end"),
             ConversionError::UnclosedContainers(count) => {
-                write!(f, "Unclosed containers: {} nodes remain on stack", count)
+                write!(f, "Unclosed containers: {count} nodes remain on stack")
             }
         }
     }
@@ -273,7 +269,7 @@ impl StackNode {
                 } else {
                     Err(ConversionError::MismatchedEvents {
                         expected: "ListItem".to_string(),
-                        found: format!("{:?}", child),
+                        found: format!("{child:?}"),
                     })
                 }
             }
@@ -361,16 +357,16 @@ fn finalize_container<F>(
 where
     F: FnOnce(StackNode) -> Result<StackNode, ConversionError>,
 {
-    let node = stack.pop().ok_or_else(|| {
-        ConversionError::UnexpectedEnd(format!("{} with empty stack", event_name))
-    })?;
+    let node = stack
+        .pop()
+        .ok_or_else(|| ConversionError::UnexpectedEnd(format!("{event_name} with empty stack")))?;
 
     let node = validate(node)?;
 
     let doc_node = node.into_doc_node();
     let parent = stack
         .last_mut()
-        .ok_or_else(|| ConversionError::UnexpectedEnd(format!("No parent for {}", parent_label)))?;
+        .ok_or_else(|| ConversionError::UnexpectedEnd(format!("No parent for {parent_label}")))?;
     parent.add_child(doc_node)?;
 
     Ok(())
@@ -502,7 +498,7 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
         Some(other) => {
             return Err(ConversionError::MismatchedEvents {
                 expected: "StartDocument".to_string(),
-                found: format!("{:?}", other),
+                found: format!("{other:?}"),
             });
         }
         None => return Ok(Document { children: vec![] }),
@@ -566,8 +562,8 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
                     StackNode::Heading {
                         level: node_level, ..
                     } => Err(ConversionError::MismatchedEvents {
-                        expected: format!("EndHeading({})", node_level),
-                        found: format!("EndHeading({})", level),
+                        expected: format!("EndHeading({node_level})"),
+                        found: format!("EndHeading({level})"),
                     }),
                     other => Err(ConversionError::MismatchedEvents {
                         expected: "Heading".to_string(),
@@ -725,8 +721,8 @@ pub fn events_to_tree(events: &[Event]) -> Result<Document, ConversionError> {
                             label: ref node_label,
                             ..
                         } => Err(ConversionError::MismatchedEvents {
-                            expected: format!("EndAnnotation({})", node_label),
-                            found: format!("EndAnnotation({})", label),
+                            expected: format!("EndAnnotation({node_label})"),
+                            found: format!("EndAnnotation({label})"),
                         }),
                         other => Err(ConversionError::MismatchedEvents {
                             expected: "Annotation".to_string(),

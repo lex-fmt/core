@@ -174,10 +174,10 @@ impl fmt::Display for Token {
             Token::Comma => "comma",
             Token::Quote => "quote",
             Token::Equals => "equals",
-            Token::Number(s) => return write!(f, "<number:{}>", s),
-            Token::Text(s) => return write!(f, "<text:{}>", s),
+            Token::Number(s) => return write!(f, "<number:{s}>"),
+            Token::Text(s) => return write!(f, "<text:{s}>"),
         };
-        write!(f, "<{}>", name)
+        write!(f, "<{name}>")
     }
 }
 

@@ -23,7 +23,7 @@ pub fn parse_from_markdown(source: &str) -> Result<Document, FormatError> {
 
     // Step 3: Convert events to IR tree
     let ir_doc = events_to_tree(&events).map_err(|e| {
-        FormatError::ParseError(format!("Failed to build IR tree from events: {}", e))
+        FormatError::ParseError(format!("Failed to build IR tree from events: {e}"))
     })?;
 
     // Step 4: Convert IR to Lex AST

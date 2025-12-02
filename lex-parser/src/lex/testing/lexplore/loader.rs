@@ -31,10 +31,10 @@ pub enum ElementSourceError {
 impl std::fmt::Display for ElementSourceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ElementSourceError::FileNotFound(msg) => write!(f, "File not found: {}", msg),
-            ElementSourceError::IoError(msg) => write!(f, "IO error: {}", msg),
-            ElementSourceError::ParseError(msg) => write!(f, "Parse error: {}", msg),
-            ElementSourceError::InvalidElement(msg) => write!(f, "Invalid element: {}", msg),
+            ElementSourceError::FileNotFound(msg) => write!(f, "File not found: {msg}"),
+            ElementSourceError::IoError(msg) => write!(f, "IO error: {msg}"),
+            ElementSourceError::ParseError(msg) => write!(f, "Parse error: {msg}"),
+            ElementSourceError::InvalidElement(msg) => write!(f, "Invalid element: {msg}"),
         }
     }
 }
@@ -80,7 +80,7 @@ impl From<specfile_finder::SpecFileError> for ElementSourceError {
 /// Used internally by the get_* convenience functions.
 fn load_isolated_element(element_type: ElementType, number: usize) -> Document {
     let path = specfile_finder::find_element_file(element_type, number)
-        .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", element_type, number, e));
+        .unwrap_or_else(|e| panic!("Failed to find {element_type:?} #{number}: {e}"));
     let source = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read {}: {}", path.display(), e));
 
@@ -132,9 +132,9 @@ impl Lexplore {
     /// Returns a `DocumentLoader` which provides transform shortcuts.
     pub fn load(element_type: ElementType, number: usize) -> DocumentLoader {
         let path = specfile_finder::find_element_file(element_type, number)
-            .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", element_type, number, e));
+            .unwrap_or_else(|e| panic!("Failed to find {element_type:?} #{number}: {e}"));
         DocumentLoader::from_path(path)
-            .unwrap_or_else(|e| panic!("Failed to load {:?} #{}: {}", element_type, number, e))
+            .unwrap_or_else(|e| panic!("Failed to load {element_type:?} #{number}: {e}"))
     }
 
     /// Load a document collection file by type and number
@@ -142,17 +142,16 @@ impl Lexplore {
     /// Returns a `DocumentLoader` which provides transform shortcuts.
     pub fn load_document(doc_type: DocumentType, number: usize) -> DocumentLoader {
         let path = specfile_finder::find_document_file(doc_type, number)
-            .unwrap_or_else(|e| panic!("Failed to find {:?} #{}: {}", doc_type, number, e));
+            .unwrap_or_else(|e| panic!("Failed to find {doc_type:?} #{number}: {e}"));
         DocumentLoader::from_path(path)
-            .unwrap_or_else(|e| panic!("Failed to load {:?} #{}: {}", doc_type, number, e))
+            .unwrap_or_else(|e| panic!("Failed to load {doc_type:?} #{number}: {e}"))
     }
 
     /// Load from an arbitrary file path
     ///
     /// Returns a `DocumentLoader` which provides transform shortcuts.
     pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> DocumentLoader {
-        DocumentLoader::from_path(path)
-            .unwrap_or_else(|e| panic!("Failed to load from path: {}", e))
+        DocumentLoader::from_path(path).unwrap_or_else(|e| panic!("Failed to load from path: {e}"))
     }
 
     // ===== Isolated element loading (returns AST node directly) =====

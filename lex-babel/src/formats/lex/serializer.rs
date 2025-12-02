@@ -220,7 +220,7 @@ impl Visitor for LexSerializer {
         let line = if text.is_empty() {
             marker
         } else {
-            format!("{} {}", marker, text)
+            format!("{marker} {text}")
         };
 
         self.write_line(&line);
@@ -233,7 +233,7 @@ impl Visitor for LexSerializer {
 
     fn visit_definition(&mut self, definition: &Definition) {
         let subject = definition.subject.as_string();
-        self.write_line(&format!("{}:", subject));
+        self.write_line(&format!("{subject}:"));
         self.indent_level += 1;
     }
 
@@ -245,7 +245,7 @@ impl Visitor for LexSerializer {
         let label = &annotation.data.label.value;
         let params = &annotation.data.parameters;
 
-        let mut header = format!(":: {}", label);
+        let mut header = format!(":: {label}");
         if !params.is_empty() {
             for param in params {
                 header.push(' ');
@@ -280,7 +280,7 @@ impl Visitor for LexSerializer {
 
     fn visit_verbatim_group(&mut self, group: &VerbatimGroupItemRef) {
         let subject = group.subject.as_string();
-        self.write_line(&format!("{}:", subject));
+        self.write_line(&format!("{subject}:"));
         self.indent_level += 1;
     }
 
@@ -294,7 +294,7 @@ impl Visitor for LexSerializer {
 
     fn leave_verbatim_block(&mut self, verbatim: &Verbatim) {
         let label = &verbatim.closing_data.label.value;
-        let mut footer = format!(":: {}", label);
+        let mut footer = format!(":: {label}");
         if !verbatim.closing_data.parameters.is_empty() {
             for param in &verbatim.closing_data.parameters {
                 footer.push(' ');

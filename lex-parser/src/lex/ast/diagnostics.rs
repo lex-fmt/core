@@ -154,8 +154,7 @@ pub fn validate_references(document: &Document) -> Vec<Diagnostic> {
                         range,
                         DiagnosticSeverity::Warning,
                         format!(
-                            "Broken footnote reference: no annotation found with label '{}'",
-                            label
+                            "Broken footnote reference: no annotation found with label '{label}'"
                         ),
                     )
                     .with_code("broken-reference");
@@ -169,8 +168,7 @@ pub fn validate_references(document: &Document) -> Vec<Diagnostic> {
                         range,
                         DiagnosticSeverity::Warning,
                         format!(
-                            "Broken footnote reference: no annotation found with label '{}'",
-                            label
+                            "Broken footnote reference: no annotation found with label '{label}'"
                         ),
                     )
                     .with_code("broken-reference");
@@ -185,8 +183,7 @@ pub fn validate_references(document: &Document) -> Vec<Diagnostic> {
                             range,
                             DiagnosticSeverity::Warning,
                             format!(
-                                "Broken citation reference: no annotation found with label '{}'",
-                                key
+                                "Broken citation reference: no annotation found with label '{key}'"
                             ),
                         )
                         .with_code("broken-citation");
@@ -203,10 +200,7 @@ pub fn validate_references(document: &Document) -> Vec<Diagnostic> {
                     let diag = Diagnostic::new(
                         range,
                         DiagnosticSeverity::Warning,
-                        format!(
-                            "Broken session reference: no session found with title '{}'",
-                            target
-                        ),
+                        format!("Broken session reference: no session found with title '{target}'"),
                     )
                     .with_code("broken-session-ref");
                     diagnostics.push(diag);
@@ -278,7 +272,7 @@ pub fn validate_structure(document: &Document) -> Vec<Diagnostic> {
                         let diag = Diagnostic::new(
                             annotation.range().clone(),
                             DiagnosticSeverity::Warning,
-                            format!("Duplicate parameter: '{}'", name),
+                            format!("Duplicate parameter: '{name}'"),
                         )
                         .with_code("duplicate-parameter");
                         diagnostics.push(diag);
@@ -356,8 +350,7 @@ mod tests {
             !diagnostics
                 .iter()
                 .any(|d| d.message.contains("Broken footnote reference")),
-            "Expected no broken footnote reference diagnostics, got: {:?}",
-            diagnostics
+            "Expected no broken footnote reference diagnostics, got: {diagnostics:?}"
         );
     }
 

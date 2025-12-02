@@ -22,7 +22,7 @@ fn main() {
 
     let path = matches.get_one::<String>("path").unwrap();
     if let Err(err) = viewer::viewer::run_viewer(PathBuf::from(path)) {
-        eprintln!("Error: {}", err);
+        eprintln!("Error: {err}");
         std::process::exit(1);
     }
 }

@@ -271,7 +271,7 @@ impl Viewer for FileViewer {
             .enumerate()
             .map(|(row_idx, line_text)| {
                 let line_number = row_idx + 1;
-                let line_num_str = format!("{:0width$} ", line_number, width = line_num_width);
+                let line_num_str = format!("{line_number:0line_num_width$} ");
 
                 if row_idx == self.cursor_row {
                     // This is the row with the cursor - render with cursor highlight
@@ -839,7 +839,7 @@ mod tests {
 
         // Test with 9 lines (single digit) - should use width 1
         let content_9 = (1..=9)
-            .map(|i| format!("Line {}", i))
+            .map(|i| format!("Line {i}"))
             .collect::<Vec<_>>()
             .join("\n");
         let viewer_9 = FileViewer::new(content_9);
@@ -865,13 +865,12 @@ mod tests {
         // Should have single-digit line numbers: "1 Line 1"
         assert!(
             first_line.starts_with("1 "),
-            "9-line document should use 1-digit line numbers, got: '{}'",
-            first_line
+            "9-line document should use 1-digit line numbers, got: '{first_line}'"
         );
 
         // Test with 99 lines (double digit) - should use width 2
         let content_99 = (1..=99)
-            .map(|i| format!("Line {}", i))
+            .map(|i| format!("Line {i}"))
             .collect::<Vec<_>>()
             .join("\n");
         let viewer_99 = FileViewer::new(content_99);
@@ -891,13 +890,12 @@ mod tests {
         // Should have zero-padded double-digit line numbers: "01 Line 1"
         assert!(
             first_line.starts_with("01 "),
-            "99-line document should use 2-digit zero-padded line numbers, got: '{}'",
-            first_line
+            "99-line document should use 2-digit zero-padded line numbers, got: '{first_line}'"
         );
 
         // Test with 120 lines (triple digit) - should use width 3
         let content_120 = (1..=120)
-            .map(|i| format!("Line {}", i))
+            .map(|i| format!("Line {i}"))
             .collect::<Vec<_>>()
             .join("\n");
         let viewer_120 = FileViewer::new(content_120);
@@ -917,8 +915,7 @@ mod tests {
         // Should have zero-padded triple-digit line numbers: "001 Line 1"
         assert!(
             first_line.starts_with("001 "),
-            "120-line document should use 3-digit zero-padded line numbers, got: '{}'",
-            first_line
+            "120-line document should use 3-digit zero-padded line numbers, got: '{first_line}'"
         );
     }
 

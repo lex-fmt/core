@@ -14,7 +14,7 @@ This is a warning.
         .serialize(&doc)
         .expect("Failed to serialize markdown");
 
-    println!("Output:\n{}", output);
+    println!("Output:\n{output}");
 
     assert!(output.contains("<!-- lex:note type=warning"));
     assert!(output.contains("This is a warning."));

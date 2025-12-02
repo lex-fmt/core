@@ -541,7 +541,7 @@ impl fmt::Display for ContentItem {
             ContentItem::VerbatimLine(fl) => {
                 write!(f, "VerbatimLine('{}')", fl.content.as_string())
             }
-            ContentItem::BlankLineGroup(blg) => write!(f, "{}", blg),
+            ContentItem::BlankLineGroup(blg) => write!(f, "{blg}"),
         }
     }
 }

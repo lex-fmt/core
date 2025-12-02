@@ -19,10 +19,10 @@ impl fmt::Display for PositionLookupError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PositionLookupError::InvalidPositionFormat(msg) => {
-                write!(f, "Invalid position format: {}", msg)
+                write!(f, "Invalid position format: {msg}")
             }
             PositionLookupError::NotFound { line, column } => {
-                write!(f, "No element found at position {}:{}", line, column)
+                write!(f, "No element found at position {line}:{column}")
             }
         }
     }
@@ -53,11 +53,11 @@ impl fmt::Display for ParserError {
                 location: _,
                 source_context,
             } => {
-                writeln!(f, "Error: Invalid nesting in {}", container)?;
+                writeln!(f, "Error: Invalid nesting in {container}")?;
                 writeln!(f)?;
-                writeln!(f, "{} cannot contain {} elements", container, invalid_child)?;
+                writeln!(f, "{container} cannot contain {invalid_child} elements")?;
                 writeln!(f)?;
-                write!(f, "{}", source_context)?;
+                write!(f, "{source_context}")?;
                 writeln!(f)?;
                 writeln!(
                     f,

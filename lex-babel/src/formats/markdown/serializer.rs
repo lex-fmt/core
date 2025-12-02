@@ -36,11 +36,11 @@ pub fn serialize_to_markdown(doc: &Document) -> Result<String, FormatError> {
     let mut output = Vec::new();
     let options = default_comrak_options();
     format_commonmark(root, &options, &mut output).map_err(|e| {
-        FormatError::SerializationError(format!("Comrak serialization failed: {}", e))
+        FormatError::SerializationError(format!("Comrak serialization failed: {e}"))
     })?;
 
     let markdown = String::from_utf8(output)
-        .map_err(|e| FormatError::SerializationError(format!("UTF-8 conversion failed: {}", e)))?;
+        .map_err(|e| FormatError::SerializationError(format!("UTF-8 conversion failed: {e}")))?;
 
     // Remove Comrak's "end list" HTML comments which appear between consecutive lists
     let cleaned = markdown.replace("<!-- end list -->\n\n", "");
@@ -57,7 +57,7 @@ pub fn serialize_to_markdown(doc: &Document) -> Result<String, FormatError> {
 /// This makes the document title visible in the rendered Markdown output.
 fn prepend_title_as_h1(markdown: &str, title: Option<String>) -> String {
     match title {
-        Some(t) => format!("# {}\n\n{}", t, markdown),
+        Some(t) => format!("# {t}\n\n{markdown}"),
         None => markdown.to_string(),
     }
 }
@@ -259,7 +259,7 @@ fn build_comrak_ast<'a>(
                         current_parent = node; // Set new parent to the HtmlBlock
 
                         // Prepend the start tag now.
-                        let start_tag = format!("<!-- lex:{}", label);
+                        let start_tag = format!("<!-- lex:{label}");
                         let mut data = node.data.borrow_mut();
                         if let NodeValue::HtmlBlock(ref mut html) = data.value {
                             html.literal.push_str(&start_tag);
@@ -417,7 +417,7 @@ fn build_comrak_ast<'a>(
                 for (key, value) in parameters {
                     // Simple YAML serialization
                     // If value contains special chars, we might need quoting, but for now simple string
-                    yaml.push_str(&format!("{}: {}\n", key, value));
+                    yaml.push_str(&format!("{key}: {value}\n"));
                 }
                 yaml.push_str("---\n\n");
 
@@ -507,9 +507,9 @@ fn build_comrak_ast<'a>(
                 }
 
                 // Fallback to existing behavior for non-metadata or if we can't change tree_to_events
-                let mut comment = format!("<!-- lex:{}", label);
+                let mut comment = format!("<!-- lex:{label}");
                 for (key, value) in parameters {
-                    comment.push_str(&format!(" {}={}", key, value));
+                    comment.push_str(&format!(" {key}={value}"));
                 }
                 comment.push_str(" -->");
 
@@ -529,7 +529,7 @@ fn build_comrak_ast<'a>(
 
             Event::EndAnnotation { label } => {
                 // Closing annotation comment with label-specific tag
-                let closing_tag = format!("<!-- /lex:{} -->", label);
+                let closing_tag = format!("<!-- /lex:{label} -->");
                 let html_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
                     NodeValue::HtmlBlock(comrak::nodes::NodeHtmlBlock {
                         block_type: 0,
@@ -709,10 +709,10 @@ fn build_comrak_ast<'a>(
                 // Render as HTML <video>
                 let mut html = format!(r#"<video src="{}""#, video.src);
                 if let Some(poster) = &video.poster {
-                    html.push_str(&format!(r#" poster="{}""#, poster));
+                    html.push_str(&format!(r#" poster="{poster}""#));
                 }
                 if let Some(title) = &video.title {
-                    html.push_str(&format!(r#" title="{}""#, title));
+                    html.push_str(&format!(r#" title="{title}""#));
                 }
                 html.push_str(" controls></video>");
 
@@ -730,7 +730,7 @@ fn build_comrak_ast<'a>(
                 // Render as HTML <audio>
                 let mut html = format!(r#"<audio src="{}""#, audio.src);
                 if let Some(title) = &audio.title {
-                    html.push_str(&format!(r#" title="{}""#, title));
+                    html.push_str(&format!(r#" title="{title}""#));
                 }
                 html.push_str(" controls></audio>");
 
@@ -813,7 +813,7 @@ fn add_inline_to_node<'a>(
             } else {
                 ref_text
                     .strip_prefix('@')
-                    .map(|citation| format!("#ref-{}", citation))
+                    .map(|citation| format!("#ref-{citation}"))
             };
 
             if let Some(url) = url {
@@ -833,7 +833,7 @@ fn add_inline_to_node<'a>(
                 link_node.append(text_node);
             } else {
                 // Render as plain text with brackets: [reference]
-                let text_with_brackets = format!("[{}]", ref_text);
+                let text_with_brackets = format!("[{ref_text}]");
                 let text_node = arena.alloc(AstNode::new(RefCell::new(Ast::new(
                     NodeValue::Text(text_with_brackets),
                     (0, 0).into(),

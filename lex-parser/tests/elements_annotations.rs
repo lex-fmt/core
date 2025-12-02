@@ -340,7 +340,7 @@ fn test_annotations_overview_document_debug() {
             _ => String::new(),
         };
 
-        eprintln!("  [{}] {}: {}", i, type_name, text_preview);
+        eprintln!("  [{i}] {type_name}: {text_preview}");
     }
 }
 

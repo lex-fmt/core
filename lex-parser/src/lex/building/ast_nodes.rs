@@ -158,8 +158,7 @@ pub(in crate::lex::building) fn session_node(
     if let Some(ref m) = marker {
         debug_assert!(
             m.is_valid_for_session(),
-            "Invalid session marker: {:?}. Sessions don't support Plain (-) markers.",
-            m
+            "Invalid session marker: {m:?}. Sessions don't support Plain (-) markers."
         );
     }
 

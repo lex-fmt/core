@@ -92,12 +92,12 @@ pub fn to_nodemap_str_with_params(
             }
             RenderMode::Color => {
                 let (r, g, b) = get_color_for_id(node_id);
-                final_output.push_str(&format!("\x1b[38;2;{};{};{}m█", r, g, b));
+                final_output.push_str(&format!("\x1b[38;2;{r};{g};{b}m█"));
             }
             RenderMode::ColorChar => {
                 let (r, g, b) = get_color_for_id(node_id);
                 let c = get_base2048_char(node_id);
-                final_output.push_str(&format!("\x1b[38;2;{};{};{}m{}", r, g, b, c));
+                final_output.push_str(&format!("\x1b[38;2;{r};{g};{b}m{c}"));
             }
         }
     }
@@ -116,7 +116,7 @@ pub fn to_nodemap_str_with_params(
             node_map.iter().cloned().filter(|&id| id != 0).collect();
         let count = represented_ids.len();
 
-        final_output.push_str(&format!("Ast Nodes = {}\n\n", count));
+        final_output.push_str(&format!("Ast Nodes = {count}\n\n"));
 
         // Collect sizes of represented nodes
         let mut sizes: Vec<usize> = represented_ids
@@ -131,12 +131,12 @@ pub fn to_nodemap_str_with_params(
             sizes[sizes.len() / 2]
         };
 
-        final_output.push_str(&format!("Median Node Size = {}\n\n", median));
+        final_output.push_str(&format!("Median Node Size = {median}\n\n"));
 
         // Size distribution for 1..=5
         for size in 1..=5 {
             let count_size = sizes.iter().filter(|&&s| s == size).count();
-            final_output.push_str(&format!("{} char ast node = {}\n", size, count_size));
+            final_output.push_str(&format!("{size} char ast node = {count_size}\n"));
         }
     }
 

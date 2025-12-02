@@ -25,8 +25,8 @@ pub enum LexError {
 impl fmt::Display for LexError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LexError::Error(msg) => write!(f, "Lexing error: {}", msg),
-            LexError::Transformation(msg) => write!(f, "Transformation error: {}", msg),
+            LexError::Error(msg) => write!(f, "Lexing error: {msg}"),
+            LexError::Transformation(msg) => write!(f, "Transformation error: {msg}"),
         }
     }
 }

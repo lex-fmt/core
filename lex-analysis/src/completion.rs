@@ -557,7 +557,7 @@ Code sample:
                 }
             }
         }
-        panic!("verbatim {} not found", label);
+        panic!("verbatim {label} not found");
     }
 
     #[test]

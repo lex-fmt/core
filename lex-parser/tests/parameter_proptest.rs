@@ -16,7 +16,7 @@ use proptest::prelude::*;
 
 fn parse_annotation_without_attachment(source: &str) -> Result<Document, String> {
     let source = if !source.is_empty() && !source.ends_with('\n') {
-        format!("{}\n", source)
+        format!("{source}\n")
     } else {
         source.to_string()
     };
@@ -69,11 +69,10 @@ fn quoted_value_strategy() -> impl Strategy<Value = String> {
 fn parameter_strategy() -> impl Strategy<Value = String> {
     prop_oneof![
         // Unquoted values
-        (parameter_key_strategy(), unquoted_value_strategy())
-            .prop_map(|(k, v)| format!("{}={}", k, v)),
+        (parameter_key_strategy(), unquoted_value_strategy()).prop_map(|(k, v)| format!("{k}={v}")),
         // Quoted values
         (parameter_key_strategy(), quoted_value_strategy())
-            .prop_map(|(k, v)| format!("{}=\"{}\"", k, v)),
+            .prop_map(|(k, v)| format!("{k}=\"{v}\"")),
     ]
 }
 
@@ -94,7 +93,7 @@ mod proptest_tests {
         // @audit: hardcoded_source
         #[test]
         fn test_single_parameter_parsing(param in parameter_strategy()) {
-            let source = format!(":: note {} ::\n\nText. {{{{paragraph}}}}\n", param);
+            let source = format!(":: note {param} ::\n\nText. {{{{paragraph}}}}\n");
             let result = parse_annotation_without_attachment(&source);
 
             // Should parse successfully
@@ -113,7 +112,7 @@ mod proptest_tests {
         // @audit: hardcoded_source
         #[test]
         fn test_multiple_parameters_parsing(params in parameter_list_strategy()) {
-            let source = format!(":: note {} ::\n\nText. {{{{paragraph}}}}\n", params);
+            let source = format!(":: note {params} ::\n\nText. {{{{paragraph}}}}\n");
             let result = parse_annotation_without_attachment(&source);
 
             // Should parse successfully
@@ -129,7 +128,7 @@ mod proptest_tests {
         // @audit: hardcoded_source
         #[test]
         fn test_parameter_key_preservation(key in parameter_key_strategy(), value in unquoted_value_strategy()) {
-            let source = format!(":: note {}={} ::\n\nText. {{{{paragraph}}}}\n", key, value);
+            let source = format!(":: note {key}={value} ::\n\nText. {{{{paragraph}}}}\n");
             let result = parse_annotation_without_attachment(&source);
 
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
@@ -144,7 +143,7 @@ mod proptest_tests {
         // @audit: hardcoded_source
         #[test]
         fn test_quoted_value_preservation(key in parameter_key_strategy(), value in quoted_value_strategy()) {
-            let source = format!(":: note {}=\"{}\" ::\n\nText. {{{{paragraph}}}}\n", key, value);
+            let source = format!(":: note {key}=\"{value}\" ::\n\nText. {{{{paragraph}}}}\n");
             let result = parse_annotation_without_attachment(&source);
 
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);
@@ -153,14 +152,14 @@ mod proptest_tests {
                 let annotation = doc.root.children[0].as_annotation().unwrap();
                 prop_assert_eq!(&annotation.data.parameters[0].key, &key);
                 // Quotes are preserved in the value
-                let expected_value = format!("\"{}\"", value);
+                let expected_value = format!("\"{value}\"");
                 prop_assert_eq!(&annotation.data.parameters[0].value, &expected_value);
             }
         }
 
         #[test]
         fn test_parameter_order_preservation(params in parameter_list_strategy()) {
-            let source = format!(":: note {} ::\n\nText. {{{{paragraph}}}}\n", params);
+            let source = format!(":: note {params} ::\n\nText. {{{{paragraph}}}}\n");
             let result = parse_annotation_without_attachment(&source);
 
             prop_assert!(result.is_ok(), "Failed to parse: {}", source);

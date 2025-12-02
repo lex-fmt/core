@@ -59,7 +59,7 @@ Content.
         .serialize(&doc)
         .expect("Failed to serialize markdown");
 
-    println!("Output:\n{}", output);
+    println!("Output:\n{output}");
 
     assert!(output.starts_with("---\n"));
     assert!(output.contains("title: Export Test"));

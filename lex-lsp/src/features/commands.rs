@@ -23,7 +23,7 @@ pub fn execute_command(command: &str, arguments: &[Value]) -> Result<Option<Valu
                 .first()
                 .and_then(|v| v.as_str())
                 .unwrap_or("default echo");
-            Ok(Some(Value::String(format!("Echo: {}", msg))))
+            Ok(Some(Value::String(format!("Echo: {msg}"))))
         }
         COMMAND_IMPORT => {
             let format = arguments
@@ -38,7 +38,7 @@ pub fn execute_command(command: &str, arguments: &[Value]) -> Result<Option<Valu
             let registry = FormatRegistry::with_defaults();
             let doc = registry
                 .parse(content, format)
-                .map_err(|e| Error::invalid_params(format!("Import failed: {}", e)))?;
+                .map_err(|e| Error::invalid_params(format!("Import failed: {e}")))?;
 
             let lex_content = registry
                 .serialize(&doc, "lex")
@@ -60,12 +60,12 @@ pub fn execute_command(command: &str, arguments: &[Value]) -> Result<Option<Valu
 
             let registry = FormatRegistry::with_defaults();
             let doc = registry.parse(content, "lex").map_err(|e| {
-                Error::invalid_params(format!("Export failed to parse source: {}", e))
+                Error::invalid_params(format!("Export failed to parse source: {e}"))
             })?;
 
             let serialized = registry
                 .serialize_with_options(&doc, format, &HashMap::new())
-                .map_err(|e| Error::invalid_params(format!("Export failed: {}", e)))?;
+                .map_err(|e| Error::invalid_params(format!("Export failed: {e}")))?;
 
             match serialized {
                 SerializedDocument::Text(text) => Ok(Some(Value::String(text))),

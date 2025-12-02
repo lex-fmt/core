@@ -511,10 +511,10 @@ mod tests {
                             }]
                         );
                     }
-                    other => panic!("Unexpected child: {:?}", other),
+                    other => panic!("Unexpected child: {other:?}"),
                 }
             }
-            other => panic!("Unexpected node: {:?}", other),
+            other => panic!("Unexpected node: {other:?}"),
         }
         assert_eq!(
             nodes[1],
@@ -537,7 +537,7 @@ mod tests {
                     InlineNode::Emphasis { content: inner, .. } => {
                         assert_eq!(inner, &vec![InlineNode::plain("emphasis".into())]);
                     }
-                    other => panic!("Unexpected child: {:?}", other),
+                    other => panic!("Unexpected child: {other:?}"),
                 }
             }
             _ => panic!("Expected strong node"),
@@ -573,7 +573,7 @@ mod tests {
             InlineNode::Emphasis { content, .. } => {
                 assert_eq!(content, &vec![InlineNode::plain("b".into())]);
             }
-            other => panic!("Unexpected node: {:?}", other),
+            other => panic!("Unexpected node: {other:?}"),
         }
         assert_eq!(nodes[2], InlineNode::plain(" c".into()));
     }
@@ -589,7 +589,7 @@ mod tests {
                     &vec![InlineNode::plain("outer *inner* text".into())]
                 );
             }
-            other => panic!("Unexpected node: {:?}", other),
+            other => panic!("Unexpected node: {other:?}"),
         }
     }
 
@@ -599,9 +599,9 @@ mod tests {
         match &nodes[0] {
             InlineNode::Reference { data, .. } => match &data.reference_type {
                 ReferenceType::Url { target } => assert_eq!(target, "https://example.com"),
-                other => panic!("Expected URL reference, got {:?}", other),
+                other => panic!("Expected URL reference, got {other:?}"),
             },
-            other => panic!("Unexpected node: {:?}", other),
+            other => panic!("Unexpected node: {other:?}"),
         }
     }
 
@@ -613,9 +613,9 @@ mod tests {
                 ReferenceType::ToCome { identifier } => {
                     assert_eq!(identifier.as_deref(), Some("feature"));
                 }
-                other => panic!("Expected TK reference, got {:?}", other),
+                other => panic!("Expected TK reference, got {other:?}"),
             },
-            other => panic!("Unexpected node: {:?}", other),
+            other => panic!("Unexpected node: {other:?}"),
         }
     }
 
@@ -631,21 +631,21 @@ mod tests {
                     assert_eq!(citation_data.keys, vec!["doe2024".to_string()]);
                     assert!(citation_data.locator.is_none());
                 }
-                other => panic!("Expected citation, got {:?}", other),
+                other => panic!("Expected citation, got {other:?}"),
             },
             _ => panic!("Expected reference"),
         }
         match &labeled[0] {
             InlineNode::Reference { data, .. } => match &data.reference_type {
                 ReferenceType::FootnoteLabeled { label } => assert_eq!(label, "note1"),
-                other => panic!("Expected labeled footnote, got {:?}", other),
+                other => panic!("Expected labeled footnote, got {other:?}"),
             },
             _ => panic!("Expected reference"),
         }
         match &numbered[0] {
             InlineNode::Reference { data, .. } => match &data.reference_type {
                 ReferenceType::FootnoteNumber { number } => assert_eq!(*number, 42),
-                other => panic!("Expected numeric footnote, got {:?}", other),
+                other => panic!("Expected numeric footnote, got {other:?}"),
             },
             _ => panic!("Expected reference"),
         }
@@ -669,7 +669,7 @@ mod tests {
                     assert_eq!(locator.ranges[1].start, 47);
                     assert!(locator.ranges[1].end.is_none());
                 }
-                other => panic!("Expected citation, got {:?}", other),
+                other => panic!("Expected citation, got {other:?}"),
             },
             _ => panic!("Expected reference"),
         }
@@ -682,7 +682,7 @@ mod tests {
         match &general[0] {
             InlineNode::Reference { data, .. } => match &data.reference_type {
                 ReferenceType::General { target } => assert_eq!(target, "Section Title"),
-                other => panic!("Expected general reference, got {:?}", other),
+                other => panic!("Expected general reference, got {other:?}"),
             },
             _ => panic!("Expected reference"),
         }
@@ -721,7 +721,7 @@ mod tests {
                 assert_eq!(content[0], InlineNode::plain("[strong]".into()));
                 assert_eq!(content[1], InlineNode::plain("bold".into()));
             }
-            other => panic!("Unexpected inline node: {:?}", other),
+            other => panic!("Unexpected inline node: {other:?}"),
         }
     }
 
@@ -852,7 +852,7 @@ mod tests {
                 assert_eq!(annotations[0].data.parameters[0].key, "type");
                 assert_eq!(annotations[0].data.parameters[0].value, "mathml");
             }
-            other => panic!("Expected math node, got {:?}", other),
+            other => panic!("Expected math node, got {other:?}"),
         }
     }
 }

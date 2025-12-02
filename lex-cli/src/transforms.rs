@@ -107,26 +107,26 @@ pub fn execute_transform(
         "token-core-json" => {
             let tokens = loader
                 .with(&CORE_TOKENIZATION)
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             Ok(serde_json::to_string_pretty(&tokens_to_json(&tokens))
-                .map_err(|e| format!("JSON serialization failed: {}", e))?)
+                .map_err(|e| format!("JSON serialization failed: {e}"))?)
         }
         "token-core-simple" | "token-simple" => {
             let tokens = loader
                 .with(&CORE_TOKENIZATION)
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             Ok(tokens_to_simple(&tokens))
         }
         "token-core-pprint" | "token-pprint" => {
             let tokens = loader
                 .with(&CORE_TOKENIZATION)
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             Ok(tokens_to_pprint(&tokens))
         }
         "token-line-json" => {
             let tokens = loader
                 .with(&LEXING)
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             let mut mapper = LineTokenGroupingMapper::new();
             let grouped = mapper.map(tokens);
             let line_tokens: Vec<LineToken> = grouped
@@ -135,13 +135,13 @@ pub fn execute_transform(
                 .collect();
             Ok(
                 serde_json::to_string_pretty(&line_tokens_to_json(&line_tokens))
-                    .map_err(|e| format!("JSON serialization failed: {}", e))?,
+                    .map_err(|e| format!("JSON serialization failed: {e}"))?,
             )
         }
         "token-line-simple" => {
             let tokens = loader
                 .with(&LEXING)
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             let mut mapper = LineTokenGroupingMapper::new();
             let grouped = mapper.map(tokens);
             let line_tokens: Vec<LineToken> = grouped
@@ -153,7 +153,7 @@ pub fn execute_transform(
         "token-line-pprint" => {
             let tokens = loader
                 .with(&LEXING)
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             let mut mapper = LineTokenGroupingMapper::new();
             let grouped = mapper.map(tokens);
             let line_tokens: Vec<LineToken> = grouped
@@ -165,27 +165,27 @@ pub fn execute_transform(
         "ir-json" => {
             let ir = loader
                 .with(&TO_IR)
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             Ok(serde_json::to_string_pretty(&ir_to_json(&ir))
-                .map_err(|e| format!("JSON serialization failed: {}", e))?)
+                .map_err(|e| format!("JSON serialization failed: {e}"))?)
         }
         "ast-json" => {
             let doc = loader
                 .parse()
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             Ok(serde_json::to_string_pretty(&ast_to_json(&doc))
-                .map_err(|e| format!("JSON serialization failed: {}", e))?)
+                .map_err(|e| format!("JSON serialization failed: {e}"))?)
         }
         "ast-tag" => {
             let doc = loader
                 .parse()
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             Ok(serialize_ast_tag_with_params(&doc, &params))
         }
         "ast-treeviz" => {
             let doc = loader
                 .parse()
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             // Pass extra_params to to_treeviz_str
             // Supports: --extra-ast-full true
             Ok(to_treeviz_str_with_params(&doc, &params))
@@ -193,17 +193,17 @@ pub fn execute_transform(
         "ast-linetreeviz" => {
             let doc = loader
                 .parse()
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             // linetreeviz collapses containers like Paragraph and List
             Ok(to_linetreeviz_str_with_params(&doc, &params))
         }
         "ast-nodemap" => {
             let doc = loader
                 .parse()
-                .map_err(|e| format!("Transform failed: {}", e))?;
+                .map_err(|e| format!("Transform failed: {e}"))?;
             Ok(to_nodemap_str_with_params(&doc, source, &params))
         }
-        _ => Err(format!("Unknown transform: {}", transform_name)),
+        _ => Err(format!("Unknown transform: {transform_name}")),
     }
 }
 
@@ -437,8 +437,7 @@ mod tests {
         // The annotation icon is " (double quote character)
         assert!(
             output_full.contains("\" test-annotation"),
-            "With ast-full=true, annotation with icon should appear in output. Output was:\n{}",
-            output_full
+            "With ast-full=true, annotation with icon should appear in output. Output was:\n{output_full}"
         );
         assert!(
             output_full.contains("test-annotation"),

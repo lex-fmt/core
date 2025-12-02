@@ -142,8 +142,7 @@ fn test_trifecta_010_paragraphs_sessions_flat_single() {
     assert!(paragraphs > 0, "Should have paragraphs");
     assert!(
         headings >= 3,
-        "Should have at least 3 headings (1 title + 2 sessions), found {}",
-        headings
+        "Should have at least 3 headings (1 title + 2 sessions), found {headings}"
     );
 
     // Document title is H1, sessions at root level should be H2
@@ -161,8 +160,7 @@ fn test_trifecta_010_paragraphs_sessions_flat_single() {
     }
 
     println!(
-        "Trifecta 010: {} paragraphs, {} headings (levels: {:?})",
-        paragraphs, headings, heading_levels
+        "Trifecta 010: {paragraphs} paragraphs, {headings} headings (levels: {heading_levels:?})"
     );
 }
 
@@ -186,8 +184,7 @@ fn test_trifecta_020_paragraphs_sessions_flat_multiple() {
     // Nested: "Session titles don't require numbering markers." (nested in "Session Without Numbering")
     assert!(
         heading_count >= 4,
-        "Should have at least 4 headings (sessions), found {}",
-        heading_count
+        "Should have at least 4 headings (sessions), found {heading_count}"
     );
 
     // Collect heading levels to see if we have nesting
@@ -203,9 +200,9 @@ fn test_trifecta_020_paragraphs_sessions_flat_multiple() {
     }
 
     assert!(has_h1, "Should have at least one h2 (root session)");
-    println!("Trifecta 020: Heading levels: {:?}", heading_levels_vec);
+    println!("Trifecta 020: Heading levels: {heading_levels_vec:?}");
 
-    println!("Trifecta 020: {} headings", heading_count);
+    println!("Trifecta 020: {heading_count} headings");
 }
 
 #[test]
@@ -236,9 +233,7 @@ fn test_trifecta_060_nesting() {
 
     assert!(
         min_level >= 1 && max_level >= 2,
-        "Should have nested heading levels (h1, h2, h3...), found range {}..{}",
-        min_level,
-        max_level
+        "Should have nested heading levels (h1, h2, h3...), found range {min_level}..{max_level}"
     );
 
     // Should have all three element types
@@ -285,11 +280,10 @@ fn test_kitchensink() {
     // Kitchensink should exercise multiple element types
     assert!(
         node_types.len() >= 5,
-        "Kitchensink should have at least 5 different node types, found: {:?}",
-        node_types
+        "Kitchensink should have at least 5 different node types, found: {node_types:?}"
     );
 
-    println!("Kitchensink node types: {:?}", node_types);
+    println!("Kitchensink node types: {node_types:?}");
 }
 
 #[test]

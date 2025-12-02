@@ -152,7 +152,7 @@ impl InlineExpectation {
             (InlineExpectationKind::Reference(expectation), InlineNode::Reference { data, .. }) => {
                 expectation.assert(data, context);
             }
-            (expected, got) => panic!("{}: Expected inline {:?}, got {:?}", context, expected, got),
+            (expected, got) => panic!("{context}: Expected inline {expected:?}, got {got:?}"),
         }
     }
 }
@@ -167,7 +167,7 @@ fn assert_inline_children(actual: &InlineContent, expected: &[InlineExpectation]
         expected.len()
     );
     for (idx, expectation) in expected.iter().enumerate() {
-        let child_context = format!("{}:child[{}]", context, idx);
+        let child_context = format!("{context}:child[{idx}]");
         expectation.assert(&actual[idx], &child_context);
     }
 }
@@ -281,7 +281,7 @@ impl ReferenceExpectation {
                     data.keys.len()
                 );
                 for (idx, matcher) in keys.iter().enumerate() {
-                    matcher.assert(&data.keys[idx], &format!("{}:key[{}]", context, idx));
+                    matcher.assert(&data.keys[idx], &format!("{context}:key[{idx}]"));
                 }
                 match (locator, &data.locator) {
                     (None, None) => {}
@@ -290,7 +290,7 @@ impl ReferenceExpectation {
                     }
                     (None, Some(_)) => {}
                     (Some(_), None) => {
-                        panic!("{}: Expected citation locator, but none present", context)
+                        panic!("{context}: Expected citation locator, but none present")
                     }
                 }
             }
@@ -301,10 +301,10 @@ impl ReferenceExpectation {
                 (None, None) => {}
                 (Some(matcher), Some(value)) => matcher.assert(value, context),
                 (None, Some(value)) => {
-                    panic!("{}: Expected TK without identifier, got {}", context, value)
+                    panic!("{context}: Expected TK without identifier, got {value}")
                 }
                 (Some(_), None) => {
-                    panic!("{}: Expected TK with identifier, but none present", context)
+                    panic!("{context}: Expected TK with identifier, but none present")
                 }
             },
             (
@@ -316,14 +316,10 @@ impl ReferenceExpectation {
                 ReferenceType::FootnoteNumber { number },
             ) => assert_eq!(
                 expected_number, number,
-                "{}: Expected footnote number {}, got {}",
-                context, expected_number, number
+                "{context}: Expected footnote number {expected_number}, got {number}"
             ),
             (ReferenceTypeExpectation::NotSure, ReferenceType::NotSure) => {}
-            (expected, got) => panic!(
-                "{}: Expected reference {:?}, got {:?}",
-                context, expected, got
-            ),
+            (expected, got) => panic!("{context}: Expected reference {expected:?}, got {got:?}"),
         }
     }
 }

@@ -16,7 +16,7 @@ pub(crate) fn normalize_path(path: &Path, document_dir: Option<&Path>) -> String
     {
         converted
     } else {
-        format!("./{}", converted)
+        format!("./{converted}")
     }
 }
 

@@ -121,9 +121,9 @@ pub enum TransformError {
 impl fmt::Display for TransformError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TransformError::Error(msg) => write!(f, "{}", msg),
+            TransformError::Error(msg) => write!(f, "{msg}"),
             TransformError::StageFailed { stage, message } => {
-                write!(f, "Stage '{}' failed: {}", stage, message)
+                write!(f, "Stage '{stage}' failed: {message}")
             }
         }
     }
@@ -378,14 +378,14 @@ mod tests {
     #[test]
     fn test_error_display() {
         let err = TransformError::Error("test error".to_string());
-        assert_eq!(format!("{}", err), "test error");
+        assert_eq!(format!("{err}"), "test error");
 
         let stage_err = TransformError::StageFailed {
             stage: "tokenization".to_string(),
             message: "invalid token".to_string(),
         };
         assert_eq!(
-            format!("{}", stage_err),
+            format!("{stage_err}"),
             "Stage 'tokenization' failed: invalid token"
         );
     }

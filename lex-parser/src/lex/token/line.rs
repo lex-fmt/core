@@ -151,7 +151,7 @@ impl fmt::Display for LineType {
             LineType::Dedent => "DEDENT",
             LineType::DocumentStart => "DOCUMENT_START",
         };
-        write!(f, "{}", name)
+        write!(f, "{name}")
     }
 }
 
@@ -179,7 +179,7 @@ impl LineType {
             LineType::Dedent => "dedent",
             LineType::DocumentStart => "document-start-line",
         };
-        format!("<{}>", name)
+        format!("<{name}>")
     }
 }
 

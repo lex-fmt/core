@@ -47,7 +47,7 @@ fn format_content_item(
         String::new()
     };
 
-    output.push_str(&format!("{}<{}{}>", indent, tag, range_attr));
+    output.push_str(&format!("{indent}<{tag}{range_attr}>"));
     output.push_str(&escape_xml(&item.display_label()));
 
     // Collect special field children (not in Container trait)
@@ -124,9 +124,9 @@ fn format_content_item(
                         show_linum,
                     ));
                 }
-                output.push_str(&format!("{}  </verbatim-group>\n", indent));
+                output.push_str(&format!("{indent}  </verbatim-group>\n"));
             }
-            output.push_str(&format!("{}</{}>\n", indent, tag));
+            output.push_str(&format!("{indent}</{tag}>\n"));
             return output;
         }
     }
@@ -148,7 +148,7 @@ fn format_content_item(
     let has_children = !special_children.is_empty() || !regular_children.is_empty();
 
     if !has_children {
-        output.push_str(&format!("</{}>\n", tag));
+        output.push_str(&format!("</{tag}>\n"));
     } else {
         output.push('\n');
 
@@ -195,7 +195,7 @@ fn format_content_item(
             ));
         }
 
-        output.push_str(&format!("{}</{}>\n", indent, tag));
+        output.push_str(&format!("{indent}</{tag}>\n"));
     }
 
     output

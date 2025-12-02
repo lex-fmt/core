@@ -417,7 +417,7 @@ mod tests {
     #[test]
     fn test_display() {
         let marker = SequenceMarker::parse("1.2.3.", None).unwrap();
-        assert_eq!(format!("{}", marker), "SequenceMarker('1.2.3.')");
+        assert_eq!(format!("{marker}"), "SequenceMarker('1.2.3.')");
         assert_eq!(format!("{}", marker.style), "Numerical");
         assert_eq!(format!("{}", marker.separator), "Period");
         assert_eq!(format!("{}", marker.form), "Extended");

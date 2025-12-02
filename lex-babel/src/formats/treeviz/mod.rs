@@ -108,7 +108,7 @@ fn format_content_item(
                 let header = container.label();
                 // Use the parent node's icon for the header (no synthetic type needed)
                 let header_icon = get_icon(item.node_type());
-                output.push_str(&format!("{}├─ {} {}\n", child_prefix, header_icon, header));
+                output.push_str(&format!("{child_prefix}├─ {header_icon} {header}\n"));
             }
         }
 
@@ -217,8 +217,7 @@ fn format_content_item(
                 let group_connector = if is_last_group { "└─" } else { "├─" };
 
                 group_output.push_str(&format!(
-                    "{}{} {} {}\n",
-                    child_prefix, group_connector, group_icon, group_label
+                    "{child_prefix}{group_connector} {group_icon} {group_label}\n"
                 ));
 
                 let group_child_prefix = format!(

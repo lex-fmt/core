@@ -540,8 +540,7 @@ fn test_text_view_cursor_on_nested_element_updates_model() {
                 // Verify Session::element_at() now finds nested elements
                 assert!(
                     element.is_some(),
-                    "Session::element_at() should find nested elements at position {:?}",
-                    pos
+                    "Session::element_at() should find nested elements at position {pos:?}"
                 );
 
                 // Switch back to file viewer

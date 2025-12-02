@@ -18,7 +18,7 @@ pub enum ParseError {
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParseError::Error(msg) => write!(f, "Parse error: {}", msg),
+            ParseError::Error(msg) => write!(f, "Parse error: {msg}"),
         }
     }
 }
