@@ -77,7 +77,7 @@ fn handle_convert(args: &[String]) -> ExitCode {
     let source = match fs::read_to_string(input) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Error reading {}: {}", input, e);
+            eprintln!("Error reading {input}: {e}");
             return ExitCode::FAILURE;
         }
     };
@@ -86,7 +86,7 @@ fn handle_convert(args: &[String]) -> ExitCode {
     let doc = match registry.parse(&source, "lex") {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("Error parsing {}: {}", input, e);
+            eprintln!("Error parsing {input}: {e}");
             return ExitCode::FAILURE;
         }
     };
@@ -94,7 +94,7 @@ fn handle_convert(args: &[String]) -> ExitCode {
     let result = match registry.serialize_with_options(&doc, format, &extra_options) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("Error converting to {}: {}", format, e);
+            eprintln!("Error converting to {format}: {e}");
             return ExitCode::FAILURE;
         }
     };
@@ -105,7 +105,7 @@ fn handle_convert(args: &[String]) -> ExitCode {
     };
 
     if let Err(e) = write_result {
-        eprintln!("Error writing {}: {}", output, e);
+        eprintln!("Error writing {output}: {e}");
         return ExitCode::FAILURE;
     }
 
