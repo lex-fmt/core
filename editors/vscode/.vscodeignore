@@ -12,3 +12,4 @@ scripts
 *.ts.map
 .vscode-test
 .vscode-test-user-data
+resources/lex
