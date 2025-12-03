@@ -1,5 +1,6 @@
 import * as monaco from 'monaco-editor';
 import { ProtocolConnection } from 'vscode-languageserver-protocol/browser';
+import { LspLocation } from '../types';
 
 export function registerDefinitionProvider(languageId: string, connection: ProtocolConnection) {
     monaco.languages.registerDefinitionProvider(languageId, {
@@ -10,10 +11,10 @@ export function registerDefinitionProvider(languageId: string, connection: Proto
                 position: { line: position.lineNumber - 1, character: position.column - 1 }
             };
             try {
-                const result = await connection.sendRequest('textDocument/definition', params) as any;
+                const result = await connection.sendRequest('textDocument/definition', params) as LspLocation | LspLocation[] | null;
                 if (!result) return null;
                 const locations = Array.isArray(result) ? result : [result];
-                return locations.map((loc: any) => ({
+                return locations.map((loc) => ({
                     uri: monaco.Uri.parse(loc.uri),
                     range: {
                         startLineNumber: loc.range.start.line + 1,

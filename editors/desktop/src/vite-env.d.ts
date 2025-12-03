@@ -34,8 +34,6 @@ interface Window {
     onMenuOpenFolder: (callback: () => void) => () => void;
     onMenuSave: (callback: () => void) => () => void;
     onMenuFormat: (callback: () => void) => () => void;
-    fileExport: (sourcePath: string, format: string) => Promise<string>;
-    lexPreview: (sourcePath: string) => Promise<string>;
     onMenuExport: (callback: (format: string) => void) => () => void;
     shareWhatsApp: (content: string) => Promise<void>;
     showItemInFolder: (fullPath: string) => Promise<void>;

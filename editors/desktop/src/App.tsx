@@ -11,6 +11,7 @@ import { usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
 import { usePaneManager } from '@/panes/usePaneManager'
 import { insertAsset, insertVerbatim, resolveAnnotation, toggleAnnotations } from './features/editing'
 import { nextAnnotation, previousAnnotation } from './features/navigation'
+import { exportContent, importContent, convertToHtml } from './features/interop'
 import { isLexFile } from '@/lib/files'
 import { createPreviewTab, placePreviewTab } from '@/features/preview'
 import { useRootFolder } from '@/hooks/useRootFolder'
@@ -169,12 +170,23 @@ function App() {
     }
 
     const handle = paneHandles.current.get(activePaneIdValue);
-    await handle?.save();
+    const editor = handle?.getEditor();
+    if (!editor) {
+      toast.error('No active editor');
+      return;
+    }
 
     setExportStatus({ isExporting: true, format: 'lex' });
 
     try {
-      const outputPath = await window.ipcRenderer.fileExport(activePaneFile, 'lex');
+      // Import markdown content to lex via LSP
+      const content = editor.getValue();
+      const lexContent = await importContent(content, 'markdown');
+
+      // Write to file with .lex extension
+      const outputPath = activePaneFile.replace(/\.(md|markdown)$/i, '.lex');
+      await window.ipcRenderer.invoke('file-save', outputPath, lexContent);
+
       const fileName = outputPath.split('/').pop() || outputPath;
       toast.success(`Converted to ${fileName}`);
       openFileInPane(activePaneIdValue, outputPath);
@@ -194,12 +206,31 @@ function App() {
 
     if (!activePaneIdValue) return;
     const handle = paneHandles.current.get(activePaneIdValue);
-    await handle?.save();
+    const editor = handle?.getEditor();
+    if (!editor) {
+      toast.error('No active editor');
+      return;
+    }
 
     setExportStatus({ isExporting: true, format });
 
     try {
-      const outputPath = await window.ipcRenderer.fileExport(activePaneFile, format);
+      const content = editor.getValue();
+      const sourceUri = `file://${activePaneFile}`;
+
+      // Calculate output path
+      const ext = format === 'markdown' ? 'md' : format;
+      const outputPath = activePaneFile.replace(/\.lex$/i, `.${ext}`);
+
+      if (format === 'pdf') {
+        // PDF is binary - LSP writes directly to file
+        await exportContent(content, 'pdf', sourceUri, outputPath);
+      } else {
+        // Text formats - get content from LSP and write to file
+        const result = await exportContent(content, format as 'markdown' | 'html', sourceUri);
+        await window.ipcRenderer.invoke('file-save', outputPath, result);
+      }
+
       const fileName = outputPath.split('/').pop() || outputPath;
       toast.success(`Exported to ${fileName}`);
     } catch (error) {
@@ -221,10 +252,16 @@ function App() {
     }
 
     const handle = paneHandles.current.get(activePaneIdValue);
-    await handle?.save();
+    const editor = handle?.getEditor();
+    if (!editor) {
+      toast.error('No active editor');
+      return;
+    }
 
     try {
-      const htmlContent = await window.ipcRenderer.lexPreview(activePaneFile);
+      // Get content from editor and convert to HTML via LSP
+      const content = editor.getValue();
+      const htmlContent = await convertToHtml(content);
       const previewTab = createPreviewTab(activePaneFile, htmlContent);
       placePreviewTab({
         activePaneId: activePaneIdValue,

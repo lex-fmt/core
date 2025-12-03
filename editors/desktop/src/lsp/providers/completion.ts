@@ -1,11 +1,12 @@
 import * as monaco from 'monaco-editor';
 import { ProtocolConnection } from 'vscode-languageserver-protocol/browser';
+import { LspCompletionItem, LspCompletionResponse } from '../types';
 
 export function registerCompletionProvider(languageId: string, connection: ProtocolConnection) {
     monaco.languages.registerCompletionItemProvider(languageId, {
         provideCompletionItems: async (model, position, context) => {
             if (!connection) return { suggestions: [] };
-            
+
             const params = {
                 textDocument: { uri: model.uri.toString() },
                 position: { line: position.lineNumber - 1, character: position.column - 1 },
@@ -16,10 +17,11 @@ export function registerCompletionProvider(languageId: string, connection: Proto
             };
 
             try {
-                const result = await connection.sendRequest('textDocument/completion', params) as any;
-                const items = Array.isArray(result) ? result : result.items;
+                const result = await connection.sendRequest('textDocument/completion', params) as LspCompletionResponse | null;
+                if (!result) return { suggestions: [] };
+                const items: LspCompletionItem[] = Array.isArray(result) ? result : result.items;
                 return {
-                    suggestions: items.map((item: any) => ({
+                    suggestions: items.map((item) => ({
                         label: item.label,
                         kind: item.kind ? item.kind - 1 : monaco.languages.CompletionItemKind.Text,
                         insertText: item.insertText || item.label,

@@ -1,5 +1,6 @@
 import * as monaco from 'monaco-editor';
 import { ProtocolConnection } from 'vscode-languageserver-protocol/browser';
+import { LspTextEdit } from '../types';
 
 export function registerFormattingProvider(languageId: string, connection: ProtocolConnection) {
     // Formatting
@@ -14,7 +15,7 @@ export function registerFormattingProvider(languageId: string, connection: Proto
                 }
             };
             try {
-                const result = await connection.sendRequest('textDocument/formatting', params) as any[];
+                const result = await connection.sendRequest('textDocument/formatting', params) as LspTextEdit[] | null;
                 if (!result) return [];
                 return result.map(edit => ({
                     range: {
@@ -48,7 +49,7 @@ export function registerFormattingProvider(languageId: string, connection: Proto
                 }
             };
             try {
-                const result = await connection.sendRequest('textDocument/rangeFormatting', params) as any[];
+                const result = await connection.sendRequest('textDocument/rangeFormatting', params) as LspTextEdit[] | null;
                 if (!result) return [];
                 return result.map(edit => ({
                     range: {

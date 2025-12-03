@@ -6,29 +6,8 @@ import * as fsSync from 'fs';
 
 import { randomUUID } from 'crypto';
 import { LspManager } from './lsp-manager'
-import { convertFile } from '../../shared/src/index.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-function resolveWorkspaceRoot(): string {
-  const override = process.env.LEX_WORKSPACE_ROOT;
-  if (override) {
-    return path.resolve(override);
-  }
-
-  let current = process.cwd();
-  const { root } = path.parse(current);
-  while (current !== root) {
-    if (fsSync.existsSync(path.join(current, 'Cargo.toml'))) {
-      return current;
-    }
-    current = path.dirname(current);
-  }
-  if (fsSync.existsSync(path.join(root, 'Cargo.toml'))) {
-    return root;
-  }
-  return process.cwd();
-}
 
 // Settings persistence
 const SETTINGS_FILE = 'settings.json';
@@ -152,28 +131,6 @@ function getWelcomeFolderPath(): string {
   return path.join(process.env.APP_ROOT!, 'welcome');
 }
 
-function getLexCliPath(): string {
-  const binaryName = process.platform === 'win32' ? 'lex.exe' : 'lex';
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, binaryName);
-  }
-  const override = process.env.LEX_CLI_PATH;
-  if (override) {
-    return path.resolve(override);
-  }
-  const workspaceRoot = resolveWorkspaceRoot();
-  return path.join(workspaceRoot, 'target', 'debug', binaryName);
-}
-
-/**
- * Maps export format names to file extensions.
- */
-const FORMAT_EXTENSIONS: Record<string, string> = {
-  markdown: 'md',
-  html: 'html',
-  lex: 'lex',
-  pdf: 'pdf',
-};
 
 // The built directory structure
 //
@@ -593,74 +550,6 @@ ipcMain.handle('set-open-tabs', async (_, panes: PaneLayoutSettings[], rows: Pan
   settings.activeTab = undefined;
   await saveSettings(settings);
   return true;
-});
-
-/**
- * Converts a document to another format using the lex CLI.
- *
- * The conversion process:
- * 1. Takes the source file path and target format
- * 2. Computes the output path by replacing the source extension with target format extension
- * 3. Spawns `lex convert <source> --to <format> -o <output>`
- * 4. Returns the output path on success, or throws on error
- *
- * @param sourcePath - Path to the source file
- * @param format - Target format ('markdown', 'html', or 'lex')
- * @returns The path to the converted file
- */
-type ExportFormat = keyof typeof FORMAT_EXTENSIONS;
-
-ipcMain.handle('file-export', async (_, sourcePath: string, format: ExportFormat): Promise<string> => {
-  const ext = FORMAT_EXTENSIONS[format];
-  if (!ext) {
-    throw new Error(`Unsupported export format: ${format}`);
-  }
-
-  // Compute output path: replace any supported extension with target format extension
-  const outputPath = sourcePath.replace(/\.(lex|md|html|htm|txt)$/i, `.${ext}`);
-  const lexPath = getLexCliPath();
-
-  await convertFile({
-    cliBinaryPath: lexPath,
-    sourcePath,
-    outputPath,
-    toFormat: format as any
-  });
-
-  return outputPath;
-});
-
-/**
- * Converts a lex file to HTML and returns the content as a string.
- * Uses a temp file to avoid triggering Vite file watching.
- *
- * @param sourcePath - Path to the source .lex file
- * @returns The HTML content as a string
- */
-ipcMain.handle('lex-preview', async (_, sourcePath: string): Promise<string> => {
-  console.log('[lex-preview] IPC called with:', sourcePath);
-  const lexPath = getLexCliPath();
-  const tmpDir = app.getPath('temp');
-  const tmpFile = path.join(tmpDir, `lex-preview-${Date.now()}.html`);
-  console.log('[lex-preview] Using temp file:', tmpFile);
-
-  try {
-    await convertFile({
-      cliBinaryPath: lexPath,
-      sourcePath,
-      outputPath: tmpFile,
-      toFormat: 'html'
-    });
-
-    const content = await fs.readFile(tmpFile, 'utf-8');
-    console.log('[lex-preview] Read content, length:', content.length);
-    // Clean up temp file
-    await fs.unlink(tmpFile).catch(() => {});
-    return content;
-  } catch (err) {
-    console.error('[lex-preview] Error:', err);
-    throw new Error(`Failed to preview: ${err instanceof Error ? err.message : String(err)}`);
-  }
 });
 
 /**

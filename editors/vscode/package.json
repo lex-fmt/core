@@ -403,11 +403,6 @@
           "type": "string",
           "markdownDescription": "Absolute or workspace-relative path to the lex-lsp binary.",
           "default": "./resources/lex-lsp"
-        },
-        "lex.cliBinaryPath": {
-          "type": "string",
-          "markdownDescription": "Absolute or workspace-relative path to the lex CLI binary (used for import/export commands).",
-          "default": "./resources/lex"
         }
       }
     },

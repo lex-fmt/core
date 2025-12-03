@@ -1,6 +1,7 @@
 import { createProtocolConnection, ProtocolConnection, Logger, InitializeParams, InitializeRequest, InitializedNotification } from 'vscode-languageserver-protocol/browser';
 import { IpcMessageReader, IpcMessageWriter } from './ipc-connection';
 import * as monaco from 'monaco-editor';
+import { LspPublishDiagnosticsParams } from './types';
 
 export class LspClient {
     private connection: ProtocolConnection | null = null;
@@ -9,7 +10,7 @@ export class LspClient {
     private retryCount = 0;
     private readonly maxRetries = 5;
     private readonly baseRetryDelay = 1000;
-    private reconnectTimer: any = null;
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor() {
     }
@@ -162,11 +163,11 @@ export class LspClient {
             this.retryCount = 0;
 
             // Listen for diagnostics
-            this.connection.onNotification('textDocument/publishDiagnostics', (params: any) => {
+            this.connection.onNotification('textDocument/publishDiagnostics', (params: LspPublishDiagnosticsParams) => {
                 const uri = monaco.Uri.parse(params.uri);
                 const model = monaco.editor.getModel(uri);
                 if (model) {
-                    const markers: monaco.editor.IMarkerData[] = params.diagnostics.map((d: any) => ({
+                    const markers: monaco.editor.IMarkerData[] = params.diagnostics.map((d) => ({
                         severity: d.severity === 1 ? monaco.MarkerSeverity.Error :
                                   d.severity === 2 ? monaco.MarkerSeverity.Warning :
                                   d.severity === 3 ? monaco.MarkerSeverity.Info :
@@ -234,17 +235,17 @@ export class LspClient {
         import('./providers/semantic_tokens').then(m => m.registerSemanticTokensProvider(languageId, this.connection!));
     }
 
-    public async sendRequest<R, P = any>(method: string, params: P): Promise<R> {
+    public async sendRequest<R, P = unknown>(method: string, params: P): Promise<R> {
         if (!this.readyPromise) {
             this.start();
         }
         await this.readyPromise;
         if (!this.connection) throw new Error('Client not initialized');
-        // @ts-ignore
+        // @ts-expect-error - LSP sendRequest has overloaded signatures
         return this.connection.sendRequest(method, params);
     }
 
-    public async onNotification<P = any>(method: string, handler: (params: P) => void): Promise<void> {
+    public async onNotification<P = unknown>(method: string, handler: (params: P) => void): Promise<void> {
         if (!this.readyPromise) {
             this.start();
         }
@@ -253,11 +254,11 @@ export class LspClient {
             console.warn('LSP client not started, cannot register notification handler');
             return;
         }
-        // @ts-ignore
+        // @ts-expect-error - LSP onNotification has overloaded signatures
         this.connection.onNotification(method, handler);
     }
 
-    public async sendNotification<P = any>(method: string, params: P): Promise<void> {
+    public async sendNotification<P = unknown>(method: string, params: P): Promise<void> {
         if (!this.readyPromise) {
             this.start();
         }
@@ -266,7 +267,7 @@ export class LspClient {
             console.warn('LSP client not started, cannot send notification');
             return;
         }
-        // @ts-ignore
+        // @ts-expect-error - LSP sendNotification has overloaded signatures
         this.connection.sendNotification(method, params);
     }
 }

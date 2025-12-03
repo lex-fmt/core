@@ -4,8 +4,7 @@ import { LanguageClient } from 'vscode-languageclient/node.js';
 import {
   buildLexExtensionConfig,
   LEX_CONFIGURATION_SECTION,
-  LSP_BINARY_SETTING,
-  CLI_BINARY_SETTING
+  LSP_BINARY_SETTING
 } from './config.js';
 import { createLexClient } from './client.js';
 import { applyLexTheme, setupThemeListeners } from './theme.js';
@@ -55,21 +54,18 @@ export async function activate(
 
   const config = vscode.workspace.getConfiguration(LEX_CONFIGURATION_SECTION);
   const configuredLspPath = config.get<string | null>(LSP_BINARY_SETTING, null);
-  const configuredCliPath = config.get<string | null>(CLI_BINARY_SETTING, null);
   const resolvedConfig = buildLexExtensionConfig(
     context.extensionUri.fsPath,
-    configuredLspPath,
-    configuredCliPath
+    configuredLspPath
   );
 
-  // Register import/export commands (works even without LSP)
+  // Register import/export commands (requires LSP for conversions)
   registerCommands(
     context,
-    resolvedConfig.cliBinaryPath,
     () => client,
     () => clientReadyPromise
   );
-  registerPreviewCommands(context, resolvedConfig.cliBinaryPath);
+  registerPreviewCommands(context, () => client, () => clientReadyPromise);
   registerPathCompletion();
 
   if (shouldSkipLanguageClient()) {
