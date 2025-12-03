@@ -56,6 +56,16 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     const [editor, setEditor] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
     const editorRef = useRef<EditorHandle>(null);
     const previousTabsRef = useRef<Tab[]>(tabs);
+    const latestOnFileLoaded = useRef(onFileLoaded);
+    const latestOnCursorChange = useRef(onCursorChange);
+
+    useEffect(() => {
+        latestOnFileLoaded.current = onFileLoaded;
+    }, [onFileLoaded]);
+
+    useEffect(() => {
+        latestOnCursorChange.current = onCursorChange;
+    }, [onCursorChange]);
 
     const activeTab = useMemo(() => {
         return tabs.find(tab => tab.id === activeTabId) ?? null;
@@ -102,11 +112,9 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
         } else {
             setFileToOpen(null);
             if (tabs.length === 0) {
-                onFileLoaded?.(null);
+                latestOnFileLoaded.current?.(null);
             }
         }
-    // Note: onFileLoaded intentionally excluded from deps to prevent infinite loops
-    // when it's passed as an inline arrow function from parent
     }, [tabs, activeTabId]);
 
     useEffect(() => {
@@ -128,8 +136,8 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
     const handleFileLoaded = useCallback((path: string) => {
         // Update editor reference
         setEditor(editorRef.current?.getEditor() ?? null);
-        onFileLoaded?.(path);
-    }, [onFileLoaded]);
+        latestOnFileLoaded.current?.(path);
+    }, []);
 
     /**
      * Starts the auto-save interval timer.
@@ -250,22 +258,20 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
 
     // Listen for cursor position changes
     useEffect(() => {
-        if (!editor || !onCursorChange) return;
+        if (!editor || !latestOnCursorChange.current) return;
 
         const disposable = editor.onDidChangeCursorPosition((e) => {
             // Monaco uses 1-based lines, LSP uses 0-based
-            onCursorChange(e.position.lineNumber - 1);
+            latestOnCursorChange.current?.(e.position.lineNumber - 1);
         });
 
         // Emit initial position
         const pos = editor.getPosition();
         if (pos) {
-            onCursorChange(pos.lineNumber - 1);
+            latestOnCursorChange.current?.(pos.lineNumber - 1);
         }
 
         return () => disposable.dispose();
-    // Note: onCursorChange intentionally excluded from deps to prevent infinite loops
-    // when it's passed as an inline arrow function from parent
     }, [editor]);
 
     const handleFind = useCallback(() => {

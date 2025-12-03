@@ -1,10 +1,11 @@
 import { ipcRenderer, contextBridge } from 'electron'
+import type { IpcRendererEvent } from 'electron'
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
   on(...args: Parameters<typeof ipcRenderer.on>) {
     const [channel, listener] = args
-    const subscription = (event: any, ...args: any[]) => listener(event, ...args)
+    const subscription = (event: IpcRendererEvent, ...listenerArgs: unknown[]) => listener(event, ...listenerArgs)
     ipcRenderer.on(channel, subscription)
     return () => {
       ipcRenderer.removeListener(channel, subscription)
@@ -34,7 +35,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   loadTestFixture: (fixtureName: string) => ipcRenderer.invoke('test-load-fixture', fixtureName) as Promise<{ path: string; content: string }>,
   getNativeTheme: () => ipcRenderer.invoke('get-native-theme'),
   onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => {
-    const handler = (_event: any, theme: 'dark' | 'light') => callback(theme);
+    const handler = (_event: IpcRendererEvent, theme: 'dark' | 'light') => callback(theme);
     ipcRenderer.on('native-theme-changed', handler);
     return () => ipcRenderer.removeListener('native-theme-changed', handler);
   },
@@ -77,7 +78,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   fileExport: (sourcePath: string, format: string) => ipcRenderer.invoke('file-export', sourcePath, format) as Promise<string>,
   lexPreview: (sourcePath: string) => ipcRenderer.invoke('lex-preview', sourcePath) as Promise<string>,
   onMenuExport: (callback: (format: string) => void) => {
-    const handler = (_event: any, format: string) => callback(format);
+    const handler = (_event: IpcRendererEvent, format: string) => callback(format);
     ipcRenderer.on('menu-export', handler);
     return () => ipcRenderer.removeListener('menu-export', handler);
   },

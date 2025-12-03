@@ -2,6 +2,28 @@ import { test, _electron as electron } from '@playwright/test';
 import * as path from 'path';
 import { openFixture } from './helpers';
 
+type Position = { lineNumber: number; column: number };
+
+type EditorModel = {
+  getWordAtPosition: (pos: Position) => { word: string } | null;
+  getOffsetAt: (pos: Position) => number;
+  getValue: () => string;
+  getLanguageId: () => string;
+};
+
+type EditorHandle = {
+  setPosition: (pos: Position) => void;
+  revealPosition: (pos: Position) => void;
+  getModel?: () => EditorModel | null;
+};
+
+type TokenInfo = { offset: number; type: string; language: string };
+
+type DebugWindow = Window & {
+  editor?: EditorHandle;
+  monaco?: typeof import('monaco-editor');
+};
+
 test.describe('Debug Clicks', () => {
   test('should log token info on clicks', async () => {
     const appPath = path.join(process.cwd(), 'release/mac-arm64/Lex Editor.app/Contents/MacOS/Lex Editor');
@@ -39,12 +61,13 @@ test.describe('Debug Clicks', () => {
       // Simulate click in Monaco Editor
       // We use executeJavaScript to access the Monaco editor instance directly
       await page.evaluate(({ line, column }) => {
-        const editor = (window as any).editor;
+        const debugWindow = window as DebugWindow;
+        const editor = debugWindow.editor;
         if (!editor) {
           console.warn('Editor instance not available');
           return;
         }
-        const position = { lineNumber: line, column: column };
+        const position: Position = { lineNumber: line, column };
         editor.setPosition(position);
         editor.revealPosition(position);
         
@@ -66,26 +89,23 @@ test.describe('Debug Clicks', () => {
         
         console.log('--- Click Debug (Simulated) ---');
         console.log('Position:', position);
-        console.log('Word:', word);
+        console.log('Word:', word?.word ?? null);
         console.log('Offset:', offset);
         
-        // @ts-ignore
-        const tokens = (window as any).monaco.editor.tokenize(model.getValue(), model.getLanguageId());
-        if (tokens && tokens[position.lineNumber - 1]) {
-            const lineTokens = tokens[position.lineNumber - 1];
+        const tokens = debugWindow.monaco?.editor.tokenize(model.getValue(), model.getLanguageId());
+        if (Array.isArray(tokens) && tokens[position.lineNumber - 1]) {
+            const lineTokens = tokens[position.lineNumber - 1] as TokenInfo[];
             // Find the token that covers the column. 
             // Tokens are just { offset, type, language }. 
             // The token covers from its offset up to the next token's offset.
             // We need to find the last token with offset <= column - 1
-            let token = null;
-            for (let i = 0; i < lineTokens.length; i++) {
-                if (lineTokens[i].offset <= position.column - 1) {
-                    token = lineTokens[i];
-                } else {
-                    break;
-                }
-            }
-            
+            const token = lineTokens.reduce<TokenInfo | null>((result, current) => {
+              if (current.offset <= position.column - 1) {
+                return current;
+              }
+              return result;
+            }, null);
+
             console.log('Monarch Token (Line):', token ? JSON.stringify(token) : 'null');
             console.log('All Line Tokens:', JSON.stringify(lineTokens));
         }

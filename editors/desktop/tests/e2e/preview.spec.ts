@@ -15,7 +15,6 @@ test.describe('Preview Feature', () => {
 
     // Wait for editor pane to appear
     await window.waitForSelector('[data-testid="editor-pane"]', { timeout: 15000 });
-    const panes = window.locator('[data-testid="editor-pane"]');
 
     // Open a lex file from the file tree
     const fileTree = window.locator('[data-testid="file-tree"]');

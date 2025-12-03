@@ -5,36 +5,20 @@ import type { EditorPaneHandle } from './components/EditorPane'
 import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
 import { ExportStatus } from './components/StatusBar'
-import { initDebugMonaco } from './debug-monaco'
-import { isLexFile } from './components/Editor'
 import type { Tab } from './components/TabBar'
 import { PaneWorkspace } from './components/PaneWorkspace'
-import { MIN_PANE_SIZE, normalizePaneSizes, withRowDefaults } from '@/panes/layout'
-import { createEmptyPane, createRowId, usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
+import { usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
 import { usePaneManager } from '@/panes/usePaneManager'
 import { insertAsset, insertVerbatim, resolveAnnotation, toggleAnnotations } from './features/editing'
 import { nextAnnotation, previousAnnotation } from './features/navigation'
-
-initDebugMonaco();
+import { isLexFile } from '@/lib/files'
+import { createPreviewTab, placePreviewTab } from '@/features/preview'
 
 const createTabFromPath = (path: string): Tab => ({
   id: path,
   path,
   name: path.split('/').pop() || path,
 });
-
-const createPreviewTab = (sourceFile: string, content: string): Tab => {
-  const fileName = sourceFile.split('/').pop() || sourceFile;
-  const previewId = `preview:${sourceFile}`;
-  return {
-    id: previewId,
-    path: previewId,
-    name: `Preview: ${fileName}`,
-    type: 'preview',
-    previewContent: content,
-    sourceFile,
-  };
-};
 
 function App() {
   const {
@@ -175,7 +159,7 @@ function App() {
         if (!model) {
           return false;
         }
-        const monacoInstance = (window as any).monaco;
+        const monacoInstance = monaco;
         if (!monacoInstance?.editor) {
           return false;
         }
@@ -310,96 +294,34 @@ function App() {
   }, [activePaneFile, activePaneIdValue]);
 
   const handlePreview = useCallback(async () => {
-    console.log('[Preview] handlePreview called');
-    console.log('[Preview] activePaneFile:', activePaneFile);
-    console.log('[Preview] activePaneIdValue:', activePaneIdValue);
-
     if (!activePaneFile || !isLexFile(activePaneFile)) {
-      console.log('[Preview] ABORT: not a lex file or no file');
       toast.error('Preview requires a .lex file');
       return;
     }
 
     if (!activePaneIdValue) {
-      console.log('[Preview] ABORT: no active pane');
       return;
     }
 
-    // Save the file first
     const handle = paneHandles.current.get(activePaneIdValue);
-    console.log('[Preview] Saving file first...');
     await handle?.save();
 
     try {
-      // Convert to HTML in-memory (no file written to disk)
-      console.log('[Preview] Calling lexPreview IPC...');
       const htmlContent = await window.ipcRenderer.lexPreview(activePaneFile);
-      console.log('[Preview] Got HTML content, length:', htmlContent?.length);
-
       const previewTab = createPreviewTab(activePaneFile, htmlContent);
-      console.log('[Preview] Created preview tab:', previewTab.id, previewTab.name);
-
-      // If only one pane, split vertically first
-      console.log('[Preview] panes.length:', panes.length);
-      if (panes.length === 1) {
-        console.log('[Preview] Creating new pane for preview (single pane mode)');
-        const newPane = createEmptyPane();
-        console.log('[Preview] New pane id:', newPane.id);
-        setPanes(prev => [...prev, { ...newPane, tabs: [previewTab], activeTabId: previewTab.id }]);
-        setPaneRows(prevRows => {
-          if (prevRows.length === 0) {
-            return [withRowDefaults({ id: createRowId(), paneIds: [activePaneIdValue, newPane.id] })];
-          }
-          return prevRows.map(row => {
-            if (!row.paneIds.includes(activePaneIdValue)) return row;
-            const paneIds = [...row.paneIds];
-            const insertIndex = paneIds.indexOf(activePaneIdValue);
-            paneIds.splice(insertIndex + 1, 0, newPane.id);
-            const paneSizes = normalizePaneSizes(row, paneIds);
-            const currentWeight = paneSizes[activePaneIdValue];
-            const splitWeight = Math.max(currentWeight / 2, MIN_PANE_SIZE);
-            paneSizes[activePaneIdValue] = splitWeight;
-            paneSizes[newPane.id] = splitWeight;
-            return { ...row, paneIds, paneSizes };
-          });
-        });
-        setActivePaneId(newPane.id);
-        console.log('[Preview] Done - new pane created and activated');
-      } else {
-        // Open preview in the next pane (not the active one)
-        console.log('[Preview] Using existing pane for preview (multi-pane mode)');
-        const activeIndex = panes.findIndex(p => p.id === activePaneIdValue);
-        const targetIndex = activeIndex === panes.length - 1 ? 0 : activeIndex + 1;
-        const targetPaneId = panes[targetIndex].id;
-        console.log('[Preview] Target pane id:', targetPaneId);
-
-        setPanes(prev => prev.map(pane => {
-          if (pane.id !== targetPaneId) return pane;
-          // Check if preview tab already exists for this file
-          const existingPreview = pane.tabs.find(t => t.id === previewTab.id);
-          if (existingPreview) {
-            // Update content and focus
-            return {
-              ...pane,
-              tabs: pane.tabs.map(t => t.id === previewTab.id ? previewTab : t),
-              activeTabId: previewTab.id,
-            };
-          }
-          return {
-            ...pane,
-            tabs: [...pane.tabs, previewTab],
-            activeTabId: previewTab.id,
-          };
-        }));
-        setActivePaneId(targetPaneId);
-        console.log('[Preview] Done - preview added to existing pane');
-      }
+      placePreviewTab({
+        activePaneId: activePaneIdValue,
+        panes,
+        previewTab,
+        setPanes,
+        setPaneRows,
+        setActivePaneId,
+      });
     } catch (error) {
-      console.error('[Preview] ERROR:', error);
       const message = error instanceof Error ? error.message : 'Preview failed';
       toast.error(message);
     }
-  }, [activePaneFile, activePaneIdValue, panes]);
+  }, [activePaneFile, activePaneIdValue, panes, setActivePaneId, setPaneRows, setPanes]);
 
   const handleFileSelect = useCallback((path: string) => {
     if (!activePaneIdValue) return;

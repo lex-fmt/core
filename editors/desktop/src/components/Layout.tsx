@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
 import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle, FileType, Search, Replace, SplitSquareVertical, SplitSquareHorizontal, Eye } from 'lucide-react';
-import { isLexFile } from './Editor';
+import { isLexFile } from '@/lib/files';
 
 interface LayoutProps {
   children: ReactNode;

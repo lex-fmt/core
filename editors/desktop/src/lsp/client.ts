@@ -1,37 +1,64 @@
-export type LspMessage = {
+import type { IpcRenderer, IpcRendererEvent } from 'electron';
+
+type JsonRpcId = number | string;
+
+interface JsonRpcBase {
   jsonrpc: '2.0';
-  id?: number | string;
-  method?: string;
-  result?: any;
-  error?: any;
-  params?: any;
+}
+
+interface JsonRpcSuccess<T = unknown> extends JsonRpcBase {
+  id: JsonRpcId;
+  result: T;
+}
+
+interface JsonRpcErrorPayload<E = unknown> {
+  code: number;
+  message: string;
+  data?: E;
+}
+
+interface JsonRpcError<E = unknown> extends JsonRpcBase {
+  id: JsonRpcId | null;
+  error: JsonRpcErrorPayload<E>;
+}
+
+interface JsonRpcNotification<T = unknown> extends JsonRpcBase {
+  method: string;
+  params?: T;
+}
+
+export type LspMessage<T = unknown, E = unknown> =
+  | JsonRpcSuccess<T>
+  | JsonRpcError<E>
+  | JsonRpcNotification<T>;
+
+type PendingRequest = {
+  resolve: (value: unknown) => void;
+  reject: (error: unknown) => void;
 };
 
 export type LspStatus = 'Initializing' | 'Ready' | 'Error';
 
 export class LspClient {
-  // @ts-ignore
-  private ipcRenderer: any;
-  // @ts-ignore
+  private ipcRenderer: IpcRenderer;
   private languageId: string;
   private requestId = 0;
-  private pendingRequests = new Map<number | string, { resolve: (val: any) => void; reject: (err: any) => void }>();
-  private notificationHandlers = new Map<string, (params: any) => void>();
+  private pendingRequests = new Map<JsonRpcId, PendingRequest>();
+  private notificationHandlers = new Map<string, (params: unknown) => void>();
   private statusHandlers: ((status: LspStatus) => void)[] = [];
   public currentStatus: LspStatus = 'Initializing';
 
   private buffer: Uint8Array = new Uint8Array(0);
 
-  constructor(ipcRenderer: any, languageId: string) {
+  constructor(ipcRenderer: IpcRenderer, languageId: string) {
     this.ipcRenderer = ipcRenderer;
     this.languageId = languageId;
     console.log(`[LspClient] Initializing for language: ${languageId}`);
     this.setStatus('Initializing');
 
-    // @ts-ignore
-    window.ipcRenderer.on('lsp-output', (_event, data: Uint8Array) => {
-        this.appendBuffer(data);
-        this.processBuffer();
+    this.ipcRenderer.on('lsp-output', (_event: IpcRendererEvent, data: Uint8Array) => {
+      this.appendBuffer(data);
+      this.processBuffer();
     });
   }
 
@@ -51,12 +78,12 @@ export class LspClient {
       handler(this.currentStatus); // Emit current status immediately
   }
 
-  public serverCapabilities: any = {};
+  public serverCapabilities: Record<string, unknown> = {};
 
   public async initialize() {
     console.log('[LspClient] Initializing LSP session...');
     try {
-        const response = await this.sendRequest('initialize', {
+        const response = await this.sendRequest<{ capabilities?: Record<string, unknown> }>('initialize', {
             processId: null,
             rootUri: null,
             capabilities: {},
@@ -71,10 +98,10 @@ export class LspClient {
         }
         this.sendNotification('initialized', {});
         this.setStatus('Ready');
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[LspClient] Initialization failed:', error);
         // If error code is -32600 (Invalid Request), it likely means the server is already initialized.
-        if (error && error.code === -32600) {
+        if (isJsonRpcErrorPayload(error) && error.code === -32600) {
             console.log('[LspClient] Server returned Invalid Request for initialize. Assuming already initialized.');
             this.setStatus('Ready');
         } else {
@@ -92,44 +119,46 @@ export class LspClient {
   }
 
   private processBuffer() {
-    while (true) {
-        // Find header end (\r\n\r\n = 13 10 13 10)
-        let headerEndIndex = -1;
-        for (let i = 0; i < this.buffer.length - 3; i++) {
-            if (this.buffer[i] === 13 && this.buffer[i+1] === 10 && this.buffer[i+2] === 13 && this.buffer[i+3] === 10) {
-                headerEndIndex = i + 4;
-                break;
-            }
-        }
-
-        if (headerEndIndex === -1) break; // Not enough data for a full header yet
-
-        const headerBytes = this.buffer.slice(0, headerEndIndex);
-        const headerString = new TextDecoder().decode(headerBytes);
-        const match = headerString.match(/Content-Length: (\d+)/);
-        
-        if (!match) {
-            // Invalid header, discard this part of the buffer and continue
-            console.error('Invalid LSP header, discarding:', headerString);
-            this.buffer = this.buffer.slice(headerEndIndex);
-            continue;
-        }
-
-        const contentLength = parseInt(match[1], 10);
-        
-        if (this.buffer.length < headerEndIndex + contentLength) break; // Not enough data for the full message body
-
-        const bodyBytes = this.buffer.slice(headerEndIndex, headerEndIndex + contentLength);
-        this.buffer = this.buffer.slice(headerEndIndex + contentLength);
-
-        try {
-            const bodyString = new TextDecoder().decode(bodyBytes);
-            const message: LspMessage = JSON.parse(bodyString);
-            this.handleMessage(message);
-        } catch (e) {
-            console.error('Failed to parse LSP message', e);
-        }
+    let shouldContinue = true;
+    while (shouldContinue) {
+      shouldContinue = this.tryProcessMessage();
     }
+  }
+
+  private tryProcessMessage(): boolean {
+    const headerEndIndex = findHeaderEnd(this.buffer);
+    if (headerEndIndex === -1) {
+      return false;
+    }
+
+    const headerBytes = this.buffer.slice(0, headerEndIndex);
+    const headerString = new TextDecoder().decode(headerBytes);
+    const match = headerString.match(/Content-Length: (\d+)/);
+
+    if (!match) {
+      console.error('Invalid LSP header, discarding:', headerString);
+      this.buffer = this.buffer.slice(headerEndIndex);
+      return this.buffer.length > 0;
+    }
+
+    const contentLength = Number.parseInt(match[1], 10);
+    const totalLength = headerEndIndex + contentLength;
+    if (this.buffer.length < totalLength) {
+      return false;
+    }
+
+    const bodyBytes = this.buffer.slice(headerEndIndex, totalLength);
+    this.buffer = this.buffer.slice(totalLength);
+
+    try {
+      const bodyString = new TextDecoder().decode(bodyBytes);
+      const message = JSON.parse(bodyString) as LspMessage;
+      this.handleMessage(message);
+    } catch (error) {
+      console.error('Failed to parse LSP message', error);
+    }
+
+    return this.buffer.length > 0;
   }
 
   private handleMessage(message: LspMessage) {
@@ -137,7 +166,7 @@ export class LspClient {
     if (message.error) {
       console.log(`[LspClient] Error response id=${message.id}: ${JSON.stringify(message.error)}`);
     }
-    if (message.id !== undefined) {
+    if ('id' in message && message.id !== undefined && this.pendingRequests.has(message.id)) {
         // Response to a request
         if (this.pendingRequests.has(message.id)) {
             const { resolve, reject } = this.pendingRequests.get(message.id)!;
@@ -145,7 +174,7 @@ export class LspClient {
             if (message.error) {
                 reject(message.error);
             } else {
-                resolve(message.result);
+                resolve((message as JsonRpcSuccess).result);
             }
         }
     } else if (message.method) {
@@ -157,7 +186,7 @@ export class LspClient {
     }
   }
 
-  public sendRequest(method: string, params: any): Promise<any> {
+  public sendRequest<TResponse = unknown, TParams = unknown>(method: string, params: TParams): Promise<TResponse> {
     const id = this.requestId++;
     const request = {
       jsonrpc: '2.0',
@@ -168,12 +197,15 @@ export class LspClient {
     
     this.send(request);
     
-    return new Promise((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject });
+    return new Promise<TResponse>((resolve, reject) => {
+      this.pendingRequests.set(id, {
+        resolve: value => resolve(value as TResponse),
+        reject,
+      });
     });
   }
 
-  public sendNotification(method: string, params: any) {
+  public sendNotification<TParams = unknown>(method: string, params: TParams) {
     const notification = {
       jsonrpc: '2.0',
       method,
@@ -182,19 +214,36 @@ export class LspClient {
     this.send(notification);
   }
 
-  private send(message: any) {
+  private send(message: JsonRpcSuccess | JsonRpcNotification | JsonRpcError) {
     const json = JSON.stringify(message);
     const encoder = new TextEncoder();
     const encoded = encoder.encode(json);
     const payload = `Content-Length: ${encoded.length}\r\n\r\n${json}`;
-    // @ts-ignore
-    window.ipcRenderer.send('lsp-input', payload);
+    this.ipcRenderer.send('lsp-input', payload);
   }
 
-  public onNotification(method: string, handler: (params: any) => void) {
+  public onNotification(method: string, handler: (params: unknown) => void) {
     this.notificationHandlers.set(method, handler);
   }
 }
 
+function findHeaderEnd(buffer: Uint8Array): number {
+  for (let i = 0; i < buffer.length - 3; i++) {
+    if (buffer[i] === 13 && buffer[i + 1] === 10 && buffer[i + 2] === 13 && buffer[i + 3] === 10) {
+      return i + 4;
+    }
+  }
+  return -1;
+}
+
+function isJsonRpcErrorPayload(value: unknown): value is JsonRpcErrorPayload {
+  return Boolean(value && typeof value === 'object' && 'code' in value);
+}
+
+const rendererIpc = typeof window !== 'undefined' ? window.ipcRenderer : undefined;
+if (!rendererIpc) {
+  throw new Error('ipcRenderer is not available in this environment');
+}
+
 // Export a singleton instance
-export const lspClient = new LspClient((window as any).ipcRenderer || {}, 'lex');
+export const lspClient = new LspClient(rendererIpc, 'lex');

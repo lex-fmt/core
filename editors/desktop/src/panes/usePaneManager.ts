@@ -182,7 +182,7 @@ export function usePaneManager({
     if (resolvedId) {
       setActivePaneId(resolvedId);
     }
-  }, [setActivePaneId, setPanes]);
+  }, [setActivePaneId, setPanes, createTabFromPath]);
 
   const handleTabSelect = useCallback((paneId: string, tabId: string) => {
     setPanes(prev => prev.map(pane => (
@@ -285,7 +285,7 @@ export function usePaneManager({
     });
 
     setActivePaneId(targetPaneId);
-  }, [setActivePaneId, setPanes, updateRowsAfterPaneRemoval]);
+  }, [setActivePaneId, setPanes, updateRowsAfterPaneRemoval, createTabFromPath]);
 
   const handlePaneFileLoaded = useCallback((paneId: string, path: string | null) => {
     setPanes(prev => prev.map(pane => (

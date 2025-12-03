@@ -34,6 +34,13 @@ interface DefaultLayout {
   activePaneId: string;
 }
 
+interface SavedPaneRow {
+  id?: string;
+  paneIds?: string[];
+  size?: number;
+  paneSizes?: Record<string, number>;
+}
+
 interface PersistedPaneLayoutResult {
   panes: PaneState[];
   paneRows: PaneRowState[];
@@ -46,9 +53,9 @@ interface PersistedPaneLayoutResult {
   resolvedActivePaneId: string | null;
 }
 
-const hydrateSavedRows = (savedRows: any[], paneIdSet: Set<string>): PaneRowState[] => {
-  let rows: PaneRowState[] = savedRows
-    .map((row: any) => ({
+const hydrateSavedRows = (savedRows: SavedPaneRow[], paneIdSet: Set<string>): PaneRowState[] => {
+  const rows: PaneRowState[] = savedRows
+    .map((row) => ({
       id: row.id || createRowIdValue(),
       paneIds: Array.isArray(row.paneIds)
         ? row.paneIds.filter((id: string) => paneIdSet.has(id))
@@ -98,7 +105,7 @@ export function usePersistedPaneLayout(createTabFromPath: (path: string) => Tab)
       try {
         const layout = await window.ipcRenderer.getOpenTabs();
         if (layout && Array.isArray(layout.panes) && layout.panes.length > 0) {
-          const hydrated = layout.panes.map<PaneState>((pane: any) => ({
+          const hydrated = layout.panes.map<PaneState>((pane) => ({
             id: pane.id || createPaneIdValue(),
             tabs: pane.tabs.map(createTabFromPath),
             activeTabId: pane.activeTab && pane.tabs.includes(pane.activeTab)
