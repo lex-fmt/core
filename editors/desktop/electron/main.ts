@@ -420,6 +420,18 @@ ipcMain.handle('file-read-dir', async (_, dirPath: string) => {
   }
 });
 
+ipcMain.handle('dialog-show-open-dialog', async (_event, options) => {
+  const result = await dialog.showOpenDialog(win!, options);
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+  return result.filePaths[0];
+});
+
+ipcMain.handle('path-relative', (_event, from, to) => {
+  return path.relative(from, to);
+});
+
 ipcMain.handle('file-read', async (_, filePath: string) => {
   try {
     return await fs.readFile(filePath, 'utf-8');
@@ -612,7 +624,7 @@ ipcMain.handle('file-export', async (_, sourcePath: string, format: ExportFormat
     cliBinaryPath: lexPath,
     sourcePath,
     outputPath,
-    toFormat: format
+    toFormat: format as any
   });
 
   return outputPath;

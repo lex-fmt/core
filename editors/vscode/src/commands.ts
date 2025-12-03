@@ -205,10 +205,10 @@ export function registerCommands(
       createImportFromMarkdownCommand(cliBinaryPath)
     ),
     vscode.commands.registerCommand('lex.insertAssetReference', (uri?: vscode.Uri) =>
-      insertAssetReference(getClient, waitForClientReady, uri)
+      insertAssetReference(uri)
     ),
     vscode.commands.registerCommand('lex.insertVerbatimBlock', (uri?: vscode.Uri) =>
-      insertVerbatimBlock(getClient, waitForClientReady, uri)
+      insertVerbatimBlock(uri)
     ),
     vscode.commands.registerCommand('lex.goToNextAnnotation', () =>
       navigateAnnotation('lex.next_annotation', getClient, waitForClientReady)
@@ -225,20 +225,6 @@ export function registerCommands(
   );
 }
 
-interface SnippetInsertionPayload {
-  text: string;
-  cursorOffset: number;
-}
-
-function isSnippetInsertionPayload(value: unknown): value is SnippetInsertionPayload {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as { text?: unknown }).text === 'string' &&
-    typeof (value as { cursorOffset?: unknown }).cursorOffset === 'number'
-  );
-}
-
 async function getReadyClient(
   getClient: () => LanguageClient | undefined,
   waitForClientReady: () => Promise<void>
@@ -251,107 +237,60 @@ async function getReadyClient(
   return client;
 }
 
-async function insertAssetReference(
-  getClient: () => LanguageClient | undefined,
-  waitForClientReady: () => Promise<void>,
-  providedUri?: vscode.Uri
-): Promise<void> {
-  const fileUri = providedUri ?? (await pickWorkspaceFile('Select asset to insert'));
-  if (!fileUri) {
-    return;
-  }
+import { commands } from '@lex/shared';
+import { VSCodeEditorAdapter } from './adapter.js';
+import { dirname, relative } from 'node:path';
 
-  await invokeInsertCommand('lex.insert_asset', fileUri, getClient, waitForClientReady);
-}
-
-async function insertVerbatimBlock(
-  getClient: () => LanguageClient | undefined,
-  waitForClientReady: () => Promise<void>,
-  providedUri?: vscode.Uri
-): Promise<void> {
-  const fileUri = providedUri ?? (await pickWorkspaceFile('Select file to embed as verbatim block'));
-  if (!fileUri) {
-    return;
-  }
-
-  await invokeInsertCommand('lex.insert_verbatim', fileUri, getClient, waitForClientReady);
-}
-
-async function invokeInsertCommand(
-  command: string,
-  fileUri: vscode.Uri,
-  getClient: () => LanguageClient | undefined,
-  waitForClientReady: () => Promise<void>
-): Promise<void> {
+async function insertAssetReference(providedUri?: vscode.Uri): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     vscode.window.showErrorMessage('Open a Lex document before running this command.');
     return;
   }
 
-  if (editor.document.languageId !== 'lex') {
-    vscode.window.showErrorMessage('Insert commands are only available for .lex documents.');
+  const fileUri = providedUri ?? (await pickWorkspaceFile('Select asset to insert'));
+  if (!fileUri) {
     return;
   }
 
-  const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
-  if (!workspaceFolder) {
-    vscode.window.showErrorMessage('Active document is not inside a workspace folder.');
-    return;
-  }
+  const docPath = editor.document.uri.fsPath;
+  const assetPath = fileUri.fsPath;
+  const relativePath = relative(dirname(docPath), assetPath);
 
-  const fileWorkspace = vscode.workspace.getWorkspaceFolder(fileUri);
-  if (!fileWorkspace || fileWorkspace.uri.toString() !== workspaceFolder.uri.toString()) {
-    vscode.window.showErrorMessage('Please select a file within the current workspace.');
-    return;
-  }
-
-  try {
-    const client = await getReadyClient(getClient, waitForClientReady);
-    const position = editor.selection.active;
-    const protocolPosition = client.code2ProtocolConverter.asPosition(position);
-    const response = (await client.sendRequest(ExecuteCommandRequest.type, {
-      command,
-      arguments: [editor.document.uri.toString(), protocolPosition, fileUri.fsPath]
-    })) as unknown;
-
-    if (!response) {
-      vscode.window.showErrorMessage('Command did not return a snippet payload.');
-      return;
-    }
-
-    if (!isSnippetInsertionPayload(response)) {
-      vscode.window.showErrorMessage('Command returned an invalid snippet payload.');
-      return;
-    }
-
-    await insertSnippet(editor, position, response);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    vscode.window.showErrorMessage(`Failed to insert content: ${message}`);
-  }
+  const adapter = new VSCodeEditorAdapter(editor);
+  await commands.InsertAssetCommand.execute(adapter, {
+    path: relativePath
+  });
 }
 
-async function insertSnippet(
-  editor: vscode.TextEditor,
-  position: vscode.Position,
-  payload: SnippetInsertionPayload
-): Promise<void> {
-  const prefix = position.line === 0 && position.character === 0 ? '' : '\n';
-  const suffix = '\n';
-  const textToInsert = `${prefix}${payload.text}${suffix}`;
-
-  const inserted = await editor.edit(builder => builder.insert(position, textToInsert));
-  if (!inserted) {
-    throw new Error('Unable to update editor with snippet text.');
+async function insertVerbatimBlock(providedUri?: vscode.Uri): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('Open a Lex document before running this command.');
+    return;
   }
 
-  const baseOffset = editor.document.offsetAt(position);
-  const cursorPosition = editor.document.positionAt(
-    baseOffset + prefix.length + payload.cursorOffset
-  );
-  editor.selection = new vscode.Selection(cursorPosition, cursorPosition);
-  editor.revealRange(new vscode.Range(cursorPosition, cursorPosition));
+  const fileUri = providedUri ?? (await pickWorkspaceFile('Select file to embed as verbatim block'));
+  if (!fileUri) {
+    return;
+  }
+
+  const assetPath = fileUri.fsPath;
+
+  // Read file content
+  const fileContent = await vscode.workspace.fs.readFile(fileUri);
+  const decoder = new TextDecoder();
+  const content = decoder.decode(fileContent);
+
+  // Infer language from extension
+  const ext = assetPath.split('.').pop() || 'txt';
+  const language = ext === 'py' ? 'python' : ext === 'js' ? 'javascript' : ext === 'ts' ? 'typescript' : ext;
+
+  const adapter = new VSCodeEditorAdapter(editor);
+  await commands.InsertVerbatimCommand.execute(adapter, {
+    content: content.trim(),
+    language
+  });
 }
 
 async function navigateAnnotation(

@@ -436,7 +436,8 @@
     "url": "https://github.com/lex-lang/lex.git"
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^9.0.1",
+    "@lex/shared": "file:../shared"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

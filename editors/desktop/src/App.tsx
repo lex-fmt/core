@@ -112,7 +112,7 @@ function App() {
   }, [rootPath, activePaneIdValue, openFileInPane]);
 
   const handleOpenFolder = useCallback(async () => {
-    const result = await window.ipcRenderer.invoke('folder-open');
+    const result = await window.ipcRenderer.invoke('folder-open') as string | null;
     if (result) {
       setRootPath(result);
       await window.ipcRenderer.setLastFolder(result);
@@ -254,7 +254,7 @@ function App() {
     const path = await window.ipcRenderer.invoke('file-pick', {
       title: 'Select Asset',
       filters: [{ name: 'All Files', extensions: ['*'] }]
-    });
+    }) as string | null;
     console.log('handleInsertAsset: path selected', path);
     if (path) {
       await insertAsset(activeEditor, path);
@@ -266,7 +266,7 @@ function App() {
     const path = await window.ipcRenderer.invoke('file-pick', {
       title: 'Select File for Verbatim Block',
       filters: [{ name: 'All Files', extensions: ['*'] }]
-    });
+    }) as string | null;
     if (path) {
       await insertVerbatim(activeEditor, path);
     }
