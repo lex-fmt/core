@@ -1,7 +1,6 @@
 import { Command, EditorAdapter } from '../types.js';
 
 export interface InsertVerbatimArgs {
-    path: string;
     content: string;
     language: string;
 }

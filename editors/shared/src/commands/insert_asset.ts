@@ -2,7 +2,6 @@ import { Command, EditorAdapter } from '../types.js';
 
 export interface InsertAssetArgs {
     path: string;
-    caption?: string;
 }
 
 export const InsertAssetCommand: Command<InsertAssetArgs> = {
