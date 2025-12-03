@@ -251,17 +251,35 @@ async function getReadyClient(
   return client;
 }
 
+import { commands } from '@lex/shared';
+import { VSCodeEditorAdapter } from './adapter.js';
+import { dirname, relative } from 'node:path';
+
 async function insertAssetReference(
   getClient: () => LanguageClient | undefined,
   waitForClientReady: () => Promise<void>,
   providedUri?: vscode.Uri
 ): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('Open a Lex document before running this command.');
+    return;
+  }
+
   const fileUri = providedUri ?? (await pickWorkspaceFile('Select asset to insert'));
   if (!fileUri) {
     return;
   }
 
-  await invokeInsertCommand('lex.insert_asset', fileUri, getClient, waitForClientReady);
+  const docPath = editor.document.uri.fsPath;
+  const assetPath = fileUri.fsPath;
+  const relativePath = relative(dirname(docPath), assetPath);
+
+  const adapter = new VSCodeEditorAdapter(editor);
+  await commands.InsertAssetCommand.execute(adapter, {
+    path: relativePath,
+    caption: '' // TODO: prompt for caption?
+  });
 }
 
 async function insertVerbatimBlock(
@@ -269,12 +287,25 @@ async function insertVerbatimBlock(
   waitForClientReady: () => Promise<void>,
   providedUri?: vscode.Uri
 ): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('Open a Lex document before running this command.');
+    return;
+  }
+
   const fileUri = providedUri ?? (await pickWorkspaceFile('Select file to embed as verbatim block'));
   if (!fileUri) {
     return;
   }
 
-  await invokeInsertCommand('lex.insert_verbatim', fileUri, getClient, waitForClientReady);
+  const docPath = editor.document.uri.fsPath;
+  const assetPath = fileUri.fsPath;
+  const relativePath = relative(dirname(docPath), assetPath);
+
+  const adapter = new VSCodeEditorAdapter(editor);
+  await commands.InsertVerbatimCommand.execute(adapter, {
+    path: relativePath
+  });
 }
 
 async function invokeInsertCommand(

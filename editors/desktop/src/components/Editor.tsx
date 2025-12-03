@@ -104,9 +104,28 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
     window.ipcRenderer.getNativeTheme().then(applyThemeFromNative);
     const unsubscribeTheme = window.ipcRenderer.onNativeThemeChanged(applyThemeFromNative);
 
+    // Listen for insert commands
+    const unsubscribeInsertAsset = window.ipcRenderer.on('menu-insert-asset', () => {
+      if (editorRef.current) {
+        import('../commands').then(({ insertAssetReference }) => {
+          insertAssetReference(editorRef.current!);
+        });
+      }
+    });
+
+    const unsubscribeInsertVerbatim = window.ipcRenderer.on('menu-insert-verbatim', () => {
+      if (editorRef.current) {
+        import('../commands').then(({ insertVerbatimBlock }) => {
+          insertVerbatimBlock(editorRef.current!);
+        });
+      }
+    });
+
     return () => {
       editor.dispose();
       unsubscribeTheme();
+      unsubscribeInsertAsset();
+      unsubscribeInsertVerbatim();
     };
   }, []);
 
