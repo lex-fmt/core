@@ -30,18 +30,6 @@ test.describe('File Operations', () => {
     // But we can trigger the button and handle the dialog if Playwright supports it.
     // Electron's dialog.showOpenDialog blocks until closed.
     
-    // Alternative: We can use `electronApp.evaluate` to mock the `dialog.showOpenDialog` in the main process.
-    await electronApp.evaluate(async ({ dialog, BrowserWindow }) => {
-        // This runs in the main process
-        const win = BrowserWindow.getAllWindows()[0];
-        // We need to override dialog.showOpenDialog
-        // But dialog is a module.
-        // This is tricky.
-        
-        // Simpler approach: Just verify the button exists and is clickable.
-        // And maybe rely on the unit tests for the IPC logic if we had them.
-    });
-    
     // For now, let's just verify the UI elements for file operations exist.
     await expect(window.locator('button[title="Open File"]')).toBeVisible();
     await expect(window.locator('button[title="Save"]')).toBeVisible();

@@ -11,15 +11,16 @@ function detectWorkspaceRoot(): string {
 
   let current = process.cwd();
   const { root } = path.parse(current);
-  while (true) {
+  while (current !== root) {
     if (fs.existsSync(path.join(current, 'Cargo.toml'))) {
       return current;
     }
-    if (current === root) {
-      return process.cwd();
-    }
     current = path.dirname(current);
   }
+  if (fs.existsSync(path.join(root, 'Cargo.toml'))) {
+    return root;
+  }
+  return process.cwd();
 }
 
 const DEV_WORKSPACE_ROOT = detectWorkspaceRoot();

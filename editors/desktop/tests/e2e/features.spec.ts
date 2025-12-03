@@ -1,6 +1,23 @@
 import { test, expect, _electron as electron } from '@playwright/test';
 import { openFixture } from './helpers';
 
+type LexTestWindow = Window & {
+  lexTest?: {
+    editor?: {
+      focus: () => void;
+      trigger: (source: string, handler: string, payload?: unknown) => void;
+      setSelection: (selection: {
+        startLineNumber: number;
+        startColumn: number;
+        endLineNumber: number;
+        endColumn: number;
+      }) => void;
+    };
+    getActiveEditorValue: () => string;
+  };
+  monaco?: typeof import('monaco-editor');
+};
+
 test.describe('Desktop Features', () => {
   test('should support completion', async () => {
     const electronApp = await electron.launch({
@@ -17,8 +34,8 @@ test.describe('Desktop Features', () => {
 
     // Ensure focus
     await window.evaluate(() => {
-        // @ts-ignore
-        const editor = window.lexTest?.editor;
+        const scopedWindow = window as LexTestWindow;
+        const editor = scopedWindow.lexTest?.editor;
         if (editor) {
             editor.focus();
         }
@@ -31,8 +48,8 @@ test.describe('Desktop Features', () => {
     // Manually trigger suggest widget via keyboard shortcut (Ctrl+Space)
     // Playwright modifiers can be tricky, so we fallback to editor action if needed.
     await window.evaluate(() => {
-        // @ts-ignore
-        const editor = window.lexTest?.editor;
+        const scopedWindow = window as LexTestWindow;
+        const editor = scopedWindow.lexTest?.editor;
         if (editor) {
             editor.trigger('keyboard', 'editor.action.triggerSuggest', {});
         }
@@ -84,8 +101,8 @@ test.describe('Desktop Features', () => {
 
     // Verify content
     const content = await window.evaluate(() => {
-        // @ts-ignore
-        return window.lexTest?.getActiveEditorValue() ?? '';
+        const scopedWindow = window as LexTestWindow;
+        return scopedWindow.lexTest?.getActiveEditorValue() ?? '';
     });
     expect(content).toContain('doc.image');
     expect(content).toContain('test-asset.png');
@@ -146,18 +163,17 @@ test.describe('Desktop Features', () => {
 
     // Select a range (e.g., lines 1-2)
     await window.evaluate(() => {
-        // @ts-ignore
-        const editor = window.lexTest?.editor;
-        if (editor) {
-            // @ts-ignore
-            editor.setSelection(new window.monaco.Selection(1, 1, 2, 1));
+        const scopedWindow = window as LexTestWindow;
+        const editor = scopedWindow.lexTest?.editor;
+        if (editor && scopedWindow.monaco?.Selection) {
+            editor.setSelection(new scopedWindow.monaco.Selection(1, 1, 2, 1));
         }
     });
 
     // Trigger Format Selection
     await window.evaluate(() => {
-        // @ts-ignore
-        const editor = window.lexTest?.editor;
+        const scopedWindow = window as LexTestWindow;
+        const editor = scopedWindow.lexTest?.editor;
         if (editor) {
             editor.trigger('source', 'editor.action.formatSelection');
         }

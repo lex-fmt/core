@@ -5,36 +5,24 @@ import type { EditorPaneHandle } from './components/EditorPane'
 import { Layout } from './components/Layout'
 import { Outline } from './components/Outline'
 import { ExportStatus } from './components/StatusBar'
-import { initDebugMonaco } from './debug-monaco'
-import { isLexFile } from './components/Editor'
 import type { Tab } from './components/TabBar'
 import { PaneWorkspace } from './components/PaneWorkspace'
-import { MIN_PANE_SIZE, normalizePaneSizes, withRowDefaults } from '@/panes/layout'
-import { createEmptyPane, createRowId, usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
+import { usePersistedPaneLayout } from '@/panes/usePersistedPaneLayout'
 import { usePaneManager } from '@/panes/usePaneManager'
 import { insertAsset, insertVerbatim, resolveAnnotation, toggleAnnotations } from './features/editing'
 import { nextAnnotation, previousAnnotation } from './features/navigation'
-
-initDebugMonaco();
+import { isLexFile } from '@/lib/files'
+import { createPreviewTab, placePreviewTab } from '@/features/preview'
+import { useRootFolder } from '@/hooks/useRootFolder'
+import { useMenuStateSync } from '@/hooks/useMenuStateSync'
+import { useLexTestBridge } from '@/hooks/useLexTestBridge'
+import { useMenuHandlers } from '@/hooks/useMenuHandlers'
 
 const createTabFromPath = (path: string): Tab => ({
   id: path,
   path,
   name: path.split('/').pop() || path,
 });
-
-const createPreviewTab = (sourceFile: string, content: string): Tab => {
-  const fileName = sourceFile.split('/').pop() || sourceFile;
-  const previewId = `preview:${sourceFile}`;
-  return {
-    id: previewId,
-    path: previewId,
-    name: `Preview: ${fileName}`,
-    type: 'preview',
-    previewContent: content,
-    sourceFile,
-  };
-};
 
 function App() {
   const {
@@ -46,7 +34,7 @@ function App() {
     resolvedActivePane,
     resolvedActivePaneId,
   } = usePersistedPaneLayout(createTabFromPath);
-  const [rootPath, setRootPath] = useState<string | undefined>(undefined);
+  const { rootPath, setRootPath } = useRootFolder();
   const [exportStatus, setExportStatus] = useState<ExportStatus>({ isExporting: false, format: null });
   const paneHandles = useRef(new Map<string, EditorPaneHandle | null>());
   const panesRef = useRef(panes);
@@ -63,15 +51,7 @@ function App() {
     panesRef.current = panes;
   }, [panes]);
 
-  useEffect(() => {
-    if (!window?.ipcRenderer?.updateMenuState) {
-      return;
-    }
-    window.ipcRenderer.updateMenuState({
-      hasOpenFile: Boolean(activePaneFile),
-      isLexFile: isActiveFileLex,
-    });
-  }, [activePaneFile, isActiveFileLex]);
+  useMenuStateSync(Boolean(activePaneFile), isActiveFileLex);
 
   const registerPaneHandle = useCallback(
     (paneId: string) => (instance: EditorPaneHandle | null) => {
@@ -96,20 +76,6 @@ function App() {
     }
   }, [panes]);
 
-  useEffect(() => {
-    const loadInitialFolder = async () => {
-      try {
-        const folder = await window.ipcRenderer.getInitialFolder();
-        if (folder) {
-          setRootPath(folder);
-        }
-      } catch (e) {
-        console.error('App: Error loading initial folder:', e);
-      }
-    };
-    loadInitialFolder();
-  }, []);
-
   const {
     focusPane,
     handleSplitVertical,
@@ -129,78 +95,13 @@ function App() {
     createTabFromPath,
   });
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!window.ipcRenderer?.loadTestFixture) return;
-
-    const waitForPaneFile = async (paneId: string, filePath: string, timeoutMs = 5000) => {
-      const start = Date.now();
-      while (Date.now() - start < timeoutMs) {
-        const pane = panesRef.current.find(p => p.id === paneId);
-        if (pane?.currentFile === filePath) {
-          return;
-        }
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      throw new Error(`Timed out opening fixture ${filePath}`);
-    };
-
-    const api = {
-      openFixture: async (fixtureName: string, targetPaneId?: string | null) => {
-        const fixture = await window.ipcRenderer.loadTestFixture(fixtureName);
-        const target = targetPaneId ?? activePaneIdValue ?? panes[0]?.id ?? null;
-        if (!target) {
-          throw new Error('No pane available for fixture');
-        }
-        openFileInPane(target, fixture.path);
-        await waitForPaneFile(target, fixture.path);
-        return fixture;
-      },
-      readFixture: (fixtureName: string) => window.ipcRenderer.loadTestFixture(fixtureName),
-      getActiveEditorValue: () => {
-        const target = activePaneIdValue ?? panesRef.current[0]?.id ?? null;
-        if (!target) {
-          return '';
-        }
-        const editorInstance = paneHandles.current.get(target)?.getEditor();
-        return editorInstance?.getValue() ?? '';
-      },
-      triggerMockDiagnostics: () => {
-        const target = activePaneIdValue ?? panesRef.current[0]?.id ?? null;
-        if (!target) {
-          return false;
-        }
-        const editorInstance = paneHandles.current.get(target)?.getEditor();
-        const model = editorInstance?.getModel?.();
-        if (!model) {
-          return false;
-        }
-        const monacoInstance = (window as any).monaco;
-        if (!monacoInstance?.editor) {
-          return false;
-        }
-        const lastColumn = model.getLineLength(1) + 1;
-        monacoInstance.editor.setModelMarkers(model, 'lex-test', [
-          {
-            severity: monacoInstance.MarkerSeverity.Error,
-            startLineNumber: 1,
-            startColumn: 1,
-            endLineNumber: 1,
-            endColumn: lastColumn,
-            message: 'Mock diagnostic for testing',
-            source: 'lex-test',
-          },
-        ]);
-        return true;
-      },
-    };
-    window.lexTest = api;
-    return () => {
-      if (window.lexTest === api) {
-        delete window.lexTest;
-      }
-    };
-  }, [activePaneIdValue, openFileInPane, panes]);
+  useLexTestBridge({
+    activePaneId: activePaneIdValue,
+    paneHandles,
+    panesRef,
+    panes,
+    openFileInPane,
+  });
 
   const handleNewFile = useCallback(async () => {
     if (!activePaneIdValue) return;
@@ -216,7 +117,7 @@ function App() {
       setRootPath(result);
       await window.ipcRenderer.setLastFolder(result);
     }
-  }, []);
+  }, [setRootPath]);
 
   const handleOpenFile = useCallback(async () => {
     if (!activePaneIdValue) return;
@@ -310,96 +211,34 @@ function App() {
   }, [activePaneFile, activePaneIdValue]);
 
   const handlePreview = useCallback(async () => {
-    console.log('[Preview] handlePreview called');
-    console.log('[Preview] activePaneFile:', activePaneFile);
-    console.log('[Preview] activePaneIdValue:', activePaneIdValue);
-
     if (!activePaneFile || !isLexFile(activePaneFile)) {
-      console.log('[Preview] ABORT: not a lex file or no file');
       toast.error('Preview requires a .lex file');
       return;
     }
 
     if (!activePaneIdValue) {
-      console.log('[Preview] ABORT: no active pane');
       return;
     }
 
-    // Save the file first
     const handle = paneHandles.current.get(activePaneIdValue);
-    console.log('[Preview] Saving file first...');
     await handle?.save();
 
     try {
-      // Convert to HTML in-memory (no file written to disk)
-      console.log('[Preview] Calling lexPreview IPC...');
       const htmlContent = await window.ipcRenderer.lexPreview(activePaneFile);
-      console.log('[Preview] Got HTML content, length:', htmlContent?.length);
-
       const previewTab = createPreviewTab(activePaneFile, htmlContent);
-      console.log('[Preview] Created preview tab:', previewTab.id, previewTab.name);
-
-      // If only one pane, split vertically first
-      console.log('[Preview] panes.length:', panes.length);
-      if (panes.length === 1) {
-        console.log('[Preview] Creating new pane for preview (single pane mode)');
-        const newPane = createEmptyPane();
-        console.log('[Preview] New pane id:', newPane.id);
-        setPanes(prev => [...prev, { ...newPane, tabs: [previewTab], activeTabId: previewTab.id }]);
-        setPaneRows(prevRows => {
-          if (prevRows.length === 0) {
-            return [withRowDefaults({ id: createRowId(), paneIds: [activePaneIdValue, newPane.id] })];
-          }
-          return prevRows.map(row => {
-            if (!row.paneIds.includes(activePaneIdValue)) return row;
-            const paneIds = [...row.paneIds];
-            const insertIndex = paneIds.indexOf(activePaneIdValue);
-            paneIds.splice(insertIndex + 1, 0, newPane.id);
-            const paneSizes = normalizePaneSizes(row, paneIds);
-            const currentWeight = paneSizes[activePaneIdValue];
-            const splitWeight = Math.max(currentWeight / 2, MIN_PANE_SIZE);
-            paneSizes[activePaneIdValue] = splitWeight;
-            paneSizes[newPane.id] = splitWeight;
-            return { ...row, paneIds, paneSizes };
-          });
-        });
-        setActivePaneId(newPane.id);
-        console.log('[Preview] Done - new pane created and activated');
-      } else {
-        // Open preview in the next pane (not the active one)
-        console.log('[Preview] Using existing pane for preview (multi-pane mode)');
-        const activeIndex = panes.findIndex(p => p.id === activePaneIdValue);
-        const targetIndex = activeIndex === panes.length - 1 ? 0 : activeIndex + 1;
-        const targetPaneId = panes[targetIndex].id;
-        console.log('[Preview] Target pane id:', targetPaneId);
-
-        setPanes(prev => prev.map(pane => {
-          if (pane.id !== targetPaneId) return pane;
-          // Check if preview tab already exists for this file
-          const existingPreview = pane.tabs.find(t => t.id === previewTab.id);
-          if (existingPreview) {
-            // Update content and focus
-            return {
-              ...pane,
-              tabs: pane.tabs.map(t => t.id === previewTab.id ? previewTab : t),
-              activeTabId: previewTab.id,
-            };
-          }
-          return {
-            ...pane,
-            tabs: [...pane.tabs, previewTab],
-            activeTabId: previewTab.id,
-          };
-        }));
-        setActivePaneId(targetPaneId);
-        console.log('[Preview] Done - preview added to existing pane');
-      }
+      placePreviewTab({
+        activePaneId: activePaneIdValue,
+        panes,
+        previewTab,
+        setPanes,
+        setPaneRows,
+        setActivePaneId,
+      });
     } catch (error) {
-      console.error('[Preview] ERROR:', error);
       const message = error instanceof Error ? error.message : 'Preview failed';
       toast.error(message);
     }
-  }, [activePaneFile, activePaneIdValue, panes]);
+  }, [activePaneFile, activePaneIdValue, panes, setActivePaneId, setPaneRows, setPanes]);
 
   const handleFileSelect = useCallback((path: string) => {
     if (!activePaneIdValue) return;
@@ -487,45 +326,25 @@ function App() {
     await toggleAnnotations(activeEditor);
   }, [activeEditor]);
 
-  useEffect(() => {
-    const unsubNewFile = window.ipcRenderer.onMenuNewFile(handleNewFile);
-    const unsubOpenFile = window.ipcRenderer.onMenuOpenFile(handleOpenFile);
-    const unsubOpenFolder = window.ipcRenderer.onMenuOpenFolder(handleOpenFolder);
-    const unsubSave = window.ipcRenderer.onMenuSave(handleSave);
-    const unsubFormat = window.ipcRenderer.onMenuFormat(handleFormat);
-    const unsubExport = window.ipcRenderer.onMenuExport(handleExport);
-    const unsubFind = window.ipcRenderer.onMenuFind(handleFind);
-    const unsubReplace = window.ipcRenderer.onMenuReplace(handleReplace);
-    const unsubSplitVertical = window.ipcRenderer.onMenuSplitVertical(handleSplitVertical);
-    const unsubSplitHorizontal = window.ipcRenderer.onMenuSplitHorizontal(handleSplitHorizontal);
-    const unsubPreview = window.ipcRenderer.onMenuPreview(handlePreview);
-    const unsubInsertAsset = window.ipcRenderer.on('menu-insert-asset', handleInsertAsset);
-    const unsubInsertVerbatim = window.ipcRenderer.on('menu-insert-verbatim', handleInsertVerbatim);
-    const unsubNextAnnotation = window.ipcRenderer.on('menu-next-annotation', handleNextAnnotation);
-    const unsubPrevAnnotation = window.ipcRenderer.on('menu-prev-annotation', handlePrevAnnotation);
-    const unsubResolveAnnotation = window.ipcRenderer.on('menu-resolve-annotation', handleResolveAnnotation);
-    const unsubToggleAnnotations = window.ipcRenderer.on('menu-toggle-annotations', handleToggleAnnotations);
-
-    return () => {
-      unsubNewFile();
-      unsubOpenFile();
-      unsubOpenFolder();
-      unsubSave();
-      unsubFormat();
-      unsubExport();
-      unsubFind();
-      unsubReplace();
-      unsubSplitVertical();
-      unsubSplitHorizontal();
-      unsubPreview();
-      unsubInsertAsset();
-      unsubInsertVerbatim();
-      unsubNextAnnotation();
-      unsubPrevAnnotation();
-      unsubResolveAnnotation();
-      unsubToggleAnnotations();
-    };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal, handlePreview, handleInsertAsset, handleInsertVerbatim, handleNextAnnotation, handlePrevAnnotation, handleResolveAnnotation, handleToggleAnnotations]);
+  useMenuHandlers({
+    onNewFile: handleNewFile,
+    onOpenFile: handleOpenFile,
+    onOpenFolder: handleOpenFolder,
+    onSave: handleSave,
+    onFormat: handleFormat,
+    onExport: handleExport,
+    onFind: handleFind,
+    onReplace: handleReplace,
+    onSplitVertical: handleSplitVertical,
+    onSplitHorizontal: handleSplitHorizontal,
+    onPreview: handlePreview,
+    onInsertAsset: handleInsertAsset,
+    onInsertVerbatim: handleInsertVerbatim,
+    onNextAnnotation: handleNextAnnotation,
+    onPrevAnnotation: handlePrevAnnotation,
+    onResolveAnnotation: handleResolveAnnotation,
+    onToggleAnnotations: handleToggleAnnotations,
+  });
 
   return (
     <Layout

@@ -3,9 +3,9 @@ import ReactDOM from 'react-dom/client'
 import { Toaster } from 'sonner'
 import App from './App.tsx'
 import './index.css'
-import { initDebugMonaco } from './debug-monaco'
+import { initializeMonaco } from './monaco'
 
-initDebugMonaco();
+initializeMonaco();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

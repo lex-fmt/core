@@ -18,15 +18,16 @@ function resolveWorkspaceRoot(): string {
 
   let current = process.cwd();
   const { root } = path.parse(current);
-  while (true) {
+  while (current !== root) {
     if (fsSync.existsSync(path.join(current, 'Cargo.toml'))) {
       return current;
     }
-    if (current === root) {
-      return process.cwd();
-    }
     current = path.dirname(current);
   }
+  if (fsSync.existsSync(path.join(root, 'Cargo.toml'))) {
+    return root;
+  }
+  return process.cwd();
 }
 
 // Settings persistence
@@ -595,7 +596,9 @@ ipcMain.handle('set-open-tabs', async (_, panes: PaneLayoutSettings[], rows: Pan
  * @param format - Target format ('markdown', 'html', or 'lex')
  * @returns The path to the converted file
  */
-ipcMain.handle('file-export', async (_, sourcePath: string, format: string): Promise<string> => {
+type ExportFormat = keyof typeof FORMAT_EXTENSIONS;
+
+ipcMain.handle('file-export', async (_, sourcePath: string, format: ExportFormat): Promise<string> => {
   const ext = FORMAT_EXTENSIONS[format];
   if (!ext) {
     throw new Error(`Unsupported export format: ${format}`);
@@ -609,7 +612,7 @@ ipcMain.handle('file-export', async (_, sourcePath: string, format: string): Pro
     cliBinaryPath: lexPath,
     sourcePath,
     outputPath,
-    toFormat: format as any
+    toFormat: format
   });
 
   return outputPath;

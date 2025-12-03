@@ -1,10 +1,11 @@
 import { test, expect, _electron as electron } from '@playwright/test';
+import type { ElectronApplication, Page, ConsoleMessage } from '@playwright/test';
 import * as path from 'path';
 import { openFixture } from './helpers';
 
 test.describe('Packaged Application', () => {
-  let electronApp: any = null;
-  let page: any = null;
+  let electronApp: ElectronApplication | null = null;
+  let page: Page | null = null;
 
   test.beforeAll(async () => {
     const appPath = path.join(process.cwd(), 'release/mac-arm64/Lex Editor.app/Contents/MacOS/Lex Editor');
@@ -17,8 +18,8 @@ test.describe('Packaged Application', () => {
       },
     });
     page = await electronApp.firstWindow();
-    page.on('console', (msg: any) => console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`));
-    page.on('pageerror', (err: any) => console.log(`[Browser Page Error] ${err.message}`));
+    page.on('console', (msg: ConsoleMessage) => console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`));
+    page.on('pageerror', (err: Error) => console.log(`[Browser Page Error] ${err.message}`));
     await page.waitForLoadState('domcontentloaded');
   });
 

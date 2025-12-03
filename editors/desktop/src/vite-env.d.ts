@@ -2,10 +2,10 @@
 
 interface Window {
   ipcRenderer: {
-    on(channel: string, func: (...args: any[]) => void): () => void;
-    off(channel: string, func: (...args: any[]) => void): void;
-    send(channel: string, ...args: any[]): void;
-    invoke(channel: string, ...args: any[]): Promise<any>;
+    on(channel: string, func: (...args: unknown[]) => void): () => void;
+    off(channel: string, func: (...args: unknown[]) => void): void;
+    send(channel: string, ...args: unknown[]): void;
+    invoke<T = unknown>(channel: string, ...args: unknown[]): Promise<T>;
     fileNew(defaultPath?: string): Promise<{ filePath: string, content: string } | null>;
     fileOpen(): Promise<{ filePath: string, content: string } | null>;
     fileSave(filePath: string, content: string): Promise<boolean>;

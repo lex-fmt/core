@@ -18,7 +18,7 @@ function isSnippetInsertionPayload(value: unknown): value is SnippetInsertionPay
 async function invokeInsertCommand(
     editor: monaco.editor.IStandaloneCodeEditor,
     command: string,
-    args: any[]
+    args: unknown[]
 ): Promise<void> {
     const model = editor.getModel();
     if (!model) return;
@@ -27,7 +27,7 @@ async function invokeInsertCommand(
     if (!position) return;
 
     try {
-        const response = await lspClient.sendRequest('workspace/executeCommand', {
+        const response = await lspClient.sendRequest<SnippetInsertionPayload>('workspace/executeCommand', {
             command,
             arguments: [model.uri.toString(), { line: position.lineNumber - 1, character: position.column - 1 }, ...args]
         });
