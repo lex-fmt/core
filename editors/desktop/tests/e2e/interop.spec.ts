@@ -2,15 +2,6 @@ import { test, expect, _electron as electron } from '@playwright/test';
 import { openFixture } from './helpers';
 import * as fs from 'fs/promises';
 
-type LexTestWindow = Window & {
-  lexTest?: {
-    editor?: {
-      getValue: () => string;
-    };
-    getActiveEditorValue: () => string;
-  };
-};
-
 test.describe('Interop Features', () => {
   test('should convert markdown to lex via convert button', async () => {
     const electronApp = await electron.launch({

@@ -1,5 +1,6 @@
 import * as monaco from 'monaco-editor';
 import { ProtocolConnection } from 'vscode-languageserver-protocol/browser';
+import { LspSemanticTokens } from '../types';
 
 export function registerSemanticTokensProvider(languageId: string, connection: ProtocolConnection) {
     monaco.languages.registerDocumentSemanticTokensProvider(languageId, {
@@ -26,7 +27,7 @@ export function registerSemanticTokensProvider(languageId: string, connection: P
                 textDocument: { uri: model.uri.toString() }
             };
             try {
-                const result = await connection.sendRequest('textDocument/semanticTokens/full', params) as any;
+                const result = await connection.sendRequest('textDocument/semanticTokens/full', params) as LspSemanticTokens | null;
                 if (!result || !result.data) return null;
                 console.log(`[SemanticTokens] Received tokens: ${result.data.length}`);
                 return {

@@ -1,9 +1,9 @@
 import { AbstractMessageReader, AbstractMessageWriter, Message, Disposable, DataCallback } from 'vscode-jsonrpc';
 
 interface IpcRenderer {
-    send(channel: string, ...args: any[]): void;
-    on(channel: string, listener: (event: any, ...args: any[]) => void): void;
-    off(channel: string, listener: (event: any, ...args: any[]) => void): void;
+    send(channel: string, ...args: unknown[]): void;
+    on(channel: string, listener: (event: unknown, ...args: unknown[]) => void): void;
+    off(channel: string, listener: (event: unknown, ...args: unknown[]) => void): void;
 }
 
 export class IpcMessageReader extends AbstractMessageReader {
@@ -18,9 +18,11 @@ export class IpcMessageReader extends AbstractMessageReader {
 
     listen(callback: DataCallback): Disposable {
         this.callback = callback;
-        const listener = (_event: any, data: Uint8Array) => {
-            this.appendBuffer(data);
-            this.processBuffer();
+        const listener = (_event: unknown, data: unknown) => {
+            if (data instanceof Uint8Array) {
+                this.appendBuffer(data);
+                this.processBuffer();
+            }
         };
 
         this.ipcRenderer.on('lsp-output', listener);
