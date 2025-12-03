@@ -83,7 +83,7 @@ export function TabBar({ tabs, activeTabId, paneId, onTabSelect, onTabClose, onT
         return (
             <div
                 className={cn(
-                    "h-9 bg-panel border-b border-border shrink-0",
+                    "h-10 bg-panel border-b border-border shrink-0",
                     isDragOver && "bg-accent/50"
                 )}
                 onDragOver={handleDragOver}
@@ -96,7 +96,7 @@ export function TabBar({ tabs, activeTabId, paneId, onTabSelect, onTabClose, onT
     return (
         <div
             className={cn(
-                "h-9 flex items-end bg-panel border-b border-border shrink-0 overflow-x-auto overflow-y-hidden",
+                "flex items-end bg-panel border-b border-border shrink-0 overflow-x-auto overflow-y-hidden pb-2",
                 isDragOver && "bg-accent/50"
             )}
             onDragOver={handleDragOver}
