@@ -50,3 +50,4 @@ specs/**/*.treeviz.*
 *.dmg.blockmap
 *.app
 .vite
+test-results
