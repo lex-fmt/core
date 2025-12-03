@@ -302,9 +302,20 @@ async function insertVerbatimBlock(
   const assetPath = fileUri.fsPath;
   const relativePath = relative(dirname(docPath), assetPath);
 
+  // Read file content
+  const fileContent = await vscode.workspace.fs.readFile(fileUri);
+  const decoder = new TextDecoder();
+  const content = decoder.decode(fileContent);
+
+  // Infer language from extension
+  const ext = assetPath.split('.').pop() || 'txt';
+  const language = ext === 'py' ? 'python' : ext === 'js' ? 'javascript' : ext === 'ts' ? 'typescript' : ext;
+
   const adapter = new VSCodeEditorAdapter(editor);
   await commands.InsertVerbatimCommand.execute(adapter, {
-    path: relativePath
+    path: relativePath,
+    content: content.trim(),
+    language
   });
 }
 

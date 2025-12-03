@@ -1,7 +1,7 @@
 export const InsertAssetCommand = {
     id: 'lex.insertAsset',
     execute: async (editor, args) => {
-        const text = `![${args.caption || ''}](${args.path})`;
+        const text = `:: doc.image\nsrc: ${args.path}\n`;
         await editor.insertText(text);
     }
 };

@@ -51,8 +51,20 @@ export async function insertVerbatimBlock(editor: monaco.editor.IStandaloneCodeE
     if (!docPath) return;
 
     const relativePath = await window.ipcRenderer.invoke<string>('path-relative', docPath, filePath);
+    const content = await window.ipcRenderer.invoke<string | null>('file-read', filePath);
+
+    if (content === null) {
+        console.error('Failed to read file content');
+        return;
+    }
+
+    // Infer language from extension
+    const ext = filePath.split('.').pop() || 'txt';
+    const language = ext === 'py' ? 'python' : ext === 'js' ? 'javascript' : ext === 'ts' ? 'typescript' : ext;
 
     await commands.InsertVerbatimCommand.execute(adapter, {
-        path: relativePath
+        path: relativePath,
+        content: content.trim(),
+        language
     });
 }
