@@ -2,7 +2,7 @@
   "name": "lex-desktop",
   "productName": "Lex Editor",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Desktop editor for Lex",
   "author": {
     "name": "Arthur Debert",
