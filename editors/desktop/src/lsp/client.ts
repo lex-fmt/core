@@ -5,6 +5,11 @@ import * as monaco from 'monaco-editor';
 export class LspClient {
     private connection: ProtocolConnection | null = null;
     private readyPromise: Promise<void> | null = null;
+    private isDisposed = false;
+    private retryCount = 0;
+    private readonly maxRetries = 5;
+    private readonly baseRetryDelay = 1000;
+    private reconnectTimer: any = null;
 
     constructor() {
     }
@@ -12,9 +17,16 @@ export class LspClient {
     public start(): Promise<void> {
         if (this.readyPromise) return this.readyPromise;
 
-        this.readyPromise = (async () => {
-            console.log('[LspClient] Starting SimpleLspClient...');
-            
+        this.readyPromise = this.initialize();
+        return this.readyPromise;
+    }
+
+    private async initialize(): Promise<void> {
+        if (this.isDisposed) return;
+
+        console.log(`[LspClient] Starting SimpleLspClient (Attempt ${this.retryCount + 1}/${this.maxRetries + 1})...`);
+        
+        try {
             const reader = new IpcMessageReader(window.ipcRenderer);
             const writer = new IpcMessageWriter(window.ipcRenderer);
             
@@ -26,6 +38,17 @@ export class LspClient {
             };
 
             this.connection = createProtocolConnection(reader, writer, logger);
+            
+            this.connection.onClose(() => {
+                console.warn('[LspClient] Connection closed.');
+                this.handleConnectionLoss();
+            });
+
+            this.connection.onError((error) => {
+                console.error('[LspClient] Connection error:', error);
+                this.handleConnectionLoss();
+            });
+
             this.connection.listen();
 
             // Initialize
@@ -135,6 +158,9 @@ export class LspClient {
             await this.connection.sendNotification(InitializedNotification.type, {});
             console.log('[LspClient] Initialized');
 
+            // Reset retry count on successful connection
+            this.retryCount = 0;
+
             // Listen for diagnostics
             this.connection.onNotification('textDocument/publishDiagnostics', (params: any) => {
                 const uri = monaco.Uri.parse(params.uri);
@@ -158,9 +184,43 @@ export class LspClient {
             });
 
             this.registerProviders();
-        })();
+        } catch (error) {
+            console.error('[LspClient] Initialization failed:', error);
+            this.handleConnectionLoss();
+            throw error;
+        }
+    }
 
-        return this.readyPromise;
+    private handleConnectionLoss() {
+        if (this.isDisposed) return;
+
+        this.connection = null;
+        this.readyPromise = null;
+
+        if (this.retryCount < this.maxRetries) {
+            const delay = this.baseRetryDelay * Math.pow(2, this.retryCount);
+            console.log(`[LspClient] Reconnecting in ${delay}ms...`);
+            this.retryCount++;
+            
+            if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = setTimeout(() => {
+                this.start().catch(err => console.error('[LspClient] Reconnection failed:', err));
+            }, delay);
+        } else {
+            console.error('[LspClient] Max retries exceeded. Giving up.');
+        }
+    }
+
+    public dispose() {
+        this.isDisposed = true;
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        if (this.connection) {
+            this.connection.dispose();
+            this.connection = null;
+        }
     }
 
     private registerProviders() {
