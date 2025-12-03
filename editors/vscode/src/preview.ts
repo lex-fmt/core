@@ -1,12 +1,16 @@
 /**
  * Live HTML preview for Lex documents.
+ * Conversions go through the LSP using lex.export command.
  * See README.lex "Preview" section for full documentation.
  */
 import * as vscode from 'vscode';
-import { convertToHtml } from '@lex/shared';
+import { ExecuteCommandRequest, LanguageClient } from 'vscode-languageclient/node.js';
 
 const PREVIEW_VIEW_TYPE = 'lexPreview';
 const DEBOUNCE_MS = 400;
+
+type GetClient = () => LanguageClient | undefined;
+type WaitForClientReady = () => Promise<void>;
 
 interface PreviewState {
   panel: vscode.WebviewPanel;
@@ -115,13 +119,37 @@ ${html}
 </html>`;
 }
 
+async function convertToHtmlViaLsp(
+  content: string,
+  getClient: GetClient,
+  waitForClientReady: WaitForClientReady
+): Promise<string> {
+  await waitForClientReady();
+  const client = getClient();
+  if (!client) {
+    throw new Error('Lex language server is not running.');
+  }
+
+  const result = await client.sendRequest(ExecuteCommandRequest.type, {
+    command: 'lex.export',
+    arguments: ['html', content]
+  });
+
+  if (typeof result !== 'string') {
+    throw new Error('Export failed: unexpected response from language server.');
+  }
+
+  return result;
+}
+
 async function updatePreview(
   panel: vscode.WebviewPanel,
   document: vscode.TextDocument,
-  cliBinaryPath: string
+  getClient: GetClient,
+  waitForClientReady: WaitForClientReady
 ): Promise<void> {
   try {
-    const html = await convertToHtml(document.getText(), cliBinaryPath);
+    const html = await convertToHtmlViaLsp(document.getText(), getClient, waitForClientReady);
     panel.webview.html = wrapHtmlForWebview(html);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -141,7 +169,8 @@ function escapeHtml(text: string): string {
 
 function createPreview(
   document: vscode.TextDocument,
-  cliBinaryPath: string,
+  getClient: GetClient,
+  waitForClientReady: WaitForClientReady,
   viewColumn: vscode.ViewColumn
 ): PreviewState {
   const panel = vscode.window.createWebviewPanel(
@@ -157,7 +186,7 @@ function createPreview(
   const disposables: vscode.Disposable[] = [];
 
   // Initial render
-  void updatePreview(panel, document, cliBinaryPath);
+  void updatePreview(panel, document, getClient, waitForClientReady);
 
   // Debounced update function
   const debouncedUpdate = debounce(() => {
@@ -166,7 +195,7 @@ function createPreview(
       d => d.uri.toString() === document.uri.toString()
     );
     if (currentDoc) {
-      void updatePreview(panel, currentDoc, cliBinaryPath);
+      void updatePreview(panel, currentDoc, getClient, waitForClientReady);
     }
   }, DEBOUNCE_MS);
 
@@ -201,8 +230,9 @@ function createPreview(
   return { panel, sourceUri: document.uri, disposables };
 }
 
-export function createShowPreviewCommand(
-  cliBinaryPath: string,
+function createShowPreviewCommand(
+  getClient: GetClient,
+  waitForClientReady: WaitForClientReady,
   beside: boolean
 ): () => void {
   return () => {
@@ -232,23 +262,24 @@ export function createShowPreviewCommand(
       ? vscode.ViewColumn.Beside
       : vscode.ViewColumn.Active;
 
-    const state = createPreview(document, cliBinaryPath, viewColumn);
+    const state = createPreview(document, getClient, waitForClientReady, viewColumn);
     activePreviews.set(uriKey, state);
   };
 }
 
 export function registerPreviewCommands(
   context: vscode.ExtensionContext,
-  cliBinaryPath: string
+  getClient: GetClient,
+  waitForClientReady: WaitForClientReady
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'lex.showPreview',
-      createShowPreviewCommand(cliBinaryPath, false)
+      createShowPreviewCommand(getClient, waitForClientReady, false)
     ),
     vscode.commands.registerCommand(
       'lex.showPreviewToSide',
-      createShowPreviewCommand(cliBinaryPath, true)
+      createShowPreviewCommand(getClient, waitForClientReady, true)
     )
   );
 }

@@ -62,14 +62,13 @@ export async function activate(
     configuredCliPath
   );
 
-  // Register import/export commands (works even without LSP)
+  // Register import/export commands (requires LSP for conversions)
   registerCommands(
     context,
-    resolvedConfig.cliBinaryPath,
     () => client,
     () => clientReadyPromise
   );
-  registerPreviewCommands(context, resolvedConfig.cliBinaryPath);
+  registerPreviewCommands(context, () => client, () => clientReadyPromise);
   registerPathCompletion();
 
   if (shouldSkipLanguageClient()) {

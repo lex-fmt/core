@@ -1,5 +1,6 @@
 /**
  * Import/Export commands for converting between Lex and other formats.
+ * All conversions go through the LSP using lex.export and lex.import commands.
  * See README.lex "Import & Export Commands" section for full documentation.
  */
 import * as vscode from 'vscode';
@@ -9,7 +10,6 @@ import type {
   Location as LspLocation,
   WorkspaceEdit as LspWorkspaceEdit
 } from 'vscode-languageserver-types';
-import { convertDocument, convertToPdfFile } from '@lex/shared';
 
 async function openConvertedDocument(
   content: string,
@@ -22,43 +22,88 @@ async function openConvertedDocument(
   await vscode.window.showTextDocument(doc);
 }
 
-function getActiveEditorContent(): { content: string; languageId: string } | undefined {
+async function getReadyClient(
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
+): Promise<LanguageClient> {
+  await waitForClientReady();
+  const client = getClient();
+  if (!client) {
+    throw new Error('Lex language server is not running.');
+  }
+  return client;
+}
+
+async function exportViaLsp(
+  format: string,
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>,
+  outputPath?: string
+): Promise<string> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
-    return undefined;
+    throw new Error('No active editor with content to export.');
   }
 
-  return {
-    content: editor.document.getText(),
-    languageId: editor.document.languageId
-  };
+  if (editor.document.languageId !== 'lex') {
+    throw new Error(`Export to ${format} is only available for .lex files.`);
+  }
+
+  const client = await getReadyClient(getClient, waitForClientReady);
+  const content = editor.document.getText();
+  const sourceUri = editor.document.uri.toString();
+
+  const args = outputPath
+    ? [format, content, sourceUri, outputPath]
+    : [format, content, sourceUri];
+
+  const result = await client.sendRequest(ExecuteCommandRequest.type, {
+    command: 'lex.export',
+    arguments: args
+  });
+
+  if (typeof result !== 'string') {
+    throw new Error('Export failed: unexpected response from language server.');
+  }
+
+  return result;
 }
 
-export function createExportToMarkdownCommand(
-  cliBinaryPath: string
+async function importViaLsp(
+  format: string,
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
+): Promise<string> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    throw new Error('No active editor with content to import.');
+  }
+
+  const client = await getReadyClient(getClient, waitForClientReady);
+  const content = editor.document.getText();
+
+  const result = await client.sendRequest(ExecuteCommandRequest.type, {
+    command: 'lex.import',
+    arguments: [format, content]
+  });
+
+  if (typeof result !== 'string') {
+    throw new Error('Import failed: unexpected response from language server.');
+  }
+
+  return result;
+}
+
+function createExportCommand(
+  format: string,
+  languageId: string,
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
 ): () => Promise<void> {
   return async () => {
-    const editorInfo = getActiveEditorContent();
-    if (!editorInfo) {
-      vscode.window.showErrorMessage('No active editor with content to export.');
-      return;
-    }
-
-    if (editorInfo.languageId !== 'lex') {
-      vscode.window.showErrorMessage(
-        'Export to Markdown is only available for .lex files.'
-      );
-      return;
-    }
-
     try {
-      const markdown = await convertDocument(editorInfo.content, {
-        cliBinaryPath,
-        fromFormat: 'lex',
-        toFormat: 'markdown',
-        targetLanguageId: 'markdown'
-      });
-      await openConvertedDocument(markdown, 'markdown');
+      const result = await exportViaLsp(format, getClient, waitForClientReady);
+      await openConvertedDocument(result, languageId);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       vscode.window.showErrorMessage(`Export failed: ${message}`);
@@ -66,72 +111,9 @@ export function createExportToMarkdownCommand(
   };
 }
 
-export function createImportFromMarkdownCommand(
-  cliBinaryPath: string
-): () => Promise<void> {
-  return async () => {
-    const editorInfo = getActiveEditorContent();
-    if (!editorInfo) {
-      vscode.window.showErrorMessage('No active editor with content to import.');
-      return;
-    }
-
-    if (editorInfo.languageId !== 'markdown') {
-      vscode.window.showErrorMessage(
-        'Import from Markdown is only available for .md files.'
-      );
-      return;
-    }
-
-    try {
-      const lex = await convertDocument(editorInfo.content, {
-        cliBinaryPath,
-        fromFormat: 'markdown',
-        toFormat: 'lex',
-        targetLanguageId: 'lex'
-      });
-      await openConvertedDocument(lex, 'lex');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      vscode.window.showErrorMessage(`Import failed: ${message}`);
-    }
-  };
-}
-
-export function createExportToHtmlCommand(
-  cliBinaryPath: string
-): () => Promise<void> {
-  return async () => {
-    const editorInfo = getActiveEditorContent();
-    if (!editorInfo) {
-      vscode.window.showErrorMessage('No active editor with content to export.');
-      return;
-    }
-
-    if (editorInfo.languageId !== 'lex') {
-      vscode.window.showErrorMessage(
-        'Export to HTML is only available for .lex files.'
-      );
-      return;
-    }
-
-    try {
-      const html = await convertDocument(editorInfo.content, {
-        cliBinaryPath,
-        fromFormat: 'lex',
-        toFormat: 'html',
-        targetLanguageId: 'html'
-      });
-      await openConvertedDocument(html, 'html');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      vscode.window.showErrorMessage(`Export failed: ${message}`);
-    }
-  };
-}
-
-export function createExportToPdfCommand(
-  cliBinaryPath: string
+function createExportToPdfCommand(
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
 ): () => Promise<void> {
   return async () => {
     const editor = vscode.window.activeTextEditor;
@@ -141,9 +123,7 @@ export function createExportToPdfCommand(
     }
 
     if (editor.document.languageId !== 'lex') {
-      vscode.window.showErrorMessage(
-        'Export to PDF is only available for .lex files.'
-      );
+      vscode.window.showErrorMessage('Export to PDF is only available for .lex files.');
       return;
     }
 
@@ -154,12 +134,8 @@ export function createExportToPdfCommand(
 
     // Show save dialog
     const saveUri = await vscode.window.showSaveDialog({
-      defaultUri: vscode.Uri.file(
-        join(sourceUri.fsPath, '..', defaultName)
-      ),
-      filters: {
-        'PDF Documents': ['pdf']
-      },
+      defaultUri: vscode.Uri.file(join(sourceUri.fsPath, '..', defaultName)),
+      filters: { 'PDF Documents': ['pdf'] },
       title: 'Export to PDF'
     });
 
@@ -168,12 +144,8 @@ export function createExportToPdfCommand(
     }
 
     try {
-      await convertToPdfFile(
-        editor.document.getText(),
-        cliBinaryPath,
-        saveUri.fsPath
-      );
-      vscode.window.showInformationMessage(`PDF exported to ${saveUri.fsPath}`);
+      const outputPath = await exportViaLsp('pdf', getClient, waitForClientReady, saveUri.fsPath);
+      vscode.window.showInformationMessage(`PDF exported to ${outputPath}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       vscode.window.showErrorMessage(`Export failed: ${message}`);
@@ -181,28 +153,53 @@ export function createExportToPdfCommand(
   };
 }
 
+function createImportFromMarkdownCommand(
+  getClient: () => LanguageClient | undefined,
+  waitForClientReady: () => Promise<void>
+): () => Promise<void> {
+  return async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showErrorMessage('No active editor with content to import.');
+      return;
+    }
+
+    if (editor.document.languageId !== 'markdown') {
+      vscode.window.showErrorMessage('Import from Markdown is only available for .md files.');
+      return;
+    }
+
+    try {
+      const result = await importViaLsp('markdown', getClient, waitForClientReady);
+      await openConvertedDocument(result, 'lex');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`Import failed: ${message}`);
+    }
+  };
+}
+
 export function registerCommands(
   context: vscode.ExtensionContext,
-  cliBinaryPath: string,
   getClient: () => LanguageClient | undefined,
   waitForClientReady: () => Promise<void>
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'lex.exportToMarkdown',
-      createExportToMarkdownCommand(cliBinaryPath)
+      createExportCommand('markdown', 'markdown', getClient, waitForClientReady)
     ),
     vscode.commands.registerCommand(
       'lex.exportToHtml',
-      createExportToHtmlCommand(cliBinaryPath)
+      createExportCommand('html', 'html', getClient, waitForClientReady)
     ),
     vscode.commands.registerCommand(
       'lex.exportToPdf',
-      createExportToPdfCommand(cliBinaryPath)
+      createExportToPdfCommand(getClient, waitForClientReady)
     ),
     vscode.commands.registerCommand(
       'lex.importFromMarkdown',
-      createImportFromMarkdownCommand(cliBinaryPath)
+      createImportFromMarkdownCommand(getClient, waitForClientReady)
     ),
     vscode.commands.registerCommand('lex.insertAssetReference', (uri?: vscode.Uri) =>
       insertAssetReference(uri)
@@ -223,18 +220,6 @@ export function registerCommands(
       applyAnnotationEditCommand('lex.toggle_annotations', getClient, waitForClientReady)
     )
   );
-}
-
-async function getReadyClient(
-  getClient: () => LanguageClient | undefined,
-  waitForClientReady: () => Promise<void>
-): Promise<LanguageClient> {
-  await waitForClientReady();
-  const client = getClient();
-  if (!client) {
-    throw new Error('Lex language server is not running.');
-  }
-  return client;
 }
 
 import { commands } from '@lex/shared';
