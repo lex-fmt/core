@@ -13,6 +13,10 @@ import { insertAsset, insertVerbatim, resolveAnnotation, toggleAnnotations } fro
 import { nextAnnotation, previousAnnotation } from './features/navigation'
 import { isLexFile } from '@/lib/files'
 import { createPreviewTab, placePreviewTab } from '@/features/preview'
+import { useRootFolder } from '@/hooks/useRootFolder'
+import { useMenuStateSync } from '@/hooks/useMenuStateSync'
+import { useLexTestBridge } from '@/hooks/useLexTestBridge'
+import { useMenuHandlers } from '@/hooks/useMenuHandlers'
 
 const createTabFromPath = (path: string): Tab => ({
   id: path,
@@ -30,7 +34,7 @@ function App() {
     resolvedActivePane,
     resolvedActivePaneId,
   } = usePersistedPaneLayout(createTabFromPath);
-  const [rootPath, setRootPath] = useState<string | undefined>(undefined);
+  const { rootPath, setRootPath } = useRootFolder();
   const [exportStatus, setExportStatus] = useState<ExportStatus>({ isExporting: false, format: null });
   const paneHandles = useRef(new Map<string, EditorPaneHandle | null>());
   const panesRef = useRef(panes);
@@ -47,15 +51,7 @@ function App() {
     panesRef.current = panes;
   }, [panes]);
 
-  useEffect(() => {
-    if (!window?.ipcRenderer?.updateMenuState) {
-      return;
-    }
-    window.ipcRenderer.updateMenuState({
-      hasOpenFile: Boolean(activePaneFile),
-      isLexFile: isActiveFileLex,
-    });
-  }, [activePaneFile, isActiveFileLex]);
+  useMenuStateSync(Boolean(activePaneFile), isActiveFileLex);
 
   const registerPaneHandle = useCallback(
     (paneId: string) => (instance: EditorPaneHandle | null) => {
@@ -80,20 +76,6 @@ function App() {
     }
   }, [panes]);
 
-  useEffect(() => {
-    const loadInitialFolder = async () => {
-      try {
-        const folder = await window.ipcRenderer.getInitialFolder();
-        if (folder) {
-          setRootPath(folder);
-        }
-      } catch (e) {
-        console.error('App: Error loading initial folder:', e);
-      }
-    };
-    loadInitialFolder();
-  }, []);
-
   const {
     focusPane,
     handleSplitVertical,
@@ -113,78 +95,13 @@ function App() {
     createTabFromPath,
   });
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!window.ipcRenderer?.loadTestFixture) return;
-
-    const waitForPaneFile = async (paneId: string, filePath: string, timeoutMs = 5000) => {
-      const start = Date.now();
-      while (Date.now() - start < timeoutMs) {
-        const pane = panesRef.current.find(p => p.id === paneId);
-        if (pane?.currentFile === filePath) {
-          return;
-        }
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      throw new Error(`Timed out opening fixture ${filePath}`);
-    };
-
-    const api = {
-      openFixture: async (fixtureName: string, targetPaneId?: string | null) => {
-        const fixture = await window.ipcRenderer.loadTestFixture(fixtureName);
-        const target = targetPaneId ?? activePaneIdValue ?? panes[0]?.id ?? null;
-        if (!target) {
-          throw new Error('No pane available for fixture');
-        }
-        openFileInPane(target, fixture.path);
-        await waitForPaneFile(target, fixture.path);
-        return fixture;
-      },
-      readFixture: (fixtureName: string) => window.ipcRenderer.loadTestFixture(fixtureName),
-      getActiveEditorValue: () => {
-        const target = activePaneIdValue ?? panesRef.current[0]?.id ?? null;
-        if (!target) {
-          return '';
-        }
-        const editorInstance = paneHandles.current.get(target)?.getEditor();
-        return editorInstance?.getValue() ?? '';
-      },
-      triggerMockDiagnostics: () => {
-        const target = activePaneIdValue ?? panesRef.current[0]?.id ?? null;
-        if (!target) {
-          return false;
-        }
-        const editorInstance = paneHandles.current.get(target)?.getEditor();
-        const model = editorInstance?.getModel?.();
-        if (!model) {
-          return false;
-        }
-        const monacoInstance = monaco;
-        if (!monacoInstance?.editor) {
-          return false;
-        }
-        const lastColumn = model.getLineLength(1) + 1;
-        monacoInstance.editor.setModelMarkers(model, 'lex-test', [
-          {
-            severity: monacoInstance.MarkerSeverity.Error,
-            startLineNumber: 1,
-            startColumn: 1,
-            endLineNumber: 1,
-            endColumn: lastColumn,
-            message: 'Mock diagnostic for testing',
-            source: 'lex-test',
-          },
-        ]);
-        return true;
-      },
-    };
-    window.lexTest = api;
-    return () => {
-      if (window.lexTest === api) {
-        delete window.lexTest;
-      }
-    };
-  }, [activePaneIdValue, openFileInPane, panes]);
+  useLexTestBridge({
+    activePaneId: activePaneIdValue,
+    paneHandles,
+    panesRef,
+    panes,
+    openFileInPane,
+  });
 
   const handleNewFile = useCallback(async () => {
     if (!activePaneIdValue) return;
@@ -200,7 +117,7 @@ function App() {
       setRootPath(result);
       await window.ipcRenderer.setLastFolder(result);
     }
-  }, []);
+  }, [setRootPath]);
 
   const handleOpenFile = useCallback(async () => {
     if (!activePaneIdValue) return;
@@ -409,45 +326,25 @@ function App() {
     await toggleAnnotations(activeEditor);
   }, [activeEditor]);
 
-  useEffect(() => {
-    const unsubNewFile = window.ipcRenderer.onMenuNewFile(handleNewFile);
-    const unsubOpenFile = window.ipcRenderer.onMenuOpenFile(handleOpenFile);
-    const unsubOpenFolder = window.ipcRenderer.onMenuOpenFolder(handleOpenFolder);
-    const unsubSave = window.ipcRenderer.onMenuSave(handleSave);
-    const unsubFormat = window.ipcRenderer.onMenuFormat(handleFormat);
-    const unsubExport = window.ipcRenderer.onMenuExport(handleExport);
-    const unsubFind = window.ipcRenderer.onMenuFind(handleFind);
-    const unsubReplace = window.ipcRenderer.onMenuReplace(handleReplace);
-    const unsubSplitVertical = window.ipcRenderer.onMenuSplitVertical(handleSplitVertical);
-    const unsubSplitHorizontal = window.ipcRenderer.onMenuSplitHorizontal(handleSplitHorizontal);
-    const unsubPreview = window.ipcRenderer.onMenuPreview(handlePreview);
-    const unsubInsertAsset = window.ipcRenderer.on('menu-insert-asset', handleInsertAsset);
-    const unsubInsertVerbatim = window.ipcRenderer.on('menu-insert-verbatim', handleInsertVerbatim);
-    const unsubNextAnnotation = window.ipcRenderer.on('menu-next-annotation', handleNextAnnotation);
-    const unsubPrevAnnotation = window.ipcRenderer.on('menu-prev-annotation', handlePrevAnnotation);
-    const unsubResolveAnnotation = window.ipcRenderer.on('menu-resolve-annotation', handleResolveAnnotation);
-    const unsubToggleAnnotations = window.ipcRenderer.on('menu-toggle-annotations', handleToggleAnnotations);
-
-    return () => {
-      unsubNewFile();
-      unsubOpenFile();
-      unsubOpenFolder();
-      unsubSave();
-      unsubFormat();
-      unsubExport();
-      unsubFind();
-      unsubReplace();
-      unsubSplitVertical();
-      unsubSplitHorizontal();
-      unsubPreview();
-      unsubInsertAsset();
-      unsubInsertVerbatim();
-      unsubNextAnnotation();
-      unsubPrevAnnotation();
-      unsubResolveAnnotation();
-      unsubToggleAnnotations();
-    };
-  }, [handleNewFile, handleOpenFile, handleOpenFolder, handleSave, handleFormat, handleExport, handleFind, handleReplace, handleSplitVertical, handleSplitHorizontal, handlePreview, handleInsertAsset, handleInsertVerbatim, handleNextAnnotation, handlePrevAnnotation, handleResolveAnnotation, handleToggleAnnotations]);
+  useMenuHandlers({
+    onNewFile: handleNewFile,
+    onOpenFile: handleOpenFile,
+    onOpenFolder: handleOpenFolder,
+    onSave: handleSave,
+    onFormat: handleFormat,
+    onExport: handleExport,
+    onFind: handleFind,
+    onReplace: handleReplace,
+    onSplitVertical: handleSplitVertical,
+    onSplitHorizontal: handleSplitHorizontal,
+    onPreview: handlePreview,
+    onInsertAsset: handleInsertAsset,
+    onInsertVerbatim: handleInsertVerbatim,
+    onNextAnnotation: handleNextAnnotation,
+    onPrevAnnotation: handlePrevAnnotation,
+    onResolveAnnotation: handleResolveAnnotation,
+    onToggleAnnotations: handleToggleAnnotations,
+  });
 
   return (
     <Layout
