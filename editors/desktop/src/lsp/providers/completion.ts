@@ -20,6 +20,14 @@ export function registerCompletionProvider(languageId: string, connection: Proto
                 const result = await connection.sendRequest('textDocument/completion', params) as LspCompletionResponse | null;
                 if (!result) return { suggestions: [] };
                 const items: LspCompletionItem[] = Array.isArray(result) ? result : result.items;
+                // Default range: replace word at cursor
+                const word = model.getWordUntilPosition(position);
+                const defaultRange: monaco.IRange = {
+                    startLineNumber: position.lineNumber,
+                    startColumn: word.startColumn,
+                    endLineNumber: position.lineNumber,
+                    endColumn: word.endColumn
+                };
                 return {
                     suggestions: items.map((item) => ({
                         label: item.label,
@@ -33,7 +41,7 @@ export function registerCompletionProvider(languageId: string, connection: Proto
                             startColumn: item.textEdit.range.start.character + 1,
                             endLineNumber: item.textEdit.range.end.line + 1,
                             endColumn: item.textEdit.range.end.character + 1
-                        } : undefined
+                        } : defaultRange
                     }))
                 };
             } catch (e) {

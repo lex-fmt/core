@@ -107,4 +107,9 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     ipcRenderer.on('menu-preview', handler);
     return () => ipcRenderer.removeListener('menu-preview', handler);
   },
+  onOpenFilePath: (callback: (filePath: string) => void) => {
+    const handler = (_event: IpcRendererEvent, filePath: string) => callback(filePath);
+    ipcRenderer.on('open-file-path', handler);
+    return () => ipcRenderer.removeListener('open-file-path', handler);
+  },
 })

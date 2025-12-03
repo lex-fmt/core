@@ -42,6 +42,7 @@ interface Window {
     onMenuSplitVertical: (callback: () => void) => () => void;
     onMenuSplitHorizontal: (callback: () => void) => () => void;
     onMenuPreview: (callback: () => void) => () => void;
+    onOpenFilePath: (callback: (filePath: string) => void) => () => void;
   }
   lexTest?: {
     openFixture: (fixtureName: string, paneId?: string | null) => Promise<{ path: string; content: string }>;

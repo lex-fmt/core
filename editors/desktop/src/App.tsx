@@ -363,6 +363,11 @@ function App() {
     await toggleAnnotations(activeEditor);
   }, [activeEditor]);
 
+  const handleOpenFilePath = useCallback((filePath: string) => {
+    if (!activePaneIdValue) return;
+    openFileInPane(activePaneIdValue, filePath);
+  }, [activePaneIdValue, openFileInPane]);
+
   useMenuHandlers({
     onNewFile: handleNewFile,
     onOpenFile: handleOpenFile,
@@ -381,6 +386,7 @@ function App() {
     onPrevAnnotation: handlePrevAnnotation,
     onResolveAnnotation: handleResolveAnnotation,
     onToggleAnnotations: handleToggleAnnotations,
+    onOpenFilePath: handleOpenFilePath,
   });
 
   return (
