@@ -12,6 +12,7 @@ pub mod markdown;
 pub mod nodemap;
 pub mod pandoc;
 pub mod pdf;
+pub mod png;
 pub mod tag;
 pub mod treeviz;
 
@@ -20,5 +21,6 @@ pub use lex::LexFormat;
 pub use linetreeviz::LinetreevizFormat;
 pub use markdown::MarkdownFormat;
 pub use pdf::PdfFormat;
+pub use png::PngFormat;
 pub use tag::TagFormat;
 pub use treeviz::TreevizFormat;
