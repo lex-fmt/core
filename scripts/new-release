@@ -38,9 +38,16 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     exit 1
 fi
 
-# Get latest release version
-LATEST_VERSION=$(./scripts/get-latest-release-version)
-log_info "Latest version: $LATEST_VERSION"
+# Get latest release version (may be empty if no releases exist)
+LATEST_VERSION=$(./scripts/get-latest-release-version 2>/dev/null || echo "")
+FIRST_RELEASE=false
+
+if [ -z "$LATEST_VERSION" ]; then
+    log_info "No existing releases found. This will be the first release."
+    FIRST_RELEASE=true
+else
+    log_info "Latest version: $LATEST_VERSION"
+fi
 
 # Parse argument
 if [ $# -eq 0 ]; then
@@ -52,13 +59,13 @@ INPUT_VERSION=$1
 NEW_VERSION=""
 
 if [ "$INPUT_VERSION" == "bump" ]; then
+    if [ "$FIRST_RELEASE" == "true" ]; then
+        log_error "Cannot use 'bump' for first release. Please specify an explicit version."
+        exit 1
+    fi
     # Remove 'v' prefix if present for semver calculation
     CLEAN_LATEST=${LATEST_VERSION#v}
     NEW_VERSION=$(semver -i patch "$CLEAN_LATEST")
-    # Add 'v' prefix back if the latest version had it, or just stick to semver. 
-    # The user prompt implies "0.1.14", so maybe no 'v' in Cargo.toml, but tags usually have 'v'.
-    # Let's check the format of LATEST_VERSION.
-    # If LATEST_VERSION starts with v, we prepend v to tag, but Cargo.toml usually doesn't have v.
     log_info "Bumping patch version: $CLEAN_LATEST -> $NEW_VERSION"
 else
     NEW_VERSION=$INPUT_VERSION
@@ -70,22 +77,29 @@ if ! semver "$NEW_VERSION" &> /dev/null; then
     exit 1
 fi
 
-# b) Check if requested version > latest version
-# We need to handle potential 'v' prefix differences. 
-# Assuming Cargo.toml versions are X.Y.Z and tags are vX.Y.Z or X.Y.Z.
-# Let's normalize for comparison.
+# Normalize version (remove 'v' prefix if present)
 CLEAN_NEW=${NEW_VERSION#v}
-CLEAN_LATEST=${LATEST_VERSION#v}
 
-if ! semver "$CLEAN_NEW" -r "> $CLEAN_LATEST" &> /dev/null; then
-    log_error "New version ($CLEAN_NEW) must be greater than latest version ($CLEAN_LATEST)"
-    exit 1
+# b) Check if requested version > latest version (skip for first release)
+if [ "$FIRST_RELEASE" == "false" ]; then
+    CLEAN_LATEST=${LATEST_VERSION#v}
+    if ! semver "$CLEAN_NEW" -r "> $CLEAN_LATEST" &> /dev/null; then
+        log_error "New version ($CLEAN_NEW) must be greater than latest version ($CLEAN_LATEST)"
+        exit 1
+    fi
 fi
 
 # c) Check if there is already a git tag for it
 TAG_NAME="v$CLEAN_NEW"
+TAG_EXISTS=false
 if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-    log_error "Tag $TAG_NAME already exists."
+    log_warn "Tag $TAG_NAME already exists. Will skip tag creation."
+    TAG_EXISTS=true
+fi
+
+# d) Check if there is already a GitHub release for it (this is an error)
+if gh release view "$TAG_NAME" &>/dev/null; then
+    log_error "GitHub release $TAG_NAME already exists."
     exit 1
 fi
 
@@ -106,7 +120,7 @@ FILES=$(find . -path "./lex-*/Cargo.toml" -type f)
 
 for file in $FILES; do
     log_info "Updating $file"
-    # Use sed to replace version. 
+    # Use sed to replace version.
     # Assuming standard Cargo.toml formatting where [package] is first and version is inside it.
     # We replace the first line matching ^version = ".*"
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -116,23 +130,66 @@ for file in $FILES; do
     fi
 done
 
+# 2b. Update editor plugin versions
+log_info "Updating editor plugin versions..."
+
+# VSCode extension (package.json)
+VSCODE_PKG="./editors/vscode/package.json"
+if [ -f "$VSCODE_PKG" ]; then
+    log_info "Updating $VSCODE_PKG"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' 's/"version": "[^"]*"/"version": "'"$CLEAN_NEW"'"/' "$VSCODE_PKG"
+    else
+        sed -i 's/"version": "[^"]*"/"version": "'"$CLEAN_NEW"'"/' "$VSCODE_PKG"
+    fi
+fi
+
+# Desktop app (package.json)
+DESKTOP_PKG="./editors/desktop/package.json"
+if [ -f "$DESKTOP_PKG" ]; then
+    log_info "Updating $DESKTOP_PKG"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' 's/"version": "[^"]*"/"version": "'"$CLEAN_NEW"'"/' "$DESKTOP_PKG"
+    else
+        sed -i 's/"version": "[^"]*"/"version": "'"$CLEAN_NEW"'"/' "$DESKTOP_PKG"
+    fi
+fi
+
+# Neovim plugin (lua/lex/init.lua)
+NVIM_INIT="./editors/nvim/lua/lex/init.lua"
+if [ -f "$NVIM_INIT" ]; then
+    log_info "Updating $NVIM_INIT"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' 's/M\.version = "[^"]*"/M.version = "'"$CLEAN_NEW"'"/' "$NVIM_INIT"
+        sed -i '' 's/M\.lex_lsp_version = "[^"]*"/M.lex_lsp_version = "'"$TAG_NAME"'"/' "$NVIM_INIT"
+    else
+        sed -i 's/M\.version = "[^"]*"/M.version = "'"$CLEAN_NEW"'"/' "$NVIM_INIT"
+        sed -i 's/M\.lex_lsp_version = "[^"]*"/M.lex_lsp_version = "'"$TAG_NAME"'"/' "$NVIM_INIT"
+    fi
+fi
+
 # 3. Check git status, commit and push
 if git diff --quiet; then
-    log_warn "No changes detected in Cargo.toml files. Were they already updated?"
+    log_warn "No changes detected. Were versions already updated?"
 else
     log_info "Staging changes..."
     git add lex-*/Cargo.toml
-    
+    git add editors/vscode/package.json editors/desktop/package.json editors/nvim/lua/lex/init.lua 2>/dev/null || true
+
     log_info "Committing changes..."
     git commit -m "chore: release $CLEAN_NEW"
-    
+
     log_info "Pushing changes..."
     git push
 fi
 
 # 4. Create and push tag
-log_info "Creating tag $TAG_NAME..."
-git tag "$TAG_NAME"
+if [ "$TAG_EXISTS" == "true" ]; then
+    log_info "Tag $TAG_NAME already exists locally, skipping tag creation."
+else
+    log_info "Creating tag $TAG_NAME..."
+    git tag "$TAG_NAME"
+fi
 
 log_info "Pushing tag..."
 git push origin "$TAG_NAME"
