@@ -36,8 +36,4 @@ type MonacoEnvironmentConfig = {
   getWorker: (moduleId: string, label: string) => Worker;
 };
 
-declare global {
-  interface Window {
-    MonacoEnvironment?: MonacoEnvironmentConfig;
-  }
-}
+

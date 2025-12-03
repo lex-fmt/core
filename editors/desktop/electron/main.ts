@@ -612,7 +612,7 @@ ipcMain.handle('file-export', async (_, sourcePath: string, format: ExportFormat
     cliBinaryPath: lexPath,
     sourcePath,
     outputPath,
-    toFormat: format
+    toFormat: format as any
   });
 
   return outputPath;

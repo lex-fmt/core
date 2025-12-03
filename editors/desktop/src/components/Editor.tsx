@@ -34,7 +34,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
     let model = monaco.editor.getModel(monaco.Uri.file(path));
 
     if (!model || model.isDisposed()) {
-      const content = await window.ipcRenderer.invoke('file-read', path);
+      const content = await window.ipcRenderer.invoke('file-read', path) as string | null;
       if (content === null) return;
       model = getOrCreateModel(path, content);
     }
