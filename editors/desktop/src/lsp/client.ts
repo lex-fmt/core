@@ -135,6 +135,28 @@ export class LspClient {
             await this.connection.sendNotification(InitializedNotification.type, {});
             console.log('[LspClient] Initialized');
 
+            // Listen for diagnostics
+            this.connection.onNotification('textDocument/publishDiagnostics', (params: any) => {
+                const uri = monaco.Uri.parse(params.uri);
+                const model = monaco.editor.getModel(uri);
+                if (model) {
+                    const markers: monaco.editor.IMarkerData[] = params.diagnostics.map((d: any) => ({
+                        severity: d.severity === 1 ? monaco.MarkerSeverity.Error :
+                                  d.severity === 2 ? monaco.MarkerSeverity.Warning :
+                                  d.severity === 3 ? monaco.MarkerSeverity.Info :
+                                  monaco.MarkerSeverity.Hint,
+                        message: d.message,
+                        startLineNumber: d.range.start.line + 1,
+                        startColumn: d.range.start.character + 1,
+                        endLineNumber: d.range.end.line + 1,
+                        endColumn: d.range.end.character + 1,
+                        code: d.code ? String(d.code) : undefined,
+                        source: d.source
+                    }));
+                    monaco.editor.setModelMarkers(model, 'lex', markers);
+                }
+            });
+
             this.registerProviders();
         })();
 
