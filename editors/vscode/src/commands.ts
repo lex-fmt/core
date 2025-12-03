@@ -57,10 +57,10 @@ async function exportViaLsp(
     ? [format, content, sourceUri, outputPath]
     : [format, content, sourceUri];
 
-  const result = await client.sendRequest(ExecuteCommandRequest.type, {
+  const result = (await client.sendRequest(ExecuteCommandRequest.type, {
     command: 'lex.export',
     arguments: args
-  });
+  })) as unknown;
 
   if (typeof result !== 'string') {
     throw new Error('Export failed: unexpected response from language server.');
@@ -82,10 +82,10 @@ async function importViaLsp(
   const client = await getReadyClient(getClient, waitForClientReady);
   const content = editor.document.getText();
 
-  const result = await client.sendRequest(ExecuteCommandRequest.type, {
+  const result = (await client.sendRequest(ExecuteCommandRequest.type, {
     command: 'lex.import',
     arguments: [format, content]
-  });
+  })) as unknown;
 
   if (typeof result !== 'string') {
     throw new Error('Import failed: unexpected response from language server.');

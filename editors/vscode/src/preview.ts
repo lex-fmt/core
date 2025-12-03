@@ -130,10 +130,10 @@ async function convertToHtmlViaLsp(
     throw new Error('Lex language server is not running.');
   }
 
-  const result = await client.sendRequest(ExecuteCommandRequest.type, {
+  const result = (await client.sendRequest(ExecuteCommandRequest.type, {
     command: 'lex.export',
     arguments: ['html', content]
-  });
+  })) as unknown;
 
   if (typeof result !== 'string') {
     throw new Error('Export failed: unexpected response from language server.');
