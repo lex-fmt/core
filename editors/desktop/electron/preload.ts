@@ -1,6 +1,26 @@
 import { ipcRenderer, contextBridge } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 
+const initialTheme = ipcRenderer.sendSync('get-native-theme-sync') as 'dark' | 'light';
+
+const applyThemeAttribute = (mode: 'dark' | 'light') => {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+  const root = document.documentElement;
+  if (root) {
+    root.setAttribute('data-theme', mode);
+    return true;
+  }
+  return false;
+};
+
+if (!applyThemeAttribute(initialTheme) && typeof window !== 'undefined') {
+  window.addEventListener('DOMContentLoaded', () => {
+    applyThemeAttribute(initialTheme);
+  }, { once: true });
+}
+
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
   on(...args: Parameters<typeof ipcRenderer.on>) {

@@ -9,6 +9,19 @@ import { LspManager } from './lsp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+type ThemeMode = 'dark' | 'light';
+
+const DARK_BACKGROUND_COLOR = '#1e1e1e';
+const LIGHT_BACKGROUND_COLOR = '#ffffff';
+
+function getSystemTheme(): ThemeMode {
+  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+}
+
+function getWindowBackground(theme: ThemeMode): string {
+  return theme === 'dark' ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR;
+}
+
 // Settings persistence
 const SETTINGS_FILE = 'settings.json';
 
@@ -252,6 +265,8 @@ async function createWindow() {
 
   const hideWindow = process.env.LEX_HIDE_WINDOW === '1';
 
+  const initialTheme = getSystemTheme();
+
   win = new BrowserWindow({
     title: 'Lex Editor',
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
@@ -260,6 +275,7 @@ async function createWindow() {
     width: windowState.width,
     height: windowState.height,
     show: !hideWindow,
+    backgroundColor: getWindowBackground(initialTheme),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
@@ -619,7 +635,11 @@ ipcMain.handle('show-item-in-folder', (_, fullPath: string) => {
 
 // Theme detection
 ipcMain.handle('get-native-theme', () => {
-  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+  return getSystemTheme();
+});
+
+ipcMain.on('get-native-theme-sync', event => {
+  event.returnValue = getSystemTheme();
 });
 
 ipcMain.on('update-menu-state', (_event, state: MenuState) => {
@@ -631,8 +651,9 @@ ipcMain.on('update-menu-state', (_event, state: MenuState) => {
 
 // Listen for OS theme changes and notify renderer
 nativeTheme.on('updated', () => {
-  const theme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+  const theme = getSystemTheme();
   if (win && !win.isDestroyed()) {
+    win.setBackgroundColor(getWindowBackground(theme));
     win.webContents.send('native-theme-changed', theme);
   }
 });

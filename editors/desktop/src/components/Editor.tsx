@@ -101,7 +101,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
       applyTheme(mode);
     };
 
-    window.ipcRenderer.getNativeTheme().then(applyThemeFromNative);
+    const initialTheme = document.documentElement.getAttribute('data-theme');
+    if (initialTheme === 'dark' || initialTheme === 'light') {
+      applyThemeFromNative(initialTheme);
+    } else {
+      void window.ipcRenderer.getNativeTheme().then(applyThemeFromNative);
+    }
     const unsubscribeTheme = window.ipcRenderer.onNativeThemeChanged(applyThemeFromNative);
 
     // Listen for insert commands

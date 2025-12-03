@@ -92,7 +92,12 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
       document.documentElement.setAttribute('data-theme', mode);
     };
 
-    window.ipcRenderer.getNativeTheme().then(applyTheme);
+    const initialTheme = document.documentElement.getAttribute('data-theme');
+    if (initialTheme === 'dark' || initialTheme === 'light') {
+      applyTheme(initialTheme);
+    } else {
+      void window.ipcRenderer.getNativeTheme().then(applyTheme);
+    }
 
     const unsubscribe = window.ipcRenderer.onNativeThemeChanged(applyTheme);
 
