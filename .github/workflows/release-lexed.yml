@@ -1,4 +1,4 @@
-name: Release Desktop
+name: Release LexEd
 
 defaults:
   run:
@@ -24,7 +24,7 @@ env:
   REPO_NAME: ${{ github.repository }}
 
 jobs:
-  build-desktop:
+  build-lexed:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     strategy:
       fail-fast: false

@@ -70,7 +70,7 @@ impl Format for PngFormat {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PngSizeProfile {
     QuickLook,
-    Desktop,
+    LexEd,
     Mobile,
 }
 
@@ -78,9 +78,9 @@ impl PngSizeProfile {
     fn from_options(options: &HashMap<String, String>) -> Result<Self, FormatError> {
         let quicklook = parse_bool_flag(options, "quicklook", false)?;
         let mobile = parse_bool_flag(options, "size-mobile", false)?;
-        let desktop = parse_bool_flag(options, "size-desktop", false)?;
+        let lexed = parse_bool_flag(options, "size-lexed", false)?;
 
-        let count = [quicklook, mobile, desktop].iter().filter(|&&x| x).count();
+        let count = [quicklook, mobile, lexed].iter().filter(|&&x| x).count();
         if count > 1 {
             return Err(FormatError::SerializationError(
                 "Cannot enable multiple PNG size profiles at once".to_string(),
@@ -92,7 +92,7 @@ impl PngSizeProfile {
         } else if mobile {
             Ok(PngSizeProfile::Mobile)
         } else {
-            Ok(PngSizeProfile::Desktop)
+            Ok(PngSizeProfile::LexEd)
         }
     }
 
@@ -107,7 +107,7 @@ impl PngSizeProfile {
                     "code, .lex-verbatim code { font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace !important; }\n"
                 )
             }
-            PngSizeProfile::Desktop => {
+            PngSizeProfile::LexEd => {
                 concat!(
                     "body { margin: 40px; background: white; }\n",
                     ".lex-document { max-width: 800px; }\n",
@@ -129,7 +129,7 @@ impl PngSizeProfile {
     fn viewport(&self) -> (u32, u32) {
         match self {
             PngSizeProfile::QuickLook => (680, 800),
-            PngSizeProfile::Desktop => (1280, 960),
+            PngSizeProfile::LexEd => (1280, 960),
             PngSizeProfile::Mobile => (450, 900),
         }
     }

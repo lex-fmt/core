@@ -36,8 +36,8 @@ color_characters = false
 show_summary = false
 
 [convert.pdf]
-# Page profile used when exporting to PDF. Accepted values: "desktop" or "mobile".
-size = "desktop"
+# Page profile used when exporting to PDF. Accepted values: "lexed" or "mobile".
+size = "lexed"
 
 [convert.html]
 theme = "default"

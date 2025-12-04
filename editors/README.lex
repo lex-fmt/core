@@ -38,7 +38,7 @@ Editor Tooling
 3. Features
 
     The following sections detail the feature groups organized by functionality:
- |   Feature Group | Feature | LSP Method / Command | Implementation | Status | VS Code | Neovim | Desktop |
+ |   Feature Group | Feature | LSP Method / Command | Implementation | Status | VS Code | Neovim | LexEd |
  | --- | --- | --- | --- | --- | --- | --- | --- |
  |  **Syntax** | Syntax Highlighting | `textDocument/semanticTokens` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done | Done |
  |  | Document Symbols | `textDocument/documentSymbol` | `lex-analysis/src/document_symbols.rs` | Done | Done | Done | No |
