@@ -145,7 +145,7 @@ if [ -f "$VSCODE_PKG" ]; then
 fi
 
 # Desktop app (package.json)
-DESKTOP_PKG="./editors/desktop/package.json"
+DESKTOP_PKG="./editors/lexed/package.json"
 if [ -f "$DESKTOP_PKG" ]; then
     log_info "Updating $DESKTOP_PKG"
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -174,7 +174,7 @@ if git diff --quiet; then
 else
     log_info "Staging changes..."
     git add lex-*/Cargo.toml
-    git add editors/vscode/package.json editors/desktop/package.json editors/nvim/lua/lex/init.lua 2>/dev/null || true
+    git add editors/vscode/package.json editors/lexed/package.json editors/nvim/lua/lex/init.lua 2>/dev/null || true
 
     log_info "Committing changes..."
     git commit -m "chore: release $CLEAN_NEW"

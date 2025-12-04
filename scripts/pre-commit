@@ -254,7 +254,7 @@ fi
 # 10. CRITICAL: Run TypeScript/JavaScript linting (matches CI exactly)
 # Check if any TS/JS/TSX files are staged (or --all mode)
 if [ "$ALL_MODE" = "true" ]; then
-    TS_FILES=$(find editors/vscode/src editors/vscode/test editors/desktop/src editors/desktop/electron -name "*.ts" -o -name "*.tsx" 2>/dev/null | head -1)
+    TS_FILES=$(find editors/vscode/src editors/vscode/test editors/lexed/src editors/lexed/electron -name "*.ts" -o -name "*.tsx" 2>/dev/null | head -1)
 else
     TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' | grep -E '^editors/(vscode|desktop)/' || true)
 fi
@@ -283,15 +283,15 @@ if [ -n "$TS_FILES" ] || [ "$ALL_MODE" = "true" ]; then
         fi
 
         # Lint Desktop app
-        if [ -d "editors/desktop" ] && [ -f "editors/desktop/package.json" ]; then
+        if [ -d "editors/lexed" ] && [ -f "editors/lexed/package.json" ]; then
             echo "  🔍 Linting Desktop app..."
-            if [ -d "editors/desktop/node_modules" ]; then
-                if ! (cd editors/desktop && npm run lint); then
+            if [ -d "editors/lexed/node_modules" ]; then
+                if ! (cd editors/lexed && npm run lint); then
                     echo "❌ Desktop app lint failed!"
                     LINT_FAILED=true
                 fi
             else
-                echo "  ⚠️  Skipping Desktop lint (run 'npm ci' in editors/desktop first)"
+                echo "  ⚠️  Skipping Desktop lint (run 'npm ci' in editors/lexed first)"
             fi
         fi
 

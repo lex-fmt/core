@@ -1,13 +1,21 @@
-import { app, BrowserWindow, ipcMain, dialog, nativeTheme, Menu, shell } from 'electron'
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  nativeTheme,
+  Menu,
+  shell,
+} from 'electron';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 
 import { randomUUID } from 'crypto';
-import { LspManager } from './lsp-manager'
+import { LspManager } from './lsp-manager';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 type ThemeMode = 'dark' | 'light';
 
@@ -82,12 +90,18 @@ const resolveFixtureRoot = () => {
   if (override) {
     return path.resolve(override);
   }
-  return path.join(process.env.APP_ROOT ?? path.join(__dirname, '..'), 'tests', 'fixtures');
+  return path.join(
+    process.env.APP_ROOT ?? path.join(__dirname, '..'),
+    'tests',
+    'fixtures'
+  );
 };
 
 const TEST_FIXTURES_DIR = resolveFixtureRoot();
 
-async function loadTestFixture(fixtureName: string): Promise<{ path: string; content: string }> {
+async function loadTestFixture(
+  fixtureName: string
+): Promise<{ path: string; content: string }> {
   const safeName = path.basename(fixtureName);
   const fixturePath = path.join(TEST_FIXTURES_DIR, safeName);
   const resolved = path.resolve(fixturePath);
@@ -114,19 +128,19 @@ const store = new Store<AppSettings>({
         y: { type: 'number' },
         width: { type: 'number' },
         height: { type: 'number' },
-        isMaximized: { type: 'boolean' }
-      }
+        isMaximized: { type: 'boolean' },
+      },
     },
     editor: {
       type: 'object',
       properties: {
         showRuler: { type: 'boolean', default: false },
         rulerWidth: { type: 'number', default: 100 },
-        vimMode: { type: 'boolean', default: false }
+        vimMode: { type: 'boolean', default: false },
       },
-      default: {}
-    }
-  }
+      default: {},
+    },
+  },
 });
 
 function loadSettingsSync(): AppSettings {
@@ -164,7 +178,6 @@ function getWelcomeFolderPath(): string {
   return path.join(process.env.APP_ROOT!, 'welcome');
 }
 
-
 // The built directory structure
 //
 // ├─┬─┬ dist
@@ -174,17 +187,19 @@ function getWelcomeFolderPath(): string {
 // │ │ ├── main.js
 // │ │ └── preload.mjs
 // │
-process.env.APP_ROOT = path.join(__dirname, '..')
+process.env.APP_ROOT = path.join(__dirname, '..');
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
-export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
-export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
+export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
+export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
+export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
+  ? path.join(process.env.APP_ROOT, 'public')
+  : RENDERER_DIST;
 
-let win: BrowserWindow | null
-const lspManager = new LspManager()
+let win: BrowserWindow | null;
+const lspManager = new LspManager();
 const PERSISTENCE_DISABLED = process.env.LEX_DISABLE_PERSISTENCE === '1';
 let applicationMenu: Electron.Menu | null = null;
 let currentMenuState: MenuState = {
@@ -201,16 +216,16 @@ let pendingFilesToOpen: string[] = [];
  */
 function extractLexFilesFromArgv(argv: string[]): string[] {
   return argv
-    .filter(arg => !arg.startsWith('-') && !arg.startsWith('--'))
-    .filter(arg => arg.endsWith('.lex'))
-    .filter(arg => {
+    .filter((arg) => !arg.startsWith('-') && !arg.startsWith('--'))
+    .filter((arg) => arg.endsWith('.lex'))
+    .filter((arg) => {
       try {
         return fsSync.existsSync(arg) && fsSync.statSync(arg).isFile();
       } catch {
         return false;
       }
     })
-    .map(arg => path.resolve(arg));
+    .map((arg) => path.resolve(arg));
 }
 
 /**
@@ -288,7 +303,7 @@ async function createWindow() {
   const initialTheme = getSystemTheme();
 
   win = new BrowserWindow({
-    title: 'Lex Editor',
+    title: 'LexEd',
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
     x: windowState.x,
     y: windowState.y,
@@ -299,7 +314,7 @@ async function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
-  })
+  });
 
   // Restore maximized state
   try {
@@ -322,8 +337,12 @@ async function createWindow() {
       settings.windowState = {
         x: isMaximized ? settings.windowState?.x : bounds.x,
         y: isMaximized ? settings.windowState?.y : bounds.y,
-        width: isMaximized ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width : bounds.width,
-        height: isMaximized ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height : bounds.height,
+        width: isMaximized
+          ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width
+          : bounds.width,
+        height: isMaximized
+          ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height
+          : bounds.height,
         isMaximized,
       };
       saveSettingsSync(settings);
@@ -344,8 +363,12 @@ async function createWindow() {
       settings.windowState = {
         x: isMaximized ? settings.windowState?.x : bounds.x,
         y: isMaximized ? settings.windowState?.y : bounds.y,
-        width: isMaximized ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width : bounds.width,
-        height: isMaximized ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height : bounds.height,
+        width: isMaximized
+          ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width
+          : bounds.width,
+        height: isMaximized
+          ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height
+          : bounds.height,
         isMaximized,
       };
       await saveSettings(settings);
@@ -358,12 +381,12 @@ async function createWindow() {
   win.on('resize', saveWindowStateAsync);
   win.on('move', saveWindowStateAsync);
 
-  lspManager.setWebContents(win.webContents)
-  lspManager.start()
+  lspManager.setWebContents(win.webContents);
+  lspManager.start();
 
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
+    win?.webContents.send('main-process-message', new Date().toLocaleString());
 
     // Open any files that were queued before window was ready
     if (pendingFilesToOpen.length > 0) {
@@ -372,13 +395,13 @@ async function createWindow() {
       }
       pendingFilesToOpen = [];
     }
-  })
+  });
 
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
+    win.loadURL(VITE_DEV_SERVER_URL);
   } else {
     // win.loadFile('dist/index.html')
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
+    win.loadFile(path.join(RENDERER_DIST, 'index.html'));
   }
 }
 
@@ -386,7 +409,7 @@ ipcMain.handle('file-new', async (_, defaultPath?: string) => {
   if (!win) return null;
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
     defaultPath: defaultPath || undefined,
-    filters: [{ name: 'Lex Files', extensions: ['lex'] }]
+    filters: [{ name: 'Lex Files', extensions: ['lex'] }],
   });
   if (canceled || !filePath) {
     return null;
@@ -400,7 +423,7 @@ ipcMain.handle('file-open', async () => {
   if (!win) return null;
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {
     properties: ['openFile'],
-    filters: [{ name: 'Lex Files', extensions: ['lex'] }]
+    filters: [{ name: 'Lex Files', extensions: ['lex'] }],
   });
   if (canceled || filePaths.length === 0) {
     return null;
@@ -412,18 +435,24 @@ ipcMain.handle('file-open', async () => {
   return { filePath, content };
 });
 
-ipcMain.handle('file-pick', async (_, options: { title?: string, filters?: Electron.FileFilter[] } = {}) => {
-  if (!win) return null;
-  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
-    title: options.title,
-    properties: ['openFile'],
-    filters: options.filters
-  });
-  if (canceled || filePaths.length === 0) {
-    return null;
+ipcMain.handle(
+  'file-pick',
+  async (
+    _,
+    options: { title?: string; filters?: Electron.FileFilter[] } = {}
+  ) => {
+    if (!win) return null;
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: options.title,
+      properties: ['openFile'],
+      filters: options.filters,
+    });
+    if (canceled || filePaths.length === 0) {
+      return null;
+    }
+    return filePaths[0];
   }
-  return filePaths[0];
-});
+);
 
 ipcMain.handle('test-load-fixture', async (_event, fixtureName: string) => {
   try {
@@ -452,10 +481,10 @@ ipcMain.handle('file-save', async (_, filePath: string, content: string) => {
 ipcMain.handle('file-read-dir', async (_, dirPath: string) => {
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
-    return entries.map(entry => ({
+    return entries.map((entry) => ({
       name: entry.name,
       isDirectory: entry.isDirectory(),
-      path: path.join(dirPath, entry.name)
+      path: path.join(dirPath, entry.name),
     }));
   } catch (error) {
     console.error('Failed to read directory:', error);
@@ -512,7 +541,7 @@ ipcMain.handle('file-checksum', async (_, filePath: string) => {
 ipcMain.handle('folder-open', async () => {
   if (!win) return null;
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {
-    properties: ['openDirectory']
+    properties: ['openDirectory'],
   });
   if (canceled || filePaths.length === 0) {
     return null;
@@ -543,13 +572,16 @@ ipcMain.handle('set-last-folder', async (_, folderPath: string) => {
 
 ipcMain.handle('get-open-tabs', async () => {
   const settings = await loadSettings();
-  const savedPanes = settings.paneLayout && settings.paneLayout.length > 0
-    ? settings.paneLayout
-    : [{
-        id: settings.activePaneId || randomUUID(),
-        tabs: settings.openTabs || [],
-        activeTab: settings.activeTab || null,
-      }];
+  const savedPanes =
+    settings.paneLayout && settings.paneLayout.length > 0
+      ? settings.paneLayout
+      : [
+          {
+            id: settings.activePaneId || randomUUID(),
+            tabs: settings.openTabs || [],
+            activeTab: settings.activeTab || null,
+          },
+        ];
 
   const panes: PaneLayoutSettings[] = [];
   for (const pane of savedPanes) {
@@ -567,9 +599,10 @@ ipcMain.handle('get-open-tabs', async () => {
     panes.push({
       id: paneId,
       tabs: filteredTabs,
-      activeTab: pane.activeTab && filteredTabs.includes(pane.activeTab)
-        ? pane.activeTab
-        : filteredTabs[0] || null,
+      activeTab:
+        pane.activeTab && filteredTabs.includes(pane.activeTab)
+          ? pane.activeTab
+          : filteredTabs[0] || null,
     });
   }
 
@@ -577,39 +610,52 @@ ipcMain.handle('get-open-tabs', async () => {
     panes.push({ id: randomUUID(), tabs: [], activeTab: null });
   }
 
-  const paneIdSet = new Set(panes.map(p => p.id));
-  let rows = settings.paneRows && settings.paneRows.length > 0
-    ? settings.paneRows.map(row => {
-        const paneIds = (row.paneIds || []).filter(id => paneIdSet.has(id));
-        const paneSizes: Record<string, number> = {};
-        paneIds.forEach(id => {
-          const value = row.paneSizes?.[id];
-          if (typeof value === 'number') {
-            paneSizes[id] = value;
-          }
-        });
-        return {
-          id: row.id || randomUUID(),
-          paneIds,
-          size: typeof row.size === 'number' ? row.size : undefined,
-          paneSizes,
-        };
-      }).filter(row => row.paneIds.length > 0)
-    : [];
+  const paneIdSet = new Set(panes.map((p) => p.id));
+  let rows =
+    settings.paneRows && settings.paneRows.length > 0
+      ? settings.paneRows
+          .map((row) => {
+            const paneIds = (row.paneIds || []).filter((id) =>
+              paneIdSet.has(id)
+            );
+            const paneSizes: Record<string, number> = {};
+            paneIds.forEach((id) => {
+              const value = row.paneSizes?.[id];
+              if (typeof value === 'number') {
+                paneSizes[id] = value;
+              }
+            });
+            return {
+              id: row.id || randomUUID(),
+              paneIds,
+              size: typeof row.size === 'number' ? row.size : undefined,
+              paneSizes,
+            };
+          })
+          .filter((row) => row.paneIds.length > 0)
+      : [];
 
   if (rows.length === 0) {
-    rows = [{ id: randomUUID(), paneIds: panes.map(p => p.id), size: undefined, paneSizes: {} }];
+    rows = [
+      {
+        id: randomUUID(),
+        paneIds: panes.map((p) => p.id),
+        size: undefined,
+        paneSizes: {},
+      },
+    ];
   } else {
-    const referenced = new Set(rows.flatMap(row => row.paneIds));
-    const missing = panes.map(p => p.id).filter(id => !referenced.has(id));
+    const referenced = new Set(rows.flatMap((row) => row.paneIds));
+    const missing = panes.map((p) => p.id).filter((id) => !referenced.has(id));
     if (missing.length > 0) {
       rows[0] = { ...rows[0], paneIds: [...rows[0].paneIds, ...missing] };
     }
   }
 
-  const activePaneId = settings.activePaneId && panes.some(p => p.id === settings.activePaneId)
-    ? settings.activePaneId
-    : panes[0]?.id || null;
+  const activePaneId =
+    settings.activePaneId && panes.some((p) => p.id === settings.activePaneId)
+      ? settings.activePaneId
+      : panes[0]?.id || null;
 
   return {
     panes,
@@ -618,25 +664,33 @@ ipcMain.handle('get-open-tabs', async () => {
   };
 });
 
-ipcMain.handle('set-open-tabs', async (_, panes: PaneLayoutSettings[], rows: PaneRowLayout[], activePaneId: string | null) => {
-  const settings = await loadSettings();
-  settings.paneLayout = panes.map(pane => ({
-    id: pane.id || randomUUID(),
-    tabs: pane.tabs || [],
-    activeTab: pane.activeTab ?? null,
-  }));
-  settings.paneRows = rows.map(row => ({
-    id: row.id || randomUUID(),
-    paneIds: row.paneIds || [],
-    size: row.size,
-    paneSizes: row.paneSizes,
-  }));
-  settings.activePaneId = activePaneId || undefined;
-  delete settings.openTabs;
-  delete settings.activeTab;
-  await saveSettings(settings);
-  return true;
-});
+ipcMain.handle(
+  'set-open-tabs',
+  async (
+    _,
+    panes: PaneLayoutSettings[],
+    rows: PaneRowLayout[],
+    activePaneId: string | null
+  ) => {
+    const settings = await loadSettings();
+    settings.paneLayout = panes.map((pane) => ({
+      id: pane.id || randomUUID(),
+      tabs: pane.tabs || [],
+      activeTab: pane.activeTab ?? null,
+    }));
+    settings.paneRows = rows.map((row) => ({
+      id: row.id || randomUUID(),
+      paneIds: row.paneIds || [],
+      size: row.size,
+      paneSizes: row.paneSizes,
+    }));
+    settings.activePaneId = activePaneId || undefined;
+    delete settings.openTabs;
+    delete settings.activeTab;
+    await saveSettings(settings);
+    return true;
+  }
+);
 
 /**
  * Shares document content via WhatsApp using the URL scheme.
@@ -665,13 +719,13 @@ ipcMain.handle('get-app-settings', () => {
 ipcMain.handle('set-editor-settings', (_event, settings: EditorSettings) => {
   store.set('editor', settings);
   // Notify all windows about settings change
-  BrowserWindow.getAllWindows().forEach(w => {
+  BrowserWindow.getAllWindows().forEach((w) => {
     w.webContents.send('settings-changed', store.store);
   });
   return true;
 });
 
-ipcMain.on('get-native-theme-sync', event => {
+ipcMain.on('get-native-theme-sync', (event) => {
   event.returnValue = getSystemTheme();
 });
 
@@ -695,56 +749,60 @@ nativeTheme.on('updated', () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  lspManager.stop()
+  lspManager.stop();
   if (process.platform !== 'darwin') {
-    app.quit()
-    win = null
+    app.quit();
+    win = null;
   }
-})
+});
 
 app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
+    createWindow();
   }
-})
+});
 
 function createMenu() {
   const isMac = process.platform === 'darwin';
 
   const template: Electron.MenuItemConstructorOptions[] = [
-    ...(isMac ? [{
-      label: app.name,
-      submenu: [
-        { role: 'about' as const },
-        { type: 'separator' as const },
-        { role: 'services' as const },
-        { type: 'separator' as const },
-        { role: 'hide' as const },
-        { role: 'hideOthers' as const },
-        { role: 'unhide' as const },
-        { type: 'separator' as const },
-        { role: 'quit' as const }
-      ]
-    }] : []),
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' as const },
+              { type: 'separator' as const },
+              { role: 'services' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const },
+            ],
+          },
+        ]
+      : []),
     {
       label: 'File',
       submenu: [
         {
           label: 'New File',
           accelerator: 'CmdOrCtrl+N',
-          click: () => win?.webContents.send('menu-new-file')
+          click: () => win?.webContents.send('menu-new-file'),
         },
         {
           label: 'Open File...',
           accelerator: 'CmdOrCtrl+O',
-          click: () => win?.webContents.send('menu-open-file')
+          click: () => win?.webContents.send('menu-open-file'),
         },
         {
           label: 'Open Folder...',
           accelerator: 'CmdOrCtrl+Shift+O',
-          click: () => win?.webContents.send('menu-open-folder')
+          click: () => win?.webContents.send('menu-open-folder'),
         },
         { type: 'separator' },
         {
@@ -752,7 +810,7 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+S',
           id: 'menu-save',
           enabled: false,
-          click: () => win?.webContents.send('menu-save')
+          click: () => win?.webContents.send('menu-save'),
         },
         { type: 'separator' },
         {
@@ -760,7 +818,7 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+Shift+F',
           id: 'menu-format',
           enabled: false,
-          click: () => win?.webContents.send('menu-format')
+          click: () => win?.webContents.send('menu-format'),
         },
         { type: 'separator' },
         {
@@ -770,25 +828,25 @@ function createMenu() {
               label: 'Export to Markdown',
               id: 'menu-export-markdown',
               enabled: false,
-              click: () => win?.webContents.send('menu-export', 'markdown')
+              click: () => win?.webContents.send('menu-export', 'markdown'),
             },
             {
               label: 'Export to HTML',
               id: 'menu-export-html',
               enabled: false,
-              click: () => win?.webContents.send('menu-export', 'html')
+              click: () => win?.webContents.send('menu-export', 'html'),
             },
             {
               label: 'Export to PDF',
               id: 'menu-export-pdf',
               enabled: false,
-              click: () => win?.webContents.send('menu-export', 'pdf')
-            }
-          ]
+              click: () => win?.webContents.send('menu-export', 'pdf'),
+            },
+          ],
         },
         { type: 'separator' },
-        isMac ? { role: 'close' } : { role: 'quit' }
-      ]
+        isMac ? { role: 'close' } : { role: 'quit' },
+      ],
     },
     {
       label: 'Edit',
@@ -806,42 +864,42 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+F',
           id: 'menu-find',
           enabled: false,
-          click: () => win?.webContents.send('menu-find')
+          click: () => win?.webContents.send('menu-find'),
         },
         {
           label: 'Replace',
           accelerator: 'CmdOrCtrl+H',
           id: 'menu-replace',
           enabled: false,
-          click: () => win?.webContents.send('menu-replace')
+          click: () => win?.webContents.send('menu-replace'),
         },
         { type: 'separator' },
         {
           label: 'Insert Asset...',
           id: 'menu-insert-asset',
           enabled: false,
-          click: () => win?.webContents.send('menu-insert-asset')
+          click: () => win?.webContents.send('menu-insert-asset'),
         },
         {
           label: 'Insert Verbatim...',
           id: 'menu-insert-verbatim',
           enabled: false,
-          click: () => win?.webContents.send('menu-insert-verbatim')
+          click: () => win?.webContents.send('menu-insert-verbatim'),
         },
         { type: 'separator' },
         {
           label: 'Resolve Annotation',
           id: 'menu-resolve-annotation',
           enabled: false,
-          click: () => win?.webContents.send('menu-resolve-annotation')
+          click: () => win?.webContents.send('menu-resolve-annotation'),
         },
         {
           label: 'Toggle Annotations',
           id: 'menu-toggle-annotations',
           enabled: false,
-          click: () => win?.webContents.send('menu-toggle-annotations')
-        }
-      ]
+          click: () => win?.webContents.send('menu-toggle-annotations'),
+        },
+      ],
     },
     {
       label: 'Pane',
@@ -849,14 +907,14 @@ function createMenu() {
         {
           label: 'Split Vertically',
           accelerator: 'CmdOrCtrl+\\',
-          click: () => win?.webContents.send('menu-split-vertical')
+          click: () => win?.webContents.send('menu-split-vertical'),
         },
         {
           label: 'Split Horizontally',
           accelerator: 'CmdOrCtrl+Shift+\\',
-          click: () => win?.webContents.send('menu-split-horizontal')
-        }
-      ]
+          click: () => win?.webContents.send('menu-split-horizontal'),
+        },
+      ],
     },
     {
       label: 'View',
@@ -866,7 +924,7 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+Shift+P',
           id: 'menu-preview',
           enabled: false,
-          click: () => win?.webContents.send('menu-preview')
+          click: () => win?.webContents.send('menu-preview'),
         },
         { type: 'separator' },
         { role: 'reload' },
@@ -877,22 +935,19 @@ function createMenu() {
         { role: 'zoomIn' },
         { role: 'zoomOut' },
         { type: 'separator' },
-        { role: 'togglefullscreen' }
-      ]
+        { role: 'togglefullscreen' },
+      ],
     },
     {
       label: 'Window',
       submenu: [
         { role: 'minimize' },
         { role: 'zoom' },
-        ...(isMac ? [
-          { type: 'separator' as const },
-          { role: 'front' as const }
-        ] : [
-          { role: 'close' as const }
-        ])
-      ]
-    }
+        ...(isMac
+          ? [{ type: 'separator' as const }, { role: 'front' as const }]
+          : [{ role: 'close' as const }]),
+      ],
+    },
   ];
 
   applicationMenu = Menu.buildFromTemplate(template);
@@ -902,7 +957,7 @@ function createMenu() {
 
 // Windows: Set App User Model ID for proper taskbar grouping
 if (process.platform === 'win32') {
-  app.setAppUserModelId('com.lex.desktop');
+  app.setAppUserModelId('com.lex.lexed');
 }
 
 // Single instance lock - ensure only one instance of the app runs

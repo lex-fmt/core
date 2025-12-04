@@ -1,10 +1,10 @@
-Lex Desktop Architecture
+Lex LexEd Architecture
 
-    This document outlines the architecture of the Lex Desktop application and the integration with the Rust-based Language Server Protocol (LSP).
+    This document outlines the architecture of the Lex LexEd application and the integration with the Rust-based Language Server Protocol (LSP).
 
 1. Architecture Overview
 
-    The Lex Desktop application is built using a modern web technology stack wrapped in Electron, communicating with a high-performance Rust backend.
+    The Lex LexEd application is built using a modern web technology stack wrapped in Electron, communicating with a high-performance Rust backend.
 
     1. Frontend (Renderer Process)
 
@@ -62,7 +62,7 @@ Lex Desktop Architecture
 
 3. Semantic Highlighting
 
-    Syntax highlighting in Lex Desktop uses the LSP's semantic tokens capability for rich, accurate highlighting.
+    Syntax highlighting in Lex LexEd uses the LSP's semantic tokens capability for rich, accurate highlighting.
 
     1. Provider Registration
 
@@ -110,6 +110,6 @@ Lex Desktop Architecture
 
 ## Testing
 
-- Run `npm run test:e2e` inside `editors/desktop/` to execute the Playwright e2e suite (builds the app before running).
+- Run `npm run test:e2e` inside `editors/lexed/` to execute the Playwright e2e suite (builds the app before running).
 
 Running `npm run test:e2e` hides the Electron window via `LEX_HIDE_WINDOW=1` so tests do not steal focus; unset it to observe the UI.
