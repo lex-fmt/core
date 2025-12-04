@@ -9,6 +9,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { lspClient } from '@/lsp/client';
 import { buildFormattingOptions, notifyLexTest } from '@/lsp/providers/formatting';
 import type { LspTextEdit } from '@/lsp/types';
+import { dispatchFileTreeRefresh } from '@/lib/events';
 
 initializeMonaco();
 
@@ -221,6 +222,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
         await handleFormat();
       }
       await window.ipcRenderer.fileSave(currentFile, editorRef.current.getValue());
+      dispatchFileTreeRefresh();
     }
   };
 

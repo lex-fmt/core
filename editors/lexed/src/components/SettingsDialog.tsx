@@ -17,6 +17,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         { id: 'ui' as const, label: 'UI' },
         { id: 'formatter' as const, label: 'Formatter' },
     ];
+    const indentSpaces = Math.max(1, localFormatterSettings.indentString.length || 4);
 
     useEffect(() => {
         if (isOpen) {
@@ -123,9 +124,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                                             <input
                                                 id="session-before"
                                                 type="number"
-                                                min={0}
+                                                min={1}
                                                 value={localFormatterSettings.sessionBlankLinesBefore}
-                                                onChange={(e) => setLocalFormatterSettings(prev => ({ ...prev, sessionBlankLinesBefore: Math.max(0, parseInt(e.target.value) || 0) }))}
+                                                onChange={(e) => setLocalFormatterSettings(prev => ({ ...prev, sessionBlankLinesBefore: Math.max(1, parseInt(e.target.value) || 1) }))}
                                                 className="mt-1 w-full px-2 py-1 text-sm bg-input border border-border rounded focus:outline-none focus:border-primary"
                                             />
                                         </div>
@@ -134,9 +135,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                                             <input
                                                 id="session-after"
                                                 type="number"
-                                                min={0}
+                                                min={1}
                                                 value={localFormatterSettings.sessionBlankLinesAfter}
-                                                onChange={(e) => setLocalFormatterSettings(prev => ({ ...prev, sessionBlankLinesAfter: Math.max(0, parseInt(e.target.value) || 0) }))}
+                                                onChange={(e) => setLocalFormatterSettings(prev => ({ ...prev, sessionBlankLinesAfter: Math.max(1, parseInt(e.target.value) || 1) }))}
                                                 className="mt-1 w-full px-2 py-1 text-sm bg-input border border-border rounded focus:outline-none focus:border-primary"
                                             />
                                         </div>
@@ -145,19 +146,23 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                                             <input
                                                 id="max-blank-lines"
                                                 type="number"
-                                                min={0}
+                                                min={1}
                                                 value={localFormatterSettings.maxBlankLines}
-                                                onChange={(e) => setLocalFormatterSettings(prev => ({ ...prev, maxBlankLines: Math.max(0, parseInt(e.target.value) || 0) }))}
+                                                onChange={(e) => setLocalFormatterSettings(prev => ({ ...prev, maxBlankLines: Math.max(1, parseInt(e.target.value) || 1) }))}
                                                 className="mt-1 w-full px-2 py-1 text-sm bg-input border border-border rounded focus:outline-none focus:border-primary"
                                             />
                                         </div>
                                         <div>
-                                            <label htmlFor="indent-string" className="text-xs text-muted-foreground uppercase tracking-wide">Indent string</label>
+                                            <label htmlFor="indent-spaces" className="text-xs text-muted-foreground uppercase tracking-wide">Indent spaces</label>
                                             <input
-                                                id="indent-string"
-                                                type="text"
-                                                value={localFormatterSettings.indentString}
-                                                onChange={(e) => setLocalFormatterSettings(prev => ({ ...prev, indentString: e.target.value }))}
+                                                id="indent-spaces"
+                                                type="number"
+                                                min={1}
+                                                value={indentSpaces}
+                                                onChange={(e) => {
+                                                    const next = Math.max(1, parseInt(e.target.value) || 1);
+                                                    setLocalFormatterSettings(prev => ({ ...prev, indentString: ' '.repeat(next) }));
+                                                }}
                                                 className="mt-1 w-full px-2 py-1 text-sm bg-input border border-border rounded focus:outline-none focus:border-primary"
                                             />
                                         </div>

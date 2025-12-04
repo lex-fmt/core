@@ -19,6 +19,7 @@ import { useMenuStateSync } from '@/hooks/useMenuStateSync'
 import { useLexTestBridge } from '@/hooks/useLexTestBridge'
 import { useMenuHandlers } from '@/hooks/useMenuHandlers'
 import { SettingsProvider } from '@/contexts/SettingsContext'
+import { dispatchFileTreeRefresh } from '@/lib/events'
 
 const createTabFromPath = (path: string): Tab => ({
   id: path,
@@ -110,6 +111,7 @@ function App() {
     const result = await window.ipcRenderer.fileNew(rootPath);
     if (result) {
       openFileInPane(activePaneIdValue, result.filePath);
+      dispatchFileTreeRefresh();
     }
   }, [rootPath, activePaneIdValue, openFileInPane]);
 
