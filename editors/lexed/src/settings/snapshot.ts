@@ -1,0 +1,46 @@
+import type { AppSettings, EditorSettings, FormatterSettings } from './types';
+import { defaultAppSettings } from './types';
+
+let currentSettings: AppSettings = {
+    editor: { ...defaultAppSettings.editor },
+    formatter: { ...defaultAppSettings.formatter },
+};
+
+const cloneEditor = (editor: EditorSettings): EditorSettings => ({
+    showRuler: editor.showRuler,
+    rulerWidth: editor.rulerWidth,
+    vimMode: editor.vimMode,
+});
+
+const cloneFormatter = (formatter: FormatterSettings): FormatterSettings => ({
+    sessionBlankLinesBefore: formatter.sessionBlankLinesBefore,
+    sessionBlankLinesAfter: formatter.sessionBlankLinesAfter,
+    normalizeSeqMarkers: formatter.normalizeSeqMarkers,
+    unorderedSeqMarker: formatter.unorderedSeqMarker,
+    maxBlankLines: formatter.maxBlankLines,
+    indentString: formatter.indentString,
+    preserveTrailingBlanks: formatter.preserveTrailingBlanks,
+    normalizeVerbatimMarkers: formatter.normalizeVerbatimMarkers,
+    formatOnSave: formatter.formatOnSave,
+});
+
+const cloneSettings = (settings: AppSettings): AppSettings => ({
+    editor: cloneEditor(settings.editor),
+    formatter: cloneFormatter(settings.formatter),
+});
+
+export function setSettingsSnapshot(settings: AppSettings): void {
+    currentSettings = cloneSettings(settings);
+}
+
+export function getSettingsSnapshot(): AppSettings {
+    return cloneSettings(currentSettings);
+}
+
+export function getFormatterSettingsSnapshot(): FormatterSettings {
+    return cloneFormatter(currentSettings.formatter);
+}
+
+export function getEditorSettingsSnapshot(): EditorSettings {
+    return cloneEditor(currentSettings.editor);
+}

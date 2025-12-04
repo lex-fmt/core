@@ -170,6 +170,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
 
   const handleSave = async () => {
     if (currentFile && editorRef.current) {
+      if (settings.formatter.formatOnSave) {
+        await handleFormat();
+      }
       await window.ipcRenderer.fileSave(currentFile, editorRef.current.getValue());
     }
   };
