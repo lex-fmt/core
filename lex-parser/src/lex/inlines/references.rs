@@ -87,8 +87,15 @@ fn detect_tk_reference(trimmed: &str) -> Option<Option<String>> {
         return Some(None);
     }
 
-    if trimmed.len() > 3 && trimmed[0..3].eq_ignore_ascii_case("TK-") {
-        let identifier = &trimmed[3..];
+    // Check for "TK-" prefix case-insensitively using strip_prefix variants
+    // We need to check both cases since strip_prefix is case-sensitive
+    let identifier = trimmed
+        .strip_prefix("TK-")
+        .or_else(|| trimmed.strip_prefix("tk-"))
+        .or_else(|| trimmed.strip_prefix("Tk-"))
+        .or_else(|| trimmed.strip_prefix("tK-"));
+
+    if let Some(identifier) = identifier {
         if !identifier.is_empty()
             && identifier.len() <= 20
             && identifier

@@ -97,15 +97,31 @@ impl PngSizeProfile {
     }
 
     fn css(&self) -> &'static str {
+        // Use system fonts for faster rendering (no web font loading delay)
         match self {
             PngSizeProfile::QuickLook => {
-                "body { margin: 20px; background: white; }\n.lex-document { max-width: 600px; }\n"
+                concat!(
+                    "body { margin: 20px; background: white; }\n",
+                    ".lex-document { max-width: 600px; }\n",
+                    "body, h1, h2, h3, h4, h5, h6 { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }\n",
+                    "code, .lex-verbatim code { font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace !important; }\n"
+                )
             }
             PngSizeProfile::Desktop => {
-                "body { margin: 40px; background: white; }\n.lex-document { max-width: 800px; }\n"
+                concat!(
+                    "body { margin: 40px; background: white; }\n",
+                    ".lex-document { max-width: 800px; }\n",
+                    "body, h1, h2, h3, h4, h5, h6 { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }\n",
+                    "code, .lex-verbatim code { font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace !important; }\n"
+                )
             }
             PngSizeProfile::Mobile => {
-                "body { margin: 10px; background: white; }\n.lex-document { max-width: 350px; }\n"
+                concat!(
+                    "body { margin: 10px; background: white; }\n",
+                    ".lex-document { max-width: 350px; }\n",
+                    "body, h1, h2, h3, h4, h5, h6 { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }\n",
+                    "code, .lex-verbatim code { font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace !important; }\n"
+                )
             }
         }
     }
