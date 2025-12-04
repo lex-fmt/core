@@ -22,8 +22,12 @@ function getWindowBackground(theme: ThemeMode): string {
   return theme === 'dark' ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR;
 }
 
+import Store from 'electron-store';
+
+// ... imports
+
 // Settings persistence
-const SETTINGS_FILE = 'settings.json';
+const SETTINGS_FILE = 'settings'; // electron-store adds .json extension
 
 interface WindowState {
   x?: number;
@@ -46,6 +50,12 @@ interface PaneRowLayout {
   paneSizes?: Record<string, number>;
 }
 
+interface EditorSettings {
+  showRuler: boolean;
+  rulerWidth: number;
+  vimMode: boolean;
+}
+
 interface AppSettings {
   lastFolder?: string;
   openTabs?: string[];
@@ -54,6 +64,7 @@ interface AppSettings {
   paneRows?: PaneRowLayout[];
   activePaneId?: string;
   windowState?: WindowState;
+  editor?: EditorSettings;
 }
 
 const DEFAULT_WINDOW_STATE: WindowState = {
@@ -87,54 +98,63 @@ async function loadTestFixture(fixtureName: string): Promise<{ path: string; con
   return { path: resolved, content };
 }
 
-function getSettingsPathSync(): string {
-  return path.join(app.getPath('userData'), SETTINGS_FILE);
-}
-
-async function getSettingsPath(): Promise<string> {
-  return getSettingsPathSync();
-}
+const store = new Store<AppSettings>({
+  name: SETTINGS_FILE,
+  schema: {
+    lastFolder: { type: 'string' },
+    openTabs: { type: 'array' },
+    activeTab: { type: 'string' },
+    paneLayout: { type: 'array' },
+    paneRows: { type: 'array' },
+    activePaneId: { type: 'string' },
+    windowState: {
+      type: 'object',
+      properties: {
+        x: { type: 'number' },
+        y: { type: 'number' },
+        width: { type: 'number' },
+        height: { type: 'number' },
+        isMaximized: { type: 'boolean' }
+      }
+    },
+    editor: {
+      type: 'object',
+      properties: {
+        showRuler: { type: 'boolean', default: false },
+        rulerWidth: { type: 'number', default: 100 },
+        vimMode: { type: 'boolean', default: false }
+      },
+      default: {}
+    }
+  }
+});
 
 function loadSettingsSync(): AppSettings {
   if (PERSISTENCE_DISABLED) {
     return {};
   }
-  try {
-    const settingsPath = getSettingsPathSync();
-    const data = fsSync.readFileSync(settingsPath, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return {};
-  }
+  return store.store;
 }
 
 async function loadSettings(): Promise<AppSettings> {
   if (PERSISTENCE_DISABLED) {
     return {};
   }
-  try {
-    const settingsPath = await getSettingsPath();
-    const data = await fs.readFile(settingsPath, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return {};
-  }
+  return store.store;
 }
 
 function saveSettingsSync(settings: AppSettings): void {
   if (PERSISTENCE_DISABLED) {
     return;
   }
-  const settingsPath = getSettingsPathSync();
-  fsSync.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+  store.set(settings);
 }
 
 async function saveSettings(settings: AppSettings): Promise<void> {
   if (PERSISTENCE_DISABLED) {
     return;
   }
-  const settingsPath = await getSettingsPath();
-  await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+  store.set(settings);
 }
 
 function getWelcomeFolderPath(): string {
@@ -612,8 +632,8 @@ ipcMain.handle('set-open-tabs', async (_, panes: PaneLayoutSettings[], rows: Pan
     paneSizes: row.paneSizes,
   }));
   settings.activePaneId = activePaneId || undefined;
-  settings.openTabs = undefined;
-  settings.activeTab = undefined;
+  delete settings.openTabs;
+  delete settings.activeTab;
   await saveSettings(settings);
   return true;
 });
@@ -636,6 +656,19 @@ ipcMain.handle('show-item-in-folder', (_, fullPath: string) => {
 // Theme detection
 ipcMain.handle('get-native-theme', () => {
   return getSystemTheme();
+});
+
+ipcMain.handle('get-app-settings', () => {
+  return store.store;
+});
+
+ipcMain.handle('set-editor-settings', (_event, settings: EditorSettings) => {
+  store.set('editor', settings);
+  // Notify all windows about settings change
+  BrowserWindow.getAllWindows().forEach(w => {
+    w.webContents.send('settings-changed', store.store);
+  });
+  return true;
 });
 
 ipcMain.on('get-native-theme-sync', event => {

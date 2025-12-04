@@ -132,4 +132,11 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     ipcRenderer.on('open-file-path', handler);
     return () => ipcRenderer.removeListener('open-file-path', handler);
   },
+  getAppSettings: () => ipcRenderer.invoke('get-app-settings'),
+  setEditorSettings: (settings: { showRuler: boolean; rulerWidth: number }) => ipcRenderer.invoke('set-editor-settings', settings),
+  onSettingsChanged: (callback: (settings: any) => void) => {
+    const handler = (_event: IpcRendererEvent, settings: any) => callback(settings);
+    ipcRenderer.on('settings-changed', handler);
+    return () => ipcRenderer.removeListener('settings-changed', handler);
+  },
 })

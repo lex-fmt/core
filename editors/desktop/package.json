@@ -22,17 +22,19 @@
     "test:e2e": "LEX_HIDE_WINDOW=1 PLAYWRIGHT_BROWSERS_PATH=0 LEX_DISABLE_PERSISTENCE=1 npx playwright test tests/e2e"
   },
   "dependencies": {
+    "@lex/shared": "file:../shared",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "electron-store": "^11.0.2",
     "lucide-react": "^0.344.0",
     "monaco-editor": "^0.55.1",
+    "monaco-vim": "^0.4.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "vscode-languageserver-protocol": "^3.17.5",
-    "vscode-ws-jsonrpc": "^3.5.0",
-    "@lex/shared": "file:../shared"
+    "vscode-ws-jsonrpc": "^3.5.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
@@ -79,17 +81,25 @@
           {
             "UTTypeIdentifier": "com.lex.document",
             "UTTypeDescription": "Lex Document",
-            "UTTypeConformsTo": ["public.plain-text"],
+            "UTTypeConformsTo": [
+              "public.plain-text"
+            ],
             "UTTypeTagSpecification": {
-              "public.filename-extension": ["lex"]
+              "public.filename-extension": [
+                "lex"
+              ]
             }
           },
           {
             "UTTypeIdentifier": "com.lex.extended-document",
             "UTTypeDescription": "Lex Extended Document",
-            "UTTypeConformsTo": ["public.plain-text"],
+            "UTTypeConformsTo": [
+              "public.plain-text"
+            ],
             "UTTypeTagSpecification": {
-              "public.filename-extension": ["lexx"]
+              "public.filename-extension": [
+                "lexx"
+              ]
             }
           }
         ]

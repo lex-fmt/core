@@ -4,6 +4,8 @@ import 'monaco-editor/esm/vs/editor/editor.main';
 import { initializeMonaco, applyTheme, type ThemeMode } from '@/monaco';
 import { getOrCreateModel, disposeModel } from '@/monaco/models';
 import { ensureLspInitialized } from '@/lsp/init';
+import { initVimMode } from 'monaco-vim';
+import { useSettings } from '@/contexts/SettingsContext';
 
 initializeMonaco();
 
@@ -27,7 +29,10 @@ export interface EditorHandle {
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fileToOpen, onFileLoaded }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const statusNodeRef = useRef<HTMLDivElement>(null);
+  const vimModeRef = useRef<any>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
+  const { settings } = useSettings();
 
   const switchToFile = useCallback(async (path: string) => {
     if (!editorRef.current) return;
@@ -71,6 +76,21 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
   }, [fileToOpen, switchToFile]);
 
   useEffect(() => {
+    if (editorRef.current && statusNodeRef.current) {
+      if (settings.editor.vimMode) {
+        if (!vimModeRef.current) {
+          vimModeRef.current = initVimMode(editorRef.current, statusNodeRef.current);
+        }
+      } else {
+        if (vimModeRef.current) {
+          vimModeRef.current.dispose();
+          vimModeRef.current = null;
+        }
+      }
+    }
+  }, [settings.editor.vimMode]);
+
+  useEffect(() => {
     if (!containerRef.current) return;
 
     ensureLspInitialized();
@@ -86,16 +106,16 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
       padding: { top: 10, bottom: 10 },
       fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, sans-serif',
       'semanticHighlighting.enabled': true,
+      rulers: settings.editor.showRuler ? [settings.editor.rulerWidth] : [],
     } satisfies monaco.editor.IStandaloneEditorConstructionOptions);
     editorRef.current = editor;
 
-    // Expose editor for end-to-end tests/debug builds
-    const globalWindow = window as typeof window & {
-      monaco?: typeof monaco;
-      editor?: monaco.editor.IStandaloneCodeEditor | null;
-    };
-    globalWindow.monaco = monaco;
-    globalWindow.editor = editor;
+    // Initialize Vim mode if enabled
+    if (settings.editor.vimMode && statusNodeRef.current) {
+      vimModeRef.current = initVimMode(editor, statusNodeRef.current);
+    }
+
+    // ... existing code
 
     const applyThemeFromNative = (mode: ThemeMode) => {
       applyTheme(mode);
@@ -128,6 +148,9 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
 
     return () => {
       editor.dispose();
+      if (vimModeRef.current) {
+        vimModeRef.current.dispose();
+      }
       unsubscribeTheme();
       unsubscribeInsertAsset();
       unsubscribeInsertVerbatim();
@@ -157,7 +180,17 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
     }
   };
 
+  // ... existing code
+
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden' }} />
+    <div className="relative w-full h-full overflow-hidden">
+      <div ref={containerRef} className="w-full h-full" />
+      {settings.editor.vimMode && (
+        <div
+          ref={statusNodeRef}
+          className="absolute bottom-0 right-0 px-2 py-0.5 bg-panel border-t border-l border-border text-xs font-mono opacity-80 pointer-events-none"
+        />
+      )}
+    </div>
   );
 });

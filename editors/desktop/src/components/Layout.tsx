@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, AlignLeft, MessageCircle, FileType, Search, Replace, SplitSquareVertical, SplitSquareHorizontal, Eye } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, MessageCircle, FileType, Search, Replace, SplitSquareVertical, SplitSquareHorizontal, Eye } from 'lucide-react';
 import { isLexFile } from '@/lib/files';
 
 interface LayoutProps {
@@ -29,11 +29,12 @@ interface LayoutProps {
 const MIN_OUTLINE_HEIGHT = 100;
 const DEFAULT_OUTLINE_HEIGHT = 200;
 
-export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace, onSplitVertical, onSplitHorizontal, onPreview }: LayoutProps) {
+import { SettingsDialog } from './SettingsDialog';
+
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace, onSplitVertical, onSplitHorizontal, onPreview }: LayoutProps) {
   const isCurrentFileLex = isLexFile(currentFile ?? null);
   const hasCurrentFile = Boolean(currentFile);
   const canLexActions = hasCurrentFile && isCurrentFileLex;
-  const canFormat = canLexActions && Boolean(onFormat);
   const canExport = canLexActions && Boolean(onExport);
   const canShare = canLexActions && Boolean(onShareWhatsApp);
   const canFind = hasCurrentFile && Boolean(onFind);
@@ -44,6 +45,7 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
   const [outlineHeight, setOutlineHeight] = useState(DEFAULT_OUTLINE_HEIGHT);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -317,6 +319,7 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
         <div className="flex-1" />
 
         <button
+          onClick={() => setIsSettingsOpen(true)}
           className={cn(
             "p-1.5 rounded",
             "hover:bg-panel-hover transition-colors"
@@ -326,6 +329,8 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
           <Settings size={16} />
         </button>
       </div>
+
+      <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* Main Content Area */}
       <div className="flex flex-1 min-h-0">

@@ -43,6 +43,9 @@ interface Window {
     onMenuSplitHorizontal: (callback: () => void) => () => void;
     onMenuPreview: (callback: () => void) => () => void;
     onOpenFilePath: (callback: (filePath: string) => void) => () => void;
+    getAppSettings: () => Promise<any>;
+    setEditorSettings: (settings: { showRuler: boolean; rulerWidth: number }) => Promise<boolean>;
+    onSettingsChanged: (callback: (settings: any) => void) => () => void;
   }
   lexTest?: {
     openFixture: (fixtureName: string, paneId?: string | null) => Promise<{ path: string; content: string }>;

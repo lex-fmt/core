@@ -18,6 +18,7 @@ import { useRootFolder } from '@/hooks/useRootFolder'
 import { useMenuStateSync } from '@/hooks/useMenuStateSync'
 import { useLexTestBridge } from '@/hooks/useLexTestBridge'
 import { useMenuHandlers } from '@/hooks/useMenuHandlers'
+import { SettingsProvider } from '@/contexts/SettingsContext'
 
 const createTabFromPath = (path: string): Tab => ({
   id: path,
@@ -389,48 +390,52 @@ function App() {
     onOpenFilePath: handleOpenFilePath,
   });
 
+  // ... imports
+
   return (
-    <Layout
-      rootPath={rootPath}
-      onFileSelect={handleFileSelect}
-      onNewFile={handleNewFile}
-      onOpenFolder={handleOpenFolder}
-      onOpenFile={handleOpenFile}
-      onSave={handleSave}
-      onFormat={handleFormat}
-      onExport={handleExport}
-      onShareWhatsApp={handleShareWhatsApp}
-      onConvertToLex={handleConvertToLex}
-      onFind={handleFind}
-      onReplace={handleReplace}
-      onSplitVertical={handleSplitVertical}
-      onSplitHorizontal={handleSplitHorizontal}
-      onPreview={handlePreview}
-      currentFile={activePaneFile}
-      panel={
-        <Outline
-          currentFile={activePaneFile}
-          editor={activeEditor}
-          cursorLine={activeCursorLine}
+    <SettingsProvider>
+      <Layout
+        rootPath={rootPath}
+        onFileSelect={handleFileSelect}
+        onNewFile={handleNewFile}
+        onOpenFolder={handleOpenFolder}
+        onOpenFile={handleOpenFile}
+        onSave={handleSave}
+        onFormat={handleFormat}
+        onExport={handleExport}
+        onShareWhatsApp={handleShareWhatsApp}
+        onConvertToLex={handleConvertToLex}
+        onFind={handleFind}
+        onReplace={handleReplace}
+        onSplitVertical={handleSplitVertical}
+        onSplitHorizontal={handleSplitHorizontal}
+        onPreview={handlePreview}
+        currentFile={activePaneFile}
+        panel={
+          <Outline
+            currentFile={activePaneFile}
+            editor={activeEditor}
+            cursorLine={activeCursorLine}
+          />
+        }
+      >
+        <PaneWorkspace
+          panes={panes}
+          paneRows={paneRows}
+          activePaneId={activePaneIdValue}
+          exportStatus={exportStatus}
+          registerPaneHandle={registerPaneHandle}
+          onFocusPane={focusPane}
+          onClosePane={handleClosePane}
+          onTabSelect={handleTabSelect}
+          onTabClose={handleTabClose}
+          onTabDrop={handleTabDrop}
+          onFileLoaded={handlePaneFileLoaded}
+          onCursorChange={handlePaneCursorChange}
+          onPaneRowsChange={setPaneRows}
         />
-      }
-    >
-      <PaneWorkspace
-        panes={panes}
-        paneRows={paneRows}
-        activePaneId={activePaneIdValue}
-        exportStatus={exportStatus}
-        registerPaneHandle={registerPaneHandle}
-        onFocusPane={focusPane}
-        onClosePane={handleClosePane}
-        onTabSelect={handleTabSelect}
-        onTabClose={handleTabClose}
-        onTabDrop={handleTabDrop}
-        onFileLoaded={handlePaneFileLoaded}
-        onCursorChange={handlePaneCursorChange}
-        onPaneRowsChange={setPaneRows}
-      />
-    </Layout>
+      </Layout>
+    </SettingsProvider>
   )
 }
 
