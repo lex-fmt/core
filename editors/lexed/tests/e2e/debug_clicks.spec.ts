@@ -26,11 +26,16 @@ type DebugWindow = Window & {
 
 test.describe('Debug Clicks', () => {
   test('should log token info on clicks', async () => {
-    const appPath = path.join(process.cwd(), 'release/mac-arm64/Lex Editor.app/Contents/MacOS/Lex Editor');
-    
+    const appPath = path.join(
+      process.cwd(),
+      'release/mac-arm64/LexEd.app/Contents/MacOS/LexEd'
+    );
+
     const app = await electron.launch({
       executablePath: appPath,
-      args: [path.join(process.cwd(), 'specs/v1/benchmark/30-a-place-for-ideas.lex')],
+      args: [
+        path.join(process.cwd(), 'specs/v1/benchmark/30-a-place-for-ideas.lex'),
+      ],
       env: {
         ...process.env,
         LEX_TEST_FIXTURES: path.join(process.cwd(), 'tests/fixtures'),
@@ -38,7 +43,9 @@ test.describe('Debug Clicks', () => {
     });
 
     const page = await app.firstWindow();
-    page.on('console', msg => console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`));
+    page.on('console', (msg) =>
+      console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`)
+    );
     await page.waitForLoadState('domcontentloaded');
 
     await openFixture(page, 'benchmark.lex');
@@ -57,7 +64,7 @@ test.describe('Debug Clicks', () => {
 
     for (const click of clicks) {
       console.log(`\n--- Clicking: ${click.desc} ---`);
-      
+
       // Simulate click in Monaco Editor
       // We use executeJavaScript to access the Monaco editor instance directly
       await page.evaluate(({ line, column }) => {
@@ -70,46 +77,55 @@ test.describe('Debug Clicks', () => {
         const position: Position = { lineNumber: line, column };
         editor.setPosition(position);
         editor.revealPosition(position);
-        
+
         // Trigger the mouse down handler we added
         // We need to simulate the event object structure expected by our handler
-        const model = typeof editor.getModel === 'function' ? editor.getModel() : null;
+        const model =
+          typeof editor.getModel === 'function' ? editor.getModel() : null;
         if (!model) {
           console.warn('Editor model not ready');
           return;
         }
         const word = model.getWordAtPosition(position);
         const offset = model.getOffsetAt(position);
-        
+
         // Manually trigger the logic since we can't easily simulate a real mouse event with accurate target.position in Playwright
-        // But wait, we added editor.onMouseDown. 
+        // But wait, we added editor.onMouseDown.
         // We can dispatch a synthetic event if we can target the right element, but Monaco's DOM is complex.
         // Easier to just call the logging logic directly or trigger the event via Monaco API if possible.
         // Actually, let's just use the same logic we added to Editor.tsx inside evaluate
-        
+
         console.log('--- Click Debug (Simulated) ---');
         console.log('Position:', position);
         console.log('Word:', word?.word ?? null);
         console.log('Offset:', offset);
-        
-        const tokens = debugWindow.monaco?.editor.tokenize(model.getValue(), model.getLanguageId());
+
+        const tokens = debugWindow.monaco?.editor.tokenize(
+          model.getValue(),
+          model.getLanguageId()
+        );
         if (Array.isArray(tokens) && tokens[position.lineNumber - 1]) {
-            const lineTokens = tokens[position.lineNumber - 1] as TokenInfo[];
-            // Find the token that covers the column. 
-            // Tokens are just { offset, type, language }. 
-            // The token covers from its offset up to the next token's offset.
-            // We need to find the last token with offset <= column - 1
-            const token = lineTokens.reduce<TokenInfo | null>((result, current) => {
+          const lineTokens = tokens[position.lineNumber - 1] as TokenInfo[];
+          // Find the token that covers the column.
+          // Tokens are just { offset, type, language }.
+          // The token covers from its offset up to the next token's offset.
+          // We need to find the last token with offset <= column - 1
+          const token = lineTokens.reduce<TokenInfo | null>(
+            (result, current) => {
               if (current.offset <= position.column - 1) {
                 return current;
               }
               return result;
-            }, null);
+            },
+            null
+          );
 
-            console.log('Monarch Token (Line):', token ? JSON.stringify(token) : 'null');
-            console.log('All Line Tokens:', JSON.stringify(lineTokens));
+          console.log(
+            'Monarch Token (Line):',
+            token ? JSON.stringify(token) : 'null'
+          );
+          console.log('All Line Tokens:', JSON.stringify(lineTokens));
         }
-        
       }, click);
 
       // Wait a bit to capture logs

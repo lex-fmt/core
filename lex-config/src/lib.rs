@@ -71,9 +71,10 @@ pub struct PdfConfig {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub enum PdfPageSize {
-    Desktop,
+    #[serde(rename = "lexed")]
+    LexEd,
+    #[serde(rename = "mobile")]
     Mobile,
 }
 
@@ -148,7 +149,7 @@ mod tests {
         let config = load_defaults().expect("defaults to deserialize");
         assert_eq!(config.formatting.rules.session_blank_lines_before, 1);
         assert!(config.inspect.ast.show_line_numbers);
-        assert_eq!(config.convert.pdf.size, PdfPageSize::Desktop);
+        assert_eq!(config.convert.pdf.size, PdfPageSize::LexEd);
     }
 
     #[test]

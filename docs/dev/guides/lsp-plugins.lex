@@ -436,7 +436,7 @@ Design Principles:
 
 4. Semantic Token Design
 
-	Semantic tokens are central to Lex editor support. This section details the design.
+	Semantic tokens are central to LexEd support. This section details the design.
 
 
 	4.1 Why Semantic Tokens

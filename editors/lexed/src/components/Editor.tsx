@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
-import 'monaco-editor/esm/vs/editor/editor.main';
+import 'monaco-editor';
 import { initializeMonaco, applyTheme, type ThemeMode } from '@/monaco';
 import { getOrCreateModel, disposeModel } from '@/monaco/models';
 import { ensureLspInitialized } from '@/lsp/init';

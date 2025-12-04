@@ -70,31 +70,31 @@ impl Format for PdfFormat {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PdfSizeProfile {
-    Desktop,
+    LexEd,
     Mobile,
 }
 
 impl PdfSizeProfile {
     fn from_options(options: &HashMap<String, String>) -> Result<Self, FormatError> {
         let mobile = parse_bool_flag(options, "size-mobile", false)?;
-        let desktop = parse_bool_flag(options, "size-desktop", !mobile)?;
+        let lexed = parse_bool_flag(options, "size-lexed", !mobile)?;
 
-        if mobile && desktop {
+        if mobile && lexed {
             return Err(FormatError::SerializationError(
-                "Cannot enable both desktop and mobile PDF sizing at once".to_string(),
+                "Cannot enable both lexed and mobile PDF sizing at once".to_string(),
             ));
         }
 
         if mobile {
             Ok(PdfSizeProfile::Mobile)
         } else {
-            Ok(PdfSizeProfile::Desktop)
+            Ok(PdfSizeProfile::LexEd)
         }
     }
 
     fn print_css(&self) -> &'static str {
         match self {
-            PdfSizeProfile::Desktop =>
+            PdfSizeProfile::LexEd =>
                 "@page { size: 210mm 297mm; margin: 18mm; }\nbody { margin: 0; }\n",
             PdfSizeProfile::Mobile =>
                 "@page { size: 90mm 160mm; margin: 5mm; }\nbody { margin: 0; }\n.lex-document { max-width: calc(90mm - 10mm); }\n",
@@ -103,7 +103,7 @@ impl PdfSizeProfile {
 
     fn viewport(&self) -> (u32, u32) {
         match self {
-            PdfSizeProfile::Desktop => (1280, 960),
+            PdfSizeProfile::LexEd => (1280, 960),
             PdfSizeProfile::Mobile => (450, 900),
         }
     }

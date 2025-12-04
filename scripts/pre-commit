@@ -19,10 +19,10 @@ ALL_MODE=false
 
 for arg in "$@"; do
     case $arg in
-        --all)
-            ALL_MODE=true
-            shift
-            ;;
+    --all)
+        ALL_MODE=true
+        shift
+        ;;
     esac
 done
 
@@ -32,19 +32,19 @@ if ! command -v cargo >/dev/null 2>&1; then
     if [ -f ".envrc" ]; then
         # Source relevant parts of .envrc for PATH setup
         # This mimics what direnv would do
-        
+
         # 1. Standard cargo location
         if [ -d "$HOME/.cargo/bin" ]; then
             export PATH="$HOME/.cargo/bin:$PATH"
         fi
-        
+
         # 2. Source cargo env if available
         if [ -f "$HOME/.cargo/env" ]; then
             # shellcheck disable=SC1091
             # Cargo's env file sets up PATH and environment variables for Rust toolchain
             source "$HOME/.cargo/env"
         fi
-        
+
         # 3. Find cargo via rustup if available
         if command -v rustup >/dev/null 2>&1; then
             CARGO_PATH=$(rustup which cargo 2>/dev/null)
@@ -54,7 +54,7 @@ if ! command -v cargo >/dev/null 2>&1; then
             fi
         fi
     fi
-    
+
     # If still not found, try common Rust installation paths
     if ! command -v cargo >/dev/null 2>&1; then
         if [ -d "$HOME/.rustup/toolchains" ]; then
@@ -73,26 +73,26 @@ echo "🦀 Running pre-commit checks for Rust project..."
 if [ "$ALL_MODE" = "true" ]; then
     echo "📝 Running checks on all Rust files in the project..."
     STAGED_FILES=$(find . -name "*.rs" -not -path "./target/*" -not -path "./.git/*")
-    
+
     if [ -z "$STAGED_FILES" ]; then
         echo "ℹ️  No Rust files found in the project"
         exit 0
     fi
-    
+
     echo "📝 Found $(echo "$STAGED_FILES" | wc -l) Rust files"
 else
     # Get list of staged Rust files
     STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(rs)$' || true)
-    
+
     if [ -z "$STAGED_FILES" ]; then
         echo "ℹ️  No Rust files staged for commit"
         exit 0
     fi
-    
+
     echo "📝 Staged Rust files:"
     while IFS= read -r line; do
         echo "  $line"
-    done <<< "$STAGED_FILES"
+    done <<<"$STAGED_FILES"
 fi
 
 # 1. Auto-fix code formatting
@@ -127,7 +127,7 @@ if cargo clippy --fix --all-targets --all-features --allow-dirty --allow-staged 
     [ -z "$MODIFIED_AFTER" ] && MODIFIED_AFTER=0
 
     # Use arithmetic comparison which handles integer conversion automatically
-    if (( MODIFIED_AFTER > MODIFIED_BEFORE )) 2>/dev/null; then
+    if ((MODIFIED_AFTER > MODIFIED_BEFORE)) 2>/dev/null; then
         # Clippy made actual changes - re-stage all modified files
         git add -A 2>/dev/null || true
         echo "🔧 Auto-fixed some Clippy issues and re-staged files"
@@ -145,7 +145,7 @@ echo "✅ Clippy checks passed"
 # 3. CRITICAL: Build (matches CI exactly)
 echo ""
 echo "🔨 Building project..."
-if ! cargo build ; then
+if ! cargo build; then
     echo "❌ Build failed!"
     exit 1
 fi
@@ -223,7 +223,7 @@ fi
 if [ -n "$STAGED_FILES" ]; then
     # Use grep -h to suppress filenames and get a clean line count
     TODO_COUNT=$(echo "$STAGED_FILES" | xargs grep -h "TODO\|FIXME" 2>/dev/null | wc -l)
-    TODO_COUNT=$(echo "$TODO_COUNT" | xargs)  # Trim whitespace to ensure it's a valid integer
+    TODO_COUNT=$(echo "$TODO_COUNT" | xargs) # Trim whitespace to ensure it's a valid integer
 
     if [ "$TODO_COUNT" -gt 0 ] 2>/dev/null; then
         echo ""
@@ -254,9 +254,9 @@ fi
 # 10. CRITICAL: Run TypeScript/JavaScript linting (matches CI exactly)
 # Check if any TS/JS/TSX files are staged (or --all mode)
 if [ "$ALL_MODE" = "true" ]; then
-    TS_FILES=$(find editors/vscode/src editors/vscode/test editors/desktop/src editors/desktop/electron -name "*.ts" -o -name "*.tsx" 2>/dev/null | head -1)
+    TS_FILES=$(find editors/vscode/src editors/vscode/test editors/lexed/src editors/lexed/electron -name "*.ts" -o -name "*.tsx" 2>/dev/null | head -1)
 else
-    TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' | grep -E '^editors/(vscode|desktop)/' || true)
+    TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' | grep -E '^editors/(vscode|lexed)/' || true)
 fi
 
 if [ -n "$TS_FILES" ] || [ "$ALL_MODE" = "true" ]; then
@@ -282,16 +282,16 @@ if [ -n "$TS_FILES" ] || [ "$ALL_MODE" = "true" ]; then
             fi
         fi
 
-        # Lint Desktop app
-        if [ -d "editors/desktop" ] && [ -f "editors/desktop/package.json" ]; then
-            echo "  🔍 Linting Desktop app..."
-            if [ -d "editors/desktop/node_modules" ]; then
-                if ! (cd editors/desktop && npm run lint); then
-                    echo "❌ Desktop app lint failed!"
+        # Lint LexEd app
+        if [ -d "editors/lexed" ] && [ -f "editors/lexed/package.json" ]; then
+            echo "  🔍 Linting LexEd app..."
+            if [ -d "editors/lexed/node_modules" ]; then
+                if ! (cd editors/lexed && npm run lint); then
+                    echo "❌ LexEd app lint failed!"
                     LINT_FAILED=true
                 fi
             else
-                echo "  ⚠️  Skipping Desktop lint (run 'npm ci' in editors/desktop first)"
+                echo "  ⚠️  Skipping LexEd lint (run 'npm ci' in editors/lexed first)"
             fi
         fi
 

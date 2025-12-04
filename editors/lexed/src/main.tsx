@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { Toaster } from 'sonner'
 import App from './App.tsx'
 import './index.css'
-import { initializeMonaco } from './monaco'
+import { initializeMonaco } from './monaco/index.ts'
 
 initializeMonaco();
 

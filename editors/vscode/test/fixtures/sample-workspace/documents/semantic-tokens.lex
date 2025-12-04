@@ -4,7 +4,7 @@ This document demonstrates all semantic token types emitted by lex-lsp and serve
 
 1. Highlighting Philosophy
 
-    Lex editors use a three-intensity highlighting model that respects user colorschemes:
+    LexEds use a three-intensity highlighting model that respects user colorschemes:
 
     Intensity Levels:
         - NORMAL: Theme's foreground color. Used for content text readers focus on.

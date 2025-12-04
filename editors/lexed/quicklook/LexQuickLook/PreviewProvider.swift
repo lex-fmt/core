@@ -21,8 +21,8 @@ class PreviewProvider: QLPreviewProvider {
     }
 
     private func findLexCLI() -> URL {
-        // Extension is at: Lex Editor.app/Contents/PlugIns/LexQuickLook.appex/Contents/MacOS/LexQuickLook
-        // We need:         Lex Editor.app/Contents/Resources/lex-lsp
+        // Extension is at: LexEd.app/Contents/PlugIns/LexQuickLook.appex/Contents/MacOS/LexQuickLook
+        // We need:         LexEd.app/Contents/Resources/lex-lsp
         // So from extension bundle, go up to Contents, then into Resources
         if let extensionBundle = Bundle.main.bundleURL.deletingLastPathComponent() // PlugIns/
             .deletingLastPathComponent() // Contents/
@@ -34,7 +34,7 @@ class PreviewProvider: QLPreviewProvider {
 
         // Fallback to common installation paths
         let candidates = [
-            "/Applications/Lex Editor.app/Contents/Resources/lex-lsp",
+            "/Applications/LexEd.app/Contents/Resources/lex-lsp",
             "/usr/local/bin/lex",
             "/opt/homebrew/bin/lex",
             NSHomeDirectory() + "/.cargo/bin/lex"
@@ -47,7 +47,7 @@ class PreviewProvider: QLPreviewProvider {
         }
 
         // Default
-        return URL(fileURLWithPath: "/Applications/Lex Editor.app/Contents/Resources/lex-lsp")
+        return URL(fileURLWithPath: "/Applications/LexEd.app/Contents/Resources/lex-lsp")
     }
 
     private func generatePreview(for fileURL: URL, using lexCLI: URL) async throws -> Data {

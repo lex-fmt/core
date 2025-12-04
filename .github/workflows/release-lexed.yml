@@ -1,4 +1,4 @@
-name: Release Desktop
+name: Release LexEd
 
 defaults:
   run:
@@ -24,7 +24,7 @@ env:
   REPO_NAME: ${{ github.repository }}
 
 jobs:
-  build-desktop:
+  build-lexed:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     strategy:
       fail-fast: false
@@ -103,7 +103,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: editors/desktop/package-lock.json
+          cache-dependency-path: editors/lexed/package-lock.json
       - name: Download lex-lsp artifact
         if: ${{ steps.filter.outputs.skip == 'false' }}
         env:
@@ -136,11 +136,11 @@ jobs:
           chmod +x "$DEST" || true
       - name: Install dependencies
         if: ${{ steps.filter.outputs.skip == 'false' }}
-        working-directory: editors/desktop
+        working-directory: editors/lexed
         run: npm ci
       - name: Build Electron package
         if: ${{ steps.filter.outputs.skip == 'false' }}
-        working-directory: editors/desktop
+        working-directory: editors/lexed
         env:
           LEX_HIDE_WINDOW: "1"
           NODE_OPTIONS: --max-old-space-size=4096
@@ -150,8 +150,8 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ steps.filter.outputs.skip == 'false' }}
         with:
-          name: lex-desktop-${{ env.ARTIFACT_SUFFIX }}
+          name: lexed-${{ env.ARTIFACT_SUFFIX }}
           path: |
-            editors/desktop/release/**
-            editors/desktop/dist/**
+            editors/lexed/release/**
+            editors/lexed/dist/**
           if-no-files-found: error

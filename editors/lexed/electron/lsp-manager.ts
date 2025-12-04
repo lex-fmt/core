@@ -34,7 +34,7 @@ function resolveDevBinary(binaryName: string): string {
 }
 
 function resolveLogFile(): string {
-  return path.join(app.getPath('userData'), 'lex-desktop-lsp.log');
+  return path.join(app.getPath('userData'), 'lexed-lsp.log');
 }
 
 function log(message: string) {
@@ -47,9 +47,12 @@ function log(message: string) {
   if (app.isReady()) {
     write();
   } else {
-    app.whenReady().then(write).catch(() => {
-      // no-op if app shuts down before logging
-    });
+    app
+      .whenReady()
+      .then(write)
+      .catch(() => {
+        // no-op if app shuts down before logging
+      });
   }
 }
 
@@ -91,7 +94,8 @@ export class LspManager {
     this.lspProcess.stdout?.on('data', (data: Buffer) => {
       const msg = data.toString();
       // Truncate large LSP messages for cleaner logs
-      const truncated = msg.length > 200 ? msg.slice(0, 200) + '... [truncated]' : msg;
+      const truncated =
+        msg.length > 200 ? msg.slice(0, 200) + '... [truncated]' : msg;
       console.log(`LSP Output: ${truncated}`);
       log(`LSP Output: ${truncated}`);
       // Check if webContents exists and is not destroyed before sending

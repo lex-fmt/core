@@ -604,13 +604,13 @@ fn apply_config_overrides(config: &mut LexConfig, extra_params: &mut HashMap<Str
             pdf_override = Some(PdfPageSize::Mobile);
         }
     }
-    if let Some(raw) = extra_params.remove("size-desktop") {
-        if parse_bool_arg("size-desktop", &raw) {
+    if let Some(raw) = extra_params.remove("size-lexed") {
+        if parse_bool_arg("size-lexed", &raw) {
             if let Some(existing) = pdf_override {
-                eprintln!("Conflicting PDF profile overrides: {existing:?} and desktop");
+                eprintln!("Conflicting PDF profile overrides: {existing:?} and lexed");
                 std::process::exit(1);
             }
-            pdf_override = Some(PdfPageSize::Desktop);
+            pdf_override = Some(PdfPageSize::LexEd);
         }
     }
 
@@ -662,8 +662,8 @@ fn build_inspect_params(
 fn pdf_params_from_config(config: &LexConfig) -> HashMap<String, String> {
     let mut params = HashMap::new();
     match config.convert.pdf.size {
-        PdfPageSize::Desktop => {
-            params.insert("size-desktop".to_string(), "true".to_string());
+        PdfPageSize::LexEd => {
+            params.insert("size-lexed".to_string(), "true".to_string());
         }
         PdfPageSize::Mobile => {
             params.insert("size-mobile".to_string(), "true".to_string());
@@ -897,6 +897,6 @@ mod tests {
         config.convert.pdf.size = PdfPageSize::Mobile;
         let params = pdf_params_from_config(&config);
         assert_eq!(params.get("size-mobile"), Some(&"true".to_string()));
-        assert!(!params.contains_key("size-desktop"));
+        assert!(!params.contains_key("size-lexed"));
     }
 }

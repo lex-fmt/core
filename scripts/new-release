@@ -20,12 +20,12 @@ log_warn() {
 }
 
 # Check for required tools
-if ! command -v semver &> /dev/null; then
+if ! command -v semver &>/dev/null; then
     log_error "semver is required but not installed."
     exit 1
 fi
 
-if ! command -v gh &> /dev/null; then
+if ! command -v gh &>/dev/null; then
     log_error "gh (GitHub CLI) is required but not installed."
     exit 1
 fi
@@ -72,7 +72,7 @@ else
 fi
 
 # Validate version format (simple check)
-if ! semver "$NEW_VERSION" &> /dev/null; then
+if ! semver "$NEW_VERSION" &>/dev/null; then
     log_error "Invalid version format: $NEW_VERSION"
     exit 1
 fi
@@ -83,7 +83,7 @@ CLEAN_NEW=${NEW_VERSION#v}
 # b) Check if requested version > latest version (skip for first release)
 if [ "$FIRST_RELEASE" == "false" ]; then
     CLEAN_LATEST=${LATEST_VERSION#v}
-    if ! semver "$CLEAN_NEW" -r "> $CLEAN_LATEST" &> /dev/null; then
+    if ! semver "$CLEAN_NEW" -r "> $CLEAN_LATEST" &>/dev/null; then
         log_error "New version ($CLEAN_NEW) must be greater than latest version ($CLEAN_LATEST)"
         exit 1
     fi
@@ -144,8 +144,8 @@ if [ -f "$VSCODE_PKG" ]; then
     fi
 fi
 
-# Desktop app (package.json)
-DESKTOP_PKG="./editors/desktop/package.json"
+# LexEd app (package.json)
+DESKTOP_PKG="./editors/lexed/package.json"
 if [ -f "$DESKTOP_PKG" ]; then
     log_info "Updating $DESKTOP_PKG"
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -174,7 +174,7 @@ if git diff --quiet; then
 else
     log_info "Staging changes..."
     git add lex-*/Cargo.toml
-    git add editors/vscode/package.json editors/desktop/package.json editors/nvim/lua/lex/init.lua 2>/dev/null || true
+    git add editors/vscode/package.json editors/lexed/package.json editors/nvim/lua/lex/init.lua 2>/dev/null || true
 
     log_info "Committing changes..."
     git commit -m "chore: release $CLEAN_NEW"

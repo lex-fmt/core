@@ -1,9 +1,9 @@
 {
-  "name": "lex-desktop",
-  "productName": "Lex Editor",
+  "name": "lexed",
+  "productName": "LexEd",
   "private": true,
   "version": "0.1.0",
-  "description": "Desktop editor for Lex",
+  "description": "LexEd editor for Lex",
   "author": {
     "name": "Arthur Debert",
     "url": "https://lex.ing"
@@ -66,8 +66,8 @@
   },
   "main": "dist-electron/main.js",
   "build": {
-    "appId": "com.lex.desktop",
-    "productName": "Lex Editor",
+    "appId": "com.lex.lexed",
+    "productName": "LexEd",
     "directories": {
       "output": "release"
     },
