@@ -443,6 +443,7 @@ ipcMain.handle('set-last-folder', async (event, folderPath: string) => {
   if (index >= 0) {
     openWindows[index].lastFolder = folderPath;
     store.set('openWindows', openWindows);
+    windowManager.updateTitle(win.id, folderPath);
   }
   
   // Also update global for legacy/fallback? Maybe not needed.

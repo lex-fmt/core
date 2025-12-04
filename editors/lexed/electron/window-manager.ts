@@ -99,6 +99,13 @@ export class WindowManager {
     return Array.from(this.windows.values()).map((w) => w.window);
   }
 
+  public updateTitle(id: number, folderPath?: string) {
+    const win = this.getWindow(id);
+    if (!win) return;
+    const title = folderPath ? `LexEd - ${path.basename(folderPath)}` : 'LexEd';
+    win.setTitle(title);
+  }
+
   public async createWindow(restoreState?: WindowState) {
     const hideWindow = process.env.LEX_HIDE_WINDOW === '1';
     const stateId = restoreState?.id || randomUUID();
@@ -111,8 +118,12 @@ export class WindowManager {
     const y = restoreState?.y;
 
     try {
+      const initialTitle = restoreState?.lastFolder 
+        ? `LexEd - ${path.basename(restoreState.lastFolder)}` 
+        : 'LexEd';
+
       const win = new BrowserWindow({
-        title: 'LexEd',
+        title: initialTitle,
         // icon: ... (passed from main or hardcoded)
         x,
         y,
