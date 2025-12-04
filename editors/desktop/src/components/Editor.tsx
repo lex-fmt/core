@@ -24,10 +24,15 @@ export interface EditorHandle {
   replace: () => void;
 }
 
+import { useSettings } from '@/contexts/SettingsContext';
+
+// ... imports
+
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fileToOpen, onFileLoaded }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
+  const { settings } = useSettings();
 
   const switchToFile = useCallback(async (path: string) => {
     if (!editorRef.current) return;
@@ -70,6 +75,16 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
     }
   }, [fileToOpen, switchToFile]);
 
+  // ... existing code
+
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.updateOptions({
+        rulers: settings.editor.showRuler ? [settings.editor.rulerWidth] : [],
+      });
+    }
+  }, [settings.editor]);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -86,6 +101,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
       padding: { top: 10, bottom: 10 },
       fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, sans-serif',
       'semanticHighlighting.enabled': true,
+      rulers: settings.editor.showRuler ? [settings.editor.rulerWidth] : [],
     } satisfies monaco.editor.IStandaloneEditorConstructionOptions);
     editorRef.current = editor;
 
