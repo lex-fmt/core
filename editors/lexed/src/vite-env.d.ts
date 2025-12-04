@@ -63,5 +63,9 @@ interface Window {
     readFixture: (fixtureName: string) => Promise<{ path: string; content: string }>;
     getActiveEditorValue: () => string;
     triggerMockDiagnostics: () => boolean;
+    setActiveEditorValue?: (value: string) => boolean;
+    resetFormattingRequest?: () => void;
+    getLastFormattingRequest?: () => { type: 'document' | 'range'; params: unknown } | null;
+    notifyFormattingRequest?: (payload: { type: 'document' | 'range'; params: unknown }) => void;
   };
 }

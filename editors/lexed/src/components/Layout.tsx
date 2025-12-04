@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FileTree } from './FileTree';
 import { ButtonGroup, ButtonGroupSeparator } from './ui/button-group';
-import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, MessageCircle, FileType, Search, Replace, SplitSquareVertical, SplitSquareHorizontal, Eye } from 'lucide-react';
+import { FolderOpen, Settings, PanelLeftClose, PanelLeft, FileText, FilePlus, Save, ChevronDown, ChevronRight, FileCode, MessageCircle, FileType, Search, Replace, SplitSquareVertical, SplitSquareHorizontal, Eye, AlignLeft } from 'lucide-react';
 import { isLexFile } from '@/lib/files';
 
 interface LayoutProps {
@@ -31,7 +31,7 @@ const DEFAULT_OUTLINE_HEIGHT = 200;
 
 import { SettingsDialog } from './SettingsDialog';
 
-export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace, onSplitVertical, onSplitHorizontal, onPreview }: LayoutProps) {
+export function Layout({ children, panel, rootPath, currentFile, onFileSelect, onNewFile, onOpenFolder, onOpenFile, onSave, onFormat, onExport, onShareWhatsApp, onConvertToLex, onFind, onReplace, onSplitVertical, onSplitHorizontal, onPreview }: LayoutProps) {
   const isCurrentFileLex = isLexFile(currentFile ?? null);
   const hasCurrentFile = Boolean(currentFile);
   const canLexActions = hasCurrentFile && isCurrentFileLex;
@@ -39,6 +39,7 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
   const canShare = canLexActions && Boolean(onShareWhatsApp);
   const canFind = hasCurrentFile && Boolean(onFind);
   const canReplace = hasCurrentFile && Boolean(onReplace);
+  const canFormat = canLexActions && Boolean(onFormat);
   const canPreview = canLexActions && Boolean(onPreview);
   const canConvertToLex = hasCurrentFile && !isCurrentFileLex && Boolean(onConvertToLex);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
@@ -250,10 +251,23 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        {/* Edit Button Group - find, replace */}
+        {/* Edit Button Group - format, find, replace */}
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-muted-foreground">Edit</span>
           <ButtonGroup>
+            <button
+              onClick={onFormat}
+              disabled={!canFormat}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canFormat && "opacity-50 cursor-not-allowed"
+              )}
+              title="Format Document"
+            >
+              <AlignLeft size={16} />
+            </button>
+            <ButtonGroupSeparator />
             <button
               onClick={onFind}
               disabled={!canFind}

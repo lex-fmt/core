@@ -17,13 +17,23 @@ const buildLexFormattingProperties = (settings: FormatterSettings): LexFormattin
     'lex.normalize_verbatim_markers': settings.normalizeVerbatimMarkers,
 });
 
-const buildFormattingOptions = (options: monaco.languages.FormattingOptions) => {
+export const buildFormattingOptions = (tabSize: number, insertSpaces: boolean) => {
     const formatterSettings = getFormatterSettingsSnapshot();
     return {
-        tabSize: options.tabSize,
-        insertSpaces: options.insertSpaces,
-        properties: buildLexFormattingProperties(formatterSettings),
+        tabSize,
+        insertSpaces,
+        ...buildLexFormattingProperties(formatterSettings),
     };
+};
+
+export const notifyLexTest = (payload: { type: 'document' | 'range'; params: unknown }) => {
+    if (typeof window === 'undefined') return;
+    const scopedWindow = window as typeof window & {
+        lexTest?: {
+            notifyFormattingRequest?: (info: { type: 'document' | 'range'; params: unknown }) => void;
+        };
+    };
+    scopedWindow.lexTest?.notifyFormattingRequest?.(payload);
 };
 
 export function registerFormattingProvider(languageId: string, connection: ProtocolConnection) {
@@ -33,8 +43,9 @@ export function registerFormattingProvider(languageId: string, connection: Proto
             if (!connection) return [];
             const params = {
                 textDocument: { uri: model.uri.toString() },
-                options: buildFormattingOptions(options)
+                options: buildFormattingOptions(options.tabSize, options.insertSpaces)
             };
+            notifyLexTest({ type: 'document', params });
             try {
                 const result = await connection.sendRequest('textDocument/formatting', params) as LspTextEdit[] | null;
                 if (!result) return [];
@@ -64,8 +75,9 @@ export function registerFormattingProvider(languageId: string, connection: Proto
                     start: { line: range.startLineNumber - 1, character: range.startColumn - 1 },
                     end: { line: range.endLineNumber - 1, character: range.endColumn - 1 }
                 },
-                options: buildFormattingOptions(options)
+                options: buildFormattingOptions(options.tabSize, options.insertSpaces)
             };
+            notifyLexTest({ type: 'range', params });
             try {
                 const result = await connection.sendRequest('textDocument/rangeFormatting', params) as LspTextEdit[] | null;
                 if (!result) return [];
