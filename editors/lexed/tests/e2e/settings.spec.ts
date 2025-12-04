@@ -64,7 +64,7 @@ test.describe('Settings', () => {
         normalizeSeqMarkers: false,
         unorderedSeqMarker: '+',
         maxBlankLines: 5,
-        indentString: '\t',
+        indentString: ' '.repeat(6),
         preserveTrailingBlanks: true,
         normalizeVerbatimMarkers: false,
         formatOnSave: true,
@@ -79,7 +79,7 @@ test.describe('Settings', () => {
       await expect(window.locator('input#session-before')).toHaveValue(String(customFormatter.sessionBlankLinesBefore));
       await expect(window.locator('input#session-after')).toHaveValue(String(customFormatter.sessionBlankLinesAfter));
       await expect(window.locator('input#max-blank-lines')).toHaveValue(String(customFormatter.maxBlankLines));
-      await expect(window.locator('input#indent-string')).toHaveValue(customFormatter.indentString);
+      await expect(window.locator('input#indent-spaces')).toHaveValue(String(customFormatter.indentString.length));
       await expect(window.locator('input#unordered-marker')).toHaveValue(customFormatter.unorderedSeqMarker);
       await expect(window.locator('label:has-text("Normalize list markers") input[type="checkbox"]')).not.toBeChecked();
       await expect(window.locator('label:has-text("Normalize verbatim markers") input[type="checkbox"]')).not.toBeChecked();
@@ -107,7 +107,7 @@ test.describe('Settings', () => {
       await window.locator('input#session-before').fill('2');
       await window.locator('input#session-after').fill('3');
       await window.locator('input#max-blank-lines').fill('4');
-      await window.locator('input#indent-string').fill('  ');
+      await window.locator('input#indent-spaces').fill('2');
       await window.locator('input#unordered-marker').fill('*');
       await window.locator('label:has-text("Normalize list markers") input[type="checkbox"]').uncheck();
       await window.locator('label:has-text("Normalize verbatim markers") input[type="checkbox"]').uncheck();
@@ -125,7 +125,7 @@ test.describe('Settings', () => {
       await expect(window.locator('input#session-before')).toHaveValue('2');
       await expect(window.locator('input#session-after')).toHaveValue('3');
       await expect(window.locator('input#max-blank-lines')).toHaveValue('4');
-      await expect(window.locator('input#indent-string')).toHaveValue('  ');
+      await expect(window.locator('input#indent-spaces')).toHaveValue('2');
       await expect(window.locator('input#unordered-marker')).toHaveValue('*');
       await expect(window.locator('label:has-text("Normalize list markers") input[type="checkbox"]')).not.toBeChecked();
       await expect(window.locator('label:has-text("Normalize verbatim markers") input[type="checkbox"]')).not.toBeChecked();
@@ -141,7 +141,7 @@ test.describe('Settings', () => {
       expect(persistedSettings.formatter.sessionBlankLinesBefore).toBe(2);
       expect(persistedSettings.formatter.sessionBlankLinesAfter).toBe(3);
       expect(persistedSettings.formatter.maxBlankLines).toBe(4);
-      expect(persistedSettings.formatter.indentString).toBe('  ');
+      expect(persistedSettings.formatter.indentString).toBe(' '.repeat(2));
       expect(persistedSettings.formatter.unorderedSeqMarker).toBe('*');
       expect(persistedSettings.formatter.normalizeSeqMarkers).toBe(false);
       expect(persistedSettings.formatter.normalizeVerbatimMarkers).toBe(false);

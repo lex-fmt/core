@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import ignore, { type Ignore } from 'ignore';
 import { cn } from '@/lib/utils';
 import { Folder, FolderOpen, FileText, FileCode, File, FileType, ChevronRight, ChevronDown } from 'lucide-react';
+import { FILE_TREE_REFRESH_EVENT } from '@/lib/events';
 
 interface FileEntry {
     name: string;
@@ -52,12 +54,37 @@ function getFileIcon(filename: string, size: number = 14) {
 export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps) {
     const [files, setFiles] = useState<FileEntry[]>([]);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
+    const [gitignoreMatcher, setGitignoreMatcher] = useState<Ignore | null>(null);
 
-    useEffect(() => {
-        if (rootPath) {
-            loadDir(rootPath).then(setFiles);
+    const normalizedSelectedFile = useMemo(() => {
+        return selectedFile ? normalizePath(selectedFile) : null;
+    }, [selectedFile]);
+
+    const loadGitignore = useCallback(async () => {
+        if (!rootPath) {
+            setGitignoreMatcher(null);
+            return;
+        }
+        try {
+            const gitignorePath = rootPath.endsWith('/') || rootPath.endsWith('\\')
+                ? `${rootPath}.gitignore`
+                : `${rootPath}/.gitignore`;
+            const content = await window.ipcRenderer.fileRead(gitignorePath);
+            if (content) {
+                const matcher = ignore();
+                matcher.add(content.split(/\r?\n/));
+                setGitignoreMatcher(matcher);
+            } else {
+                setGitignoreMatcher(null);
+            }
+        } catch {
+            setGitignoreMatcher(null);
         }
     }, [rootPath]);
+
+    useEffect(() => {
+        void loadGitignore();
+    }, [loadGitignore]);
 
     // Close context menu when clicking outside
     useEffect(() => {
@@ -68,15 +95,60 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
         }
     }, [contextMenu]);
 
-    const loadDir = async (path: string): Promise<FileEntry[]> => {
+    const shouldIncludeEntry = useCallback((entryPath: string, isDirectory: boolean) => {
+        if (!rootPath || !gitignoreMatcher) return true;
+        const normalizedRoot = normalizePath(rootPath).replace(/\/+$/, '');
+        const normalizedEntry = normalizePath(entryPath);
+        if (!normalizedEntry.startsWith(normalizedRoot)) {
+            return true;
+        }
+        let relative = normalizedEntry.slice(normalizedRoot.length);
+        if (relative.startsWith('/')) {
+            relative = relative.slice(1);
+        }
+        if (!relative) {
+            return true;
+        }
+        const target = isDirectory ? `${relative}/` : relative;
+        return !gitignoreMatcher.ignores(target);
+    }, [rootPath, gitignoreMatcher]);
+
+    const loadDir = useCallback(async (path: string): Promise<FileEntry[]> => {
         const entries = await window.ipcRenderer.fileReadDir(path);
-        return entries.sort((a, b) => {
-            if (a.isDirectory === b.isDirectory) {
-                return a.name.localeCompare(b.name);
-            }
-            return a.isDirectory ? -1 : 1;
-        });
-    };
+        return entries
+            .filter(entry => shouldIncludeEntry(entry.path, entry.isDirectory))
+            .sort((a, b) => {
+                if (a.isDirectory === b.isDirectory) {
+                    return a.name.localeCompare(b.name);
+                }
+                return a.isDirectory ? -1 : 1;
+            });
+    }, [shouldIncludeEntry]);
+
+    const refreshTree = useCallback(() => {
+        if (rootPath) {
+            loadDir(rootPath).then(setFiles);
+        } else {
+            setFiles([]);
+        }
+    }, [rootPath, loadDir]);
+
+    useEffect(() => {
+        refreshTree();
+    }, [refreshTree]);
+
+    useEffect(() => {
+        const handleWindowFocus = () => refreshTree();
+        const handleCustomRefresh = () => refreshTree();
+        window.addEventListener('focus', handleWindowFocus);
+        window.addEventListener('blur', handleWindowFocus);
+        window.addEventListener(FILE_TREE_REFRESH_EVENT as any, handleCustomRefresh as EventListener);
+        return () => {
+            window.removeEventListener('focus', handleWindowFocus);
+            window.removeEventListener('blur', handleWindowFocus);
+            window.removeEventListener(FILE_TREE_REFRESH_EVENT as any, handleCustomRefresh as EventListener);
+        };
+    }, [refreshTree]);
 
     const toggleDir = async (entry: FileEntry) => {
         if (!entry.isDirectory) {
@@ -134,7 +206,12 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
 
     const renderTree = (entries: FileEntry[], depth = 0) => {
         return entries.map(entry => {
+            const normalizedEntryPath = normalizePath(entry.path);
             const isSelected = !entry.isDirectory && entry.path === selectedFile;
+            const isAncestorOfSelection = entry.isDirectory && normalizedSelectedFile
+                ? normalizedSelectedFile.startsWith(`${normalizedEntryPath.replace(/\/+$/, '')}/`)
+                : false;
+            const isActive = isSelected || isAncestorOfSelection;
             const canOpen = entry.isDirectory || isOpenable(entry.name);
 
             return (
@@ -143,9 +220,9 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
                         className={cn(
                             "py-0.5 flex items-center text-[13px] gap-1",
                             "hover:bg-panel-hover",
-                            isSelected
+                            isActive
                                 ? "bg-accent text-accent-foreground"
-                                : "text-foreground",
+                                : "text-muted-foreground",
                             canOpen ? "cursor-pointer" : "cursor-default opacity-50"
                         )}
                         data-testid="file-tree-item"
@@ -238,4 +315,8 @@ export function FileTree({ rootPath, selectedFile, onFileSelect }: FileTreeProps
             )}
         </div>
     );
+}
+
+function normalizePath(path: string): string {
+    return path.replace(/\\/g, '/');
 }

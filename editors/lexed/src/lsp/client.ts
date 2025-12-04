@@ -243,7 +243,7 @@ export class LspClient {
         if (!this.connection) throw new Error('Client not initialized');
         const start = performance.now();
         try {
-            const result = await this.connection.sendRequest(method, params);
+            const result = await this.connection.sendRequest(method, params) as R;
             const duration = performance.now() - start;
             console.log(`[LspClient] ${method} responded in ${duration.toFixed(1)}ms`);
             return result as R;

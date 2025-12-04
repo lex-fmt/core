@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import type * as Monaco from 'monaco-editor';
 
@@ -10,6 +10,7 @@ export interface ExportStatus {
 interface StatusBarProps {
     editor: Monaco.editor.IStandaloneCodeEditor | null;
     exportStatus?: ExportStatus;
+    onVimStatusNodeChange?: (node: HTMLDivElement | null) => void;
 }
 
 interface CursorInfo {
@@ -19,8 +20,14 @@ interface CursorInfo {
     selectedLines: number;
 }
 
-export function StatusBar({ editor, exportStatus }: StatusBarProps) {
+export function StatusBar({ editor, exportStatus, onVimStatusNodeChange }: StatusBarProps) {
     const [cursor, setCursor] = useState<CursorInfo>({ line: 1, column: 1, selected: 0, selectedLines: 0 });
+
+    const handleVimStatusRef = useCallback((node: HTMLDivElement | null) => {
+        onVimStatusNodeChange?.(node);
+        if (!node) return;
+        node.textContent = '';
+    }, [onVimStatusNodeChange]);
 
     useEffect(() => {
         if (!editor) return;
@@ -62,6 +69,11 @@ export function StatusBar({ editor, exportStatus }: StatusBarProps) {
 
     return (
         <div className="h-6 flex items-center px-3 bg-panel border-t border-border text-xs text-muted-foreground shrink-0 gap-4">
+            <div
+                ref={handleVimStatusRef}
+                data-testid="vim-status"
+                className="font-mono opacity-80 text-muted-foreground min-w-[96px]"
+            />
             <span>
                 Ln {cursor.line}, Col {cursor.column}
             </span>

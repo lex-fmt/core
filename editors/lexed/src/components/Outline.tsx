@@ -181,6 +181,8 @@ export function Outline({ currentFile, editor, cursorLine }: OutlineProps) {
             const path = `${basePath}/${index}`;
             // Item is expanded if it's not manually collapsed AND (it's auto-expanded OR has no children)
             const isExpanded = !collapsed.has(path) && (autoExpandedPaths.has(path) || !hasChildren || depth === 0);
+            const isAncestorOfActive = autoExpandedPaths.has(path);
+            const isHighlighted = isActive || isAncestorOfActive;
 
             return (
                 <div key={path}>
@@ -188,9 +190,9 @@ export function Outline({ currentFile, editor, cursorLine }: OutlineProps) {
                         className={cn(
                             "flex items-center gap-1 cursor-pointer",
                             "hover:bg-panel-hover",
-                            isActive
+                            isHighlighted
                                 ? "bg-accent text-accent-foreground"
-                                : "text-foreground"
+                                : "text-muted-foreground"
                         )}
                         style={{
                             paddingLeft: `calc(var(--panel-item-padding) + ${depth * 12}px)`,
