@@ -246,7 +246,7 @@ export class LspClient {
             const result = await this.connection.sendRequest(method, params);
             const duration = performance.now() - start;
             console.log(`[LspClient] ${method} responded in ${duration.toFixed(1)}ms`);
-            return result;
+            return result as R;
         } catch (error) {
             const duration = performance.now() - start;
             console.error(`[LspClient] ${method} failed after ${duration.toFixed(1)}ms`, error);

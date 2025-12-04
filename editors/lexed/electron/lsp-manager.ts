@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from 'child_process';
-import { ipcMain, WebContents, app } from 'electron';
+import { WebContents, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -59,9 +59,9 @@ function log(message: string) {
 export class LspManager {
   private lspProcess: ChildProcess | null = null;
   private webContents: WebContents | null = null;
+  private rootPath: string | null = null;
 
   constructor() {
-    this.setupIpc();
     log('LspManager initialized');
   }
 
@@ -73,8 +73,10 @@ export class LspManager {
     });
   }
 
-  start() {
+  start(rootPath?: string) {
     if (this.lspProcess) return;
+    
+    this.rootPath = rootPath || null;
 
     let lspPath: string;
 
@@ -87,8 +89,14 @@ export class LspManager {
       lspPath = resolveDevBinary(binaryName);
     }
 
+    // TODO: Pass rootPath to LSP process if supported via args or env
+    const env = { ...process.env };
+    if (this.rootPath) {
+      // Example: env['LEX_LSP_ROOT'] = this.rootPath;
+    }
+
     this.lspProcess = spawn(lspPath, [], {
-      env: process.env,
+      env,
     });
 
     this.lspProcess.stdout?.on('data', (data: Buffer) => {
@@ -121,12 +129,10 @@ export class LspManager {
     });
   }
 
-  setupIpc() {
-    ipcMain.on('lsp-input', (_, data: string | Uint8Array) => {
-      if (this.lspProcess && this.lspProcess.stdin) {
-        this.lspProcess.stdin.write(data);
-      }
-    });
+  sendInput(data: string | Uint8Array) {
+    if (this.lspProcess && this.lspProcess.stdin) {
+      this.lspProcess.stdin.write(data);
+    }
   }
 
   stop() {
