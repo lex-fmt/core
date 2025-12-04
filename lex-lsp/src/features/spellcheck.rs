@@ -174,6 +174,7 @@ pub fn suggest_corrections(word: &str, language: &str) -> Vec<String> {
     if let DictionaryStatus::Loaded(dict) = get_dictionary(language) {
         let mut suggestions = Vec::new();
         dict.suggest(word, &mut suggestions);
+        suggestions.truncate(4);
         return suggestions;
     }
     vec![]
