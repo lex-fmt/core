@@ -117,7 +117,7 @@ export function TabBar({ tabs, activeTabId, paneId, onTabSelect, onTabClose, onT
                         "hover:bg-panel-hover transition-colors",
                         activeTabId === tab.id
                             ? "bg-background text-foreground"
-                            : "bg-faintest text-muted-foreground"
+                            : "bg-background-faintest text-muted"
                     )}
                     onClick={() => onTabSelect(tab.id)}
                 >
