@@ -233,6 +233,7 @@ export class LspClient {
         import('./providers/formatting').then(m => m.registerFormattingProvider(languageId, this.connection!));
         import('./providers/definition').then(m => m.registerDefinitionProvider(languageId, this.connection!));
         import('./providers/semantic_tokens').then(m => m.registerSemanticTokensProvider(languageId, this.connection!));
+        import('./providers/code_action').then(m => m.registerCodeActionProvider(languageId, this.connection!));
     }
 
     public async sendRequest<R, P = unknown>(method: string, params: P): Promise<R> {
