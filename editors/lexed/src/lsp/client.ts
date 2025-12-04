@@ -241,7 +241,17 @@ export class LspClient {
         }
         await this.readyPromise;
         if (!this.connection) throw new Error('Client not initialized');
-        return this.connection.sendRequest(method, params);
+        const start = performance.now();
+        try {
+            const result = await this.connection.sendRequest(method, params);
+            const duration = performance.now() - start;
+            console.log(`[LspClient] ${method} responded in ${duration.toFixed(1)}ms`);
+            return result;
+        } catch (error) {
+            const duration = performance.now() - start;
+            console.error(`[LspClient] ${method} failed after ${duration.toFixed(1)}ms`, error);
+            throw error;
+        }
     }
 
     public async onNotification<P = unknown>(method: string, handler: (params: P) => void): Promise<void> {
