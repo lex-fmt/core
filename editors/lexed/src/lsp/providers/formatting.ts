@@ -32,7 +32,9 @@ export const notifyLexTest = (payload: { type: 'document' | 'range'; params: unk
         lexTest?: {
             notifyFormattingRequest?: (info: { type: 'document' | 'range'; params: unknown }) => void;
         };
+        __lexLastFormattingRequest?: { type: 'document' | 'range'; params: unknown } | null;
     };
+    scopedWindow.__lexLastFormattingRequest = payload;
     scopedWindow.lexTest?.notifyFormattingRequest?.(payload);
 };
 

@@ -62,11 +62,14 @@ test.describe('Format Document', () => {
 
     const formatButton = window.locator('button[title="Format Document"]');
     await expect(formatButton).toBeVisible();
-    await window.evaluate(() => window.lexTest?.resetFormattingRequest?.());
+    await window.evaluate(() => {
+      window.lexTest?.resetFormattingRequest?.();
+      (window as any).__lexLastFormattingRequest = null;
+    });
     await formatButton.click();
 
-    await window.waitForFunction(() => Boolean(window.lexTest?.getLastFormattingRequest?.()));
-    const formattingRequest = await window.evaluate(() => window.lexTest?.getLastFormattingRequest?.());
+    await window.waitForFunction(() => Boolean((window as any).__lexLastFormattingRequest));
+    const formattingRequest = await window.evaluate(() => (window as any).__lexLastFormattingRequest);
     expect(formattingRequest?.type).toBe('document');
     expect(formattingRequest?.params?.options).toMatchObject({
       tabSize: 4,
@@ -111,15 +114,18 @@ test.describe('Format Document', () => {
 
     await window.evaluate(({ content }) => window.lexTest?.setActiveEditorValue?.(content), { content: UNFORMATTED_CONTENT });
     await window.waitForTimeout(300);
-    await window.evaluate(() => window.lexTest?.resetFormattingRequest?.());
+    await window.evaluate(() => {
+      window.lexTest?.resetFormattingRequest?.();
+      (window as any).__lexLastFormattingRequest = null;
+    });
 
     await electronApp.evaluate(({ Menu }) => {
       const menu = Menu.getApplicationMenu();
       menu?.getMenuItemById('menu-format')?.click();
     });
 
-    await window.waitForFunction(() => Boolean(window.lexTest?.getLastFormattingRequest?.()));
-    const formattingRequest = await window.evaluate(() => window.lexTest?.getLastFormattingRequest?.());
+    await window.waitForFunction(() => Boolean((window as any).__lexLastFormattingRequest));
+    const formattingRequest = await window.evaluate(() => (window as any).__lexLastFormattingRequest);
     expect(formattingRequest?.type).toBe('document');
 
     const contentAfter = await window.evaluate(() => window.lexTest?.getActiveEditorValue() ?? '');
