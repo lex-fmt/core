@@ -1,6 +1,6 @@
-# Editor Tooling
+Editor Tooling
 
-    As part of lex's value proposition, we'll be building two high quality editor plugins for VSCode and Neovim.
+    As part of lex's value proposition, we'll be building editor tolling to showcase what a good Lex editing experience can be like, as well as serve as dog fooding for ouselves.  We have plugins for the two most widely use editors for developers, VSCode and Neovim. We have also developed our own standalone editor, lexing. Lexing is meant for non-technical folks, a core demography of lex, to experience the Lex format easily. It's built on Electron and the editing experience is powered by oss-code's Monaco editor. That means that we only have a thin layer and can mostly develope the VSCode and the lexit code bases from shared code.
 
     While not entirely possible, we will keep feature parity between both and share as much code as possible. This unfolds as a few guiding principles:
 
@@ -11,8 +11,7 @@
     5. We have a two prong automated testing model: unit tests for the logic in the rust code, and shallow integration tests, e2e running on top of the actual editors and the plugins. These should only test the integration (things get called and returned and processed as expected, not testing many inputs and variants).
 
 
-    We will fully develop the initial version of plugins for Neovim and VSCode.
-    While in the future these will be best served by dedicated repos, for now, as we are iterating over various layers in binaries, libs and the plugin themselves, they'll be colocated in the master lex repo.
+    While in the future these editors parts will be best served by dedicated repos, for now, as we are iterating over various layers in binaries, libs and the plugin themselves, they'll be colocated in the master lex repo.
 
     The design's goal is to have all logic-heavy lifting done in common rust code, and the plugins themselves being thin wrappers for each editors UI / entry points and interaction models.
 
@@ -33,57 +32,49 @@
             Use `client:exec_cmd({ command = 'lex.commandName', arguments = args })` (or `vim.lsp.buf.execute_command` for older versions).
 
     Guarding Execute Commands:
-        VS Code wraps every execute-command invocation in a helper that waits for the
-        language client to finish starting before sending the request. This avoids the
-        "connection got disposed" errors that can happen if a command is triggered as
-        soon as the extension activates.
+        [TK]: Explain how oss-code based client works
 
 
 3. Features
 
-    The following sections detail the feature groups organized by functionality.
-
-## Feature Matrix
-| Feature Group | Feature | LSP Method / Command | Implementation | Status | VS Code | Neovim | Desktop |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **Syntax** | Syntax Highlighting | `textDocument/semanticTokens` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done | Done |
-|  | Document Symbols | `textDocument/documentSymbol` | `lex-analysis/src/document_symbols.rs` | Done | Done | Done | No |
-|  | Folding | `textDocument/foldingRange` | `lex-analysis/src/folding_ranges.rs` | Done | Done | Done | Done |
-|  | Hover | `textDocument/hover` | `lex-analysis/src/hover.rs` | Done | Done | Done | Done |
-|  | Semantic Tokens | `textDocument/semanticTokens/full` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done | Done |
-|  | Diagnostics | `textDocument/publishDiagnostics` | (Postponed) | Base Rust |  |  | Done |
-| **Navigation** | Go to Definition | `textDocument/definition` | `lex-analysis/src/go_to_definition.rs` | Done | Done | Done | Done |
-|  | Find References | `textDocument/references` | `lex-analysis/src/references.rs` | Done | Done | Done | No |
-|  | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` | Done | Done | Done | No |
-|  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
-| **Formatting** | Formatting | `textDocument/formatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | Done |
-|  | Range Formatting | `textDocument/rangeFormatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | Done |
-| **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
-|  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
-|  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | Done |
-|  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | Done |
-|  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
-|  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
-| **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
-|  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
-|  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
-|  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
-|  | Preview as HTML | (Client-side) | VS Code: `preview.ts` | Done | Done | N/A | Done |    * Neovim adaptations required - see `editors/nvim/README-DEV.lex` for details.
+    The following sections detail the feature groups organized by functionality:
+ |   Feature Group | Feature | LSP Method / Command | Implementation | Status | VS Code | Neovim | Desktop |
+ | --- | --- | --- | --- | --- | --- | --- | --- |
+ |  **Syntax** | Syntax Highlighting | `textDocument/semanticTokens` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done | Done |
+ |  | Document Symbols | `textDocument/documentSymbol` | `lex-analysis/src/document_symbols.rs` | Done | Done | Done | No |
+ |  | Folding | `textDocument/foldingRange` | `lex-analysis/src/folding_ranges.rs` | Done | Done | Done | Done |
+ |  | Hover | `textDocument/hover` | `lex-analysis/src/hover.rs` | Done | Done | Done | Done |
+ |  | Semantic Tokens | `textDocument/semanticTokens/full` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done | Done |
+ |  | Diagnostics | `textDocument/publishDiagnostics` | (Postponed) | Base Rust |  |  | Done |
+ | **Navigation** | Go to Definition | `textDocument/definition` | `lex-analysis/src/go_to_definition.rs` | Done | Done | Done | Done |
+ |  | Find References | `textDocument/references` | `lex-analysis/src/references.rs` | Done | Done | Done | No |
+ |  | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` | Done | Done | Done | No |
+ |  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
+ | **Formatting** | Formatting | `textDocument/formatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | Done |
+ |  | Range Formatting | `textDocument/rangeFormatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | Done |
+ | **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+ |  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+ |  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | Done |
+ |  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | Done |
+ |  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
+ |  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
+ | **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+ |  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+ |  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+ |  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+ |  | Preview as HTML | (Client-side) | VS Code: `preview.ts` | Done | Done | N/A | Done |    * Neovim adaptations required - see `editors/nvim/README-DEV.lex` for details.
+    :: doc.table ::
 
     Neovim Adaptations Summary:
     - File pickers: Telescope integration with vim.ui.input fallback
     - Export commands: Default to same directory with new extension
     - Preview: Not available in terminal; use export + external browser
 
-    Path Completion:
-    - Both VS Code and Neovim now use LSP-based path completion
-    - @ is registered as a trigger character in the LSP server
-    - When @ triggers completion, only file/path suggestions are returned
-    - VS Code removed client-side PathCompletionProvider in favor of LSP
 
 4. Configuration
 
     The Lex formatter can be configured via `lex.toml` or editor settings. The available options are:
+
 
         | Option                       | Type      | Default  | Description                                                |
         | ---------------------------- | --------- | -------- | ---------------------------------------------------------- |
@@ -97,6 +88,6 @@
         | `normalize_verbatim_markers` | Boolean   | `true`   | Whether to normalize verbatim markers to `::`.             |
     :: doc.table
 
-5. Implementation Status
+5. Testing
 
-    For a detailed breakdown of the required Rust APIs, their signatures, and current implementation status, please refer to @editors/required-apis.lex.
+    All three editors have a dedeicated e2e suite. Because the core logic is done over the Rust codebase, we don't need extnesive and exhaustive unit testing, as those are done over there. But the integration test are critical to make sure that all is being wired correctly and works _from the user's perspecitive_. 
