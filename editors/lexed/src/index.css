@@ -106,4 +106,27 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
     font-size: 12px;
   }
+
+  /* Widen the suggestion widget/context menu */
+  .monaco-editor .suggest-widget {
+    width: 400px !important;
+  }
+  
+  /* Try to hide the icon in the quick fix menu if possible */
+  /* This selector is a guess based on Monaco structure */
+  .monaco-menu .monaco-action-bar .action-item .codicon {
+     /* display: none !important; */ 
+     /* Hiding the icon might hide icons for other things too, so be careful. */
+     /* User said "we can drop the icon". */
+  }
+  
+  /* Widen the context view for Quick Fixes */
+  .monaco-menu-container {
+      min-width: 300px !important;
+      max-width: 600px !important;
+  }
+  
+  .monaco-menu .monaco-action-bar .action-label {
+      font-size: 13px;
+  }
 }

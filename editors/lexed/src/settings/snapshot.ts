@@ -10,6 +10,8 @@ const cloneEditor = (editor: EditorSettings): EditorSettings => ({
     showRuler: editor.showRuler,
     rulerWidth: editor.rulerWidth,
     vimMode: editor.vimMode,
+    spellCheck: editor.spellCheck,
+    spellCheckLanguage: editor.spellCheckLanguage,
 });
 
 const cloneFormatter = (formatter: FormatterSettings): FormatterSettings => ({

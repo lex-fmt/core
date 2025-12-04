@@ -2,6 +2,8 @@ export interface EditorSettings {
     showRuler: boolean;
     rulerWidth: number;
     vimMode: boolean;
+    spellCheck: boolean;
+    spellCheckLanguage: 'en_US' | 'pt_BR';
 }
 
 export interface FormatterSettings {
@@ -25,6 +27,8 @@ export const defaultEditorSettings: EditorSettings = {
     showRuler: false,
     rulerWidth: 100,
     vimMode: false,
+    spellCheck: true,
+    spellCheckLanguage: 'en_US',
 };
 
 export const defaultFormatterSettings: FormatterSettings = {

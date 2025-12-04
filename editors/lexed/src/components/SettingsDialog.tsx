@@ -110,6 +110,37 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                                         className="accent-primary"
                                     />
                                 </div>
+
+                                <div className="space-y-4 pt-4 border-t border-border">
+                                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spell Check</h3>
+
+                                    <div className="flex items-center justify-between">
+                                        <label htmlFor="spell-check" className="text-sm">Enable Spell Check</label>
+                                        <input
+                                            type="checkbox"
+                                            id="spell-check"
+                                            checked={localEditorSettings.spellCheck}
+                                            onChange={(e) => setLocalEditorSettings(prev => ({ ...prev, spellCheck: e.target.checked }))}
+                                            className="accent-primary"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center justify-between">
+                                        <label htmlFor="spell-check-lang" className={cn("text-sm", !localEditorSettings.spellCheck && "opacity-50")}>
+                                            Language
+                                        </label>
+                                        <select
+                                            id="spell-check-lang"
+                                            value={localEditorSettings.spellCheckLanguage}
+                                            disabled={!localEditorSettings.spellCheck}
+                                            onChange={(e) => setLocalEditorSettings(prev => ({ ...prev, spellCheckLanguage: e.target.value as 'en_US' | 'pt_BR' }))}
+                                            className="w-32 px-2 py-1 text-sm bg-input border border-border rounded focus:outline-none focus:border-primary disabled:opacity-50"
+                                        >
+                                            <option value="en_US">English (US)</option>
+                                            <option value="pt_BR">Portuguese (BR)</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
