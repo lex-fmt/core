@@ -28,6 +28,7 @@
     "electron-store": "^11.0.2",
     "lucide-react": "^0.344.0",
     "monaco-editor": "^0.55.1",
+    "monaco-vim": "^0.4.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "sonner": "^2.0.7",

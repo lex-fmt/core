@@ -53,6 +53,7 @@ interface PaneRowLayout {
 interface EditorSettings {
   showRuler: boolean;
   rulerWidth: number;
+  vimMode: boolean;
 }
 
 interface AppSettings {
@@ -120,7 +121,8 @@ const store = new Store<AppSettings>({
       type: 'object',
       properties: {
         showRuler: { type: 'boolean', default: false },
-        rulerWidth: { type: 'number', default: 100 }
+        rulerWidth: { type: 'number', default: 100 },
+        vimMode: { type: 'boolean', default: false }
       },
       default: {}
     }
@@ -630,8 +632,8 @@ ipcMain.handle('set-open-tabs', async (_, panes: PaneLayoutSettings[], rows: Pan
     paneSizes: row.paneSizes,
   }));
   settings.activePaneId = activePaneId || undefined;
-  settings.openTabs = undefined;
-  settings.activeTab = undefined;
+  delete settings.openTabs;
+  delete settings.activeTab;
   await saveSettings(settings);
   return true;
 });

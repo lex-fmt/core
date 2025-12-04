@@ -62,6 +62,17 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                             />
                         </div>
                     </div>
+
+                    <div className="flex items-center justify-between">
+                        <label htmlFor="vim-mode" className="text-sm">Enable Vim Mode</label>
+                        <input
+                            type="checkbox"
+                            id="vim-mode"
+                            checked={localSettings.vimMode}
+                            onChange={(e) => setLocalSettings(prev => ({ ...prev, vimMode: e.target.checked }))}
+                            className="accent-primary"
+                        />
+                    </div>
                 </div>
 
                 <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border bg-panel-hover/30">

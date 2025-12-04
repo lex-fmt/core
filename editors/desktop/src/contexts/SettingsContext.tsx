@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 interface EditorSettings {
     showRuler: boolean;
     rulerWidth: number;
+    vimMode: boolean;
 }
 
 interface AppSettings {
@@ -18,6 +19,7 @@ const defaultSettings: AppSettings = {
     editor: {
         showRuler: false,
         rulerWidth: 100,
+        vimMode: false,
     },
 };
 
