@@ -1,19 +1,12 @@
-import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  dialog,
-  nativeTheme,
-  Menu,
-  shell,
-} from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, nativeTheme, shell, Menu } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 
+import { WindowManager, AppSettings, PaneLayoutSettings, PaneRowLayout, EditorSettings, FormatterSettings } from './window-manager';
 import { randomUUID } from 'crypto';
-import { LspManager } from './lsp-manager';
+// LspManager import removed as it is managed by WindowManager
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,61 +30,12 @@ import Store from 'electron-store';
 // Settings persistence
 const SETTINGS_FILE = 'settings'; // electron-store adds .json extension
 
-interface WindowState {
-  x?: number;
-  y?: number;
-  width: number;
-  height: number;
-  isMaximized?: boolean;
-}
+// Local interface definitions removed in favor of window-manager exports
+// to ensure type consistency across the main process.
 
-interface PaneLayoutSettings {
-  id: string;
-  tabs: string[];
-  activeTab?: string | null;
-}
 
-interface PaneRowLayout {
-  id: string;
-  paneIds: string[];
-  size?: number;
-  paneSizes?: Record<string, number>;
-}
 
-interface EditorSettings {
-  showRuler: boolean;
-  rulerWidth: number;
-  vimMode: boolean;
-}
-
-interface FormatterSettings {
-  sessionBlankLinesBefore: number;
-  sessionBlankLinesAfter: number;
-  normalizeSeqMarkers: boolean;
-  unorderedSeqMarker: string;
-  maxBlankLines: number;
-  indentString: string;
-  preserveTrailingBlanks: boolean;
-  normalizeVerbatimMarkers: boolean;
-  formatOnSave: boolean;
-}
-
-interface AppSettings {
-  lastFolder?: string;
-  openTabs?: string[];
-  activeTab?: string;
-  paneLayout?: PaneLayoutSettings[];
-  paneRows?: PaneRowLayout[];
-  activePaneId?: string;
-  windowState?: WindowState;
-  editor?: EditorSettings;
-  formatter?: FormatterSettings;
-}
-
-const DEFAULT_WINDOW_STATE: WindowState = {
-  width: 1200,
-  height: 800,
-};
+let windowManager: WindowManager;
 
 interface MenuState {
   hasOpenFile: boolean;
@@ -144,6 +88,24 @@ const store = new Store<AppSettings>({
         isMaximized: { type: 'boolean' },
       },
     },
+    openWindows: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          x: { type: 'number' },
+          y: { type: 'number' },
+          width: { type: 'number' },
+          height: { type: 'number' },
+          isMaximized: { type: 'boolean' },
+          lastFolder: { type: 'string' },
+          paneLayout: { type: 'array' },
+          paneRows: { type: 'array' },
+          activePaneId: { type: 'string' },
+        },
+      },
+    },
     editor: {
       type: 'object',
       properties: {
@@ -171,33 +133,12 @@ const store = new Store<AppSettings>({
   },
 });
 
-function loadSettingsSync(): AppSettings {
-  if (PERSISTENCE_DISABLED) {
-    return {};
-  }
-  return store.store;
-}
+// Initialize WindowManager after store is created
+windowManager = new WindowManager(store);
 
-async function loadSettings(): Promise<AppSettings> {
-  if (PERSISTENCE_DISABLED) {
-    return {};
-  }
-  return store.store;
-}
-
-function saveSettingsSync(settings: AppSettings): void {
-  if (PERSISTENCE_DISABLED) {
-    return;
-  }
-  store.set(settings);
-}
-
-async function saveSettings(settings: AppSettings): Promise<void> {
-  if (PERSISTENCE_DISABLED) {
-    return;
-  }
-  store.set(settings);
-}
+// Settings persistence helpers removed in favor of direct store access or WindowManager
+// loadSettings, saveSettings, etc. are no longer used directly in main.ts logic
+// except for legacy migration which can use store.store directly.
 
 function getWelcomeFolderPath(): string {
   if (app.isPackaged) {
@@ -226,9 +167,8 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, 'public')
   : RENDERER_DIST;
 
-let win: BrowserWindow | null;
-const lspManager = new LspManager();
-const PERSISTENCE_DISABLED = process.env.LEX_DISABLE_PERSISTENCE === '1';
+
+
 let applicationMenu: Electron.Menu | null = null;
 let currentMenuState: MenuState = {
   hasOpenFile: false,
@@ -263,14 +203,17 @@ function extractLexFilesFromArgv(argv: string[]): string[] {
 function openFilesInWindow(filePaths: string[]) {
   if (filePaths.length === 0) return;
 
-  if (win && !win.isDestroyed()) {
+  // For now, open in the most recently focused window or create a new one
+  // TODO: Improve logic to find "best" window or open new one
+  const windows = windowManager.getAllWindows();
+  const targetWin = windows[0]; // Simple fallback
+
+  if (targetWin && !targetWin.isDestroyed()) {
     for (const filePath of filePaths) {
-      win.webContents.send('open-file-path', filePath);
-      // Add to recent documents (macOS Dock menu, Windows Jump List)
+      targetWin.webContents.send('open-file-path', filePath);
       app.addRecentDocument(filePath);
     }
   } else {
-    // Queue for when window is ready
     pendingFilesToOpen.push(...filePaths);
   }
 }
@@ -307,133 +250,8 @@ function applyMenuState(state: MenuState) {
   setEnabled('menu-toggle-annotations', hasOpenFile && isLexFileOpen);
 }
 
-async function createWindow() {
-  // Load saved window state with fallback to defaults
-  let windowState = DEFAULT_WINDOW_STATE;
-  try {
-    const settings = await loadSettings();
-    if (settings.windowState) {
-      // Validate window state has required properties
-      const ws = settings.windowState;
-      if (typeof ws.width === 'number' && typeof ws.height === 'number') {
-        windowState = {
-          ...DEFAULT_WINDOW_STATE,
-          ...ws,
-        };
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load window state, using defaults:', error);
-  }
-
-  const hideWindow = process.env.LEX_HIDE_WINDOW === '1';
-
-  const initialTheme = getSystemTheme();
-
-  win = new BrowserWindow({
-    title: 'LexEd',
-    icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
-    x: windowState.x,
-    y: windowState.y,
-    width: windowState.width,
-    height: windowState.height,
-    show: !hideWindow,
-    backgroundColor: getWindowBackground(initialTheme),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
-    },
-  });
-
-  // Restore maximized state
-  try {
-    if (windowState.isMaximized) {
-      win.maximize();
-    }
-  } catch (error) {
-    console.error('Failed to restore maximized state:', error);
-  }
-
-  // Save window state synchronously (used for close event to ensure it completes)
-  const saveWindowStateSync = () => {
-    try {
-      if (!win || win.isDestroyed()) return;
-
-      const isMaximized = win.isMaximized();
-      const bounds = win.getBounds();
-
-      const settings = loadSettingsSync();
-      settings.windowState = {
-        x: isMaximized ? settings.windowState?.x : bounds.x,
-        y: isMaximized ? settings.windowState?.y : bounds.y,
-        width: isMaximized
-          ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width
-          : bounds.width,
-        height: isMaximized
-          ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height
-          : bounds.height,
-        isMaximized,
-      };
-      saveSettingsSync(settings);
-    } catch (error) {
-      console.error('Failed to save window state:', error);
-    }
-  };
-
-  // Save window state asynchronously (used for resize/move to avoid blocking UI)
-  const saveWindowStateAsync = async () => {
-    try {
-      if (!win || win.isDestroyed()) return;
-
-      const isMaximized = win.isMaximized();
-      const bounds = win.getBounds();
-
-      const settings = await loadSettings();
-      settings.windowState = {
-        x: isMaximized ? settings.windowState?.x : bounds.x,
-        y: isMaximized ? settings.windowState?.y : bounds.y,
-        width: isMaximized
-          ? settings.windowState?.width || DEFAULT_WINDOW_STATE.width
-          : bounds.width,
-        height: isMaximized
-          ? settings.windowState?.height || DEFAULT_WINDOW_STATE.height
-          : bounds.height,
-        isMaximized,
-      };
-      await saveSettings(settings);
-    } catch (error) {
-      console.error('Failed to save window state:', error);
-    }
-  };
-
-  win.on('close', saveWindowStateSync);
-  win.on('resize', saveWindowStateAsync);
-  win.on('move', saveWindowStateAsync);
-
-  lspManager.setWebContents(win.webContents);
-  lspManager.start();
-
-  // Test active push message to Renderer-process.
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', new Date().toLocaleString());
-
-    // Open any files that were queued before window was ready
-    if (pendingFilesToOpen.length > 0) {
-      for (const filePath of pendingFilesToOpen) {
-        win?.webContents.send('open-file-path', filePath);
-      }
-      pendingFilesToOpen = [];
-    }
-  });
-
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-  } else {
-    // win.loadFile('dist/index.html')
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'));
-  }
-}
-
-ipcMain.handle('file-new', async (_, defaultPath?: string) => {
+ipcMain.handle('file-new', async (event, defaultPath?: string) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return null;
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
     defaultPath: defaultPath || undefined,
@@ -447,7 +265,8 @@ ipcMain.handle('file-new', async (_, defaultPath?: string) => {
   return { filePath, content: '' };
 });
 
-ipcMain.handle('file-open', async () => {
+ipcMain.handle('file-open', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return null;
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {
     properties: ['openFile'],
@@ -466,9 +285,10 @@ ipcMain.handle('file-open', async () => {
 ipcMain.handle(
   'file-pick',
   async (
-    _,
+    event,
     options: { title?: string; filters?: Electron.FileFilter[] } = {}
   ) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return null;
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
       title: options.title,
@@ -520,8 +340,10 @@ ipcMain.handle('file-read-dir', async (_, dirPath: string) => {
   }
 });
 
-ipcMain.handle('dialog-show-open-dialog', async (_event, options) => {
-  const result = await dialog.showOpenDialog(win!, options);
+ipcMain.handle('dialog-show-open-dialog', async (event, options) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return null;
+  const result = await dialog.showOpenDialog(win, options);
   if (result.canceled || result.filePaths.length === 0) {
     return null;
   }
@@ -566,7 +388,8 @@ ipcMain.handle('file-checksum', async (_, filePath: string) => {
   }
 });
 
-ipcMain.handle('folder-open', async () => {
+ipcMain.handle('folder-open', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return null;
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {
     properties: ['openDirectory'],
@@ -577,37 +400,81 @@ ipcMain.handle('folder-open', async () => {
   return filePaths[0];
 });
 
-ipcMain.handle('get-initial-folder', async () => {
-  const settings = await loadSettings();
-  if (settings.lastFolder) {
-    // Verify the folder still exists
+ipcMain.handle('get-initial-folder', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return getWelcomeFolderPath();
+  
+  const settings = store.store;
+  // Find window state
+  const winState = settings.openWindows?.find(w => w.id === windowManager.getWindowStateId(win.id));
+  
+  if (winState?.lastFolder) {
     try {
+      await fs.access(winState.lastFolder);
+      return winState.lastFolder;
+    } catch {
+      // Folder no longer exists
+    }
+  }
+  
+  // Fallback to global lastFolder (legacy/migration) or welcome
+  if (settings.lastFolder) {
+     try {
       await fs.access(settings.lastFolder);
       return settings.lastFolder;
     } catch {
-      // Folder no longer exists, fall through to welcome folder
     }
   }
+
   return getWelcomeFolderPath();
 });
 
-ipcMain.handle('set-last-folder', async (_, folderPath: string) => {
-  const settings = await loadSettings();
-  settings.lastFolder = folderPath;
-  await saveSettings(settings);
+ipcMain.handle('set-last-folder', async (event, folderPath: string) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return false;
+
+  const stateId = windowManager.getWindowStateId(win.id);
+  if (!stateId) return false;
+
+  const settings = store.store;
+  const openWindows = settings.openWindows || [];
+  const index = openWindows.findIndex(w => w.id === stateId);
+  
+  if (index >= 0) {
+    openWindows[index].lastFolder = folderPath;
+    store.set('openWindows', openWindows);
+    windowManager.updateTitle(win.id, folderPath);
+  }
+  
+  // Also update global for legacy/fallback? Maybe not needed.
   return true;
 });
 
-ipcMain.handle('get-open-tabs', async () => {
-  const settings = await loadSettings();
+ipcMain.handle('get-open-tabs', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return null;
+
+  const stateId = windowManager.getWindowStateId(win.id);
+  const settings = store.store;
+  const winState = settings.openWindows?.find(w => w.id === stateId);
+
+  // If no window state found (new window?), return empty/default
+  if (!winState) {
+     return {
+      panes: [{ id: randomUUID(), tabs: [], activeTab: null }],
+      activePaneId: null,
+      rows: [],
+    };
+  }
+
   const savedPanes =
-    settings.paneLayout && settings.paneLayout.length > 0
-      ? settings.paneLayout
+    winState.paneLayout && winState.paneLayout.length > 0
+      ? winState.paneLayout
       : [
           {
-            id: settings.activePaneId || randomUUID(),
-            tabs: settings.openTabs || [],
-            activeTab: settings.activeTab || null,
+            id: winState.activePaneId || randomUUID(),
+            tabs: [], // Don't restore tabs from global settings to avoid confusion? Or should we?
+            activeTab: null,
           },
         ];
 
@@ -640,8 +507,8 @@ ipcMain.handle('get-open-tabs', async () => {
 
   const paneIdSet = new Set(panes.map((p) => p.id));
   let rows =
-    settings.paneRows && settings.paneRows.length > 0
-      ? settings.paneRows
+    winState.paneRows && winState.paneRows.length > 0
+      ? winState.paneRows
           .map((row) => {
             const paneIds = (row.paneIds || []).filter((id) =>
               paneIdSet.has(id)
@@ -681,8 +548,8 @@ ipcMain.handle('get-open-tabs', async () => {
   }
 
   const activePaneId =
-    settings.activePaneId && panes.some((p) => p.id === settings.activePaneId)
-      ? settings.activePaneId
+    winState.activePaneId && panes.some((p) => p.id === winState.activePaneId)
+      ? winState.activePaneId
       : panes[0]?.id || null;
 
   return {
@@ -695,27 +562,37 @@ ipcMain.handle('get-open-tabs', async () => {
 ipcMain.handle(
   'set-open-tabs',
   async (
-    _,
+    event,
     panes: PaneLayoutSettings[],
     rows: PaneRowLayout[],
     activePaneId: string | null
   ) => {
-    const settings = await loadSettings();
-    settings.paneLayout = panes.map((pane) => ({
-      id: pane.id || randomUUID(),
-      tabs: pane.tabs || [],
-      activeTab: pane.activeTab ?? null,
-    }));
-    settings.paneRows = rows.map((row) => ({
-      id: row.id || randomUUID(),
-      paneIds: row.paneIds || [],
-      size: row.size,
-      paneSizes: row.paneSizes,
-    }));
-    settings.activePaneId = activePaneId || undefined;
-    delete settings.openTabs;
-    delete settings.activeTab;
-    await saveSettings(settings);
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return false;
+
+    const stateId = windowManager.getWindowStateId(win.id);
+    if (!stateId) return false;
+
+    const settings = store.store;
+    const openWindows = settings.openWindows || [];
+    const index = openWindows.findIndex(w => w.id === stateId);
+
+    if (index >= 0) {
+      openWindows[index].paneLayout = panes.map((pane) => ({
+        id: pane.id || randomUUID(),
+        tabs: pane.tabs || [],
+        activeTab: pane.activeTab ?? null,
+      }));
+      openWindows[index].paneRows = rows.map((row) => ({
+        id: row.id || randomUUID(),
+        paneIds: row.paneIds || [],
+        size: row.size,
+        paneSizes: row.paneSizes,
+      }));
+      openWindows[index].activePaneId = activePaneId || undefined;
+      
+      store.set('openWindows', openWindows);
+    }
     return true;
   }
 );
@@ -775,9 +652,19 @@ ipcMain.on('update-menu-state', (_event, state: MenuState) => {
 // Listen for OS theme changes and notify renderer
 nativeTheme.on('updated', () => {
   const theme = getSystemTheme();
-  if (win && !win.isDestroyed()) {
-    win.setBackgroundColor(getWindowBackground(theme));
-    win.webContents.send('native-theme-changed', theme);
+  windowManager.getAllWindows().forEach((win) => {
+    if (!win.isDestroyed()) {
+      win.setBackgroundColor(getWindowBackground(theme));
+      win.webContents.send('native-theme-changed', theme);
+    }
+  });
+});
+
+ipcMain.on('lsp-input', (event, data) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    const lsp = windowManager.getLsp(win.id);
+    lsp?.sendInput(data);
   }
 });
 
@@ -785,23 +672,35 @@ nativeTheme.on('updated', () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  lspManager.stop();
+  // lspManager.stop(); // Handled by WindowManager per window
   if (process.platform !== 'darwin') {
+    windowManager.setQuitting(true);
     app.quit();
-    win = null;
   }
+});
+
+app.on('before-quit', () => {
+  windowManager.setQuitting(true);
 });
 
 app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    // Restore windows from session or create new one
+    windowManager.restoreWindows();
   }
 });
 
+// Migration logic moved to main whenReady block
+
+
 function createMenu() {
   const isMac = process.platform === 'darwin';
+
+  const getTargetWindow = (focusedWindow: BrowserWindow | undefined) => {
+    return focusedWindow || windowManager.getAllWindows()[0];
+  };
 
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(isMac
@@ -826,19 +725,24 @@ function createMenu() {
       label: 'File',
       submenu: [
         {
+          label: 'New Window',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: () => windowManager.createWindow(),
+        },
+        {
           label: 'New File',
           accelerator: 'CmdOrCtrl+N',
-          click: () => win?.webContents.send('menu-new-file'),
+          click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-new-file'),
         },
         {
           label: 'Open File...',
           accelerator: 'CmdOrCtrl+O',
-          click: () => win?.webContents.send('menu-open-file'),
+          click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-open-file'),
         },
         {
           label: 'Open Folder...',
           accelerator: 'CmdOrCtrl+Shift+O',
-          click: () => win?.webContents.send('menu-open-folder'),
+          click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-open-folder'),
         },
         { type: 'separator' },
         {
@@ -846,15 +750,7 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+S',
           id: 'menu-save',
           enabled: false,
-          click: () => win?.webContents.send('menu-save'),
-        },
-        { type: 'separator' },
-        {
-          label: 'Format Document',
-          accelerator: 'CmdOrCtrl+Shift+F',
-          id: 'menu-format',
-          enabled: false,
-          click: () => win?.webContents.send('menu-format'),
+          click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-save'),
         },
         { type: 'separator' },
         {
@@ -864,19 +760,19 @@ function createMenu() {
               label: 'Export to Markdown',
               id: 'menu-export-markdown',
               enabled: false,
-              click: () => win?.webContents.send('menu-export', 'markdown'),
+              click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-export', 'markdown'),
             },
             {
               label: 'Export to HTML',
               id: 'menu-export-html',
               enabled: false,
-              click: () => win?.webContents.send('menu-export', 'html'),
+              click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-export', 'html'),
             },
             {
               label: 'Export to PDF',
               id: 'menu-export-pdf',
               enabled: false,
-              click: () => win?.webContents.send('menu-export', 'pdf'),
+              click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-export', 'pdf'),
             },
           ],
         },
@@ -900,55 +796,36 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+F',
           id: 'menu-find',
           enabled: false,
-          click: () => win?.webContents.send('menu-find'),
+          click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-find'),
         },
         {
           label: 'Replace',
           accelerator: 'CmdOrCtrl+H',
           id: 'menu-replace',
           enabled: false,
-          click: () => win?.webContents.send('menu-replace'),
+          click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-replace'),
         },
         { type: 'separator' },
         {
-          label: 'Insert Asset...',
+          label: 'Format Document',
+          accelerator: 'Shift+Option+F',
+          id: 'menu-format',
+          enabled: false,
+          click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-format'),
+        },
+        {
+          label: 'Insert Asset',
+          accelerator: 'CmdOrCtrl+Shift+I',
           id: 'menu-insert-asset',
           enabled: false,
-          click: () => win?.webContents.send('menu-insert-asset'),
+          click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-insert-asset'),
         },
         {
-          label: 'Insert Verbatim...',
+          label: 'Insert Verbatim',
+          accelerator: 'CmdOrCtrl+Shift+V',
           id: 'menu-insert-verbatim',
           enabled: false,
-          click: () => win?.webContents.send('menu-insert-verbatim'),
-        },
-        { type: 'separator' },
-        {
-          label: 'Resolve Annotation',
-          id: 'menu-resolve-annotation',
-          enabled: false,
-          click: () => win?.webContents.send('menu-resolve-annotation'),
-        },
-        {
-          label: 'Toggle Annotations',
-          id: 'menu-toggle-annotations',
-          enabled: false,
-          click: () => win?.webContents.send('menu-toggle-annotations'),
-        },
-      ],
-    },
-    {
-      label: 'Pane',
-      submenu: [
-        {
-          label: 'Split Vertically',
-          accelerator: 'CmdOrCtrl+\\',
-          click: () => win?.webContents.send('menu-split-vertical'),
-        },
-        {
-          label: 'Split Horizontally',
-          accelerator: 'CmdOrCtrl+Shift+\\',
-          click: () => win?.webContents.send('menu-split-horizontal'),
+          click: (_, focusedWindow) => getTargetWindow(focusedWindow)?.webContents.send('menu-insert-verbatim'),
         },
       ],
     },
@@ -960,7 +837,7 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+Shift+P',
           id: 'menu-preview',
           enabled: false,
-          click: () => win?.webContents.send('menu-preview'),
+          click: (_, focusedWindow) => focusedWindow?.webContents.send('menu-preview'),
         },
         { type: 'separator' },
         { role: 'reload' },
@@ -1006,7 +883,9 @@ if (!gotTheLock) {
   // Handle second instance launch (Windows/Linux: file opened when app is already running)
   app.on('second-instance', (_event, argv) => {
     // Someone tried to run a second instance, focus our window
-    if (win) {
+    const windows = windowManager.getAllWindows();
+    if (windows.length > 0) {
+      const win = windows[0];
       if (win.isMinimized()) win.restore();
       win.focus();
     }
@@ -1026,12 +905,35 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     createMenu();
-    createWindow();
+
+    // Migration logic (run once on startup)
+    const settings = store.store;
+    if (!settings.openWindows && (settings.paneLayout || settings.paneRows)) {
+      // Migrate legacy single-window state
+      console.log('Migrating legacy window state...');
+      const legacyState: any = {
+        id: randomUUID(),
+        width: settings.windowState?.width || 1200,
+        height: settings.windowState?.height || 800,
+        x: settings.windowState?.x,
+        y: settings.windowState?.y,
+        isMaximized: settings.windowState?.isMaximized,
+        paneLayout: settings.paneLayout,
+        paneRows: settings.paneRows,
+        activePaneId: settings.activePaneId,
+        lastFolder: settings.lastFolder,
+      };
+      
+      store.set('openWindows', [legacyState]);
+    }
 
     // Handle files passed via command line on initial launch
     const initialFiles = extractLexFilesFromArgv(process.argv);
     if (initialFiles.length > 0) {
       pendingFilesToOpen.push(...initialFiles);
+      windowManager.createWindow();
+    } else {
+      windowManager.restoreWindows();
     }
   });
 }

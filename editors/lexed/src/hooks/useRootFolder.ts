@@ -21,5 +21,14 @@ export function useRootFolder() {
     };
   }, []);
 
+  useEffect(() => {
+    if (rootPath) {
+      const folderName = rootPath.split('/').pop() || rootPath;
+      document.title = `LexEd - ${folderName}`;
+    } else {
+      document.title = 'LexEd';
+    }
+  }, [rootPath]);
+
   return { rootPath, setRootPath };
 }

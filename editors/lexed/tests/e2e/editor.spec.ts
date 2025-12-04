@@ -21,7 +21,9 @@ test.describe('Editor', () => {
     await expect(editor).toBeVisible();
 
     // Click to focus
-    await editor.click();
+    // await editor.click();
+    const textarea = window.locator('.monaco-editor textarea').first();
+    await textarea.focus();
 
     // Type some Lex code
     // We need to focus the editor first.
