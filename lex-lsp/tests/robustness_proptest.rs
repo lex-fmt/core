@@ -11,7 +11,13 @@ use tower_lsp::LanguageServer;
 #[derive(Clone)]
 struct MockClient;
 
-impl LspClient for MockClient {}
+use tower_lsp::async_trait;
+use tower_lsp::lsp_types::Diagnostic;
+
+#[async_trait]
+impl LspClient for MockClient {
+    async fn publish_diagnostics(&self, _: Url, _: Vec<Diagnostic>, _: Option<i32>) {}
+}
 
 proptest! {
     // Fuzz the execute_command handler with random commands and arguments

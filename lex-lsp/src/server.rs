@@ -29,7 +29,8 @@ use tokio::sync::RwLock;
 use tower_lsp::async_trait;
 use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionOptions, CompletionParams, CompletionResponse,
+    CodeAction, CodeActionOrCommand, CodeActionParams, CodeActionProviderCapability,
+    CodeActionResponse, CompletionItem, CompletionOptions, CompletionParams, CompletionResponse,
     DocumentFormattingParams, DocumentLink, DocumentLinkOptions, DocumentLinkParams,
     DocumentRangeFormattingParams, DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse,
     ExecuteCommandOptions, ExecuteCommandParams, FoldingRange, FoldingRangeParams,
@@ -43,8 +44,19 @@ use tower_lsp::lsp_types::{
 };
 use tower_lsp::Client;
 
-pub trait LspClient: Send + Sync + Clone + 'static {}
-impl LspClient for Client {}
+use tower_lsp::lsp_types::Diagnostic;
+
+#[async_trait]
+pub trait LspClient: Send + Sync + Clone + 'static {
+    async fn publish_diagnostics(&self, uri: Url, diags: Vec<Diagnostic>, version: Option<i32>);
+}
+
+#[async_trait]
+impl LspClient for Client {
+    async fn publish_diagnostics(&self, uri: Url, diags: Vec<Diagnostic>, version: Option<i32>) {
+        self.publish_diagnostics(uri, diags, version).await;
+    }
+}
 
 pub trait FeatureProvider: Send + Sync + 'static {
     fn semantic_tokens(&self, document: &Document) -> Vec<LexSemanticToken>;
@@ -80,6 +92,7 @@ pub trait FeatureProvider: Send + Sync + 'static {
         trigger_char: Option<&str>,
     ) -> Vec<CompletionCandidate>;
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>>;
+    fn check_spelling(&self, document: &Document) -> Vec<tower_lsp::lsp_types::Diagnostic>;
 }
 
 #[derive(Default)]
@@ -156,6 +169,11 @@ impl FeatureProvider for DefaultFeatureProvider {
 
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>> {
         execute_command(command, arguments)
+    }
+
+    fn check_spelling(&self, document: &Document) -> Vec<tower_lsp::lsp_types::Diagnostic> {
+        // Hardcoded language for Step A/B/C
+        crate::features::spellcheck::check_document(document, "en_US")
     }
 }
 
@@ -257,7 +275,12 @@ where
     }
 
     async fn parse_and_store(&self, uri: Url, text: String) {
-        self.documents.upsert(uri, text).await;
+        if let Some(entry) = self.documents.upsert(uri.clone(), text).await {
+            let diagnostics = self.features.check_spelling(&entry.document);
+            self._client
+                .publish_diagnostics(uri, diagnostics, None)
+                .await;
+        }
     }
 
     async fn document_entry(&self, uri: &Url) -> Option<DocumentEntry> {
@@ -651,6 +674,7 @@ where
                 work_done_progress_options: WorkDoneProgressOptions::default(),
                 resolve_provider: Some(false),
             }),
+            code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
             completion_provider: Some(CompletionOptions {
                 resolve_provider: Some(false),
                 trigger_characters: Some(vec![
@@ -894,6 +918,69 @@ where
         }
     }
 
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let mut actions = Vec::new();
+
+        for diagnostic in params.context.diagnostics {
+            if diagnostic.source.as_deref() == Some("lex-spell") {
+                // It's a spelling error
+                let word = diagnostic.message.trim_start_matches("Unknown word: ");
+
+                // 1. Suggestions
+                let suggestions = crate::features::spellcheck::suggest_corrections(word, "en_US");
+                for suggestion in suggestions {
+                    let action = CodeAction {
+                        title: suggestion.clone(),
+                        kind: Some(tower_lsp::lsp_types::CodeActionKind::QUICKFIX),
+                        diagnostics: Some(vec![diagnostic.clone()]),
+                        edit: Some(tower_lsp::lsp_types::WorkspaceEdit {
+                            changes: Some(HashMap::from([(
+                                params.text_document.uri.clone(),
+                                vec![TextEdit {
+                                    range: diagnostic.range,
+                                    new_text: suggestion,
+                                }],
+                            )])),
+                            ..Default::default()
+                        }),
+                        command: None,
+                        is_preferred: None,
+                        disabled: None,
+                        data: None,
+                    };
+                    actions.push(CodeActionOrCommand::CodeAction(action));
+                }
+
+                // 2. Add to dictionary
+                let add_action = CodeAction {
+                    title: format!("Add '{word}' to dictionary"),
+                    kind: Some(tower_lsp::lsp_types::CodeActionKind::QUICKFIX),
+                    diagnostics: Some(vec![diagnostic.clone()]),
+                    edit: None,
+                    command: Some(tower_lsp::lsp_types::Command {
+                        title: "Add to dictionary".to_string(),
+                        command: commands::COMMAND_ADD_TO_DICTIONARY.to_string(),
+                        arguments: Some(vec![
+                            json!(word),
+                            json!("en_US"),
+                            json!(params.text_document.uri.to_string()),
+                        ]),
+                    }),
+                    is_preferred: None,
+                    disabled: None,
+                    data: None,
+                };
+                actions.push(CodeActionOrCommand::CodeAction(add_action));
+            }
+        }
+
+        if actions.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(actions))
+        }
+    }
+
     async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
         let command = params.command.as_str();
         match command {
@@ -1073,6 +1160,26 @@ where
                 }
                 Ok(None)
             }
+            commands::COMMAND_ADD_TO_DICTIONARY => {
+                let word = params.arguments.first().and_then(|v| v.as_str());
+                let language = params.arguments.get(1).and_then(|v| v.as_str());
+                let uri_str = params.arguments.get(2).and_then(|v| v.as_str());
+
+                if let (Some(word), Some(language), Some(uri_str)) = (word, language, uri_str) {
+                    crate::features::spellcheck::add_to_dictionary(word, language);
+
+                    // Re-validate
+                    if let Ok(uri) = Url::parse(uri_str) {
+                        if let Some(document) = self.document(&uri).await {
+                            let diagnostics = self.features.check_spelling(&document);
+                            self._client
+                                .publish_diagnostics(uri, diagnostics, None)
+                                .await;
+                        }
+                    }
+                }
+                Ok(None)
+            }
             _ => self
                 .features
                 .execute_command(&params.command, &params.arguments),
@@ -1101,7 +1208,10 @@ mod tests {
 
     #[derive(Clone, Default)]
     struct NoopClient;
-    impl LspClient for NoopClient {}
+    #[async_trait]
+    impl LspClient for NoopClient {
+        async fn publish_diagnostics(&self, _: Url, _: Vec<Diagnostic>, _: Option<i32>) {}
+    }
 
     #[derive(Default)]
     struct MockFeatureProvider {
@@ -1250,6 +1360,10 @@ mod tests {
             } else {
                 Ok(None)
             }
+        }
+
+        fn check_spelling(&self, _: &Document) -> Vec<Diagnostic> {
+            Vec::new()
         }
     }
 

@@ -15,6 +15,7 @@ pub const COMMAND_RESOLVE_ANNOTATION: &str = "lex.resolve_annotation";
 pub const COMMAND_TOGGLE_ANNOTATIONS: &str = "lex.toggle_annotations";
 pub const COMMAND_INSERT_ASSET: &str = "lex.insert_asset";
 pub const COMMAND_INSERT_VERBATIM: &str = "lex.insert_verbatim";
+pub const COMMAND_ADD_TO_DICTIONARY: &str = "lex.spellcheck.addToDictionary";
 
 pub fn execute_command(command: &str, arguments: &[Value]) -> Result<Option<Value>> {
     match command {
