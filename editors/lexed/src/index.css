@@ -76,6 +76,10 @@
   .monaco-editor .margin {
     border-right: 1px solid #cacaca;
   }
+.monaco-editor .margin-view-overlays .line-numbers {
+  font-family: "Geist Mono", monospace;
+  font-size: 12px
+}
 
   [data-theme="dark"] .monaco-editor .margin {
     border-right: 1px solid #555555;
