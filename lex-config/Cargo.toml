@@ -9,3 +9,4 @@ description = "Shared configuration loading for the Lex toolchain"
 [dependencies]
 config = { workspace = true }
 serde = { workspace = true }
+lex-babel = { path = "../lex-babel" }

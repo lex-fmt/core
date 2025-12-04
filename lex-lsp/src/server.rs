@@ -59,12 +59,18 @@ pub trait FeatureProvider: Send + Sync + 'static {
         include_declaration: bool,
     ) -> Vec<AstRange>;
     fn document_links(&self, document: &Document) -> Vec<AstDocumentLink>;
-    fn format_document(&self, document: &Document, source: &str) -> Vec<TextEditSpan>;
+    fn format_document(
+        &self,
+        document: &Document,
+        source: &str,
+        rules: Option<FormattingRules>,
+    ) -> Vec<TextEditSpan>;
     fn format_range(
         &self,
         document: &Document,
         source: &str,
         range: FormattingLineRange,
+        rules: Option<FormattingRules>,
     ) -> Vec<TextEditSpan>;
     fn completion(
         &self,
@@ -119,8 +125,13 @@ impl FeatureProvider for DefaultFeatureProvider {
         collect_document_links(document)
     }
 
-    fn format_document(&self, document: &Document, source: &str) -> Vec<TextEditSpan> {
-        formatting::format_document(document, source)
+    fn format_document(
+        &self,
+        document: &Document,
+        source: &str,
+        rules: Option<FormattingRules>,
+    ) -> Vec<TextEditSpan> {
+        formatting::format_document(document, source, rules)
     }
 
     fn format_range(
@@ -128,8 +139,9 @@ impl FeatureProvider for DefaultFeatureProvider {
         document: &Document,
         source: &str,
         range: FormattingLineRange,
+        rules: Option<FormattingRules>,
     ) -> Vec<TextEditSpan> {
-        formatting::format_range(document, source, range)
+        formatting::format_range(document, source, range, rules)
     }
 
     fn completion(
@@ -348,6 +360,89 @@ fn to_formatting_line_range(range: &Range) -> FormattingLineRange {
         end += 1;
     }
     FormattingLineRange { start, end }
+}
+
+use lsp_types::{FormattingOptions, FormattingProperty};
+
+/// Extract FormattingRules from LSP FormattingOptions.
+///
+/// Clients can pass custom Lex formatting options through the `properties` field
+/// of FormattingOptions. Supported keys (all under "lex." prefix):
+/// - lex.session_blank_lines_before
+/// - lex.session_blank_lines_after
+/// - lex.normalize_seq_markers
+/// - lex.unordered_seq_marker
+/// - lex.max_blank_lines
+/// - lex.indent_string
+/// - lex.preserve_trailing_blanks
+/// - lex.normalize_verbatim_markers
+fn extract_formatting_rules(options: &FormattingOptions) -> Option<FormattingRules> {
+    // Check if any lex-specific properties are present
+    let has_lex_options = options.properties.keys().any(|k| k.starts_with("lex."));
+
+    if !has_lex_options {
+        return None;
+    }
+
+    let mut rules = FormattingRules::default();
+
+    // Apply tab_size/insert_spaces from LSP standard options
+    if options.insert_spaces {
+        rules.indent_string = " ".repeat(options.tab_size as usize);
+    } else {
+        rules.indent_string = "\t".to_string();
+    }
+
+    // Apply lex-specific overrides from properties
+    for (key, value) in &options.properties {
+        match key.as_str() {
+            "lex.session_blank_lines_before" => {
+                if let FormattingProperty::Number(n) = value {
+                    rules.session_blank_lines_before = (*n).max(0) as usize;
+                }
+            }
+            "lex.session_blank_lines_after" => {
+                if let FormattingProperty::Number(n) = value {
+                    rules.session_blank_lines_after = (*n).max(0) as usize;
+                }
+            }
+            "lex.normalize_seq_markers" => {
+                if let FormattingProperty::Bool(b) = value {
+                    rules.normalize_seq_markers = *b;
+                }
+            }
+            "lex.unordered_seq_marker" => {
+                if let FormattingProperty::String(s) = value {
+                    if let Some(c) = s.chars().next() {
+                        rules.unordered_seq_marker = c;
+                    }
+                }
+            }
+            "lex.max_blank_lines" => {
+                if let FormattingProperty::Number(n) = value {
+                    rules.max_blank_lines = (*n).max(0) as usize;
+                }
+            }
+            "lex.indent_string" => {
+                if let FormattingProperty::String(s) = value {
+                    rules.indent_string = s.clone();
+                }
+            }
+            "lex.preserve_trailing_blanks" => {
+                if let FormattingProperty::Bool(b) = value {
+                    rules.preserve_trailing_blanks = *b;
+                }
+            }
+            "lex.normalize_verbatim_markers" => {
+                if let FormattingProperty::Bool(b) = value {
+                    rules.normalize_verbatim_markers = *b;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Some(rules)
 }
 
 fn from_lsp_position(position: Position) -> AstPosition {
@@ -748,7 +843,10 @@ where
         let uri = params.text_document.uri;
         if let Some(entry) = self.document_entry(&uri).await {
             let DocumentEntry { document, text } = entry;
-            let edits = self.features.format_document(&document, text.as_str());
+            let rules = extract_formatting_rules(&params.options);
+            let edits = self
+                .features
+                .format_document(&document, text.as_str(), rules);
             Ok(Some(spans_to_text_edits(text.as_str(), edits)))
         } else {
             Ok(None)
@@ -763,9 +861,10 @@ where
         if let Some(entry) = self.document_entry(&uri).await {
             let DocumentEntry { document, text } = entry;
             let line_range = to_formatting_line_range(&params.range);
+            let rules = extract_formatting_rules(&params.options);
             let edits = self
                 .features
-                .format_range(&document, text.as_str(), line_range);
+                .format_range(&document, text.as_str(), line_range, rules);
             Ok(Some(spans_to_text_edits(text.as_str(), edits)))
         } else {
             Ok(None)
@@ -1099,7 +1198,12 @@ mod tests {
             )]
         }
 
-        fn format_document(&self, _: &Document, _: &str) -> Vec<TextEditSpan> {
+        fn format_document(
+            &self,
+            _: &Document,
+            _: &str,
+            _: Option<FormattingRules>,
+        ) -> Vec<TextEditSpan> {
             self.formatting_called.fetch_add(1, Ordering::SeqCst);
             vec![TextEditSpan {
                 start: 0,
@@ -1108,7 +1212,13 @@ mod tests {
             }]
         }
 
-        fn format_range(&self, _: &Document, _: &str, _: FormattingLineRange) -> Vec<TextEditSpan> {
+        fn format_range(
+            &self,
+            _: &Document,
+            _: &str,
+            _: FormattingLineRange,
+            _: Option<FormattingRules>,
+        ) -> Vec<TextEditSpan> {
             self.range_formatting_called.fetch_add(1, Ordering::SeqCst);
             vec![TextEditSpan {
                 start: 0,
@@ -1627,5 +1737,56 @@ mod tests {
             .unwrap();
 
         assert!(hover.is_none());
+    }
+
+    #[test]
+    fn extract_formatting_rules_returns_none_without_lex_properties() {
+        let options = FormattingOptions {
+            tab_size: 4,
+            insert_spaces: true,
+            properties: Default::default(),
+            trim_trailing_whitespace: None,
+            insert_final_newline: None,
+            trim_final_newlines: None,
+        };
+        assert!(extract_formatting_rules(&options).is_none());
+    }
+
+    #[test]
+    fn extract_formatting_rules_parses_lex_properties() {
+        use std::collections::HashMap;
+
+        let mut properties = HashMap::new();
+        properties.insert(
+            "lex.indent_string".to_string(),
+            FormattingProperty::String("  ".to_string()),
+        );
+        properties.insert(
+            "lex.max_blank_lines".to_string(),
+            FormattingProperty::Number(3),
+        );
+        properties.insert(
+            "lex.normalize_seq_markers".to_string(),
+            FormattingProperty::Bool(false),
+        );
+        properties.insert(
+            "lex.unordered_seq_marker".to_string(),
+            FormattingProperty::String("*".to_string()),
+        );
+
+        let options = FormattingOptions {
+            tab_size: 4,
+            insert_spaces: true,
+            properties,
+            trim_trailing_whitespace: None,
+            insert_final_newline: None,
+            trim_final_newlines: None,
+        };
+
+        let rules = extract_formatting_rules(&options).expect("should return Some");
+        assert_eq!(rules.indent_string, "  ");
+        assert_eq!(rules.max_blank_lines, 3);
+        assert!(!rules.normalize_seq_markers);
+        assert_eq!(rules.unordered_seq_marker, '*');
     }
 }

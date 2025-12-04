@@ -6,6 +6,7 @@
 
 use config::builder::DefaultState;
 use config::{Config, ConfigBuilder, ConfigError, File, FileFormat, ValueKind};
+use lex_babel::formats::lex::formatting_rules::FormattingRules;
 use serde::Deserialize;
 use std::path::Path;
 
@@ -36,6 +37,36 @@ pub struct FormattingRulesConfig {
     pub indent_string: String,
     pub preserve_trailing_blanks: bool,
     pub normalize_verbatim_markers: bool,
+}
+
+impl From<FormattingRulesConfig> for FormattingRules {
+    fn from(config: FormattingRulesConfig) -> Self {
+        FormattingRules {
+            session_blank_lines_before: config.session_blank_lines_before,
+            session_blank_lines_after: config.session_blank_lines_after,
+            normalize_seq_markers: config.normalize_seq_markers,
+            unordered_seq_marker: config.unordered_seq_marker,
+            max_blank_lines: config.max_blank_lines,
+            indent_string: config.indent_string,
+            preserve_trailing_blanks: config.preserve_trailing_blanks,
+            normalize_verbatim_markers: config.normalize_verbatim_markers,
+        }
+    }
+}
+
+impl From<&FormattingRulesConfig> for FormattingRules {
+    fn from(config: &FormattingRulesConfig) -> Self {
+        FormattingRules {
+            session_blank_lines_before: config.session_blank_lines_before,
+            session_blank_lines_after: config.session_blank_lines_after,
+            normalize_seq_markers: config.normalize_seq_markers,
+            unordered_seq_marker: config.unordered_seq_marker,
+            max_blank_lines: config.max_blank_lines,
+            indent_string: config.indent_string.clone(),
+            preserve_trailing_blanks: config.preserve_trailing_blanks,
+            normalize_verbatim_markers: config.normalize_verbatim_markers,
+        }
+    }
 }
 
 /// Controls AST-related inspect output.
@@ -160,5 +191,19 @@ mod tests {
             .build()
             .expect("config to build");
         assert_eq!(config.convert.pdf.size, PdfPageSize::Mobile);
+    }
+
+    #[test]
+    fn formatting_rules_config_converts_to_formatting_rules() {
+        let config = load_defaults().expect("defaults to deserialize");
+        let rules: FormattingRules = config.formatting.rules.into();
+        assert_eq!(rules.session_blank_lines_before, 1);
+        assert_eq!(rules.session_blank_lines_after, 1);
+        assert!(rules.normalize_seq_markers);
+        assert_eq!(rules.unordered_seq_marker, '-');
+        assert_eq!(rules.max_blank_lines, 2);
+        assert_eq!(rules.indent_string, "    ");
+        assert!(!rules.preserve_trailing_blanks);
+        assert!(rules.normalize_verbatim_markers);
     }
 }
