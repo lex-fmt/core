@@ -1,5 +1,5 @@
 import * as monaco from 'monaco-editor';
-import { ProtocolConnection, CodeActionParams, CodeActionRequest, CodeAction as LspCodeAction, Command, TextEdit } from 'vscode-languageserver-protocol/browser';
+import { ProtocolConnection, CodeActionParams, CodeActionRequest, CodeAction as LspCodeAction, Command, TextEdit, Diagnostic } from 'vscode-languageserver-protocol/browser';
 
 export function registerCodeActionProvider(languageId: string, connection: ProtocolConnection) {
     monaco.languages.registerCodeActionProvider(languageId, {
@@ -54,7 +54,7 @@ export function registerCodeActionProvider(languageId: string, connection: Proto
                         const monacoAction: monaco.languages.CodeAction = {
                             title: action.title,
                             kind: action.kind,
-                            diagnostics: action.diagnostics ? action.diagnostics.map((d: any) => ({
+                            diagnostics: action.diagnostics ? action.diagnostics.map((d: Diagnostic) => ({
                                 startLineNumber: d.range.start.line + 1,
                                 startColumn: d.range.start.character + 1,
                                 endLineNumber: d.range.end.line + 1,
