@@ -9,6 +9,19 @@ import { LspManager } from './lsp-manager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+type ThemeMode = 'dark' | 'light';
+
+const DARK_BACKGROUND_COLOR = '#1e1e1e';
+const LIGHT_BACKGROUND_COLOR = '#ffffff';
+
+function getSystemTheme(): ThemeMode {
+  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+}
+
+function getWindowBackground(theme: ThemeMode): string {
+  return theme === 'dark' ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR;
+}
+
 // Settings persistence
 const SETTINGS_FILE = 'settings.json';
 
@@ -159,6 +172,46 @@ let currentMenuState: MenuState = {
   isLexFile: false,
 };
 
+// Track files to open (from command line or open-file events before app is ready)
+let pendingFilesToOpen: string[] = [];
+
+/**
+ * Extract .lex file paths from command line arguments.
+ * Filters out Electron flags and non-.lex files.
+ */
+function extractLexFilesFromArgv(argv: string[]): string[] {
+  return argv
+    .filter(arg => !arg.startsWith('-') && !arg.startsWith('--'))
+    .filter(arg => arg.endsWith('.lex'))
+    .filter(arg => {
+      try {
+        return fsSync.existsSync(arg) && fsSync.statSync(arg).isFile();
+      } catch {
+        return false;
+      }
+    })
+    .map(arg => path.resolve(arg));
+}
+
+/**
+ * Open files in the renderer by sending IPC messages.
+ * If window isn't ready yet, queues files for later.
+ */
+function openFilesInWindow(filePaths: string[]) {
+  if (filePaths.length === 0) return;
+
+  if (win && !win.isDestroyed()) {
+    for (const filePath of filePaths) {
+      win.webContents.send('open-file-path', filePath);
+      // Add to recent documents (macOS Dock menu, Windows Jump List)
+      app.addRecentDocument(filePath);
+    }
+  } else {
+    // Queue for when window is ready
+    pendingFilesToOpen.push(...filePaths);
+  }
+}
+
 function applyMenuState(state: MenuState) {
   currentMenuState = state;
   if (!applicationMenu) {
@@ -212,6 +265,8 @@ async function createWindow() {
 
   const hideWindow = process.env.LEX_HIDE_WINDOW === '1';
 
+  const initialTheme = getSystemTheme();
+
   win = new BrowserWindow({
     title: 'Lex Editor',
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
@@ -220,6 +275,7 @@ async function createWindow() {
     width: windowState.width,
     height: windowState.height,
     show: !hideWindow,
+    backgroundColor: getWindowBackground(initialTheme),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
@@ -288,6 +344,14 @@ async function createWindow() {
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
+
+    // Open any files that were queued before window was ready
+    if (pendingFilesToOpen.length > 0) {
+      for (const filePath of pendingFilesToOpen) {
+        win?.webContents.send('open-file-path', filePath);
+      }
+      pendingFilesToOpen = [];
+    }
   })
 
   if (VITE_DEV_SERVER_URL) {
@@ -323,6 +387,8 @@ ipcMain.handle('file-open', async () => {
   }
   const filePath = filePaths[0];
   const content = await fs.readFile(filePath, 'utf-8');
+  // Add to recent documents (macOS Dock menu, Windows Jump List)
+  app.addRecentDocument(filePath);
   return { filePath, content };
 });
 
@@ -569,7 +635,11 @@ ipcMain.handle('show-item-in-folder', (_, fullPath: string) => {
 
 // Theme detection
 ipcMain.handle('get-native-theme', () => {
-  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+  return getSystemTheme();
+});
+
+ipcMain.on('get-native-theme-sync', event => {
+  event.returnValue = getSystemTheme();
 });
 
 ipcMain.on('update-menu-state', (_event, state: MenuState) => {
@@ -581,8 +651,9 @@ ipcMain.on('update-menu-state', (_event, state: MenuState) => {
 
 // Listen for OS theme changes and notify renderer
 nativeTheme.on('updated', () => {
-  const theme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+  const theme = getSystemTheme();
   if (win && !win.isDestroyed()) {
+    win.setBackgroundColor(getWindowBackground(theme));
     win.webContents.send('native-theme-changed', theme);
   }
 });
@@ -796,7 +867,47 @@ function createMenu() {
   applyMenuState(currentMenuState);
 }
 
-app.whenReady().then(() => {
-  createMenu();
-  createWindow();
-})
+// Windows: Set App User Model ID for proper taskbar grouping
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.lex.desktop');
+}
+
+// Single instance lock - ensure only one instance of the app runs
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // Another instance is already running, quit this one
+  app.quit();
+} else {
+  // Handle second instance launch (Windows/Linux: file opened when app is already running)
+  app.on('second-instance', (_event, argv) => {
+    // Someone tried to run a second instance, focus our window
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+
+    // On Windows/Linux, file paths come via command line arguments
+    const filesToOpen = extractLexFilesFromArgv(argv);
+    openFilesInWindow(filesToOpen);
+  });
+
+  // macOS: Handle file open via Finder (double-click, drag-drop, Open With)
+  app.on('open-file', (event, filePath) => {
+    event.preventDefault();
+    if (filePath.endsWith('.lex')) {
+      openFilesInWindow([filePath]);
+    }
+  });
+
+  app.whenReady().then(() => {
+    createMenu();
+    createWindow();
+
+    // Handle files passed via command line on initial launch
+    const initialFiles = extractLexFilesFromArgv(process.argv);
+    if (initialFiles.length > 0) {
+      pendingFilesToOpen.push(...initialFiles);
+    }
+  });
+}

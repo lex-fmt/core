@@ -92,7 +92,12 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
       document.documentElement.setAttribute('data-theme', mode);
     };
 
-    window.ipcRenderer.getNativeTheme().then(applyTheme);
+    const initialTheme = document.documentElement.getAttribute('data-theme');
+    if (initialTheme === 'dark' || initialTheme === 'light') {
+      applyTheme(initialTheme);
+    } else {
+      void window.ipcRenderer.getNativeTheme().then(applyTheme);
+    }
 
     const unsubscribe = window.ipcRenderer.onNativeThemeChanged(applyTheme);
 
@@ -170,23 +175,10 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        {/* Lex Button Group - actions enable/disable based on file type */}
+        {/* Document Button Group - export, preview, convert, share */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-muted-foreground">Lex</span>
+          <span className="text-[10px] text-muted-foreground">Document</span>
           <ButtonGroup>
-            <button
-              onClick={onFormat}
-              disabled={!canFormat}
-              className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                "hover:bg-panel-hover transition-colors",
-                !canFormat && "opacity-50 cursor-not-allowed"
-              )}
-              title="Format Document"
-            >
-              <AlignLeft size={16} />
-            </button>
-            <ButtonGroupSeparator />
             <button
               onClick={() => onExport?.('markdown')}
               disabled={!canExport}
@@ -214,6 +206,32 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
             </button>
             <ButtonGroupSeparator />
             <button
+              onClick={onPreview}
+              disabled={!canPreview}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canPreview && "opacity-50 cursor-not-allowed"
+              )}
+              title="Preview"
+            >
+              <Eye size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
+              onClick={onConvertToLex}
+              disabled={!canConvertToLex}
+              className={cn(
+                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
+                "hover:bg-panel-hover transition-colors",
+                !canConvertToLex && "opacity-50 cursor-not-allowed"
+              )}
+              title="Convert to Lex"
+            >
+              <FileType size={16} />
+            </button>
+            <ButtonGroupSeparator />
+            <button
               onClick={onShareWhatsApp}
               disabled={!canShare}
               className={cn(
@@ -225,7 +243,15 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
             >
               <MessageCircle size={16} />
             </button>
-            <ButtonGroupSeparator />
+          </ButtonGroup>
+        </div>
+
+        <div className="w-px h-5 bg-border mx-1" />
+
+        {/* Edit Button Group - find, replace */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground">Edit</span>
+          <ButtonGroup>
             <button
               onClick={onFind}
               disabled={!canFind}
@@ -251,37 +277,14 @@ export function Layout({ children, panel, rootPath, currentFile, onFileSelect, o
             >
               <Replace size={16} />
             </button>
-            <ButtonGroupSeparator />
-            <button
-              onClick={onPreview}
-              disabled={!canPreview}
-              className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                "hover:bg-panel-hover transition-colors",
-                !canPreview && "opacity-50 cursor-not-allowed"
-              )}
-              title="Preview"
-            >
-              <Eye size={16} />
-            </button>
-            <ButtonGroupSeparator />
-            <button
-              onClick={onConvertToLex}
-              disabled={!canConvertToLex}
-              className={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                "hover:bg-panel-hover transition-colors",
-                !canConvertToLex && "opacity-50 cursor-not-allowed"
-              )}
-              title="Convert to Lex"
-            >
-              <FileType size={16} />
-            </button>
           </ButtonGroup>
         </div>
 
+        <div className="w-px h-5 bg-border mx-1" />
+
+        {/* View Button Group - split panes */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-muted-foreground">Pane</span>
+          <span className="text-[10px] text-muted-foreground">View</span>
           <ButtonGroup>
             <button
               onClick={onSplitVertical}

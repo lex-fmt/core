@@ -33,5 +33,6 @@ interface Window {
     setLastFolder: (folderPath: string) => Promise<boolean>;
     getNativeTheme: () => Promise<'dark' | 'light'>;
     onNativeThemeChanged: (callback: (theme: 'dark' | 'light') => void) => () => void;
+    onOpenFilePath: (callback: (filePath: string) => void) => () => void;
   }
 }

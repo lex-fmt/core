@@ -11,6 +11,15 @@
     "dist",
     "dist-electron"
   ],
+  "fileAssociations": [
+    {
+      "ext": "lex",
+      "name": "Lex Document",
+      "description": "Lex Document File",
+      "role": "Editor",
+      "mimeType": "text/x-lex"
+    }
+  ],
   "extraResources": [
     {
       "from": "../../target/debug/lex-lsp",

@@ -13,7 +13,8 @@
   "scripts": {
     "dev": "vite",
     "icons": "node ./scripts/generate-icons.mjs",
-    "prebuild": "npm run icons",
+    "prebuild": "npm run icons && npm run build:quicklook",
+    "build:quicklook": "xcodebuild -project quicklook/LexQuickLook.xcodeproj -scheme LexQuickLook -configuration Release build && mkdir -p build/quicklook && cp -R ~/Library/Developer/Xcode/DerivedData/LexQuickLook-*/Build/Products/Release/LexQuickLook.appex build/quicklook/",
     "build": "cargo build --manifest-path ../../Cargo.toml --package lex-lsp && tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
@@ -72,6 +73,32 @@
       "icon": "build/icons/icons/icon.icns",
       "target": [
         "dmg"
+      ],
+      "extendInfo": {
+        "UTExportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.lex.document",
+            "UTTypeDescription": "Lex Document",
+            "UTTypeConformsTo": ["public.plain-text"],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": ["lex"]
+            }
+          },
+          {
+            "UTTypeIdentifier": "com.lex.extended-document",
+            "UTTypeDescription": "Lex Extended Document",
+            "UTTypeConformsTo": ["public.plain-text"],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": ["lexx"]
+            }
+          }
+        ]
+      },
+      "extraFiles": [
+        {
+          "from": "build/quicklook/LexQuickLook.appex",
+          "to": "PlugIns/LexQuickLook.appex"
+        }
       ]
     },
     "win": {
@@ -88,6 +115,20 @@
       ],
       "category": "Utility"
     },
+    "fileAssociations": [
+      {
+        "ext": "lex",
+        "name": "Lex Document",
+        "role": "Editor",
+        "mimeType": "text/x-lex"
+      },
+      {
+        "ext": "lexx",
+        "name": "Lex Extended Document",
+        "role": "Editor",
+        "mimeType": "text/x-lexx"
+      }
+    ],
     "files": [
       "dist/**/*",
       "dist-electron/**/*",

@@ -241,7 +241,6 @@ export class LspClient {
         }
         await this.readyPromise;
         if (!this.connection) throw new Error('Client not initialized');
-        // @ts-expect-error - LSP sendRequest has overloaded signatures
         return this.connection.sendRequest(method, params);
     }
 
@@ -254,7 +253,6 @@ export class LspClient {
             console.warn('LSP client not started, cannot register notification handler');
             return;
         }
-        // @ts-expect-error - LSP onNotification has overloaded signatures
         this.connection.onNotification(method, handler);
     }
 
@@ -267,7 +265,6 @@ export class LspClient {
             console.warn('LSP client not started, cannot send notification');
             return;
         }
-        // @ts-expect-error - LSP sendNotification has overloaded signatures
         this.connection.sendNotification(method, params);
     }
 }

@@ -55,19 +55,21 @@ const LIGHT_COLORS: MonochromeColors = {
   normal: '#000000',
   muted: '#808080',
   faint: '#b3b3b3',
-  faintest: '#cacaca'
+  faintest: '#cacaca',
 };
 
 const DARK_COLORS: MonochromeColors = {
   normal: '#e0e0e0',
   muted: '#888888',
   faint: '#666666',
-  faintest: '#555555'
+  faintest: '#555555',
 };
 
 function isDarkTheme(): boolean {
-  return vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark ||
-         vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.HighContrast;
+  return (
+    vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark ||
+    vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.HighContrast
+  );
 }
 
 function getMonochromeColors(): MonochromeColors {
@@ -79,7 +81,9 @@ interface SemanticTokenRule {
   fontStyle?: string;
 }
 
-function buildSemanticTokenRules(colors: MonochromeColors): Record<string, string | SemanticTokenRule> {
+function buildSemanticTokenRules(
+  colors: MonochromeColors
+): Record<string, string | SemanticTokenRule> {
   // Use :lex suffix to scope rules to .lex files only
   return {
     'SessionTitleText:lex': { foreground: colors.normal, fontStyle: 'bold' },
@@ -96,8 +100,14 @@ function buildSemanticTokenRules(colors: MonochromeColors): Record<string, strin
     'SessionMarker:lex': { foreground: colors.muted, fontStyle: 'italic' },
     'ListMarker:lex': { foreground: colors.muted, fontStyle: 'italic' },
     'Reference:lex': { foreground: colors.muted, fontStyle: 'underline' },
-    'ReferenceCitation:lex': { foreground: colors.muted, fontStyle: 'underline' },
-    'ReferenceFootnote:lex': { foreground: colors.muted, fontStyle: 'underline' },
+    'ReferenceCitation:lex': {
+      foreground: colors.muted,
+      fontStyle: 'underline',
+    },
+    'ReferenceFootnote:lex': {
+      foreground: colors.muted,
+      fontStyle: 'underline',
+    },
 
     'AnnotationLabel:lex': colors.faint,
     'AnnotationParameter:lex': colors.faint,
@@ -106,16 +116,46 @@ function buildSemanticTokenRules(colors: MonochromeColors): Record<string, strin
     'VerbatimLanguage:lex': colors.faint,
     'VerbatimAttribute:lex': colors.faint,
 
-    'InlineMarker_strong_start:lex': { foreground: colors.faintest, fontStyle: 'italic' },
-    'InlineMarker_strong_end:lex': { foreground: colors.faintest, fontStyle: 'italic' },
-    'InlineMarker_emphasis_start:lex': { foreground: colors.faintest, fontStyle: 'italic' },
-    'InlineMarker_emphasis_end:lex': { foreground: colors.faintest, fontStyle: 'italic' },
-    'InlineMarker_code_start:lex': { foreground: colors.faintest, fontStyle: 'italic' },
-    'InlineMarker_code_end:lex': { foreground: colors.faintest, fontStyle: 'italic' },
-    'InlineMarker_math_start:lex': { foreground: colors.faintest, fontStyle: 'italic' },
-    'InlineMarker_math_end:lex': { foreground: colors.faintest, fontStyle: 'italic' },
-    'InlineMarker_ref_start:lex': { foreground: colors.faintest, fontStyle: 'italic' },
-    'InlineMarker_ref_end:lex': { foreground: colors.faintest, fontStyle: 'italic' }
+    'InlineMarker_strong_start:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
+    'InlineMarker_strong_end:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
+    'InlineMarker_emphasis_start:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
+    'InlineMarker_emphasis_end:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
+    'InlineMarker_code_start:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
+    'InlineMarker_code_end:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
+    'InlineMarker_math_start:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
+    'InlineMarker_math_end:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
+    'InlineMarker_ref_start:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
+    'InlineMarker_ref_end:lex': {
+      foreground: colors.faintest,
+      fontStyle: 'italic',
+    },
   };
 }
 
@@ -138,15 +178,17 @@ export async function applyLexTheme(): Promise<void> {
     ...existing,
     rules: {
       ...existingRules,
-      ...rules
-    }
+      ...rules,
+    },
   };
 
-  await vscode.workspace.getConfiguration().update(
-    SEMANTIC_TOKEN_CONFIG_KEY,
-    updated,
-    vscode.ConfigurationTarget.Global
-  );
+  await vscode.workspace
+    .getConfiguration()
+    .update(
+      SEMANTIC_TOKEN_CONFIG_KEY,
+      updated,
+      vscode.ConfigurationTarget.Global
+    );
 }
 
 export function setupThemeListeners(context: vscode.ExtensionContext): void {

@@ -1,6 +1,26 @@
 import { ipcRenderer, contextBridge } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 
+const initialTheme = ipcRenderer.sendSync('get-native-theme-sync') as 'dark' | 'light';
+
+const applyThemeAttribute = (mode: 'dark' | 'light') => {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+  const root = document.documentElement;
+  if (root) {
+    root.setAttribute('data-theme', mode);
+    return true;
+  }
+  return false;
+};
+
+if (!applyThemeAttribute(initialTheme) && typeof window !== 'undefined') {
+  window.addEventListener('DOMContentLoaded', () => {
+    applyThemeAttribute(initialTheme);
+  }, { once: true });
+}
+
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
   on(...args: Parameters<typeof ipcRenderer.on>) {
@@ -106,5 +126,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const handler = () => callback();
     ipcRenderer.on('menu-preview', handler);
     return () => ipcRenderer.removeListener('menu-preview', handler);
+  },
+  onOpenFilePath: (callback: (filePath: string) => void) => {
+    const handler = (_event: IpcRendererEvent, filePath: string) => callback(filePath);
+    ipcRenderer.on('open-file-path', handler);
+    return () => ipcRenderer.removeListener('open-file-path', handler);
   },
 })

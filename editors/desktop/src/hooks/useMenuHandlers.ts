@@ -18,6 +18,7 @@ interface MenuHandlers {
   onPrevAnnotation?: () => void;
   onResolveAnnotation?: () => void;
   onToggleAnnotations?: () => void;
+  onOpenFilePath?: (filePath: string) => void;
 }
 
 export function useMenuHandlers(handlers: MenuHandlers) {
@@ -39,6 +40,7 @@ export function useMenuHandlers(handlers: MenuHandlers) {
     onPrevAnnotation,
     onResolveAnnotation,
     onToggleAnnotations,
+    onOpenFilePath,
   } = handlers;
 
   useEffect(() => {
@@ -67,6 +69,7 @@ export function useMenuHandlers(handlers: MenuHandlers) {
     if (onPrevAnnotation) register(window.ipcRenderer.on('menu-prev-annotation', onPrevAnnotation));
     if (onResolveAnnotation) register(window.ipcRenderer.on('menu-resolve-annotation', onResolveAnnotation));
     if (onToggleAnnotations) register(window.ipcRenderer.on('menu-toggle-annotations', onToggleAnnotations));
+    if (onOpenFilePath) register(window.ipcRenderer.onOpenFilePath(onOpenFilePath));
 
     return () => {
       subscriptions.forEach(unsub => unsub());
@@ -89,5 +92,6 @@ export function useMenuHandlers(handlers: MenuHandlers) {
     onPrevAnnotation,
     onResolveAnnotation,
     onToggleAnnotations,
+    onOpenFilePath,
   ]);
 }
