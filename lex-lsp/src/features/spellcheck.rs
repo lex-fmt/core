@@ -13,32 +13,24 @@ fn get_dictionaries() -> &'static Mutex<HashMap<String, Arc<Dictionary>>> {
     DICTIONARIES.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-pub fn check_document(document: &Document, language: &str) -> Vec<Diagnostic> {
-    let dict = get_dictionary(language);
-    if dict.is_none() {
-        return vec![];
-    }
-    let dict = dict.unwrap();
-
-    let mut diagnostics = Vec::new();
-    // Document root is a Session
-    traverse_session(&document.root, &dict, &mut diagnostics);
-    diagnostics
+pub enum DictionaryStatus {
+    Loaded(Arc<Dictionary>),
+    Missing,
 }
 
-fn get_dictionary(language: &str) -> Option<Arc<Dictionary>> {
+fn get_dictionary(language: &str) -> DictionaryStatus {
     let mut cache = get_dictionaries().lock().unwrap();
     if let Some(dict) = cache.get(language) {
-        return Some(dict.clone());
+        return DictionaryStatus::Loaded(dict.clone());
     }
 
     // Try to load from "dictionaries" folder in CWD or adjacent to executable
     let paths_to_try = vec![
         std::path::Path::new("dictionaries"),
         std::path::Path::new("resources/dictionaries"),
-        // For development/testing
         std::path::Path::new("../dictionaries"),
         std::path::Path::new("../../dictionaries"),
+        // Try absolute path if needed, or user home
     ];
 
     for base_path in paths_to_try {
@@ -53,25 +45,50 @@ fn get_dictionary(language: &str) -> Option<Arc<Dictionary>> {
                 if let Ok(dict) = Dictionary::new(&aff, &dic) {
                     let dict = Arc::new(dict);
                     cache.insert(language.to_string(), dict.clone());
-                    return Some(dict);
+                    return DictionaryStatus::Loaded(dict);
                 }
             }
         }
     }
 
-    // Fallback for testing if files not found:
-    // Create a minimal dictionary so we at least have something working
-    if language == "en_US" {
-        let aff = "SET UTF-8\nTRY esianrtolcdugmphbyfvkwzESIANRTOLCDUGMPHBYFVKWZ'";
-        let dic = "2\nhello\nworld";
-        if let Ok(dict) = Dictionary::new(aff, dic) {
-            let dict = Arc::new(dict);
-            cache.insert(language.to_string(), dict.clone());
-            return Some(dict);
-        }
-    }
+    // If we can't find a dictionary, return Missing.
+    // Do NOT use a tiny fallback that causes "all words error".
+    DictionaryStatus::Missing
+}
 
-    None
+pub struct SpellcheckResult {
+    pub diagnostics: Vec<Diagnostic>,
+    pub error: Option<String>,
+    pub misspelled_count: usize,
+}
+
+pub fn check_document(document: &Document, language: &str) -> SpellcheckResult {
+    let dict_status = get_dictionary(language);
+
+    let dict = match dict_status {
+        DictionaryStatus::Loaded(d) => d,
+        DictionaryStatus::Missing => {
+            return SpellcheckResult {
+                diagnostics: vec![],
+                error: Some(format!(
+                    "Dictionary for language '{language}' not found. Spellchecking disabled."
+                )),
+                misspelled_count: 0,
+            };
+        }
+    };
+
+    let mut diagnostics = Vec::new();
+    traverse_session(&document.root, &dict, &mut diagnostics);
+
+    let count = diagnostics.len();
+    eprintln!("[Spellcheck] Document checked. Misspelled words: {count}");
+
+    SpellcheckResult {
+        diagnostics,
+        error: None,
+        misspelled_count: count,
+    }
 }
 
 fn traverse_content_item(item: &ContentItem, dict: &Dictionary, diagnostics: &mut Vec<Diagnostic>) {
@@ -154,7 +171,7 @@ fn check_text_line(line: &TextLine, dict: &Dictionary, diagnostics: &mut Vec<Dia
 }
 
 pub fn suggest_corrections(word: &str, language: &str) -> Vec<String> {
-    if let Some(dict) = get_dictionary(language) {
+    if let DictionaryStatus::Loaded(dict) = get_dictionary(language) {
         let mut suggestions = Vec::new();
         dict.suggest(word, &mut suggestions);
         return suggestions;
@@ -200,8 +217,8 @@ mod tests {
 
         let diags = check_document(&doc, "test");
 
-        assert_eq!(diags.len(), 1);
-        assert_eq!(diags[0].message, "Unknown word: world");
+        assert_eq!(diags.diagnostics.len(), 1);
+        assert_eq!(diags.diagnostics[0].message, "Unknown word: world");
     }
 
     #[test]

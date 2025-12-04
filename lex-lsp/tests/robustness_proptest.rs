@@ -17,6 +17,7 @@ use tower_lsp::lsp_types::Diagnostic;
 #[async_trait]
 impl LspClient for MockClient {
     async fn publish_diagnostics(&self, _: Url, _: Vec<Diagnostic>, _: Option<i32>) {}
+    async fn show_message(&self, _: tower_lsp::lsp_types::MessageType, _: String) {}
 }
 
 proptest! {

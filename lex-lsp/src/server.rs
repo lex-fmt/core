@@ -15,6 +15,7 @@ use crate::features::references::find_references;
 use crate::features::semantic_tokens::{
     collect_semantic_tokens, LexSemanticToken, SEMANTIC_TOKEN_KINDS,
 };
+use crate::features::spellcheck::SpellcheckResult;
 use lex_analysis::completion::{completion_items, CompletionCandidate, CompletionWorkspace};
 use lex_babel::formats::lex::formatting_rules::FormattingRules;
 use lex_babel::templates::{
@@ -46,15 +47,22 @@ use tower_lsp::Client;
 
 use tower_lsp::lsp_types::Diagnostic;
 
+use tower_lsp::lsp_types::MessageType;
+
 #[async_trait]
 pub trait LspClient: Send + Sync + Clone + 'static {
     async fn publish_diagnostics(&self, uri: Url, diags: Vec<Diagnostic>, version: Option<i32>);
+    async fn show_message(&self, typ: MessageType, message: String);
 }
 
 #[async_trait]
 impl LspClient for Client {
     async fn publish_diagnostics(&self, uri: Url, diags: Vec<Diagnostic>, version: Option<i32>) {
         self.publish_diagnostics(uri, diags, version).await;
+    }
+
+    async fn show_message(&self, typ: MessageType, message: String) {
+        self.show_message(typ, message).await;
     }
 }
 
@@ -92,7 +100,7 @@ pub trait FeatureProvider: Send + Sync + 'static {
         trigger_char: Option<&str>,
     ) -> Vec<CompletionCandidate>;
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>>;
-    fn check_spelling(&self, document: &Document) -> Vec<tower_lsp::lsp_types::Diagnostic>;
+    fn check_spelling(&self, document: &Document) -> SpellcheckResult;
 }
 
 #[derive(Default)]
@@ -104,6 +112,7 @@ impl DefaultFeatureProvider {
     }
 }
 
+#[async_trait]
 impl FeatureProvider for DefaultFeatureProvider {
     fn semantic_tokens(&self, document: &Document) -> Vec<LexSemanticToken> {
         collect_semantic_tokens(document)
@@ -171,7 +180,7 @@ impl FeatureProvider for DefaultFeatureProvider {
         execute_command(command, arguments)
     }
 
-    fn check_spelling(&self, document: &Document) -> Vec<tower_lsp::lsp_types::Diagnostic> {
+    fn check_spelling(&self, document: &Document) -> SpellcheckResult {
         // Hardcoded language for Step A/B/C
         crate::features::spellcheck::check_document(document, "en_US")
     }
@@ -276,7 +285,15 @@ where
 
     async fn parse_and_store(&self, uri: Url, text: String) {
         if let Some(entry) = self.documents.upsert(uri.clone(), text).await {
-            let diagnostics = self.features.check_spelling(&entry.document);
+            // Run spellcheck
+            let spell_result = self.features.check_spelling(&entry.document);
+
+            if let Some(error) = spell_result.error {
+                self._client.show_message(MessageType::WARNING, error).await;
+            }
+
+            let diagnostics = spell_result.diagnostics;
+
             self._client
                 .publish_diagnostics(uri, diagnostics, None)
                 .await;
@@ -1171,9 +1188,12 @@ where
                     // Re-validate
                     if let Ok(uri) = Url::parse(uri_str) {
                         if let Some(document) = self.document(&uri).await {
-                            let diagnostics = self.features.check_spelling(&document);
+                            let spell_result = self.features.check_spelling(&document);
+                            if let Some(error) = spell_result.error {
+                                self._client.show_message(MessageType::WARNING, error).await;
+                            }
                             self._client
-                                .publish_diagnostics(uri, diagnostics, None)
+                                .publish_diagnostics(uri, spell_result.diagnostics, None)
                                 .await;
                         }
                     }
@@ -1211,6 +1231,7 @@ mod tests {
     #[async_trait]
     impl LspClient for NoopClient {
         async fn publish_diagnostics(&self, _: Url, _: Vec<Diagnostic>, _: Option<i32>) {}
+        async fn show_message(&self, _: MessageType, _: String) {}
     }
 
     #[derive(Default)]
@@ -1362,8 +1383,12 @@ mod tests {
             }
         }
 
-        fn check_spelling(&self, _: &Document) -> Vec<Diagnostic> {
-            Vec::new()
+        fn check_spelling(&self, _: &Document) -> SpellcheckResult {
+            SpellcheckResult {
+                diagnostics: Vec::new(),
+                error: None,
+                misspelled_count: 0,
+            }
         }
     }
 
