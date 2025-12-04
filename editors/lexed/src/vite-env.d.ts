@@ -44,7 +44,18 @@ interface Window {
     onMenuPreview: (callback: () => void) => () => void;
     onOpenFilePath: (callback: (filePath: string) => void) => () => void;
     getAppSettings: () => Promise<any>;
-    setEditorSettings: (settings: { showRuler: boolean; rulerWidth: number }) => Promise<boolean>;
+    setEditorSettings: (settings: { showRuler: boolean; rulerWidth: number; vimMode: boolean }) => Promise<boolean>;
+    setFormatterSettings: (settings: {
+      sessionBlankLinesBefore: number;
+      sessionBlankLinesAfter: number;
+      normalizeSeqMarkers: boolean;
+      unorderedSeqMarker: string;
+      maxBlankLines: number;
+      indentString: string;
+      preserveTrailingBlanks: boolean;
+      normalizeVerbatimMarkers: boolean;
+      formatOnSave: boolean;
+    }) => Promise<boolean>;
     onSettingsChanged: (callback: (settings: any) => void) => () => void;
   }
   lexTest?: {
@@ -52,5 +63,9 @@ interface Window {
     readFixture: (fixtureName: string) => Promise<{ path: string; content: string }>;
     getActiveEditorValue: () => string;
     triggerMockDiagnostics: () => boolean;
+    setActiveEditorValue?: (value: string) => boolean;
+    resetFormattingRequest?: () => void;
+    getLastFormattingRequest?: () => { type: 'document' | 'range'; params: unknown } | null;
+    notifyFormattingRequest?: (payload: { type: 'document' | 'range'; params: unknown }) => void;
   };
 }

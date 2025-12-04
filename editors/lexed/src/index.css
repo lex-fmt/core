@@ -32,6 +32,7 @@
   --color-accent-foreground: #ffffff;
   --panel-item-padding: 6px;
   --lex-monaco-tab-size: 32;
+  --locked-content-overlay: rgba(0, 0, 0, 0.9);
 }
 
 /* Light theme */
@@ -48,6 +49,7 @@
   --color-accent: #2a2a2a;
   --color-accent-foreground: #ffffff;
   --panel-item-padding: 6px;
+  --locked-content-overlay: rgba(255, 255, 255, 0.9);
 }
 
 @theme {
@@ -62,6 +64,7 @@
   --color-panel-hover: var(--color-panel-hover);
   --color-accent: var(--color-accent);
   --color-accent-foreground: var(--color-accent-foreground);
+  --locked-content-overlay: var(--locked-content-overlay);
 }
 
 @layer base {
@@ -73,6 +76,10 @@
   .monaco-editor .margin {
     border-right: 1px solid #cacaca;
   }
+.monaco-editor .margin-view-overlays .line-numbers {
+  font-family: "Geist Mono", monospace;
+  font-size: 12px
+}
 
   [data-theme="dark"] .monaco-editor .margin {
     border-right: 1px solid #555555;

@@ -1,4 +1,5 @@
-use lex_babel::transforms::serialize_to_lex;
+use lex_babel::formats::lex::formatting_rules::FormattingRules;
+use lex_babel::transforms::{serialize_to_lex, serialize_to_lex_with_rules};
 use lex_parser::lex::ast::range::SourceLocation;
 use lex_parser::lex::ast::Document;
 use similar::{Algorithm, ChangeTag, TextDiff};
@@ -30,8 +31,16 @@ impl LineRange {
 }
 
 /// Produce formatting edits for the entire document.
-pub fn format_document(document: &Document, source: &str) -> Vec<TextEditSpan> {
-    let formatted = match serialize_to_lex(document) {
+pub fn format_document(
+    document: &Document,
+    source: &str,
+    rules: Option<FormattingRules>,
+) -> Vec<TextEditSpan> {
+    let formatted = match rules {
+        Some(r) => serialize_to_lex_with_rules(document, r),
+        None => serialize_to_lex(document),
+    };
+    let formatted = match formatted {
         Ok(text) => text,
         Err(_) => return Vec::new(),
     };
@@ -39,8 +48,17 @@ pub fn format_document(document: &Document, source: &str) -> Vec<TextEditSpan> {
 }
 
 /// Produce formatting edits limited to the provided line range.
-pub fn format_range(document: &Document, source: &str, range: LineRange) -> Vec<TextEditSpan> {
-    let formatted = match serialize_to_lex(document) {
+pub fn format_range(
+    document: &Document,
+    source: &str,
+    range: LineRange,
+    rules: Option<FormattingRules>,
+) -> Vec<TextEditSpan> {
+    let formatted = match rules {
+        Some(r) => serialize_to_lex_with_rules(document, r),
+        None => serialize_to_lex(document),
+    };
+    let formatted = match formatted {
         Ok(text) => text,
         Err(_) => return Vec::new(),
     };
@@ -235,7 +253,7 @@ mod tests {
         let formatted = serialize_to_lex(&document).unwrap();
         assert_ne!(formatted, source);
 
-        let edits = format_document(&document, source);
+        let edits = format_document(&document, source, None);
         assert!(!edits.is_empty());
         let applied = apply_spans(source, &edits);
         assert_eq!(applied, formatted);
@@ -246,7 +264,7 @@ mod tests {
         let source = RANGE_FIXTURE;
         let document = parse(source);
         let range = LineRange { start: 9, end: 14 };
-        let edits = format_range(&document, source, range);
+        let edits = format_range(&document, source, range, None);
         assert!(!edits.is_empty());
 
         let locator = SourceLocation::new(source);
@@ -276,7 +294,23 @@ mod tests {
     fn no_edits_when_already_formatted() {
         let source = "Section:\n    - item\n";
         let document = parse(source);
-        let edits = format_document(&document, source);
+        let edits = format_document(&document, source, None);
         assert!(edits.is_empty());
+    }
+
+    #[test]
+    fn format_with_custom_rules() {
+        let source = "Section:\n    - item\n";
+        let document = parse(source);
+        let rules = FormattingRules {
+            indent_string: "  ".to_string(), // 2-space indent
+            ..Default::default()
+        };
+
+        let edits = format_document(&document, source, Some(rules));
+        // With 2-space indent, the 4-space indent should change
+        assert!(!edits.is_empty());
+        let applied = apply_spans(source, &edits);
+        assert!(applied.contains("  - item")); // 2-space indent
     }
 }

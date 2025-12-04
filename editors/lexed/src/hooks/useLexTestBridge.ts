@@ -3,6 +3,13 @@ import * as monaco from 'monaco-editor';
 import type { EditorPaneHandle } from '@/components/EditorPane';
 import type { PaneState } from '@/panes/types';
 
+type FormattingRequestPayload = {
+  type: 'document' | 'range';
+  params: unknown;
+};
+
+let lastFormattingRequest: FormattingRequestPayload | null = null;
+
 interface UseLexTestBridgeOptions {
   activePaneId: string | null;
   paneHandles: React.MutableRefObject<Map<string, EditorPaneHandle | null>>;
@@ -54,6 +61,18 @@ export function useLexTestBridge({
         const editorInstance = paneHandles.current.get(target)?.getEditor();
         return editorInstance?.getValue() ?? '';
       },
+      setActiveEditorValue: (value: string) => {
+        const target = activePaneId ?? panesRef.current[0]?.id ?? null;
+        if (!target) {
+          return false;
+        }
+        const editorInstance = paneHandles.current.get(target)?.getEditor();
+        if (!editorInstance) {
+          return false;
+        }
+        editorInstance.setValue(value);
+        return true;
+      },
       triggerMockDiagnostics: () => {
         const target = activePaneId ?? panesRef.current[0]?.id ?? null;
         if (!target) {
@@ -77,6 +96,13 @@ export function useLexTestBridge({
           },
         ]);
         return true;
+      },
+      notifyFormattingRequest: (payload: FormattingRequestPayload) => {
+        lastFormattingRequest = payload;
+      },
+      getLastFormattingRequest: () => lastFormattingRequest,
+      resetFormattingRequest: () => {
+        lastFormattingRequest = null;
       },
     };
     window.lexTest = api;

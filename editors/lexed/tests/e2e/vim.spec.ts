@@ -35,7 +35,7 @@ test.describe('Vim Mode', () => {
     expect(settings.editor.vimMode).toBe(true);
 
     // Verify status bar is visible
-    const statusBar = window.locator('.font-mono.opacity-80').first();
+    const statusBar = window.locator('[data-testid="vim-status"]').first();
     await expect(statusBar).toBeVisible();
 
     // In Normal mode by default

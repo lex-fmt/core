@@ -64,6 +64,18 @@ interface EditorSettings {
   vimMode: boolean;
 }
 
+interface FormatterSettings {
+  sessionBlankLinesBefore: number;
+  sessionBlankLinesAfter: number;
+  normalizeSeqMarkers: boolean;
+  unorderedSeqMarker: string;
+  maxBlankLines: number;
+  indentString: string;
+  preserveTrailingBlanks: boolean;
+  normalizeVerbatimMarkers: boolean;
+  formatOnSave: boolean;
+}
+
 interface AppSettings {
   lastFolder?: string;
   openTabs?: string[];
@@ -73,6 +85,7 @@ interface AppSettings {
   activePaneId?: string;
   windowState?: WindowState;
   editor?: EditorSettings;
+  formatter?: FormatterSettings;
 }
 
 const DEFAULT_WINDOW_STATE: WindowState = {
@@ -137,6 +150,21 @@ const store = new Store<AppSettings>({
         showRuler: { type: 'boolean', default: false },
         rulerWidth: { type: 'number', default: 100 },
         vimMode: { type: 'boolean', default: false },
+      },
+      default: {},
+    },
+    formatter: {
+      type: 'object',
+      properties: {
+        sessionBlankLinesBefore: { type: 'number', default: 1 },
+        sessionBlankLinesAfter: { type: 'number', default: 1 },
+        normalizeSeqMarkers: { type: 'boolean', default: true },
+        unorderedSeqMarker: { type: 'string', default: '-' },
+        maxBlankLines: { type: 'number', default: 2 },
+        indentString: { type: 'string', default: '    ' },
+        preserveTrailingBlanks: { type: 'boolean', default: false },
+        normalizeVerbatimMarkers: { type: 'boolean', default: true },
+        formatOnSave: { type: 'boolean', default: false },
       },
       default: {},
     },
@@ -719,6 +747,14 @@ ipcMain.handle('get-app-settings', () => {
 ipcMain.handle('set-editor-settings', (_event, settings: EditorSettings) => {
   store.set('editor', settings);
   // Notify all windows about settings change
+  BrowserWindow.getAllWindows().forEach((w) => {
+    w.webContents.send('settings-changed', store.store);
+  });
+  return true;
+});
+
+ipcMain.handle('set-formatter-settings', (_event, settings: FormatterSettings) => {
+  store.set('formatter', settings);
   BrowserWindow.getAllWindows().forEach((w) => {
     w.webContents.send('settings-changed', store.store);
   });

@@ -133,7 +133,20 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     return () => ipcRenderer.removeListener('open-file-path', handler);
   },
   getAppSettings: () => ipcRenderer.invoke('get-app-settings'),
-  setEditorSettings: (settings: { showRuler: boolean; rulerWidth: number }) => ipcRenderer.invoke('set-editor-settings', settings),
+  setEditorSettings: (settings: { showRuler: boolean; rulerWidth: number; vimMode: boolean }) => ipcRenderer.invoke('set-editor-settings', settings),
+  setFormatterSettings: (
+    settings: {
+      sessionBlankLinesBefore: number;
+      sessionBlankLinesAfter: number;
+      normalizeSeqMarkers: boolean;
+      unorderedSeqMarker: string;
+      maxBlankLines: number;
+      indentString: string;
+      preserveTrailingBlanks: boolean;
+      normalizeVerbatimMarkers: boolean;
+      formatOnSave: boolean;
+    }
+  ) => ipcRenderer.invoke('set-formatter-settings', settings),
   onSettingsChanged: (callback: (settings: any) => void) => {
     const handler = (_event: IpcRendererEvent, settings: any) => callback(settings);
     ipcRenderer.on('settings-changed', handler);

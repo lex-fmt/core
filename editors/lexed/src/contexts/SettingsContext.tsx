@@ -1,27 +1,14 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-
-interface EditorSettings {
-    showRuler: boolean;
-    rulerWidth: number;
-    vimMode: boolean;
-}
-
-interface AppSettings {
-    editor: EditorSettings;
-}
+import { AppSettings, EditorSettings, FormatterSettings, defaultAppSettings } from '@/settings/types';
+import { setSettingsSnapshot } from '@/settings/snapshot';
 
 interface SettingsContextType {
     settings: AppSettings;
     updateEditorSettings: (settings: EditorSettings) => Promise<void>;
+    updateFormatterSettings: (settings: FormatterSettings) => Promise<void>;
 }
 
-const defaultSettings: AppSettings = {
-    editor: {
-        showRuler: false,
-        rulerWidth: 100,
-        vimMode: false,
-    },
-};
+const defaultSettings: AppSettings = defaultAppSettings;
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
@@ -39,20 +26,26 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         // Initial load
         window.ipcRenderer.getAppSettings().then((loadedSettings: any) => {
-            setSettings(prev => ({
-                ...prev,
-                ...loadedSettings,
-                editor: { ...prev.editor, ...loadedSettings.editor }
-            }));
+            setSettings(prev => {
+                const next = {
+                    editor: { ...prev.editor, ...(loadedSettings?.editor ?? {}) },
+                    formatter: { ...prev.formatter, ...(loadedSettings?.formatter ?? {}) },
+                } satisfies AppSettings;
+                setSettingsSnapshot(next);
+                return next;
+            });
         });
 
         // Listen for changes
         const unsubscribe = window.ipcRenderer.onSettingsChanged((newSettings: any) => {
-            setSettings(prev => ({
-                ...prev,
-                ...newSettings,
-                editor: { ...prev.editor, ...newSettings.editor }
-            }));
+            setSettings(prev => {
+                const next = {
+                    editor: { ...prev.editor, ...(newSettings?.editor ?? {}) },
+                    formatter: { ...prev.formatter, ...(newSettings?.formatter ?? {}) },
+                } satisfies AppSettings;
+                setSettingsSnapshot(next);
+                return next;
+            });
         });
 
         return unsubscribe;
@@ -61,14 +54,24 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const updateEditorSettings = async (editorSettings: EditorSettings) => {
         await window.ipcRenderer.setEditorSettings(editorSettings);
         // Optimistic update
-        setSettings(prev => ({
-            ...prev,
-            editor: editorSettings
-        }));
+        setSettings(prev => {
+            const next = { ...prev, editor: editorSettings } satisfies AppSettings;
+            setSettingsSnapshot(next);
+            return next;
+        });
+    };
+
+    const updateFormatterSettings = async (formatterSettings: FormatterSettings) => {
+        await window.ipcRenderer.setFormatterSettings(formatterSettings);
+        setSettings(prev => {
+            const next = { ...prev, formatter: formatterSettings } satisfies AppSettings;
+            setSettingsSnapshot(next);
+            return next;
+        });
     };
 
     return (
-        <SettingsContext.Provider value={{ settings, updateEditorSettings }}>
+        <SettingsContext.Provider value={{ settings, updateEditorSettings, updateFormatterSettings }}>
             {children}
         </SettingsContext.Provider>
     );

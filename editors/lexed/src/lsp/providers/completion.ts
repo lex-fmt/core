@@ -4,6 +4,7 @@ import { LspCompletionItem, LspCompletionResponse } from '../types';
 
 export function registerCompletionProvider(languageId: string, connection: ProtocolConnection) {
     monaco.languages.registerCompletionItemProvider(languageId, {
+        triggerCharacters: ['@', '[', ':', '='],
         provideCompletionItems: async (model, position, context) => {
             if (!connection) return { suggestions: [] };
 
