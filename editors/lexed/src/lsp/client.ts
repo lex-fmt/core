@@ -184,6 +184,40 @@ export class LspClient {
                 }
             });
 
+            // Listen for window/showMessage
+            this.connection.onNotification('window/showMessage', (params: { type: number, message: string }) => {
+                console.log(`[LSP Message] ${params.message}`);
+                // Use a simple alert or console for now, or a toast if available.
+                // Since I don't see a toast library imported, I'll use a custom DOM element or just console.warn for visibility.
+                // But the user wants a "toast notification".
+                // I'll try to use a simple DOM overlay if no library is present.
+                
+                const typeStr = params.type === 1 ? 'Error' : params.type === 2 ? 'Warning' : 'Info';
+                console.log(`[LSP ${typeStr}] ${params.message}`);
+                
+                // Dispatch a custom event so the UI can react if it wants
+                window.dispatchEvent(new CustomEvent('lsp-message', { detail: params }));
+
+                // Also show a simple native notification if possible, or just log.
+                // For now, let's create a simple floating div to ensure visibility as requested.
+                const toast = document.createElement('div');
+                toast.style.position = 'fixed';
+                toast.style.bottom = '20px';
+                toast.style.right = '20px';
+                toast.style.backgroundColor = params.type === 1 ? '#ff4444' : params.type === 2 ? '#ffbb33' : '#33b5e5';
+                toast.style.color = 'white';
+                toast.style.padding = '10px 20px';
+                toast.style.borderRadius = '4px';
+                toast.style.zIndex = '10000';
+                toast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+                toast.style.fontFamily = 'sans-serif';
+                toast.innerText = params.message;
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.remove();
+                }, 5000);
+            });
+
             this.registerProviders();
         } catch (error) {
             console.error('[LspClient] Initialization failed:', error);
