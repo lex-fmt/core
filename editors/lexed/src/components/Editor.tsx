@@ -16,6 +16,7 @@ initializeMonaco();
 interface EditorProps {
   fileToOpen?: string | null;
   onFileLoaded?: (path: string) => void;
+  vimStatusNode?: HTMLDivElement | null;
 }
 
 export interface EditorHandle {
@@ -30,11 +31,11 @@ export interface EditorHandle {
   replace: () => void;
 }
 
-export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fileToOpen, onFileLoaded }, ref) {
+export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fileToOpen, onFileLoaded, vimStatusNode }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const statusNodeRef = useRef<HTMLDivElement>(null);
   const vimModeRef = useRef<any>(null);
+  const attachedStatusNodeRef = useRef<HTMLDivElement | null>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const { settings } = useSettings();
 
@@ -124,19 +125,36 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
   }, [fileToOpen, switchToFile]);
 
   useEffect(() => {
-    if (editorRef.current && statusNodeRef.current) {
-      if (settings.editor.vimMode) {
-        if (!vimModeRef.current) {
-          vimModeRef.current = initVimMode(editorRef.current, statusNodeRef.current);
-        }
-      } else {
-        if (vimModeRef.current) {
-          vimModeRef.current.dispose();
-          vimModeRef.current = null;
-        }
-      }
+    const editor = editorRef.current;
+    if (!editor) {
+      return;
     }
-  }, [settings.editor.vimMode]);
+
+    if (!settings.editor.vimMode || !vimStatusNode) {
+      if (vimModeRef.current) {
+        vimModeRef.current.dispose();
+        vimModeRef.current = null;
+      }
+      if (attachedStatusNodeRef.current) {
+        attachedStatusNodeRef.current.textContent = '';
+        attachedStatusNodeRef.current = null;
+      }
+      return;
+    }
+
+    if (vimModeRef.current && attachedStatusNodeRef.current === vimStatusNode) {
+      return;
+    }
+
+    if (vimModeRef.current) {
+      vimModeRef.current.dispose();
+      vimModeRef.current = null;
+    }
+
+    vimStatusNode.textContent = '';
+    vimModeRef.current = initVimMode(editor, vimStatusNode);
+    attachedStatusNodeRef.current = vimStatusNode;
+  }, [settings.editor.vimMode, vimStatusNode]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -157,11 +175,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
       rulers: settings.editor.showRuler ? [settings.editor.rulerWidth] : [],
     } satisfies monaco.editor.IStandaloneEditorConstructionOptions);
     editorRef.current = editor;
-
-    // Initialize Vim mode if enabled
-    if (settings.editor.vimMode && statusNodeRef.current) {
-      vimModeRef.current = initVimMode(editor, statusNodeRef.current);
-    }
 
     // ... existing code
 
@@ -198,6 +211,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
       editor.dispose();
       if (vimModeRef.current) {
         vimModeRef.current.dispose();
+        vimModeRef.current = null;
+      }
+      if (attachedStatusNodeRef.current) {
+        attachedStatusNodeRef.current.textContent = '';
+        attachedStatusNodeRef.current = null;
       }
       unsubscribeTheme();
       unsubscribeInsertAsset();
@@ -233,12 +251,6 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
   return (
     <div className="relative w-full h-full overflow-hidden">
       <div ref={containerRef} className="w-full h-full" />
-      {settings.editor.vimMode && (
-        <div
-          ref={statusNodeRef}
-          className="absolute bottom-0 right-0 px-2 py-0.5 bg-panel border-t border-l border-border text-xs font-mono opacity-80 pointer-events-none"
-        />
-      )}
     </div>
   );
 });

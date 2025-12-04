@@ -54,6 +54,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
 ) {
     const [fileToOpen, setFileToOpen] = useState<string | null>(null);
     const [editor, setEditor] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
+    const [vimStatusNode, setVimStatusNode] = useState<HTMLDivElement | null>(null);
     const editorRef = useRef<EditorHandle>(null);
     const previousTabsRef = useRef<Tab[]>(tabs);
     const latestOnFileLoaded = useRef(onFileLoaded);
@@ -309,10 +310,17 @@ export const EditorPane = forwardRef<EditorPaneHandle, EditorPaneProps>(function
                         ref={editorRef}
                         fileToOpen={fileToOpen}
                         onFileLoaded={handleFileLoaded}
+                        vimStatusNode={vimStatusNode}
                     />
                 )}
             </div>
-            {!isPreviewTab && <StatusBar editor={editor} exportStatus={exportStatus} />}
+            {!isPreviewTab && (
+                <StatusBar
+                    editor={editor}
+                    exportStatus={exportStatus}
+                    onVimStatusNodeChange={setVimStatusNode}
+                />
+            )}
         </div>
     );
 });
