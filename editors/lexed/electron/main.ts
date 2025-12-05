@@ -3,10 +3,19 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
+import log from 'electron-log';
 
 import { WindowManager, AppSettings, PaneLayoutSettings, PaneRowLayout, EditorSettings, FormatterSettings } from './window-manager';
 import { randomUUID } from 'crypto';
 // LspManager import removed as it is managed by WindowManager
+
+// Configure logging
+log.initialize();
+log.transports.file.level = 'info';
+log.transports.console.level = process.env.NODE_ENV === 'development' ? 'debug' : 'error';
+
+// Optional: Catch all unhandled errors
+log.errorHandler.startCatching();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

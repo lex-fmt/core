@@ -20,6 +20,7 @@ import { useLexTestBridge } from '@/hooks/useLexTestBridge'
 import { useMenuHandlers } from '@/hooks/useMenuHandlers'
 import { SettingsProvider } from '@/contexts/SettingsContext'
 import { dispatchFileTreeRefresh } from '@/lib/events'
+import log from 'electron-log/renderer';
 
 const createTabFromPath = (path: string): Tab => ({
   id: path,
@@ -107,15 +108,18 @@ function App() {
   });
 
   const handleNewFile = useCallback(async () => {
+    log.info('Action: New File');
     if (!activePaneIdValue) return;
     const result = await window.ipcRenderer.fileNew(rootPath);
     if (result) {
+      log.debug('New file created', result.filePath);
       openFileInPane(activePaneIdValue, result.filePath);
       dispatchFileTreeRefresh();
     }
   }, [rootPath, activePaneIdValue, openFileInPane]);
 
   const handleOpenFolder = useCallback(async () => {
+    log.info('Action: Open Folder');
     const result = await window.ipcRenderer.invoke('folder-open') as string | null;
     if (result) {
       setRootPath(result);
@@ -124,20 +128,24 @@ function App() {
   }, [setRootPath]);
 
   const handleOpenFile = useCallback(async () => {
+    log.info('Action: Open File');
     if (!activePaneIdValue) return;
     const result = await window.ipcRenderer.fileOpen();
     if (result) {
+      log.debug('File opened', result.filePath);
       openFileInPane(activePaneIdValue, result.filePath);
     }
   }, [activePaneIdValue, openFileInPane]);
 
   const handleSave = useCallback(async () => {
+    log.info('Action: Save');
     if (!activePaneIdValue) return;
     const handle = paneHandles.current.get(activePaneIdValue);
     await handle?.save();
   }, [activePaneIdValue]);
 
   const handleFormat = useCallback(async () => {
+    log.info('Action: Format');
     if (!activePaneIdValue) return;
     const handle = paneHandles.current.get(activePaneIdValue);
     await handle?.format();
@@ -286,6 +294,7 @@ function App() {
   }, [activePaneIdValue, openFileInPane]);
 
   const handleInsertAsset = useCallback(async () => {
+    log.info('Action: Insert Asset');
     console.log('handleInsertAsset called');
     if (!activeEditor) {
       console.log('handleInsertAsset: no active editor');
@@ -335,6 +344,7 @@ function App() {
         toast.info('Annotation is in another file: ' + location.uri);
       }
     } else {
+      log.info('No more annotations');
       toast.info('No more annotations');
     }
   }, [activeEditor]);

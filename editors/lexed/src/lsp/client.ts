@@ -2,6 +2,7 @@ import { createProtocolConnection, ProtocolConnection, Logger, InitializeParams,
 import { IpcMessageReader, IpcMessageWriter } from './ipc-connection';
 import * as monaco from 'monaco-editor';
 import { LspPublishDiagnosticsParams } from './types';
+import log from 'electron-log/renderer';
 
 export class LspClient {
     private connection: ProtocolConnection | null = null;
@@ -9,7 +10,7 @@ export class LspClient {
     private isDisposed = false;
     private retryCount = 0;
     private readonly maxRetries = 5;
-    private readonly baseRetryDelay = 1000;
+    private baseRetryDelay = 1000;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor() {
@@ -25,28 +26,28 @@ export class LspClient {
     private async initialize(): Promise<void> {
         if (this.isDisposed) return;
 
-        console.log(`[LspClient] Starting SimpleLspClient (Attempt ${this.retryCount + 1}/${this.maxRetries + 1})...`);
+        log.debug(`[LspClient] Starting SimpleLspClient (Attempt ${this.retryCount + 1}/${this.maxRetries + 1})...`);
         
         try {
             const reader = new IpcMessageReader(window.ipcRenderer);
             const writer = new IpcMessageWriter(window.ipcRenderer);
             
             const logger: Logger = {
-                error: (message) => console.error('[LSP]', message),
-                warn: (message) => console.warn('[LSP]', message),
-                info: (message) => console.info('[LSP]', message),
-                log: (message) => console.log('[LSP]', message)
+                error: (message) => log.error('[LSP]', message),
+                warn: (message) => log.warn('[LSP]', message),
+                info: (message) => log.info('[LSP]', message),
+                log: (message) => log.debug('[LSP]', message)
             };
 
             this.connection = createProtocolConnection(reader, writer, logger);
             
             this.connection.onClose(() => {
-                console.warn('[LspClient] Connection closed.');
+                log.warn('[LspClient] Connection closed.');
                 this.handleConnectionLoss();
             });
 
             this.connection.onError((error) => {
-                console.error('[LspClient] Connection error:', error);
+                log.error('[LspClient] Connection error:', error);
                 this.handleConnectionLoss();
             });
 
@@ -152,12 +153,12 @@ export class LspClient {
                 }
             };
 
-            console.log('[LspClient] Sending initialize request...');
+            log.debug('[LspClient] Sending initialize request...');
             const result = await this.connection.sendRequest(InitializeRequest.type, initParams);
-            console.log('[LspClient] Initialize result:', result);
+            log.debug('[LspClient] Initialize result:', result);
 
             await this.connection.sendNotification(InitializedNotification.type, {});
-            console.log('[LspClient] Initialized');
+            log.info('[LspClient] Initialized');
 
             // Reset retry count on successful connection
             this.retryCount = 0;
@@ -186,14 +187,14 @@ export class LspClient {
 
             // Listen for window/showMessage
             this.connection.onNotification('window/showMessage', (params: { type: number, message: string }) => {
-                console.log(`[LSP Message] ${params.message}`);
+                log.debug(`[LSP Message] ${params.message}`);
                 // Use a simple alert or console for now, or a toast if available.
                 // Since I don't see a toast library imported, I'll use a custom DOM element or just console.warn for visibility.
                 // But the user wants a "toast notification".
                 // I'll try to use a simple DOM overlay if no library is present.
                 
                 const typeStr = params.type === 1 ? 'Error' : params.type === 2 ? 'Warning' : 'Info';
-                console.log(`[LSP ${typeStr}] ${params.message}`);
+                log.info(`[LSP ${typeStr}] ${params.message}`);
                 
                 // Dispatch a custom event so the UI can react if it wants
                 window.dispatchEvent(new CustomEvent('lsp-message', { detail: params }));
@@ -234,15 +235,15 @@ export class LspClient {
 
         if (this.retryCount < this.maxRetries) {
             const delay = this.baseRetryDelay * Math.pow(2, this.retryCount);
-            console.log(`[LspClient] Reconnecting in ${delay}ms...`);
+            log.info(`[LspClient] Reconnecting in ${delay}ms...`);
             this.retryCount++;
             
             if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
             this.reconnectTimer = setTimeout(() => {
-                this.start().catch(err => console.error('[LspClient] Reconnection failed:', err));
+                this.start().catch(err => log.error('[LspClient] Reconnection failed:', err));
             }, delay);
         } else {
-            console.error('[LspClient] Max retries exceeded. Giving up.');
+            log.error('[LspClient] Max retries exceeded. Giving up.');
         }
     }
 
@@ -280,11 +281,11 @@ export class LspClient {
         try {
             const result = await this.connection.sendRequest(method, params) as R;
             const duration = performance.now() - start;
-            console.log(`[LspClient] ${method} responded in ${duration.toFixed(1)}ms`);
+            log.debug(`[LspClient] ${method} responded in ${duration.toFixed(1)}ms`);
             return result as R;
         } catch (error) {
             const duration = performance.now() - start;
-            console.error(`[LspClient] ${method} failed after ${duration.toFixed(1)}ms`, error);
+            log.error(`[LspClient] ${method} failed after ${duration.toFixed(1)}ms`, error);
             throw error;
         }
     }
