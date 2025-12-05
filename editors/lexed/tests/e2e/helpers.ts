@@ -7,6 +7,7 @@ export async function launchApp() {
       ...process.env,
       NODE_ENV: 'development',
       LEX_DISABLE_SINGLE_INSTANCE_LOCK: '1',
+      VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173',
     },
   });
   return app;
