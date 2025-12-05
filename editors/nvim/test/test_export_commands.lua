@@ -1,4 +1,4 @@
--- Test: Export commands (Markdown, HTML, PDF)
+-- Test: Export commands via LSP (Markdown, HTML, PDF)
 
 local script_path = debug.getinfo(1).source:sub(2)
 local test_dir = vim.fn.fnamemodify(script_path, ":p:h")
@@ -54,16 +54,7 @@ end
 
 print("TEST_PASSED: All export user commands are registered")
 
--- Test that the CLI binary can be found
-local lex_cli_path = project_root .. "/target/debug/lex"
-if vim.fn.executable(lex_cli_path) ~= 1 then
-  print("TEST_FAILED: lex CLI binary not found at " .. lex_cli_path)
-  vim.cmd("cquit 1")
-end
-
-print("TEST_PASSED: lex CLI binary found")
-
--- Test actual export functionality by creating a temp file and exporting it
+-- Set up LSP for actual export tests
 vim.filetype.add({ extension = { lex = "lex" } })
 
 -- Create a temp .lex file with some content
@@ -85,70 +76,113 @@ f:write(lex_content)
 f:close()
 
 vim.cmd("edit " .. temp_lex)
-vim.wait(100)
 
--- Test export to markdown
-local temp_md = temp_lex:gsub("%.lex$", ".md")
-local md_result = vim.system({ lex_cli_path, "convert", "--to", "markdown", temp_lex }, { text = true }):wait()
-
-if md_result.code ~= 0 then
-  print("TEST_FAILED: lex convert --to markdown failed: " .. (md_result.stderr or "unknown error"))
+-- Wait for LSP to attach
+local lsp_binary = project_root .. "/target/debug/lex-lsp"
+if vim.fn.executable(lsp_binary) ~= 1 then
+  print("TEST_FAILED: lex-lsp binary not found at " .. lsp_binary)
   vim.cmd("cquit 1")
 end
 
-if not md_result.stdout or md_result.stdout == "" then
-  print("TEST_FAILED: lex convert --to markdown returned empty output")
+-- Start LSP client
+vim.lsp.start({
+  name = "lex_lsp",
+  cmd = { lsp_binary },
+  root_dir = vim.fn.getcwd(),
+  filetypes = { "lex" },
+})
+
+-- Wait for LSP to be ready
+local max_wait = 5000
+local waited = 0
+while waited < max_wait do
+  local clients = vim.lsp.get_clients({ name = "lex_lsp", bufnr = 0 })
+  if #clients > 0 then
+    break
+  end
+  vim.wait(100)
+  waited = waited + 100
+end
+
+local clients = vim.lsp.get_clients({ name = "lex_lsp", bufnr = 0 })
+if #clients == 0 then
+  print("TEST_FAILED: LSP client did not attach")
   vim.cmd("cquit 1")
 end
 
--- Check that the markdown output contains expected content
-if not md_result.stdout:match("Test") then
+print("TEST_PASSED: LSP client attached")
+
+-- Test export to markdown via LSP
+local client = clients[1]
+local result = client.request_sync("workspace/executeCommand", {
+  command = "lex.export",
+  arguments = { "markdown", lex_content },
+}, 5000, 0)
+
+if not result or not result.result then
+  print("TEST_FAILED: lex.export markdown LSP command failed")
+  vim.cmd("cquit 1")
+end
+
+local md_output = result.result
+if type(md_output) ~= "string" or md_output == "" then
+  print("TEST_FAILED: lex.export markdown returned empty or non-string result")
+  vim.cmd("cquit 1")
+end
+
+if not md_output:match("Test") then
   print("TEST_FAILED: markdown output doesn't contain expected content")
   vim.cmd("cquit 1")
 end
 
-print("TEST_PASSED: lex convert --to markdown works")
+print("TEST_PASSED: lex.export markdown via LSP works")
 
--- Test export to HTML
-local html_result = vim.system({ lex_cli_path, "convert", "--to", "html", temp_lex }, { text = true }):wait()
+-- Test export to HTML via LSP
+result = client.request_sync("workspace/executeCommand", {
+  command = "lex.export",
+  arguments = { "html", lex_content },
+}, 5000, 0)
 
-if html_result.code ~= 0 then
-  print("TEST_FAILED: lex convert --to html failed: " .. (html_result.stderr or "unknown error"))
+if not result or not result.result then
+  print("TEST_FAILED: lex.export html LSP command failed")
   vim.cmd("cquit 1")
 end
 
-if not html_result.stdout or html_result.stdout == "" then
-  print("TEST_FAILED: lex convert --to html returned empty output")
+local html_output = result.result
+if type(html_output) ~= "string" or html_output == "" then
+  print("TEST_FAILED: lex.export html returned empty or non-string result")
   vim.cmd("cquit 1")
 end
 
--- Check that the HTML output contains expected content
-if not html_result.stdout:match("<") then
+if not html_output:match("<") then
   print("TEST_FAILED: html output doesn't contain HTML tags")
   vim.cmd("cquit 1")
 end
 
-print("TEST_PASSED: lex convert --to html works")
+print("TEST_PASSED: lex.export html via LSP works")
 
--- Test export to PDF
+-- Test export to PDF via LSP (binary format)
 local temp_pdf = temp_lex:gsub("%.lex$", ".pdf")
-local pdf_result = vim.system({ lex_cli_path, "convert", "--to", "pdf", "--output", temp_pdf, temp_lex }, { text = true }):wait()
+local uri = vim.uri_from_fname(temp_lex)
+result = client.request_sync("workspace/executeCommand", {
+  command = "lex.export",
+  arguments = { "pdf", lex_content, uri, temp_pdf },
+}, 10000, 0)
 
-if pdf_result.code ~= 0 then
-  print("TEST_FAILED: lex convert --to pdf failed: " .. (pdf_result.stderr or "unknown error"))
+if not result or not result.result then
+  print("TEST_FAILED: lex.export pdf LSP command failed")
   vim.cmd("cquit 1")
 end
 
 if vim.fn.filereadable(temp_pdf) ~= 1 then
-  print("TEST_FAILED: PDF file not created")
+  print("TEST_FAILED: PDF file not created at " .. temp_pdf)
   vim.cmd("cquit 1")
 end
 
-print("TEST_PASSED: lex convert --to pdf works")
+print("TEST_PASSED: lex.export pdf via LSP works")
 
 -- Clean up
 vim.fn.delete(temp_lex)
-vim.fn.delete(temp_md)
 vim.fn.delete(temp_pdf)
 
 print("TEST_PASSED: All export command tests passed")

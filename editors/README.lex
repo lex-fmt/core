@@ -41,34 +41,36 @@ Editor Tooling
  |   Feature Group | Feature | LSP Method / Command | Implementation | Status | VS Code | Neovim | LexEd |
  | --- | --- | --- | --- | --- | --- | --- | --- |
  |  **Syntax** | Syntax Highlighting | `textDocument/semanticTokens` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done | Done |
- |  | Document Symbols | `textDocument/documentSymbol` | `lex-analysis/src/document_symbols.rs` | Done | Done | Done | No |
+ |  | Document Symbols | `textDocument/documentSymbol` | `lex-analysis/src/document_symbols.rs` | Done | Done | Done | Done |
  |  | Folding | `textDocument/foldingRange` | `lex-analysis/src/folding_ranges.rs` | Done | Done | Done | Done |
  |  | Hover | `textDocument/hover` | `lex-analysis/src/hover.rs` | Done | Done | Done | Done |
  |  | Semantic Tokens | `textDocument/semanticTokens/full` | `lex-analysis/src/semantic_tokens.rs` | Done | Done | Done | Done |
- |  | Diagnostics | `textDocument/publishDiagnostics` | (Postponed) | Base Rust |  |  | Done |
+ |  | Code Actions | `textDocument/codeAction` | `lex-lsp/src/features/code_actions.rs` | Done | Done | Done | Done |
+ |  | Comment Toggling | (Editor config) | Editor language configuration | Done | Done | Done | Done |
  | **Navigation** | Go to Definition | `textDocument/definition` | `lex-analysis/src/go_to_definition.rs` | Done | Done | Done | Done |
- |  | Find References | `textDocument/references` | `lex-analysis/src/references.rs` | Done | Done | Done | No |
- |  | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` | Done | Done | Done | No |
+ |  | Find References | `textDocument/references` | `lex-analysis/src/references.rs` | Done | Done | Done | Done |
+ |  | Document Links | `textDocument/documentLink` | `lex-lsp/src/features/document_links.rs` | Done | Done | Done | Done |
  |  | Next/Prev Annotation | `lex.next_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
  | **Formatting** | Formatting | `textDocument/formatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | Done |
  |  | Range Formatting | `textDocument/rangeFormatting` | `lex-lsp/src/features/formatting.rs` | Done | Done | Done | Done |
- | **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
- |  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
+ | **Editing** | Insert Asset | `lex.insert_asset` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
+ |  | Insert Verbatim | `lex.insert_verbatim` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
  |  | Completion (Paths) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | Done |
  |  | Completion (Refs) | `textDocument/completion` | `lex-analysis/src/completion.rs` | Done | Done | Done | Done |
  |  | Resolve Annotation | `lex.resolve_annotation` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
  |  | Toggle Annotations | `lex.toggle_annotations` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
- | **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
- |  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
- |  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
- |  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done* | Done |
- |  | Preview as HTML | (Client-side) | VS Code: `preview.ts` | Done | Done | N/A | Done |    * Neovim adaptations required - see `editors/nvim/README-DEV.lex` for details.
+ |  | Spellcheck | `textDocument/publishDiagnostics` | `lex-lsp/src/features/spellcheck.rs` | Done | Built-in | Built-in | Done |
+ | **Interop** | Import Markdown | `lex.import` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
+ |  | Export Markdown | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
+ |  | Export HTML | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
+ |  | Export PDF | `lex.export` | `lex-lsp/src/features/commands.rs` | Done | Done | Done | Done |
+ |  | Preview as HTML | (Client-side) | `preview.ts` | Done | Done | Not Supported | Done |
     :: doc.table ::
 
-    Neovim Adaptations Summary:
-    - File pickers: Telescope integration with vim.ui.input fallback
-    - Export commands: Default to same directory with new extension
-    - Preview: Not available in terminal; use export + external browser
+    Notes:
+    - Comment Toggling: Uses `:: note ::` annotation syntax configured in each editor's language settings
+    - Spellcheck: VS Code and Neovim have built-in spellcheck; LexEd uses LSP-based spellcheck via lex-lsp
+    - Preview: Not available in terminal-based Neovim; use export + external browser
 
 
 4. Configuration

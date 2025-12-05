@@ -113,7 +113,7 @@ function M.setup(opts)
     pattern = "lex",
     callback = function()
       -- Comment support - Lex uses annotations for comments
-      vim.bo.commentstring = ":: comment :: %s"
+      vim.bo.commentstring = ":: note :: %s"
       vim.bo.comments = ""
 
       -- Document editing settings - soft wrap at window width
