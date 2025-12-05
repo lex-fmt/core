@@ -16,14 +16,14 @@ export class LspClient {
     constructor() {
     }
 
-    public start(): Promise<void> {
+    public start(rootPath?: string): Promise<void> {
         if (this.readyPromise) return this.readyPromise;
 
-        this.readyPromise = this.initialize();
+        this.readyPromise = this.initialize(rootPath);
         return this.readyPromise;
     }
 
-    private async initialize(): Promise<void> {
+    private async initialize(rootPath?: string): Promise<void> {
         if (this.isDisposed) return;
 
         log.debug(`[LspClient] Starting SimpleLspClient (Attempt ${this.retryCount + 1}/${this.maxRetries + 1})...`);
@@ -54,9 +54,10 @@ export class LspClient {
             this.connection.listen();
 
             // Initialize
+            const rootUri = rootPath ? monaco.Uri.file(rootPath).toString() : null;
             const initParams: InitializeParams = {
                 processId: null,
-                rootUri: null,
+                rootUri: rootUri,
                 capabilities: {
                     textDocument: {
                         synchronization: {
@@ -154,6 +155,7 @@ export class LspClient {
             };
 
             log.debug('[LspClient] Sending initialize request...');
+            console.log('---INIT PARAMS---', JSON.stringify(initParams));
             const result = await this.connection.sendRequest(InitializeRequest.type, initParams);
             log.debug('[LspClient] Initialize result:', result);
 
@@ -240,6 +242,7 @@ export class LspClient {
             
             if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
             this.reconnectTimer = setTimeout(() => {
+                // TODO: Store rootPath to reuse on reconnection if needed
                 this.start().catch(err => log.error('[LspClient] Reconnection failed:', err));
             }, delay);
         } else {

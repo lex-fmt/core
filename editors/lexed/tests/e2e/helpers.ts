@@ -1,8 +1,8 @@
 import { _electron as electron, type Page } from '@playwright/test';
 
-export async function launchApp() {
+export async function launchApp(extraArgs: string[] = []) {
   const app = await electron.launch({
-    args: ['.'],
+    args: ['.', ...extraArgs],
     env: {
       ...process.env,
       NODE_ENV: 'development',
@@ -10,6 +10,8 @@ export async function launchApp() {
       VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173',
     },
   });
+  app.process().stdout?.on('data', (data) => console.log(`Electron stdout: ${data}`));
+  app.process().stderr?.on('data', (data) => console.log(`Electron stderr: ${data}`));
   return app;
 }
 

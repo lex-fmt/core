@@ -347,6 +347,11 @@ ipcMain.handle('file-save', async (_, filePath: string, content: string) => {
   return true;
 });
 
+ipcMain.handle('test-set-workspace', async (_, folderPath: string) => {
+  store.set('lastFolder', folderPath);
+  return true;
+});
+
 ipcMain.handle('file-read-dir', async (_, dirPath: string) => {
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
