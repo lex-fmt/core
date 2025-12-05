@@ -104,6 +104,15 @@ export function useLexTestBridge({
       resetFormattingRequest: () => {
         lastFormattingRequest = null;
       },
+      // Expose markers for testing diagnostics via API
+      getMarkers: () => {
+         const target = activePaneId ?? panesRef.current[0]?.id ?? null;
+         if (!target) return [];
+         const editorInstance = paneHandles.current.get(target)?.getEditor();
+         const model = editorInstance?.getModel?.();
+         if (!model) return [];
+         return monaco.editor.getModelMarkers({ resource: model.uri });
+      },
     };
     window.lexTest = api;
     return () => {

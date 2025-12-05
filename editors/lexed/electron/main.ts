@@ -3,10 +3,19 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
+import log from 'electron-log';
 
 import { WindowManager, AppSettings, PaneLayoutSettings, PaneRowLayout, EditorSettings, FormatterSettings } from './window-manager';
 import { randomUUID } from 'crypto';
 // LspManager import removed as it is managed by WindowManager
+
+// Configure logging
+log.initialize();
+log.transports.file.level = 'info';
+log.transports.console.level = process.env.NODE_ENV === 'development' ? 'debug' : 'error';
+
+// Optional: Catch all unhandled errors
+log.errorHandler.startCatching();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -335,6 +344,11 @@ ipcMain.handle('get-benchmark-file', async () => {
 
 ipcMain.handle('file-save', async (_, filePath: string, content: string) => {
   await fs.writeFile(filePath, content, 'utf-8');
+  return true;
+});
+
+ipcMain.handle('test-set-workspace', async (_, folderPath: string) => {
+  store.set('lastFolder', folderPath);
   return true;
 });
 
@@ -896,7 +910,7 @@ if (process.platform === 'win32') {
 }
 
 // Single instance lock - ensure only one instance of the app runs
-const gotTheLock = app.requestSingleInstanceLock();
+const gotTheLock = process.env.LEX_DISABLE_SINGLE_INSTANCE_LOCK === '1' ? true : app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   // Another instance is already running, quit this one

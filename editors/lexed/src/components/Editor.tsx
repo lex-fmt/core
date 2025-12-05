@@ -160,7 +160,12 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
   useEffect(() => {
     if (!containerRef.current) return;
 
-    ensureLspInitialized();
+    // Use specific root if provided, otherwise settings.lastFolder, or fallback
+    // Note: getWelcomeFolderPath logic is technically main-process side, but here we can try to guess or use empty string
+    // Ideally, we passed it in props or context.
+    // But since this is specific to correct LSP rooting:
+    const root = settings.lastFolder || '';
+    ensureLspInitialized(root);
 
     const editor = monaco.editor.create(containerRef.current, {
       model: null,

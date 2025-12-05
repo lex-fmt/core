@@ -1,4 +1,19 @@
-import type { Page } from '@playwright/test';
+import { _electron as electron, type Page } from '@playwright/test';
+
+export async function launchApp(extraArgs: string[] = []) {
+  const app = await electron.launch({
+    args: ['.', ...extraArgs],
+    env: {
+      ...process.env,
+      NODE_ENV: 'development',
+      LEX_DISABLE_SINGLE_INSTANCE_LOCK: '1',
+      VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173',
+    },
+  });
+  app.process().stdout?.on('data', (data) => console.log(`Electron stdout: ${data}`));
+  app.process().stderr?.on('data', (data) => console.log(`Electron stderr: ${data}`));
+  return app;
+}
 
 type LexTestWindow = Window & {
   lexTest?: {

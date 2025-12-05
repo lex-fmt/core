@@ -1,19 +1,14 @@
-import { test, expect, _electron as electron } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { launchApp } from './helpers';
 import path from 'path';
 import fs from 'fs';
 
 test.describe('File Operations', () => {
   test('should open a file', async () => {
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'development',
-      },
-    });
+    const electronApp = await launchApp();
 
-    const window = await electronApp.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
 
     // Create a dummy file
     const testFilePath = path.resolve(process.cwd(), 'test.lex');
@@ -31,8 +26,8 @@ test.describe('File Operations', () => {
     // Electron's dialog.showOpenDialog blocks until closed.
     
     // For now, let's just verify the UI elements for file operations exist.
-    await expect(window.locator('button[title="Open File"]')).toBeVisible();
-    await expect(window.locator('button[title="Save"]')).toBeVisible();
+    await expect(page.locator('button[title="Open File"]')).toBeVisible();
+    await expect(page.locator('button[title="Save"]')).toBeVisible();
 
     // Clean up
     fs.unlinkSync(testFilePath);

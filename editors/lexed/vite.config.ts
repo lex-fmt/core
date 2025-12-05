@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import path from 'node:path'
 import electron from 'vite-plugin-electron/simple'
@@ -38,5 +39,12 @@ export default defineConfig({
       // Ignore .lex files and welcome directory - these are user documents, not source code
       ignored: ['**/*.lex', '**/welcome/**'],
     },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    css: true,
+    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**'],
   },
 })

@@ -1,33 +1,27 @@
-import { test, expect, _electron as electron } from '@playwright/test';
-import { openFixture } from './helpers';
+import { test, expect } from '@playwright/test';
+import { openFixture, launchApp } from './helpers';
 
 test.describe('Semantic Tokens', () => {
   test('should request and apply semantic tokens from LSP', async () => {
     test.setTimeout(60000);
 
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'development',
-      },
-    });
+    const electronApp = await launchApp();
 
-    const window = await electronApp.firstWindow();
+    const page = await electronApp.firstWindow();
 
     // Capture console logs
     const logs: string[] = [];
-    window.on('console', msg => {
+    page.on('console', msg => {
       const text = `[${msg.type()}] ${msg.text()}`;
       logs.push(text);
     });
 
-    await window.waitForLoadState('domcontentloaded');
-    await openFixture(window, 'semantic-basic.lex');
-    await expect(window.locator('.monaco-editor').first()).toBeVisible();
+    await page.waitForLoadState('domcontentloaded');
+    await openFixture(page, 'semantic-basic.lex');
+    await expect(page.locator('.monaco-editor').first()).toBeVisible();
 
     // Wait for semantic tokens to be received
-    await window.waitForTimeout(5000);
+    await page.waitForTimeout(5000);
 
     // Check if semantic tokens provider was triggered and received tokens
     const providerTriggered = logs.some(log => log.includes('[SemanticTokens] Provider triggered'));
