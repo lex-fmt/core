@@ -1219,7 +1219,6 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
- "similar",
  "spellbook",
  "tempfile",
  "tokio",
