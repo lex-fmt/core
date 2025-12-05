@@ -35,7 +35,7 @@ const SETTINGS_FILE = 'settings'; // electron-store adds .json extension
 
 
 
-let windowManager: WindowManager;
+
 
 interface MenuState {
   hasOpenFile: boolean;
@@ -130,11 +130,19 @@ const store = new Store<AppSettings>({
       },
       default: {},
     },
+    spellcheck: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean', default: true },
+        language: { type: 'string', default: 'en_US' },
+      },
+      default: {},
+    },
   },
 });
 
 // Initialize WindowManager after store is created
-windowManager = new WindowManager(store);
+const windowManager = new WindowManager(store);
 
 // Settings persistence helpers removed in favor of direct store access or WindowManager
 // loadSettings, saveSettings, etc. are no longer used directly in main.ts logic
@@ -146,6 +154,10 @@ function getWelcomeFolderPath(): string {
   }
   return path.join(process.env.APP_ROOT!, 'welcome');
 }
+
+// ... (rest of the file)
+
+
 
 // The built directory structure
 //
@@ -176,7 +188,7 @@ let currentMenuState: MenuState = {
 };
 
 // Track files to open (from command line or open-file events before app is ready)
-let pendingFilesToOpen: string[] = [];
+const pendingFilesToOpen: string[] = [];
 
 /**
  * Extract .lex file paths from command line arguments.
@@ -423,6 +435,7 @@ ipcMain.handle('get-initial-folder', async (event) => {
       await fs.access(settings.lastFolder);
       return settings.lastFolder;
     } catch {
+      // Folder no longer exists
     }
   }
 
@@ -632,6 +645,15 @@ ipcMain.handle('set-editor-settings', (_event, settings: EditorSettings) => {
 
 ipcMain.handle('set-formatter-settings', (_event, settings: FormatterSettings) => {
   store.set('formatter', settings);
+  BrowserWindow.getAllWindows().forEach((w) => {
+    w.webContents.send('settings-changed', store.store);
+  });
+  return true;
+});
+
+ipcMain.handle('set-spellcheck-settings', (_event, settings: { enabled: boolean; language: string }) => {
+  console.log('[Main] Received set-spellcheck-settings:', settings);
+  store.set('spellcheck', settings);
   BrowserWindow.getAllWindows().forEach((w) => {
     w.webContents.send('settings-changed', store.store);
   });
@@ -911,6 +933,7 @@ if (!gotTheLock) {
     if (!settings.openWindows && (settings.paneLayout || settings.paneRows)) {
       // Migrate legacy single-window state
       console.log('Migrating legacy window state...');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const legacyState: any = {
         id: randomUUID(),
         width: settings.windowState?.width || 1200,

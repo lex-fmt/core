@@ -29,6 +29,7 @@ test.describe('Vim Mode', () => {
 
     // Verify settings via IPC
     const settings = await window.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return await (window as any).ipcRenderer.getAppSettings();
     });
     console.log('Settings after save:', JSON.stringify(settings, null, 2));

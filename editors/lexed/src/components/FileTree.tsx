@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ignore, { type Ignore } from 'ignore';
 import { cn } from '@/lib/utils';
 import { Folder, FolderOpen, FileText, FileCode, File, FileType, ChevronRight, ChevronDown } from 'lucide-react';

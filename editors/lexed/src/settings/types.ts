@@ -16,9 +16,15 @@ export interface FormatterSettings {
     formatOnSave: boolean;
 }
 
+export interface SpellcheckSettings {
+    enabled: boolean;
+    language: string;
+}
+
 export interface AppSettings {
     editor: EditorSettings;
     formatter: FormatterSettings;
+    spellcheck: SpellcheckSettings;
 }
 
 export const defaultEditorSettings: EditorSettings = {
@@ -39,7 +45,13 @@ export const defaultFormatterSettings: FormatterSettings = {
     formatOnSave: false,
 };
 
+export const defaultSpellcheckSettings: SpellcheckSettings = {
+    enabled: true,
+    language: 'en_US',
+};
+
 export const defaultAppSettings: AppSettings = {
     editor: defaultEditorSettings,
     formatter: defaultFormatterSettings,
+    spellcheck: defaultSpellcheckSettings,
 };

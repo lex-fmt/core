@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, expect, _electron as electron } from '@playwright/test';
 import { openFixture } from './helpers';
 
@@ -39,7 +40,7 @@ test.describe('Format Document', () => {
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
     await openFixture(window, 'format-basic.lex');
-    await window.evaluate(() => window.ipcRenderer.setFormatterSettings?.({
+    await window.evaluate(() => (window as any).ipcRenderer.setFormatterSettings?.({
       sessionBlankLinesBefore: 1,
       sessionBlankLinesAfter: 1,
       normalizeSeqMarkers: true,
@@ -55,15 +56,15 @@ test.describe('Format Document', () => {
     await expect(editor).toBeVisible();
     await window.waitForTimeout(2000);
 
-    await window.evaluate(({ content }) => window.lexTest?.setActiveEditorValue?.(content), { content: UNFORMATTED_CONTENT });
+    await window.evaluate(({ content }) => (window as any).lexTest?.setActiveEditorValue?.(content), { content: UNFORMATTED_CONTENT });
     await window.waitForTimeout(300);
-    const beforeFormat = await window.evaluate(() => window.lexTest?.getActiveEditorValue() ?? '');
+    const beforeFormat = await window.evaluate(() => (window as any).lexTest?.getActiveEditorValue() ?? '');
     expect(beforeFormat).toBe(UNFORMATTED_CONTENT);
 
     const formatButton = window.locator('button[title="Format Document"]');
     await expect(formatButton).toBeVisible();
     await window.evaluate(() => {
-      window.lexTest?.resetFormattingRequest?.();
+      (window as any).lexTest?.resetFormattingRequest?.();
       (window as any).__lexLastFormattingRequest = null;
     });
     await formatButton.click();
@@ -77,7 +78,7 @@ test.describe('Format Document', () => {
       ...EXPECTED_PROPERTIES,
     });
 
-    const contentAfter = await window.evaluate(() => window.lexTest?.getActiveEditorValue() ?? '');
+    const contentAfter = await window.evaluate(() => (window as any).lexTest?.getActiveEditorValue() ?? '');
     expect(contentAfter).not.toEqual(UNFORMATTED_CONTENT);
     expect(contentAfter.trim().length).toBeGreaterThan(0);
 
@@ -96,7 +97,7 @@ test.describe('Format Document', () => {
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
     await openFixture(window, 'format-basic.lex');
-    await window.evaluate(() => window.ipcRenderer.setFormatterSettings?.({
+    await window.evaluate(() => (window as any).ipcRenderer.setFormatterSettings?.({
       sessionBlankLinesBefore: 1,
       sessionBlankLinesAfter: 1,
       normalizeSeqMarkers: true,
@@ -112,10 +113,10 @@ test.describe('Format Document', () => {
     await expect(editor).toBeVisible();
     await window.waitForTimeout(2000);
 
-    await window.evaluate(({ content }) => window.lexTest?.setActiveEditorValue?.(content), { content: UNFORMATTED_CONTENT });
+    await window.evaluate(({ content }) => (window as any).lexTest?.setActiveEditorValue?.(content), { content: UNFORMATTED_CONTENT });
     await window.waitForTimeout(300);
     await window.evaluate(() => {
-      window.lexTest?.resetFormattingRequest?.();
+      (window as any).lexTest?.resetFormattingRequest?.();
       (window as any).__lexLastFormattingRequest = null;
     });
 
@@ -128,7 +129,7 @@ test.describe('Format Document', () => {
     const formattingRequest = await window.evaluate(() => (window as any).__lexLastFormattingRequest);
     expect(formattingRequest?.type).toBe('document');
 
-    const contentAfter = await window.evaluate(() => window.lexTest?.getActiveEditorValue() ?? '');
+    const contentAfter = await window.evaluate(() => (window as any).lexTest?.getActiveEditorValue() ?? '');
     expect(contentAfter).not.toEqual(UNFORMATTED_CONTENT);
 
     await electronApp.close();

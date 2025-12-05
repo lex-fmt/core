@@ -9,13 +9,15 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
-    const { settings, updateEditorSettings, updateFormatterSettings } = useSettings();
+    const { settings, updateEditorSettings, updateFormatterSettings, updateSpellcheckSettings } = useSettings();
     const [localEditorSettings, setLocalEditorSettings] = useState(settings.editor);
     const [localFormatterSettings, setLocalFormatterSettings] = useState(settings.formatter);
-    const [activeTab, setActiveTab] = useState<'ui' | 'formatter'>('ui');
+    const [localSpellcheckSettings, setLocalSpellcheckSettings] = useState(settings.spellcheck);
+    const [activeTab, setActiveTab] = useState<'ui' | 'formatter' | 'spellcheck'>('ui');
     const tabs = [
         { id: 'ui' as const, label: 'UI' },
         { id: 'formatter' as const, label: 'Formatter' },
+        { id: 'spellcheck' as const, label: 'Spellcheck' },
     ];
     const indentSpaces = Math.max(1, localFormatterSettings.indentString.length || 4);
 
@@ -24,8 +26,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
             setActiveTab('ui');
             setLocalEditorSettings(settings.editor);
             setLocalFormatterSettings(settings.formatter);
+            setLocalSpellcheckSettings(settings.spellcheck);
         }
-    }, [settings.editor, settings.formatter, isOpen]);
+    }, [settings.editor, settings.formatter, settings.spellcheck, isOpen]);
 
     if (!isOpen) return null;
 
@@ -33,6 +36,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         await Promise.all([
             updateEditorSettings(localEditorSettings),
             updateFormatterSettings(localFormatterSettings),
+            updateSpellcheckSettings(localSpellcheckSettings),
         ]);
         onClose();
     };
@@ -230,6 +234,49 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                                             className="accent-primary"
                                         />
                                     </label>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'spellcheck' && (
+                            <div className="space-y-6">
+                                <div className="space-y-4">
+                                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spellcheck</h3>
+
+                                    <div className="flex items-center justify-between">
+                                        <label htmlFor="spellcheck-enabled" className="text-sm">Enable Spellcheck</label>
+                                        <input
+                                            type="checkbox"
+                                            id="spellcheck-enabled"
+                                            checked={localSpellcheckSettings.enabled}
+                                            onChange={(e) => setLocalSpellcheckSettings(prev => ({ ...prev, enabled: e.target.checked }))}
+                                            className="accent-primary"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center justify-between">
+                                        <label htmlFor="spellcheck-language" className={cn("text-sm", !localSpellcheckSettings.enabled && "opacity-50")}>
+                                            Language
+                                        </label>
+                                        <select
+                                            id="spellcheck-language"
+                                            value={localSpellcheckSettings.language}
+                                            disabled={!localSpellcheckSettings.enabled}
+                                            onChange={(e) => setLocalSpellcheckSettings(prev => ({ ...prev, language: e.target.value }))}
+                                            className="w-40 px-2 py-1 text-sm bg-input border border-border rounded focus:outline-none focus:border-primary disabled:opacity-50"
+                                        >
+                                            <option value="en_US">English (US)</option>
+                                            <option value="en_GB">English (UK)</option>
+                                            <option value="es_ES">Spanish</option>
+                                            <option value="fr_FR">French</option>
+                                            <option value="de_DE">German</option>
+                                            <option value="pt_BR">Portuguese (BR)</option>
+                                            <option value="it_IT">Italian</option>
+                                            <option value="ru_RU">Russian</option>
+                                            <option value="nl_NL">Dutch</option>
+                                            <option value="pl_PL">Polish</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         )}
