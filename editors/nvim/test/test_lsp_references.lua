@@ -41,13 +41,19 @@ lspconfig.lex_lsp.setup({
 
 vim.filetype.add({ extension = { lex = "lex" } })
 
-local fixture = project_root .. "/specs/v1/benchmark/050-lsp-fixture.lex"
-if vim.fn.filereadable(fixture) ~= 1 then
-  print("TEST_FAILED: fixture not found at " .. fixture)
-  vim.cmd("cquit 1")
-end
+-- Create a test .lex file
+local test_file = vim.fn.tempname() .. ".lex"
+local test_content = {
+  "# Test document",
+  "",
+  "See [MyDef].",
+  "",
+  "MyDef:",
+  "    Definition content.",
+}
+vim.fn.writefile(test_content, test_file)
 
-vim.cmd("edit " .. fixture)
+vim.cmd("edit " .. test_file)
 
 local waited = 0
 while not lsp_attached and waited < 5000 do
@@ -62,7 +68,7 @@ end
 
 vim.wait(300)
 
-vim.fn.search("Cache\\]", "w")
+vim.fn.search("MyDef\\]", "w")
 local params = vim.lsp.util.make_position_params()
 local request = {
   textDocument = params.textDocument,

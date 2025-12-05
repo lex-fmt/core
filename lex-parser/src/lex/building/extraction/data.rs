@@ -65,9 +65,21 @@ pub(in crate::lex::building) fn extract_data(
     }
 
     let (label_text, label_byte_range) = if !label_tokens.is_empty() {
-        let range = compute_bounding_box(&label_tokens);
-        let text = extract_text(range.clone(), source).trim().to_string();
-        (text, range)
+        // Skip leading whitespace to avoid including the :: marker in the bounding box
+        // (since the marker might be between the indentation and the label)
+        let meaningful_tokens: Vec<_> = label_tokens
+            .iter()
+            .skip_while(|(t, _)| matches!(t, Token::Whitespace(_) | Token::Indentation))
+            .cloned()
+            .collect();
+
+        if !meaningful_tokens.is_empty() {
+            let range = compute_bounding_box(&meaningful_tokens);
+            let text = extract_text(range.clone(), source).trim().to_string();
+            (text, range)
+        } else {
+            (String::new(), 0..0)
+        }
     } else {
         (String::new(), 0..0)
     };

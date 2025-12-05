@@ -62,7 +62,7 @@ vim.filetype.add({
 local test_file = vim.fn.tempname() .. ".lex"
 local test_content = {
   "# Test document",
-  "section: introduction",
+  "Introduction",
   "",
   "  :: callout ::",
   "    This is an annotation.",

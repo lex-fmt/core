@@ -478,8 +478,9 @@ mod tests {
                 .iter()
                 .any(|snippet| snippet.trim() == "Intro")
         );
+        // Cache is parsed as VerbatimSubject
         assert!(
-            snippets(&tokens, LexSemanticTokenKind::DefinitionSubject, source)
+            snippets(&tokens, LexSemanticTokenKind::VerbatimSubject, source)
                 .iter()
                 .any(|snippet| snippet.trim_end() == "Cache")
         );

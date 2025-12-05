@@ -73,6 +73,7 @@ pub fn group_into_lines(tokens: Vec<(Token, ByteRange<usize>)>) -> Vec<LineToken
     }
 
     // Apply dialog line detection
+
     apply_dialog_detection(line_tokens)
 }
 

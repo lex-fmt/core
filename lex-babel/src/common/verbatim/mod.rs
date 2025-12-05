@@ -62,7 +62,9 @@
 //! }
 //! ```
 
+use crate::error::FormatError;
 use crate::ir::nodes::DocNode;
+use lex_parser::lex::ast::Verbatim;
 use std::collections::HashMap;
 
 pub mod media;
@@ -84,6 +86,14 @@ pub trait VerbatimHandler: Send + Sync {
     ///
     /// Returns `Some((content, params))` if this handler can represent the given node.
     fn convert_from_ir(&self, node: &DocNode) -> Option<(String, HashMap<String, String>)>;
+
+    /// Formats the content of a verbatim block.
+    ///
+    /// Returns `Ok(Some(formatted_content))` if the handler supports formatting,
+    /// `Ok(None)` if it doesn't, or `Err` if formatting failed.
+    fn format_content(&self, _verbatim: &Verbatim) -> Result<Option<String>, FormatError> {
+        Ok(None)
+    }
 }
 
 /// A registry for verbatim block handlers.

@@ -221,6 +221,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_tokenize_indented_marker() {
+        use crate::lex::lexing::tokenize;
+        let source = "  ::";
+        let tokens_with_range = tokenize(source);
+        let tokens: Vec<crate::lex::token::Token> =
+            tokens_with_range.into_iter().map(|(t, _)| t).collect();
+        println!("Tokens: {tokens:?}");
+    }
+
+    #[test]
     fn test_token_type_to_grammar_string() {
         assert_eq!(LineType::BlankLine.to_grammar_string(), "<blank-line>");
         assert_eq!(

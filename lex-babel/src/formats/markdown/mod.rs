@@ -76,8 +76,8 @@
 //!   - [x] Annotations (HTML comment parsing)
 //!   - [x] Definitions (pattern matching)
 
-mod parser;
-mod serializer;
+pub mod parser;
+pub mod serializer;
 
 use crate::error::FormatError;
 use crate::format::Format;

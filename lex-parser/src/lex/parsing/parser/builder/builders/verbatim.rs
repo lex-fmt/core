@@ -47,7 +47,10 @@ pub(in crate::lex::parsing::parser::builder) fn build_verbatim_block(
     }
 
     let closing_token = extract_line_token(&tokens[closing_idx])?;
-    if closing_token.line_type != LineType::DataLine {
+    if !matches!(
+        closing_token.line_type,
+        LineType::DataLine | LineType::AnnotationStartLine
+    ) {
         return Err("Verbatim blocks must end with a data line (:: label params)".to_string());
     }
     let header_tokens = extract_annotation_header_tokens(closing_token)?;
