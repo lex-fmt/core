@@ -12,7 +12,10 @@ export function registerLexLanguage() {
   if (!lexRegistered) {
     monaco.languages.register({ id: 'lex', extensions: ['.lex'] });
     monaco.languages.setLanguageConfiguration('lex', {
-      comments: { lineComment: '#' },
+      comments: {
+        lineComment: ':: note :: ',
+        blockComment: [':: note ::\n  ', '\n::'],
+      },
     });
   }
 

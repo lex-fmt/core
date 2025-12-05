@@ -1,3 +1,7 @@
 {
+  "comments": {
+    "lineComment": ":: note :: ",
+    "blockComment": [":: note ::\n  ", "\n::"]
+  },
   "wordPattern": "[-#]+|[^\s]+"
 }
