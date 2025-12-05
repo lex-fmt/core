@@ -37,6 +37,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     editor: { ...prev.editor, ...(loadedSettings?.editor ?? {}) },
                     formatter: { ...prev.formatter, ...(loadedSettings?.formatter ?? {}) },
                     spellcheck: { ...prev.spellcheck, ...(loadedSettings?.spellcheck ?? {}) },
+                    lastFolder: loadedSettings?.lastFolder,
                 } satisfies AppSettings;
                 setSettingsSnapshot(next);
 
@@ -55,6 +56,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     editor: { ...prev.editor, ...(newSettings?.editor ?? {}) },
                     formatter: { ...prev.formatter, ...(newSettings?.formatter ?? {}) },
                     spellcheck: { ...prev.spellcheck, ...(newSettings?.spellcheck ?? {}) },
+                    lastFolder: newSettings?.lastFolder,
                 } satisfies AppSettings;
                 setSettingsSnapshot(next);
 

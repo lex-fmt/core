@@ -1,6 +1,6 @@
-import { test, _electron as electron } from '@playwright/test';
+import { test } from '@playwright/test';
 import * as path from 'path';
-import { openFixture } from './helpers';
+import { openFixture, launchApp } from './helpers';
 
 type Position = { lineNumber: number; column: number };
 
@@ -26,21 +26,7 @@ type DebugWindow = Window & {
 
 test.describe('Debug Clicks', () => {
   test('should log token info on clicks', async () => {
-    const appPath = path.join(
-      process.cwd(),
-      'release/mac-arm64/LexEd.app/Contents/MacOS/LexEd'
-    );
-
-    const app = await electron.launch({
-      executablePath: appPath,
-      args: [
-        path.join(process.cwd(), 'specs/v1/benchmark/30-a-place-for-ideas.lex'),
-      ],
-      env: {
-        ...process.env,
-        LEX_TEST_FIXTURES: path.join(process.cwd(), 'tests/fixtures'),
-      },
-    });
+    const app = await launchApp();
 
     const page = await app.firstWindow();
     page.on('console', (msg) =>
@@ -89,12 +75,6 @@ test.describe('Debug Clicks', () => {
         const word = model.getWordAtPosition(position);
         const offset = model.getOffsetAt(position);
 
-        // Manually trigger the logic since we can't easily simulate a real mouse event with accurate target.position in Playwright
-        // But wait, we added editor.onMouseDown.
-        // We can dispatch a synthetic event if we can target the right element, but Monaco's DOM is complex.
-        // Easier to just call the logging logic directly or trigger the event via Monaco API if possible.
-        // Actually, let's just use the same logic we added to Editor.tsx inside evaluate
-
         console.log('--- Click Debug (Simulated) ---');
         console.log('Position:', position);
         console.log('Word:', word?.word ?? null);
@@ -106,10 +86,6 @@ test.describe('Debug Clicks', () => {
         );
         if (Array.isArray(tokens) && tokens[position.lineNumber - 1]) {
           const lineTokens = tokens[position.lineNumber - 1] as TokenInfo[];
-          // Find the token that covers the column.
-          // Tokens are just { offset, type, language }.
-          // The token covers from its offset up to the next token's offset.
-          // We need to find the last token with offset <= column - 1
           const token = lineTokens.reduce<TokenInfo | null>(
             (result, current) => {
               if (current.offset <= position.column - 1) {

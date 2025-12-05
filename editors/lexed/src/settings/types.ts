@@ -25,6 +25,7 @@ export interface AppSettings {
     editor: EditorSettings;
     formatter: FormatterSettings;
     spellcheck: SpellcheckSettings;
+    lastFolder?: string;
 }
 
 export const defaultEditorSettings: EditorSettings = {

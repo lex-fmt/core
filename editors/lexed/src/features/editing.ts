@@ -1,19 +1,10 @@
 import * as monaco from 'monaco-editor';
 import { lspClient } from '../lsp/client';
-
-interface SnippetInsertionPayload {
-    text: string;
-    cursorOffset: number;
-}
-
-function isSnippetInsertionPayload(value: unknown): value is SnippetInsertionPayload {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        typeof (value as { text?: unknown }).text === 'string' &&
-        typeof (value as { cursorOffset?: unknown }).cursorOffset === 'number'
-    );
-}
+import { 
+    isSnippetInsertionPayload, 
+    calculateSnippetInsertion, 
+    type SnippetInsertionPayload 
+} from '@/lib/editing';
 
 async function invokeInsertCommand(
     editor: monaco.editor.IStandaloneCodeEditor,
@@ -49,9 +40,17 @@ function insertSnippet(
     position: monaco.Position,
     payload: SnippetInsertionPayload
 ) {
-    const prefix = position.lineNumber === 1 && position.column === 1 ? '' : '\n';
-    const suffix = '\n';
-    const textToInsert = `${prefix}${payload.text}${suffix}`;
+    const model = editor.getModel();
+    if (!model) return;
+
+    const startOffset = model.getOffsetAt(position);
+    
+    const { textToInsert, newCursorOffset } = calculateSnippetInsertion(
+        payload,
+        position.lineNumber,
+        position.column,
+        startOffset
+    );
 
     editor.executeEdits('lex-insert', [{
         range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
@@ -59,22 +58,13 @@ function insertSnippet(
         forceMoveMarkers: true
     }]);
 
-    // Calculate new cursor position
-    // Note: This is a simplified calculation. For robust offset handling, we might need model.getPositionAt(offset).
-    // But since we just inserted text, we can calculate the offset.
+    const newPosition = model.getPositionAt(newCursorOffset);
     
-    const model = editor.getModel();
-    if (model) {
-        const startOffset = model.getOffsetAt(position);
-        const newCursorOffset = startOffset + prefix.length + payload.cursorOffset;
-        const newPosition = model.getPositionAt(newCursorOffset);
-        
-        editor.setSelection(new monaco.Selection(
-            newPosition.lineNumber, newPosition.column,
-            newPosition.lineNumber, newPosition.column
-        ));
-        editor.revealPosition(newPosition);
-    }
+    editor.setSelection(new monaco.Selection(
+        newPosition.lineNumber, newPosition.column,
+        newPosition.lineNumber, newPosition.column
+    ));
+    editor.revealPosition(newPosition);
 }
 
 export async function insertAsset(editor: monaco.editor.IStandaloneCodeEditor, assetPath: string) {

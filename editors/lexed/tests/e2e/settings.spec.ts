@@ -25,6 +25,7 @@ async function launchApp() {
       ...process.env,
       NODE_ENV: 'development',
       LEX_DISABLE_PERSISTENCE: '0',
+      LEX_DISABLE_SINGLE_INSTANCE_LOCK: '1',
     },
   });
 
@@ -33,30 +34,30 @@ async function launchApp() {
   return { electronApp, window };
 }
 
-async function resetAppSettings(window: Page) {
-  await window.evaluate(async ({ editor, formatter }) => {
-    await window.ipcRenderer.setEditorSettings(editor);
-    await window.ipcRenderer.setFormatterSettings(formatter);
+async function resetAppSettings(page: Page) {
+  await page.evaluate(async ({ editor, formatter }) => {
+    await (window as any).ipcRenderer.setEditorSettings(editor);
+    await (window as any).ipcRenderer.setFormatterSettings(formatter);
   }, { editor: DEFAULT_EDITOR_SETTINGS, formatter: DEFAULT_FORMATTER_SETTINGS });
 }
 
-async function openSettings(window: Page) {
-  await window.click('button[title="Settings"]');
-  await expect(window.locator('h2:has-text("Settings")')).toBeVisible();
+async function openSettings(page: Page) {
+  await page.click('button[title="Settings"]');
+  await expect(page.locator('h2:has-text("Settings")')).toBeVisible();
 }
 
-async function saveAndCloseSettings(window: Page) {
-  await window.click('text=Save Changes');
-  await expect(window.locator('h2:has-text("Settings")')).toBeHidden();
+async function saveAndCloseSettings(page: Page) {
+  await page.click('text=Save Changes');
+  await expect(page.locator('h2:has-text("Settings")')).toBeHidden();
 }
 
 test.describe('Settings', () => {
   test('loads latest formatter values when switching tabs', async () => {
-    const { electronApp, window } = await launchApp();
+    const { electronApp, window: page } = await launchApp();
 
     try {
-      await resetAppSettings(window);
-      await openSettings(window);
+      await resetAppSettings(page);
+      await openSettings(page);
 
       const customFormatter = {
         sessionBlankLinesBefore: 4,
@@ -70,70 +71,70 @@ test.describe('Settings', () => {
         formatOnSave: true,
       };
 
-      await window.evaluate(async (formatter) => {
-        await window.ipcRenderer.setFormatterSettings(formatter);
+      await page.evaluate(async (formatter) => {
+        await (window as any).ipcRenderer.setFormatterSettings(formatter);
       }, customFormatter);
 
-      await window.click('button:has-text("Formatter")');
+      await page.click('button:has-text("Formatter")');
 
-      await expect(window.locator('input#session-before')).toHaveValue(String(customFormatter.sessionBlankLinesBefore));
-      await expect(window.locator('input#session-after')).toHaveValue(String(customFormatter.sessionBlankLinesAfter));
-      await expect(window.locator('input#max-blank-lines')).toHaveValue(String(customFormatter.maxBlankLines));
-      await expect(window.locator('input#indent-spaces')).toHaveValue(String(customFormatter.indentString.length));
-      await expect(window.locator('input#unordered-marker')).toHaveValue(customFormatter.unorderedSeqMarker);
-      await expect(window.locator('label:has-text("Normalize list markers") input[type="checkbox"]')).not.toBeChecked();
-      await expect(window.locator('label:has-text("Normalize verbatim markers") input[type="checkbox"]')).not.toBeChecked();
-      await expect(window.locator('label:has-text("Preserve trailing blank lines") input[type="checkbox"]')).toBeChecked();
-      await expect(window.locator('label:has-text("Format automatically on save") input[type="checkbox"]')).toBeChecked();
+      await expect(page.locator('input#session-before')).toHaveValue(String(customFormatter.sessionBlankLinesBefore));
+      await expect(page.locator('input#session-after')).toHaveValue(String(customFormatter.sessionBlankLinesAfter));
+      await expect(page.locator('input#max-blank-lines')).toHaveValue(String(customFormatter.maxBlankLines));
+      await expect(page.locator('input#indent-spaces')).toHaveValue(String(customFormatter.indentString.length));
+      await expect(page.locator('input#unordered-marker')).toHaveValue(customFormatter.unorderedSeqMarker);
+      await expect(page.locator('label:has-text("Normalize list markers") input[type="checkbox"]')).not.toBeChecked();
+      await expect(page.locator('label:has-text("Normalize verbatim markers") input[type="checkbox"]')).not.toBeChecked();
+      await expect(page.locator('label:has-text("Preserve trailing blank lines") input[type="checkbox"]')).toBeChecked();
+      await expect(page.locator('label:has-text("Format automatically on save") input[type="checkbox"]')).toBeChecked();
     } finally {
       await electronApp.close();
     }
   });
 
   test('persists UI and formatter settings after closing dialog', async () => {
-    const { electronApp, window } = await launchApp();
+    const { electronApp, window: page } = await launchApp();
 
     try {
-      await resetAppSettings(window);
-      await openSettings(window);
+      await resetAppSettings(page);
+      await openSettings(page);
 
-      const showRulerCheckbox = window.locator('input#show-ruler');
+      const showRulerCheckbox = page.locator('input#show-ruler');
       await showRulerCheckbox.check();
-      const rulerWidthInput = window.locator('input#ruler-width');
+      const rulerWidthInput = page.locator('input#ruler-width');
       await rulerWidthInput.fill('120');
-      await window.locator('input#vim-mode').check();
+      await page.locator('input#vim-mode').check();
 
-      await window.click('button:has-text("Formatter")');
-      await window.locator('input#session-before').fill('2');
-      await window.locator('input#session-after').fill('3');
-      await window.locator('input#max-blank-lines').fill('4');
-      await window.locator('input#indent-spaces').fill('2');
-      await window.locator('input#unordered-marker').fill('*');
-      await window.locator('label:has-text("Normalize list markers") input[type="checkbox"]').uncheck();
-      await window.locator('label:has-text("Normalize verbatim markers") input[type="checkbox"]').uncheck();
-      await window.locator('label:has-text("Preserve trailing blank lines") input[type="checkbox"]').check();
-      await window.locator('label:has-text("Format automatically on save") input[type="checkbox"]').check();
+      await page.click('button:has-text("Formatter")');
+      await page.locator('input#session-before').fill('2');
+      await page.locator('input#session-after').fill('3');
+      await page.locator('input#max-blank-lines').fill('4');
+      await page.locator('input#indent-spaces').fill('2');
+      await page.locator('input#unordered-marker').fill('*');
+      await page.locator('label:has-text("Normalize list markers") input[type="checkbox"]').uncheck();
+      await page.locator('label:has-text("Normalize verbatim markers") input[type="checkbox"]').uncheck();
+      await page.locator('label:has-text("Preserve trailing blank lines") input[type="checkbox"]').check();
+      await page.locator('label:has-text("Format automatically on save") input[type="checkbox"]').check();
 
-      await saveAndCloseSettings(window);
+      await saveAndCloseSettings(page);
 
-      await openSettings(window);
-      await expect(window.locator('input#show-ruler')).toBeChecked();
-      await expect(window.locator('input#ruler-width')).toHaveValue('120');
-      await expect(window.locator('input#vim-mode')).toBeChecked();
+      await openSettings(page);
+      await expect(page.locator('input#show-ruler')).toBeChecked();
+      await expect(page.locator('input#ruler-width')).toHaveValue('120');
+      await expect(page.locator('input#vim-mode')).toBeChecked();
 
-      await window.click('button:has-text("Formatter")');
-      await expect(window.locator('input#session-before')).toHaveValue('2');
-      await expect(window.locator('input#session-after')).toHaveValue('3');
-      await expect(window.locator('input#max-blank-lines')).toHaveValue('4');
-      await expect(window.locator('input#indent-spaces')).toHaveValue('2');
-      await expect(window.locator('input#unordered-marker')).toHaveValue('*');
-      await expect(window.locator('label:has-text("Normalize list markers") input[type="checkbox"]')).not.toBeChecked();
-      await expect(window.locator('label:has-text("Normalize verbatim markers") input[type="checkbox"]')).not.toBeChecked();
-      await expect(window.locator('label:has-text("Preserve trailing blank lines") input[type="checkbox"]')).toBeChecked();
-      await expect(window.locator('label:has-text("Format automatically on save") input[type="checkbox"]')).toBeChecked();
+      await page.click('button:has-text("Formatter")');
+      await expect(page.locator('input#session-before')).toHaveValue('2');
+      await expect(page.locator('input#session-after')).toHaveValue('3');
+      await expect(page.locator('input#max-blank-lines')).toHaveValue('4');
+      await expect(page.locator('input#indent-spaces')).toHaveValue('2');
+      await expect(page.locator('input#unordered-marker')).toHaveValue('*');
+      await expect(page.locator('label:has-text("Normalize list markers") input[type="checkbox"]')).not.toBeChecked();
+      await expect(page.locator('label:has-text("Normalize verbatim markers") input[type="checkbox"]')).not.toBeChecked();
+      await expect(page.locator('label:has-text("Preserve trailing blank lines") input[type="checkbox"]')).toBeChecked();
+      await expect(page.locator('label:has-text("Format automatically on save") input[type="checkbox"]')).toBeChecked();
 
-      const persistedSettings = await window.evaluate(async () => {
-        return window.ipcRenderer.getAppSettings();
+      const persistedSettings = await page.evaluate(async () => {
+        return (window as any).ipcRenderer.getAppSettings();
       });
       expect(persistedSettings.editor.showRuler).toBe(true);
       expect(persistedSettings.editor.rulerWidth).toBe(120);

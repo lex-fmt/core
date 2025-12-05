@@ -8,6 +8,7 @@ import * as path from 'path';
 import { openFixture } from './helpers';
 
 test.describe('Packaged Application', () => {
+  test.skip(!!process.env.LEX_SKIP_E2E_BUILD, 'Skipping packaged app test in dev mode');
   let electronApp: ElectronApplication | null = null;
   let page: Page | null = null;
 

@@ -4,6 +4,10 @@ import { Toaster } from 'sonner'
 import App from './App.tsx'
 import './index.css'
 import { initializeMonaco } from './monaco/index.ts'
+import log from 'electron-log/renderer';
+
+log.transports.console.level = import.meta.env.MODE === 'development' ? 'debug' : 'error';
+
 
 initializeMonaco();
 
