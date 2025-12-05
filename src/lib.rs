@@ -1,115 +1,71 @@
-//! Lex Workspace
+//! # lex-parser
 //!
-//!     A complete toolchain for working with Lex documents - a structured document format
-//!     designed for authoring technical content, academic papers, and documentation.
+//!     A parser for the Lex plain text document format.
 //!
-//! Architecture Overview
+//! Overview
 //!
-//!     The workspace is organized into focused crates with clear separation of concerns.
-//!     The processing pipeline flows from text input through parsing, then branches to
-//!     multiple consumers:
+//!     Lex is a plain text format for structured information that can scale from a quick one-line
+//!     note to scientific writings, while being easy to write without tooling. The parser transforms
+//!     Lex source text into an abstract syntax tree (AST).
 //!
-//!     Text Input → lex-parser → [lex-analysis, lex-babel, lex-lsp, lex-cli]
+//! Parser Architecture
 //!
-//! Crate Organization
+//!     The parser uses a multi-stage design that breaks down complexity into simple chunks:
 //!
-//! lex-parser: Foundation
+//!     1. **Lexing** - Tokenization, semantic indentation, and line classification
+//!     2. **Tree Building** - Creates hierarchical LineContainer structure
+//!     3. **Parsing** - Pattern-based semantic analysis producing IR nodes
+//!     4. **Building** - Constructs AST from IR nodes with location tracking
+//!     5. **Assembly** - Attaches annotations and resolves references
 //!
-//!     Text → AST transformation
+//!     This design enables single-pass parsing with each nesting level parsed in isolation.
 //!
-//!     - Lexes and parses Lex source into structured AST
-//!     - Provides AST types: Document, Session, Paragraph, List, Definition, Annotation
-//!     - Handles position tracking, range calculation, source mapping
-//!     - Includes inline parsing: references, formatting markers
-//!     - Testing utilities via `lexplore` for loading sample fixtures
+//! Getting Started
 //!
-//! lex-analysis: Semantic Analysis
+//!     - For the complete parser design and pipeline details, see the [lex](lex) module
+//!     - For the end-to-end processing pipeline, see [lex::parsing]
+//!     - For AST node types and structure, see [lex::ast]
+//!     - For testing guidelines, see [lex::testing]
 //!
-//!     AST → Insights extraction
+//! File Layout
 //!
-//!     - Document analysis and navigation utilities (symbols, folding, hovers)
-//!     - Reference resolution: go-to-definition, find-references
-//!     - Completion provider for references, sessions, paths, and verbatim labels
-//!     - Annotation helpers: navigation and resolution edits
-//!     - Token classification for syntax highlighting
-//!     - Preview text extraction for hover tooltips
-//!     - Protocol-agnostic: reusable across LSP, CLI, editor plugins
+//!     For the time being, and probably at times, we will be running multiple lexer and parser
+//!     designs side by side. As the code gets more complicated comparing versions is key, and
+//!     having them side by side makes this easier, including comparison testing. These versions
+//!     might, as they do now, have different lexer outputs and parser inputs The contract is to
+//!     have the same global input (the lex source) and the same global output (the AST).
 //!
-//! lex-babel: Format Transformation
+//!     But various designs will make different tradeoffs on what gets done in lexing and parsing,
+//!     so we do not commit to a common lexer or parser outputs. But often different designs do
+//!     share a significant amount of code.
 //!
-//!     AST → Multiple output formats
+//!     Hence the layout should be:
+//!         src/lex/parser
+//!           ├── parser       The current parser design
+//!           └── <common>     Shared code for AST building and IR
 //!
-//!     - Multi-format conversion: Lex ↔ Markdown, HTML, LaTeX, PDF
-//!     - Publish pipeline returning on-disk artifacts or in-memory strings
-//!     - Document serialization with formatting rules
-//!     - Shared snippet templates for assets and verbatim blocks
-//!     - Format-specific transformations and normalization
-//!     - Pretty-printing with configurable indentation, blank lines, list markers
+//!     So the general form is src/lex/parser|lexer|design|common
 //!
-//! lex-lsp: Editor Integration
+//! Testing
 //!
-//!     LSP Server implementation
-//!
-//!     - Language Server Protocol implementation using tower-lsp
-//!     - Rich editor support for any LSP-compatible editor
-//!     - Delegates to lex-analysis for feature implementation
-//!     - LSP-specific features: document formatting with TextEdit diffs, document links
-//!     - Supported capabilities: semantic tokens, document symbols, hover, folding ranges,
-//!       go-to-definition, find-references, formatting, document links
-//!
-//! lex-cli: Command-Line Interface
-//!
-//!     Terminal-based document processing
-//!
-//!     - Format documents, convert between formats, validate documents, query AST
-//!     - `lex help` style documentation lookup over docs/ and specs/
-//!     - Designed for scripting, CI/CD pipelines, manual document processing
-//!
-//! lex-viewer: TUI Viewer
-//!
-//!     Terminal User Interface for document browsing
-//!
-//!     - Interactive document viewer with navigation
-//!     - Real-time rendering and preview
-//!     - Built with ratatui
-//!
-//! Design Principles
-//!
-//! Separation of Concerns
-//!
-//!     - Parser: Syntax only, no semantics
-//!     - Analysis: Semantic understanding, protocol-agnostic
-//!     - Babel: Format conversion and transformation
-//!     - LSP/CLI: Protocol and interface adapters
-//!
-//! Reusability
-//!
-//!     Core analysis logic in lex-analysis is reusable across multiple consumers:
-//!     LSP server (editor integration), CLI tools (validation, refactoring), direct editor
-//!     plugins (Vim, Emacs, without LSP), documentation generators, static analysis tools.
-//!
-//! Testing Strategy
-//!
-//!     - Use official sample files from `specs/` directory
-//!     - `lexplore` loader for consistent test fixtures
-//!     - Comprehensive unit tests in each crate
-//!     - Integration tests at workspace level
-//!
-//! Migration Notes
-//!
-//! Phase 3 Reorganization (Nov 2024)
-//!
-//!     Analysis features were extracted from `lex-lsp` into the new `lex-analysis` crate to
-//!     enable reuse across CLI tools, direct editor integrations, and other consumers.
-//!
-//!     Moved to lex-analysis:
-//!         Document traversal and lookup utilities, reference resolution (go-to-def,
-//!         find-refs), symbol hierarchy extraction, token classification, inline span
-//!         detection, hover preview extraction, folding range detection.
-//!
-//!     Remained in lex-lsp:
-//!         LSP server implementation (tower-lsp), protocol-specific formatting (TextEdit
-//!         diff computation), document links (LSP wrapper).
-//!
-//!     This enables `lex-cli` and direct editor plugins to use analysis features without
-//!     depending on the LSP protocol.
+//!     For comprehensive testing guidelines, see the [testing module](lex::testing).
+//!     All parser tests must follow strict rules using verified lex sources and AST assertions.
+
+#![allow(rustdoc::invalid_html_tags)]
+
+pub mod lex;
+
+/// A simple function to demonstrate the library works
+pub fn hello() -> &'static str {
+    "Hello from lex!"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hello() {
+        assert_eq!(hello(), "Hello from lex!");
+    }
+}

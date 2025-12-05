@@ -1,309 +1,58 @@
 #!/bin/bash
 #
-# Pre-commit hook for Lex project
-# This script runs formatting, linting, and testing for Rust and TypeScript code
-# to ensure code quality and match CI checks.
+# Pre-commit hook for lex-core
+# Runs formatting, linting, and testing
 #
 # Usage:
 #   ./scripts/pre-commit           # Run on staged files (git hook mode)
 #   ./scripts/pre-commit --all     # Run on all files (manual mode)
-#   ./scripts/pre-commit --verbose # Run with verbose output
-#
-# To install this hook, run:
-#   ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
-#   chmod +x .git/hooks/pre-commit
 
 set -e
 
-ALL_MODE=false
+echo "Running pre-commit checks for lex-core..."
 
-for arg in "$@"; do
-    case $arg in
-    --all)
-        ALL_MODE=true
-        shift
-        ;;
-    esac
-done
-
-# Ensure Rust tools are in PATH
-if ! command -v cargo >/dev/null 2>&1; then
-    # Try .envrc first (direnv integration)
-    if [ -f ".envrc" ]; then
-        # Source relevant parts of .envrc for PATH setup
-        # This mimics what direnv would do
-
-        # 1. Standard cargo location
-        if [ -d "$HOME/.cargo/bin" ]; then
-            export PATH="$HOME/.cargo/bin:$PATH"
-        fi
-
-        # 2. Source cargo env if available
-        if [ -f "$HOME/.cargo/env" ]; then
-            # shellcheck disable=SC1091
-            # Cargo's env file sets up PATH and environment variables for Rust toolchain
-            source "$HOME/.cargo/env"
-        fi
-
-        # 3. Find cargo via rustup if available
-        if command -v rustup >/dev/null 2>&1; then
-            CARGO_PATH=$(rustup which cargo 2>/dev/null)
-            if [ -n "$CARGO_PATH" ]; then
-                CARGO_BIN_DIR=$(dirname "$CARGO_PATH")
-                export PATH="$CARGO_BIN_DIR:$PATH"
-            fi
-        fi
-    fi
-
-    # If still not found, try common Rust installation paths
-    if ! command -v cargo >/dev/null 2>&1; then
-        if [ -d "$HOME/.rustup/toolchains" ]; then
-            # Find the active toolchain
-            TOOLCHAIN_PATH=$(find "$HOME/.rustup/toolchains" -name "bin" -type d | head -1)
-            if [ -n "$TOOLCHAIN_PATH" ]; then
-                export PATH="$TOOLCHAIN_PATH:$PATH"
-            fi
-        fi
-    fi
-fi
-
-echo "🦀 Running pre-commit checks for Rust project..."
-
-# Get list of files to check
-if [ "$ALL_MODE" = "true" ]; then
-    echo "📝 Running checks on all Rust files in the project..."
-    STAGED_FILES=$(find . -name "*.rs" -not -path "./target/*" -not -path "./.git/*")
-
-    if [ -z "$STAGED_FILES" ]; then
-        echo "ℹ️  No Rust files found in the project"
-        exit 0
-    fi
-
-    echo "📝 Found $(echo "$STAGED_FILES" | wc -l) Rust files"
-else
-    # Get list of staged Rust files
-    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(rs)$' || true)
-
-    if [ -z "$STAGED_FILES" ]; then
-        echo "ℹ️  No Rust files staged for commit"
-        exit 0
-    fi
-
-    echo "📝 Staged Rust files:"
-    while IFS= read -r line; do
-        echo "  $line"
-    done <<<"$STAGED_FILES"
-fi
-
-# 1. Auto-fix code formatting
+# 1. Check formatting
 echo ""
-echo "🎨 Checking and fixing code formatting..."
-if ! cargo fmt -- --check >/dev/null 2>&1; then
-    echo "🔧 Auto-fixing formatting issues..."
-    cargo fmt
-    # IMPORTANT: Always re-stage files after formatting (in both --all and normal mode)
-    # to prevent them from being left as unstaged changes after commit
-    echo "$STAGED_FILES" | xargs git add 2>/dev/null || true
-    echo "✅ Code formatting fixed and files re-staged"
-else
-    echo "✅ Code formatting is correct"
-fi
-
-# 2. Run Clippy lints with auto-fix
-echo ""
-echo "🔍 Running Clippy lints with auto-fix..."
-# Get list of modified files before clippy (use wc -l for reliable counting, strip whitespace)
-MODIFIED_BEFORE=$(git status --porcelain 2>/dev/null | grep -c '^ M' 2>/dev/null || echo "0")
-MODIFIED_BEFORE=$(echo "$MODIFIED_BEFORE" | tr -d '[:space:]')
-# Default to 0 if empty (shouldn't happen, but be safe)
-[ -z "$MODIFIED_BEFORE" ] && MODIFIED_BEFORE=0
-
-# Try to auto-fix what we can
-if cargo clippy --fix --all-targets --all-features --allow-dirty --allow-staged 2>/dev/null; then
-    # Check if clippy actually made changes
-    MODIFIED_AFTER=$(git status --porcelain 2>/dev/null | grep -c '^ M' 2>/dev/null || echo "0")
-    MODIFIED_AFTER=$(echo "$MODIFIED_AFTER" | tr -d '[:space:]')
-    # Default to 0 if empty (shouldn't happen, but be safe)
-    [ -z "$MODIFIED_AFTER" ] && MODIFIED_AFTER=0
-
-    # Use arithmetic comparison which handles integer conversion automatically
-    if ((MODIFIED_AFTER > MODIFIED_BEFORE)) 2>/dev/null; then
-        # Clippy made actual changes - re-stage all modified files
-        git add -A 2>/dev/null || true
-        echo "🔧 Auto-fixed some Clippy issues and re-staged files"
-    fi
-fi
-
-# Now run clippy to check for remaining issues
-if ! cargo clippy --all-targets --all-features -- -D warnings; then
-    echo "❌ Clippy found issues that require manual fixing!"
-    echo "💡 Fix the issues above"
-    exit 1
-fi
-echo "✅ Clippy checks passed"
-
-# 3. CRITICAL: Build (matches CI exactly)
-echo ""
-echo "🔨 Building project..."
-if ! cargo build; then
-    echo "❌ Build failed!"
-    exit 1
-fi
-echo "✅ Build successful"
-
-# 4. CRITICAL: Run tests (matches CI exactly)
-echo ""
-echo "🧪 Running tests..."
-# Check if nextest is available (try as cargo subcommand)
-if ! cargo nextest --version >/dev/null 2>&1; then
-    echo "❌ ERROR: cargo-nextest is required but not installed!"
-    echo ""
-    echo "💡 Install it with:"
-    echo "   cargo install --locked cargo-nextest"
-    echo ""
-    echo "   Or see https://get.nexte.st for pre-built binaries and other installation methods."
-    echo ""
-    exit 1
-fi
-
-# Use nextest (required)
-NEXTEST_STDOUT=$(mktemp)
-if cargo nextest run --no-fail-fast >"$NEXTEST_STDOUT"; then
-    # Show only the summary line from stdout on success; stderr wasn't suppressed.
-    tail -n 1 "$NEXTEST_STDOUT"
-    echo "✅ All tests passed"
-else
-    # On failure, replay captured stdout so failures are visible (stderr already shown).
-    cat "$NEXTEST_STDOUT"
-    rm -f "$NEXTEST_STDOUT"
-    echo "❌ Tests failed!"
-    exit 1
-fi
-rm -f "$NEXTEST_STDOUT"
-
-# 5. CRITICAL: Check formatting (matches CI exactly)
-echo ""
-echo "🎨 Checking code formatting..."
+echo "Checking code formatting..."
 if ! cargo fmt -- --check; then
-    echo "❌ Code formatting check failed!"
-    echo "💡 Run 'cargo fmt' to fix formatting issues"
+    echo "Formatting issues found. Run 'cargo fmt' to fix."
     exit 1
 fi
-echo "✅ Code formatting is correct"
+echo "Formatting OK"
 
-# 6. OPTIONAL: Check documentation builds (non-critical)
+# 2. Run Clippy
 echo ""
-echo "📚 Checking documentation..."
-if ! cargo doc --no-deps --all-features; then
-    echo "⚠️  Documentation build failed (non-critical)"
-    echo "💡 Documentation issues won't block commits, but consider fixing them"
-else
-    echo "✅ Documentation builds successfully"
+echo "Running Clippy..."
+if ! cargo clippy --all-targets --all-features -- -D warnings; then
+    echo "Clippy found issues!"
+    exit 1
 fi
+echo "Clippy OK"
 
-# 7. Security audit (optional, only if cargo-audit is installed)
-if command -v cargo-audit >/dev/null 2>&1; then
-    echo ""
-    echo "🔒 Running security audit..."
-    if ! cargo audit; then
-        echo "⚠️  Security audit found issues!"
-        echo "💡 Review the issues above. You may proceed if they're acceptable."
-        echo "💡 Install cargo-audit with: cargo install cargo-audit"
-        # Don't fail the commit for audit issues, just warn
-    else
-        echo "✅ Security audit passed"
-    fi
-else
-    echo ""
-    echo "ℹ️  Skipping security audit (cargo-audit not installed)"
-    echo "💡 Install with: cargo install cargo-audit"
-fi
-
-# 8. Check for TODO/FIXME comments in files (optional warning)
-if [ -n "$STAGED_FILES" ]; then
-    # Use grep -h to suppress filenames and get a clean line count
-    TODO_COUNT=$(echo "$STAGED_FILES" | xargs grep -h "TODO\|FIXME" 2>/dev/null | wc -l)
-    TODO_COUNT=$(echo "$TODO_COUNT" | xargs) # Trim whitespace to ensure it's a valid integer
-
-    if [ "$TODO_COUNT" -gt 0 ] 2>/dev/null; then
-        echo ""
-        if [ "$ALL_MODE" = "true" ]; then
-            echo "⚠️  Found $TODO_COUNT TODO/FIXME comments in project files:"
-        else
-            echo "⚠️  Found $TODO_COUNT TODO/FIXME comments in staged files:"
-        fi
-        echo "$STAGED_FILES" | xargs grep -n "TODO\|FIXME" 2>/dev/null || true
-        echo "💡 Consider addressing these before committing"
-    fi
-fi
-
-# 9. Run Neovim plugin tests
+# 3. Build
 echo ""
-echo "vim 🧪 Running Neovim plugin tests..."
-if command -v bats >/dev/null 2>&1; then
-    if ! ./editors/nvim/test/run_suite.sh --format=simple; then
-        echo "❌ Neovim plugin tests failed!"
+echo "Building..."
+if ! cargo build; then
+    echo "Build failed!"
+    exit 1
+fi
+echo "Build OK"
+
+# 4. Run tests
+echo ""
+echo "Running tests..."
+if command -v cargo-nextest >/dev/null 2>&1; then
+    if ! cargo nextest run; then
+        echo "Tests failed!"
         exit 1
     fi
-    echo "✅ Neovim plugin tests passed"
 else
-    echo "⚠️  Skipping Neovim plugin tests (bats not installed)"
-    echo "💡 Install bats-core to run these tests"
-fi
-
-# 10. CRITICAL: Run TypeScript/JavaScript linting (matches CI exactly)
-# Check if any TS/JS/TSX files are staged (or --all mode)
-if [ "$ALL_MODE" = "true" ]; then
-    TS_FILES=$(find editors/vscode/src editors/vscode/test editors/lexed/src editors/lexed/electron -name "*.ts" -o -name "*.tsx" 2>/dev/null | head -1)
-else
-    TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' | grep -E '^editors/(vscode|lexed)/' || true)
-fi
-
-if [ -n "$TS_FILES" ] || [ "$ALL_MODE" = "true" ]; then
-    echo ""
-    echo "📝 Running TypeScript/JavaScript linting..."
-
-    # Check if npm is available
-    if ! command -v npm >/dev/null 2>&1; then
-        echo "⚠️  Skipping TypeScript linting (npm not installed)"
-    else
-        LINT_FAILED=false
-
-        # Lint VS Code extension
-        if [ -d "editors/vscode" ] && [ -f "editors/vscode/package.json" ]; then
-            echo "  🔍 Linting VS Code extension..."
-            if [ -d "editors/vscode/node_modules" ]; then
-                if ! (cd editors/vscode && npm run lint); then
-                    echo "❌ VS Code extension lint failed!"
-                    LINT_FAILED=true
-                fi
-            else
-                echo "  ⚠️  Skipping VS Code lint (run 'npm ci' in editors/vscode first)"
-            fi
-        fi
-
-        # Lint LexEd app
-        if [ -d "editors/lexed" ] && [ -f "editors/lexed/package.json" ]; then
-            echo "  🔍 Linting LexEd app..."
-            if [ -d "editors/lexed/node_modules" ]; then
-                if ! (cd editors/lexed && npm run lint); then
-                    echo "❌ LexEd app lint failed!"
-                    LINT_FAILED=true
-                fi
-            else
-                echo "  ⚠️  Skipping LexEd lint (run 'npm ci' in editors/lexed first)"
-            fi
-        fi
-
-        if [ "$LINT_FAILED" = "true" ]; then
-            echo ""
-            echo "❌ TypeScript/JavaScript linting failed!"
-            echo "💡 Fix the lint errors above before committing"
-            exit 1
-        fi
-        echo "✅ TypeScript/JavaScript linting passed"
+    if ! cargo test; then
+        echo "Tests failed!"
+        exit 1
     fi
 fi
+echo "Tests OK"
 
 echo ""
-echo "🎉 All pre-commit checks passed! Ready to commit."
+echo "All pre-commit checks passed!"

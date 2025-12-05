@@ -10,8 +10,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  critical-checks:
-    name: Critical checks (pre-commit)
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,31 +23,25 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "stable"
-          cache-on-failure: true
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
 
-      - name: Run pre-commit script (critical checks)
-        run: |
-          chmod +x scripts/pre-commit
-          ./scripts/pre-commit --all --verbose
+      - name: Check formatting
+        run: cargo fmt -- --check
 
-      - name: Check that pre-commit script exists and is executable
-        run: |
-          test -f scripts/pre-commit
-          test -x scripts/pre-commit
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Cleanup test artifacts
-        if: always()
-        run: rm -rf target/tests
+      - name: Build
+        run: cargo build
 
-  documentation:
-    name: Documentation build
+      - name: Test
+        run: cargo nextest run
+
+  docs:
+    name: Documentation
     runs-on: ubuntu-latest
-    continue-on-error: true # Don't fail the entire workflow if docs fail
     steps:
       - uses: actions/checkout@v4
 
@@ -56,10 +50,6 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "stable"
-          cache-on-failure: true
-          save-if: false
 
       - name: Build documentation
-        run: cargo doc --workspace --no-deps --all-features
+        run: cargo doc --no-deps --all-features

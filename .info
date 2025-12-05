@@ -1,3 +1,0 @@
-src/lex/parser The root for all parsers
-src/lex/parser/homy The module for the 'home' parser design.
-src/lex/parser/reference The module for the 'reference' parser design.
