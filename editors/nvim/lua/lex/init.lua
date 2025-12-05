@@ -16,8 +16,8 @@ local commands = require("lex.commands")
 local M = {}
 
 -- Plugin version + bundled lex-lsp version (used by binary manager).
-M.version = "0.1.0"
-M.lex_lsp_version = "v0.1.0"
+M.version = "0.2.1"
+M.lex_lsp_version = "v0.2.1"
 
 -- Resolve which lex-lsp binary to execute.
 local function resolve_lsp_cmd(opts)
