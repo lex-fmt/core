@@ -1,7 +1,6 @@
-import { rmSync, mkdirSync, renameSync } from 'node:fs';
+import { rmSync, mkdirSync, copyFileSync, existsSync, readFileSync, renameSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import sharp from 'sharp';
 import iconGen from 'icon-gen';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,47 +12,65 @@ const iconsDir = path.join(outputDir, 'icons');
 const pngOutputDir = iconsDir;
 const macOutputDir = iconsDir;
 const winOutputDir = iconsDir;
-const tmpDir = path.join(projectRoot, 'build');
-const basePng = path.join(tmpDir, 'icon-1024.png');
-const pngSizes = [16, 24, 32, 48, 64, 128, 256, 512, 1024];
-const logoPath = path.join(workspaceRoot, 'assets', 'logo.svg');
+const pngSizes = [16, 32, 64, 128, 256, 512, 1024];
+const windowsIcoSizes = [16, 32, 64, 128, 256];
+const assetsDir = path.join(workspaceRoot, 'assets');
+
+function getPngDimensions(filePath) {
+  const buffer = readFileSync(filePath);
+  if (buffer.length < 24) {
+    throw new Error(`File ${filePath} is too small to be a valid PNG.`);
+  }
+  const signature = buffer.toString('ascii', 12, 16);
+  if (signature !== 'IHDR') {
+    throw new Error(`File ${filePath} is not a valid PNG (missing IHDR chunk).`);
+  }
+  const width = buffer.readUInt32BE(16);
+  const height = buffer.readUInt32BE(20);
+  return { width, height };
+}
 
 rmSync(outputDir, { recursive: true, force: true });
 mkdirSync(iconsDir, { recursive: true });
-mkdirSync(tmpDir, { recursive: true });
 
-await sharp(logoPath)
-  .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-  .png()
-  .toFile(basePng);
-
+console.log('Copying pre-generated PNG icons...');
 for (const size of pngSizes) {
-  const target = path.join(pngOutputDir, `${size}.png`);
-  await sharp(basePng)
-    .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toFile(target);
-  console.log(`Created ${target}`);
+  const sourceName = `logo@${size}.png`;
+  const sourcePath = path.join(assetsDir, sourceName);
+  if (!existsSync(sourcePath)) {
+    throw new Error(`Missing ${sourceName} inside ${assetsDir}`);
+  }
+  const { width, height } = getPngDimensions(sourcePath);
+  if (width !== size || height !== size) {
+    console.warn(
+      `\tWARNING: ${sourceName} is ${width}x${height}, expected ${size}x${size}.`
+    );
+  }
+  const targetName = `${size}.png`;
+  const targetPath = path.join(pngOutputDir, targetName);
+  copyFileSync(sourcePath, targetPath);
+  console.log(`Copied ${sourceName} -> ${targetName}`);
 }
 
 await iconGen(pngOutputDir, macOutputDir, {
-  icns: { name: 'icon' },
+  icns: { name: 'icon', sizes: pngSizes },
   report: true,
 });
 
 await iconGen(pngOutputDir, winOutputDir, {
-  ico: { name: 'icon' },
+  ico: { name: 'icon', sizes: windowsIcoSizes },
   report: true,
 });
 
-console.log('Renaming PNGs to Electron Format');
+console.log('Renaming PNGs to Electron format');
 for (const size of pngSizes) {
-  const startName = `${size}.png`;
-  const endName = `${size}x${size}.png`;
-  const from = path.join(pngOutputDir, startName);
-  const to = path.join(pngOutputDir, endName);
+  const tmpName = `${size}.png`;
+  const finalName = `${size}x${size}.png`;
+  const from = path.join(pngOutputDir, tmpName);
+  const to = path.join(pngOutputDir, finalName);
+  // The PNGs are only needed in Electron's NxN naming convention after icon-gen runs.
   renameSync(from, to);
-  console.log(`Renamed ${startName} to ${endName}`);
+  console.log(`Renamed ${tmpName} -> ${finalName}`);
 }
 
 console.log('\n ALL DONE');
