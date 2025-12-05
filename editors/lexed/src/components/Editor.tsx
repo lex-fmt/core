@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useRef, useEffect, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
 import 'monaco-editor';
@@ -221,6 +222,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor({ fi
       unsubscribeInsertAsset();
       unsubscribeInsertVerbatim();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleOpen = async () => {

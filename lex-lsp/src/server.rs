@@ -32,16 +32,16 @@ use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionOrCommand, CodeActionParams, CodeActionProviderCapability,
     CodeActionResponse, CompletionItem, CompletionOptions, CompletionParams, CompletionResponse,
-    DocumentFormattingParams, DocumentLink, DocumentLinkOptions, DocumentLinkParams,
-    DocumentRangeFormattingParams, DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse,
-    ExecuteCommandOptions, ExecuteCommandParams, FoldingRange, FoldingRangeParams,
-    FoldingRangeProviderCapability, GotoDefinitionParams, GotoDefinitionResponse, Hover,
-    HoverContents, HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
-    InitializedParams, Location, MarkupContent, MarkupKind, OneOf, Position, Range,
-    ReferenceParams, SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensFullOptions,
-    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult,
-    ServerCapabilities, ServerInfo, TextDocumentItem, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
+    DidChangeConfigurationParams, DocumentFormattingParams, DocumentLink, DocumentLinkOptions,
+    DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbol, DocumentSymbolParams,
+    DocumentSymbolResponse, ExecuteCommandOptions, ExecuteCommandParams, FoldingRange,
+    FoldingRangeParams, FoldingRangeProviderCapability, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverContents, HoverParams, HoverProviderCapability,
+    InitializeParams, InitializeResult, InitializedParams, Location, MarkupContent, MarkupKind,
+    OneOf, Position, Range, ReferenceParams, SemanticToken, SemanticTokenType, SemanticTokens,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
+    SemanticTokensResult, ServerCapabilities, ServerInfo, TextDocumentItem,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
 };
 use tower_lsp::Client;
 
@@ -100,7 +100,7 @@ pub trait FeatureProvider: Send + Sync + 'static {
         trigger_char: Option<&str>,
     ) -> Vec<CompletionCandidate>;
     fn execute_command(&self, command: &str, arguments: &[Value]) -> Result<Option<Value>>;
-    fn check_spelling(&self, document: &Document) -> SpellcheckResult;
+    fn check_spelling(&self, document: &Document, language: &str) -> SpellcheckResult;
 }
 
 #[derive(Default)]
@@ -180,9 +180,8 @@ impl FeatureProvider for DefaultFeatureProvider {
         execute_command(command, arguments)
     }
 
-    fn check_spelling(&self, document: &Document) -> SpellcheckResult {
-        // Hardcoded language for Step A/B/C
-        crate::features::spellcheck::check_document(document, "en_US")
+    fn check_spelling(&self, document: &Document, language: &str) -> SpellcheckResult {
+        crate::features::spellcheck::check_document(document, language)
     }
 }
 
@@ -256,11 +255,32 @@ fn semantic_tokens_legend() -> SemanticTokensLegend {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct LexConfiguration {
+    pub spellcheck: SpellcheckConfig,
+}
+
+#[derive(Debug, Clone)]
+pub struct SpellcheckConfig {
+    pub enabled: bool,
+    pub language: String,
+}
+
+impl Default for SpellcheckConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            language: "en_US".to_string(),
+        }
+    }
+}
+
 pub struct LexLanguageServer<C = Client, P = DefaultFeatureProvider> {
     _client: C,
     documents: DocumentStore,
     features: Arc<P>,
     workspace_roots: RwLock<Vec<PathBuf>>,
+    config: RwLock<LexConfiguration>,
 }
 
 impl LexLanguageServer<Client, DefaultFeatureProvider> {
@@ -280,23 +300,32 @@ where
             documents: DocumentStore::default(),
             features,
             workspace_roots: RwLock::new(Vec::new()),
+            config: RwLock::new(LexConfiguration::default()),
         }
     }
 
     async fn parse_and_store(&self, uri: Url, text: String) {
         if let Some(entry) = self.documents.upsert(uri.clone(), text).await {
-            // Run spellcheck
-            let spell_result = self.features.check_spelling(&entry.document);
+            // Run spellcheck if enabled
+            let config = self.config.read().await;
+            if config.spellcheck.enabled {
+                let spell_result = self
+                    .features
+                    .check_spelling(&entry.document, &config.spellcheck.language);
 
-            if let Some(error) = spell_result.error {
-                self._client.show_message(MessageType::WARNING, error).await;
+                if let Some(error) = spell_result.error {
+                    self._client.show_message(MessageType::WARNING, error).await;
+                }
+
+                let diagnostics = spell_result.diagnostics;
+
+                self._client
+                    .publish_diagnostics(uri, diagnostics, None)
+                    .await;
+            } else {
+                // Clear diagnostics if disabled
+                self._client.publish_diagnostics(uri, vec![], None).await;
             }
-
-            let diagnostics = spell_result.diagnostics;
-
-            self._client
-                .publish_diagnostics(uri, diagnostics, None)
-                .await;
         }
     }
 
@@ -752,6 +781,37 @@ where
         self.parse_and_store(uri, text).await;
     }
 
+    async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
+        let settings = params.settings;
+
+        let mut config = self.config.write().await;
+
+        if let Some(spellcheck) = settings.get("spellcheck") {
+            if let Some(enabled) = spellcheck.get("enabled").and_then(|v| v.as_bool()) {
+                config.spellcheck.enabled = enabled;
+            }
+            if let Some(language) = spellcheck.get("language").and_then(|v| v.as_str()) {
+                config.spellcheck.language = language.to_string();
+            }
+        }
+
+        // Re-check all documents with new settings
+        let uris: Vec<Url> = self
+            .documents
+            .entries
+            .read()
+            .await
+            .keys()
+            .cloned()
+            .collect();
+        drop(config); // Release lock before async calls
+
+        for uri in uris {
+            if let Some(entry) = self.documents.get(&uri).await {
+                self.parse_and_store(uri, entry.text.to_string()).await;
+            }
+        }
+    }
     async fn did_change(&self, params: lsp_types::DidChangeTextDocumentParams) {
         if let Some(change) = params.content_changes.into_iter().last() {
             self.parse_and_store(params.text_document.uri, change.text)
@@ -1188,7 +1248,7 @@ where
                     // Re-validate
                     if let Ok(uri) = Url::parse(uri_str) {
                         if let Some(document) = self.document(&uri).await {
-                            let spell_result = self.features.check_spelling(&document);
+                            let spell_result = self.features.check_spelling(&document, language);
                             if let Some(error) = spell_result.error {
                                 self._client.show_message(MessageType::WARNING, error).await;
                             }
@@ -1383,7 +1443,7 @@ mod tests {
             }
         }
 
-        fn check_spelling(&self, _: &Document) -> SpellcheckResult {
+        fn check_spelling(&self, _: &Document, _: &str) -> SpellcheckResult {
             SpellcheckResult {
                 diagnostics: Vec::new(),
                 error: None,

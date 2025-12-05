@@ -1,9 +1,10 @@
-import type { AppSettings, EditorSettings, FormatterSettings } from './types';
+import type { AppSettings, EditorSettings, FormatterSettings, SpellcheckSettings } from './types';
 import { defaultAppSettings } from './types';
 
 let currentSettings: AppSettings = {
     editor: { ...defaultAppSettings.editor },
     formatter: { ...defaultAppSettings.formatter },
+    spellcheck: { ...defaultAppSettings.spellcheck },
 };
 
 const cloneEditor = (editor: EditorSettings): EditorSettings => ({
@@ -24,9 +25,15 @@ const cloneFormatter = (formatter: FormatterSettings): FormatterSettings => ({
     formatOnSave: formatter.formatOnSave,
 });
 
+const cloneSpellcheck = (spellcheck: SpellcheckSettings): SpellcheckSettings => ({
+    enabled: spellcheck.enabled,
+    language: spellcheck.language,
+});
+
 const cloneSettings = (settings: AppSettings): AppSettings => ({
     editor: cloneEditor(settings.editor),
     formatter: cloneFormatter(settings.formatter),
+    spellcheck: cloneSpellcheck(settings.spellcheck),
 });
 
 export function setSettingsSnapshot(settings: AppSettings): void {
@@ -43,4 +50,8 @@ export function getFormatterSettingsSnapshot(): FormatterSettings {
 
 export function getEditorSettingsSnapshot(): EditorSettings {
     return cloneEditor(currentSettings.editor);
+}
+
+export function getSpellcheckSettingsSnapshot(): SpellcheckSettings {
+    return cloneSpellcheck(currentSettings.spellcheck);
 }

@@ -1,5 +1,6 @@
-import { ipcRenderer, contextBridge } from 'electron'
-import type { IpcRendererEvent } from 'electron'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { ipcRenderer, contextBridge } from 'electron';
+import type { IpcRendererEvent } from 'electron';
 
 const initialTheme = ipcRenderer.sendSync('get-native-theme-sync') as 'dark' | 'light';
 
@@ -143,10 +144,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
       maxBlankLines: number;
       indentString: string;
       preserveTrailingBlanks: boolean;
-      normalizeVerbatimMarkers: boolean;
       formatOnSave: boolean;
     }
   ) => ipcRenderer.invoke('set-formatter-settings', settings),
+  setSpellcheckSettings: (settings: { enabled: boolean; language: string }) => ipcRenderer.invoke('set-spellcheck-settings', settings),
   onSettingsChanged: (callback: (settings: any) => void) => {
     const handler = (_event: IpcRendererEvent, settings: any) => callback(settings);
     ipcRenderer.on('settings-changed', handler);

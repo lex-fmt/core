@@ -16,11 +16,14 @@ fn get_dictionaries() -> &'static Mutex<HashMap<String, Arc<Dictionary>>> {
 pub enum DictionaryStatus {
     Loaded(Arc<Dictionary>),
     Missing,
+    FailedToLoad,
 }
 
 fn get_dictionary(language: &str) -> DictionaryStatus {
+    eprintln!("[Spellcheck] get_dictionary called for language: {language}");
     let mut cache = get_dictionaries().lock().unwrap();
     if let Some(dict) = cache.get(language) {
+        eprintln!("[Spellcheck] Returning cached dictionary for {language}");
         return DictionaryStatus::Loaded(dict.clone());
     }
 
@@ -30,29 +33,65 @@ fn get_dictionary(language: &str) -> DictionaryStatus {
         std::path::Path::new("resources/dictionaries"),
         std::path::Path::new("../dictionaries"),
         std::path::Path::new("../../dictionaries"),
+        std::path::Path::new("editors/lexed/dictionaries"),
+        std::path::Path::new("../editors/lexed/dictionaries"),
         // Try absolute path if needed, or user home
     ];
+
+    let cwd = std::env::current_dir().unwrap_or_default();
+    eprintln!("[Spellcheck] CWD: {cwd:?}");
+    if let Ok(exe) = std::env::current_exe() {
+        eprintln!("[Spellcheck] Executable path: {exe:?}");
+    }
 
     for base_path in paths_to_try {
         let aff_path = base_path.join(format!("{language}.aff"));
         let dic_path = base_path.join(format!("{language}.dic"));
 
+        eprintln!(
+            "[Spellcheck] Trying path: {:?}",
+            base_path.canonicalize().unwrap_or(base_path.to_path_buf())
+        );
+        eprintln!("[Spellcheck] Checking aff: {aff_path:?}, dic: {dic_path:?}");
+
         if aff_path.exists() && dic_path.exists() {
-            if let (Ok(aff), Ok(dic)) = (
+            eprintln!("[Spellcheck] Found dictionary files at {base_path:?}");
+            if let (Ok(aff), Ok(mut dic_content)) = (
                 std::fs::read_to_string(&aff_path),
                 std::fs::read_to_string(&dic_path),
             ) {
-                if let Ok(dict) = Dictionary::new(&aff, &dic) {
+                // Load custom dictionary
+                let custom_path = base_path.join("custom.dic");
+                if custom_path.exists() {
+                    eprintln!("[Spellcheck] Found custom dictionary at {custom_path:?}");
+                    if let Ok(custom_words) = std::fs::read_to_string(&custom_path) {
+                        // Append custom words to dic_content
+                        // Hunspell dic format: first line is count.
+                        // We can try to parse and update count, or just append and hope spellbook handles it.
+                        // Safest is to append.
+                        dic_content.push('\n');
+                        dic_content.push_str(&custom_words);
+                    }
+                }
+
+                if let Ok(dict) = Dictionary::new(&aff, &dic_content) {
+                    eprintln!("[Spellcheck] Successfully loaded dictionary for {language}");
                     let dict = Arc::new(dict);
                     cache.insert(language.to_string(), dict.clone());
                     return DictionaryStatus::Loaded(dict);
+                } else {
+                    eprintln!("[Spellcheck] Failed to parse dictionary for {language}");
+                    return DictionaryStatus::FailedToLoad;
                 }
+            } else {
+                eprintln!("[Spellcheck] Failed to read dictionary files");
+                return DictionaryStatus::FailedToLoad;
             }
         }
     }
 
+    eprintln!("[Spellcheck] Dictionary not found for {language}");
     // If we can't find a dictionary, return Missing.
-    // Do NOT use a tiny fallback that causes "all words error".
     DictionaryStatus::Missing
 }
 
@@ -72,6 +111,15 @@ pub fn check_document(document: &Document, language: &str) -> SpellcheckResult {
                 diagnostics: vec![],
                 error: Some(format!(
                     "Dictionary for language '{language}' not found. Spellchecking disabled."
+                )),
+                misspelled_count: 0,
+            };
+        }
+        DictionaryStatus::FailedToLoad => {
+            return SpellcheckResult {
+                diagnostics: vec![],
+                error: Some(format!(
+                    "Failed to load dictionary for language '{language}'. The file might be corrupted or invalid."
                 )),
                 misspelled_count: 0,
             };
@@ -180,8 +228,38 @@ pub fn suggest_corrections(word: &str, language: &str) -> Vec<String> {
     vec![]
 }
 
-pub fn add_to_dictionary(_word: &str, _language: &str) {
-    // Placeholder
+pub fn add_to_dictionary(word: &str, language: &str) {
+    // Append to custom.dic in the first valid dictionaries folder found
+    let paths_to_try = vec![
+        std::path::Path::new("dictionaries"),
+        std::path::Path::new("resources/dictionaries"),
+        std::path::Path::new("../dictionaries"),
+        std::path::Path::new("../../dictionaries"),
+        std::path::Path::new("editors/lexed/dictionaries"),
+        std::path::Path::new("../editors/lexed/dictionaries"),
+    ];
+
+    for base_path in paths_to_try {
+        if base_path.exists() {
+            let custom_path = base_path.join("custom.dic");
+            use std::io::Write;
+            if let Ok(mut file) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&custom_path)
+            {
+                if let Err(e) = writeln!(file, "{word}") {
+                    eprintln!("Failed to write to custom dictionary: {e}");
+                } else {
+                    // Invalidate cache for this language so it reloads with new word
+                    let mut cache = get_dictionaries().lock().unwrap();
+                    cache.remove(language);
+                }
+                return;
+            }
+        }
+    }
+    eprintln!("Could not find dictionaries folder to save custom word.");
 }
 
 #[cfg(test)]
