@@ -1,30 +1,27 @@
-import { test, expect, _electron as electron } from '@playwright/test';
-import { openFixture } from './helpers';
+import { test, expect } from '@playwright/test';
+import { openFixture, launchApp } from './helpers';
 import * as fs from 'fs/promises';
 
 test.describe('Interop Features', () => {
   test('should convert markdown to lex via convert button', async () => {
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: { ...process.env, NODE_ENV: 'development' },
-    });
-    const window = await electronApp.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
+    const electronApp = await launchApp();
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
 
     // Open a markdown fixture
-    const fixture = await openFixture(window, 'sample.md');
-    const editor = window.locator('.monaco-editor').first();
+    const fixture = await openFixture(page, 'sample.md');
+    const editor = page.locator('.monaco-editor').first();
     await expect(editor).toBeVisible();
-    await window.waitForTimeout(2000); // Wait for LSP
+    await page.waitForTimeout(2000); // Wait for LSP
 
     // Find and click the convert to lex button
-    const convertButton = window.locator('button[title="Convert to Lex"]');
+    const convertButton = page.locator('button[title="Convert to Lex"]');
     await expect(convertButton).toBeVisible();
     await expect(convertButton).toBeEnabled();
     await convertButton.click();
 
     // Wait for conversion to complete - look for success toast
-    const toast = window.locator('[data-sonner-toast]');
+    const toast = page.locator('[data-sonner-toast]');
     await expect(toast).toBeVisible({ timeout: 10000 });
 
     // Check the toast contains success message
@@ -46,18 +43,15 @@ test.describe('Interop Features', () => {
   });
 
   test('should export lex to markdown via menu', async () => {
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: { ...process.env, NODE_ENV: 'development' },
-    });
-    const window = await electronApp.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
+    const electronApp = await launchApp();
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
 
     // Open a lex fixture
-    const fixture = await openFixture(window, 'format-basic.lex');
-    const editor = window.locator('.monaco-editor').first();
+    const fixture = await openFixture(page, 'format-basic.lex');
+    const editor = page.locator('.monaco-editor').first();
     await expect(editor).toBeVisible();
-    await window.waitForTimeout(2000); // Wait for LSP
+    await page.waitForTimeout(2000); // Wait for LSP
 
     // Trigger export via menu
     await electronApp.evaluate(({ BrowserWindow }) => {
@@ -66,7 +60,7 @@ test.describe('Interop Features', () => {
     });
 
     // Wait for export to complete - look for success toast
-    const toast = window.locator('[data-sonner-toast]');
+    const toast = page.locator('[data-sonner-toast]');
     await expect(toast).toBeVisible({ timeout: 10000 });
 
     // Check the toast contains success message
@@ -88,18 +82,15 @@ test.describe('Interop Features', () => {
   });
 
   test('should export lex to html via menu', async () => {
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: { ...process.env, NODE_ENV: 'development' },
-    });
-    const window = await electronApp.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
+    const electronApp = await launchApp();
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
 
     // Open a lex fixture
-    const fixture = await openFixture(window, 'format-basic.lex');
-    const editor = window.locator('.monaco-editor').first();
+    const fixture = await openFixture(page, 'format-basic.lex');
+    const editor = page.locator('.monaco-editor').first();
     await expect(editor).toBeVisible();
-    await window.waitForTimeout(2000); // Wait for LSP
+    await page.waitForTimeout(2000); // Wait for LSP
 
     // Trigger export via menu
     await electronApp.evaluate(({ BrowserWindow }) => {
@@ -108,7 +99,7 @@ test.describe('Interop Features', () => {
     });
 
     // Wait for export to complete
-    const toast = window.locator('[data-sonner-toast]');
+    const toast = page.locator('[data-sonner-toast]');
     await expect(toast).toBeVisible({ timeout: 10000 });
 
     // Check the toast contains success message

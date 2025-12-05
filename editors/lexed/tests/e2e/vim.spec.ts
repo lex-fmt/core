@@ -12,23 +12,23 @@ test.describe('Vim Mode', () => {
       },
     });
 
-    const window = await electronApp.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
 
     // Open settings
-    await window.click('button[title="Settings"]');
-    await expect(window.locator('h2:has-text("Settings")')).toBeVisible();
+    await page.click('button[title="Settings"]');
+    await expect(page.locator('h2:has-text("Settings")')).toBeVisible();
 
     // Enable Vim Mode
-    const vimModeCheckbox = window.locator('input#vim-mode');
+    const vimModeCheckbox = page.locator('input#vim-mode');
     await vimModeCheckbox.check();
 
     // Save
-    await window.click('text=Save Changes');
-    await expect(window.locator('h2:has-text("Settings")')).toBeHidden();
+    await page.click('text=Save Changes');
+    await expect(page.locator('h2:has-text("Settings")')).toBeHidden();
 
     // Verify settings via IPC
-    const settings = await window.evaluate(async () => {
+    const settings = await page.evaluate(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return await (window as any).ipcRenderer.getAppSettings();
     });
@@ -36,7 +36,7 @@ test.describe('Vim Mode', () => {
     expect(settings.editor.vimMode).toBe(true);
 
     // Verify status bar is visible
-    const statusBar = window.locator('[data-testid="vim-status"]').first();
+    const statusBar = page.locator('[data-testid="vim-status"]').first();
     await expect(statusBar).toBeVisible();
 
     // In Normal mode by default

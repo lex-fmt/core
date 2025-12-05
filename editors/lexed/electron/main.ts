@@ -905,7 +905,7 @@ if (process.platform === 'win32') {
 }
 
 // Single instance lock - ensure only one instance of the app runs
-const gotTheLock = app.requestSingleInstanceLock();
+const gotTheLock = process.env.LEX_DISABLE_SINGLE_INSTANCE_LOCK === '1' ? true : app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   // Another instance is already running, quit this one

@@ -1,4 +1,16 @@
-import type { Page } from '@playwright/test';
+import { _electron as electron, type Page } from '@playwright/test';
+
+export async function launchApp() {
+  const app = await electron.launch({
+    args: ['.'],
+    env: {
+      ...process.env,
+      NODE_ENV: 'development',
+      LEX_DISABLE_SINGLE_INSTANCE_LOCK: '1',
+    },
+  });
+  return app;
+}
 
 type LexTestWindow = Window & {
   lexTest?: {

@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, _electron as electron } from '@playwright/test';
-import { openFixture } from './helpers';
+import { test, expect } from '@playwright/test';
+import { openFixture, launchApp } from './helpers';
 
 const UNFORMATTED_CONTENT = `Hello This is a title
 
@@ -29,18 +28,12 @@ const EXPECTED_PROPERTIES = {
 
 test.describe('Format Document', () => {
   test('formats document via toolbar button and records formatter options', async () => {
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'development',
-      },
-    });
+    const electronApp = await launchApp();
 
-    const window = await electronApp.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
-    await openFixture(window, 'format-basic.lex');
-    await window.evaluate(() => (window as any).ipcRenderer.setFormatterSettings?.({
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
+    await openFixture(page, 'format-basic.lex');
+    await page.evaluate(() => (window as any).ipcRenderer.setFormatterSettings?.({
       sessionBlankLinesBefore: 1,
       sessionBlankLinesAfter: 1,
       normalizeSeqMarkers: true,
@@ -52,25 +45,25 @@ test.describe('Format Document', () => {
       formatOnSave: false,
     }));
 
-    const editor = window.locator('.monaco-editor').first();
+    const editor = page.locator('.monaco-editor').first();
     await expect(editor).toBeVisible();
-    await window.waitForTimeout(2000);
+    await page.waitForTimeout(2000);
 
-    await window.evaluate(({ content }) => (window as any).lexTest?.setActiveEditorValue?.(content), { content: UNFORMATTED_CONTENT });
-    await window.waitForTimeout(300);
-    const beforeFormat = await window.evaluate(() => (window as any).lexTest?.getActiveEditorValue() ?? '');
+    await page.evaluate(({ content }) => (window as any).lexTest?.setActiveEditorValue?.(content), { content: UNFORMATTED_CONTENT });
+    await page.waitForTimeout(300);
+    const beforeFormat = await page.evaluate(() => (window as any).lexTest?.getActiveEditorValue() ?? '');
     expect(beforeFormat).toBe(UNFORMATTED_CONTENT);
 
-    const formatButton = window.locator('button[title="Format Document"]');
+    const formatButton = page.locator('button[title="Format Document"]');
     await expect(formatButton).toBeVisible();
-    await window.evaluate(() => {
+    await page.evaluate(() => {
       (window as any).lexTest?.resetFormattingRequest?.();
       (window as any).__lexLastFormattingRequest = null;
     });
     await formatButton.click();
 
-    await window.waitForFunction(() => Boolean((window as any).__lexLastFormattingRequest));
-    const formattingRequest = await window.evaluate(() => (window as any).__lexLastFormattingRequest);
+    await page.waitForFunction(() => Boolean((window as any).__lexLastFormattingRequest));
+    const formattingRequest = await page.evaluate(() => (window as any).__lexLastFormattingRequest);
     expect(formattingRequest?.type).toBe('document');
     expect(formattingRequest?.params?.options).toMatchObject({
       tabSize: 4,
@@ -78,7 +71,7 @@ test.describe('Format Document', () => {
       ...EXPECTED_PROPERTIES,
     });
 
-    const contentAfter = await window.evaluate(() => (window as any).lexTest?.getActiveEditorValue() ?? '');
+    const contentAfter = await page.evaluate(() => (window as any).lexTest?.getActiveEditorValue() ?? '');
     expect(contentAfter).not.toEqual(UNFORMATTED_CONTENT);
     expect(contentAfter.trim().length).toBeGreaterThan(0);
 
@@ -86,18 +79,12 @@ test.describe('Format Document', () => {
   });
 
   test('formats document via application menu command', async () => {
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'development',
-      },
-    });
+    const electronApp = await launchApp();
 
-    const window = await electronApp.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
-    await openFixture(window, 'format-basic.lex');
-    await window.evaluate(() => (window as any).ipcRenderer.setFormatterSettings?.({
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
+    await openFixture(page, 'format-basic.lex');
+    await page.evaluate(() => (window as any).ipcRenderer.setFormatterSettings?.({
       sessionBlankLinesBefore: 1,
       sessionBlankLinesAfter: 1,
       normalizeSeqMarkers: true,
@@ -109,13 +96,13 @@ test.describe('Format Document', () => {
       formatOnSave: false,
     }));
 
-    const editor = window.locator('.monaco-editor').first();
+    const editor = page.locator('.monaco-editor').first();
     await expect(editor).toBeVisible();
-    await window.waitForTimeout(2000);
+    await page.waitForTimeout(2000);
 
-    await window.evaluate(({ content }) => (window as any).lexTest?.setActiveEditorValue?.(content), { content: UNFORMATTED_CONTENT });
-    await window.waitForTimeout(300);
-    await window.evaluate(() => {
+    await page.evaluate(({ content }) => (window as any).lexTest?.setActiveEditorValue?.(content), { content: UNFORMATTED_CONTENT });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
       (window as any).lexTest?.resetFormattingRequest?.();
       (window as any).__lexLastFormattingRequest = null;
     });
@@ -125,29 +112,23 @@ test.describe('Format Document', () => {
       menu?.getMenuItemById('menu-format')?.click();
     });
 
-    await window.waitForFunction(() => Boolean((window as any).__lexLastFormattingRequest));
-    const formattingRequest = await window.evaluate(() => (window as any).__lexLastFormattingRequest);
+    await page.waitForFunction(() => Boolean((window as any).__lexLastFormattingRequest));
+    const formattingRequest = await page.evaluate(() => (window as any).__lexLastFormattingRequest);
     expect(formattingRequest?.type).toBe('document');
 
-    const contentAfter = await window.evaluate(() => (window as any).lexTest?.getActiveEditorValue() ?? '');
+    const contentAfter = await page.evaluate(() => (window as any).lexTest?.getActiveEditorValue() ?? '');
     expect(contentAfter).not.toEqual(UNFORMATTED_CONTENT);
 
     await electronApp.close();
   });
 
   test('format button is disabled when no file is open', async () => {
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'development',
-      },
-    });
+    const electronApp = await launchApp();
 
-    const window = await electronApp.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
 
-    const formatButton = window.locator('button[title="Format Document"]');
+    const formatButton = page.locator('button[title="Format Document"]');
     await expect(formatButton).toBeVisible();
     await expect(formatButton).toBeDisabled();
 

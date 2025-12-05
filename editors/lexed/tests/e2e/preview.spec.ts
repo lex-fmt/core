@@ -1,14 +1,9 @@
-import { test, expect, _electron as electron } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { launchApp } from './helpers';
 
 test.describe('Preview Feature', () => {
   test('opens HTML preview for lex file', async () => {
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'development',
-      },
-    });
+    const electronApp = await launchApp();
 
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
@@ -52,14 +47,7 @@ test.describe('Preview Feature', () => {
   });
 
   test('preview button enables only for lex files', async () => {
-    const electronApp = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'development',
-      },
-    });
-
+    const electronApp = await launchApp();
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
 
