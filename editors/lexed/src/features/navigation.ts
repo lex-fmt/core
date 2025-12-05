@@ -1,13 +1,8 @@
 import * as monaco from 'monaco-editor';
 import { lspClient } from '../lsp/client';
+import { isLocation, type Location } from '@/lib/navigation';
 
-export interface Location {
-    uri: string;
-    range: {
-        start: { line: number; character: number };
-        end: { line: number; character: number };
-    };
-}
+export { type Location };
 
 async function invokeNavigationCommand(
     editor: monaco.editor.IStandaloneCodeEditor,
@@ -25,8 +20,8 @@ async function invokeNavigationCommand(
             arguments: [model.uri.toString(), { line: position.lineNumber - 1, character: position.column - 1 }]
         });
 
-        if (response && typeof response === 'object' && 'uri' in response && 'range' in response) {
-            return response as Location;
+        if (isLocation(response)) {
+            return response;
         }
     } catch (error) {
         console.error(`Failed to execute ${command}:`, error);
