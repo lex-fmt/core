@@ -54,11 +54,17 @@ export interface WindowState {
   activePaneId?: string;
 }
 
+export interface SpellcheckSettings {
+  enabled: boolean;
+  language: string;
+}
+
 export interface AppSettings {
   openWindows?: WindowState[];
   // Global settings
   editor?: EditorSettings;
   formatter?: FormatterSettings;
+  spellcheck?: SpellcheckSettings;
   // Legacy fields (for migration)
   lastFolder?: string;
   openTabs?: string[];

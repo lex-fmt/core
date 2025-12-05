@@ -2,6 +2,7 @@ use super::VerbatimHandler;
 use crate::ir::nodes::{
     DocNode, InlineContent, Paragraph, Table, TableCell, TableCellAlignment, TableRow,
 };
+use lex_parser::lex::ast::Verbatim;
 use std::collections::HashMap;
 
 /// Handler for `doc.table` verbatim blocks.
@@ -24,6 +25,71 @@ impl VerbatimHandler for TableHandler {
         } else {
             None
         }
+    }
+
+    fn format_content(
+        &self,
+        verbatim: &Verbatim,
+    ) -> Result<Option<String>, crate::error::FormatError> {
+        // Reconstruct content from lines
+        let mut content = String::new();
+        for item in &verbatim.children {
+            if let lex_parser::lex::ast::ContentItem::VerbatimLine(line) = item {
+                content.push_str(line.content.as_string());
+                content.push('\n');
+            }
+        }
+
+        // Dedent content to ensure markdown parser sees a table, not a code block
+        let lines: Vec<&str> = content.lines().collect();
+        let min_indent = lines
+            .iter()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.len() - line.trim_start().len())
+            .min()
+            .unwrap_or(0);
+
+        let dedented_content = lines
+            .iter()
+            .map(|line| {
+                if line.len() >= min_indent {
+                    &line[min_indent..]
+                } else {
+                    line
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        // Parse the dedented content as markdown
+        let doc = match crate::formats::markdown::parser::parse_from_markdown(&dedented_content) {
+            Ok(d) => d,
+            Err(e) => {
+                // We return Ok(None) instead of Err because formatting failure shouldn't break serialization
+                // It just means we can't format it nicely
+                println!("TableHandler: Markdown parse failed: {e:?}");
+                return Ok(None);
+            }
+        };
+
+        // The markdown parser should have identified a table
+        // It converts markdown tables to Lex VerbatimBlock with "table" label (or similar)
+        // with the content already formatted (by serialize_pipe_table during conversion).
+        // We just need to extract it.
+        for child in &doc.root.children {
+            if let lex_parser::lex::ast::ContentItem::VerbatimBlock(verbatim) = child {
+                // Reconstruct content from lines
+                let mut formatted = String::new();
+                for item in &verbatim.children {
+                    if let lex_parser::lex::ast::ContentItem::VerbatimLine(line) = item {
+                        formatted.push_str(line.content.as_string());
+                        formatted.push('\n');
+                    }
+                }
+                return Ok(Some(formatted));
+            }
+        }
+        Ok(None)
     }
 }
 

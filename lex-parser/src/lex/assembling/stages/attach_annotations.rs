@@ -710,4 +710,18 @@ mod tests {
         assert_eq!(paragraphs[1].annotations.len(), 1);
         assert_eq!(paragraphs[1].annotations[0].data.label.value, "test");
     }
+    #[test]
+    fn test_benchmark_50_repro() {
+        let source = ":: doc.note severity=info :: Document preface.\n\n1. Intro\n";
+        let doc = parse_without_annotation_attachment(source).unwrap();
+        let stage = AttachAnnotations::new();
+        let result = stage.run(doc).unwrap();
+
+        assert_eq!(
+            result.annotations.len(),
+            1,
+            "Should have 1 document-level annotation"
+        );
+        assert_eq!(result.annotations[0].data.label.value, "doc.note");
+    }
 }

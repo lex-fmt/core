@@ -208,6 +208,14 @@ mod tests {
     }
 
     #[test]
+    fn test_lex_indented_marker() {
+        let input = "  ::";
+        let tokens = lex_helper(input);
+        let token_kinds: Vec<Token> = tokens.iter().map(|(t, _)| t.clone()).collect();
+        println!("LEXING Tokens: {token_kinds:?}");
+    }
+
+    #[test]
     fn test_mixed_content_pattern() {
         let input = "1. Session\n    - Item 1\n    - Item 2\n\nParagraph after.";
         let tokens = lex_helper(input);

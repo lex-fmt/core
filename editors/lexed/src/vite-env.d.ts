@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /// <reference types="vite/client" />
 
 interface Window {
@@ -56,6 +57,7 @@ interface Window {
       normalizeVerbatimMarkers: boolean;
       formatOnSave: boolean;
     }) => Promise<boolean>;
+    setSpellcheckSettings: (settings: { enabled: boolean; language: string }) => Promise<boolean>;
     onSettingsChanged: (callback: (settings: any) => void) => () => void;
   }
   lexTest?: {

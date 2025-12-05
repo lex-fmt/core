@@ -153,6 +153,10 @@
       {
         "from": "welcome",
         "to": "welcome"
+      },
+      {
+        "from": "dictionaries",
+        "to": "dictionaries"
       }
     ]
   }

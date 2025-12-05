@@ -654,6 +654,7 @@ fn parse_lex_annotation_close(html: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lex_parser::lex::ast::AstNode;
 
     #[test]
     fn test_simple_paragraph() {
@@ -679,5 +680,34 @@ mod tests {
         let doc = parse_from_markdown(md).unwrap();
 
         assert!(!doc.root.children.is_empty());
+    }
+
+    #[test]
+    fn test_table_parsing() {
+        let md = "|A|B|\n|-|-|\n|1|2|\n";
+        let doc = parse_from_markdown(md).unwrap();
+
+        println!("Children count: {}", doc.root.children.len());
+        for child in &doc.root.children {
+            println!("Child type: {}", child.node_type());
+        }
+
+        // Should have a table
+        let has_table = doc.root.children.iter().any(|c| {
+            if let lex_parser::lex::ast::ContentItem::VerbatimBlock(v) = c {
+                let mut text = String::new();
+                for child in &v.children {
+                    if let lex_parser::lex::ast::ContentItem::VerbatimLine(l) = child {
+                        text.push_str(l.content.as_string());
+                        text.push('\n');
+                    }
+                }
+                // Check for alignment (at least 3 dashes for separator)
+                text.contains("| --- |")
+            } else {
+                false
+            }
+        });
+        assert!(has_table, "Document should contain an aligned table");
     }
 }
