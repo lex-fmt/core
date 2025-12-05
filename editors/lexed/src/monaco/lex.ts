@@ -16,6 +16,7 @@ export function registerLexLanguage() {
         lineComment: ':: note :: ',
         blockComment: [':: note ::\n  ', '\n::'],
       },
+      wordPattern: /[-#]+|[^\s]+/,
     });
   }
 
