@@ -241,37 +241,11 @@ local function get_default_export_path(format)
   return base .. ext
 end
 
--- Find the lex CLI binary
-local function get_lex_cli_path()
-  -- Check for user-configured path
-  local config = vim.g.lex_cli_path
-  if config and vim.fn.executable(config) == 1 then
-    return config
-  end
-
-  -- Check if 'lex' is in PATH
-  if vim.fn.executable("lex") == 1 then
-    return "lex"
-  end
-
-  -- Fall back to project debug binary (for development)
-  local script_path = debug.getinfo(1).source:sub(2)
-  local plugin_dir = vim.fn.fnamemodify(script_path, ":p:h:h:h")
-  local project_root = vim.fn.fnamemodify(plugin_dir, ":h:h")
-  local debug_path = project_root .. "/target/debug/lex"
-
-  if vim.fn.executable(debug_path) == 1 then
-    return debug_path
-  end
-
-  return nil
-end
-
--- Export current buffer to specified format
+-- Export current buffer to specified format via LSP
 local function export_to_format(format, output_path)
-  local cli_path = get_lex_cli_path()
-  if not cli_path then
-    vim.notify("Lex CLI not found. Set vim.g.lex_cli_path or install lex.", vim.log.levels.ERROR)
+  local client = get_lex_client()
+  if not client then
+    vim.notify("Lex LSP not attached", vim.log.levels.WARN)
     return
   end
 
@@ -281,36 +255,34 @@ local function export_to_format(format, output_path)
     return
   end
 
-  -- Save current buffer to ensure content is written
-  vim.cmd("silent write")
-
   local target_path = output_path or get_default_export_path(format)
   if not target_path then
     vim.notify("Could not determine output path", vim.log.levels.ERROR)
     return
   end
 
-  local cmd
-  if format == "pdf" then
-    cmd = { cli_path, "convert", "--to", format, "--output", target_path, buf_name }
-  else
-    cmd = { cli_path, "convert", "--to", format, buf_name }
-  end
+  -- Get buffer content
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local content = table.concat(lines, "\n")
 
-  local result = vim.system(cmd, { text = true }):wait()
+  -- Build arguments: [format, content, sourceUri, outputPath]
+  local uri = vim.uri_from_bufnr(0)
+  local result = execute_lsp_command("lex.export", { format, content, uri, target_path })
 
-  if result.code ~= 0 then
-    vim.notify("Export failed: " .. (result.stderr or "unknown error"), vim.log.levels.ERROR)
+  if not result then
+    vim.notify("Export failed", vim.log.levels.ERROR)
     return
   end
 
+  -- For text formats (markdown, html), LSP returns the content as string
+  -- For binary formats (pdf), LSP writes to outputPath and returns the path
   if format == "pdf" then
     vim.notify("Exported to " .. target_path, vim.log.levels.INFO)
   else
-    -- Write stdout to target file
+    -- Write the returned content to target file
     local file = io.open(target_path, "w")
     if file then
-      file:write(result.stdout)
+      file:write(result)
       file:close()
       vim.notify("Exported to " .. target_path, vim.log.levels.INFO)
     else
@@ -335,9 +307,9 @@ function M.export_pdf(opts)
 end
 
 function M.import_markdown()
-  local cli_path = get_lex_cli_path()
-  if not cli_path then
-    vim.notify("Lex CLI not found. Set vim.g.lex_cli_path or install lex.", vim.log.levels.ERROR)
+  local client = get_lex_client()
+  if not client then
+    vim.notify("Lex LSP not attached", vim.log.levels.WARN)
     return
   end
 
@@ -352,23 +324,23 @@ function M.import_markdown()
     return
   end
 
-  -- Save current buffer
-  vim.cmd("silent write")
+  -- Get buffer content
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local content = table.concat(lines, "\n")
 
-  local target_path = buf_name:gsub("%.md$", "") .. ".lex"
-  local cmd = { cli_path, "convert", "--to", "lex", buf_name }
+  -- Call LSP import command: [format, content]
+  local result = execute_lsp_command("lex.import", { "markdown", content })
 
-  local result = vim.system(cmd, { text = true }):wait()
-
-  if result.code ~= 0 then
-    vim.notify("Import failed: " .. (result.stderr or "unknown error"), vim.log.levels.ERROR)
+  if not result then
+    vim.notify("Import failed", vim.log.levels.ERROR)
     return
   end
 
   -- Write to .lex file and open it
+  local target_path = buf_name:gsub("%.md$", "") .. ".lex"
   local file = io.open(target_path, "w")
   if file then
-    file:write(result.stdout)
+    file:write(result)
     file:close()
     vim.cmd("edit " .. target_path)
     vim.notify("Imported to " .. target_path, vim.log.levels.INFO)

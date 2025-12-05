@@ -1,4 +1,4 @@
--- Test: Import markdown command
+-- Test: Import markdown command via LSP
 
 local script_path = debug.getinfo(1).source:sub(2)
 local test_dir = vim.fn.fnamemodify(script_path, ":p:h")
@@ -34,20 +34,57 @@ end
 
 print("TEST_PASSED: LexImportMarkdown user command is registered")
 
--- Test that the CLI binary can be found
-local lex_cli_path = project_root .. "/target/debug/lex"
-if vim.fn.executable(lex_cli_path) ~= 1 then
-  print("TEST_FAILED: lex CLI binary not found at " .. lex_cli_path)
+-- Set up LSP for actual import test
+vim.filetype.add({ extension = { md = "markdown", lex = "lex" } })
+
+-- Create a temp .lex file to get LSP attached (LSP attaches to .lex files)
+local temp_lex = vim.fn.tempname() .. ".lex"
+local f = io.open(temp_lex, "w")
+if not f then
+  print("TEST_FAILED: Could not create temp lex file")
+  vim.cmd("cquit 1")
+end
+f:write("Placeholder")
+f:close()
+
+vim.cmd("edit " .. temp_lex)
+
+-- Wait for LSP to attach
+local lsp_binary = project_root .. "/target/debug/lex-lsp"
+if vim.fn.executable(lsp_binary) ~= 1 then
+  print("TEST_FAILED: lex-lsp binary not found at " .. lsp_binary)
   vim.cmd("cquit 1")
 end
 
-print("TEST_PASSED: lex CLI binary found")
+-- Start LSP client
+vim.lsp.start({
+  name = "lex_lsp",
+  cmd = { lsp_binary },
+  root_dir = vim.fn.getcwd(),
+  filetypes = { "lex" },
+})
 
--- Test actual import functionality by creating a temp markdown file
-vim.filetype.add({ extension = { md = "markdown" } })
+-- Wait for LSP to be ready
+local max_wait = 5000
+local waited = 0
+while waited < max_wait do
+  local clients = vim.lsp.get_clients({ name = "lex_lsp", bufnr = 0 })
+  if #clients > 0 then
+    break
+  end
+  vim.wait(100)
+  waited = waited + 100
+end
 
--- Create a temp .md file with some content
-local temp_md = vim.fn.tempname() .. ".md"
+local clients = vim.lsp.get_clients({ name = "lex_lsp", bufnr = 0 })
+if #clients == 0 then
+  print("TEST_FAILED: LSP client did not attach")
+  vim.cmd("cquit 1")
+end
+
+print("TEST_PASSED: LSP client attached")
+
+-- Test import via LSP
 local md_content = [[# Test
 
 This is a test document for import.
@@ -56,37 +93,33 @@ This is a test document for import.
 - Item 2
 ]]
 
-local f = io.open(temp_md, "w")
-if not f then
-  print("TEST_FAILED: Could not create temp file")
-  vim.cmd("cquit 1")
-end
-f:write(md_content)
-f:close()
+local client = clients[1]
+local result = client.request_sync("workspace/executeCommand", {
+  command = "lex.import",
+  arguments = { "markdown", md_content },
+}, 5000, 0)
 
--- Test that lex convert --to lex works
-local lex_result = vim.system({ lex_cli_path, "convert", "--to", "lex", temp_md }, { text = true }):wait()
-
-if lex_result.code ~= 0 then
-  print("TEST_FAILED: lex convert --to lex failed: " .. (lex_result.stderr or "unknown error"))
+if not result or not result.result then
+  print("TEST_FAILED: lex.import markdown LSP command failed")
   vim.cmd("cquit 1")
 end
 
-if not lex_result.stdout or lex_result.stdout == "" then
-  print("TEST_FAILED: lex convert --to lex returned empty output")
+local lex_output = result.result
+if type(lex_output) ~= "string" or lex_output == "" then
+  print("TEST_FAILED: lex.import markdown returned empty or non-string result")
   vim.cmd("cquit 1")
 end
 
 -- Check that the lex output contains expected content
-if not lex_result.stdout:match("Test") then
+if not lex_output:match("Test") then
   print("TEST_FAILED: lex output doesn't contain expected content")
   vim.cmd("cquit 1")
 end
 
-print("TEST_PASSED: lex convert --to lex works")
+print("TEST_PASSED: lex.import markdown via LSP works")
 
 -- Clean up
-vim.fn.delete(temp_md)
+vim.fn.delete(temp_lex)
 
 print("TEST_PASSED: All import markdown tests passed")
 vim.cmd("qall!")
