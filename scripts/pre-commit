@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Pre-commit hook for lex-core
+# Pre-commit hook for Rust repos
 # Runs formatting, linting, and testing
 #
 # Usage:
@@ -9,7 +9,21 @@
 
 set -e
 
-echo "Running pre-commit checks for lex-core..."
+# Dynamically determine the repo/package name from Cargo.toml
+# First try to get workspace root name, then fall back to package name
+if [ -f "Cargo.toml" ]; then
+    # Try to extract package name first (for single-package repos)
+    REPO_NAME=$(grep '^name = ' Cargo.toml | head -1 | sed 's/name = "\(.*\)"/\1/')
+    
+    # If no package name found, try workspace (and use directory name as fallback)
+    if [ -z "$REPO_NAME" ]; then
+        REPO_NAME=$(basename "$(pwd)")
+    fi
+else
+    REPO_NAME="current repo"
+fi
+
+echo "Running pre-commit checks for $REPO_NAME..."
 
 # 1. Check formatting
 echo ""
